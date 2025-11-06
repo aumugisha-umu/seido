@@ -51,19 +51,47 @@ interface ContactFormData {
 interface ContactCreationClientProps {
   teamId: string
   initialCompanies: Company[]
+  // Redirect parameters when coming from another form (e.g., building creation)
+  prefilledType?: string | null
+  sessionKey?: string | null
+  returnUrl?: string | null
 }
 
 export function ContactCreationClient({
   teamId,
-  initialCompanies
+  initialCompanies,
+  prefilledType,
+  sessionKey,
+  returnUrl
 }: ContactCreationClientProps) {
   const router = useRouter()
   const [currentStep, setCurrentStep] = useState(1)
   const [isCreating, setIsCreating] = useState(false)
 
-  // État du formulaire
+  // Mapping des types anglais (ContactSelector) vers français (formulaire)
+  const mapContactType = (type: string | null | undefined): ContactFormData['contactType'] => {
+    if (!type) return 'locataire'
+
+    const mapping: Record<string, ContactFormData['contactType']> = {
+      'tenant': 'locataire',
+      'provider': 'prestataire',
+      'manager': 'gestionnaire',
+      'owner': 'proprietaire',
+      'other': 'autre',
+      // Support direct des valeurs françaises aussi
+      'locataire': 'locataire',
+      'prestataire': 'prestataire',
+      'gestionnaire': 'gestionnaire',
+      'proprietaire': 'proprietaire',
+      'autre': 'autre'
+    }
+
+    return mapping[type.toLowerCase()] || 'locataire'
+  }
+
+  // État du formulaire avec pré-remplissage si venant d'un autre formulaire
   const [formData, setFormData] = useState<ContactFormData>({
-    contactType: 'locataire',
+    contactType: mapContactType(prefilledType),
     personOrCompany: 'person',
     companyMode: 'new',
     email: '',
@@ -314,30 +342,37 @@ export function ContactCreationClient({
     try {
       logger.info("📤 [CREATE-CONTACT] Submitting contact creation", { formData })
 
+      // Préparer les données à envoyer
+      const payload: any = {
+        teamId,
+        role: formData.contactType,
+        contactType: formData.personOrCompany,
+        speciality: formData.specialty,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        notes: formData.notes,
+        shouldInviteToApp: formData.inviteToApp
+      }
+
+      // Ajouter les champs société uniquement si contactType === 'company'
+      if (formData.personOrCompany === 'company') {
+        payload.companyMode = formData.companyMode
+        payload.companyId = formData.companyId
+        payload.companyName = formData.companyName
+        payload.vatNumber = formData.vatNumber
+        payload.street = formData.street
+        payload.streetNumber = formData.streetNumber
+        payload.postalCode = formData.postalCode
+        payload.city = formData.city
+        payload.country = formData.country
+      }
+
       const response = await fetch('/api/invite-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          teamId,
-          role: formData.contactType,
-          contactType: formData.personOrCompany,
-          speciality: formData.specialty,
-          companyMode: formData.companyMode,
-          companyId: formData.companyId,
-          companyName: formData.companyName,
-          vatNumber: formData.vatNumber,
-          street: formData.street,
-          streetNumber: formData.streetNumber,
-          postalCode: formData.postalCode,
-          city: formData.city,
-          country: formData.country,
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          phone: formData.phone,
-          notes: formData.notes,
-          shouldInviteToApp: formData.inviteToApp
-        })
+        body: JSON.stringify(payload)
       })
 
       if (!response.ok) {
@@ -345,12 +380,42 @@ export function ContactCreationClient({
         throw new Error(errorData.error || 'Erreur lors de la création du contact')
       }
 
-      logger.info("✅ [CREATE-CONTACT] Contact created successfully")
+      // Récupérer l'ID du contact créé
+      const result = await response.json()
+      const newContactId = result.userId || result.contactId || result.id
+
+      logger.info("✅ [CREATE-CONTACT] Contact created successfully", { newContactId, result })
       toast.success(getSuccessMessage())
 
-      // Redirection vers la liste des contacts
-      router.push('/gestionnaire/contacts')
-      router.refresh()
+      // Redirection: Retour au formulaire d'origine si returnUrl fourni, sinon liste des contacts
+      if (returnUrl && sessionKey) {
+        // Créer un objet contact minimal pour le formulaire de retour
+        const contactData = {
+          id: newContactId,
+          name: formData.personOrCompany === 'person'
+            ? `${formData.firstName || ''} ${formData.lastName || ''}`.trim() || 'Contact créé'
+            : formData.companyName || 'Société créée',
+          email: formData.email || '',
+          type: formData.contactType,
+          phone: formData.phone || '',
+          speciality: formData.specialty || ''
+        }
+
+        // Stocker les données du contact dans sessionStorage avec le sessionKey
+        try {
+          sessionStorage.setItem(`contact-data-${sessionKey}`, JSON.stringify(contactData))
+          logger.info(`💾 [CREATE-CONTACT] Contact data saved to sessionStorage`)
+        } catch (err) {
+          logger.error(`❌ [CREATE-CONTACT] Failed to save contact data:`, err)
+        }
+
+        const redirectUrl = `${returnUrl}?sessionKey=${sessionKey}&newContactId=${newContactId}&contactType=${formData.contactType}`
+        logger.info(`🔙 [CREATE-CONTACT] Returning to origin: ${redirectUrl}`)
+        router.push(redirectUrl)
+      } else {
+        router.push('/gestionnaire/contacts')
+        router.refresh()
+      }
     } catch (error) {
       logger.error("❌ [CREATE-CONTACT] Error:", error)
       toast.error(error instanceof Error ? error.message : 'Erreur lors de la création')
@@ -381,8 +446,17 @@ export function ContactCreationClient({
       <StepProgressHeader
         title="Créer un contact"
         subtitle={getStepSubtitle()}
-        backButtonText="Retour à la liste"
-        onBack={() => router.push('/gestionnaire/contacts')}
+        backButtonText={returnUrl ? "Annuler" : "Retour à la liste"}
+        onBack={() => {
+          if (returnUrl && sessionKey) {
+            // Retour au formulaire d'origine sans créer de contact
+            const redirectUrl = `${returnUrl}?sessionKey=${sessionKey}&cancelled=true`
+            logger.info(`🔙 [CREATE-CONTACT] Cancelled, returning to origin: ${redirectUrl}`)
+            router.push(redirectUrl)
+          } else {
+            router.push('/gestionnaire/contacts')
+          }
+        }}
         steps={contactSteps}
         currentStep={currentStep}
       />

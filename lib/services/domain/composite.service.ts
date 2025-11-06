@@ -8,7 +8,6 @@ import { BuildingService, createBuildingService, createServerBuildingService, cr
 import { LotService, createLotService, createServerLotService, createServerActionLotService } from './lot.service'
 import { ContactService, createContactService, createServerContactService, createServerActionContactService } from './contact.service'
 import { TeamService, createTeamService, createServerTeamService, createServerActionTeamService } from './team.service'
-import { cache } from '@/lib/cache/cache-manager'
 import type {
   User,
   Building,
@@ -594,40 +593,34 @@ export class CompositeService {
       buildingOperation.entityId = building.id
       buildingOperation.status = 'completed'
 
-      // Step 1.5: Create building_contacts
+      // Step 1.5: Create building_contacts (OPTIMIZED: Bulk insert)
       if (data.buildingContacts && data.buildingContacts.length > 0) {
-        for (const buildingContact of data.buildingContacts) {
-          const buildingContactOperation: CompositeOperation = {
-            id: `building-contact-${Date.now()}-${Math.random()}`,
-            type: 'create',
-            service: 'contact',
-            entity: 'building_contact',
-            data: {
-              building_id: building.id,
-              user_id: buildingContact.id,
-              is_primary: buildingContact.isPrimary
-            },
-            status: 'pending',
-            timestamp: new Date().toISOString()
-          }
-          operations.push(buildingContactOperation)
+        // Prepare all building contacts for bulk insert
+        const buildingContactsToInsert = data.buildingContacts.map(contact => ({
+          building_id: building.id,
+          user_id: contact.id,
+          is_primary: contact.isPrimary
+        }))
 
-          // Direct Supabase insert into building_contacts junction table
-          const { error: insertError } = await this.buildingService['repository']['supabase']
-            .from('building_contacts')
-            .insert({
-              building_id: building.id,
-              user_id: buildingContact.id,
-              is_primary: buildingContact.isPrimary
-            })
+        // Single bulk insert instead of loop
+        const { error: insertError } = await this.buildingService['repository']['supabase']
+          .from('building_contacts')
+          .insert(buildingContactsToInsert)
 
-          if (insertError) {
-            buildingContactOperation.status = 'failed'
-            throw new Error(`Building contact assignment failed for user ${buildingContact.id}: ${insertError.message}`)
-          }
-
-          buildingContactOperation.status = 'completed'
+        if (insertError) {
+          throw new Error(`Building contacts assignment failed: ${insertError.message}`)
         }
+
+        // Track operation
+        operations.push({
+          id: `building-contacts-bulk-${Date.now()}`,
+          type: 'create',
+          service: 'contact',
+          entity: 'building_contact',
+          data: buildingContactsToInsert,
+          status: 'completed',
+          timestamp: new Date().toISOString()
+        })
       }
 
       // Step 2: Create lots
@@ -666,49 +659,52 @@ export class CompositeService {
         lotOperation.status = 'completed'
       }
 
-      // Step 3: Handle contact assignments to lots
-      // Insert into lot_contacts junction table
-      for (const assignment of data.lotContactAssignments) {
-        const lotIndex = assignment.lotIndex
-        if (lotIndex < 0 || lotIndex >= lots.length) {
-          throw new Error(`Invalid lot index: ${lotIndex}`)
-        }
+      // Step 3: Handle contact assignments to lots (OPTIMIZED: Bulk insert)
+      if (data.lotContactAssignments && data.lotContactAssignments.length > 0) {
+        // Prepare all lot contacts for bulk insert
+        const allLotContactsToInsert: Array<{
+          lot_id: string
+          user_id: string
+          is_primary: boolean
+        }> = []
 
-        const createdLot = lots[lotIndex]
-
-        for (const contactAssignment of assignment.assignments) {
-          const assignmentOperation: CompositeOperation = {
-            id: `lot-contact-${Date.now()}-${Math.random()}`,
-            type: 'create',
-            service: 'contact',
-            entity: 'lot_contact',
-            data: {
-              lot_id: createdLot.id,
-              user_id: contactAssignment.contactId,
-              is_primary: contactAssignment.isLotPrincipal || contactAssignment.isPrimary || false
-            },
-            status: 'pending',
-            timestamp: new Date().toISOString()
+        for (const assignment of data.lotContactAssignments) {
+          const lotIndex = assignment.lotIndex
+          if (lotIndex < 0 || lotIndex >= lots.length) {
+            throw new Error(`Invalid lot index: ${lotIndex}`)
           }
-          operations.push(assignmentOperation)
 
-          // Direct Supabase insert into lot_contacts junction table
-          const { data: insertedData, error: insertError } = await this.buildingService['repository']['supabase']
-            .from('lot_contacts')
-            .insert({
+          const createdLot = lots[lotIndex]
+
+          for (const contactAssignment of assignment.assignments) {
+            allLotContactsToInsert.push({
               lot_id: createdLot.id,
               user_id: contactAssignment.contactId,
               is_primary: contactAssignment.isLotPrincipal || contactAssignment.isPrimary || false
             })
-            .select()
-            .single()
+          }
+        }
+
+        // Single bulk insert for all lot contacts
+        if (allLotContactsToInsert.length > 0) {
+          const { error: insertError } = await this.buildingService['repository']['supabase']
+            .from('lot_contacts')
+            .insert(allLotContactsToInsert)
 
           if (insertError) {
-            assignmentOperation.status = 'failed'
-            throw new Error(`Contact assignment failed for lot ${createdLot.reference}: ` + insertError.message)
+            throw new Error(`Lot contacts assignment failed: ${insertError.message}`)
           }
 
-          assignmentOperation.status = 'completed'
+          // Track operation
+          operations.push({
+            id: `lot-contacts-bulk-${Date.now()}`,
+            type: 'create',
+            service: 'contact',
+            entity: 'lot_contact',
+            data: allLotContactsToInsert,
+            status: 'completed',
+            timestamp: new Date().toISOString()
+          })
         }
       }
 
@@ -1004,16 +1000,9 @@ export class CompositeService {
         await Promise.all(lotContactPromises)
       }
 
-      // ✅ FIX #2: Invalidate CacheManager (L1+L2) to ensure fresh data on next fetch
-      // This is critical because lots were modified, so building's full-relations cache is stale
-      // Must use cache.invalidate() instead of clearCache() because getCachedOrFetch() uses CacheManager
-      await cache.invalidate(`buildings:${data.buildingId}:full-relations`)
-      await cache.invalidate(`buildings:${data.buildingId}`)
-
-      // Also invalidate team-level cache for building lists
-      if (building.team_id) {
-        await this.buildingService['repository'].invalidateTeamCache(building.team_id)
-      }
+      // ✅ Cache invalidation now handled by Server Actions (building-actions.ts)
+      // Server Actions call revalidateTag() and revalidatePath() after successful operations
+      // This ensures Next.js 15 Data Cache and Router Cache are properly invalidated
 
       // Load all lots for the building to return complete data
       const allLotsResult = await this.buildingService.getById(data.buildingId)

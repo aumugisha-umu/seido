@@ -33,9 +33,10 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
-import { useToast } from "@/hooks/use-toast"
+import { toast } from "sonner"
+import { useSaveFormState, useRestoreFormState, loadFormState, clearFormState } from "@/hooks/use-form-persistence"
 import ContactFormModal from "@/components/contact-form-modal"  // Encore utilise pour la creation de gestionnaire
 import { BuildingInfoForm } from "@/components/building-info-form"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
@@ -143,8 +144,8 @@ export default function NewImmeubleePage({
   initialCategoryCounts
 }: NewImmeublePageProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { handleSuccess } = useCreationSuccess()
-  const { toast } = useToast()
   const { data: managerData, forceRefetch: refetchManagerData } = useManagerStats()
 
   // TOUS LES HOOKS useState DOIVENT ÊTRE AVANT LES EARLY RETURNS (Rules of Hooks)
@@ -214,6 +215,19 @@ export default function NewImmeubleePage({
     contactInvitation: ReturnType<typeof createContactInvitationService> | null
   } | null>(null)
 
+  // ✅ Hook pour sauvegarder l'état du formulaire avant redirect vers création de contact
+  const formState = {
+    currentStep,
+    buildingInfo,
+    lots,
+    buildingContacts,
+    buildingManagers,
+    assignedManagers,
+    lotContactAssignments,
+    expandedLots
+  }
+  const { saveAndRedirect } = useSaveFormState(formState)
+
   // Step 1: Créer les services quand userProfile est disponible
   useEffect(() => {
     if (!userProfile) {
@@ -240,6 +254,86 @@ export default function NewImmeubleePage({
   useEffect(() => {
     setIsMounted(true)
   }, [])
+
+  // ✅ Restaurer l'état du formulaire au retour de la création de contact
+  const { newContactId, cancelled } = useRestoreFormState((restoredState: any) => {
+    logger.info(`📥 [BUILDING-FORM] Restoring form state after contact creation`)
+
+    // Restaurer tous les états
+    setCurrentStep(restoredState.currentStep)
+    setBuildingInfo(restoredState.buildingInfo)
+    setLots(restoredState.lots)
+    setBuildingContacts(restoredState.buildingContacts)
+    setBuildingManagers(restoredState.buildingManagers)
+    setAssignedManagers(restoredState.assignedManagers)
+    setLotContactAssignments(restoredState.lotContactAssignments)
+    setExpandedLots(restoredState.expandedLots)
+  })
+
+  // Afficher un message de succès et ajouter automatiquement le contact créé
+  useEffect(() => {
+    if (!newContactId) return
+
+    const sessionKey = searchParams.get('sessionKey')
+    if (!sessionKey) return
+
+    logger.info(`✅ [BUILDING-FORM] New contact created: ${newContactId}`)
+
+    // Récupérer le type de contact depuis les searchParams
+    const contactType = searchParams.get('contactType')
+
+    // Mapper le type français vers les catégories du contact selector
+    const categoryMap: Record<string, string> = {
+      'prestataire': 'provider',
+      'locataire': 'tenant',
+      'proprietaire': 'owner',
+      'gestionnaire': 'other',
+      'autre': 'other'
+    }
+
+    const category = contactType ? categoryMap[contactType] : null
+
+    if (!category) {
+      logger.warn(`⚠️ [BUILDING-FORM] Unknown contact type: ${contactType}`)
+      toast.success('Contact créé avec succès ! Vous pouvez maintenant le sélectionner.')
+      return
+    }
+
+    // Récupérer les données du contact depuis sessionStorage
+    try {
+      const contactDataStr = sessionStorage.getItem(`contact-data-${sessionKey}`)
+      if (!contactDataStr) {
+        logger.warn(`⚠️ [BUILDING-FORM] No contact data found in sessionStorage`)
+        toast.success('Contact créé avec succès ! Vous pouvez maintenant le sélectionner.')
+        return
+      }
+
+      const contactData = JSON.parse(contactDataStr)
+
+      // Nettoyer le sessionStorage
+      sessionStorage.removeItem(`contact-data-${sessionKey}`)
+
+      // Vérifier que le contact n'est pas déjà ajouté
+      const existingContacts = buildingContacts[category] || []
+      if (existingContacts.some(c => c.id === contactData.id)) {
+        logger.info(`ℹ️ [BUILDING-FORM] Contact already in list, skipping`)
+        toast.success('Contact créé avec succès !')
+        return
+      }
+
+      // Ajouter le contact dans la bonne catégorie
+      setBuildingContacts(prev => ({
+        ...prev,
+        [category]: [...(prev[category] || []), contactData]
+      }))
+
+      logger.info(`✅ [BUILDING-FORM] Contact automatically added to ${category}`, contactData)
+      toast.success(`${contactData.name} ajouté automatiquement !`)
+    } catch (error) {
+      logger.error(`❌ [BUILDING-FORM] Failed to add contact:`, error)
+      toast.success('Contact créé avec succès ! Vous pouvez maintenant le sélectionner.')
+    }
+  }, [newContactId, searchParams, buildingContacts])
 
   // ✅ Initialiser buildingManagers avec l'utilisateur actuel par défaut
   useEffect(() => {
@@ -697,21 +791,10 @@ export default function NewImmeubleePage({
         throw new Error(errorMessage)
       }
 
-      // ✅ Afficher le toast de succès AVANT la redirection (Oct 23, 2025)
-      // Permet à l'utilisateur de voir la confirmation sur la page de création
-      toast({
-        title: "✅ Immeuble créé avec succès",
-        description: `L'immeuble "${result.data.building.name}" avec ${result.data.lots.length} lot(s) a été créé et assigné à votre équipe.`,
-        variant: "success",
-      })
-
-      // Attendre 2 secondes pour que l'utilisateur voie le toast
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      // Puis rediriger vers la liste des biens avec refresh des données
+      // ✅ Rediriger avec toast et refresh des données
       await handleSuccess({
-        successTitle: "", // Toast déjà affiché ci-dessus
-        successDescription: "",
+        successTitle: "✅ Immeuble créé avec succès",
+        successDescription: `L'immeuble "${result.data.building.name}" avec ${result.data.lots.length} lot(s) a été créé et assigné à votre équipe.`,
         redirectPath: "/gestionnaire/biens",
         refreshData: refetchManagerData,
       })
@@ -1235,6 +1318,11 @@ export default function NewImmeubleePage({
             } else {
               handleBuildingContactRemove(contactId, contactType)
             }
+          }}
+          onRequestContactCreation={(contactType, lotId) => {
+            // Sauvegarder et rediriger vers le flow multi-étapes
+            logger.info(`🔗 [BUILDING-FORM] Redirecting to contact creation flow`, { contactType, lotId })
+            saveAndRedirect('/gestionnaire/contacts/nouveau', { type: contactType })
           }}
         />
     </div>

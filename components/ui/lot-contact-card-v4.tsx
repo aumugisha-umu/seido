@@ -276,22 +276,28 @@ export function LotContactCardV4({
 
             {/* Scrollable list - max 3 contacts visible */}
             <div className="p-2 bg-white overflow-y-auto max-h-[138px] space-y-1.5 flex-1">
-                {/* Gestionnaires hérités de l'immeuble - NOT shown in readOnly mode */}
-                {!readOnly && buildingManagers.map((manager) => (
-                  <div key={`building-${manager.id}`} className="flex items-center justify-between p-2 bg-blue-50/30 rounded border border-blue-200/50">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                {/* Card récapitulative des gestionnaires hérités de l'immeuble */}
+                {buildingManagers.length > 0 && (
+                  <div className="p-2 bg-blue-50/40 rounded border border-blue-200/60">
+                    <div className="flex items-center gap-2">
                       <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
                         <Building className="w-4 h-4 text-blue-700" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{manager.name}</div>
-                        <div className="text-xs text-blue-600 truncate">Hérité de l'immeuble</div>
+                        <div className="font-medium text-sm text-blue-900">
+                          {buildingManagers.length} {buildingManagers.length === 1 ? 'gestionnaire associé' : 'gestionnaires associés'}
+                        </div>
+                        <div className="text-xs text-blue-700">Hérité{buildingManagers.length > 1 ? 's' : ''} de l'immeuble</div>
                       </div>
                     </div>
                   </div>
-                ))}
+                )}
 
                 {/* Gestionnaires spécifiques au lot */}
+                {!readOnly && buildingManagers.length > 0 && lotManagers.length === 0 && (
+                  <div className="border-t border-slate-200 my-1.5 pt-1.5" />
+                )}
+
                 {lotManagers.length > 0 ? (
                   lotManagers.map((manager) => (
                     <div key={manager.id} className="flex items-center justify-between p-2 bg-purple-50/50 rounded border border-purple-100">
@@ -382,22 +388,28 @@ export function LotContactCardV4({
 
             {/* Scrollable list - max 3 contacts visible */}
             <div className="p-2 bg-white overflow-y-auto max-h-[138px] space-y-1.5 flex-1">
-                {/* Prestataires hérités de l'immeuble - NOT shown in readOnly mode */}
-                {!readOnly && buildingProviders.map((contact) => (
-                  <div key={`building-${contact.id}`} className="flex items-center justify-between p-2 bg-blue-50/30 rounded border border-blue-200/50">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                {/* Card récapitulative des prestataires hérités de l'immeuble */}
+                {buildingProviders.length > 0 && (
+                  <div className="p-2 bg-blue-50/40 rounded border border-blue-200/60">
+                    <div className="flex items-center gap-2">
                       <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
                         <Building className="w-4 h-4 text-blue-700" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{contact.name}</div>
-                        <div className="text-xs text-blue-600 truncate">Hérité de l&apos;immeuble</div>
+                        <div className="font-medium text-sm text-blue-900">
+                          {buildingProviders.length} {buildingProviders.length === 1 ? 'prestataire associé' : 'prestataires associés'}
+                        </div>
+                        <div className="text-xs text-blue-700">Hérité{buildingProviders.length > 1 ? 's' : ''} de l'immeuble</div>
                       </div>
                     </div>
                   </div>
-                ))}
+                )}
 
                 {/* Prestataires spécifiques au lot */}
+                {!readOnly && buildingProviders.length > 0 && providers.length === 0 && (
+                  <div className="border-t border-slate-200 my-1.5 pt-1.5" />
+                )}
+
                 {providers.length > 0 ? (
                   providers.map((contact) => (
                     <div key={contact.id} className="flex items-center justify-between p-2 bg-green-50/50 rounded border border-green-100">
@@ -442,22 +454,28 @@ export function LotContactCardV4({
 
             {/* Scrollable list - max 3 contacts visible */}
             <div className="p-2 bg-white overflow-y-auto max-h-[138px] space-y-1.5 flex-1">
-                {/* Propriétaires hérités de l'immeuble - NOT shown in readOnly mode */}
-                {!readOnly && buildingOwners.map((contact) => (
-                  <div key={`building-${contact.id}`} className="flex items-center justify-between p-2 bg-blue-50/30 rounded border border-blue-200/50">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                {/* Card récapitulative des propriétaires hérités de l'immeuble */}
+                {buildingOwners.length > 0 && (
+                  <div className="p-2 bg-blue-50/40 rounded border border-blue-200/60">
+                    <div className="flex items-center gap-2">
                       <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
                         <Building className="w-4 h-4 text-blue-700" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{contact.name}</div>
-                        <div className="text-xs text-blue-600 truncate">Hérité de l&apos;immeuble</div>
+                        <div className="font-medium text-sm text-blue-900">
+                          {buildingOwners.length} {buildingOwners.length === 1 ? 'propriétaire associé' : 'propriétaires associés'}
+                        </div>
+                        <div className="text-xs text-blue-700">Hérité{buildingOwners.length > 1 ? 's' : ''} de l'immeuble</div>
                       </div>
                     </div>
                   </div>
-                ))}
+                )}
 
                 {/* Propriétaires spécifiques au lot */}
+                {!readOnly && buildingOwners.length > 0 && owners.length === 0 && (
+                  <div className="border-t border-slate-200 my-1.5 pt-1.5" />
+                )}
+
                 {owners.length > 0 ? (
                   owners.map((contact) => (
                     <div key={contact.id} className="flex items-center justify-between p-2 bg-orange-50/50 rounded border border-orange-100">
@@ -502,22 +520,28 @@ export function LotContactCardV4({
 
             {/* Scrollable list - max 3 contacts visible */}
             <div className="p-2 bg-white overflow-y-auto max-h-[138px] space-y-1.5 flex-1">
-                {/* Autres contacts hérités de l'immeuble - NOT shown in readOnly mode */}
-                {!readOnly && buildingOthers.map((contact) => (
-                  <div key={`building-${contact.id}`} className="flex items-center justify-between p-2 bg-blue-50/30 rounded border border-blue-200/50">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                {/* Card récapitulative des autres contacts hérités de l'immeuble */}
+                {buildingOthers.length > 0 && (
+                  <div className="p-2 bg-blue-50/40 rounded border border-blue-200/60">
+                    <div className="flex items-center gap-2">
                       <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
                         <Building className="w-4 h-4 text-blue-700" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{contact.name}</div>
-                        <div className="text-xs text-blue-600 truncate">Hérité de l&apos;immeuble</div>
+                        <div className="font-medium text-sm text-blue-900">
+                          {buildingOthers.length} {buildingOthers.length === 1 ? 'contact associé' : 'contacts associés'}
+                        </div>
+                        <div className="text-xs text-blue-700">Hérité{buildingOthers.length > 1 ? 's' : ''} de l'immeuble</div>
                       </div>
                     </div>
                   </div>
-                ))}
+                )}
 
                 {/* Autres contacts spécifiques au lot */}
+                {!readOnly && buildingOthers.length > 0 && others.length === 0 && (
+                  <div className="border-t border-slate-200 my-1.5 pt-1.5" />
+                )}
+
                 {others.length > 0 ? (
                   others.map((contact) => (
                     <div key={contact.id} className="flex items-center justify-between p-2 bg-gray-50/50 rounded border border-gray-100">

@@ -82,6 +82,8 @@ interface ContactSelectorProps {
   onDirectContactRemove?: (contactId: string, contactType: string, lotId?: string) => void
   // Callback quand un nouveau contact est créé - AVEC CONTEXTE
   onContactCreated?: (contact: Contact, contactType: string, context?: { lotId?: string }) => void
+  // NOUVEAU: Callback pour demander la création d'un contact (avec redirect vers le flow multi-étapes)
+  onRequestContactCreation?: (contactType: string, lotId?: string) => void
   // Classe CSS personnalisée
   className?: string
   // Si true, ne pas afficher le titre
@@ -109,6 +111,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   onContactRemoved,
   onDirectContactRemove,
   onContactCreated,
+  onRequestContactCreation,  // NOUVEAU: Callback pour redirect vers le flow multi-étapes
   className = "",
   hideTitle = false,
   hideUI = false,
@@ -162,6 +165,16 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
 
   // Ouvrir le modal de création de contact
   const openContactFormModal = (_type: string) => {
+    // Si un callback de redirection est fourni, l'utiliser (nouveau flow multi-étapes)
+    if (onRequestContactCreation) {
+      logger.info(`🔗 [CONTACT-SELECTOR] Triggering redirect to multi-step flow for type: ${_type}`)
+      onRequestContactCreation(_type, externalLotId || lotId)
+      setIsContactModalOpen(false)
+      return
+    }
+
+    // Sinon, comportement par défaut (ancien modal inline)
+    logger.info(`📝 [CONTACT-SELECTOR] Opening inline modal for type: ${_type}`)
     setPrefilledContactType(_type)
     setIsContactFormModalOpen(true)
     setIsContactModalOpen(false)

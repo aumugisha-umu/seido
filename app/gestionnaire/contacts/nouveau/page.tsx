@@ -6,12 +6,26 @@ import { ContactCreationClient } from './contact-creation-client'
 // ✅ Force dynamic rendering - cette page dépend toujours de la session
 export const dynamic = 'force-dynamic'
 
-export default async function NewContactPage() {
+export default async function NewContactPage({
+  searchParams
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
   try {
     logger.info("🔵 [NEW-CONTACT-PAGE] Server-side fetch starting")
 
     // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
     const { user, team } = await getServerAuthContext('gestionnaire')
+
+    // ✅ Lire les paramètres de redirection (si venant d'un autre formulaire)
+    const params = await searchParams
+    const prefilledType = params.type as string | undefined
+    const sessionKey = params.sessionKey as string | undefined
+    const returnUrl = params.returnUrl as string | undefined
+
+    if (prefilledType || sessionKey || returnUrl) {
+      logger.info(`🔗 [NEW-CONTACT-PAGE] Redirect params detected:`, { prefilledType, sessionKey, returnUrl })
+    }
 
     // ✅ Defensive guard
     if (!team || !team.id) {
@@ -34,11 +48,14 @@ export default async function NewContactPage() {
 
     logger.info(`📊 [NEW-CONTACT-PAGE] Server data ready - Companies: ${companies.length}`)
 
-    // ✅ Pass data to Client Component
+    // ✅ Pass data to Client Component (avec paramètres de redirection si présents)
     return (
       <ContactCreationClient
         teamId={team.id}
         initialCompanies={companies}
+        prefilledType={prefilledType}
+        sessionKey={sessionKey}
+        returnUrl={returnUrl}
       />
     )
   } catch (error) {

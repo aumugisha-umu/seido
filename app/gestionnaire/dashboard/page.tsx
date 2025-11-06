@@ -72,7 +72,7 @@ export default async function DashboardGestionnaire() {
     // ⚡ Phase 1: Charger buildings, users et interventions en parallèle
     const [buildingsResult, usersResult, interventionsResult] = await Promise.allSettled([
       buildingService.getBuildingsByTeam(team.id),
-      userService.getUsersByTeam(team.id),
+      userService.getUsersByTeam(team.id, profile.id), // ✅ Exclude current user
       interventionService.getByTeam(team.id)
     ])
 

@@ -1,7 +1,7 @@
 import { BiensPageClient } from './biens-page-client'
 import {
-  createServerActionBuildingService,
-  createServerActionLotService
+  createServerBuildingService,
+  createServerLotService
 } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { getServerAuthContext } from '@/lib/server-context'
@@ -20,9 +20,9 @@ export default async function BiensPage() {
   try {
     logger.info('🔧 [BIENS-PAGE] Starting service initialization...')
 
-    // Initialiser les services (même pattern que dashboard)
-    const buildingService = await createServerActionBuildingService()
-    const lotService = await createServerActionLotService()
+    // Initialiser les services (Server Components = read-only)
+    const buildingService = await createServerBuildingService()
+    const lotService = await createServerLotService()
 
     logger.info('✅ [BIENS-PAGE] All services initialized successfully')
     logger.info('📦 [BIENS-PAGE] Using team ID from context:', team.id)

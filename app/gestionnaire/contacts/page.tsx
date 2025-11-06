@@ -14,7 +14,7 @@ export default async function ContactsPage() {
   try {
     // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
     logger.info("🔵 [CONTACTS-PAGE] Server-side fetch starting")
-    const { user, team } = await getServerAuthContext('gestionnaire')
+    const { user, profile, team } = await getServerAuthContext('gestionnaire')
 
     // ✅ Defensive guard in case team is unexpectedly missing
     if (!team || !team.id) {
@@ -43,7 +43,7 @@ export default async function ContactsPage() {
     const supabase = await createServerSupabaseClient()
 
     const [contactsResult, invitationsResult, companiesResult] = await Promise.allSettled([
-      contactService.getContactsByTeam(team.id),
+      contactService.getContactsByTeam(team.id, undefined, profile.id), // ✅ Exclude current user (using profile.id from users table)
       supabase
         .from('user_invitations')
         .select('*')

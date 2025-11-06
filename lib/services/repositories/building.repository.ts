@@ -132,46 +132,39 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
    * Returns minimal data: id, name, address, city, postal_code, lots count
    * 90% less data transferred compared to findByTeam()
    *
-   * ⚡ PERFORMANCE: Cached with 5-minute TTL (L1 LRU + L2 Redis)
+   * ✅ Next.js 15: Uses native Data Cache (no custom cache layer)
+   * Cache invalidated via revalidateTag('buildings') or revalidatePath()
    */
   async findByTeamSummary(teamId: string) {
-    const cacheKey = this.getTeamCacheKey(teamId, 'summary')
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select(`
+        id,
+        name,
+        address,
+        city,
+        postal_code,
+        team_id,
+        lots(id),
+        building_contacts(
+          is_primary,
+          user:user_id(id, name, email, role, provider_category)
+        )
+      `)
+      .eq('team_id', teamId)
+      .order('name')
 
-    return await this.getCachedOrFetch(
-      cacheKey,
-      async () => {
-        const { data, error } = await this.supabase
-          .from(this.tableName)
-          .select(`
-            id,
-            name,
-            address,
-            city,
-            postal_code,
-            team_id,
-            lots(id),
-            building_contacts(
-              is_primary,
-              user:user_id(id, name, email, role, provider_category)
-            )
-          `)
-          .eq('team_id', teamId)
-          .order('name')
+    if (error) {
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
+    }
 
-        if (error) {
-          return createErrorResponse(handleError(error, `${this.tableName}:query`))
-        }
+    // Add lots count
+    const processedData = data?.map(building => ({
+      ...building,
+      lots_count: building.lots?.length || 0
+    }))
 
-        // Add lots count
-        const processedData = data?.map(building => ({
-          ...building,
-          lots_count: building.lots?.length || 0
-        }))
-
-        return { success: true as const, data: processedData || [] }
-      },
-      this.listCacheTTL
-    )
+    return { success: true as const, data: processedData || [] }
   }
 
   /**
@@ -179,52 +172,45 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
    * Use this when you need ALL data (contacts, team details, etc.)
    * For list views, prefer findByTeamSummary() instead
    *
-   * ⚡ PERFORMANCE: Cached with 5-minute TTL (L1 LRU + L2 Redis)
+   * ✅ Next.js 15: Uses native Data Cache (no custom cache layer)
+   * Cache invalidated via revalidateTag('buildings') or revalidatePath()
    */
   async findByTeam(teamId: string) {
-    const cacheKey = this.getTeamCacheKey(teamId, 'with-relations')
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select(`
+        *,
+        team:team_id(id, name, description),
+        lots(
+          id,
+          reference,
+          category,
+          lot_contacts(
+            is_primary,
+            user:user_id(id, name, email, phone, role, provider_category)
+          )
+        ),
+        building_contacts(
+          is_primary,
+          user:user_id(id, name, email, phone, role, provider_category, speciality)
+        )
+      `)
+      .eq('team_id', teamId)
+      .order('name')
 
-    return await this.getCachedOrFetch(
-      cacheKey,
-      async () => {
-        const { data, error } = await this.supabase
-          .from(this.tableName)
-          .select(`
-            *,
-            team:team_id(id, name, description),
-            lots(
-              id,
-              reference,
-              category,
-              lot_contacts(
-                is_primary,
-                user:user_id(id, name, email, phone, role, provider_category)
-              )
-            ),
-            building_contacts(
-              is_primary,
-              user:user_id(id, name, email, phone, role, provider_category, speciality)
-            )
-          `)
-          .eq('team_id', teamId)
-          .order('name')
+    if (error) {
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
+    }
 
-        if (error) {
-          return createErrorResponse(handleError(error, `${this.tableName}:query`))
-        }
+    // Post-process to extract primary managers
+    const processedData = data?.map(building => ({
+      ...building,
+      manager: building.building_contacts?.find((bc: { user?: { role?: string }; is_primary?: boolean }) =>
+        bc.user?.role === 'gestionnaire' && bc.is_primary
+      )?.user || null
+    }))
 
-        // Post-process to extract primary managers
-        const processedData = data?.map(building => ({
-          ...building,
-          manager: building.building_contacts?.find((bc: { user?: { role?: string }; is_primary?: boolean }) =>
-            bc.user?.role === 'gestionnaire' && bc.is_primary
-          )?.user || null
-        }))
-
-        return { success: true as const, data: processedData || [] }
-      },
-      this.listCacheTTL
-    )
+    return { success: true as const, data: processedData || [] }
   }
 
   /**
@@ -270,66 +256,58 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
 
   /**
    * Get building by ID with full relations
-   * ⚡ PERFORMANCE: Cached with 5-minute TTL (L1 LRU + L2 Redis)
+   * ✅ Next.js 15: Data Cache + Request Memoization (automatic)
    */
   async findByIdWithRelations(_id: string) {
-    const cacheKey = `${this.tableName}:${_id}:full-relations`
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select(`
+        *,
+        team:team_id(
+          id,
+          name,
+          description,
+          team_members(
+            id,
+            role,
+            user:user_id(id, name, email)
+          )
+        ),
+        lots(
+          *,
+          lot_contacts(
+            is_primary,
+            user:user_id(id, name, email, phone, role, provider_category)
+          )
+        ),
+        building_contacts(
+          is_primary,
+          user:user_id(id, name, email, phone, role, provider_category, speciality)
+        )
+      `)
+      .eq('id', _id)
+      .single()
 
-    return await this.getCachedOrFetch(
-      cacheKey,
-      async () => {
-        const { data, error } = await this.supabase
-          .from(this.tableName)
-          .select(`
-            *,
-            team:team_id(
-              id,
-              name,
-              description,
-              team_members(
-                id,
-                role,
-                user:user_id(id, name, email)
-              )
-            ),
-            lots(
-              *,
-              lot_contacts(
-                is_primary,
-                user:user_id(id, name, email, phone, role, provider_category)
-              )
-            ),
-            building_contacts(
-              is_primary,
-              user:user_id(id, name, email, phone, role, provider_category, speciality)
-            )
-          `)
-          .eq('id', _id)
-          .single()
+    if (error) {
+      if (error.code === 'PGRST116') {
+        throw new NotFoundException(this.tableName, _id)
+      }
+      return createErrorResponse(handleError(error, `${this.tableName}:query`))
+    }
 
-        if (error) {
-          if (error.code === 'PGRST116') {
-            throw new NotFoundException(this.tableName, _id)
-          }
-          return createErrorResponse(handleError(error, `${this.tableName}:query`))
-        }
+    // Post-process to extract managers and tenants
+    if (data) {
+      data.manager = data.building_contacts?.[0]?.user || null
 
-        // Post-process to extract managers and tenants
-        if (data) {
-          data.manager = data.building_contacts?.[0]?.user || null
+      // For each lot, extract primary tenant
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      data.lots = data.lots?.map((_lot: any) => ({
+        ..._lot,
+        tenant: _lot.lot_contacts?.[0]?.user || null
+      }))
+    }
 
-          // For each lot, extract primary tenant
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          data.lots = data.lots?.map((_lot: any) => ({
-            ..._lot,
-            tenant: _lot.lot_contacts?.[0]?.user || null
-          }))
-        }
-
-        return { success: true as const, data }
-      },
-      this.listCacheTTL
-    )
+    return { success: true as const, data }
   }
 
   /**

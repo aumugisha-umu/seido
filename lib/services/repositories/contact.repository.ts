@@ -144,8 +144,9 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
   /**
    * Get contacts by team
    * NEW SCHEMA: Queries team_members → users
+   * @param excludeUserId - Optional user ID to exclude from results (e.g., current user)
    */
-  async findByTeam(teamId: string, role?: string) {
+  async findByTeam(teamId: string, role?: string, excludeUserId?: string) {
     let queryBuilder = this.supabase
       .from('team_members')
       .select(`
@@ -190,6 +191,11 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     if (role) {
       // This needs to query the user role, not team_member role
       queryBuilder = queryBuilder.filter('user.role', 'eq', role)
+    }
+
+    if (excludeUserId) {
+      // Exclude specific user (e.g., current user)
+      queryBuilder = queryBuilder.neq('user_id', excludeUserId)
     }
 
     const { data, error } = await queryBuilder.order('joined_at', { ascending: false })

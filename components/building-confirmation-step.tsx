@@ -210,7 +210,11 @@ export function BuildingConfirmationStep({
                         providers={lotProviders}
                         owners={lotOwners}
                         others={lotOthers}
-                        readOnly={true} // No actions, no inherited contacts
+                        buildingManagers={buildingManagers}
+                        buildingProviders={providers}
+                        buildingOwners={owners}
+                        buildingOthers={others}
+                        readOnly={true} // Show inherited contacts
                         isExisting={false} // NEW: Mark as new lot
                         floor={lot.floor}
                         doorNumber={lot.doorNumber}

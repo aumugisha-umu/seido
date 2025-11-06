@@ -83,7 +83,7 @@ export function StatsCompactV2({ stats, contactStats }: StatsProps) {
               <Users className="h-5 w-5 text-orange-600" />
             </div>
             <div>
-              <div className="text-lg font-semibold leading-tight">{contactStats.totalContacts - 1}</div>
+              <div className="text-lg font-semibold leading-tight">{contactStats.totalContacts}</div>
               <p className="text-xs text-muted-foreground leading-tight">Contacts</p>
             </div>
           </div>

@@ -30,51 +30,52 @@ export function Step1Type({
         </p>
       </div>
 
-      {/* Type de contact */}
-      <div className="space-y-3">
-        <Label htmlFor="contact-type" className="text-base font-medium">
-          Type de contact <span className="text-red-500">*</span>
-        </Label>
-        <Select value={contactType} onValueChange={onContactTypeChange}>
-          <SelectTrigger id="contact-type" className="w-full">
-            <SelectValue placeholder="Sélectionnez un type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="locataire">Locataire</SelectItem>
-            <SelectItem value="proprietaire">Propriétaire</SelectItem>
-            <SelectItem value="gestionnaire">Gestionnaire</SelectItem>
-            <SelectItem value="prestataire">Prestataire</SelectItem>
-            <SelectItem value="autre">Autre</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Spécialité (si Prestataire) */}
-      {contactType === 'prestataire' && (
-        <div className="space-y-3 p-4 border rounded-lg bg-purple-50/30">
-          <Label htmlFor="specialty" className="text-base font-medium">
-            Spécialité <span className="text-red-500">*</span>
+      {/* Type de contact et Spécialité sur la même ligne */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Type de contact */}
+        <div className="space-y-3">
+          <Label htmlFor="contact-type" className="text-base font-medium">
+            Type de contact <span className="text-red-500">*</span>
           </Label>
-          <Select value={specialty || ''} onValueChange={onSpecialtyChange}>
-            <SelectTrigger id="specialty" className="w-full">
-              <SelectValue placeholder="Sélectionnez une spécialité" />
+          <Select value={contactType} onValueChange={onContactTypeChange}>
+            <SelectTrigger id="contact-type" className="w-full">
+              <SelectValue placeholder="Sélectionnez un type" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="plomberie">Plomberie</SelectItem>
-              <SelectItem value="electricite">Électricité</SelectItem>
-              <SelectItem value="chauffage">Chauffage</SelectItem>
-              <SelectItem value="serrurerie">Serrurerie</SelectItem>
-              <SelectItem value="peinture">Peinture et revêtements</SelectItem>
-              <SelectItem value="menage">Ménage et nettoyage</SelectItem>
-              <SelectItem value="jardinage">Jardinage et espaces verts</SelectItem>
+              <SelectItem value="locataire">Locataire</SelectItem>
+              <SelectItem value="proprietaire">Propriétaire</SelectItem>
+              <SelectItem value="gestionnaire">Gestionnaire</SelectItem>
+              <SelectItem value="prestataire">Prestataire</SelectItem>
               <SelectItem value="autre">Autre</SelectItem>
             </SelectContent>
           </Select>
-          <p className="text-sm text-gray-500">
-            La spécialité permettra d'attribuer automatiquement les interventions au bon prestataire.
-          </p>
         </div>
-      )}
+
+        {/* Spécialité (si Prestataire) */}
+        {contactType === 'prestataire' && (
+          <div className="space-y-3">
+            <Label htmlFor="specialty" className="text-base font-medium">
+              Spécialité <span className="text-red-500">*</span>
+            </Label>
+            <Select value={specialty || ''} onValueChange={onSpecialtyChange}>
+              <SelectTrigger id="specialty" className="w-full">
+                <SelectValue placeholder="Sélectionnez une spécialité" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="plomberie">Plomberie</SelectItem>
+                <SelectItem value="electricite">Électricité</SelectItem>
+                <SelectItem value="chauffage">Chauffage</SelectItem>
+                <SelectItem value="serrurerie">Serrurerie</SelectItem>
+                <SelectItem value="peinture">Peinture et revêtements</SelectItem>
+                <SelectItem value="menage">Ménage et nettoyage</SelectItem>
+                <SelectItem value="jardinage">Jardinage et espaces verts</SelectItem>
+                <SelectItem value="autre">Autre</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+      </div>
+
 
       {/* Personne ou Société */}
       <div className="space-y-3">

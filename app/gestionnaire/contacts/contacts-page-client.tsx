@@ -576,7 +576,7 @@ export function ContactsPageClient({
               id: "contacts",
               label: "Contacts",
               icon: Users,
-              count: loading ? "..." : filteredContacts.length - 1,
+              count: loading ? "..." : filteredContacts.length,
               content: (
                 <>
                   {loading ? (

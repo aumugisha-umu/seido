@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createBrowserSupabaseClient, createTenantService } from '@/lib/services'
 import { useAuth } from './use-auth'
 import { useResolvedUserId } from './use-resolved-user-id'
-import { useDataRefresh } from './use-cache-management'
 import { logger, logError } from '@/lib/logger'
 interface TenantData {
   id: string
@@ -250,14 +249,6 @@ export const useTenantData = () => {
       mountedRef.current = false
     }
   }, [])
-
-  // ✅ Intégration au bus de refresh: permet à useNavigationRefresh de déclencher ce hook
-  useDataRefresh('tenant-data', () => {
-    // Forcer un refetch en bypassant le cache local
-    lastResolvedIdRef.current = null
-    loadingRef.current = false
-    fetchTenantData(true)
-  })
 
   const refreshData = useCallback(async () => {
     logger.info('🔄 [TENANT-DATA] Manual refresh requested')

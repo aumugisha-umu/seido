@@ -7,7 +7,6 @@ import {
   createUserService,
   createContactInvitationService
 } from "@/lib/services"
-import { useDataRefresh } from './use-cache-management'
 import type { Intervention } from "@/lib/services/core/service-types"
 import { logger, logError } from '@/lib/logger'
 export interface PrestataireDashboardStats {
@@ -358,14 +357,6 @@ export const usePrestataireData = (userId: string) => {
       mountedRef.current = false
     }
   }, [])
-
-  // ✅ Intégration au bus de refresh: permet à useNavigationRefresh de déclencher ce hook
-  useDataRefresh('prestataire-data', () => {
-    // Forcer un refetch en bypassant le cache local
-    lastUserIdRef.current = null
-    loadingRef.current = false
-    loadData(true)
-  })
 
   return {
     ...data,

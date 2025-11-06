@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useCallback } from 'react'
 import { usePathname } from 'next/navigation'
-import { useCacheManagement } from './use-cache-management'
 import { logger, logError } from '@/lib/logger'
 // Hook spécialisé pour gérer le refresh des données lors de la navigation
 export function useNavigationRefresh() {

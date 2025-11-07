@@ -58,9 +58,14 @@ export default async function NouvelleInterventionPage() {
     buildings = buildings.map((building: any) => ({
       ...building,
       lots: (building.lots || []).map((lot: any) => {
-        const isOccupied = lot.is_occupied || false
+        // Calculer is_occupied à partir des lot_contacts (comme dans lot.repository.ts)
+        const tenants = lot.lot_contacts?.filter((contact: any) => 
+          contact.user?.role === 'locataire'
+        ) || []
+        const isOccupied = tenants.length > 0
         return {
           ...lot,
+          is_occupied: isOccupied,
           status: isOccupied ? "occupied" : "vacant"
         }
       })

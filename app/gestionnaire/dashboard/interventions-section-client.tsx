@@ -110,7 +110,7 @@ export function InterventionsSectionClient({ interventions, actionHooks, onActiv
             ? "Les interventions actives apparaîtront ici"
             : "Les interventions terminées apparaîtront ici",
           showCreateButton: tabId === "en_cours",
-          createButtonText: "Ajouter une intervention",
+          createButtonText: "Créer une intervention",
           createButtonAction: () => window.location.href = '/gestionnaire/interventions/nouvelle-intervention'
         }}
         showStatusActions={true}

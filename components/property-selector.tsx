@@ -295,7 +295,7 @@ function PropertySelectorView({
             return (
               <Card key={building.id} className={`group hover:shadow-sm transition-all duration-200 flex flex-col h-full ${isSelected ? "ring-2 ring-sky-500 bg-sky-50/50" : "hover:bg-slate-50/50"}`}>
                 <CardContent className="p-0 flex flex-col flex-1">
-                  <div className="p-4 sm:p-5 flex flex-col flex-1">
+                  <div className="flex flex-col flex-1">
                     <div className="space-y-3 flex-1">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center space-x-3 min-w-0 flex-1 mr-2">
@@ -410,6 +410,8 @@ function PropertySelectorView({
                               <div
                                 key={lot.id}
                                 className={`p-2.5 border border-slate-200 rounded-md bg-white hover:bg-slate-50 transition-colors ${
+                                  lot.status === "occupied" ? "border-l-4 border-l-green-500" : ""
+                                } ${
                                   isLotSelected ? "ring-1 ring-sky-500 bg-sky-50" : ""
                                 }`}
                               >
@@ -417,8 +419,10 @@ function PropertySelectorView({
                                   <div className="flex items-center space-x-2 min-w-0 flex-1">
                                     <div className="font-medium text-sm text-slate-900">{lot.reference}</div>
                                     <Badge
-                                      variant={lot.status === "occupied" ? "default" : "secondary"}
-                                      className="text-xs h-4 px-1.5"
+                                      variant={lot.status === "occupied" ? "secondary" : "secondary"}
+                                      className={`text-xs h-4 px-1.5 ${
+                                        lot.status === "occupied" ? "bg-green-100 text-green-800" : ""
+                                      }`}
                                     >
                                       {lot.status === "occupied" ? "Occupé" : "Libre"}
                                     </Badge>
@@ -498,6 +502,8 @@ function PropertySelectorView({
                                   <div
                                     key={lot.id}
                                     className={`p-2.5 border border-slate-200 rounded-md bg-white hover:bg-slate-50 transition-colors ${
+                                      lot.status === "occupied" ? "border-l-4 border-l-green-500" : ""
+                                    } ${
                                       isLotSelected ? "ring-2 ring-sky-500 bg-sky-50" : ""
                                     }`}
                                   >

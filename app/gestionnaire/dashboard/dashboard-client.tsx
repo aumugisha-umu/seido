@@ -119,7 +119,7 @@ export function DashboardClient({ teamId }: DashboardClientProps) {
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")} className="flex items-center">
                 <Wrench className="h-4 w-4 mr-3" />
-                Ajouter une intervention
+                Créer une intervention
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -133,7 +133,7 @@ export function DashboardClient({ teamId }: DashboardClientProps) {
             onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
           >
             <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="hidden lg:inline">Ajouter une intervention</span>
+            <span className="hidden lg:inline">Créer une intervention</span>
             <span className="lg:hidden">Intervention</span>
           </Button>
 

@@ -78,7 +78,7 @@ export function InterventionsPageClient({
                 onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
               >
                 <Plus className="h-4 w-4" />
-                <span>Ajouter une intervention</span>
+                <span>Créer une intervention</span>
               </Button>
             </div>
           </div>

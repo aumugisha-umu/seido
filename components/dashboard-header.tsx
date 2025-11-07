@@ -207,7 +207,7 @@ export default function DashboardHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b bg-white shadow-sm">
+      <header className="sticky top-0 z-40 border-b bg-white shadow-sm">
         <div className="content-max-width px-5 sm:px-6 lg:px-10">
           <nav className="flex items-center justify-between h-16">
             {/* Logo à gauche */}
@@ -329,7 +329,7 @@ export default function DashboardHeader({
 
       {/* Menu mobile/tablet overlay */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-40">
+        <div className="lg:hidden fixed inset-0 z-30">
           {/* Overlay backdrop */}
           <div 
             className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm"

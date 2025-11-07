@@ -93,7 +93,7 @@ export function InterventionsList({
         title: "Aucune intervention",
         description: "Les interventions apparaîtront ici",
         showCreateButton: false,
-        createButtonText: "Ajouter une intervention",
+        createButtonText: "Créer une intervention",
         createButtonAction: () => router.push("/gestionnaire/interventions/nouvelle-intervention")
       }
 
@@ -192,7 +192,7 @@ export function InterventionsList({
       title: "Aucune intervention",
       description: "Les interventions apparaîtront ici",
       showCreateButton: false,
-      createButtonText: "Ajouter une intervention",
+      createButtonText: "Créer une intervention",
       createButtonAction: () => router.push("/gestionnaire/interventions/nouvelle-intervention")
     }
 

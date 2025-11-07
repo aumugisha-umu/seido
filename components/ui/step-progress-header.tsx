@@ -46,7 +46,7 @@ export const StepProgressHeader = ({
   const progressPercentage = ((currentStep - 1) / (steps.length - 1)) * 100
 
   return (
-    <div className="sticky top-0 z-40 bg-white shadow-sm border-b border-gray-200">
+    <div className="sticky top-16 z-50 bg-white border-b border-gray-200 shadow-sm">
       <div className="content-max-width px-4 sm:px-6 h-16 flex items-center gap-3 sm:gap-6 relative">
 
           {/* Left: Title + Badge */}

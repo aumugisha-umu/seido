@@ -4,12 +4,8 @@ import type React from "react"
 
 import {
   ArrowLeft,
-  Home,
-  Building2,
   CheckCircle,
-  AlertTriangle,
   Loader2,
-  File,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -28,6 +24,7 @@ import { logger, logError } from '@/lib/logger'
 import { getTenantLots } from '../actions'
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { tenantInterventionSteps } from "@/lib/step-configurations"
+import { InterventionConfirmationSummary, type InterventionConfirmationData } from "@/components/interventions/intervention-confirmation-summary"
 import { useInterventionUpload, DOCUMENT_TYPES } from "@/hooks/use-intervention-upload"
 import { InterventionFileAttachment } from "@/components/intervention/intervention-file-attachment"
 import { useToast } from "@/hooks/use-toast"
@@ -469,124 +466,47 @@ export default function NouvelleDemandePage() {
     </div>
   )
 
-  const renderStep3 = () => (
-    <Card>
-      <CardContent className="p-6 space-y-6">
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-            <CheckCircle className="h-8 w-8 text-green-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Confirmer la création</h2>
-          <p className="text-gray-600">Vérifiez les informations ci-dessous avant de créer l'intervention</p>
-        </div>
+  const renderStep3 = () => {
+    const confirmationData: InterventionConfirmationData = {
+      logement: {
+        type: 'lot',
+        name: selectedLogementData?.name || '',
+        building: selectedLogementData?.building,
+        address: selectedLogementData?.address,
+      },
+      intervention: {
+        title: formData.titre,
+        description: formData.description,
+        category: formData.type,
+        urgency: formData.urgence,
+      },
+      contacts: [], // Locataire n'assigne pas de contacts
+      files: fileUpload.files.map(fileWithPreview => {
+        const documentTypeLabel = DOCUMENT_TYPES.find(
+          type => type.value === fileWithPreview.documentType
+        )?.label || fileWithPreview.documentType
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Logement */}
-          <Card className="border-l-4 border-l-blue-500">
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2 mb-3">
-                <Home className="h-5 w-5 text-blue-600" />
-                <h3 className="font-semibold text-gray-900">Logement</h3>
-              </div>
-              <div className="space-y-1 text-sm">
-                <p>
-                  <span className="font-medium">Nom:</span> {selectedLogementData?.name}
-                </p>
-                {selectedLogementData?.address && (
-                  <p>
-                    <span className="font-medium">Adresse:</span> {selectedLogementData.address}
-                  </p>
-                )}
-                <p>
-                  <span className="font-medium">Surface:</span> {selectedLogementData?.surface}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        return {
+          id: fileWithPreview.id,
+          name: fileWithPreview.file.name,
+          size: (fileWithPreview.file.size / (1024 * 1024)).toFixed(1) + ' MB',
+          type: documentTypeLabel,
+        }
+      }),
+    }
 
-          {/* Problème */}
-          <Card className="border-l-4 border-l-orange-500">
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2 mb-3">
-                <AlertTriangle className="h-5 w-5 text-orange-600" />
-                <h3 className="font-semibold text-gray-900">Problème</h3>
-              </div>
-              <div className="space-y-1 text-sm">
-                <p>
-                  <span className="font-medium">Titre:</span> {formData.titre}
-                </p>
-                <p>
-                  <span className="font-medium">Type:</span> {formData.type || "Non spécifié"}
-                </p>
-                <p>
-                  <span className="font-medium">Urgence:</span> {formData.urgence || "Non spécifié"}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Description */}
-          <Card className="border-l-4 border-l-purple-500 lg:col-span-2">
-            <CardContent className="p-4">
-              <div className="flex items-center space-x-2 mb-3">
-                <Building2 className="h-5 w-5 text-purple-600" />
-                <h3 className="font-semibold text-gray-900">Description</h3>
-              </div>
-              <p className="text-sm text-gray-700">{formData.description}</p>
-              {fileUpload.files.length > 0 && (
-                <div className="mt-3">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Fichiers joints ({fileUpload.files.length})</p>
-                  <div className="flex flex-wrap gap-2">
-                    {fileUpload.files.map((fileWithPreview) => {
-                      const documentTypeLabel = DOCUMENT_TYPES.find(
-                        type => type.value === fileWithPreview.documentType
-                      )?.label || fileWithPreview.documentType
-
-                      return (
-                        <div
-                          key={fileWithPreview.id}
-                          className="inline-flex flex-col px-3 py-2 bg-purple-100 text-purple-800 text-xs rounded"
-                        >
-                          <span className="flex items-center font-medium">
-                            <File className="h-3 w-3 mr-1" />
-                            {fileWithPreview.file.name}
-                          </span>
-                          <span className="text-purple-600 text-[10px] mt-0.5 ml-4">
-                            {documentTypeLabel}
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Error Message */}
-        {creationError && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="ml-3">
-                <h3 className="text-sm font-medium text-red-800">
-                  Erreur lors de la création
-                </h3>
-                <p className="mt-1 text-sm text-red-700">
-                  {creationError}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  )
+    return (
+      <InterventionConfirmationSummary
+        data={confirmationData}
+        onBack={() => setCurrentStep(2)}
+        onConfirm={handleConfirmCreation}
+        currentStep={shouldSkipStepOne ? 2 : 3}
+        totalSteps={shouldSkipStepOne ? 2 : 3}
+        isLoading={isCreating}
+        showFooter={false}
+      />
+    )
+  }
 
   // Calculer le subtitle pour afficher le bien sélectionné (à partir de l'étape 2)
   const getHeaderSubtitle = () => {

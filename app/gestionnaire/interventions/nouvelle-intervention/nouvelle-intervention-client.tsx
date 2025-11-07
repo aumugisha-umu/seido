@@ -44,6 +44,7 @@ import { logger, logError } from '@/lib/logger'
 import { AssignmentSectionV2 } from "@/components/intervention/assignment-section-v2"
 import { useInterventionUpload, DOCUMENT_TYPES } from "@/hooks/use-intervention-upload"
 import { InterventionFileAttachment } from "@/components/intervention/intervention-file-attachment"
+import { InterventionConfirmationSummary, type InterventionConfirmationData } from "@/components/interventions/intervention-confirmation-summary"
 
 // Types for server-loaded data
 interface Building {
@@ -962,8 +963,7 @@ export default function NouvelleInterventionClient({
 
       {/* Main Content with horizontal padding and bottom space for footer */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pb-10 bg-gray-50">
-        <div className="min-h-full flex items-center justify-center">
-          <main className="content-max-width w-full pt-6">
+        <main className="content-max-width w-full pt-10">
         {/* Step 1: Sélection du logement avec PropertySelector */}
         {currentStep === 1 && (
           <div className="space-y-6">
@@ -984,7 +984,7 @@ export default function NouvelleInterventionClient({
         {/* Step 2: Formulaire de description */}
         {currentStep === 2 && selectedLogement && (
           <Card>
-            <CardContent className="flex flex-col gap-6">
+            <CardContent className="p-0 flex flex-col gap-6">
               <div className="flex items-center space-x-2">
                 <Building2 className="h-5 w-5 text-orange-500" />
                 <h3 className="text-lg font-medium">Détails de l'intervention</h3>
@@ -1155,399 +1155,91 @@ export default function NouvelleInterventionClient({
         {/* Get values from form data */}
         {currentStep === 4 &&
           (() => {
-            const problemTitle = formData.title
-            const problemType = formData.type
-            const urgency = formData.urgency
-            const description = formData.description
-            const uploadedFiles = fileUpload.files
+            // Préparer les données pour le composant de confirmation
+            const confirmationData: InterventionConfirmationData = {
+              logement: {
+                type: selectedLogement?.type === 'building' ? 'Bâtiment entier' : (selectedLogement?.name || ''),
+                name: selectedLogement?.type === 'building' ? selectedLogement.name : (selectedLogement?.name || ''),
+                building: selectedLogement?.building,
+                address: selectedLogement?.address,
+                floor: selectedLogement?.floor,
+                tenant: selectedLogement?.tenant,
+              },
+              intervention: {
+                title: formData.title,
+                description: formData.description,
+                category: formData.type,
+                urgency: formData.urgency,
+                room: formData.room,
+              },
+              contacts: getSelectedContacts().map(contact => ({
+                id: contact.id.toString(),
+                name: contact.name,
+                email: contact.email,
+                phone: contact.phone,
+                role: contact.role,
+                speciality: contact.speciality,
+                isCurrentUser: contact.isCurrentUser,
+              })),
+              scheduling: schedulingType === 'slots' && timeSlots.length > 0
+                ? {
+                    type: 'slots' as const,
+                    slots: timeSlots.map(slot => ({
+                      date: slot.date,
+                      startTime: slot.startTime,
+                      endTime: slot.endTime,
+                    })),
+                  }
+                : schedulingType === 'immediate'
+                ? { type: 'immediate' as const }
+                : { type: 'flexible' as const },
+              instructions: globalMessage
+                ? {
+                    type: 'global' as const,
+                    globalMessage,
+                  }
+                : undefined,
+              files: fileUpload.files.map(fileWithPreview => {
+                const documentTypeLabel = DOCUMENT_TYPES.find(
+                  type => type.value === fileWithPreview.documentType
+                )?.label || fileWithPreview.documentType
+
+                return {
+                  id: fileWithPreview.id,
+                  name: fileWithPreview.file.name,
+                  size: (fileWithPreview.file.size / (1024 * 1024)).toFixed(1) + ' MB',
+                  type: documentTypeLabel,
+                }
+              }),
+              expectsQuote,
+            }
 
             return (
-              <Card>
-                <CardContent className="py-8">
-                  <div className="text-center mb-8">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <CheckCircle className="h-8 w-8 text-blue-600" />
-                    </div>
-                    <h2 className="text-2xl font-bold text-gray-900 mb-2">Confirmer la création</h2>
-                    <p className="text-gray-600">Vérifiez les informations ci-dessous avant de créer l'intervention</p>
-                  </div>
-
-                  <div className="space-y-6 mb-8">
-                    {/* Logement Information */}
-                    <Card className="border-l-4 border-l-blue-500">
-                      <CardContent className="p-6">
-                        <div className="flex items-center space-x-3 mb-4">
-                          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                            <Building2 className="h-5 w-5 text-blue-600" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900">Logement sélectionné</h3>
-                            <p className="text-sm text-gray-600">Bien concerné par l'intervention</p>
-                          </div>
-                        </div>
-                        <div className="bg-gray-50 rounded-lg p-4">
-                          {selectedLogement?.type === "building" ? (
-                            <div className="space-y-2">
-                              <div className="flex items-center space-x-2">
-                                <Building2 className="h-4 w-4 text-gray-600" />
-                                <span className="font-medium">Bâtiment entier</span>
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                {selectedLogement.name} - {selectedLogement.address}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                {selectedLogement.lots} lots • {selectedLogement.occupancy} occupés
-                              </div>
-                            </div>
-                          ) : (
-                            <div className="space-y-2">
-                              <div className="flex items-center space-x-2">
-                                <Home className="h-4 w-4 text-gray-600" />
-                                <span className="font-medium">{selectedLogement?.name}</span>
-                              </div>
-                              <div className="text-sm text-gray-600">
-                                {selectedLogement?.building} - {selectedLogement?.address}
-                              </div>
-                              <div className="text-sm text-gray-500">
-                                Étage {selectedLogement?.floor} • {selectedLogement?.tenant || "Vacant"}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Problem Details */}
-                    <Card className="border-l-4 border-l-orange-500">
-                      <CardContent className="p-6">
-                        <div className="flex items-center space-x-3 mb-4">
-                          <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
-                            <AlertTriangle className="h-5 w-5 text-orange-600" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900">Détails du problème</h3>
-                            <p className="text-sm text-gray-600">Description de l'intervention</p>
-                          </div>
-                        </div>
-                        <div className="bg-gray-50 rounded-lg p-4 space-y-3">
-                          <div>
-                            <span className="text-sm font-medium text-gray-700">Titre:</span>
-                            <p className="text-gray-900">{problemTitle}</p>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <span className="text-sm font-medium text-gray-700">Type:</span>
-                              <p className="text-gray-900">{problemType}</p>
-                            </div>
-                            <div>
-                              <span className="text-sm font-medium text-gray-700">Urgence:</span>
-                              <span
-                                className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                  urgency === "Urgente - Immédiate"
-                                    ? "bg-red-100 text-red-800"
-                                    : urgency === "Importante - 24h"
-                                      ? "bg-orange-100 text-orange-800"
-                                      : "bg-yellow-100 text-yellow-800"
-                                }`}
-                              >
-                                {urgency}
-                              </span>
-                            </div>
-                          </div>
-                          {description && (
-                            <div>
-                              <span className="text-sm font-medium text-gray-700">Description:</span>
-                              <p className="text-gray-900 text-sm mt-1">{description}</p>
-                            </div>
-                          )}
-                          {uploadedFiles.length > 0 && (
-                            <div>
-                              <span className="text-sm font-medium text-gray-700">Fichiers joints:</span>
-                              <div className="flex flex-wrap gap-2 mt-1">
-                                {uploadedFiles.map((fileWithPreview) => {
-                                  const documentTypeLabel = DOCUMENT_TYPES.find(
-                                    type => type.value === fileWithPreview.documentType
-                                  )?.label || fileWithPreview.documentType
-
-                                  return (
-                                    <div
-                                      key={fileWithPreview.id}
-                                      className="inline-flex flex-col px-3 py-2 bg-blue-100 text-blue-800 text-xs rounded"
-                                    >
-                                      <span className="flex items-center font-medium">
-                                        <Paperclip className="h-3 w-3 mr-1" />
-                                        {fileWithPreview.file.name}
-                                      </span>
-                                      <span className="text-blue-600 text-[10px] mt-0.5 ml-4">
-                                        {documentTypeLabel}
-                                      </span>
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Assigned Contacts */}
-                    <Card className="border-l-4 border-l-green-500">
-                      <CardContent className="p-6">
-                        <div className="flex items-center space-x-3 mb-4">
-                          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                            <Users className="h-5 w-5 text-green-600" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900">
-                              Personnes assignées ({getSelectedContacts().length})
-                            </h3>
-                            <p className="text-sm text-gray-600">Responsables de l'intervention</p>
-                          </div>
-                        </div>
-                        <div className="bg-gray-50 rounded-lg p-4">
-                          <div className="space-y-3">
-                            {getSelectedContacts().map((contact) => (
-                              <div
-                                key={contact.id}
-                                className="flex items-center justify-between p-3 bg-white rounded-lg border"
-                              >
-                                <div className="flex items-center space-x-3">
-                                  <div
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                      contact.role === "Gestionnaire" ? "bg-blue-100" : "bg-green-100"
-                                    }`}
-                                  >
-                                    {contact.role === "Gestionnaire" ? (
-                                      <User className="h-4 w-4 text-blue-600" />
-                                    ) : (
-                                      <Wrench className="h-4 w-4 text-green-600" />
-                                    )}
-                                  </div>
-                                  <div>
-                                    <div className="flex items-center space-x-2">
-                                      <span className="font-medium text-gray-900">{contact.name}</span>
-                                      {contact.isCurrentUser && (
-                                        <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                          Vous
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="flex items-center space-x-4 text-sm text-gray-600">
-                                      <span>{contact.email}</span>
-                                      <span>{contact.phone}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                  <span
-                                    className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                      contact.role === "Gestionnaire"
-                                        ? "bg-blue-100 text-blue-800"
-                                        : "bg-green-100 text-green-800"
-                                    }`}
-                                  >
-                                    {contact.role}
-                                  </span>
-                                  {contact.speciality && (
-                                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-full">
-                                      {contact.speciality}
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Scheduling */}
-                    <Card className="border-l-4 border-l-purple-500">
-                      <CardContent className="p-6">
-                        <div className="flex items-center space-x-3 mb-4">
-                          <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <Calendar className="h-5 w-5 text-purple-600" />
-                          </div>
-                          <div>
-                            <h3 className="font-semibold text-gray-900">Planification</h3>
-                            <p className="text-sm text-gray-600">Horaires de l'intervention</p>
-                          </div>
-                        </div>
-                        <div className="bg-gray-50 rounded-lg p-4">
-                          {schedulingType === "fixed" && (
-                            <div className="flex items-center space-x-4">
-                              <div className="flex items-center space-x-2">
-                                <Calendar className="h-4 w-4 text-purple-600" />
-                                <span className="font-medium">Date fixe:</span>
-                                <span>{fixedDateTime.date}</span>
-                              </div>
-                              <div className="flex items-center space-x-2">
-                                <Clock className="h-4 w-4 text-purple-600" />
-                                <span className="font-medium">Heure:</span>
-                                <span>{fixedDateTime.time}</span>
-                              </div>
-                            </div>
-                          )}
-                          {schedulingType === "slots" && (
-                            <div className="space-y-3">
-                              <div className="flex items-center space-x-2">
-                                <Calendar className="h-4 w-4 text-purple-600" />
-                                <span className="font-medium">Créneaux proposés:</span>
-                              </div>
-                              <div className="space-y-2">
-                                {timeSlots.map((slot, index) => (
-                                  <div key={index} className="flex items-center space-x-2 p-2 bg-white rounded border">
-                                    <Clock className="h-4 w-4 text-gray-400" />
-                                    <span>{slot.date}</span>
-                                    <span className="text-gray-500">de</span>
-                                    <span className="font-medium">{slot.startTime}</span>
-                                    <span className="text-gray-500">à</span>
-                                    <span className="font-medium">{slot.endTime}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          {schedulingType === "flexible" && (
-                            <div className="flex items-center space-x-2">
-                              <Clock className="h-4 w-4 text-purple-600" />
-                              <span className="font-medium">Horaire à définir ultérieurement</span>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Instructions */}
-                    {(globalMessage || Object.keys(individualMessages).length > 0) && (
-                      <Card className="border-l-4 border-l-blue-600">
-                        <CardContent className="p-6">
-                          <div className="flex items-center space-x-3 mb-4">
-                            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                              <MessageSquare className="h-5 w-5 text-blue-600" />
-                            </div>
-                            <div>
-                              <h3 className="font-semibold text-gray-900">Instructions</h3>
-                              <p className="text-sm text-gray-600">Messages pour les assignés</p>
-                            </div>
-                          </div>
-                          <div className="bg-gray-50 rounded-lg p-4">
-                            {messageType === "global" && globalMessage && (
-                              <div className="space-y-2">
-                                <div className="flex items-center space-x-2">
-                                  <MessageSquare className="h-4 w-4 text-blue-600" />
-                                  <span className="font-medium">Message global:</span>
-                                </div>
-                                <div className="bg-white p-3 rounded border-l-4 border-l-blue-600">
-                                  <p className="text-gray-900">{globalMessage}</p>
-                                  <p className="text-xs text-gray-500 mt-2">
-                                    Ce message sera visible par tous les assignés (non visible par le locataire)
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                            {messageType === "individual" && Object.keys(individualMessages).length > 0 && (
-                              <div className="space-y-3">
-                                <div className="flex items-center space-x-2">
-                                  <MessageSquare className="h-4 w-4 text-blue-600" />
-                                  <span className="font-medium">Messages individuels:</span>
-                                </div>
-                                <div className="space-y-2">
-                              {Object.entries(individualMessages).map(([contactId, message]) => {
-                                const contact = getSelectedContacts().find(
-                                  (c) => c.id.toString() === contactId.toString(),
-                                )
-                                    return message ? (
-                                      <div
-                                        key={contactId}
-                                        className="bg-white p-3 rounded border-l-4 border-l-blue-600"
-                                      >
-                                        <div className="flex items-center space-x-2 mb-2">
-                                          <span className="font-medium text-gray-900">{contact?.name}:</span>
-                                          <span
-                                            className={`px-2 py-1 rounded-full text-xs ${
-                                              contact?.role === "Gestionnaire"
-                                                ? "bg-blue-100 text-blue-800"
-                                                : "bg-green-100 text-green-800"
-                                            }`}
-                                          >
-                                            {contact?.role}
-                                          </span>
-                                        </div>
-                                        <p className="text-gray-900">{message}</p>
-                                        <p className="text-xs text-gray-500 mt-2">
-                                          Seule cette personne verra ce message
-                                        </p>
-                                      </div>
-                                    ) : null
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                            {getSelectedContacts().length === 1 && globalMessage && (
-                              <div className="space-y-2">
-                                <div className="flex items-center space-x-2">
-                                  <MessageSquare className="h-4 w-4 text-blue-600" />
-                                  <span className="font-medium">Instructions:</span>
-                                </div>
-                                <div className="bg-white p-3 rounded border-l-4 border-l-blue-600">
-                                  <p className="text-gray-900">{globalMessage}</p>
-                                  <p className="text-xs text-gray-500 mt-2">
-                                    Ces instructions ne seront pas vues par le locataire
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {expectsQuote && (
-                      <Card className="border-l-4 border-l-yellow-500">
-                        <CardContent className="p-6">
-                          <div className="flex items-center space-x-3 mb-4">
-                            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                              <FileText className="h-5 w-5 text-yellow-600" />
-                            </div>
-                            <div>
-                              <h3 className="font-semibold text-gray-900">Devis requis</h3>
-                              <p className="text-sm text-gray-600">Un devis sera demandé avant l'intervention</p>
-                            </div>
-                          </div>
-                          <div className="bg-yellow-50 rounded-lg p-4">
-                            <div className="flex items-center space-x-2">
-                              <FileText className="h-4 w-4 text-yellow-600" />
-                              <span className="font-medium text-yellow-800">
-                                Les prestataires devront fournir un devis avant de commencer l'intervention
-                              </span>
-                            </div>
-                            <p className="text-sm text-yellow-700 mt-2">
-                              L'intervention ne pourra pas débuter tant que le devis n'aura pas été approuvé par le
-                              gestionnaire.
-                            </p>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </div>
-
-                  {error && (
-                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <div className="flex items-center space-x-2">
-                        <AlertTriangle className="h-5 w-5 text-red-600" />
-                        <p className="text-red-800 font-medium">Erreur</p>
-                      </div>
-                      <p className="text-red-700 mt-1">{error}</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+              <InterventionConfirmationSummary
+                data={confirmationData}
+                onBack={() => setCurrentStep(3)}
+                onConfirm={handleCreateIntervention}
+                currentStep={4}
+                totalSteps={4}
+                isLoading={isCreating}
+                showFooter={false}
+              />
             )
           })()}
-          </main>
-        </div>
+
+        {/* Error display (shown separately from confirmation) */}
+        {currentStep === 4 && error && (
+          <Card className="border-l-4 border-l-red-500 mt-4">
+            <CardContent className="p-4">
+              <div className="flex items-center space-x-2">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <p className="text-red-800 font-medium">Erreur</p>
+              </div>
+              <p className="text-red-700 mt-1">{error}</p>
+            </CardContent>
+          </Card>
+        )}
+        </main>
       </div>
 
         {/* Footer Navigation - Always visible at bottom */}

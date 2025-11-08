@@ -16,6 +16,7 @@ import { InterventionsNavigator } from "@/components/interventions/interventions
 import { logger } from '@/lib/logger'
 import { deleteBuildingAction } from './actions'
 import type { Building, Lot } from '@/lib/services'
+import { BuildingStatsBadges } from './building-stats-badges'
 
 interface BuildingDetailsClientProps {
   building: Building
@@ -185,7 +186,6 @@ export default function BuildingDetailsClient({
     { id: "overview", label: "Vue d'ensemble", icon: Eye, count: null },
     { id: "lots", label: "Lots", icon: Home, count: stats.totalLots },
     { id: "interventions", label: "Interventions", icon: Wrench, count: stats.totalInterventions },
-    { id: "contacts", label: "Contacts", icon: Users, count: totalContacts },
     { id: "documents", label: "Documents", icon: FileText, count: null },
   ]
 
@@ -258,111 +258,42 @@ export default function BuildingDetailsClient({
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
               <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-6">
             {/* Overview Tab */}
-            <TabsContent value="overview" className="mt-0 flex-1 flex flex-col min-h-0">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* General Information */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Informations Générales</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Adresse</span>
-                      <span className="font-medium">{building.address}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Ville</span>
-                      <span className="font-medium">{building.city}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Code postal</span>
-                      <span className="font-medium">{building.postal_code}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Pays</span>
-                      <span className="font-medium">{(building as { country?: string }).country || "Non spécifié"}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Gestionnaire</span>
-                      <span className="font-medium">
-                        {(building as { manager?: { name: string } }).manager?.name || "Non défini"}
-                      </span>
-                    </div>
-                    {(building as { description?: string }).description && (
-                      <div className="pt-2 border-t">
-                        <span className="text-gray-600 text-sm">Description</span>
-                        <p className="text-sm font-medium mt-1">
-                          {(building as { description: string }).description}
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
+            <TabsContent value="overview" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6">
+              {/* Section 1: Stats Badges */}
+              <BuildingStatsBadges
+                stats={{
+                  totalInterventions: stats.totalInterventions,
+                  activeInterventions: stats.activeInterventions,
+                  completedInterventions: stats.interventionStats.completed
+                }}
+                totalContacts={totalContacts}
+              />
 
-                {/* Occupation Statistics */}
+              {/* Description (if exists) */}
+              {(building as { description?: string }).description && (
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Statistiques d'Occupation</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Nombre de lots</span>
-                      <span className="font-medium">{stats.totalLots}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Lots occupés</span>
-                      <span className="font-medium text-green-600">{stats.occupiedLots}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Lots vacants</span>
-                      <span className="font-medium text-red-600">{stats.vacantLots}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Taux d'occupation</span>
-                      <span className="font-medium">
-                        <Badge variant={stats.occupancyRate >= 80 ? "default" : stats.occupancyRate >= 50 ? "secondary" : "destructive"}>
-                          {stats.occupancyRate}%
-                        </Badge>
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Locataires uniques</span>
-                      <span className="font-medium">
-                        {lots.filter((lot: { tenant?: { id: string } }) => lot.tenant)
-                          .map((lot: { tenant: { id: string } }) => lot.tenant.id)
-                          .filter((id: string, index: number, arr: string[]) => arr.indexOf(id) === index)
-                          .length}
-                      </span>
-                    </div>
+                  <CardContent className="pt-6">
+                    <h4 className="text-sm font-medium text-gray-700 mb-2">Description</h4>
+                    <p className="text-sm text-gray-600">{(building as { description: string }).description}</p>
                   </CardContent>
                 </Card>
+              )}
 
-                {/* Activity */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Activité</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Interventions totales</span>
-                      <span className="font-medium">{stats.totalInterventions}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Interventions actives</span>
-                      <span className="font-medium text-orange-600">{stats.activeInterventions}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Interventions terminées</span>
-                      <span className="font-medium text-green-600">{stats.interventionStats.completed}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Créé le</span>
-                      <span className="font-medium text-sm">
-                        {new Date(building.created_at).toLocaleDateString('fr-FR')}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
+              {/* Section 3: Contacts (embedded) */}
+              <div className="flex-1 flex flex-col min-h-0">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Contacts</h3>
+                <BuildingContactsNavigator
+                  buildingId={building.id}
+                  buildingName={building.name}
+                  teamId={building.team_id}
+                  lots={lots}
+                  onContactsUpdate={() => {
+                    logger.info("Contacts updated - refreshing...")
+                    router.refresh()
+                  }}
+                  onContactsCountUpdate={(count) => setTotalContacts(count)}
+                  isEmbeddedInCard={true}
+                />
               </div>
             </TabsContent>
 
@@ -421,22 +352,6 @@ export default function BuildingDetailsClient({
                   </div>
                 )}
               </div>
-            </TabsContent>
-
-            {/* Contacts Tab */}
-            <TabsContent value="contacts" className="mt-0 flex-1 flex flex-col min-h-0">
-              <BuildingContactsNavigator
-                buildingId={building.id}
-                buildingName={building.name}
-                teamId={building.team_id}
-                lots={lots}
-                onContactsUpdate={() => {
-                  logger.info("Contacts updated - refreshing...")
-                  router.refresh()
-                }}
-                onContactsCountUpdate={(count) => setTotalContacts(count)}
-                isEmbeddedInCard={true}
-              />
             </TabsContent>
 
             {/* Documents Tab */}

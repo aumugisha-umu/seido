@@ -234,7 +234,7 @@ export default function BuildingDetailsClient({
                   <TabsTrigger
                     key={tab.id}
                     value={tab.id}
-                    className="flex items-center space-x-2 px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:text-sky-600 data-[state=active]:border-b-2 data-[state=active]:border-sky-600 rounded-none border-b-2 border-transparent hover:text-slate-900 transition-colors"
+                    className="flex items-center space-x-2 px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:text-sky-600 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-sky-600 rounded-none border-b-2 border-transparent hover:text-slate-900 transition-colors"
                   >
                     <Icon className="h-4 w-4" />
                     <span className="hidden sm:inline">{tab.label}</span>

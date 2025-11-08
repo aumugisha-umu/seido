@@ -292,7 +292,7 @@ export default function LotDetailsClient({
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center space-x-2 py-3 px-4 border-b-2 font-medium text-sm transition-colors ${
                     activeTab === tab.id
-                      ? "border-sky-600 text-sky-600"
+                      ? "border-sky-600 text-sky-600 bg-white"
                       : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
                   }`}
                 >

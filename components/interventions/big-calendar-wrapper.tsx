@@ -162,8 +162,8 @@ export function BigCalendarWrapper({
         const rect = containerRef.current.getBoundingClientRect()
         // Available height = viewport height - distance from top - bottom padding
         const availableHeight = window.innerHeight - rect.top - 40
-        // Set height with min/max constraints
-        const newHeight = Math.max(400, Math.min(availableHeight, 1000))
+        // Use available height directly (no min/max to always fill space)
+        const newHeight = Math.max(availableHeight, 400)
         setCalendarHeight(newHeight)
       }
     }
@@ -327,7 +327,11 @@ export function BigCalendarWrapper({
     <div
       ref={containerRef}
       className={`rbc-calendar-container ${className}`}
-      style={{ height: `${calendarHeight}px`, maxHeight: `${calendarHeight}px` }}
+      style={{
+        height: `${calendarHeight}px`,
+        minHeight: `${calendarHeight}px`,
+        maxHeight: `${calendarHeight}px`
+      }}
     >
       <Calendar
         localizer={localizer}

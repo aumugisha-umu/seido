@@ -133,15 +133,53 @@ export function InterventionsNavigator({
   const renderInterventionsList = (tabId: string) => {
     const filteredData = getFilteredInterventions(tabId)
 
-    const defaultEmptyConfig = {
-      title: tabId === "toutes" ? "Aucune intervention" : "Aucune intervention dans cette catégorie",
-      description: tabId === "toutes"
-        ? "Les interventions apparaîtront ici"
-        : "Les interventions de ce statut apparaîtront ici",
-      showCreateButton: false,
-      createButtonText: "Créer une intervention",
-      createButtonAction: () => {}
+    // Contextualized empty state messages per tab
+    const getEmptyStateConfig = () => {
+      // Tab-specific messages (priority)
+      switch (tabId) {
+        case "toutes":
+          // Only use external config if truly 0 interventions total
+          if (interventions.length === 0 && emptyStateConfig) {
+            return emptyStateConfig
+          }
+          // Otherwise, differentiate between no data vs filtered results
+          return {
+            title: interventions.length === 0 ? "Aucune intervention" : "Aucun résultat",
+            description: interventions.length === 0
+              ? "Les interventions créées apparaîtront ici."
+              : "Aucune intervention ne correspond à vos critères de recherche ou filtres.",
+            showCreateButton: interventions.length === 0 && (emptyStateConfig?.showCreateButton || false),
+            createButtonText: emptyStateConfig?.createButtonText || "Créer une intervention",
+            createButtonAction: emptyStateConfig?.createButtonAction || (() => {})
+          }
+        case "demandes_group":
+          return {
+            title: "Aucune demande",
+            description: "Les nouvelles demandes d'intervention et celles approuvées apparaîtront ici.",
+            showCreateButton: false
+          }
+        case "en_cours_group":
+          return {
+            title: "Aucune intervention en cours",
+            description: "Les interventions en planification, planifiées, en cours d'exécution ou en attente de validation apparaîtront ici.",
+            showCreateButton: false
+          }
+        case "cloturees_group":
+          return {
+            title: "Aucune intervention clôturée",
+            description: "Les interventions terminées, annulées ou rejetées apparaîtront ici.",
+            showCreateButton: false
+          }
+        default:
+          return {
+            title: "Aucune intervention",
+            description: "Les interventions de ce statut apparaîtront ici.",
+            showCreateButton: false
+          }
+      }
     }
+
+    const defaultEmptyConfig = getEmptyStateConfig()
 
     // Don't render until mounted (prevent hydration mismatch)
     if (!mounted) {
@@ -159,7 +197,7 @@ export function InterventionsNavigator({
         interventions={filteredData}
         userContext={userContext}
         loading={loading}
-        emptyStateConfig={emptyStateConfig || defaultEmptyConfig}
+        emptyStateConfig={defaultEmptyConfig}
         showStatusActions={showStatusActions}
         viewMode={viewMode}
         setViewMode={setViewMode}

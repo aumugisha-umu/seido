@@ -191,9 +191,16 @@
   border: 1px solid rgb(226 232 240); /* slate-200 */
   border-radius: 0 0 0.5rem 0.5rem;
   background: white;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .rbc-time-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: white;
   border-bottom: 2px solid rgb(226 232 240);
 }
 
@@ -202,6 +209,8 @@
 }
 
 .rbc-time-content {
+  flex: 1;
+  overflow-y: auto;
   border-top: 1px solid rgb(226 232 240);
 }
 

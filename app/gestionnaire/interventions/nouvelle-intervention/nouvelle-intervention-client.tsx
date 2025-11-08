@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -32,12 +32,15 @@ import { useToast } from "@/hooks/use-toast"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
 import { useEffect } from "react"
 import { useSearchParams } from "next/navigation"
+import { useSaveFormState, useRestoreFormState } from "@/hooks/use-form-persistence"
 import PropertySelector from "@/components/property-selector"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
 import { determineAssignmentType, createTeamService, createContactService, createTenantService, createLotService, createBuildingService } from '@/lib/services'
 import { useAuth } from "@/hooks/use-auth"
-import ContactSelector from "@/components/ui/contact-selector"
+import ContactSelectorOld from "@/components/ui/contact-selector"
+import { ContactSelector, type ContactSelectorRef } from "@/components/contact-selector"
+import { ContactSection } from "@/components/ui/contact-section"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { interventionSteps } from "@/lib/step-configurations"
 import { logger, logError } from '@/lib/logger'
@@ -117,9 +120,7 @@ export default function NouvelleInterventionClient({
   const [schedulingType, setSchedulingType] = useState<"fixed" | "slots" | "flexible">("flexible")
   const [fixedDateTime, setFixedDateTime] = useState({ date: "", time: "" })
   const [timeSlots, setTimeSlots] = useState<Array<{ date: string; startTime: string; endTime: string }>>([])
-  const [messageType, setMessageType] = useState<"global" | "individual">("global")
   const [globalMessage, setGlobalMessage] = useState("")
-  const [individualMessages, setIndividualMessages] = useState<Record<string, string>>({})
 
   const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([])
   const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([])
@@ -139,6 +140,9 @@ export default function NouvelleInterventionClient({
   const [loading, setLoading] = useState(false)
   const [currentUserTeam, setCurrentUserTeam] = useState<any>(null)
 
+  // Ref pour le modal ContactSelector
+  const contactSelectorRef = useRef<ContactSelectorRef>(null)
+
   const router = useRouter()
   // const { toast } = useToast()
   const { handleSuccess } = useCreationSuccess()
@@ -153,6 +157,44 @@ export default function NouvelleInterventionClient({
     lot: ReturnType<typeof createLotService> | null
     building: ReturnType<typeof createBuildingService> | null
   } | null>(null)
+
+  // ✅ Hook pour sauvegarder l'état du formulaire avant redirect vers création de contact
+  const formState = {
+    currentStep,
+    selectedLogement,
+    selectedBuildingId,
+    selectedLotId,
+    formData,
+    schedulingType,
+    fixedDateTime,
+    timeSlots,
+    globalMessage,
+    selectedManagerIds,
+    selectedProviderIds,
+    expectsQuote,
+    files: fileUpload.files
+  }
+  const { saveAndRedirect } = useSaveFormState(formState)
+
+  // ✅ Restaurer l'état du formulaire au retour de la création de contact
+  const { newContactId, cancelled } = useRestoreFormState((restoredState: any) => {
+    logger.info(`📥 [INTERVENTION-FORM] Restoring form state after contact creation`)
+
+    // Restaurer tous les états
+    setCurrentStep(restoredState.currentStep)
+    setSelectedLogement(restoredState.selectedLogement)
+    setSelectedBuildingId(restoredState.selectedBuildingId)
+    setSelectedLotId(restoredState.selectedLotId)
+    setFormData(restoredState.formData)
+    setSchedulingType(restoredState.schedulingType)
+    setFixedDateTime(restoredState.fixedDateTime)
+    setTimeSlots(restoredState.timeSlots)
+    setGlobalMessage(restoredState.globalMessage)
+    setSelectedManagerIds(restoredState.selectedManagerIds)
+    setSelectedProviderIds(restoredState.selectedProviderIds)
+    setExpectsQuote(restoredState.expectsQuote)
+    // Note: files ne sont pas restaurés car ils ne sont pas sérialisables
+  })
 
   // Step 1: Créer les services quand l'auth est prête
   useEffect(() => {
@@ -274,6 +316,29 @@ export default function NouvelleInterventionClient({
       setLoading(false)
     }
   }
+
+  // ✅ Auto-sélectionner le contact créé après retour de la création
+  useEffect(() => {
+    if (!newContactId) return
+
+    logger.info(`✅ [INTERVENTION-FORM] New contact created: ${newContactId}`)
+
+    // Récupérer le type de contact depuis les searchParams
+    const contactType = searchParams.get('contactType')
+
+    // Auto-sélectionner le contact selon son type
+    if (contactType === 'gestionnaire' || contactType === 'manager') {
+      setSelectedManagerIds(prev => {
+        if (prev.includes(newContactId)) return prev
+        return [...prev, newContactId]
+      })
+      logger.info(`👤 [INTERVENTION-FORM] Auto-selected manager: ${newContactId}`)
+    } else if (contactType === 'prestataire' || contactType === 'provider') {
+      // Pour prestataire: remplacer (1 seul autorisé)
+      setSelectedProviderIds([newContactId])
+      logger.info(`🔧 [INTERVENTION-FORM] Auto-selected provider (replaced): ${newContactId}`)
+    }
+  }, [newContactId, searchParams])
 
   // Load tenant's assigned lots
   const loadTenantLots = async (tenantId: string) => {
@@ -497,13 +562,14 @@ export default function NouvelleInterventionClient({
       const normalizedPrevIds = prevIds.map(id => String(id))
       if (normalizedPrevIds.includes(normalizedProviderId)) {
         // Si déjà sélectionné, le retirer
-        const newIds = normalizedPrevIds.filter(id => id !== normalizedProviderId)
+        const newIds = []
         logger.info("🔧 Prestataire retiré, nouveaux IDs:", newIds)
         return newIds
       } else {
-        // Sinon l'ajouter
-        const newIds = [...normalizedPrevIds, normalizedProviderId]
-        logger.info("🔧 Prestataire ajouté, nouveaux IDs:", newIds)
+        // ⚠️ LIMITATION: Un seul prestataire autorisé
+        // Remplacer le prestataire existant par le nouveau
+        const newIds = [normalizedProviderId]
+        logger.info("🔧 Prestataire sélectionné (remplace l'ancien), nouveaux IDs:", newIds)
         return newIds
       }
     })
@@ -754,9 +820,7 @@ export default function NouvelleInterventionClient({
       schedulingType,
       fixedDateTime,
       timeSlots,
-      messageType,
       globalMessage,
-      individualMessages,
     });
     router.push("/gestionnaire/interventions");
   }
@@ -834,12 +898,10 @@ export default function NouvelleInterventionClient({
               endTime: slot.endTime
             }))
           : [],
-        
+
         // Messages
-        messageType,
         globalMessage,
-        individualMessages,
-        
+
         // Options
         expectsQuote,
 
@@ -1138,16 +1200,13 @@ export default function NouvelleInterventionClient({
               onExpectsQuoteChange={setExpectsQuote}
               globalMessage={globalMessage}
               onGlobalMessageChange={setGlobalMessage}
-              individualMessages={individualMessages}
-              onIndividualMessageChange={(contactId, message) => {
-                setIndividualMessages(prev => ({...prev, [contactId]: message}))
-              }}
               teamId={(() => {
                 const finalTeamId = currentUserTeam?.id || initialBuildingsData.teamId || ""
                 logger.info(`🔍 [INTERVENTION-CLIENT] Passing teamId to ContactSelector: "${finalTeamId}" (currentUserTeam: ${currentUserTeam?.id}, initialData: ${initialBuildingsData.teamId})`)
                 return finalTeamId
               })()}
               isLoading={loading}
+              contactSelectorRef={contactSelectorRef}
             />
           </Card>
         )}
@@ -1294,6 +1353,45 @@ export default function NouvelleInterventionClient({
             </Button>
           </div>
       </div>
+
+      {/* Contact Selector Modal */}
+      <ContactSelector
+        ref={contactSelectorRef}
+        teamId={currentUserTeam?.id || initialBuildingsData.teamId || ""}
+        displayMode="compact"
+        hideUI={true}
+        selectedContacts={{
+          manager: (managers as any[]).filter((m: any) => selectedManagerIds.includes(String(m.id))),
+          provider: (providers as any[]).filter((p: any) => selectedProviderIds.includes(String(p.id)))
+        }}
+        onContactSelected={(contact, contactType) => {
+          logger.info(`✅ Contact selected: ${contact.name} (${contactType})`)
+          if (contactType === 'manager') {
+            handleManagerSelect(contact.id)
+          } else if (contactType === 'provider') {
+            handleProviderSelect(contact.id)
+          }
+        }}
+        onContactCreated={(contact, contactType) => {
+          logger.info(`✅ Contact created: ${contact.name} (${contactType})`)
+          handleContactCreated(contact)
+        }}
+        onContactRemoved={(contactId, contactType) => {
+          logger.info(`❌ Contact removed: ${contactId} (${contactType})`)
+          if (contactType === 'manager') {
+            handleManagerSelect(contactId)
+          } else if (contactType === 'provider') {
+            handleProviderSelect(contactId)
+          }
+        }}
+        onRequestContactCreation={(contactType) => {
+          logger.info(`🔗 [INTERVENTION] Redirecting to contact creation: ${contactType}`)
+          saveAndRedirect('/gestionnaire/contacts/nouveau', {
+            type: contactType,
+            returnPath: '/gestionnaire/interventions/nouvelle-intervention'
+          })
+        }}
+      />
 
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
           <DialogContent className="sm:max-w-md">

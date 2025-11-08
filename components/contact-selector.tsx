@@ -748,7 +748,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                     cleanContactContext()
                   }}
                 >
-                  Terminé
+                  Terminer
                 </Button>
                 <Button 
                   variant="ghost" 

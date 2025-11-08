@@ -17,7 +17,17 @@
   font-family: inherit;
   background: white;
   border-radius: 0.5rem;
-  overflow: hidden;
+  overflow: hidden; /* Preserve border-radius clipping */
+  display: flex;
+  flex-direction: column;
+  /* Height is dynamically calculated via JavaScript inline style */
+}
+
+/* Enable internal scrolling while preserving container clipping */
+.rbc-calendar-container .rbc-calendar {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .rbc-calendar {

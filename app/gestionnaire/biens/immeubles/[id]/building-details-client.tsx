@@ -4,16 +4,15 @@ import React, { useState, useEffect } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { ArrowLeft, Eye, FileText, Wrench, Users, Plus, Search, Filter, Home } from "lucide-react"
+import { ArrowLeft, Eye, FileText, Wrench, Users, Plus, Home } from "lucide-react"
 import LotCard from "@/components/lot-card"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { PropertyDetailHeader } from "@/components/property-detail-header"
-import { BuildingContactsTab } from "@/components/building-contacts-tab"
+import { BuildingContactsNavigator } from "@/components/contacts/building-contacts-navigator"
+import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { logger } from '@/lib/logger'
 import { deleteBuildingAction } from './actions'
 import type { Building, Lot } from '@/lib/services'
@@ -191,7 +190,7 @@ export default function BuildingDetailsClient({
   ]
 
   return (
-    <div className="layout-padding min-h-screen bg-slate-50">
+    <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
       {/* Header */}
       <PropertyDetailHeader
         property={{
@@ -225,33 +224,41 @@ export default function BuildingDetailsClient({
       )}
 
       {/* Tabs Navigation */}
-      <div className="content-max-width px-4 sm:px-6 lg:px-8">
+      <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4 mb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-5 bg-slate-100">
-            {tabs.map((tab) => {
-              const Icon = tab.icon
-              return (
-                <TabsTrigger
-                  key={tab.id}
-                  value={tab.id}
-                  className="flex items-center space-x-2 text-slate-600 data-[state=active]:text-sky-600 data-[state=active]:bg-white"
-                >
-                  <Icon className="h-4 w-4" />
-                  <span className="hidden sm:inline">{tab.label}</span>
-                  <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
-                  {tab.count !== null && (
-                    <Badge variant="secondary" className="ml-1 text-xs bg-slate-200 text-slate-700 data-[state=active]:bg-sky-100 data-[state=active]:text-sky-800">
-                      {tab.count}
-                    </Badge>
-                  )}
-                </TabsTrigger>
-              )
-            })}
-          </TabsList>
+          <div className="border-b border-slate-200">
+            <TabsList className="inline-flex h-auto p-0 bg-transparent w-full justify-start">
+              {tabs.map((tab) => {
+                const Icon = tab.icon
+                return (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    className="flex items-center space-x-2 px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:text-sky-600 data-[state=active]:border-b-2 data-[state=active]:border-sky-600 rounded-none border-b-2 border-transparent hover:text-slate-900 transition-colors"
+                  >
+                    <Icon className="h-4 w-4" />
+                    <span className="hidden sm:inline">{tab.label}</span>
+                    <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
+                    {tab.count !== null && (
+                      <Badge variant="secondary" className="ml-1 text-xs bg-slate-100 text-slate-600 data-[state=active]:bg-sky-100 data-[state=active]:text-sky-700">
+                        {tab.count}
+                      </Badge>
+                    )}
+                  </TabsTrigger>
+                )
+              })}
+            </TabsList>
+          </div>
+        </Tabs>
+      </div>
 
-          <div className="py-8">
+      {/* Card Content */}
+      <Card className="flex-1 flex flex-col content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8">
+          <CardContent className="p-0 flex-1 flex flex-col min-h-0">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
+              <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-6">
             {/* Overview Tab */}
-            <TabsContent value="overview" className="mt-0">
+            <TabsContent value="overview" className="mt-0 flex-1 flex flex-col min-h-0">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* General Information */}
                 <Card>
@@ -360,140 +367,27 @@ export default function BuildingDetailsClient({
             </TabsContent>
 
             {/* Interventions Tab */}
-            <TabsContent value="interventions" className="mt-0">
-              <div className="space-y-6">
-                {/* Statistics Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="text-2xl font-bold text-blue-600">{stats.interventionStats.total}</div>
-                      <div className="text-sm text-gray-600">Total</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="text-2xl font-bold text-orange-600">{stats.interventionStats.pending}</div>
-                      <div className="text-sm text-gray-600">En attente</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="text-2xl font-bold text-yellow-600">{stats.interventionStats.inProgress}</div>
-                      <div className="text-sm text-gray-600">En cours</div>
-                    </CardContent>
-                  </Card>
-                  <Card>
-                    <CardContent className="p-6">
-                      <div className="text-2xl font-bold text-green-600">{stats.interventionStats.completed}</div>
-                      <div className="text-sm text-gray-600">Terminées</div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Interventions Header */}
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-medium text-gray-900 flex items-center">
-                    <Wrench className="h-5 w-5 mr-2 text-gray-400" />
-                    Interventions ({interventions.length})
-                  </h2>
-                  <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle-intervention?buildingId=${building.id}`)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Créer une intervention
-                  </Button>
-                </div>
-
-                {interventions.length > 0 ? (
-                  <>
-                    {/* Search and Filter */}
-                    <div className="flex items-center space-x-4">
-                      <div className="flex-1 relative">
-                        <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-                        <Input placeholder="Rechercher par titre, description, ou lot..." className="pl-10" />
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Filter className="h-4 w-4 text-gray-400" />
-                        <Select defaultValue="all">
-                          <SelectTrigger className="w-48">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">Tous les statuts</SelectItem>
-                            <SelectItem value="pending">En attente</SelectItem>
-                            <SelectItem value="in_progress">En cours</SelectItem>
-                            <SelectItem value="completed">Terminées</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    {/* Interventions List */}
-                    <div className="space-y-4">
-                      {interventions.map((intervention: {
-                        id: string
-                        title: string
-                        status: string
-                        description: string
-                        reference: string
-                        lot?: { reference: string }
-                        assigned_contact?: { name: string }
-                      }) => (
-                        <Card key={intervention.id} className="hover:shadow-md transition-shadow">
-                          <CardContent className="p-6">
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <div className="flex items-center space-x-2 mb-2">
-                                  <h3 className="font-medium text-gray-900">{intervention.title}</h3>
-                                  <Badge variant={
-                                    intervention.status === 'completed' ? 'default' :
-                                    intervention.status === 'in_progress' ? 'secondary' :
-                                    'destructive'
-                                  }>
-                                    {intervention.status === 'completed' ? 'Terminée' :
-                                     intervention.status === 'in_progress' ? 'En cours' :
-                                     intervention.status === 'assigned' ? 'Assignée' :
-                                     'En attente'}
-                                  </Badge>
-                                </div>
-                                <p className="text-gray-600 text-sm mb-3">{intervention.description}</p>
-                                <div className="flex items-center space-x-4 text-sm text-gray-500">
-                                  <span>Lot: {intervention.lot?.reference}</span>
-                                  <span>Référence: {intervention.reference}</span>
-                                  {intervention.assigned_contact && (
-                                    <span>Contact: {intervention.assigned_contact.name}</span>
-                                  )}
-                                </div>
-                              </div>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => router.push(`/gestionnaire/interventions/${intervention.id}`)}
-                              >
-                                <Eye className="h-4 w-4 mr-2" />
-                                Voir
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  /* Empty State */
-                  <div className="text-center py-12">
-                    <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune intervention</h3>
-                    <p className="text-gray-600 mb-4">Aucune intervention n'a été créée pour cet immeuble.</p>
-                    <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle-intervention?buildingId=${building.id}`)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Créer la première intervention
-                    </Button>
-                  </div>
-                )}
-              </div>
+            <TabsContent value="interventions" className="mt-0 flex-1 flex flex-col min-h-0">
+              <InterventionsNavigator
+                interventions={interventions as any}
+                userContext="gestionnaire"
+                loading={false}
+                emptyStateConfig={{
+                  title: "Aucune intervention",
+                  description: "Aucune intervention n'a été créée pour cet immeuble.",
+                  showCreateButton: true,
+                  createButtonText: "Créer une intervention",
+                  createButtonAction: () => router.push(`/gestionnaire/interventions/nouvelle-intervention?buildingId=${building.id}`)
+                }}
+                showStatusActions={true}
+                searchPlaceholder="Rechercher par titre, description, ou lot..."
+                showFilters={true}
+                isEmbeddedInCard={true}
+              />
             </TabsContent>
 
             {/* Lots Tab */}
-            <TabsContent value="lots" className="mt-0">
+            <TabsContent value="lots" className="mt-0 flex-1 flex flex-col min-h-0">
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-medium text-gray-900">Liste des Lots ({lots.length})</h2>
@@ -530,8 +424,8 @@ export default function BuildingDetailsClient({
             </TabsContent>
 
             {/* Contacts Tab */}
-            <TabsContent value="contacts" className="mt-0">
-              <BuildingContactsTab
+            <TabsContent value="contacts" className="mt-0 flex-1 flex flex-col min-h-0">
+              <BuildingContactsNavigator
                 buildingId={building.id}
                 buildingName={building.name}
                 teamId={building.team_id}
@@ -541,11 +435,12 @@ export default function BuildingDetailsClient({
                   router.refresh()
                 }}
                 onContactsCountUpdate={(count) => setTotalContacts(count)}
+                isEmbeddedInCard={true}
               />
             </TabsContent>
 
             {/* Documents Tab */}
-            <TabsContent value="documents" className="mt-0">
+            <TabsContent value="documents" className="mt-0 flex-1 flex flex-col min-h-0">
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -566,9 +461,10 @@ export default function BuildingDetailsClient({
                 />
               </div>
             </TabsContent>
-          </div>
-        </Tabs>
-      </div>
+              </div>
+            </Tabs>
+          </CardContent>
+        </Card>
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal

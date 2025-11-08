@@ -726,7 +726,7 @@ export default function NewImmeubleePage({
 
       // ✅ Preparer les building_contacts (contacts de l'immeuble)
       const contactsData = [
-        // Contacts de l'immeuble (provider, syndic, notary, insurance, other)
+        // Contacts de l'immeuble (provider, notary, insurance, other)
         ...Object.entries(buildingContacts).flatMap(([contactType, contactArray]) =>
           contactArray.map(contact => ({
             id: contact.id,

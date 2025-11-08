@@ -46,6 +46,7 @@ interface InterventionsNavigatorProps {
   showFilters?: boolean
   actionHooks?: ActionHooks
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
+  isEmbeddedInCard?: boolean
 }
 
 export function InterventionsNavigator({
@@ -58,7 +59,8 @@ export function InterventionsNavigator({
   searchPlaceholder = "Rechercher par titre, description, ou lot...",
   showFilters = true,
   actionHooks,
-  userContext = 'gestionnaire'
+  userContext = 'gestionnaire',
+  isEmbeddedInCard = false
 }: InterventionsNavigatorProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState({
@@ -261,19 +263,22 @@ export function InterventionsNavigator({
     />
   ) : null
 
+  const contentNavigatorClasses = isEmbeddedInCard
+    ? `${className} bg-transparent border-0 shadow-none`
+    : className
+
   return (
-    <div className={`${className} flex flex-col h-full min-h-0`}>
-      <ContentNavigator
-        tabs={interventionsTabsConfig}
-        defaultTab="toutes"
-        searchPlaceholder={searchPlaceholder}
-        filters={interventionsFiltersConfig}
-        onSearch={handleSearch}
-        onFilterChange={handleFilterChange}
-        onResetFilters={handleResetFilters}
-        filterValues={filters}
-        rightControls={viewSwitcher}
-      />
-    </div>
+    <ContentNavigator
+      tabs={interventionsTabsConfig}
+      defaultTab="toutes"
+      searchPlaceholder={searchPlaceholder}
+      filters={interventionsFiltersConfig}
+      onSearch={handleSearch}
+      onFilterChange={handleFilterChange}
+      onResetFilters={handleResetFilters}
+      filterValues={filters}
+      rightControls={viewSwitcher}
+      className={contentNavigatorClasses}
+    />
   )
 }

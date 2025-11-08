@@ -3,16 +3,15 @@
 import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Eye, FileText, Wrench, Users, Plus, Search, Filter, AlertCircle, UserCheck } from "lucide-react"
+import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck } from "lucide-react"
 import { LotContactsList } from "@/components/lot-contacts-list"
 import { useRouter } from "next/navigation"
 import { determineAssignmentType } from '@/lib/services'
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { PropertyDetailHeader } from "@/components/property-detail-header"
+import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { logger } from '@/lib/logger'
 import { deleteLotAction } from './actions'
 import type { Lot } from '@/lib/services'
@@ -228,7 +227,7 @@ export default function LotDetailsClient({
   ]
 
   return (
-    <div className="layout-padding min-h-screen bg-slate-50">
+    <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
       {/* Header */}
       <PropertyDetailHeader
         property={{
@@ -282,7 +281,7 @@ export default function LotDetailsClient({
       )}
 
       {/* Tabs Navigation */}
-      <div className="content-max-width px-4 sm:px-6 lg:px-8">
+      <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-0 mb-6">
         <div className="border-b border-slate-200">
           <nav className="-mb-px flex space-x-8">
             {tabs.map((tab) => {
@@ -291,18 +290,18 @@ export default function LotDetailsClient({
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 py-2 px-1 border-b-2 font-medium text-sm ${
+                  className={`flex items-center space-x-2 py-3 px-4 border-b-2 font-medium text-sm transition-colors ${
                     activeTab === tab.id
-                      ? "border-sky-500 text-sky-600"
-                      : "border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300"
+                      ? "border-sky-600 text-sky-600"
+                      : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
                   <span>{tab.label}</span>
                   {tab.count !== undefined && (
-                    <span className="bg-slate-100 text-slate-600 py-0.5 px-2 rounded-full text-xs">
+                    <Badge variant="secondary" className="ml-1 text-xs bg-slate-100 text-slate-600">
                       {tab.count}
-                    </span>
+                    </Badge>
                   )}
                 </button>
               )
@@ -311,10 +310,12 @@ export default function LotDetailsClient({
         </div>
       </div>
 
-      {/* Tab Content */}
-      <main className="content-max-width px-4 sm:px-6 lg:px-8 py-8">
+      {/* Card Content */}
+      <Card className="flex-1 flex flex-col content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8">
+          <CardContent className="p-0 flex-1 flex flex-col min-h-0">
+            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-6">
         {activeTab === "overview" && (
-          <div className="space-y-6">
+          <div className="space-y-6 flex-1 flex flex-col min-h-0">
             {/* Lot Information */}
             <Card>
               <CardHeader>
@@ -465,7 +466,7 @@ export default function LotDetailsClient({
         )}
 
         {activeTab === "contacts" && (
-          <div className="space-y-6">
+          <div className="space-y-6 flex-1 flex flex-col min-h-0">
             <LotContactsList
               lotId={lot.id}
               buildingId={lot?.building?.id}
@@ -476,146 +477,28 @@ export default function LotDetailsClient({
         )}
 
         {activeTab === "interventions" && (
-          <div className="space-y-6">
-            {/* Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-2xl font-bold text-blue-600">{interventionStats.total}</div>
-                  <div className="text-sm text-gray-600">Total</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-2xl font-bold text-orange-600">{interventionStats.pending}</div>
-                  <div className="text-sm text-gray-600">En attente</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-2xl font-bold text-yellow-600">{interventionStats.inProgress}</div>
-                  <div className="text-sm text-gray-600">En cours</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-6">
-                  <div className="text-2xl font-bold text-green-600">{interventionStats.completed}</div>
-                  <div className="text-sm text-gray-600">Terminées</div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Interventions Header */}
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-medium text-gray-900 flex items-center">
-                <Wrench className="h-5 w-5 mr-2 text-gray-400" />
-                Interventions ({interventionStats.total})
-              </h2>
-              <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle-intervention?lotId=${lot.id}`)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Créer une intervention
-              </Button>
-            </div>
-
-            {interventions.length > 0 ? (
-              <>
-                {/* Search and Filter */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex-1 relative">
-                    <Search className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
-                    <Input placeholder="Rechercher par titre, description..." className="pl-10" />
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Filter className="h-4 w-4 text-gray-400" />
-                    <Select defaultValue="all">
-                      <SelectTrigger className="w-48">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">Tous les statuts</SelectItem>
-                        <SelectItem value="pending">En attente</SelectItem>
-                        <SelectItem value="in_progress">En cours</SelectItem>
-                        <SelectItem value="completed">Terminées</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                {/* Interventions List */}
-                <div className="space-y-4">
-                  {interventions.map((intervention) => (
-                    <Card key={intervention.id} className="hover:shadow-md transition-shadow">
-                      <CardContent className="p-6">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <h3 className="font-medium text-gray-900">{intervention.title}</h3>
-                              <Badge variant={
-                                intervention.status === 'completed' ? 'default' :
-                                intervention.status === 'in_progress' ? 'secondary' :
-                                'destructive'
-                              }>
-                                {intervention.status === 'completed' ? 'Terminée' :
-                                 intervention.status === 'in_progress' ? 'En cours' :
-                                 intervention.status === 'assigned' ? 'Assignée' :
-                                 'En attente'}
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {intervention.urgency === 'high' ? 'Urgent' :
-                                 intervention.urgency === 'medium' ? 'Moyen' :
-                                 'Faible'}
-                              </Badge>
-                            </div>
-                            <p className="text-gray-600 text-sm mb-3">{intervention.description}</p>
-                            <div className="flex items-center space-x-4 text-sm text-gray-500">
-                              <span>Référence: {intervention.reference}</span>
-                              {intervention.assigned_contact && (
-                                <span>Contact: {intervention.assigned_contact.name}</span>
-                              )}
-                              {intervention.estimated_cost && (
-                                <span>Coût estimé: {intervention.estimated_cost}€</span>
-                              )}
-                              <span>
-                                Créée le {new Date(intervention.created_at).toLocaleDateString('fr-FR')}
-                              </span>
-                            </div>
-                            {intervention.scheduled_date && (
-                              <div className="mt-2 text-sm text-blue-600">
-                                📅 Programmée pour le {new Date(intervention.scheduled_date).toLocaleDateString('fr-FR')}
-                              </div>
-                            )}
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => router.push(`/gestionnaire/interventions/${intervention.id}`)}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            Voir
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </>
-            ) : (
-              /* Empty State */
-              <div className="text-center py-12">
-                <Wrench className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune intervention</h3>
-                <p className="text-gray-600 mb-4">Aucune intervention n'a été créée pour ce lot.</p>
-                <Button onClick={() => router.push(`/gestionnaire/interventions/nouvelle-intervention?lotId=${lot.id}`)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Créer la première intervention
-                </Button>
-              </div>
-            )}
+          <div className="flex-1 flex flex-col min-h-0">
+            <InterventionsNavigator
+            interventions={interventions as any}
+            userContext="gestionnaire"
+            loading={false}
+            emptyStateConfig={{
+              title: "Aucune intervention",
+              description: "Aucune intervention n'a été créée pour ce lot.",
+              showCreateButton: true,
+              createButtonText: "Créer une intervention",
+              createButtonAction: () => router.push(`/gestionnaire/interventions/nouvelle-intervention?lotId=${lot.id}`)
+            }}
+            showStatusActions={true}
+            searchPlaceholder="Rechercher par titre, description, ou lot..."
+            showFilters={true}
+            isEmbeddedInCard={true}
+          />
           </div>
         )}
 
         {activeTab === "documents" && (
-          <div className="space-y-6">
+          <div className="space-y-6 flex-1 flex flex-col min-h-0">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-medium text-gray-900">Documents du lot</h2>
@@ -635,7 +518,9 @@ export default function LotDetailsClient({
             />
           </div>
         )}
-      </main>
+            </div>
+          </CardContent>
+        </Card>
 
       {/* Delete Confirmation Modal */}
       <DeleteConfirmModal

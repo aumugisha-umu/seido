@@ -88,7 +88,7 @@ interface BuildingContactsTabProps {
  * 🏢 Building Contacts Tab - Vue hiérarchique des contacts
  *
  * Affiche :
- * - Section Contacts de l'immeuble (gestionnaires, propriétaires, syndics, prestataires)
+ * - Section Contacts de l'immeuble (gestionnaires, propriétaires, prestataires)
  * - Grid de lots avec leurs contacts spécifiques (locataires, etc.)
  */
 export function BuildingContactsTab({
@@ -559,48 +559,6 @@ export function BuildingContactsTab({
                         <div className="flex items-start gap-2 min-w-0 flex-1">
                           <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
                             <Home className="h-4 w-4 text-amber-600" />
-                          </div>
-                          <div className="min-w-0 flex-1">
-                            <p className="font-medium text-sm truncate">{contact.user.name}</p>
-                            <p className="text-xs text-gray-600 truncate">{contact.user.email}</p>
-                            {contact.user.phone && (
-                              <p className="text-xs text-gray-500">{contact.user.phone}</p>
-                            )}
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 text-gray-400 hover:text-red-600"
-                          onClick={() => handleRemoveBuildingContact(contact.id, contact.user.name)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Syndics */}
-          {groupedBuildingContacts.syndics.length > 0 && (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Wrench className="h-4 w-4 text-orange-600" />
-                <h4 className="font-semibold text-sm text-orange-900">
-                  Syndics ({groupedBuildingContacts.syndics.length})
-                </h4>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {groupedBuildingContacts.syndics.map((contact) => (
-                  <Card key={contact.id} className="border-orange-200">
-                    <CardContent className="p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-start gap-2 min-w-0 flex-1">
-                          <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
-                            <Wrench className="h-4 w-4 text-orange-600" />
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-sm truncate">{contact.user.name}</p>

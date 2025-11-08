@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, type RefObject } from "react"
 import {
   Users,
   User,
@@ -27,7 +27,8 @@ import { Switch } from "@/components/ui/switch"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { TimePicker } from "@/components/ui/time-picker"
 import { Label } from "@/components/ui/label"
-import ContactSelector from "@/components/ui/contact-selector"
+import { ContactSection } from "@/components/ui/contact-section"
+import type { ContactSelectorRef } from "@/components/contact-selector"
 import { cn } from "@/lib/utils"
 import {
   Collapsible,
@@ -73,10 +74,10 @@ interface AssignmentSectionV2Props {
   onExpectsQuoteChange: (expects: boolean) => void
   globalMessage: string
   onGlobalMessageChange: (message: string) => void
-  individualMessages: Record<string, string>
-  onIndividualMessageChange: (contactId: string, message: string) => void
   teamId: string
   isLoading?: boolean
+  // Nouvelle prop pour ouvrir le modal de sélection
+  contactSelectorRef?: RefObject<ContactSelectorRef>
 }
 
 export function AssignmentSectionV2({
@@ -100,10 +101,9 @@ export function AssignmentSectionV2({
   onExpectsQuoteChange,
   globalMessage,
   onGlobalMessageChange,
-  individualMessages,
-  onIndividualMessageChange,
   teamId,
-  isLoading = false
+  isLoading = false,
+  contactSelectorRef
 }: AssignmentSectionV2Props) {
   const [expandedSections, setExpandedSections] = useState({
     contacts: true,
@@ -111,8 +111,6 @@ export function AssignmentSectionV2({
     quote: false,
     messages: true
   })
-
-  const [showIndividualMessages, setShowIndividualMessages] = useState(false)
 
   const toggleSection = (section: keyof typeof expandedSections) => {
     setExpandedSections(prev => ({
@@ -159,130 +157,27 @@ export function AssignmentSectionV2({
 
           <CollapsibleContent>
             <div className="px-6 pb-6 space-y-4 border-t">
-              {/* Managers and Providers Selectors - Side by Side */}
+              {/* Managers and Providers Cards - Side by Side */}
               <div className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Managers Selector */}
-                <div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
-                    <User className="h-4 w-4" />
-                    Gestionnaires
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <ContactSelector
-                    contacts={managers}
-                    selectedContactIds={selectedManagerIds}
-                    onContactSelect={onManagerSelect}
-                    onContactCreated={onContactCreated}
-                    contactType="gestionnaire"
-                    placeholder="Sélectionner un ou plusieurs gestionnaires"
-                    isLoading={isLoading}
-                    teamId={teamId}
-                  />
-                </div>
+                {/* Managers Card */}
+                <ContactSection
+                  sectionType="managers"
+                  contacts={selectedManagers}
+                  onAddContact={() => contactSelectorRef?.current?.openContactModal('manager')}
+                  onRemoveContact={onManagerSelect}
+                  minRequired={1}
+                  customLabel="Gestionnaires *"
+                />
 
-                {/* Providers Selector */}
-                <div>
-                  <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-2">
-                    <Wrench className="h-4 w-4" />
-                    Prestataires
-                  </label>
-                  <ContactSelector
-                    contacts={providers}
-                    selectedContactIds={selectedProviderIds}
-                    onContactSelect={onProviderSelect}
-                    onContactCreated={onContactCreated}
-                    contactType="prestataire"
-                    placeholder="Sélectionner des prestataires (optionnel)"
-                    isLoading={isLoading}
-                    teamId={teamId}
-                    disableTypeSelection={true}
-                  />
-                </div>
+                {/* Providers Card */}
+                <ContactSection
+                  sectionType="providers"
+                  contacts={selectedProviders}
+                  onAddContact={() => contactSelectorRef?.current?.openContactModal('provider')}
+                  onRemoveContact={onProviderSelect}
+                  customLabel="Prestataire (1 seul, optionnel)"
+                />
               </div>
-
-              {/* Unified Participants Display */}
-              {(tenants.length > 0 || allSelectedContacts.length > 0) && (
-                <div className="pt-4 border-t">
-                  <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-                    <h4 className="text-sm font-semibold text-slate-700 mb-3">
-                      Participants
-                    </h4>
-
-                    {/* Tenants Section */}
-                    {tenants.length > 0 && (
-                      <div className="mb-4">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-medium text-slate-600">Locataires (inclus d'office)</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {tenants.map((tenant) => (
-                            <div
-                              key={tenant.id}
-                              className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full border border-emerald-200"
-                            >
-                              <span className="text-sm font-medium text-slate-700">
-                                {tenant.name}
-                              </span>
-                              <Badge variant="secondary" className="text-xs bg-emerald-100 text-emerald-800 border-0">
-                                Locataire
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Other Participants */}
-                    {allSelectedContacts.filter(c => c.type !== "locataire").length > 0 && (
-                      <div>
-                        {tenants.length > 0 && <div className="border-t border-slate-200 my-3" />}
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="text-xs font-medium text-slate-600">Autres participants</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {allSelectedContacts.filter(c => c.type !== "locataire").map((contact) => (
-                            <div
-                              key={contact.id}
-                              className="inline-flex items-center gap-2 px-3 py-1.5 bg-white rounded-full border border-slate-200"
-                            >
-                              <span className="text-sm font-medium text-slate-700">
-                                {contact.name}
-                              </span>
-                              <Badge
-                                variant="secondary"
-                                className={cn(
-                                  "text-xs border-0",
-                                  contact.type === "gestionnaire" && "bg-blue-100 text-blue-800",
-                                  contact.type === "prestataire" && "bg-green-100 text-green-800"
-                                )}
-                              >
-                                {contact.type === "gestionnaire" ? "Gestionnaire" : "Prestataire"}
-                              </Badge>
-                              {contact.isCurrentUser && (
-                                <Badge variant="outline" className="text-xs px-1 py-0">
-                                  Vous
-                                </Badge>
-                              )}
-                              <button
-                                onClick={() => {
-                                  if (contact.type === "gestionnaire") {
-                                    onManagerSelect(String(contact.id))
-                                  } else {
-                                    onProviderSelect(String(contact.id))
-                                  }
-                                }}
-                                className="ml-1 text-slate-400 hover:text-red-500 transition-colors"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
             </div>
           </CollapsibleContent>
         </div>
@@ -454,28 +349,59 @@ export function AssignmentSectionV2({
 
       {/* Quote Section - Compact */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <FileText className="h-5 w-5 text-slate-600" />
-            <label htmlFor="quote-switch" className="text-base font-semibold text-slate-900 cursor-pointer">
+            <FileText className={cn(
+              "h-5 w-5 flex-shrink-0",
+              selectedProviderIds.length === 0 ? "text-slate-400" : "text-slate-600"
+            )} />
+            <label
+              htmlFor="quote-switch"
+              className={cn(
+                "text-base font-semibold whitespace-nowrap",
+                selectedProviderIds.length === 0
+                  ? "text-slate-400 cursor-not-allowed"
+                  : "text-slate-900 cursor-pointer"
+              )}
+            >
               Demander un devis
             </label>
+
+            {/* Info/Warning message inline with background */}
+            {(selectedProviderIds.length === 0 || expectsQuote) && (
+              <div className={cn(
+                "flex items-center gap-2 px-3 py-1.5 rounded-lg border ml-3",
+                selectedProviderIds.length === 0
+                  ? "bg-slate-50 border-slate-200"
+                  : "bg-amber-50 border-amber-200"
+              )}>
+                {selectedProviderIds.length === 0 ? (
+                  <>
+                    <Info className="h-4 w-4 text-slate-500 flex-shrink-0" />
+                    <p className="text-xs text-slate-600 whitespace-nowrap">
+                      Sélectionnez d'abord un prestataire pour pouvoir demander un devis.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                    <p className="text-xs text-amber-800 whitespace-nowrap">
+                      Les prestataires devront fournir un devis avant l'intervention.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
           </div>
+
           <Switch
             id="quote-switch"
             checked={expectsQuote}
             onCheckedChange={onExpectsQuoteChange}
+            disabled={selectedProviderIds.length === 0}
+            className="flex-shrink-0"
           />
         </div>
-        {expectsQuote && (
-          <div className="mt-3 flex items-start gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200">
-            <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
-            <p className="text-xs text-amber-800">
-              Les prestataires devront fournir un devis avant l'intervention.
-              L'intervention ne pourra débuter qu'après validation du devis.
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Messages Section */}
@@ -490,7 +416,7 @@ export function AssignmentSectionV2({
               <h3 className="text-base font-semibold text-slate-900">
                 Instructions et messages
               </h3>
-              {(globalMessage || Object.values(individualMessages).some(m => m)) && (
+              {globalMessage && (
                 <CheckCircle className="h-4 w-4 text-green-500" />
               )}
             </div>
@@ -518,48 +444,6 @@ export function AssignmentSectionV2({
                 />
               </div>
 
-              {/* Individual Messages Toggle */}
-              {allSelectedContacts.length > 1 && (
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <label className="text-sm font-medium text-slate-700">
-                      Messages personnalisés
-                    </label>
-                    <Switch
-                      checked={showIndividualMessages}
-                      onCheckedChange={setShowIndividualMessages}
-                    />
-                  </div>
-
-                  {showIndividualMessages && (
-                    <div className="space-y-3">
-                      {allSelectedContacts.map((contact) => (
-                        <div key={contact.id} className="p-3 bg-slate-50 rounded-lg">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className={cn(
-                              "h-2 w-2 rounded-full",
-                              contact.type === "gestionnaire" ? "bg-blue-500" : "bg-green-500"
-                            )} />
-                            <span className="text-sm font-medium text-slate-700">
-                              {contact.name}
-                            </span>
-                            <Badge variant="outline" className="text-xs">
-                              {contact.type === "gestionnaire" ? "Gestionnaire" : "Prestataire"}
-                            </Badge>
-                          </div>
-                          <Textarea
-                            value={individualMessages[contact.id] || ""}
-                            onChange={(e) => onIndividualMessageChange(contact.id, e.target.value)}
-                            placeholder="Message personnalisé..."
-                            rows={2}
-                            className="resize-none text-sm"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
 
               <div className="flex items-start gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <Info className="h-4 w-4 text-blue-600 mt-0.5" />

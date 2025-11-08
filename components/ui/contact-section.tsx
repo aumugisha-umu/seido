@@ -11,7 +11,8 @@ import {
   Home,
   UserCircle,
   UserRound,
-  LucideIcon
+  LucideIcon,
+  Edit
 } from "lucide-react"
 
 // Base contact interface - compatible with both Contact and UserType
@@ -279,7 +280,7 @@ export function ContactSection({
         )}
       </div>
 
-      {/* Add button - only visible if not in readOnly mode */}
+      {/* Add/Edit button - only visible if not in readOnly mode */}
       {!readOnly && onAddContact && (
         <div className="p-2 pt-0 bg-white border-t border-slate-100">
           <Button
@@ -291,8 +292,17 @@ export function ContactSection({
             }}
             className={`w-full text-xs ${colorScheme.buttonBorder} ${colorScheme.buttonText} ${colorScheme.buttonHover} h-8`}
           >
-            <Plus className="w-4 h-4 mr-1" />
-            {addButtonLabel}
+            {contacts.length > 0 ? (
+              <>
+                <Edit className="w-4 h-4 mr-1" />
+                {addButtonLabel.replace('Ajouter', 'Modifier')}
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 mr-1" />
+                {addButtonLabel}
+              </>
+            )}
           </Button>
         </div>
       )}

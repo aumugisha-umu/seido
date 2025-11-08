@@ -54,18 +54,20 @@ export function InterventionsCalendarView({
   }
 
   return (
-    <BigCalendarWrapper
-      interventions={interventions}
-      dateField={dateField}
-      onSelectEvent={(intervention) => {
-        router.push(`/${userContext}/interventions/${intervention.id}`)
-      }}
-      onSelectSlot={(date) => {
-        console.log('Selected slot:', date)
-      }}
-      initialView="week"
-      className={className || "h-full w-full"}
-    />
+    <div className="flex-1 min-h-0 flex flex-col">
+      <BigCalendarWrapper
+        interventions={interventions}
+        dateField={dateField}
+        onSelectEvent={(intervention) => {
+          router.push(`/${userContext}/interventions/${intervention.id}`)
+        }}
+        onSelectSlot={(date) => {
+          console.log('Selected slot:', date)
+        }}
+        initialView="week"
+        className={className || "flex-1 min-h-0"}
+      />
+    </div>
   )
 }
 

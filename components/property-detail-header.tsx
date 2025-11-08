@@ -143,9 +143,8 @@ export const PropertyDetailHeader = ({
 
   return (
     <TooltipProvider>
-      <div className="py-6">
-        <div className="content-max-width px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between py-4">
+      <div>
+          <div className="flex items-center justify-between py-3">
             {/* Section Gauche - Navigation */}
             <div className="flex items-center space-x-4">
               <Tooltip>
@@ -280,7 +279,6 @@ export const PropertyDetailHeader = ({
               </DropdownMenu>
             </div>
           </div>
-        </div>
       </div>
     </TooltipProvider>
   )

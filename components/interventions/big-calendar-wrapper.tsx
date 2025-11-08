@@ -8,7 +8,7 @@ import './big-calendar-custom.css'
 import type { InterventionWithRelations } from '@/lib/services'
 import { getStatusColor, getStatusLabel } from '@/lib/intervention-utils'
 import { Badge } from '@/components/ui/badge'
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import {
   Droplet,
   Zap,
@@ -152,6 +152,34 @@ export function BigCalendarWrapper({
 }: BigCalendarWrapperProps) {
   const [view, setView] = useState<View>(initialView)
   const [currentDate, setCurrentDate] = useState(new Date())
+  const [calendarHeight, setCalendarHeight] = useState(600) // Default height
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Calculate dynamic height based on available space
+  useEffect(() => {
+    const calculateHeight = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect()
+        // Available height = viewport height - distance from top - bottom padding
+        const availableHeight = window.innerHeight - rect.top - 40
+        // Set height with min/max constraints
+        const newHeight = Math.max(400, Math.min(availableHeight, 1000))
+        setCalendarHeight(newHeight)
+      }
+    }
+
+    // Calculate on mount and window resize
+    calculateHeight()
+    window.addEventListener('resize', calculateHeight)
+
+    // Recalculate after a short delay (for layout shifts)
+    const timer = setTimeout(calculateHeight, 100)
+
+    return () => {
+      window.removeEventListener('resize', calculateHeight)
+      clearTimeout(timer)
+    }
+  }, [])
 
   /**
    * 📋 Transform interventions into calendar events
@@ -295,21 +323,18 @@ export function BigCalendarWrapper({
     },
   }
 
-  /**
-   * 🎨 Empty state handling - Let parent container handle empty state
-   */
-  if (events.length === 0) {
-    return null
-  }
-
   return (
-    <div className={`rbc-calendar-container ${className}`}>
+    <div
+      ref={containerRef}
+      className={`rbc-calendar-container ${className}`}
+      style={{ height: `${calendarHeight}px`, maxHeight: `${calendarHeight}px` }}
+    >
       <Calendar
         localizer={localizer}
         events={events}
         startAccessor="start"
         endAccessor="end"
-        style={{ height: 'calc(100vh - 280px)' }}
+        style={{ height: '100%' }}
         views={['month', 'week', 'day', 'agenda']}
         view={view}
         date={currentDate}

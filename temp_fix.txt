@@ -1,0 +1,18 @@
+const stats = getStats()
+
+  // Transform building contacts by role + Create buildingContactIds map
+  const buildingManagers = buildingContacts
+    .filter(bc => bc.user.role === 'gestionnaire')
+    .map(bc => ({
+      id: bc.user.id,
+      name: bc.user.name,
+      email: bc.user.email,
+      phone: bc.user.phone,
+      type: 'manager'
+    }))
+  
+  const buildingContactIds: Record<string, string> = {}
+
+  buildingContacts.forEach(bc => {
+    buildingContactIds[bc.user.id] = bc.id // Map user_id to building_contact_id for deletion
+  })

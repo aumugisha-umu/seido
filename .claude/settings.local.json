@@ -12,7 +12,9 @@
       "Bash(cat:*)",
       "Bash(nul)",
       "Bash(npx supabase db push:*)",
-      "Bash(npm run supabase:types:*)"
+      "Bash(npm run supabase:types:*)",
+      "Bash(npm run dev:*)",
+      "Bash(taskkill:*)"
     ],
     "deny": [],
     "ask": []

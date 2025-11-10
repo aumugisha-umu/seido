@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation'
 import {
   createServerBuildingService,
   createServerLotService,
-  createServerInterventionService
+  createServerInterventionService,
+  createServerSupabaseClient
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
 import BuildingDetailsClient from './building-details-client'
@@ -54,7 +55,7 @@ export default async function BuildingDetailsPage({
 
   // 🚨 SECURITY FIX: Cette page n'avait AUCUNE authentification!
   // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
-  await getServerAuthContext('gestionnaire')
+  const { team } = await getServerAuthContext('gestionnaire')
 
   logger.info('🏗️ [BUILDING-PAGE-SERVER] Loading building details', {
     buildingId: id,
@@ -66,6 +67,7 @@ export default async function BuildingDetailsPage({
     const buildingService = await createServerBuildingService()
     const lotService = await createServerLotService()
     const interventionService = await createServerInterventionService()
+    const supabase = await createServerSupabaseClient()
 
     // Load building data
     logger.info('📍 [BUILDING-PAGE-SERVER] Step 1: Loading building...', { buildingId: id })
@@ -93,6 +95,20 @@ export default async function BuildingDetailsPage({
     const lots = lotsResult.success ? (lotsResult.data || []) : []
     logger.info('✅ [BUILDING-PAGE-SERVER] Lots loaded', {
       lotCount: lots.length,
+      elapsed: `${Date.now() - startTime}ms`
+    })
+
+    // Transform lots to include contacts (Step 2 already loads lot_contacts relation)
+    const lotsWithContacts = lots.map((lot: any) => ({
+      id: lot.id,
+      reference: lot.reference,
+      category: lot.category,
+      floor: lot.floor || 0,
+      door_number: lot.door_number || lot.apartment_number || '',
+      lot_contacts: lot.lot_contacts || []
+    }))
+    logger.info('✅ [BUILDING-PAGE-SERVER] Lots with contacts transformed', {
+      lotsWithContactsCount: lotsWithContacts.length,
       elapsed: `${Date.now() - startTime}ms`
     })
 
@@ -151,6 +167,33 @@ export default async function BuildingDetailsPage({
       })
     }
 
+    // Load building contacts
+    logger.info('📍 [BUILDING-PAGE-SERVER] Step 5: Loading building contacts...')
+    const { data: buildingContactsData } = await supabase
+      .from('building_contacts')
+      .select(`
+        id,
+        user_id,
+        is_primary,
+        user:user_id(
+          id,
+          name,
+          email,
+          phone,
+          role,
+          provider_category,
+          speciality
+        )
+      `)
+      .eq('building_id', id)
+      .order('is_primary', { ascending: false })
+
+    const buildingContacts = buildingContactsData || []
+    logger.info('✅ [BUILDING-PAGE-SERVER] Building contacts loaded', {
+      contactCount: buildingContacts.length,
+      elapsed: `${Date.now() - startTime}ms`
+    })
+
     logger.info('🎉 [BUILDING-PAGE-SERVER] All data loaded successfully', {
       buildingId: id,
       totalElapsed: `${Date.now() - startTime}ms`
@@ -163,6 +206,9 @@ export default async function BuildingDetailsPage({
         lots={lots}
         interventions={interventions}
         interventionsWithDocs={interventionsWithDocs}
+        buildingContacts={buildingContacts}
+        lotsWithContacts={lotsWithContacts}
+        teamId={team.id}
       />
     )
   } catch (error) {

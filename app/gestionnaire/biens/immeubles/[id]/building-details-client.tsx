@@ -17,19 +17,66 @@ import { logger } from '@/lib/logger'
 import { deleteBuildingAction } from './actions'
 import type { Building, Lot } from '@/lib/services'
 import { BuildingStatsBadges } from './building-stats-badges'
+import { ContactsGridPreview } from '@/components/ui/contacts-grid-preview'
+import { LotsWithContactsPreview } from '@/components/ui/lots-with-contacts-preview'
+
+interface BuildingContact {
+  id: string
+  user_id: string
+  is_primary: boolean
+  user: {
+    id: string
+    name: string
+    email: string
+    phone?: string
+    role: string
+    provider_category?: string
+    speciality?: string
+  }
+}
+
+interface LotContact {
+  id: string
+  user_id: string
+  is_primary: boolean
+  user: {
+    id: string
+    name: string
+    email: string
+    phone?: string
+    role: string
+    provider_category?: string
+    speciality?: string
+  }
+}
+
+interface LotWithContacts {
+  id: string
+  reference: string
+  category: string
+  floor: number
+  door_number: string
+  lot_contacts: LotContact[]
+}
 
 interface BuildingDetailsClientProps {
   building: Building
   lots: Lot[]
   interventions: unknown[]
   interventionsWithDocs: unknown[]
+  buildingContacts: BuildingContact[]
+  lotsWithContacts: LotWithContacts[]
+  teamId: string
 }
 
 export default function BuildingDetailsClient({
   building,
   lots,
   interventions,
-  interventionsWithDocs
+  interventionsWithDocs,
+  buildingContacts,
+  teamId,
+  lotsWithContacts
 }: BuildingDetailsClientProps) {
   const [activeTab, setActiveTab] = useState("overview")
   const router = useRouter()
@@ -182,6 +229,67 @@ export default function BuildingDetailsClient({
 
   const stats = getStats()
 
+  // Calculate total unique contacts (building + lots)
+  const allContactIds = new Set<string>()
+
+  // Add building contacts
+  buildingContacts.forEach(bc => allContactIds.add(bc.user.id))
+
+  // Add lot contacts (structure: { user: { id, name, email, ... }, is_primary })
+  lotsWithContacts.forEach(lot => {
+    lot.lot_contacts?.forEach((lc: any) => {
+      if (lc.user?.id) allContactIds.add(lc.user.id)
+    })
+  })
+
+  const totalUniqueContacts = allContactIds.size
+
+  // Transform building contacts by role + Create buildingContactIds map
+  const buildingManagers = buildingContacts
+    .filter(bc => bc.user.role === 'gestionnaire')
+    .map(bc => ({
+      id: bc.user.id,
+      name: bc.user.name,
+      email: bc.user.email,
+      phone: bc.user.phone,
+      type: 'manager'
+    }))
+  
+  const buildingContactIds: Record<string, string> = {}
+
+  buildingContacts.forEach(bc => {
+    buildingContactIds[bc.user.id] = bc.id // Map user_id to building_contact_id for deletion
+  })
+
+  const providers = buildingContacts
+    .filter(bc => bc.user.role === 'prestataire')
+    .map(bc => ({
+      id: bc.user.id,
+      name: bc.user.name,
+      email: bc.user.email,
+      phone: bc.user.phone,
+      type: 'provider',
+      speciality: bc.user.speciality || bc.user.provider_category
+    }))
+  const owners = buildingContacts
+    .filter(bc => bc.user.role === 'proprietaire')
+    .map(bc => ({
+      id: bc.user.id,
+      name: bc.user.name,
+      email: bc.user.email,
+      phone: bc.user.phone,
+      type: 'owner'
+    }))
+  const others = buildingContacts
+    .filter(bc => bc.user.role !== 'prestataire' && bc.user.role !== 'proprietaire' && bc.user.role !== 'locataire')
+    .map(bc => ({
+      id: bc.user.id,
+      name: bc.user.name,
+      email: bc.user.email,
+      phone: bc.user.phone,
+      type: 'other'
+    }))
+
   const tabs = [
     { id: "overview", label: "Vue d'ensemble", icon: Eye, count: null },
     { id: "lots", label: "Lots", icon: Home, count: stats.totalLots },
@@ -258,7 +366,7 @@ export default function BuildingDetailsClient({
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
               <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-6">
             {/* Overview Tab */}
-            <TabsContent value="overview" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6">
+            <TabsContent value="overview" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6 pt-6">
               {/* Section 1: Stats Badges */}
               <BuildingStatsBadges
                 stats={{
@@ -266,8 +374,33 @@ export default function BuildingDetailsClient({
                   activeInterventions: stats.activeInterventions,
                   completedInterventions: stats.interventionStats.completed
                 }}
-                totalContacts={totalContacts}
+                totalContacts={totalUniqueContacts}
               />
+
+              {/* Section 2: Contacts Preview - Grid Only */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 px-1">Contacts de l'immeuble</h3>
+                <ContactsGridPreview
+                  buildingId={building.id}
+                  buildingName={building.name}
+                  buildingManagers={buildingManagers}
+                  providers={providers as any}
+                  owners={owners as any}
+                  teamId={teamId}
+                  others={others as any}
+                  buildingContactIds={buildingContactIds}
+                />
+              </div>
+
+              {/* Section 3: Lots avec Contacts - Collapsible Cards */}
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 px-1">Lots et leurs contacts</h3>
+                <LotsWithContactsPreview
+                  buildingId={building.id}
+                  lots={lotsWithContacts as any}
+                  teamId={teamId}
+                />
+              </div>
 
               {/* Description (if exists) */}
               {(building as { description?: string }).description && (
@@ -278,23 +411,6 @@ export default function BuildingDetailsClient({
                   </CardContent>
                 </Card>
               )}
-
-              {/* Section 3: Contacts (embedded) */}
-              <div className="flex-1 flex flex-col min-h-0">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Contacts</h3>
-                <BuildingContactsNavigator
-                  buildingId={building.id}
-                  buildingName={building.name}
-                  teamId={building.team_id}
-                  lots={lots}
-                  onContactsUpdate={() => {
-                    logger.info("Contacts updated - refreshing...")
-                    router.refresh()
-                  }}
-                  onContactsCountUpdate={(count) => setTotalContacts(count)}
-                  isEmbeddedInCard={true}
-                />
-              </div>
             </TabsContent>
 
             {/* Interventions Tab */}

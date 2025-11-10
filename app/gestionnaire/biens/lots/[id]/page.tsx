@@ -64,7 +64,7 @@ export default async function LotDetailsPage({
 
   // 🚨 SECURITY FIX: Cette page n'avait AUCUNE authentification!
   // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
-  await getServerAuthContext('gestionnaire')
+  const { team } = await getServerAuthContext('gestionnaire')
 
   logger.info('🏠 [LOT-PAGE-SERVER] Loading lot details', {
     lotId: id,
@@ -239,6 +239,7 @@ export default async function LotDetailsPage({
         contacts={transformedContacts}
         interventionsWithDocs={interventionsWithDocs}
         isOccupied={hasTenant}
+        teamId={team.id}
       />
     )
   } catch (error) {

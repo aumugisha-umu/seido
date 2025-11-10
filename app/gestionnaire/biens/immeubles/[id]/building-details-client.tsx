@@ -1,13 +1,12 @@
 'use client'
 
-import React, { useState, useEffect } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
+import React, { useState, useEffect, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { ArrowLeft, Eye, FileText, Wrench, Users, Plus, Home } from "lucide-react"
-import LotCard from "@/components/lot-card"
+import { Eye, FileText, Wrench, Plus, Home, Info } from "lucide-react"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { PropertyDetailHeader } from "@/components/property-detail-header"
@@ -80,7 +79,6 @@ export default function BuildingDetailsClient({
 }: BuildingDetailsClientProps) {
   const [activeTab, setActiveTab] = useState("overview")
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   // Delete modal states
   const [showDeleteModal, setShowDeleteModal] = useState(false)
@@ -90,13 +88,55 @@ export default function BuildingDetailsClient({
   // Contacts count state
   const [totalContacts, setTotalContacts] = useState<number>(0)
 
-  // Switch to lots tab if lot param is present
+  // Dynamic height for lots section
+  const [lotsSectionHeight, setLotsSectionHeight] = useState(400) // Default height
+  const lotsSectionContainerRef = useRef<HTMLDivElement>(null)
+  const lotsSectionHeaderRef = useRef<HTMLDivElement>(null)
+
+
+  // Calculate dynamic height for lots section based on available space
   useEffect(() => {
-    const lotParam = searchParams.get('lot')
-    if (lotParam) {
-      setActiveTab("lots")
+    // Only calculate when overview tab is active
+    if (activeTab !== 'overview') return
+
+    const calculateHeight = () => {
+      if (lotsSectionContainerRef.current && lotsSectionHeaderRef.current) {
+        const containerRect = lotsSectionContainerRef.current.getBoundingClientRect()
+        const headerRect = lotsSectionHeaderRef.current.getBoundingClientRect()
+        
+        // Check if we're on mobile/tablette (viewport width < 1024px)
+        const isMobileOrTablet = window.innerWidth < 1024
+        
+        if (isMobileOrTablet) {
+          // On mobile/tablette, use a fixed minimum height that ensures visibility
+          // Calculate based on viewport height with a reasonable minimum
+          const viewportHeight = window.innerHeight
+          const minHeight = Math.max(viewportHeight * 0.3, 300) // At least 30% of viewport or 300px
+          setLotsSectionHeight(minHeight)
+        } else {
+          // On desktop, use the dynamic calculation
+          const availableHeight = window.innerHeight - containerRect.top - 40
+          const headerHeight = headerRect.height
+          const newHeight = Math.max(availableHeight - headerHeight, 200)
+          setLotsSectionHeight(newHeight)
+        }
+      }
     }
-  }, [searchParams])
+
+    // Calculate on mount and window resize
+    calculateHeight()
+    window.addEventListener('resize', calculateHeight)
+
+    // Recalculate after a short delay (for layout shifts)
+    const timer = setTimeout(calculateHeight, 100)
+    const timer2 = setTimeout(calculateHeight, 500) // Additional delay for mobile
+
+    return () => {
+      window.removeEventListener('resize', calculateHeight)
+      clearTimeout(timer)
+      clearTimeout(timer2)
+    }
+  }, [activeTab]) // Recalculate when tab changes
 
   // Calculate statistics
   const getStats = () => {
@@ -292,7 +332,6 @@ export default function BuildingDetailsClient({
 
   const tabs = [
     { id: "overview", label: "Vue d'ensemble", icon: Eye, count: null },
-    { id: "lots", label: "Lots", icon: Home, count: stats.totalLots },
     { id: "interventions", label: "Interventions", icon: Wrench, count: stats.totalInterventions },
     { id: "documents", label: "Documents", icon: FileText, count: null },
   ]
@@ -361,12 +400,12 @@ export default function BuildingDetailsClient({
       </div>
 
       {/* Card Content */}
-      <Card className="flex-1 flex flex-col content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8">
-          <CardContent className="p-0 flex-1 flex flex-col min-h-0">
+      <Card className="flex-1 flex flex-col content-max-width mx-auto w-full p-6 min-h-0 overflow-hidden">
+          <CardContent className="p-0 flex-1 flex flex-col min-h-0 overflow-y-auto">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
-              <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-6">
+              <div className="flex-1 flex flex-col min-h-0 pb-6">
             {/* Overview Tab */}
-            <TabsContent value="overview" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6 pt-6">
+            <TabsContent value="overview" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6 md:space-y-10">
               {/* Section 1: Stats Badges */}
               <BuildingStatsBadges
                 stats={{
@@ -376,6 +415,14 @@ export default function BuildingDetailsClient({
                 }}
                 totalContacts={totalUniqueContacts}
               />
+
+              {/* Section 1.5: Description (if exists) */}
+              {(building as { description?: string }).description && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                  <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-gray-700 whitespace-pre-wrap flex-1">{(building as { description: string }).description}</p>
+                </div>
+              )}
 
               {/* Section 2: Contacts Preview - Grid Only */}
               <div>
@@ -392,25 +439,36 @@ export default function BuildingDetailsClient({
                 />
               </div>
 
-              {/* Section 3: Lots avec Contacts - Collapsible Cards */}
-              <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 px-1">Lots et leurs contacts</h3>
-                <LotsWithContactsPreview
-                  buildingId={building.id}
-                  lots={lotsWithContacts as any}
-                  teamId={teamId}
-                />
+              {/* Section 3: Lots avec Contacts - Scrollable */}
+              <div className="flex flex-col min-h-[300px] flex-1" ref={lotsSectionContainerRef}>
+                {/* Header avec titre et bouton d'ajout */}
+                <div ref={lotsSectionHeaderRef} className="flex items-center justify-between mb-3 px-1 flex-shrink-0">
+                  <h3 className="text-sm font-semibold text-gray-700">Lots et leurs contacts</h3>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => router.push(`/gestionnaire/biens/lots/nouveau?buildingId=${building.id}`)}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Ajouter un lot
+                  </Button>
+                </div>
+                {/* Scrollable container for lots */}
+                <div 
+                  className="overflow-y-auto flex-1 min-h-0"
+                  style={{
+                    maxHeight: `${lotsSectionHeight}px`,
+                    minHeight: '200px'
+                  }}
+                >
+                  <LotsWithContactsPreview
+                    buildingId={building.id}
+                    lots={lotsWithContacts as any}
+                    teamId={teamId}
+                  />
+                </div>
               </div>
-
-              {/* Description (if exists) */}
-              {(building as { description?: string }).description && (
-                <Card>
-                  <CardContent className="pt-6">
-                    <h4 className="text-sm font-medium text-gray-700 mb-2">Description</h4>
-                    <p className="text-sm text-gray-600">{(building as { description: string }).description}</p>
-                  </CardContent>
-                </Card>
-              )}
             </TabsContent>
 
             {/* Interventions Tab */}
@@ -431,43 +489,6 @@ export default function BuildingDetailsClient({
                 showFilters={true}
                 isEmbeddedInCard={true}
               />
-            </TabsContent>
-
-            {/* Lots Tab */}
-            <TabsContent value="lots" className="mt-0 flex-1 flex flex-col min-h-0">
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-medium text-gray-900">Liste des Lots ({lots.length})</h2>
-                  <Button onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Ajouter un lot
-                  </Button>
-                </div>
-
-                {lots.length > 0 ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {lots.map((lot) => (
-                      <LotCard
-                        key={lot.id}
-                        lot={lot}
-                        interventions={interventions}
-                        mode="view"
-                        showBuilding={false}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">Aucun lot</h3>
-                    <p className="text-gray-600 mb-4">Cet immeuble n'a pas encore de lots définis.</p>
-                    <Button onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Créer le premier lot
-                    </Button>
-                  </div>
-                )}
-              </div>
             </TabsContent>
 
             {/* Documents Tab */}

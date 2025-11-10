@@ -245,25 +245,11 @@ export function ContactSection({
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm truncate">{contact.name}</div>
                     <div className="text-xs text-gray-500 truncate">{contact.email}</div>
+                    {contact.phone && (
+                      <div className="text-xs text-gray-500 truncate">{contact.phone}</div>
+                    )}
                   </div>
                 </div>
-
-                {/* Remove button - only show if contact can be removed and not in readOnly mode */}
-                {!readOnly && canRemoveThisContact && onRemoveContact && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onRemoveContact(contact.id)
-                    }}
-                    className="text-red-500 hover:text-red-700 hover:bg-red-50 h-7 w-7 p-0 flex-shrink-0"
-                    title={`Retirer ${contact.name}`}
-                    aria-label={`Retirer ${contact.name}`}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
-                )}
               </div>
             )
           })

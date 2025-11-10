@@ -4,8 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck } from "lucide-react"
-import { LotContactsList } from "@/components/lot-contacts-list"
+import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck, Info } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { determineAssignmentType } from '@/lib/services'
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
@@ -15,6 +14,8 @@ import { InterventionsNavigator } from "@/components/interventions/interventions
 import { logger } from '@/lib/logger'
 import { deleteLotAction } from './actions'
 import type { Lot } from '@/lib/services'
+import { LotStatsBadges } from './lot-stats-badges'
+import { LotContactsGridPreview } from '@/components/ui/lot-contacts-grid-preview'
 
 // Helper function to get French label for lot category
 function getCategoryLabel(category: string): string {
@@ -88,6 +89,7 @@ interface LotDetailsClientProps {
   contacts: LotContact[]
   interventionsWithDocs: Intervention[]
   isOccupied: boolean
+  teamId: string
 }
 
 export default function LotDetailsClient({
@@ -95,7 +97,8 @@ export default function LotDetailsClient({
   interventions,
   contacts: initialContacts,
   interventionsWithDocs,
-  isOccupied: initialIsOccupied
+  isOccupied: initialIsOccupied,
+  teamId
 }: LotDetailsClientProps) {
   const [activeTab, setActiveTab] = useState("overview")
   const router = useRouter()
@@ -144,13 +147,6 @@ export default function LotDetailsClient({
       setIsDeleting(false)
       setShowDeleteModal(false)
     }
-  }
-
-  const handleContactsUpdate = (updatedContacts: LotContact[]) => {
-    setContacts(updatedContacts)
-    // Recalculate occupation status
-    const hasTenant = updatedContacts.some(contact => contact.user?.role === 'locataire')
-    setIsOccupied(hasTenant)
   }
 
   // Transform interventions data for documents component
@@ -219,9 +215,56 @@ export default function LotDetailsClient({
 
   const interventionStats = getInterventionStats()
 
+  // Transform contacts by role for grid preview
+  const transformContactsByRole = () => {
+    const managers: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
+    const tenants: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
+    const providers: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
+    const owners: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
+    const others: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
+
+    contacts.forEach((contact) => {
+      const transformedContact = {
+        id: contact.user_id,
+        name: contact.user.name,
+        email: contact.user.email,
+        phone: contact.user.phone,
+        type: contact.user.role || 'other',
+        speciality: contact.user.speciality
+      }
+
+      switch (contact.user.role) {
+        case 'gestionnaire':
+        case 'admin':
+          managers.push(transformedContact)
+          break
+        case 'locataire':
+          tenants.push(transformedContact)
+          break
+        case 'prestataire':
+          providers.push(transformedContact)
+          break
+        case 'proprietaire':
+          owners.push(transformedContact)
+          break
+        default:
+          others.push(transformedContact)
+      }
+    })
+
+    return { managers, tenants, providers, owners, others }
+  }
+
+  const { managers, tenants, providers, owners, others } = transformContactsByRole()
+
+  // Create mapping of user_id to lot_contact_id for deletion
+  const lotContactIds: Record<string, string> = {}
+  contacts.forEach((contact) => {
+    lotContactIds[contact.user_id] = contact.id
+  })
+
   const tabs = [
     { id: "overview", label: "Vue d'ensemble", icon: Eye },
-    { id: "contacts", label: "Contacts", icon: Users, count: contacts.length },
     { id: "interventions", label: "Interventions", icon: Wrench, count: interventionStats.total },
     { id: "documents", label: "Documents", icon: FileText },
   ]
@@ -311,168 +354,44 @@ export default function LotDetailsClient({
       </div>
 
       {/* Card Content */}
-      <Card className="flex-1 flex flex-col content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8">
-          <CardContent className="p-0 flex-1 flex flex-col min-h-0">
-            <div className="flex-1 flex flex-col min-h-0 overflow-y-auto pb-6">
+      <Card className="flex-1 flex flex-col content-max-width mx-auto w-full p-6 min-h-0 overflow-hidden">
+          <CardContent className="p-0 flex-1 flex flex-col min-h-0 overflow-y-auto">
+            <div className="flex-1 flex flex-col min-h-0 pb-6">
         {activeTab === "overview" && (
-          <div className="space-y-6 flex-1 flex flex-col min-h-0">
-            {/* Lot Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Informations du Lot</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Référence</span>
-                  <span className="font-medium">{lot.reference}</span>
-                </div>
-                {/* Category */}
-                {lot.category && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Catégorie</span>
-                    <span className="font-medium">{getCategoryLabel(lot.category)}</span>
-                  </div>
-                )}
-
-                {/* Parent Building */}
-                {lot.building && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Immeuble</span>
-                    <span className="font-medium">{lot.building.name}</span>
-                  </div>
-                )}
-
-                {/* Complete Address */}
-                {(() => {
-                  let address = ""
-                  if (lot.building) {
-                    // Lot in building: use building address
-                    address = [lot.building.address, lot.building.city].filter(Boolean).join(", ")
-                  } else if (lot.street || lot.city) {
-                    // Independent lot: use lot address
-                    address = [lot.street, lot.postal_code, lot.city].filter(Boolean).join(", ")
-                  }
-                  return address && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Adresse</span>
-                      <span className="font-medium text-sm text-right">{address}</span>
-                    </div>
-                  )
-                })()}
-
-                {lot.apartment_number && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Numéro de porte</span>
-                    <span className="font-medium">{lot.apartment_number}</span>
-                  </div>
-                )}
-
-                {lot.floor !== null && lot.floor !== undefined && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Étage</span>
-                    <span className="font-medium">{lot.floor}</span>
-                  </div>
-                )}
-
-                {/* Description */}
-                {lot.description && (
-                  <div className="flex flex-col gap-2 pt-2 border-t">
-                    <span className="text-gray-600">Description</span>
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap">{lot.description}</p>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Statut d'occupation</span>
-                  <span className="font-medium">
-                    <Badge variant={isOccupied ? "default" : "secondary"}>
-                      {isOccupied ? "Occupé" : "Vacant"}
-                    </Badge>
-                  </span>
-                </div>
-                {(() => {
-                  const tenant = contacts.find(contact => contact.user?.role === 'locataire')?.user
-                  return tenant && (
-                    <div className="pt-2 border-t">
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Locataire</span>
-                        <span className="font-medium">{tenant.name}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Email</span>
-                        <span className="font-medium text-sm">{tenant.email}</span>
-                      </div>
-                      {tenant.phone && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Téléphone</span>
-                          <span className="font-medium">{tenant.phone}</span>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })()}
-                <div className="pt-2 border-t text-xs text-gray-500">
-                  Créé le {new Date(lot.created_at).toLocaleDateString('fr-FR')}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Assigned Managers */}
-            {contacts.filter(contact => determineAssignmentType({
-              id: contact.id,
-              role: contact.user.role,
-              provider_category: contact.user.provider_category
-            }) === 'manager').length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <UserCheck className="h-4 w-4 text-purple-600" />
-                    Gestionnaires assignés
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {contacts
-                    .filter(contact => determineAssignmentType({
-                      id: contact.id,
-                      role: contact.user.role,
-                      provider_category: contact.user.provider_category
-                    }) === 'manager')
-                    .map((manager) => (
-                      <div key={manager.id} className="flex items-center gap-3 p-3 bg-purple-50 rounded-lg border-l-4 border-l-purple-500">
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-slate-900 text-sm">
-                            {manager.user.name}
-                          </div>
-                          <div className="text-xs text-slate-600">
-                            {manager.user.email}
-                          </div>
-                          {manager.user.phone && (
-                            <div className="text-xs text-slate-600 mt-1">
-                              📞 {manager.user.phone}
-                            </div>
-                          )}
-                          {manager.is_primary_for_lot && (
-                            <Badge variant="outline" className="text-xs mt-2">
-                              Responsable principal
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  }
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
-
-        {activeTab === "contacts" && (
-          <div className="space-y-6 flex-1 flex flex-col min-h-0">
-            <LotContactsList
-              lotId={lot.id}
-              buildingId={lot?.building?.id}
-              contacts={contacts}
-              onContactsUpdate={handleContactsUpdate}
+          <div className="mt-0 flex-1 flex flex-col min-h-0 space-y-10">
+            {/* Section 1: Stats Badges */}
+            <LotStatsBadges
+              stats={{
+                totalInterventions: interventionStats.total,
+                activeInterventions: interventionStats.inProgress,
+                completedInterventions: interventionStats.completed
+              }}
+              totalContacts={contacts.length}
             />
+
+            {/* Section 1.5: Description (if exists) */}
+            {lot.description && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
+                <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                <p className="text-sm text-gray-700 whitespace-pre-wrap flex-1">{lot.description}</p>
+              </div>
+            )}
+
+            {/* Section 2: Contacts Preview - Grid Only */}
+            <div>
+              <h3 className="text-sm font-semibold text-gray-700 mb-3 px-1">Contacts du lot</h3>
+              <LotContactsGridPreview
+                lotId={lot.id}
+                lotReference={lot.reference}
+                managers={managers}
+                tenants={tenants}
+                providers={providers}
+                owners={owners}
+                others={others}
+                lotContactIds={lotContactIds}
+                teamId={teamId}
+              />
+            </div>
           </div>
         )}
 

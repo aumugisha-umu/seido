@@ -1,10 +1,12 @@
 "use client"
 
 import { useState, useRef } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, ChevronUp, Home, Users } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { ChevronDown, ChevronUp, Home, Users, Eye } from "lucide-react"
 import { ContactSection } from "@/components/ui/contact-section"
 import { ContactDeleteConfirmModal } from "@/components/ui/contact-delete-confirm-modal"
 import { useToast } from "@/components/ui/use-toast"
@@ -54,6 +56,7 @@ interface LotsWithContactsPreviewProps {
  * - Modale de confirmation avant suppression de contact
  */
 export function LotsWithContactsPreview({ buildingId, lots, teamId }: LotsWithContactsPreviewProps) {
+  const router = useRouter()
   const { toast } = useToast()
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
   const [expandedLots, setExpandedLots] = useState<Record<string, boolean>>({})
@@ -129,6 +132,7 @@ export function LotsWithContactsPreview({ buildingId, lots, teamId }: LotsWithCo
   const handleAddContact = (sectionType: string, lotReference: string, lotId: string) => {
     // Map section types to contact type keys
     const contactTypeMap: Record<string, string> = {
+      'gestionnaires': 'manager',
       'locataires': 'tenant',
       'prestataires': 'provider',
       'propriétaires': 'owner',
@@ -213,8 +217,32 @@ export function LotsWithContactsPreview({ buildingId, lots, teamId }: LotsWithCo
     }
   }
 
+  // Format contacts by category for tooltip display
+  const formatContactsForTooltip = (managers: any[], tenants: any[], providers: any[], owners: any[], others: any[]) => {
+    const sections: Array<{ label: string; contacts: any[] }> = []
+
+    if (managers.length > 0) {
+      sections.push({ label: 'Gestionnaires', contacts: managers })
+    }
+    if (tenants.length > 0) {
+      sections.push({ label: 'Locataires', contacts: tenants })
+    }
+    if (providers.length > 0) {
+      sections.push({ label: 'Prestataires', contacts: providers })
+    }
+    if (owners.length > 0) {
+      sections.push({ label: 'Propriétaires', contacts: owners })
+    }
+    if (others.length > 0) {
+      sections.push({ label: 'Autres', contacts: others })
+    }
+
+    return sections
+  }
+
   // Transform lot_contacts by role
   const transformContactsByRole = (lotContacts: LotContact[]) => {
+    const managers: Array<{ id: string; name: string; email: string; phone?: string; type: string }> = []
     const tenants: Array<{ id: string; name: string; email: string; phone?: string; type: string }> = []
     const providers: Array<{ id: string; name: string; email: string; phone?: string; type: string }> = []
     const owners: Array<{ id: string; name: string; email: string; phone?: string; type: string }> = []
@@ -230,6 +258,9 @@ export function LotsWithContactsPreview({ buildingId, lots, teamId }: LotsWithCo
       }
 
       switch (contact.user.role) {
+        case 'gestionnaire':
+          managers.push(transformedContact)
+          break
         case 'locataire':
           tenants.push(transformedContact)
           break
@@ -244,7 +275,7 @@ export function LotsWithContactsPreview({ buildingId, lots, teamId }: LotsWithCo
       }
     })
 
-    return { tenants, providers, owners, others }
+    return { managers, tenants, providers, owners, others }
   }
 
   if (!lots || lots.length === 0) {
@@ -264,16 +295,16 @@ export function LotsWithContactsPreview({ buildingId, lots, teamId }: LotsWithCo
       {lots.map((lot, index) => {
         const isExpanded = expandedLots[lot.id] || false
         const contactsCount = lot.lot_contacts?.length || 0
-        const { tenants, providers, owners, others } = transformContactsByRole(lot.lot_contacts || [])
+        const { managers, tenants, providers, owners, others } = transformContactsByRole(lot.lot_contacts || [])
 
         return (
           <div
             key={lot.id || `lot-${index}`}
             className={isExpanded ? "md:col-span-2 lg:col-span-4" : ""}
           >
-            <Card className="overflow-hidden h-full">
+            <Card className="overflow-hidden h-full p-4">
               <CardHeader
-                className="pb-3 cursor-pointer hover:bg-gray-50 transition-colors"
+                className="cursor-pointer hover:bg-gray-50 transition-colors"
                 onClick={() => toggleLot(lot.id)}
               >
                 <div className="flex items-center justify-between">
@@ -301,10 +332,65 @@ export function LotsWithContactsPreview({ buildingId, lots, teamId }: LotsWithCo
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <Badge variant="secondary" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
-                      <Users className="h-3 w-3 mr-1" />
-                      {contactsCount}
-                    </Badge>
+                    {contactsCount > 0 ? (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge
+                            variant="secondary"
+                            className="text-xs bg-purple-50 text-purple-700 border-purple-200 cursor-help"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Users className="h-3 w-3 mr-1" />
+                            {contactsCount}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent
+                          side="left"
+                          className="max-w-xs bg-white text-gray-900 border border-gray-200 shadow-lg p-3"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="space-y-2">
+                            {formatContactsForTooltip(managers, tenants, providers, owners, others).map((section) => (
+                              <div key={section.label}>
+                                <div className="font-semibold text-xs text-gray-700 mb-1">
+                                  {section.label} ({section.contacts.length})
+                                </div>
+                                <div className="space-y-1 pl-2">
+                                  {section.contacts.map((contact) => (
+                                    <div key={contact.id} className="text-xs text-gray-600">
+                                      {contact.name}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    ) : (
+                      <Badge variant="secondary" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                        <Users className="h-3 w-3 mr-1" />
+                        {contactsCount}
+                      </Badge>
+                    )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 hover:bg-blue-50"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/gestionnaire/biens/lots/${lot.id}`)
+                          }}
+                        >
+                          <Eye className="h-4 w-4 text-blue-600" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top">
+                        Voir les détails du lot
+                      </TooltipContent>
+                    </Tooltip>
                     <Button
                       variant="ghost"
                       size="sm"
@@ -325,9 +411,19 @@ export function LotsWithContactsPreview({ buildingId, lots, teamId }: LotsWithCo
               </CardHeader>
 
               {isExpanded && contactsCount > 0 && (
-                <CardContent className="pt-0 pb-4">
-                  {/* Grid layout for contacts - 4 columns on desktop */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2">
+                <CardContent className="pt-0 pb-4 px-0">
+                  {/* Grid layout for contacts - 5 columns on desktop (ajout gestionnaires) */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
+                    <ContactSection
+                      sectionType="managers"
+                      contacts={managers}
+                      readOnly={false}
+                      onAddContact={() => handleAddContact('gestionnaires', lot.reference, lot.id)}
+                      onRemoveContact={(id) => {
+                        const contact = managers.find(c => c.id === id)
+                        if (contact) handleRemoveContact(contact as any, lot.id, lot.reference)
+                      }}
+                    />
                     <ContactSection
                       sectionType="tenants"
                       contacts={tenants}
@@ -373,7 +469,7 @@ export function LotsWithContactsPreview({ buildingId, lots, teamId }: LotsWithCo
               )}
 
               {isExpanded && contactsCount === 0 && (
-                <CardContent className="pt-0 pb-4">
+                <CardContent className="pt-0 pb-4 px-0">
                   <div className="text-center py-4 text-sm text-gray-500">
                     Aucun contact assigné à ce lot
                   </div>

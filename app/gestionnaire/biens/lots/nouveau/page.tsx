@@ -2379,14 +2379,21 @@ export default function NewLotPage() {
     return undefined
   }
 
+  // Déterminer le texte et la destination du bouton retour
+  const buildingIdParam = searchParams.get("buildingId")
+  const backButtonText = buildingIdParam ? "Retour à l'immeuble" : "Retour aux biens"
+  const backDestination = buildingIdParam
+    ? `/gestionnaire/biens/immeubles/${buildingIdParam}`
+    : "/gestionnaire/biens"
+
   return (
     <div className="flex flex-col flex-1 min-h-0 bg-gray-50">
       {/* Header - Sticky au niveau supérieur */}
       <StepProgressHeader
         title="Ajouter un nouveau lot"
         subtitle={getHeaderSubtitle()}
-        backButtonText="Retour aux biens"
-        onBack={() => router.push("/gestionnaire/biens")}
+        backButtonText={backButtonText}
+        onBack={() => router.push(backDestination)}
         steps={lotSteps}
         currentStep={currentStep}
       />

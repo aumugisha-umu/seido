@@ -99,6 +99,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       .from(this.tableName)
       .select(`
         *,
+        creator:created_by(id, name, email, role),
         lot:lot_id(
           id, reference, building_id,
           building:building_id(id, name, address, city, team_id),
@@ -150,6 +151,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       .from(this.tableName)
       .select(`
         *,
+        creator:created_by(id, name, email, role),
         lot:lot_id(
           id, reference,
           building:building_id(id, name, address, city, postal_code, team_id)

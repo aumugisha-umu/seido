@@ -8,13 +8,15 @@ import {
   Check,
   CalendarDays,
   Users,
+  User,
   MapPin,
   Building2,
   FileText,
-  Info
+  Info,
+  X
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { DateTimePicker } from "@/components/ui/date-time-picker"
@@ -81,6 +83,9 @@ interface ProgrammingModalFinalProps {
   managers?: Contact[]
   selectedManagers?: string[]
   onManagerToggle?: (managerId: string) => void
+  tenants?: Contact[]
+  selectedTenants?: string[]
+  onTenantToggle?: (tenantId: string) => void
   onOpenManagerModal?: () => void
   onOpenProviderModal?: () => void
 }
@@ -110,6 +115,9 @@ export const ProgrammingModalFinal = ({
   managers = [],
   selectedManagers = [],
   onManagerToggle,
+  tenants = [],
+  selectedTenants = [],
+  onTenantToggle,
   onOpenManagerModal,
   onOpenProviderModal
 }: ProgrammingModalFinalProps) => {
@@ -124,21 +132,34 @@ export const ProgrammingModalFinal = ({
     .filter(p => selectedProviders.includes(p.id))
     .map(p => ({ ...p, type: 'prestataire' as const, email: p.email || '' }))
 
+  const selectedTenantContacts: Contact[] = tenants
+    .filter(t => selectedTenants.includes(t.id))
+    .map(t => ({ ...t, type: 'locataire' as const }))
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="w-[1100px] max-w-[95vw] max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="pb-4">
-          <DialogTitle className="text-2xl font-semibold text-slate-900 flex items-center gap-3">
-            <Calendar className="h-6 w-6 text-blue-600" />
-            Programmer l'intervention
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="w-[1100px] max-w-[95vw] h-[90vh] p-0 flex flex-col overflow-hidden" showCloseButton={false}>
+        {/* STICKY HEADER - Informations intervention */}
+        <div className="flex-shrink-0 sticky top-0 z-10 bg-white border-b border-slate-200">
+          <DialogHeader className="p-6 pb-4 relative">
+            <DialogTitle className="text-2xl font-semibold text-slate-900 flex items-center gap-3">
+              <Calendar className="h-6 w-6 text-blue-600" />
+              Programmer l'intervention
+            </DialogTitle>
+            {/* Close button */}
+            <button
+              onClick={onClose}
+              className="absolute top-6 right-6 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Close</span>
+            </button>
+          </DialogHeader>
 
-        <div className="space-y-6 pb-6 px-1">
-          {/* 1. Intervention Summary - Same layout as intervention-detail-header */}
-          <div className="bg-white p-4 rounded-lg border border-slate-200">
+          {/* Intervention Summary - Infos principales */}
+          <div className="px-6 pb-4">
             <div className="text-center">
-              {/* Titre et badges - Layout horizontal comme dans le header de détail */}
+              {/* Titre et badges - Layout horizontal */}
               <div className="flex items-center justify-center space-x-3 mb-2 flex-wrap">
                 <h2 className="text-lg font-bold text-slate-900 truncate">
                   {intervention?.title || "Sans titre"}
@@ -184,21 +205,49 @@ export const ProgrammingModalFinal = ({
                 </Badge>
               </div>
 
-              {/* Location - En dessous comme dans le header */}
-              <div className="flex items-center justify-center space-x-1 text-sm text-slate-600">
-                {intervention && getInterventionLocationIcon(intervention as any) === "building" ? (
-                  <Building2 className="h-3 w-3" />
-                ) : (
-                  <MapPin className="h-3 w-3" />
+              {/* Informations contextuelles */}
+              <div className="flex items-center justify-center space-x-4 text-sm text-slate-600 flex-wrap gap-2">
+                {/* Location */}
+                <div className="flex items-center space-x-1">
+                  {intervention && getInterventionLocationIcon(intervention as any) === "building" ? (
+                    <Building2 className="h-3 w-3" />
+                  ) : (
+                    <MapPin className="h-3 w-3" />
+                  )}
+                  <span className="truncate max-w-xs">
+                    {intervention ? getInterventionLocationText(intervention as any) : 'Localisation non spécifiée'}
+                  </span>
+                </div>
+
+                {/* Créé par */}
+                {intervention?.created_by && (
+                  <div className="flex items-center space-x-1">
+                    <User className="h-3 w-3" />
+                    <span>Créée par : {intervention.created_by}</span>
+                  </div>
                 )}
-                <span className="truncate max-w-xs">
-                  {intervention ? getInterventionLocationText(intervention as any) : 'Localisation non spécifiée'}
-                </span>
+
+                {/* Créé le */}
+                {intervention?.created_at && (
+                  <div className="flex items-center space-x-1">
+                    <Calendar className="h-3 w-3" />
+                    <span>
+                      Créé le : {new Date(intervention.created_at).toLocaleDateString("fr-FR", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric"
+                      })}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>
+        </div>
 
-          <Separator />
+        {/* SCROLLABLE CONTENT - Card blanche avec le contenu */}
+        <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 space-y-6">
 
           {/* 2. Assignations Section with ContactSection */}
           <div className="space-y-4">
@@ -207,11 +256,11 @@ export const ProgrammingModalFinal = ({
                 Participants de l'intervention
               </h2>
               <p className="text-sm text-slate-600">
-                Sélectionnez les gestionnaires et prestataires à notifier
+                Sélectionnez les gestionnaires, prestataires et locataires à notifier
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Gestionnaires ContactSection */}
               <ContactSection
                 sectionType="managers"
@@ -229,6 +278,14 @@ export const ProgrammingModalFinal = ({
                 onAddContact={onOpenProviderModal}
                 onRemoveContact={onProviderToggle}
                 customLabel="Prestataire(s) à contacter"
+              />
+
+              {/* Locataires ContactSection (Read-only - pas de bouton Ajouter) */}
+              <ContactSection
+                sectionType="tenants"
+                contacts={selectedTenantContacts}
+                onRemoveContact={onTenantToggle}
+                customLabel="Locataire(s) concerné(s)"
               />
             </div>
           </div>
@@ -263,15 +320,15 @@ export const ProgrammingModalFinal = ({
                     : "border-slate-200 hover:border-slate-300 bg-white"
                 )}
               >
-                <div className="flex flex-col gap-2">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                     programmingOption === "direct" ? "bg-blue-100" : "bg-slate-100"
                   }`}>
                     <CalendarDays className={`h-5 w-5 ${
                       programmingOption === "direct" ? "text-blue-600" : "text-slate-600"
                     }`} />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className={`font-semibold text-sm mb-1 ${
                       programmingOption === "direct" ? "text-blue-900" : "text-slate-900"
                     }`}>
@@ -300,15 +357,15 @@ export const ProgrammingModalFinal = ({
                     : "border-slate-200 hover:border-slate-300 bg-white"
                 )}
               >
-                <div className="flex flex-col gap-2">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                     programmingOption === "propose" ? "bg-purple-100" : "bg-slate-100"
                   }`}>
                     <Clock className={`h-5 w-5 ${
                       programmingOption === "propose" ? "text-purple-600" : "text-slate-600"
                     }`} />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className={`font-semibold text-sm mb-1 ${
                       programmingOption === "propose" ? "text-purple-900" : "text-slate-900"
                     }`}>
@@ -337,15 +394,15 @@ export const ProgrammingModalFinal = ({
                     : "border-slate-200 hover:border-slate-300 bg-white"
                 )}
               >
-                <div className="flex flex-col gap-2">
-                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                <div className="flex items-start gap-3">
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
                     programmingOption === "organize" ? "bg-emerald-100" : "bg-slate-100"
                   }`}>
                     <Users className={`h-5 w-5 ${
                       programmingOption === "organize" ? "text-emerald-600" : "text-slate-600"
                     }`} />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <h3 className={`font-semibold text-sm mb-1 ${
                       programmingOption === "organize" ? "text-emerald-900" : "text-slate-900"
                     }`}>
@@ -460,8 +517,7 @@ export const ProgrammingModalFinal = ({
                   Coordination autonome
                 </h3>
                 <p className="text-sm text-emerald-700 leading-relaxed">
-                  Les participants recevront une notification et pourront se coordonner directement
-                  entre eux pour fixer le rendez-vous. Vous serez notifié une fois la date confirmée.
+                  Les participants recevront une notification et pourront communiquer entre eux via la section discussion et l'outil de disponibilités fourni pour fixer le rendez-vous. Vous serez notifié une fois la date confirmée.
                 </p>
               </div>
             </div>
@@ -526,26 +582,29 @@ export const ProgrammingModalFinal = ({
               </div>
             </>
           )}
+          </div>
         </div>
 
-        {/* 7. Footer */}
-        <DialogFooter className="pt-4 border-t">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            className="min-w-[100px]"
-          >
-            Annuler
-          </Button>
-          <Button
-            onClick={onConfirm}
-            disabled={!isFormValid || !programmingOption}
-            className="min-w-[140px]"
-          >
-            <Check className="h-4 w-4 mr-2" />
-            Confirmer la planification
-          </Button>
-        </DialogFooter>
+        {/* STICKY FOOTER - Boutons d'action */}
+        <div className="flex-shrink-0 sticky bottom-0 z-10 bg-white border-t border-slate-200 p-6">
+          <div className="flex items-center justify-end gap-3">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="min-w-[100px]"
+            >
+              Annuler
+            </Button>
+            <Button
+              onClick={onConfirm}
+              disabled={!isFormValid || !programmingOption}
+              className="min-w-[140px]"
+            >
+              <Check className="h-4 w-4 mr-2" />
+              Confirmer la planification
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   )

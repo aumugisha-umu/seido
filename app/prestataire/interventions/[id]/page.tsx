@@ -140,16 +140,17 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
   // Get creator from first assignment (usually gestionnaire or locataire)
   const firstAssignment = assignments && assignments.length > 0 ? assignments[0] : null
 
-  const creatorName = firstAssignment?.user?.name ||
-                      firstAssignment?.user?.email?.split('@')[0] ||
-                      'Utilisateur'
-
   // Construct full intervention object
   const fullIntervention = {
     ...result.data,
     building: building || undefined,
     lot: lot || undefined,
-    creator_name: creatorName
+    creator: firstAssignment?.user ? {
+      id: firstAssignment.user.id,
+      name: firstAssignment.user.name,
+      email: firstAssignment.user.email,
+      role: firstAssignment.user.role
+    } : undefined
   }
 
   return (

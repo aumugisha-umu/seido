@@ -5,7 +5,7 @@
  * Main client component with tabs for provider view
  */
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
@@ -98,6 +98,47 @@ export function PrestataireInterventionDetailClient({
   const [rejectionReason, setRejectionReason] = useState('')
   const [isRejecting, setIsRejecting] = useState(false)
 
+  // Transform assignments into Contact arrays by role
+  const { managers, providers, tenants } = useMemo(() => {
+    const managers = assignments
+      .filter(a => a.role === 'gestionnaire')
+      .map(a => ({
+        id: a.user?.id || '',
+        name: a.user?.name || '',
+        email: a.user?.email || '',
+        phone: a.user?.phone,
+        role: a.user?.role,
+        type: 'gestionnaire' as const
+      }))
+      .filter(c => c.id)
+
+    const providers = assignments
+      .filter(a => a.role === 'prestataire')
+      .map(a => ({
+        id: a.user?.id || '',
+        name: a.user?.name || '',
+        email: a.user?.email || '',
+        phone: a.user?.phone,
+        role: a.user?.role,
+        type: 'prestataire' as const
+      }))
+      .filter(c => c.id)
+
+    const tenants = assignments
+      .filter(a => a.role === 'locataire')
+      .map(a => ({
+        id: a.user?.id || '',
+        name: a.user?.name || '',
+        email: a.user?.email || '',
+        phone: a.user?.phone,
+        role: a.user?.role,
+        type: 'locataire' as const
+      }))
+      .filter(c => c.id)
+
+    return { managers, providers, tenants }
+  }, [assignments])
+
   const handleRefresh = async () => {
     setRefreshing(true)
     router.refresh()
@@ -108,15 +149,25 @@ export function PrestataireInterventionDetailClient({
   const handleOpenProgrammingModalWithData = () => {
     const interventionAction = {
       id: intervention.id,
-      type: '',
+      type: intervention.type || '',
       status: intervention.status || '',
-      title: '',
+      title: intervention.title || '',
       description: intervention.description,
       priority: intervention.priority,
       urgency: intervention.urgency,
       reference: intervention.reference || '',
       created_at: intervention.created_at,
+      created_by: intervention.creator?.name || 'Utilisateur',
       location: intervention.specific_location,
+      lot: intervention.lot ? {
+        reference: intervention.lot.reference || '',
+        building: intervention.lot.building ? {
+          name: intervention.lot.building.name || ''
+        } : undefined
+      } : undefined,
+      building: intervention.building ? {
+        name: intervention.building.name || ''
+      } : undefined
     }
 
     // Determine planning mode based on existing time slots
@@ -272,7 +323,7 @@ export function PrestataireInterventionDetailClient({
           status: intervention.status,
           urgency: intervention.urgency || 'normale',
           createdAt: intervention.created_at || '',
-          createdBy: (intervention as any).creator_name || 'Utilisateur',
+          createdBy: intervention.creator?.name || 'Utilisateur',
           lot: intervention.lot ? {
             reference: intervention.lot.reference || '',
             building: intervention.lot.building ? {
@@ -438,9 +489,15 @@ export function PrestataireInterventionDetailClient({
         onAddProposedSlot={planning.addProgrammingSlot}
         onUpdateProposedSlot={planning.updateProgrammingSlot}
         onRemoveProposedSlot={planning.removeProgrammingSlot}
-        selectedProviders={[]}
+        managers={managers}
+        selectedManagers={managers.map(m => m.id)}
+        onManagerToggle={() => {}}
+        providers={providers}
+        selectedProviders={providers.map(p => p.id)}
         onProviderToggle={() => {}}
-        providers={[]}
+        tenants={tenants}
+        selectedTenants={tenants.map(t => t.id)}
+        onTenantToggle={() => {}}
         onConfirm={planning.handleProgrammingConfirm}
         isFormValid={planning.isProgrammingFormValid()}
       />

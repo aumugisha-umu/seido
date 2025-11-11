@@ -5,7 +5,7 @@
  * Simpler view for tenants with limited actions
  */
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
@@ -36,6 +36,12 @@ type Intervention = Database['public']['Tables']['interventions']['Row'] & {
   building?: Database['public']['Tables']['buildings']['Row']
   lot?: Database['public']['Tables']['lots']['Row']
   tenant?: Database['public']['Tables']['users']['Row']
+  creator?: {
+    id: string
+    name: string
+    email: string | null
+    role: string
+  }
 }
 
 type Document = Database['public']['Tables']['intervention_documents']['Row']
@@ -61,6 +67,50 @@ export function LocataireInterventionDetailClient({
   const router = useRouter()
   const planning = useInterventionPlanning()
   const [activeTab, setActiveTab] = useState('overview')
+
+  // Transform assignments into Contact arrays by role
+  const { managers, providers, tenants } = useMemo(() => {
+    // Locataire component might not have assignments prop, use empty array as fallback
+    const assignmentList = (intervention as any).assignments || []
+
+    const managers = assignmentList
+      .filter((a: any) => a.role === 'gestionnaire')
+      .map((a: any) => ({
+        id: a.user?.id || '',
+        name: a.user?.name || '',
+        email: a.user?.email || '',
+        phone: a.user?.phone,
+        role: a.user?.role,
+        type: 'gestionnaire' as const
+      }))
+      .filter((c: any) => c.id)
+
+    const providers = assignmentList
+      .filter((a: any) => a.role === 'prestataire')
+      .map((a: any) => ({
+        id: a.user?.id || '',
+        name: a.user?.name || '',
+        email: a.user?.email || '',
+        phone: a.user?.phone,
+        role: a.user?.role,
+        type: 'prestataire' as const
+      }))
+      .filter((c: any) => c.id)
+
+    const tenants = assignmentList
+      .filter((a: any) => a.role === 'locataire')
+      .map((a: any) => ({
+        id: a.user?.id || '',
+        name: a.user?.name || '',
+        email: a.user?.email || '',
+        phone: a.user?.phone,
+        role: a.user?.role,
+        type: 'locataire' as const
+      }))
+      .filter((c: any) => c.id)
+
+    return { managers, providers, tenants }
+  }, [intervention])
 
   // Handle time slot selection (tenants can select in planification status)
   const handleSelectSlot = async (slotId: string) => {
@@ -106,7 +156,7 @@ export function LocataireInterventionDetailClient({
   const handleOpenProgrammingModalWithData = () => {
     const interventionAction = {
       id: intervention.id,
-      type: '',
+      type: intervention.type || '',
       status: intervention.status || '',
       title: intervention.title || '',
       description: intervention.description,
@@ -114,7 +164,17 @@ export function LocataireInterventionDetailClient({
       urgency: intervention.urgency,
       reference: intervention.reference || '',
       created_at: intervention.created_at,
+      created_by: intervention.creator?.name || 'Utilisateur',
       location: intervention.specific_location,
+      lot: intervention.lot ? {
+        reference: intervention.lot.reference || '',
+        building: intervention.lot.building ? {
+          name: intervention.lot.building.name || ''
+        } : undefined
+      } : undefined,
+      building: intervention.building ? {
+        name: intervention.building.name || ''
+      } : undefined
     }
 
     // Determine planning mode based on existing time slots
@@ -156,7 +216,7 @@ export function LocataireInterventionDetailClient({
           status: intervention.status,
           urgency: intervention.urgency || 'normale',
           createdAt: intervention.created_at || '',
-          createdBy: (intervention as any).creator_name || 'Utilisateur',
+          createdBy: intervention.creator?.name || 'Utilisateur',
           lot: intervention.lot ? {
             reference: intervention.lot.reference || '',
             building: intervention.lot.building ? {
@@ -308,9 +368,15 @@ export function LocataireInterventionDetailClient({
         onAddProposedSlot={planning.addProgrammingSlot}
         onUpdateProposedSlot={planning.updateProgrammingSlot}
         onRemoveProposedSlot={planning.removeProgrammingSlot}
-        selectedProviders={[]}
+        managers={managers}
+        selectedManagers={managers.map(m => m.id)}
+        onManagerToggle={() => {}}
+        providers={providers}
+        selectedProviders={providers.map(p => p.id)}
         onProviderToggle={() => {}}
-        providers={[]}
+        tenants={tenants}
+        selectedTenants={tenants.map(t => t.id)}
+        onTenantToggle={() => {}}
         onConfirm={planning.handleProgrammingConfirm}
         isFormValid={planning.isProgrammingFormValid()}
       />

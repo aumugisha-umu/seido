@@ -8,7 +8,7 @@
 
 import { notFound } from 'next/navigation'
 import { getServerAuthContext } from '@/lib/server-context'
-import { createServerInterventionService } from '@/lib/services'
+import { createServerInterventionRepository } from '@/lib/services'
 import { InterventionDetailClient } from './components/intervention-detail-client'
 import { logger } from '@/lib/logger'
 
@@ -29,15 +29,13 @@ export default async function InterventionDetailPage({ params }: PageProps) {
   })
 
   try {
-    // ✅ Service standard (pas de méthode custom)
-    const interventionService = await createServerInterventionService()
+    // ✅ Use repository method that includes creator join
+    const interventionRepo = await createServerInterventionRepository()
 
-    // Step 1: Load intervention de base
-    logger.info('📍 [INTERVENTION-PAGE] Step 1: Loading intervention')
-    const { data: { user: authUser } } = await supabase.auth.getUser()
-    if (!authUser) throw new Error('Not authenticated')
+    // Step 1: Load intervention with relations (includes creator)
+    logger.info('📍 [INTERVENTION-PAGE] Step 1: Loading intervention with creator')
 
-    const interventionResult = await interventionService.getById(id, authUser.id)
+    const interventionResult = await interventionRepo.findByIdWithRelations(id)
 
     if (!interventionResult.success || !interventionResult.data) {
       logger.error('❌ [INTERVENTION-PAGE] Intervention not found', {

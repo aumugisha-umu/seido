@@ -11,11 +11,12 @@ export interface InterventionAction {
   urgency?: string
   reference?: string
   created_at?: string
+  created_by?: string
   location?: string
   tenant?: string
   assignedTo?: string
   hasFiles?: boolean
-  lot?: { reference: string }
+  lot?: { reference: string; building?: { name: string } }
   building?: { name: string }
   assigned_contact?: { name: string }
 }

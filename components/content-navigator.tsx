@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -53,19 +53,43 @@ export default function ContentNavigator({
   const [showFilters, setShowFilters] = useState(false)
   const [showSearchPopover, setShowSearchPopover] = useState(false)
   const [searchValue, setSearchValue] = useState("")
-  const [internalActiveTab, setInternalActiveTab] = useState(defaultTab || tabs[0]?.id)
+
+  // ✅ FIX 1: Initialize with controlled value OR defaultTab OR first tab (lazy initialization)
+  const [internalActiveTab, setInternalActiveTab] = useState(() => {
+    if (controlledActiveTab !== undefined) return controlledActiveTab
+    if (defaultTab) return defaultTab
+    return tabs[0]?.id || ''
+  })
+
+  // ✅ FIX 2: Memoize tabs structure to prevent unnecessary effects (only when tab IDs change)
+  const stableTabIds = useMemo(() => tabs.map(t => t.id).join(','), [tabs.length, tabs[0]?.id, tabs[tabs.length - 1]?.id])
 
   // Use controlled activeTab if provided, otherwise use internal state
   const activeTab = controlledActiveTab !== undefined ? controlledActiveTab : internalActiveTab
 
-  // Update internal activeTab when defaultTab or controlledActiveTab changes
+  // ✅ FIX 3: Improved useEffect - only update when truly necessary
   useEffect(() => {
-    if (controlledActiveTab !== undefined && tabs.some(tab => tab.id === controlledActiveTab)) {
-      setInternalActiveTab(controlledActiveTab)
-    } else if (defaultTab && tabs.some(tab => tab.id === defaultTab)) {
-      setInternalActiveTab(defaultTab)
+    // Case 1: Controlled mode - parent controls the active tab
+    if (controlledActiveTab !== undefined) {
+      if (tabs.some(tab => tab.id === controlledActiveTab)) {
+        setInternalActiveTab(controlledActiveTab)
+      }
+      return // Exit early - don't apply defaultTab logic in controlled mode
     }
-  }, [defaultTab, controlledActiveTab, tabs])
+
+    // Case 2: Uncontrolled mode - only reset if current tab no longer exists in tabs array
+    const currentTabExists = tabs.some(tab => tab.id === internalActiveTab)
+
+    if (!currentTabExists) {
+      // Current tab disappeared, fallback to defaultTab or first tab
+      if (defaultTab && tabs.some(tab => tab.id === defaultTab)) {
+        setInternalActiveTab(defaultTab)
+      } else if (tabs[0]) {
+        setInternalActiveTab(tabs[0].id)
+      }
+    }
+    // ✅ CRITICAL: Don't reset if current tab still exists!
+  }, [controlledActiveTab, stableTabIds, defaultTab])
 
   const handleSearchChange = (_value: string) => {
     setSearchValue(_value)

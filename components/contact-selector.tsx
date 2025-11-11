@@ -258,6 +258,11 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   const handlePendingToggle = (contactId: string) => {
     setPendingSelections(prev => {
       if (prev.includes(contactId)) {
+        // Protection : Ne pas permettre de désélectionner le dernier gestionnaire
+        if (selectedContactType === 'manager' && prev.length === 1) {
+          logger.warn('⚠️ [ContactSelector] Cannot deselect last manager - minimum 1 required')
+          return prev // Garder la sélection actuelle
+        }
         // Retirer de la sélection
         return prev.filter(id => id !== contactId)
       } else {
@@ -669,6 +674,11 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                   1 maximum
                 </Badge>
               )}
+              {selectedContactType === 'manager' && (
+                <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-xs">
+                  1 minimum
+                </Badge>
+              )}
               {pendingSelections.length > 0 && (
                 <Badge variant="secondary" className="bg-green-100 text-green-700">
                   {pendingSelections.length} sélectionné(s)
@@ -739,6 +749,8 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                       const isPendingSelected = pendingSelections.includes(contact.id)
                       const isInherited = isContactInheritedFromBuilding(contact.id, selectedContactType)
                       const effectiveMode = getEffectiveSelectionMode(selectedContactType)
+                      // Protection : Désactiver la désélection si c'est le dernier gestionnaire
+                      const isLastManager = selectedContactType === 'manager' && isPendingSelected && pendingSelections.length === 1
                       return (
                         <div
                           key={contact.id}
@@ -807,6 +819,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                             <Checkbox
                               checked={isPendingSelected}
                               onCheckedChange={() => handlePendingToggle(contact.id)}
+                              disabled={isLastManager}
                               aria-label={`Sélectionner ${contact.name}`}
                               className="h-5 w-5"
                             />

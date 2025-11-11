@@ -5,8 +5,8 @@
  * Manages tabs and interactive elements for intervention details
  */
 
-import { useState, useMemo, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 // Tab components
@@ -96,6 +96,7 @@ export function InterventionDetailClient({
   activityLogs
 }: InterventionDetailClientProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { user } = useAuth()
   const { currentUserTeam } = useTeamStatus()
   const { toast } = useToast()
@@ -105,6 +106,10 @@ export function InterventionDetailClient({
 
   // Ref for ContactSelector modal
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
+
+  // Get params for contact creation return flow
+  const newContactId = searchParams.get('newContactId')
+  const returnedContactType = searchParams.get('contactType')
 
   // Transform assignments into Contact arrays by role
   const { managers, providers, tenants } = useMemo(() => {
@@ -228,6 +233,45 @@ export function InterventionDetailClient({
       })
     }
   }
+
+  // Handle redirect to multi-step contact creation flow
+  const handleRequestContactCreation = (contactType: string) => {
+    console.log(`🔗 [INTERVENTION-DETAIL] Redirecting to contact creation: ${contactType}`)
+    // Build return URL with placeholder that will be replaced by the contact creation page
+    const baseReturnUrl = `/gestionnaire/interventions/${intervention.id}`
+    const returnUrl = `${baseReturnUrl}?newContactId=PLACEHOLDER&contactType=${contactType}`
+    router.push(`/gestionnaire/contacts/nouveau?type=${contactType}&returnUrl=${encodeURIComponent(returnUrl)}`)
+  }
+
+  // Auto-assign newly created contact when returning from contact creation
+  useEffect(() => {
+    if (!newContactId || !returnedContactType || newContactId === 'PLACEHOLDER') return
+
+    console.log(`✅ [INTERVENTION-DETAIL] Auto-assigning new contact: ${newContactId}`)
+
+    const role = returnedContactType === 'gestionnaire' || returnedContactType === 'manager'
+      ? 'gestionnaire'
+      : 'prestataire'
+
+    assignUserAction(intervention.id, newContactId, role).then((result) => {
+      if (result.success) {
+        toast({
+          title: 'Contact créé et assigné',
+          description: 'Le nouveau contact a été créé et assigné avec succès',
+          variant: 'default'
+        })
+        // Clean URL params and refresh
+        router.replace(`/gestionnaire/interventions/${intervention.id}`)
+        router.refresh()
+      } else {
+        toast({
+          title: 'Erreur d\'assignation',
+          description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
+          variant: 'destructive'
+        })
+      }
+    })
+  }, [newContactId, returnedContactType, intervention.id, router, toast])
 
   // Get badge counts for tabs
   const getBadgeCount = (tab: string) => {
@@ -550,6 +594,7 @@ export function InterventionDetailClient({
         onContactSelected={handleContactSelected}
         onContactCreated={handleContactCreated}
         onContactRemoved={handleContactRemoved}
+        onRequestContactCreation={handleRequestContactCreation}
       />
     </div>
   )

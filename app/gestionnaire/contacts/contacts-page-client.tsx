@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -571,7 +571,7 @@ export function ContactsPageClient({
 
         {/* Content Navigator */}
         <ContentNavigator
-          tabs={[
+          tabs={useMemo(() => [
             {
               id: "contacts",
               label: "Contacts",
@@ -807,7 +807,8 @@ export function ContactsPageClient({
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => {
+                                    onClick={(e) => {
+                                      e.stopPropagation();
                                       const magicLink = resentInvitations[invitation.id]?.magicLink || '';
                                       handleCopyMagicLink(magicLink, invitation.id);
                                     }}
@@ -823,7 +824,10 @@ export function ContactsPageClient({
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => handleCloseSuccessState(invitation.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCloseSuccessState(invitation.id);
+                                    }}
                                     className="text-gray-600 hover:text-gray-700 hover:bg-gray-50 border-gray-300"
                                   >
                                     Fermer
@@ -844,7 +848,10 @@ export function ContactsPageClient({
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => handleCloseSuccessState(invitation.id)}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCloseSuccessState(invitation.id);
+                                    }}
                                     className="text-gray-600 hover:text-gray-700 hover:bg-gray-50 border-gray-300"
                                   >
                                     Fermer
@@ -880,7 +887,10 @@ export function ContactsPageClient({
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleResendInvitation(invitation.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleResendInvitation(invitation.id);
+                                  }}
                                   disabled={resendingInvitations[invitation.id] || loadingInvitations}
                                   className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
                                 >
@@ -893,7 +903,10 @@ export function ContactsPageClient({
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleCancelInvitation(invitation.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCancelInvitation(invitation.id);
+                                  }}
                                   disabled={cancellingInvitations[invitation.id] || loadingInvitations}
                                   className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                                 >
@@ -1085,8 +1098,7 @@ export function ContactsPageClient({
                 )
               )
             }
-          ]}
-          defaultTab="contacts"
+          ], [loading, filteredContacts, filteredInvitations, filteredCompanies, contacts, pendingInvitations, companies, copiedLinks, resendingInvitations, cancellingInvitations, resentInvitations, loadingInvitations, router])}
           searchPlaceholder="Rechercher un contact..."
           filters={[
             {

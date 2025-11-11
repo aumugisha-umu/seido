@@ -249,11 +249,36 @@ export const ProgrammingModalFinal = ({
         <div className="flex-1 overflow-y-auto bg-slate-50 p-6">
           <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-6 space-y-6">
 
+          {/* 1. Instructions générales */}
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 mb-1">
+                Instructions générales
+              </h2>
+              <p className="text-sm text-slate-600">
+                Ajoutez des instructions ou informations supplémentaires pour cette intervention
+              </p>
+            </div>
+            <Textarea
+              id="instructions"
+              placeholder="Ajoutez des instructions ou informations supplémentaires pour cette intervention..."
+              value={instructions}
+              onChange={(e) => onInstructionsChange?.(e.target.value)}
+              rows={4}
+              className="resize-none"
+            />
+            <p className="text-xs text-slate-500">
+              Ces informations seront partagées avec tous les participants
+            </p>
+          </div>
+
+          <Separator />
+
           {/* 2. Assignations Section with ContactSection */}
           <div className="space-y-4">
             <div>
               <h2 className="text-lg font-semibold text-slate-900 mb-1">
-                Participants de l'intervention
+                Participants
               </h2>
               <p className="text-sm text-slate-600">
                 Sélectionnez les gestionnaires et prestataires participant à l'intervention. Les locataires sont ajoutés automatiquement selon le bien concerné.
@@ -292,7 +317,38 @@ export const ProgrammingModalFinal = ({
 
           <Separator />
 
-          {/* 3. Planning Method Selection */}
+          {/* 3. Quote Toggle - Always visible */}
+          <div className="space-y-3">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-900 mb-1">
+                Estimation préalable
+              </h2>
+              <p className="text-sm text-slate-600">
+                Demander une estimation du temps et du coût avant la planification
+              </p>
+            </div>
+            <div className="flex items-center justify-between p-4 bg-amber-50/30 border border-amber-200 rounded-lg">
+              <div className="flex items-start gap-3 flex-1">
+                <FileText className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-medium text-slate-900 text-sm mb-1">
+                    Demander une estimation
+                  </h3>
+                  <p className="text-xs text-slate-600">
+                    Le prestataire devra fournir une estimation du temps et du coût avant la planification définitive
+                  </p>
+                </div>
+              </div>
+              <Switch
+                checked={requireQuote}
+                onCheckedChange={onRequireQuoteChange || (() => {})}
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          {/* 4. Planning Method Selection */}
           <div className="space-y-4">
             <div>
               <h2 className="text-lg font-semibold text-slate-900 mb-1 flex items-center gap-2">
@@ -422,7 +478,7 @@ export const ProgrammingModalFinal = ({
             </div>
           </div>
 
-          {/* 4. Conditional Content Based on Selected Method */}
+          {/* 5. Conditional Content Based on Selected Method */}
           {programmingOption === "direct" && (
             <div className="space-y-3 p-4 bg-blue-50/30 border border-blue-200 rounded-lg">
               <DateTimePicker
@@ -528,59 +584,8 @@ export const ProgrammingModalFinal = ({
             <div className="p-4 bg-slate-50 border-2 border-dashed border-slate-300 rounded-lg">
               <p className="text-sm text-slate-600 text-center">
                 ↑ Sélectionnez une méthode de planification ci-dessus pour continuer
-                <br />
-                <span className="text-xs text-slate-500 mt-1 block">
-                  (Les options de devis et instructions apparaîtront ensuite)
-                </span>
               </p>
             </div>
-          )}
-
-          {/* 5. Quote Toggle (except for "organize" mode) */}
-          {programmingOption && programmingOption !== "organize" && (
-            <>
-              <Separator />
-              <div className="flex items-center justify-between p-4 bg-amber-50/30 border border-amber-200 rounded-lg">
-                <div className="flex items-start gap-3 flex-1">
-                  <FileText className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <h3 className="font-medium text-slate-900 text-sm mb-1">
-                      Demander un devis
-                    </h3>
-                    <p className="text-xs text-slate-600">
-                      Exiger un devis avant la planification définitive
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  checked={requireQuote}
-                  onCheckedChange={onRequireQuoteChange || (() => {})}
-                />
-              </div>
-            </>
-          )}
-
-          {/* 6. Instructions générales */}
-          {programmingOption && (
-            <>
-              <Separator />
-              <div className="space-y-3">
-                <Label htmlFor="instructions" className="text-sm font-medium text-slate-900">
-                  Instructions générales
-                </Label>
-                <Textarea
-                  id="instructions"
-                  placeholder="Ajoutez des instructions ou informations supplémentaires pour cette intervention..."
-                  value={instructions}
-                  onChange={(e) => onInstructionsChange?.(e.target.value)}
-                  rows={4}
-                  className="resize-none"
-                />
-                <p className="text-xs text-slate-500">
-                  Ces informations seront partagées avec tous les participants
-                </p>
-              </div>
-            </>
           )}
           </div>
         </div>

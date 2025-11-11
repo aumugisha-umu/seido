@@ -448,9 +448,12 @@ export function ContactCreationClient({
         subtitle={getStepSubtitle()}
         backButtonText={returnUrl ? "Annuler" : "Retour à la liste"}
         onBack={() => {
-          if (returnUrl && sessionKey) {
+          if (returnUrl) {
             // Retour au formulaire d'origine sans créer de contact
-            const redirectUrl = `${returnUrl}?sessionKey=${sessionKey}&cancelled=true`
+            // Si sessionKey existe, on le passe pour restaurer l'état du formulaire
+            const redirectUrl = sessionKey
+              ? `${returnUrl}?sessionKey=${sessionKey}&cancelled=true`
+              : returnUrl // Pas de sessionKey = retour simple (cas de intervention-detail)
             logger.info(`🔙 [CREATE-CONTACT] Cancelled, returning to origin: ${redirectUrl}`)
             router.push(redirectUrl)
           } else {

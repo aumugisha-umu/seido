@@ -256,7 +256,7 @@ export const ProgrammingModalFinal = ({
                 Participants de l'intervention
               </h2>
               <p className="text-sm text-slate-600">
-                Sélectionnez les gestionnaires, prestataires et locataires à notifier
+                Sélectionnez les gestionnaires et prestataires participant à l'intervention. Les locataires sont ajoutés automatiquement selon le bien concerné.
               </p>
             </div>
 

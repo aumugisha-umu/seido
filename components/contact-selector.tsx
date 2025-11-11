@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   User,
@@ -64,6 +65,8 @@ interface ContactSelectorProps {
   teamId?: string
   // Mode d'affichage : compact pour immeuble, full pour lot
   displayMode?: "compact" | "full"
+  // Mode de sélection : single (radio) ou multi (checkbox)
+  selectionMode?: "single" | "multi"
   // Titre principal
   title?: string
   // Description
@@ -102,6 +105,7 @@ export interface ContactSelectorRef {
 export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorProps>(({
   teamId,
   displayMode = "full",
+  selectionMode,  // Undefined par défaut → détection automatique
   title = "Assignation des contacts",
   description = "Assignez des contacts à vos lots (optionnel)",
   allowedContactTypes = contactTypes.map(type => type.key),
@@ -124,6 +128,10 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   // NOUVEAU : État pour stocker le lotId temporaire lors de l'ouverture externe
   const [externalLotId, setExternalLotId] = useState<string | undefined>(undefined)
 
+  // NOUVEAU : États pour la sélection temporaire (confirmation différée)
+  const [pendingSelections, setPendingSelections] = useState<string[]>([])
+  const [initialSelections, setInitialSelections] = useState<string[]>([])
+
   // États pour le modal de création
   const [isContactFormModalOpen, setIsContactFormModalOpen] = useState(false)
   const [prefilledContactType, setPrefilledContactType] = useState<string>("")
@@ -138,6 +146,16 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     allowedContactTypes.includes(type.key)
   )
 
+  // NOUVEAU : Déterminer le mode de sélection effectif (peut être overridé ou automatique)
+  const getEffectiveSelectionMode = (contactType: string): "single" | "multi" => {
+    // Si une prop selectionMode est fournie, l'utiliser
+    if (selectionMode) {
+      return selectionMode
+    }
+    // Sinon, déterminer automatiquement : 'provider' = single, autres = multi
+    return contactType === 'provider' ? 'single' : 'multi'
+  }
+
   // ✅ Fonction simplifiée pour ouvrir le modal - Les données sont déjà en cache via SWR!
   const handleOpenContactModal = useCallback((_contactType: string) => {
     logger.info('🚀 [ContactSelector] Opening modal for:', _contactType)
@@ -145,12 +163,19 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     // Initialiser l'état du modal
     setSelectedContactType(_contactType)
     setSearchTerm("")
+
+    // NOUVEAU : Initialiser les sélections temporaires avec les contacts actuellement sélectionnés
+    const currentlySelected = selectedContacts[_contactType] || []
+    const currentIds = currentlySelected.map(c => c.id)
+    setPendingSelections(currentIds)
+    setInitialSelections(currentIds)
+
     setIsContactModalOpen(true)
 
     // ✅ Pas d'appel API - SWR a déjà chargé les données!
     // ✅ Pas de timeout - les données sont instantanées depuis le cache
     // ✅ Pas de loading state manuel - SWR gère isLoading automatiquement
-  }, [])
+  }, [selectedContacts])
 
   // Exposer les méthodes publiques via ref
   useImperativeHandle(ref, () => ({
@@ -220,13 +245,85 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     }
 
     logger.info('🗑️ [ContactSelector] Contact removed:', contactId, 'type:', selectedContactType, 'lotId:', contextLotId)
-    
+
     // Appeler le callback parent avec contexte
     if (onContactRemoved) {
       onContactRemoved(contactId, selectedContactType, { lotId: contextLotId })
     } else {
       logger.error('❌ [ContactSelector] onContactRemoved callback is missing!')
     }
+  }
+
+  // NOUVEAU : Gestion de la sélection temporaire pour mode multi-select (checkbox)
+  const handlePendingToggle = (contactId: string) => {
+    setPendingSelections(prev => {
+      if (prev.includes(contactId)) {
+        // Retirer de la sélection
+        return prev.filter(id => id !== contactId)
+      } else {
+        // Ajouter à la sélection
+        return [...prev, contactId]
+      }
+    })
+  }
+
+  // NOUVEAU : Gestion de la sélection temporaire pour mode single-select (radio)
+  const handlePendingSelect = (contactId: string) => {
+    // En mode single-select, remplacer toute la sélection
+    setPendingSelections([contactId])
+  }
+
+  // NOUVEAU : Confirmer les changements (calculer diff et appliquer)
+  const handleConfirm = () => {
+    const contextLotId = externalLotId || lotId
+
+    // Calculer les contacts à ajouter et à retirer
+    const toAdd = pendingSelections.filter(id => !initialSelections.includes(id))
+    const toRemove = initialSelections.filter(id => !pendingSelections.includes(id))
+
+    logger.info('✅ [ContactSelector] Confirming changes:', {
+      toAdd: toAdd.length,
+      toRemove: toRemove.length,
+      contactType: selectedContactType
+    })
+
+    // Retirer les contacts désélectionnés
+    toRemove.forEach(contactId => {
+      if (onContactRemoved) {
+        onContactRemoved(contactId, selectedContactType, { lotId: contextLotId })
+      }
+    })
+
+    // Ajouter les nouveaux contacts sélectionnés
+    toAdd.forEach(contactId => {
+      const contact = teamContacts?.find(c => c.id === contactId)
+      if (contact && onContactSelected) {
+        const newContact: Contact = {
+          id: contact.id,
+          name: contact.name,
+          email: contact.email,
+          type: selectedContactType,
+          phone: contact.phone || undefined,
+          speciality: contact.provider_category || undefined,
+          is_company: contact.is_company,
+          company_id: contact.company_id,
+          company: contact.company
+        }
+        onContactSelected(newContact, selectedContactType, { lotId: contextLotId })
+      }
+    })
+
+    // Fermer le modal et nettoyer
+    setIsContactModalOpen(false)
+    cleanContactContext()
+  }
+
+  // NOUVEAU : Annuler les changements (revenir à l'état initial)
+  const handleCancel = () => {
+    logger.info('❌ [ContactSelector] Canceling changes, reverting to initial selections')
+    setPendingSelections(initialSelections)
+    setIsContactModalOpen(false)
+    cleanContactContext()
   }
 
   // Créer un contact (logique centralisée)
@@ -560,16 +657,21 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       }}>
         <DialogContent className="max-w-[95vw] sm:max-w-2xl mx-4 sm:mx-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 flex-wrap">
               {selectedContactType === 'manager' && <Users className="w-5 h-5" />}
               {selectedContactType === 'tenant' && <User className="w-5 h-5" />}
               {selectedContactType === 'provider' && <Briefcase className="w-5 h-5" />}
               {selectedContactType === 'owner' && <Home className="w-5 h-5" />}
               {selectedContactType === 'other' && <MoreHorizontal className="w-5 h-5" />}
-              Sélectionner un {getSelectedContactTypeInfo().label.toLowerCase()}
-              {getSelectedContactsByType(selectedContactType).length > 0 && (
+              Sélectionner {getEffectiveSelectionMode(selectedContactType) === 'single' ? 'un' : 'des'} {getSelectedContactTypeInfo().label.toLowerCase()}{getEffectiveSelectionMode(selectedContactType) === 'multi' ? 's' : ''}
+              {getEffectiveSelectionMode(selectedContactType) === 'single' && (
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                  1 maximum
+                </Badge>
+              )}
+              {pendingSelections.length > 0 && (
                 <Badge variant="secondary" className="bg-green-100 text-green-700">
-                  {getSelectedContactsByType(selectedContactType).length} sélectionné(s)
+                  {pendingSelections.length} sélectionné(s)
                 </Badge>
               )}
             </DialogTitle>
@@ -634,14 +736,16 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                   <div className="space-y-2">
                     {getFilteredContacts().map((contact) => {
                       const isSelected = isContactSelected(contact.id, selectedContactType)
+                      const isPendingSelected = pendingSelections.includes(contact.id)
                       const isInherited = isContactInheritedFromBuilding(contact.id, selectedContactType)
+                      const effectiveMode = getEffectiveSelectionMode(selectedContactType)
                       return (
                         <div
                           key={contact.id}
                           className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
                             isInherited
                               ? 'bg-blue-50/30 border-blue-200/50'
-                              : isSelected
+                              : isPendingSelected
                                 ? 'bg-green-50 border-green-200'
                                 : 'hover:bg-gray-50'
                           }`}
@@ -661,7 +765,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                                   <Building className="w-3 h-3" />
                                   Hérité de l&apos;immeuble
                                 </Badge>
-                              ) : isSelected && (
+                              ) : isPendingSelected && (
                                 <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
                                   Sélectionné
                                 </Badge>
@@ -686,23 +790,27 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                               </div>
                             )}
                           </div>
-                          <Button
-                            onClick={() => isSelected
-                              ? handleRemoveSelectedContact(contact.id)
-                              : handleAddExistingContact(contact)
-                            }
-                            className={
-                              isInherited
-                                ? "bg-blue-300 text-blue-700 cursor-not-allowed"
-                                : isSelected
-                                  ? "bg-red-600 text-white hover:bg-red-700"
-                                  : "bg-blue-600 text-white hover:bg-blue-700"
-                            }
-                            size="sm"
-                            disabled={isInherited}
-                          >
-                            {isInherited ? "Déjà sur l'immeuble" : isSelected ? "Retirer" : "Sélectionner"}
-                          </Button>
+                          {/* NOUVEAU : Checkbox pour multi-select, Radio pour single-select */}
+                          {isInherited ? (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs whitespace-nowrap">
+                              Sur l&apos;immeuble
+                            </Badge>
+                          ) : effectiveMode === 'single' ? (
+                            <input
+                              type="radio"
+                              name={`contact-selection-${selectedContactType}`}
+                              checked={isPendingSelected}
+                              onChange={() => handlePendingSelect(contact.id)}
+                              aria-label={`Sélectionner ${contact.name}`}
+                            />
+                          ) : (
+                            <Checkbox
+                              checked={isPendingSelected}
+                              onCheckedChange={() => handlePendingToggle(contact.id)}
+                              aria-label={`Sélectionner ${contact.name}`}
+                              className="h-5 w-5"
+                            />
+                          )}
                         </div>
                       )
                     })}
@@ -740,25 +848,20 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                 Ajouter un {getSelectedContactTypeInfo().label.toLowerCase()}
               </Button>
               <div className="flex gap-2">
-                <Button 
-                  variant="default" 
-                  className="w-full sm:w-auto" 
-                  onClick={() => {
-                    setIsContactModalOpen(false)
-                    cleanContactContext()
-                  }}
-                >
-                  Terminer
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  className="w-full sm:w-auto" 
-                  onClick={() => {
-                    setIsContactModalOpen(false)
-                    cleanContactContext()
-                  }}
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={handleCancel}
                 >
                   Annuler
+                </Button>
+                <Button
+                  variant="default"
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
+                  onClick={handleConfirm}
+                >
+                  Confirmer
+                  {pendingSelections.length > 0 && ` (${pendingSelections.length})`}
                 </Button>
               </div>
             </div>

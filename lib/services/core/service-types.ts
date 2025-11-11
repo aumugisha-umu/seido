@@ -626,6 +626,15 @@ export interface InterventionWithRelations extends Intervention {
     user: User
     individual_message?: string
   }>
+  quotes?: Array<{
+    id: string
+    status: 'draft' | 'pending' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'cancelled'
+    amount?: number
+    provider_id: string
+    provider?: {
+      name: string
+    }
+  }>
 }
 
 export interface ContactWithRelations extends Contact {

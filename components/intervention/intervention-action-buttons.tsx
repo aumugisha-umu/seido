@@ -498,6 +498,16 @@ export function InterventionActionButtons({
           quoting.handleQuoteRequest(intervention)
           return
 
+        case 'process_quotes':
+          // Naviguer vers l'onglet devis pour traiter les devis reçus
+          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=devis`
+          return
+
+        case 'view_quotes':
+          // Naviguer vers l'onglet devis en mode consultation
+          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=devis`
+          return
+
         case 'manage_quotes':
           if (shouldNavigateToQuotes(intervention.quotes || [])) {
             window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=devis`
@@ -730,7 +740,7 @@ export function InterventionActionButtons({
   return (
     <>
       {/* Actions buttons */}
-      <div className={compact ? "flex flex-wrap gap-1" : "flex items-center space-x-2"}>
+      <div className={compact ? "flex flex-nowrap gap-1.5 overflow-x-auto scrollbar-hide" : "flex items-center space-x-2"}>
         {availableActions.map((action) => {
           const IconComponent = action.icon
           const styling = getActionStyling(action.key, userRole)
@@ -742,11 +752,11 @@ export function InterventionActionButtons({
               size={compact ? "sm" : "sm"}
               onClick={() => handleActionClick(action)}
               disabled={isProcessing || action.isDisabled}
-              className={`flex items-center ${compact ? 'gap-1 h-7 px-2' : 'space-x-2 min-h-[44px]'} ${styling.className} ${action.isDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
+              className={`flex items-center flex-shrink-0 ${compact ? 'gap-1.5 h-8 px-2.5 text-xs whitespace-nowrap' : 'space-x-2 min-h-[44px]'} ${styling.className} ${action.isDisabled ? 'opacity-60 cursor-not-allowed' : ''}`}
               title={action.tooltip || action.description}
             >
-              <IconComponent className={compact ? "h-3 w-3" : "h-4 w-4"} />
-              <span className={compact ? "text-xs" : "hidden sm:inline"}>{action.label}</span>
+              <IconComponent className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
+              <span className={compact ? "text-xs font-medium" : "hidden sm:inline"}>{action.label}</span>
               {action.badge?.show && (
                 <Badge
                   variant={action.badge.variant === 'default' ? 'secondary' :

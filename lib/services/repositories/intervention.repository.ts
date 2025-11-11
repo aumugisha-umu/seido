@@ -382,6 +382,13 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           role,
           is_primary,
           user:user_id(id, name, email, role, provider_category)
+        ),
+        quotes:intervention_quotes(
+          id,
+          status,
+          amount,
+          provider_id,
+          provider:users!provider_id(name)
         )
       `)
       .eq('team_id', teamId)

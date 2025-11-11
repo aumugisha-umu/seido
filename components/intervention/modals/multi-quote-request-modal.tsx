@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FileText, User, MapPin, Wrench, Clock, AlertTriangle, Calendar, AlertCircle } from "lucide-react"
+import { FileText, User, MapPin, Wrench, Clock, AlertTriangle, Calendar, AlertCircle, CalendarDays } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 // Removed unused Separator import
 import ContactSelector from "@/components/ui/contact-selector"
+import { DateTimePicker } from "@/components/ui/date-time-picker"
 import { logger, logError } from '@/lib/logger'
 import {
   getInterventionLocationText,
@@ -64,6 +65,7 @@ interface MultiQuoteRequestModalProps {
   onProviderToggle: (provider: Provider) => void
   onIndividualMessageChange: (providerId: string, message: string) => void
   onSubmit: () => void
+  onScheduleDirect?: (date: string, startTime: string, providerIds: string[]) => void
   isLoading: boolean
   error: string | null
   teamId: string
@@ -83,11 +85,19 @@ export const MultiQuoteRequestModal = ({
   onProviderToggle,
   onIndividualMessageChange,
   onSubmit,
+  onScheduleDirect,
   isLoading,
   error,
   teamId
 }: MultiQuoteRequestModalProps) => {
   const [filteredProviders, setFilteredProviders] = useState<Provider[]>(providers || [])
+
+  // Mode selection: 'quote' or 'schedule'
+  const [requestMode, setRequestMode] = useState<'quote' | 'schedule'>('quote')
+
+  // Schedule state for direct scheduling
+  const [scheduleDate, setScheduleDate] = useState<string>('')
+  const [scheduleTime, setScheduleTime] = useState<string>('')
 
   // Callback pour la sélection de contact via le ContactSelector
   const handleContactSelect = (contactId: string) => {
@@ -137,7 +147,7 @@ export const MultiQuoteRequestModal = ({
         'autre': ['prestataire', 'autre'] // Inclut tous les types de prestataires
       }
 
-      const relevantCategories = typeMapping[intervention.type] || ['prestataire', 'autre']
+      const relevantCategories = typeMapping[intervention.type as string] || ['prestataire', 'autre']
       return relevantCategories.includes(provider.provider_category)
     })
 
@@ -155,7 +165,26 @@ export const MultiQuoteRequestModal = ({
 
   const handleSubmit = () => {
     if (selectedProviderIds.length === 0) return
-    onSubmit()
+
+    if (requestMode === 'schedule') {
+      // Direct scheduling mode
+      if (!scheduleDate || !scheduleTime) {
+        logger.error('Date and time are required for direct scheduling')
+        return
+      }
+      if (onScheduleDirect) {
+        onScheduleDirect(scheduleDate, scheduleTime, selectedProviderIds)
+      }
+    } else {
+      // Quote request mode
+      onSubmit()
+    }
+  }
+
+  const isSubmitDisabled = () => {
+    if (selectedProviderIds.length === 0) return true
+    if (requestMode === 'schedule' && (!scheduleDate || !scheduleTime)) return true
+    return false
   }
 
   return (
@@ -163,11 +192,86 @@ export const MultiQuoteRequestModal = ({
       <DialogContent className="max-w-sm sm:max-w-4xl lg:max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="space-y-3 pb-6">
           <DialogTitle className="text-2xl font-semibold text-slate-900 leading-snug">
-            Demande de devis
+            {requestMode === 'quote' ? 'Demande de devis' : 'Planification directe'}
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Mode Selection */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Quote Request Mode */}
+            <button
+              type="button"
+              onClick={() => setRequestMode('quote')}
+              className={`relative p-4 rounded-lg border-2 transition-all text-left ${
+                requestMode === 'quote'
+                  ? 'border-blue-500 bg-blue-50/50 shadow-sm'
+                  : 'border-slate-200 hover:border-slate-300 bg-white'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  requestMode === 'quote' ? 'bg-blue-100' : 'bg-slate-100'
+                }`}>
+                  <FileText className={`h-5 w-5 ${
+                    requestMode === 'quote' ? 'text-blue-600' : 'text-slate-600'
+                  }`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className={`font-semibold text-sm mb-1 ${
+                    requestMode === 'quote' ? 'text-blue-900' : 'text-slate-900'
+                  }`}>
+                    Demander des devis
+                  </h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Solliciter plusieurs prestataires pour comparer les offres
+                  </p>
+                </div>
+              </div>
+              {requestMode === 'quote' && (
+                <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                </div>
+              )}
+            </button>
+
+            {/* Direct Schedule Mode */}
+            <button
+              type="button"
+              onClick={() => setRequestMode('schedule')}
+              className={`relative p-4 rounded-lg border-2 transition-all text-left ${
+                requestMode === 'schedule'
+                  ? 'border-emerald-500 bg-emerald-50/50 shadow-sm'
+                  : 'border-slate-200 hover:border-slate-300 bg-white'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                  requestMode === 'schedule' ? 'bg-emerald-100' : 'bg-slate-100'
+                }`}>
+                  <CalendarDays className={`h-5 w-5 ${
+                    requestMode === 'schedule' ? 'text-emerald-600' : 'text-slate-600'
+                  }`} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className={`font-semibold text-sm mb-1 ${
+                    requestMode === 'schedule' ? 'text-emerald-900' : 'text-slate-900'
+                  }`}>
+                    Planifier directement
+                  </h3>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Fixer immédiatement la date et l'heure du rendez-vous
+                  </p>
+                </div>
+              </div>
+              {requestMode === 'schedule' && (
+                <div className="absolute top-2 right-2 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                </div>
+              )}
+            </button>
+          </div>
+
           {/* Résumé de l'intervention - Card améliorée */}
           <Card className={`border-l-4 ${
             intervention.urgency === "urgente" ? "border-l-red-500" :
@@ -245,26 +349,28 @@ export const MultiQuoteRequestModal = ({
             </CardContent>
           </Card>
 
-          {/* Instructions générales */}
-          <div className="space-y-3">
-            <Label htmlFor="notes" className="text-sm font-medium text-slate-900">
-              Instructions générales
-            </Label>
-            <Textarea
-              id="notes"
-              placeholder="Instructions communes à tous les prestataires..."
-              value={additionalNotes}
-              onChange={(e) => onNotesChange(e.target.value)}
-              rows={4}
-              className="resize-none"
-            />
-            <p className="text-xs text-slate-500">
-              Ces informations seront envoyées à tous les prestataires sélectionnés
-            </p>
-            <p className="text-xs text-slate-500 font-medium">
-              📅 Date limite automatique : 30 jours à partir d'aujourd'hui
-            </p>
-          </div>
+          {/* Instructions générales (only in quote mode) */}
+          {requestMode === 'quote' && (
+            <div className="space-y-3">
+              <Label htmlFor="notes" className="text-sm font-medium text-slate-900">
+                Instructions générales
+              </Label>
+              <Textarea
+                id="notes"
+                placeholder="Instructions communes à tous les prestataires..."
+                value={additionalNotes}
+                onChange={(e) => onNotesChange(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+              <p className="text-xs text-slate-500">
+                Ces informations seront envoyées à tous les prestataires sélectionnés
+              </p>
+              <p className="text-xs text-slate-500 font-medium">
+                📅 Date limite automatique : 30 jours à partir d'aujourd'hui
+              </p>
+            </div>
+          )}
 
           {/* Sélection des prestataires avec ContactSelector */}
           <div className="space-y-4">
@@ -292,8 +398,38 @@ export const MultiQuoteRequestModal = ({
             />
           </div>
 
-          {/* Messages individualisés */}
-          {selectedProviders.length > 0 && (
+          {/* Direct Scheduling Section (only in schedule mode) */}
+          {requestMode === 'schedule' && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 mb-2">
+                <CalendarDays className="h-5 w-5 text-emerald-600" />
+                <h3 className="font-semibold text-slate-900">
+                  Définir le rendez-vous
+                </h3>
+              </div>
+
+              <div className="p-4 bg-emerald-50/30 border border-emerald-200 rounded-lg">
+                <DateTimePicker
+                  mode="datetime"
+                  dateValue={scheduleDate}
+                  timeValue={scheduleTime}
+                  onDateChange={setScheduleDate}
+                  onTimeChange={setScheduleTime}
+                  dateLabel="Date du rendez-vous"
+                  timeLabel="Heure du rendez-vous"
+                  required
+                  minDate={new Date().toISOString().split('T')[0]}
+                />
+              </div>
+
+              <p className="text-xs text-slate-600">
+                Les prestataires sélectionnés seront notifiés de ce rendez-vous
+              </p>
+            </div>
+          )}
+
+          {/* Messages individualisés (only in quote mode) */}
+          {requestMode === 'quote' && selectedProviders.length > 0 && (
             <div className="space-y-4">
               <Label className="text-sm font-medium text-slate-900">
                 Messages individualisés
@@ -350,14 +486,21 @@ export const MultiQuoteRequestModal = ({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={selectedProviderIds.length === 0 || isLoading}
-            className="min-w-[140px]"
+            disabled={isSubmitDisabled() || isLoading}
+            className={`min-w-[140px] ${
+              requestMode === 'schedule' ? 'bg-emerald-600 hover:bg-emerald-700' : ''
+            }`}
           >
             {isLoading ? (
               <div className="flex items-center gap-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Envoi...</span>
+                <span>{requestMode === 'schedule' ? 'Planification...' : 'Envoi...'}</span>
               </div>
+            ) : requestMode === 'schedule' ? (
+              <>
+                <CalendarDays className="h-4 w-4 mr-2" />
+                Planifier le rendez-vous
+              </>
             ) : (
               <>
                 <FileText className="h-4 w-4 mr-2" />

@@ -557,33 +557,32 @@ export function InterventionCard({
             {/* Badge action interactif - Affiche les boutons au hover */}
             <div className={`
               ${isAlertMode ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-200'}
-              border rounded px-3 transition-colors
-              h-[40px] flex items-center
+              border rounded px-3 py-2.5 transition-all duration-200
+              ${isHovered ? 'py-3' : 'py-2.5'}
             `}>
-              <div className="flex items-center justify-between gap-2 w-full">
-                {/* Icône et texte (tronqué au hover) */}
-                <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className="flex flex-col gap-2.5 w-full">
+                {/* Icône et texte - Ligne 1 */}
+                <div className="flex items-center gap-2">
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0
                     ${isAlertMode ? 'bg-orange-100' : 'bg-blue-100'}`}>
                     <Clock className={`h-3 w-3 ${isAlertMode ? 'text-orange-600' : 'text-blue-600'}`} />
                   </div>
                   <p className={`text-sm font-medium leading-snug
-                    ${isAlertMode ? 'text-orange-800' : 'text-blue-800'}
-                    ${isHovered ? 'truncate' : ''}`}>
+                    ${isAlertMode ? 'text-orange-800' : 'text-blue-800'}`}>
                     {getStatusActionMessage(intervention.status, userContext)}
                   </p>
                 </div>
-                
-                {/* Boutons d'action (affichés seulement au hover) */}
+
+                {/* Boutons d'action - Ligne 2 (affichés seulement au hover) */}
                 {isHovered && (
-                  <div className="flex-shrink-0 max-w-[200px] overflow-hidden">
+                  <div className="flex items-center justify-end w-full">
                     <InterventionActionButtons
                       intervention={intervention as any}
                       userRole={userContext}
                       userId={user?.id || ''}
                       compact={true}
                       onActionComplete={onActionComplete}
-                      onOpenQuoteModal={actionHooks?.quotingHook?.handleQuoteRequest ? 
+                      onOpenQuoteModal={actionHooks?.quotingHook?.handleQuoteRequest ?
                         () => actionHooks.quotingHook?.handleQuoteRequest?.(intervention) : undefined}
                       onProposeSlots={actionHooks?.planningHook?.handleProgrammingModal ?
                         () => actionHooks.planningHook?.handleProgrammingModal?.(intervention) : undefined}

@@ -17,6 +17,7 @@ import {
   type InterventionData
 } from './base'
 import { QuoteSubmissionForm } from '@/components/intervention/quote-submission-form'
+import { useAuth } from '@/hooks/use-auth'
 import type { Database } from '@/lib/database.types'
 
 interface QuoteSubmissionModalProps {
@@ -64,6 +65,9 @@ export function QuoteSubmissionModal({
   quoteRequest,
   onSuccess
 }: QuoteSubmissionModalProps) {
+
+  // Get current user ID for time slot responses
+  const { profile } = useAuth()
 
   // State for form submission control
   const [submitHandler, setSubmitHandler] = useState<(() => void) | null>(null)
@@ -132,8 +136,11 @@ export function QuoteSubmissionModal({
             title: intervention.title,
             description: intervention.description || '',
             urgency: intervention.urgency || intervention.priority || 'normale',
-            quote_deadline: quoteRequest?.deadline
+            quote_deadline: quoteRequest?.deadline,
+            time_slots: intervention.time_slots || [],
+            scheduling_type: intervention.scheduling_type
           }}
+          currentUserId={profile?.id}
           existingQuote={existingQuote}
           quoteRequest={quoteRequest}
           onSuccess={handleSuccess}

@@ -106,21 +106,7 @@ export function getQuoteManagementActionConfig(quotes: Quote[] = []): QuoteActio
     }
   }
 
-  // Cas 3: Demandes en attente de réponse (pending)
-  if (state.pendingCount > 0) {
-    return {
-      key: 'request_quotes',
-      label: 'Modifier la demande',
-      variant: 'outline',
-      isDisabled: false,
-      shouldShow: true,
-      badge: undefined,
-      tooltip: 'Modifier la demande de devis existante',
-      description: 'Modifier la demande de devis existante'
-    }
-  }
-
-  // Cas 4: Tous rejetés ou annulés (aucun devis actif)
+  // Cas 3: Tous rejetés ou annulés (aucun devis actif)
   if (state.hasOnlyInactiveQuotes) {
     return {
       key: 'request_quotes',
@@ -134,7 +120,7 @@ export function getQuoteManagementActionConfig(quotes: Quote[] = []): QuoteActio
     }
   }
 
-  // Cas 5: Uniquement des devis acceptés (pas de pending ni sent)
+  // Cas 4: Uniquement des devis acceptés (pas de pending ni sent)
   if (state.acceptedCount > 0 && state.pendingCount === 0 && state.sentCount === 0) {
     return {
       key: 'view_quotes',

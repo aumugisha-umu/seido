@@ -41,11 +41,23 @@ export const passwordSchema = z
   .regex(/[0-9]/, { message: 'Password must contain number' })
 
 /**
- * Phone number validation (French format)
+ * Phone number validation (flexible international format)
+ * Accepts various formats: +33612345678, 0612345678, +1-555-123-4567, etc.
+ * Minimum 8 digits required
  */
 export const phoneSchema = z
   .string()
-  .regex(/^(\+33|0)[1-9](\d{2}){4}$/, { message: 'Invalid French phone number' })
+  .refine(
+    (val) => {
+      if (!val || val.trim() === '') return true // Optional field
+      // Remove all non-digit characters except +
+      const digits = val.replace(/[^\d+]/g, '')
+      // Check if we have at least 8 digits
+      const digitCount = digits.replace(/\+/g, '').length
+      return digitCount >= 8
+    },
+    { message: 'Le numéro de téléphone doit contenir au moins 8 chiffres' }
+  )
   .optional()
 
 /**
@@ -365,13 +377,13 @@ export const createManagerInterventionSchema = z.object({
   selectedProviderIds: z.array(uuidSchema).optional(),
 
   // Scheduling
-  schedulingType: z.enum(['none', 'fixed', 'flexible']).optional(),
+  schedulingType: z.enum(['none', 'fixed', 'flexible', 'slots']).optional(),
   fixedDateTime: z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
     time: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be HH:MM'),
   }).optional().nullable(),
   timeSlots: z.array(z.object({
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+    date: z.string().min(1, 'Date is required'),
     startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Start time must be HH:MM'),
     endTime: z.string().regex(/^\d{2}:\d{2}$/, 'End time must be HH:MM'),
   })).optional(),

@@ -181,7 +181,7 @@ function RequestCard({ quote }: RequestCardProps) {
 
   return (
     <Card className="border-gray-200 hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
+      <CardContent className="p-0">
         <div className="space-y-3">
           {/* Header with provider name and status */}
           <div className="flex items-center justify-between">

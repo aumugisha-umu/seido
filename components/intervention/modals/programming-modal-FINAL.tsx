@@ -33,6 +33,12 @@ import {
   getPriorityColor,
   getPriorityLabel
 } from "@/lib/intervention-utils"
+import { QuoteRequestCard } from "@/components/quotes/quote-request-card"
+import type { Database } from '@/lib/database.types'
+
+type Quote = Database['public']['Tables']['intervention_quotes']['Row'] & {
+  provider?: Database['public']['Tables']['users']['Row']
+}
 
 interface TimeSlot {
   date: string
@@ -88,6 +94,9 @@ interface ProgrammingModalFinalProps {
   onTenantToggle?: (tenantId: string) => void
   onOpenManagerModal?: () => void
   onOpenProviderModal?: () => void
+  quoteRequests?: Quote[]
+  onViewProvider?: (providerId: string) => void
+  onCancelQuoteRequest?: (requestId: string) => void
 }
 
 export const ProgrammingModalFinal = ({
@@ -119,9 +128,15 @@ export const ProgrammingModalFinal = ({
   selectedTenants = [],
   onTenantToggle,
   onOpenManagerModal,
-  onOpenProviderModal
+  onOpenProviderModal,
+  quoteRequests = [],
+  onViewProvider,
+  onCancelQuoteRequest
 }: ProgrammingModalFinalProps) => {
   if (!intervention) return null
+
+  // Get all quote requests for this intervention (show all statuses)
+  const allQuoteRequests = quoteRequests || []
 
   // Get selected contacts for ContactSection
   const selectedManagerContacts: Contact[] = managers
@@ -317,32 +332,60 @@ export const ProgrammingModalFinal = ({
 
           <Separator />
 
-          {/* 3. Quote Toggle - Always visible */}
+          {/* 3. Quote Section - Toggle + Request Cards */}
           <div className="space-y-3">
             <div>
               <h2 className="text-lg font-semibold text-slate-900 mb-1">
                 Estimation préalable
               </h2>
               <p className="text-sm text-slate-600">
-                Demander une estimation du temps et du coût avant la planification
+                {intervention.status === 'demande_de_devis' && allQuoteRequests.length > 0
+                  ? `Demande de devis en cours (${allQuoteRequests.length} demande${allQuoteRequests.length > 1 ? 's' : ''} envoyée${allQuoteRequests.length > 1 ? 's' : ''})`
+                  : "Demander une estimation du temps et du coût avant la planification"
+                }
               </p>
             </div>
-            <div className="flex items-center justify-between p-4 bg-amber-50/30 border border-amber-200 rounded-lg">
-              <div className="flex items-start gap-3 flex-1">
-                <FileText className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h3 className="font-medium text-slate-900 text-sm mb-1">
-                    Demander une estimation
-                  </h3>
-                  <p className="text-xs text-slate-600">
-                    Le prestataire devra fournir une estimation du temps et du coût avant la planification définitive
-                  </p>
+
+            <div className="p-4 bg-amber-50/30 border border-amber-200 rounded-lg space-y-4">
+              {/* Toggle */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-start gap-3 flex-1">
+                  <FileText className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h3 className="font-medium text-slate-900 text-sm mb-1">
+                      Demander une estimation
+                    </h3>
+                    <p className="text-xs text-slate-600">
+                      Le prestataire devra fournir une estimation du temps et du coût avant la planification définitive
+                    </p>
+                  </div>
                 </div>
+                <Switch
+                  checked={requireQuote || intervention.status === 'demande_de_devis'}
+                  onCheckedChange={onRequireQuoteChange || (() => {})}
+                  disabled={intervention.status === 'demande_de_devis'}
+                />
               </div>
-              <Switch
-                checked={requireQuote}
-                onCheckedChange={onRequireQuoteChange || (() => {})}
-              />
+
+              {/* Display quote requests if status is 'demande_de_devis' */}
+              {intervention.status === 'demande_de_devis' && allQuoteRequests.length > 0 && (
+                <div className="space-y-3 pt-3 border-t border-amber-300">
+                  <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-amber-600" />
+                    Demandes envoyées ({allQuoteRequests.length})
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {allQuoteRequests.map(request => (
+                      <QuoteRequestCard
+                        key={request.id}
+                        request={request}
+                        onViewProvider={onViewProvider}
+                        onCancelRequest={onCancelQuoteRequest}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

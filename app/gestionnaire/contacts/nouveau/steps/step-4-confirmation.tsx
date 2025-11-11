@@ -92,18 +92,6 @@ export function Step4Confirmation({
 
   return (
     <div className="space-y-8">
-      {/* Header */}
-      <div className="text-center">
-        <div className="flex justify-center mb-4">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-            <CheckCircle className="h-10 w-10 text-green-600" />
-          </div>
-        </div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Confirmation</h2>
-        <p className="text-gray-600">
-          Vérifiez les informations avant de créer le contact.
-        </p>
-      </div>
 
       {/* Résumé Type */}
       <Card>

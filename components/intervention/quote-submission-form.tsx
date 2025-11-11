@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
   FileText,
@@ -13,7 +13,8 @@ import {
   Trash2,
   Download,
   Wrench,
-  MessageSquare
+  MessageSquare,
+  AlertCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,6 +32,25 @@ import {
   getPriorityLabel
 } from "@/lib/intervention-utils"
 import { FileUploader } from "@/components/ui/file-uploader"
+import { TimeSlotCard } from "./time-slot-card"
+import { RejectSlotModal } from "./modals/reject-slot-modal"
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
+import {
+  acceptTimeSlotAction,
+  rejectTimeSlotAction,
+  withdrawResponseAction
+} from '@/app/actions/intervention-actions'
+import type { Database } from '@/lib/database.types'
+
+type TimeSlotResponse = Database['public']['Tables']['time_slot_responses']['Row'] & {
+  user?: Database['public']['Tables']['users']['Row']
+}
+
+type TimeSlot = Database['public']['Tables']['intervention_time_slots']['Row'] & {
+  proposed_by_user?: Database['public']['Tables']['users']['Row']
+  responses?: TimeSlotResponse[]
+}
 
 interface Intervention {
   id: string
@@ -38,6 +58,8 @@ interface Intervention {
   description: string
   urgency: string
   quote_deadline?: string
+  time_slots?: TimeSlot[]
+  scheduling_type?: 'flexible' | 'fixed' | 'slots'
 }
 
 interface ExistingQuote {
@@ -67,6 +89,7 @@ interface QuoteSubmissionFormProps {
   existingQuote?: ExistingQuote
   quoteRequest?: QuoteRequest
   onSuccess: () => void
+  currentUserId?: string // Needed for time slot responses
 
   // Optional callbacks for external control (used in modal)
   onSubmitReady?: (submitFn: () => void) => void
@@ -98,6 +121,7 @@ export function QuoteSubmissionForm({
   existingQuote,
   quoteRequest,
   onSuccess,
+  currentUserId,
   onSubmitReady,
   onValidationChange,
   onLoadingChange
@@ -107,6 +131,44 @@ export function QuoteSubmissionForm({
   const [error, setError] = useState<string | null>(null)
   const [fieldValidations, setFieldValidations] = useState<Record<string, FieldValidation>>({})
   const quoteToast = useQuoteToast()
+
+  // States for time slot management
+  const [acceptingSlotId, setAcceptingSlotId] = useState<string | null>(null)
+  const [withdrawingSlotId, setWithdrawingSlotId] = useState<string | null>(null)
+  const [rejectModalOpen, setRejectModalOpen] = useState(false)
+  const [slotToReject, setSlotToReject] = useState<TimeSlot | null>(null)
+
+  // Check if intervention has proposed time slots
+  const hasProposedSlots = useMemo(() => {
+    return intervention.time_slots
+      && intervention.time_slots.length > 0
+      && intervention.time_slots.some(slot =>
+        slot.status !== 'cancelled' && slot.status !== 'rejected'
+      )
+  }, [intervention.time_slots])
+
+  // Group slots by date
+  const groupedSlots = useMemo(() => {
+    if (!hasProposedSlots || !intervention.time_slots) return []
+
+    const groups = intervention.time_slots
+      .filter(slot => slot.status !== 'cancelled' && slot.status !== 'rejected')
+      .reduce((acc, slot) => {
+        const date = slot.slot_date
+        const existing = acc.find(g => g.date === date)
+        if (existing) {
+          existing.slots.push(slot)
+        } else {
+          acc.push({ date, slots: [slot] })
+        }
+        return acc
+      }, [] as Array<{ date: string; slots: TimeSlot[] }>)
+
+    // Sort by date
+    groups.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+    return groups
+  }, [intervention.time_slots, hasProposedSlots])
 
   const [formData, setFormData] = useState<FormData>({
     laborCost: existingQuote?.laborCost?.toString() || '',
@@ -442,6 +504,70 @@ export function QuoteSubmissionForm({
     return null
   }
 
+  // Time slot handlers
+  const handleAcceptSlot = async (slotId: string) => {
+    if (!currentUserId) {
+      quoteToast.quoteError('Utilisateur non identifié', 'l\'acceptation du créneau')
+      return
+    }
+
+    setAcceptingSlotId(slotId)
+    try {
+      const result = await acceptTimeSlotAction(slotId, intervention.id)
+      if (result.success) {
+        quoteToast.quoteSuccess('Créneau accepté avec succès')
+        router.refresh()
+      } else {
+        quoteToast.quoteError(result.error || 'Erreur lors de l\'acceptation du créneau', 'l\'acceptation du créneau')
+      }
+    } catch (error) {
+      logger.error('Error accepting slot:', error)
+      quoteToast.quoteError('Erreur lors de l\'acceptation du créneau', 'l\'acceptation du créneau')
+    } finally {
+      setAcceptingSlotId(null)
+    }
+  }
+
+  const handleOpenRejectModal = (slot: TimeSlot) => {
+    setSlotToReject(slot)
+    setRejectModalOpen(true)
+  }
+
+  const handleRejectSlot = async (slotId: string, reason: string) => {
+    try {
+      const result = await rejectTimeSlotAction(slotId, intervention.id, reason)
+      if (result.success) {
+        quoteToast.quoteSuccess('Créneau rejeté')
+        setRejectModalOpen(false)
+        setSlotToReject(null)
+        router.refresh()
+      } else {
+        quoteToast.quoteError(result.error || 'Erreur lors du rejet du créneau', 'le rejet du créneau')
+      }
+    } catch (error) {
+      logger.error('Error rejecting slot:', error)
+      quoteToast.quoteError('Erreur lors du rejet du créneau', 'le rejet du créneau')
+    }
+  }
+
+  const handleWithdrawResponse = async (slotId: string) => {
+    setWithdrawingSlotId(slotId)
+    try {
+      const result = await withdrawResponseAction(slotId, intervention.id)
+      if (result.success) {
+        quoteToast.quoteSuccess('Réponse retirée avec succès')
+        router.refresh()
+      } else {
+        quoteToast.quoteError(result.error || 'Erreur lors du retrait de la réponse', 'le retrait de la réponse')
+      }
+    } catch (error) {
+      logger.error('Error withdrawing response:', error)
+      quoteToast.quoteError('Erreur lors du retrait de la réponse', 'le retrait de la réponse')
+    } finally {
+      setWithdrawingSlotId(null)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -601,8 +727,58 @@ export function QuoteSubmissionForm({
             </CardContent>
           </Card>
 
-        {/* Section Disponibilités Prestataire */}
-        <Card className="shadow-sm border-slate-200">
+        {/* Section modulaire : Horaires proposés OU Disponibilités manuelles */}
+        {hasProposedSlots ? (
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Calendar className="h-4 w-4 text-blue-600" />
+                </div>
+                Horaires proposés
+              </CardTitle>
+              <p className="text-sm text-slate-600">
+                Le gestionnaire a proposé des créneaux horaires. Acceptez ceux qui vous conviennent pour faciliter la planification.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {groupedSlots.map(({ date, slots }) => (
+                <div key={date} className="space-y-3">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-2">
+                    {format(new Date(date), 'EEEE dd MMMM yyyy', { locale: fr })}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {slots.map(slot => (
+                      <TimeSlotCard
+                        key={slot.id}
+                        slot={slot}
+                        currentUserId={currentUserId || ''}
+                        userRole="prestataire"
+                        onAccept={handleAcceptSlot}
+                        onReject={handleOpenRejectModal}
+                        onWithdraw={handleWithdrawResponse}
+                        showActions={true}
+                        compact={true}
+                        accepting={acceptingSlotId}
+                        withdrawing={withdrawingSlotId}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {/* Message info */}
+              <Alert className="bg-blue-50 border-blue-200">
+                <AlertCircle className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800">
+                  <span className="font-medium">À propos des créneaux :</span> Vous pouvez accepter plusieurs créneaux.
+                  Le gestionnaire sélectionnera le créneau définitif après validation de votre devis.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="shadow-sm border-slate-200">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
                 <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -745,6 +921,7 @@ export function QuoteSubmissionForm({
               )}
             </CardContent>
           </Card>
+        )}
 
         {/* Actions */}
         {error && (
@@ -794,6 +971,22 @@ export function QuoteSubmissionForm({
           </Card>
         )}
       </form>
+
+      {/* Modal de rejet de créneau */}
+      <RejectSlotModal
+        isOpen={rejectModalOpen}
+        onClose={() => {
+          setRejectModalOpen(false)
+          setSlotToReject(null)
+        }}
+        slot={slotToReject}
+        interventionId={intervention.id}
+        onSuccess={() => {
+          setRejectModalOpen(false)
+          setSlotToReject(null)
+          router.refresh()
+        }}
+      />
     </div>
   )
 }

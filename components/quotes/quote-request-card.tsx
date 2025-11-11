@@ -339,7 +339,7 @@ export function QuoteRequestCard({
                   </Button>
                 )}
 
-                {onCancelRequest && !request.quote_id && !request.has_quote && ['sent', 'viewed'].includes(getStatus()) && (
+                {onCancelRequest && !request.quote_id && !request.has_quote && ['pending', 'sent', 'viewed'].includes(getStatus()) && (
                   <Button
                     key={`cancel-${request.id}`}
                     variant="outline"

@@ -32,10 +32,8 @@ import { TenantValidationForm } from "./tenant-validation-form"
 import { FinalizationModalLive } from "./finalization-modal-live"
 import { TenantSlotConfirmationModal } from "./tenant-slot-confirmation-modal"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
-import { useAuth } from "@/hooks/use-auth"
-import { MultiQuoteRequestModal } from "./modals/multi-quote-request-modal"
 import { QuoteRequestSuccessModal } from "./modals/quote-request-success-modal"
-import { getQuoteManagementActionConfig, getExistingQuotesManagementConfig, shouldNavigateToQuotes, type Quote } from "@/lib/quote-state-utils"
+import type { Quote } from "@/lib/quote-state-utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import type { WorkCompletionReportData, TenantValidationData } from "./closure/types"
 import type { SimpleWorkCompletionData } from "./closure/simple-types"
@@ -127,7 +125,6 @@ export function InterventionActionButtons({
 
   // Hook for quote management
   const quoting = useInterventionQuoting()
-  const { user } = useAuth()
 
   // Fonction pour détecter le devis existant du prestataire connecté
   const getCurrentUserQuote = () => {
@@ -189,50 +186,24 @@ export function InterventionActionButtons({
 
       case 'approuvee':
         if (userRole === 'gestionnaire') {
-          actions.push(
-            {
-              key: 'request_quotes',
-              label: 'Demander un devis',
-              icon: FileText,
-              description: 'Solliciter des devis auprès de prestataires'
-            },
-            {
-              key: 'start_planning',
-              label: 'Planifier',
-              icon: Calendar,
-              description: 'Commencer le processus de planification'
-            }
-          )
+          actions.push({
+            key: 'start_planning',
+            label: 'Planifier',
+            icon: Calendar,
+            description: 'Commencer le processus de planification'
+          })
         }
         break
 
       case 'demande_de_devis':
         if (userRole === 'gestionnaire') {
-          const quoteConfig = getQuoteManagementActionConfig(intervention.quotes || [])
+          // Ajouter le bouton "Modifier la planification" comme pour le statut planification
           actions.push({
-            key: quoteConfig.key,
-            label: quoteConfig.label,
-            icon: FileText,
-            variant: quoteConfig.variant,
-            description: quoteConfig.description,
-            isDisabled: quoteConfig.isDisabled,
-            badge: quoteConfig.badge,
-            tooltip: quoteConfig.tooltip
+            key: 'propose_slots',
+            label: 'Modifier la planification',
+            icon: Edit,
+            description: 'Modifier la planification existante'
           })
-
-          const existingQuotesConfig = getExistingQuotesManagementConfig(intervention.quotes || [])
-          if (existingQuotesConfig) {
-            actions.push({
-              key: existingQuotesConfig.key,
-              label: existingQuotesConfig.label,
-              icon: Euro,
-              variant: existingQuotesConfig.variant,
-              description: existingQuotesConfig.description,
-              isDisabled: existingQuotesConfig.isDisabled,
-              badge: existingQuotesConfig.badge,
-              tooltip: existingQuotesConfig.tooltip
-            })
-          }
         }
         if (userRole === 'prestataire') {
           if (currentUserQuote) {
@@ -240,20 +211,13 @@ export function InterventionActionButtons({
               const isQuoteRequest = !currentUserQuote.amount || currentUserQuote.amount === 0
 
               if (isQuoteRequest) {
-                actions.push(
-                  {
-                    key: 'reject_quote_request',
-                    label: 'Rejeter la demande',
-                    icon: XCircle,
-                    description: 'Rejeter cette demande de devis'
-                  },
-                  {
-                    key: 'submit_quote',
-                    label: 'Soumettre un devis',
-                    icon: FileText,
-                    description: 'Soumettre votre devis pour cette intervention'
-                  }
-                )
+                // Ne plus afficher "Rejeter la demande" - uniquement "Soumettre un devis"
+                actions.push({
+                  key: 'submit_quote',
+                  label: 'Soumettre un devis',
+                  icon: FileText,
+                  description: 'Soumettre votre devis pour cette intervention'
+                })
               } else {
                 actions.push(
                   {
@@ -494,10 +458,6 @@ export function InterventionActionButtons({
           })
           break
 
-        case 'request_quotes':
-          quoting.handleQuoteRequest(intervention)
-          return
-
         case 'process_quotes':
           // Naviguer vers l'onglet devis pour traiter les devis reçus
           window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=devis`
@@ -506,12 +466,6 @@ export function InterventionActionButtons({
         case 'view_quotes':
           // Naviguer vers l'onglet devis en mode consultation
           window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=devis`
-          return
-
-        case 'manage_quotes':
-          if (shouldNavigateToQuotes(intervention.quotes || [])) {
-            window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=devis`
-          }
           return
 
         case 'waiting_quotes':
@@ -901,25 +855,6 @@ export function InterventionActionButtons({
       />
 
       {/* Quote Request Modals */}
-      <MultiQuoteRequestModal
-        isOpen={quoting.quoteRequestModal.isOpen}
-        onClose={quoting.closeQuoteRequestModal}
-        intervention={quoting.quoteRequestModal.intervention}
-        providers={quoting.providers}
-        ineligibleProviders={quoting.ineligibleProviders}
-        selectedProviders={quoting.formData.selectedProviders}
-        selectedProviderIds={quoting.formData.providerIds}
-        additionalNotes={quoting.formData.additionalNotes}
-        individualMessages={quoting.formData.individualMessages}
-        onProviderToggle={quoting.toggleProvider}
-        onNotesChange={(additionalNotes: string) => quoting.updateFormData({ additionalNotes })}
-        onIndividualMessageChange={quoting.updateIndividualMessage}
-        onSubmit={quoting.submitQuoteRequest}
-        isLoading={quoting.isLoading}
-        error={quoting.error}
-        teamId={user?.team_id || ''}
-      />
-
       <QuoteRequestSuccessModal
         isOpen={quoting.successModal.isOpen}
         onClose={quoting.closeSuccessModal}

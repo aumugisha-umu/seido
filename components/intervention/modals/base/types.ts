@@ -5,6 +5,15 @@
 import type { LucideIcon } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
 
+type TimeSlotResponse = Database['public']['Tables']['time_slot_responses']['Row'] & {
+  user?: Database['public']['Tables']['users']['Row']
+}
+
+type TimeSlot = Database['public']['Tables']['intervention_time_slots']['Row'] & {
+  proposed_by_user?: Database['public']['Tables']['users']['Row']
+  responses?: TimeSlotResponse[]
+}
+
 // Base intervention type with optional relations
 export type InterventionData = Database['public']['Tables']['interventions']['Row'] & {
   building?: Database['public']['Tables']['buildings']['Row']
@@ -15,6 +24,8 @@ export type InterventionData = Database['public']['Tables']['interventions']['Ro
     email: string
     role: string
   }
+  time_slots?: TimeSlot[]
+  scheduling_type?: 'flexible' | 'fixed' | 'slots'
 }
 
 // Badge configuration

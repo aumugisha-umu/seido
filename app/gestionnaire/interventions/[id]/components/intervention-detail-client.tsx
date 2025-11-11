@@ -37,6 +37,7 @@ import { assignUserAction, unassignUserAction } from '@/app/actions/intervention
 import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
 import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
 import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
+import { CancelQuoteRequestModal } from '@/components/intervention/modals/cancel-quote-request-modal'
 
 import type { Database } from '@/lib/database.types'
 
@@ -103,6 +104,16 @@ export function InterventionDetailClient({
   const planning = useInterventionPlanning()
   const [activeTab, setActiveTab] = useState('overview')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [cancelQuoteModal, setCancelQuoteModal] = useState<{
+    isOpen: boolean
+    quoteId: string | null
+    providerName: string
+  }>({
+    isOpen: false,
+    quoteId: null,
+    providerName: ''
+  })
+  const [isCancellingQuote, setIsCancellingQuote] = useState(false)
 
   // Ref for ContactSelector modal
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
@@ -162,6 +173,52 @@ export function InterventionDetailClient({
   // Handle action completion from action panel
   const handleActionComplete = () => {
     handleRefresh()
+  }
+
+  // Handle cancel quote request - open confirmation modal
+  const handleCancelQuoteRequest = (requestId: string) => {
+    const quote = quotes.find(q => q.id === requestId)
+    const providerName = quote?.provider?.name || 'ce prestataire'
+
+    setCancelQuoteModal({
+      isOpen: true,
+      quoteId: requestId,
+      providerName
+    })
+  }
+
+  // Confirm cancel quote request
+  const handleConfirmCancelQuote = async () => {
+    if (!cancelQuoteModal.quoteId) return
+
+    setIsCancellingQuote(true)
+
+    try {
+      const response = await fetch(`/api/intervention/${intervention.id}/quotes/${cancelQuoteModal.quoteId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to cancel quote request')
+      }
+
+      toast({
+        title: 'Demande annulée',
+        description: 'La demande de devis a été annulée avec succès'
+      })
+
+      setCancelQuoteModal({ isOpen: false, quoteId: null, providerName: '' })
+      handleRefresh()
+    } catch (error) {
+      console.error('Error canceling quote request:', error)
+      toast({
+        title: 'Erreur',
+        description: 'Une erreur est survenue lors de l\'annulation de la demande',
+        variant: 'destructive'
+      })
+    } finally {
+      setIsCancellingQuote(false)
+    }
   }
 
   // Handlers for opening contact modals (using ref)
@@ -439,6 +496,13 @@ export function InterventionDetailClient({
         onTenantToggle={() => {}}
         onConfirm={planning.handleProgrammingConfirm}
         isFormValid={planning.isProgrammingFormValid()}
+        quoteRequests={quotes}
+        onViewProvider={(providerId) => {
+          // Close modal and switch to Devis tab to view provider details
+          planning.closeProgrammingModal()
+          // TODO: Could add logic to highlight the specific provider in quotes tab
+        }}
+        onCancelQuoteRequest={handleCancelQuoteRequest}
       />
 
       {/* Cancel Slot Modal */}
@@ -457,6 +521,15 @@ export function InterventionDetailClient({
         slot={planning.rejectSlotModal.slot}
         interventionId={intervention.id}
         onSuccess={handleRefresh}
+      />
+
+      {/* Cancel Quote Request Modal */}
+      <CancelQuoteRequestModal
+        isOpen={cancelQuoteModal.isOpen}
+        onClose={() => setCancelQuoteModal({ isOpen: false, quoteId: null, providerName: '' })}
+        onConfirm={handleConfirmCancelQuote}
+        providerName={cancelQuoteModal.providerName}
+        isLoading={isCancellingQuote}
       />
 
       {/* Tabs */}

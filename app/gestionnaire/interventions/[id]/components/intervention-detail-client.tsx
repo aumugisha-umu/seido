@@ -159,13 +159,74 @@ export function InterventionDetailClient({
     handleRefresh()
   }
 
-  // Handlers for adding/modifying participants (gestionnaires et prestataires uniquement)
+  // Handlers for opening contact modals (using ref)
   const handleOpenManagerModal = () => {
     contactSelectorRef.current?.openContactModal('manager')
   }
 
   const handleOpenProviderModal = () => {
     contactSelectorRef.current?.openContactModal('provider')
+  }
+
+  // Callbacks for ContactSelector (immediate application like in creation flow)
+  const handleContactSelected = async (contact: any, contactType: string) => {
+    const role = contactType === 'manager' ? 'gestionnaire' : 'prestataire'
+    const result = await assignUserAction(intervention.id, contact.id, role)
+
+    if (result.success) {
+      toast({
+        title: 'Contact assigné',
+        description: `${contact.name} a été assigné à l'intervention`,
+        variant: 'default'
+      })
+      handleRefresh()
+    } else {
+      toast({
+        title: 'Erreur',
+        description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
+        variant: 'destructive'
+      })
+    }
+  }
+
+  const handleContactCreated = async (contact: any, contactType: string) => {
+    const role = contactType === 'manager' ? 'gestionnaire' : 'prestataire'
+    const result = await assignUserAction(intervention.id, contact.id, role)
+
+    if (result.success) {
+      toast({
+        title: 'Contact créé et assigné',
+        description: `${contact.name} a été créé et assigné à l'intervention`,
+        variant: 'default'
+      })
+      handleRefresh()
+    } else {
+      toast({
+        title: 'Erreur',
+        description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
+        variant: 'destructive'
+      })
+    }
+  }
+
+  const handleContactRemoved = async (contactId: string, contactType: string) => {
+    const role = contactType === 'manager' ? 'gestionnaire' : 'prestataire'
+    const result = await unassignUserAction(intervention.id, contactId, role)
+
+    if (result.success) {
+      toast({
+        title: 'Contact retiré',
+        description: 'Le contact a été retiré de l\'intervention',
+        variant: 'default'
+      })
+      handleRefresh()
+    } else {
+      toast({
+        title: 'Erreur',
+        description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
+        variant: 'destructive'
+      })
+    }
   }
 
   // Get badge counts for tabs
@@ -486,99 +547,9 @@ export function InterventionDetailClient({
           manager: managers,
           provider: providers
         }}
-        onContactSelected={async (contact, contactType) => {
-          try {
-            if (contactType === 'manager') {
-              const result = await assignUserAction(intervention.id, contact.id, 'gestionnaire')
-              if (result.success) {
-                toast({ title: 'Gestionnaire ajouté', variant: 'default' })
-              } else {
-                toast({
-                  title: 'Erreur',
-                  description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
-                  variant: 'destructive'
-                })
-              }
-            } else if (contactType === 'provider') {
-              const result = await assignUserAction(intervention.id, contact.id, 'prestataire')
-              if (result.success) {
-                toast({ title: 'Prestataire ajouté', variant: 'default' })
-              } else {
-                toast({
-                  title: 'Erreur',
-                  description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
-                  variant: 'destructive'
-                })
-              }
-            }
-            handleRefresh()
-          } catch (error) {
-            console.error('Error assigning contact:', error)
-            toast({ title: 'Erreur', description: 'Une erreur est survenue', variant: 'destructive' })
-          }
-        }}
-        onContactCreated={async (contact, contactType) => {
-          try {
-            if (contactType === 'manager') {
-              const result = await assignUserAction(intervention.id, contact.id, 'gestionnaire')
-              if (result.success) {
-                toast({ title: 'Gestionnaire créé et ajouté', variant: 'default' })
-              } else {
-                toast({
-                  title: 'Erreur',
-                  description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
-                  variant: 'destructive'
-                })
-              }
-            } else if (contactType === 'provider') {
-              const result = await assignUserAction(intervention.id, contact.id, 'prestataire')
-              if (result.success) {
-                toast({ title: 'Prestataire créé et ajouté', variant: 'default' })
-              } else {
-                toast({
-                  title: 'Erreur',
-                  description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
-                  variant: 'destructive'
-                })
-              }
-            }
-            handleRefresh()
-          } catch (error) {
-            console.error('Error creating and assigning contact:', error)
-            toast({ title: 'Erreur', description: 'Une erreur est survenue', variant: 'destructive' })
-          }
-        }}
-        onContactRemoved={async (contactId, contactType) => {
-          try {
-            if (contactType === 'manager') {
-              const result = await unassignUserAction(intervention.id, contactId, 'gestionnaire')
-              if (result.success) {
-                toast({ title: 'Gestionnaire retiré', variant: 'default' })
-              } else {
-                toast({
-                  title: 'Erreur',
-                  description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
-                  variant: 'destructive'
-                })
-              }
-            } else if (contactType === 'provider') {
-              const result = await unassignUserAction(intervention.id, contactId, 'prestataire')
-              if (result.success) {
-                toast({ title: 'Prestataire retiré', variant: 'default' })
-              } else {
-                toast({
-                  title: 'Erreur',
-                  description: typeof result.error === 'string' ? result.error : JSON.stringify(result.error),
-                  variant: 'destructive'
-                })
-              }
-            }
-            handleRefresh()
-          } catch (error) {
-            console.error('Error removing contact:', error)
-            toast({ title: 'Erreur', description: 'Une erreur est survenue', variant: 'destructive' })
-          }
-        }}
+        onContactSelected={handleContactSelected}
+        onContactCreated={handleContactCreated}
+        onContactRemoved={handleContactRemoved}
       />
     </div>
   )

@@ -40,25 +40,21 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
     redirect('/prestataire/interventions')
   }
 
+  // Load intervention with relations using join
+  const { data: interventionWithRelations } = await supabase
+    .from('interventions')
+    .select('*, building:buildings(*), lot:lots(*)')
+    .eq('id', id)
+    .single()
+
   // Load additional data for provider view
   const [
-    { data: building },
-    { data: lot },
     { data: documents },
     { data: quotes },
     { data: threads },
     { data: timeSlots },
     { data: assignments }
   ] = await Promise.all([
-    // Building data - maybeSingle to handle RLS gracefully
-    result.data.building_id
-      ? supabase.from('buildings').select('*').eq('id', result.data.building_id).maybeSingle()
-      : Promise.resolve({ data: null }),
-
-    // Lot data - maybeSingle to handle RLS gracefully
-    result.data.lot_id
-      ? supabase.from('lots').select('*').eq('id', result.data.lot_id).maybeSingle()
-      : Promise.resolve({ data: null }),
 
     // Documents (provider can see)
     supabase
@@ -137,21 +133,55 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
       .order('assigned_at', { ascending: true })
   ])
 
-  // Get creator from first assignment (usually gestionnaire or locataire)
-  const firstAssignment = assignments && assignments.length > 0 ? assignments[0] : null
+  // Get creator from created_by field
+  const { data: creatorUser } = result.data.created_by
+    ? await supabase.from('users').select('id, name, email, role').eq('id', result.data.created_by).single()
+    : { data: null }
 
-  // Construct full intervention object
+  // Construct full intervention object with relations from joined query
   const fullIntervention = {
     ...result.data,
-    building: building || undefined,
-    lot: lot || undefined,
-    creator: firstAssignment?.user ? {
-      id: firstAssignment.user.id,
-      name: firstAssignment.user.name,
-      email: firstAssignment.user.email,
-      role: firstAssignment.user.role
+    building: interventionWithRelations?.building || undefined,
+    lot: interventionWithRelations?.lot || undefined,
+    creator: creatorUser ? {
+      id: creatorUser.id,
+      name: creatorUser.name,
+      email: creatorUser.email,
+      role: creatorUser.role
     } : undefined
   }
+
+  // Debug logging for location data
+  console.log('🔍 [SERVER-DEBUG] Intervention from repository:', {
+    id: result.data.id,
+    building_id: result.data.building_id,
+    lot_id: result.data.lot_id,
+    status: result.data.status
+  })
+  console.log('🔍 [SERVER-DEBUG] Jointure result:', {
+    hasBuilding: !!interventionWithRelations?.building,
+    hasLot: !!interventionWithRelations?.lot,
+    building: interventionWithRelations?.building,
+    lot: interventionWithRelations?.lot
+  })
+  console.log('🔍 [SERVER-DEBUG] Full intervention with relations:', {
+    id: fullIntervention.id,
+    status: fullIntervention.status,
+    building: fullIntervention.building ? {
+      id: fullIntervention.building.id,
+      name: fullIntervention.building.name,
+      postal_code: fullIntervention.building.postal_code,
+      city: fullIntervention.building.city,
+      country: fullIntervention.building.country
+    } : null,
+    lot: fullIntervention.lot ? {
+      id: fullIntervention.lot.id,
+      reference: fullIntervention.lot.reference,
+      postal_code: fullIntervention.lot.postal_code,
+      city: fullIntervention.lot.city,
+      country: fullIntervention.lot.country
+    } : null
+  })
 
   return (
     <PrestataireInterventionDetailClient
@@ -160,6 +190,7 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
       quotes={quotes || []}
       threads={threads || []}
       timeSlots={timeSlots || []}
+      assignments={assignments || []}
       currentUser={userData}
     />
   )

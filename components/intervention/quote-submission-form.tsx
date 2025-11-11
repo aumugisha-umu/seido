@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import { useRouter } from "next/navigation"
 import {
   FileText,
@@ -67,6 +67,11 @@ interface QuoteSubmissionFormProps {
   existingQuote?: ExistingQuote
   quoteRequest?: QuoteRequest
   onSuccess: () => void
+
+  // Optional callbacks for external control (used in modal)
+  onSubmitReady?: (submitFn: () => void) => void
+  onValidationChange?: (isValid: boolean) => void
+  onLoadingChange?: (isLoading: boolean) => void
 }
 
 interface FormData {
@@ -92,7 +97,10 @@ export function QuoteSubmissionForm({
   intervention,
   existingQuote,
   quoteRequest,
-  onSuccess
+  onSuccess,
+  onSubmitReady,
+  onValidationChange,
+  onLoadingChange
 }: QuoteSubmissionFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -151,6 +159,127 @@ export function QuoteSubmissionForm({
     }
   }, [quoteRequest])
 
+  // Expose submit handler to parent (for modal footer)
+  // We create a wrapper that will be called by the parent
+  const submitWrapper = useCallback(() => {
+    // Trigger form validation and submission
+    const validationError = validateForm()
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    // Call the async submit logic
+    ;(async () => {
+      try {
+        const attachmentUrls: string[] = []
+
+        const response = await fetch('/api/intervention-quote-submit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            interventionId: intervention.id,
+            laborCost: parseFloat(formData.laborCost),
+            materialsCost: 0,
+            estimatedDurationHours: parseFloat(formData.estimatedDurationHours),
+            description: formData.workDetails.trim(),
+            providerAvailabilities: formData.providerAvailabilities
+              .filter(avail => avail.date && avail.startTime)
+              .map(avail => ({
+                date: avail.date,
+                startTime: avail.startTime,
+                endTime: avail.isFlexible
+                  ? avail.endTime || null
+                  : calculateEndTime(avail.startTime),
+                isFlexible: avail.isFlexible
+              }))
+          })
+        })
+
+        const result = await response.json()
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Erreur lors de la soumission du devis')
+        }
+
+        quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
+        onSuccess()
+
+      } catch (error) {
+        logger.error('Error submitting quote:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
+        setError(errorMessage)
+        quoteToast.quoteError(errorMessage, 'la soumission du devis')
+      } finally {
+        setIsLoading(false)
+      }
+    })()
+  }, [formData, intervention.id, intervention.title, onSuccess])
+
+  // Use refs to track previous values and avoid calling callbacks during render
+  const prevSubmitReadyRef = useRef<typeof onSubmitReady>(null)
+  const prevValidationChangeRef = useRef<typeof onValidationChange>(null)
+  const prevLoadingChangeRef = useRef<typeof onLoadingChange>(null)
+
+  // Expose submit handler to parent (deferred to avoid render-time setState)
+  useEffect(() => {
+    // Only call if callback changed or on first mount
+    if (onSubmitReady && onSubmitReady !== prevSubmitReadyRef.current) {
+      prevSubmitReadyRef.current = onSubmitReady
+      // Defer to next tick to avoid setState during render
+      const timeoutId = setTimeout(() => {
+        onSubmitReady(submitWrapper)
+      }, 0)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [onSubmitReady, submitWrapper])
+
+  // Notify parent of validation state changes (deferred)
+  useEffect(() => {
+    if (onValidationChange && onValidationChange !== prevValidationChangeRef.current) {
+      prevValidationChangeRef.current = onValidationChange
+      const timeoutId = setTimeout(() => {
+        onValidationChange(isFormValid())
+      }, 0)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [onValidationChange])
+
+  // Also notify when form data changes (validation state might have changed)
+  useEffect(() => {
+    if (onValidationChange) {
+      const timeoutId = setTimeout(() => {
+        onValidationChange(isFormValid())
+      }, 0)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [formData, onValidationChange])
+
+  // Notify parent of loading state changes (deferred)
+  useEffect(() => {
+    if (onLoadingChange && onLoadingChange !== prevLoadingChangeRef.current) {
+      prevLoadingChangeRef.current = onLoadingChange
+      const timeoutId = setTimeout(() => {
+        onLoadingChange(isLoading)
+      }, 0)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [onLoadingChange])
+
+  // Also notify when loading state changes
+  useEffect(() => {
+    if (onLoadingChange) {
+      const timeoutId = setTimeout(() => {
+        onLoadingChange(isLoading)
+      }, 0)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [isLoading, onLoadingChange])
 
   // Validation individuelle des champs selon Design System
   const validateField = (field: keyof FormData, value: string): FieldValidation => {
@@ -706,27 +835,29 @@ export function QuoteSubmissionForm({
           </Alert>
         )}
 
-        <Card className="bg-slate-50 border-slate-200">
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-4 justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => router.back()}
-                disabled={isLoading}
-                className="bg-white text-slate-700 border-slate-300 hover:bg-slate-50 h-12 px-6"
-              >
-                Annuler
-              </Button>
-              <Button
-                type="submit"
-                disabled={isLoading || !isFormValid()}
-                className={`h-12 px-8 font-semibold ${
-                  isFormValid()
-                    ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-lg hover:shadow-xl'
-                    : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                }`}
-              >
+        {/* Only show footer if not controlled externally (no callbacks provided) */}
+        {!onSubmitReady && (
+          <Card className="bg-slate-50 border-slate-200">
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row gap-4 justify-end">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => router.back()}
+                  disabled={isLoading}
+                  className="bg-white text-slate-700 border-slate-300 hover:bg-slate-50 h-12 px-6"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isLoading || !isFormValid()}
+                  className={`h-12 px-8 font-semibold ${
+                    isFormValid()
+                      ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-lg hover:shadow-xl'
+                      : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                  }`}
+                >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -738,10 +869,11 @@ export function QuoteSubmissionForm({
                     {existingQuote && quoteRequest?.status !== 'pending' ? 'Confirmer la modification' : 'Soumettre le devis'}
                   </>
                 )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </form>
     </div>
   )

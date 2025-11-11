@@ -27,9 +27,9 @@ import { ExecutionTab } from '@/components/intervention/tabs/execution-tab'
 // Intervention components
 import { InterventionDetailHeader } from '@/components/intervention/intervention-detail-header'
 import { InterventionActionPanelHeader } from '@/components/intervention/intervention-action-panel-header'
-import { QuoteSubmissionForm } from '@/components/intervention/quote-submission-form'
 
 // Modals
+import { QuoteSubmissionModal } from '@/components/intervention/modals/quote-submission-modal'
 import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
 import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
 import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
@@ -54,6 +54,9 @@ type TimeSlot = Database['public']['Tables']['intervention_time_slots']['Row'] &
   proposed_by_user?: Database['public']['Tables']['users']['Row']
 }
 type User = Database['public']['Tables']['users']['Row']
+type Assignment = Database['public']['Tables']['intervention_assignments']['Row'] & {
+  user?: Database['public']['Tables']['users']['Row']
+}
 
 interface PrestataireInterventionDetailClientProps {
   intervention: Intervention
@@ -61,6 +64,7 @@ interface PrestataireInterventionDetailClientProps {
   quotes: Quote[]
   threads: Thread[]
   timeSlots: TimeSlot[]
+  assignments: Assignment[]
   currentUser: User
 }
 
@@ -85,6 +89,7 @@ export function PrestataireInterventionDetailClient({
   quotes,
   threads,
   timeSlots,
+  assignments,
   currentUser
 }: PrestataireInterventionDetailClientProps) {
   const router = useRouter()
@@ -160,10 +165,7 @@ export function PrestataireInterventionDetailClient({
       created_by: intervention.creator?.name || 'Utilisateur',
       location: intervention.specific_location,
       lot: intervention.lot ? {
-        reference: intervention.lot.reference || '',
-        building: intervention.lot.building ? {
-          name: intervention.lot.building.name || ''
-        } : undefined
+        reference: intervention.lot.reference || ''
       } : undefined,
       building: intervention.building ? {
         name: intervention.building.name || ''
@@ -521,39 +523,28 @@ export function PrestataireInterventionDetailClient({
       />
 
       {/* Quote Submission Modal */}
-      <Dialog open={quoteModalOpen} onOpenChange={setQuoteModalOpen}>
-        <DialogContent className="max-w-[95vw] lg:max-w-6xl xl:max-w-7xl max-h-[95vh] overflow-y-auto p-0">
-          <VisuallyHidden>
-            <DialogTitle>
-              {selectedQuote && selectedQuote.status !== 'pending' ? 'Modifier le devis' : 'Soumettre un devis'} pour {intervention.title}
-            </DialogTitle>
-          </VisuallyHidden>
-          <div className="p-4 sm:p-6">
-            <QuoteSubmissionForm
-              intervention={{
-                id: intervention.id,
-                title: intervention.title,
-                description: intervention.description || '',
-                urgency: intervention.urgency || 'normale',
-                quote_deadline: intervention.quote_deadline
-              }}
-              existingQuote={selectedQuote ? transformQuoteToExistingQuote(selectedQuote) : undefined}
-              quoteRequest={selectedQuote ? {
-                id: selectedQuote.id,
-                status: selectedQuote.status,
-                individual_message: selectedQuote.internal_notes || undefined,
-                deadline: intervention.quote_deadline,
-                sent_at: selectedQuote.created_at
-              } : undefined}
-              onSuccess={() => {
-                setQuoteModalOpen(false)
-                setSelectedQuote(null)
-                handleRefresh()
-              }}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      <QuoteSubmissionModal
+        open={quoteModalOpen}
+        onOpenChange={setQuoteModalOpen}
+        intervention={{
+          ...intervention,
+          urgency: intervention.urgency || 'normale',
+          priority: intervention.urgency || 'normale'
+        }}
+        existingQuote={selectedQuote ? transformQuoteToExistingQuote(selectedQuote) : undefined}
+        quoteRequest={selectedQuote ? {
+          id: selectedQuote.id,
+          status: selectedQuote.status,
+          individual_message: selectedQuote.internal_notes || undefined,
+          deadline: intervention.quote_deadline,
+          sent_at: selectedQuote.created_at
+        } : undefined}
+        onSuccess={() => {
+          setQuoteModalOpen(false)
+          setSelectedQuote(null)
+          handleRefresh()
+        }}
+      />
 
       {/* Reject Quote Request Modal */}
       <Dialog open={rejectQuoteModalOpen} onOpenChange={setRejectQuoteModalOpen}>

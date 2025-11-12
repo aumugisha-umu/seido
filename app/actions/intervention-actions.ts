@@ -14,6 +14,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
+import { createQuoteRequestsForProviders } from '@/app/api/create-manager-intervention/create-quote-requests'
 
 // Type aliases
 type InterventionUrgency = Database['public']['Enums']['intervention_urgency']
@@ -1866,6 +1867,10 @@ export async function programInterventionAction(
       startTime: string
       endTime: string
     }>
+    // Quote request data
+    requireQuote?: boolean
+    selectedProviders?: string[]
+    instructions?: string
   }
 ): Promise<ActionResult<Intervention>> {
   try {
@@ -2074,7 +2079,53 @@ export async function programInterventionAction(
       return { success: false, error: 'Erreur lors de la mise à jour de l\'intervention' }
     }
 
-    logger.info('✅ [SERVER-ACTION] Intervention programmed successfully')
+    // Create quote requests if requireQuote is enabled and providers are selected
+    if (planningData.requireQuote && planningData.selectedProviders && planningData.selectedProviders.length > 0) {
+      logger.info('📋 [SERVER-ACTION] Creating quote requests for selected providers', {
+        interventionId,
+        providerCount: planningData.selectedProviders.length
+      })
+
+      try {
+        // Create quote requests for each selected provider
+        await createQuoteRequestsForProviders({
+          interventionId,
+          teamId: intervention.team_id,
+          providerIds: planningData.selectedProviders,
+          createdBy: user.id,
+          messageType: 'global',
+          globalMessage: planningData.instructions || undefined,
+          supabase
+        })
+
+        // Update intervention status to 'demande_de_devis' after creating quote requests
+        const { error: statusUpdateError } = await supabase
+          .from('interventions')
+          .update({ status: 'demande_de_devis' })
+          .eq('id', interventionId)
+
+        if (statusUpdateError) {
+          logger.error('❌ [SERVER-ACTION] Error updating intervention status to demande_de_devis:', statusUpdateError)
+        } else {
+          logger.info('✅ [SERVER-ACTION] Intervention status updated to demande_de_devis')
+          // Update the returned intervention status
+          if (updatedIntervention) {
+            updatedIntervention.status = 'demande_de_devis'
+          }
+        }
+
+      } catch (quoteError) {
+        logger.error('❌ [SERVER-ACTION] Error creating quote requests:', quoteError)
+        // Don't fail the whole operation if quote creation fails
+        // The intervention is still programmed, just without the quote requests
+      }
+    }
+
+    const finalStatus = planningData.requireQuote && planningData.selectedProviders?.length > 0
+      ? 'demande_de_devis'
+      : (planningData.option === 'organize' ? 'planification' : 'planifiee')
+
+    logger.info('✅ [SERVER-ACTION] Intervention programmed successfully', { finalStatus })
 
     // Revalidate intervention pages
     revalidatePath('/gestionnaire/interventions')

@@ -79,9 +79,43 @@ export async function DELETE(
 
     logger.info({ quoteId }, "✅ Quote request cancelled successfully")
 
+    // Check if there are any remaining active quote requests
+    const { data: remainingQuotes, error: countError } = await supabase
+      .from('intervention_quotes')
+      .select('id', { count: 'exact', head: false })
+      .eq('intervention_id', interventionId)
+      .eq('status', 'pending')
+      .is('deleted_at', null)
+
+    if (countError) {
+      logger.error({ error: countError }, '❌ Error counting remaining quotes')
+    }
+
+    let newInterventionStatus: string | null = null
+
+    // If no more pending quote requests, update intervention status back to 'planification'
+    if (!remainingQuotes || remainingQuotes.length === 0) {
+      logger.info({ interventionId }, "📋 No more pending quotes, updating intervention status to 'planification'")
+
+      const { error: interventionUpdateError } = await supabase
+        .from('interventions')
+        .update({ status: 'planification' })
+        .eq('id', interventionId)
+        .eq('status', 'demande_de_devis') // Only update if currently in demande_de_devis
+
+      if (interventionUpdateError) {
+        logger.error({ error: interventionUpdateError }, '❌ Error updating intervention status')
+      } else {
+        newInterventionStatus = 'planification'
+        logger.info({ interventionId }, "✅ Intervention status updated to 'planification'")
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: 'Demande de devis annulée avec succès'
+      message: 'Demande de devis annulée avec succès',
+      interventionStatusChanged: newInterventionStatus !== null,
+      newStatus: newInterventionStatus
     })
 
   } catch (error) {

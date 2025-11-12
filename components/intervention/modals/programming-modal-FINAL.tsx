@@ -340,7 +340,7 @@ export const ProgrammingModalFinal = ({
               </h2>
               <p className="text-sm text-slate-600">
                 {intervention.status === 'demande_de_devis' && allQuoteRequests.length > 0
-                  ? `Demande de devis en cours (${allQuoteRequests.length} demande${allQuoteRequests.length > 1 ? 's' : ''} envoyée${allQuoteRequests.length > 1 ? 's' : ''})`
+                  ? "Demande de devis en cours"
                   : "Demander une estimation du temps et du coût avant la planification"
                 }
               </p>
@@ -363,7 +363,6 @@ export const ProgrammingModalFinal = ({
                 <Switch
                   checked={requireQuote || intervention.status === 'demande_de_devis'}
                   onCheckedChange={onRequireQuoteChange || (() => {})}
-                  disabled={intervention.status === 'demande_de_devis'}
                 />
               </div>
 
@@ -372,7 +371,7 @@ export const ProgrammingModalFinal = ({
                 <div className="space-y-3 pt-3 border-t border-amber-300">
                   <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                     <FileText className="h-4 w-4 text-amber-600" />
-                    Demandes envoyées ({allQuoteRequests.length})
+                    Demande envoyée
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {allQuoteRequests.map(request => (

@@ -47,6 +47,10 @@ export interface PlanningData {
     startTime: string
     endTime: string
   }>
+  // Quote request data
+  requireQuote?: boolean
+  selectedProviders?: string[]
+  instructions?: string
 }
 
 export interface ExecutionData {

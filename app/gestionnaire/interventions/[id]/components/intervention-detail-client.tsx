@@ -38,6 +38,7 @@ import { ProgrammingModal } from '@/components/intervention/modals/programming-m
 import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
 import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
 import { CancelQuoteRequestModal } from '@/components/intervention/modals/cancel-quote-request-modal'
+import { CancelQuoteConfirmModal } from '@/components/intervention/modals/cancel-quote-confirm-modal'
 
 import type { Database } from '@/lib/database.types'
 
@@ -101,7 +102,6 @@ export function InterventionDetailClient({
   const { user } = useAuth()
   const { currentUserTeam } = useTeamStatus()
   const { toast } = useToast()
-  const planning = useInterventionPlanning()
   const [activeTab, setActiveTab] = useState('overview')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [cancelQuoteModal, setCancelQuoteModal] = useState<{
@@ -114,6 +114,19 @@ export function InterventionDetailClient({
     providerName: ''
   })
   const [isCancellingQuote, setIsCancellingQuote] = useState(false)
+  const [requireQuote, setRequireQuote] = useState(intervention.status === 'demande_de_devis')
+
+  // State for cancel quote confirmation modal (from toggle)
+  const [cancelQuoteConfirmModal, setCancelQuoteConfirmModal] = useState<{
+    isOpen: boolean
+    quoteId: string | null
+    providerName: string
+  }>({
+    isOpen: false,
+    quoteId: null,
+    providerName: ''
+  })
+  const [isCancellingQuoteFromToggle, setIsCancellingQuoteFromToggle] = useState(false)
 
   // Ref for ContactSelector modal
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
@@ -121,6 +134,19 @@ export function InterventionDetailClient({
   // Get params for contact creation return flow
   const newContactId = searchParams.get('newContactId')
   const returnedContactType = searchParams.get('contactType')
+
+  // Helper function to get active quote (pending, sent, accepted)
+  const getActiveQuote = () => {
+    return quotes.find(q =>
+      ['pending', 'sent', 'accepted'].includes(q.status)
+    )
+  }
+
+  // Sync requireQuote state with active quote (not just intervention status)
+  useEffect(() => {
+    const activeQuote = getActiveQuote()
+    setRequireQuote(activeQuote !== undefined)
+  }, [quotes])
 
   // Transform assignments into Contact arrays by role
   const { managers, providers, tenants } = useMemo(() => {
@@ -162,6 +188,13 @@ export function InterventionDetailClient({
 
     return { managers, providers, tenants }
   }, [assignments])
+
+  // Initialize planning hook with quote request data
+  const planning = useInterventionPlanning(
+    requireQuote,
+    providers.map(p => p.id),
+    intervention.instructions || ''
+  )
 
   // Handle refresh
   const handleRefresh = () => {
@@ -218,6 +251,73 @@ export function InterventionDetailClient({
       })
     } finally {
       setIsCancellingQuote(false)
+    }
+  }
+
+  // Handle toggle quote request ON/OFF
+  const handleToggleQuoteRequest = (checked: boolean) => {
+    // If toggling OFF and there is an active quote, show confirmation modal
+    if (!checked) {
+      const activeQuote = getActiveQuote()
+      if (activeQuote) {
+        const providerName = activeQuote.provider?.name || 'ce prestataire'
+        setCancelQuoteConfirmModal({
+          isOpen: true,
+          quoteId: activeQuote.id,
+          providerName
+        })
+        // Don't change toggle state yet (will be updated after confirmation)
+        return
+      }
+    }
+    // If toggling ON or no active quote, update toggle state directly
+    setRequireQuote(checked)
+  }
+
+  // Confirm cancel quote from toggle
+  const handleConfirmCancelQuoteFromToggle = async () => {
+    if (!cancelQuoteConfirmModal.quoteId) return
+
+    setIsCancellingQuoteFromToggle(true)
+
+    try {
+      console.log('🔄 Cancelling quote from toggle:', {
+        interventionId: intervention.id,
+        quoteId: cancelQuoteConfirmModal.quoteId,
+        currentStatus: intervention.status
+      })
+
+      // 1. Cancel the quote request
+      const cancelResponse = await fetch(
+        `/api/intervention/${intervention.id}/quotes/${cancelQuoteConfirmModal.quoteId}`,
+        { method: 'DELETE' }
+      )
+
+      if (!cancelResponse.ok) {
+        const errorData = await cancelResponse.json().catch(() => ({}))
+        console.error('Quote cancellation failed:', errorData)
+        throw new Error(errorData.error || 'Failed to cancel quote')
+      }
+
+      console.log('✅ Quote cancelled successfully - status automatically updated to planification')
+
+      toast({
+        title: 'Demande annulée',
+        description: 'La demande de devis a été annulée'
+      })
+
+      setCancelQuoteConfirmModal({ isOpen: false, quoteId: null, providerName: '' })
+      handleRefresh()
+    } catch (error) {
+      console.error('Error cancelling quote from toggle:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'annulation'
+      toast({
+        title: 'Erreur',
+        description: errorMessage,
+        variant: 'destructive'
+      })
+    } finally {
+      setIsCancellingQuoteFromToggle(false)
     }
   }
 
@@ -503,6 +603,8 @@ export function InterventionDetailClient({
           // TODO: Could add logic to highlight the specific provider in quotes tab
         }}
         onCancelQuoteRequest={handleCancelQuoteRequest}
+        requireQuote={requireQuote}
+        onRequireQuoteChange={handleToggleQuoteRequest}
       />
 
       {/* Cancel Slot Modal */}
@@ -530,6 +632,15 @@ export function InterventionDetailClient({
         onConfirm={handleConfirmCancelQuote}
         providerName={cancelQuoteModal.providerName}
         isLoading={isCancellingQuote}
+      />
+
+      {/* Cancel Quote Confirm Modal (from toggle) */}
+      <CancelQuoteConfirmModal
+        isOpen={cancelQuoteConfirmModal.isOpen}
+        onClose={() => setCancelQuoteConfirmModal({ isOpen: false, quoteId: null, providerName: '' })}
+        onConfirm={handleConfirmCancelQuoteFromToggle}
+        providerName={cancelQuoteConfirmModal.providerName}
+        isLoading={isCancellingQuoteFromToggle}
       />
 
       {/* Tabs */}

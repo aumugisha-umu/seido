@@ -56,7 +56,11 @@ interface TimeSlot {
   endTime: string
 }
 
-export const useInterventionPlanning = () => {
+export const useInterventionPlanning = (
+  requireQuote?: boolean,
+  selectedProviders?: string[],
+  instructions?: string
+) => {
   // État des modals
   const [planningModal, setPlanningModal] = useState<PlanningModal>({
     isOpen: false,
@@ -165,11 +169,18 @@ export const useInterventionPlanning = () => {
       option: programmingOption,
       directSchedule: programmingOption === "direct" ? programmingDirectSchedule : undefined,
       proposedSlots: programmingOption === "propose" ? programmingProposedSlots : undefined,
+      // Add quote request data
+      requireQuote: requireQuote,
+      selectedProviders: selectedProviders || [],
+      instructions: instructions || undefined,
     }
 
     try {
       // ✅ FIX AUTH BUG: Use Server Action instead of client-side fetch
-      logger.info("📅 Using Server Action for programming intervention")
+      logger.info("📅 Using Server Action for programming intervention", {
+        requireQuote,
+        providerCount: selectedProviders?.length || 0
+      })
 
       const result = await programInterventionAction(
         programmingModal.intervention.id,

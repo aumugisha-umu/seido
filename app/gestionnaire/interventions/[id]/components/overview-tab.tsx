@@ -7,7 +7,8 @@
 
 import { useState } from 'react'
 import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
-import { AssignmentCard } from '@/components/interventions/assignment-card'
+import { InterventionProgressCard } from '@/components/interventions/intervention-progress-card'
+import { InterventionCommentsCard } from '@/components/interventions/intervention-comments-card'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
@@ -18,7 +19,6 @@ import {
   DialogTitle
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
   Select,
@@ -30,7 +30,7 @@ import {
 import { toast } from 'sonner'
 import { assignUserAction, unassignUserAction } from '@/app/actions/intervention-actions'
 import { createBrowserSupabaseClient } from '@/lib/services'
-import { UserPlus, Activity, AlertCircle } from 'lucide-react'
+import { UserPlus, AlertCircle } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
 
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
@@ -43,17 +43,108 @@ type Assignment = Database['public']['Tables']['intervention_assignments']['Row'
   user?: Database['public']['Tables']['users']['Row']
 }
 
+type Quote = Database['public']['Tables']['intervention_quotes']['Row'] & {
+  provider?: Database['public']['Tables']['users']['Row']
+}
+
+type TimeSlot = Database['public']['Tables']['intervention_time_slots']['Row'] & {
+  proposed_by_user?: Database['public']['Tables']['users']['Row']
+}
+
+interface Contact {
+  id: string
+  name: string
+  email: string
+  phone?: string | null
+  type?: "gestionnaire" | "prestataire" | "locataire"
+}
+
+interface TimeSlotForPreview {
+  date: string
+  startTime: string
+  endTime: string
+}
+
+interface Comment {
+  id: string
+  content: string
+  created_at: string
+  user?: Pick<Database['public']['Tables']['users']['Row'], 'id' | 'name' | 'email' | 'avatar_url' | 'role'>
+}
+
 interface OverviewTabProps {
   intervention: Intervention
   assignments: Assignment[]
+  quotes: Quote[]
+  timeSlots: TimeSlot[]
+  comments: Comment[]
+  currentUserId: string
+  currentUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire'
   onRefresh: () => void
 }
 
 export function OverviewTab({
   intervention,
   assignments,
+  quotes,
+  timeSlots,
+  comments,
+  currentUserId,
+  currentUserRole,
   onRefresh
 }: OverviewTabProps) {
+  // Transform assignments into contacts grouped by role
+  const managers: Contact[] = assignments
+    .filter(a => a.role === 'gestionnaire' && a.user)
+    .map(a => ({
+      id: a.user!.id,
+      name: a.user!.name,
+      email: a.user!.email || '',
+      phone: a.user!.phone || null,
+      type: 'gestionnaire' as const
+    }))
+
+  const providers: Contact[] = assignments
+    .filter(a => a.role === 'prestataire' && a.user)
+    .map(a => ({
+      id: a.user!.id,
+      name: a.user!.name,
+      email: a.user!.email || '',
+      phone: a.user!.phone || null,
+      type: 'prestataire' as const
+    }))
+
+  const tenants: Contact[] = assignments
+    .filter(a => a.role === 'locataire' && a.user)
+    .map(a => ({
+      id: a.user!.id,
+      name: a.user!.name,
+      email: a.user!.email || '',
+      phone: a.user!.phone || null,
+      type: 'locataire' as const
+    }))
+
+  // Transform time slots for preview
+  const schedulingSlotsForPreview: TimeSlotForPreview[] = timeSlots
+    .filter(ts => ts.slot_date && ts.start_time && ts.end_time)
+    .map(ts => ({
+      date: ts.slot_date!,
+      startTime: ts.start_time!,
+      endTime: ts.end_time!
+    }))
+
+  // Determine scheduling type based on intervention status and data
+  const schedulingType = intervention.scheduled_date
+    ? 'fixed' as const
+    : schedulingSlotsForPreview.length > 0
+    ? 'slots' as const
+    : intervention.scheduling_method === 'flexible'
+    ? 'flexible' as const
+    : null
+
+  // Check if quote is required (status or active quotes)
+  const requireQuote = intervention.status === 'demande_de_devis' ||
+    quotes.some(q => ['pending', 'sent', 'accepted'].includes(q.status))
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
   const [selectedUserId, setSelectedUserId] = useState('')
   const [selectedRole, setSelectedRole] = useState<'gestionnaire' | 'prestataire'>('prestataire')
@@ -145,55 +236,54 @@ export function OverviewTab({
     }
   }
 
-  // Statuts où l'attribution de prestataires/gestionnaires fait sens
-  const shouldShowAssignments = [
-    'demande_de_devis',
-    'planification',
-    'planifiee',
-    'en_cours',
-    'cloturee_par_prestataire',
-    'cloturee_par_locataire',
-    'cloturee_par_gestionnaire'
-  ].includes(intervention.status)
-
   return (
     <>
-      <div className={`grid grid-cols-1 gap-6 ${shouldShowAssignments ? 'lg:grid-cols-3' : ''}`}>
-        {/* Main content - full width when no assignments, 2/3 when assignments shown */}
-        <div className={`space-y-6 ${shouldShowAssignments ? 'lg:col-span-2' : ''}`}>
-          {/* Intervention details */}
-          <InterventionOverviewCard intervention={intervention} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main content - 2/3 width on large screens */}
+        <div className="lg:col-span-2 space-y-6">
+          <InterventionOverviewCard
+            intervention={intervention}
+            managers={managers}
+            providers={providers}
+            tenants={tenants}
+            requireQuote={requireQuote}
+            quotes={quotes}
+            schedulingType={schedulingType}
+            schedulingSlots={schedulingSlotsForPreview}
+            instructions={intervention.manager_instructions || null}
+          />
+
+          {/* Alert for urgent intervention */}
+          {intervention.urgency === 'urgente' && (
+            <Card className="border-orange-200 bg-orange-50">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2 text-orange-800">
+                  <AlertCircle className="w-5 h-5" />
+                  Intervention urgente
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-orange-700">
+                  Cette intervention est marquée comme urgente et nécessite une attention prioritaire.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
-        {/* Right column - Assignments and alerts (only when assignments are relevant) */}
-        {shouldShowAssignments && (
-          <div className="space-y-6">
-            {/* Assignments - only show after quote request or planning phase */}
-            <AssignmentCard
-              assignments={assignments}
-              canManage={true}
-              onAssign={handleOpenAssignDialog}
-              onRemove={handleRemoveAssignment}
-            />
+        {/* Right sidebar - 1/3 width on large screens */}
+        <div className="space-y-6">
+          {/* Comments Card - AU-DESSUS de Progression */}
+          <InterventionCommentsCard
+            interventionId={intervention.id}
+            comments={comments}
+            currentUserId={currentUserId}
+            currentUserRole={currentUserRole}
+          />
 
-            {/* Alerts or important notes */}
-            {intervention.urgency === 'urgente' && (
-              <Card className="border-orange-200 bg-orange-50">
-                <CardHeader>
-                  <CardTitle className="text-base flex items-center gap-2 text-orange-800">
-                    <AlertCircle className="w-5 h-5" />
-                    Intervention urgente
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-orange-700">
-                    Cette intervention est marquée comme urgente et nécessite une attention prioritaire.
-                  </p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        )}
+          {/* Progression Card */}
+          <InterventionProgressCard intervention={intervention} />
+        </div>
       </div>
 
       {/* Assign User Dialog */}

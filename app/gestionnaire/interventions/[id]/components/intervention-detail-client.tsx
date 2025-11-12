@@ -8,6 +8,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Card, CardContent } from '@/components/ui/card'
 
 // Tab components
 import { OverviewTab } from './overview-tab'
@@ -74,6 +75,13 @@ type ActivityLog = Database['public']['Tables']['activity_logs']['Row'] & {
   user?: Database['public']['Tables']['users']['Row']
 }
 
+interface Comment {
+  id: string
+  content: string
+  created_at: string
+  user?: Pick<User, 'id' | 'name' | 'email' | 'avatar_url' | 'role'>
+}
+
 interface InterventionDetailClientProps {
   intervention: Intervention
   assignments: Assignment[]
@@ -84,6 +92,7 @@ interface InterventionDetailClientProps {
   initialMessagesByThread?: Record<string, any[]>
   initialParticipantsByThread?: Record<string, any[]>
   activityLogs: ActivityLog[]
+  comments: Comment[]
 }
 
 export function InterventionDetailClient({
@@ -95,7 +104,8 @@ export function InterventionDetailClient({
   threads,
   initialMessagesByThread,
   initialParticipantsByThread,
-  activityLogs
+  activityLogs,
+  comments
 }: InterventionDetailClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -515,7 +525,7 @@ export function InterventionDetailClient({
   }
 
   return (
-    <div className="layout-padding container content-max-width py-6 space-y-6">
+    <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
       {/* Intervention Detail Header with Action Panel */}
       <InterventionDetailHeader
         intervention={{
@@ -643,127 +653,143 @@ export function InterventionDetailClient({
         isLoading={isCancellingQuoteFromToggle}
       />
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-6 w-full">
-          <TabsTrigger value="overview">
-            Vue d'ensemble
-          </TabsTrigger>
-          <TabsTrigger value="quotes" className="relative">
-            Devis
-            {(() => {
-              const { pendingRequests, submittedQuotes } = getQuotesBadges()
-              return (
-                <div className="absolute -top-1 -right-1 flex gap-1 z-50">
-                  {pendingRequests > 0 && (
-                    <span className="bg-blue-500 text-white text-xs rounded-full px-1.5">
-                      {pendingRequests}
-                    </span>
-                  )}
-                  {submittedQuotes > 0 && (
-                    <span className="bg-red-500 text-white text-xs rounded-full px-1.5">
-                      {submittedQuotes}
-                    </span>
-                  )}
-                </div>
-              )
-            })()}
-          </TabsTrigger>
-          <TabsTrigger value="time-slots" className="relative">
-            Exécution
-            {getBadgeCount('time-slots') && (
-              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
-                {getBadgeCount('time-slots')}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="chat" className="relative">
-            Discussion
-            {getBadgeCount('chat') && (
-              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
-                {getBadgeCount('chat')}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="documents" className="relative">
-            Documents
-            {getBadgeCount('documents') && (
-              <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
-                {getBadgeCount('documents')}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="activity">
-            Activité
-          </TabsTrigger>
-        </TabsList>
+      {/* Tabs Navigation */}
+      <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4 mb-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid grid-cols-6 w-full">
+            <TabsTrigger value="overview">
+              Vue d'ensemble
+            </TabsTrigger>
+            <TabsTrigger value="quotes" className="relative">
+              Devis
+              {(() => {
+                const { pendingRequests, submittedQuotes } = getQuotesBadges()
+                return (
+                  <div className="absolute -top-1 -right-1 flex gap-1 z-50">
+                    {pendingRequests > 0 && (
+                      <span className="bg-blue-500 text-white text-xs rounded-full px-1.5">
+                        {pendingRequests}
+                      </span>
+                    )}
+                    {submittedQuotes > 0 && (
+                      <span className="bg-red-500 text-white text-xs rounded-full px-1.5">
+                        {submittedQuotes}
+                      </span>
+                    )}
+                  </div>
+                )
+              })()}
+            </TabsTrigger>
+            <TabsTrigger value="time-slots" className="relative">
+              Exécution
+              {getBadgeCount('time-slots') && (
+                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
+                  {getBadgeCount('time-slots')}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="chat" className="relative">
+              Discussion
+              {getBadgeCount('chat') && (
+                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
+                  {getBadgeCount('chat')}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="documents" className="relative">
+              Documents
+              {getBadgeCount('documents') && (
+                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
+                  {getBadgeCount('documents')}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="activity">
+              Activité
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
-        <TabsContent value="overview" className="space-y-6">
-          <OverviewTab
-            intervention={intervention}
-            assignments={assignments}
-            onRefresh={handleRefresh}
-          />
-        </TabsContent>
+      {/* Tab Content Card */}
+      <Card className="flex-1 flex flex-col content-max-width mx-auto w-full p-6 min-h-0 overflow-hidden">
+        <CardContent className="p-0 flex-1 flex flex-col min-h-0 overflow-y-auto">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
+            <div className="flex-1 flex flex-col min-h-0 pb-6">
+              <TabsContent value="overview" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6">
+                <OverviewTab
+                  intervention={intervention}
+                  assignments={assignments}
+                  quotes={quotes}
+                  timeSlots={timeSlots}
+                  comments={comments}
+                  currentUserId={user?.id || ''}
+                  currentUserRole={(user?.role as 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire') || 'locataire'}
+                  onRefresh={handleRefresh}
+                />
+              </TabsContent>
 
-        <TabsContent value="quotes" className="space-y-6">
-          <QuotesTab
-            interventionId={intervention.id}
-            quotes={quotes}
-            canManage={true}
-          />
-        </TabsContent>
+              <TabsContent value="quotes" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6">
+                <QuotesTab
+                  interventionId={intervention.id}
+                  quotes={quotes}
+                  canManage={true}
+                />
+              </TabsContent>
 
-        <TabsContent value="time-slots" className="space-y-6">
-          <ExecutionTab
-            interventionId={intervention.id}
-            timeSlots={timeSlots}
-            currentStatus={intervention.status}
-            intervention={{
-              id: intervention.id,
-              type: intervention.type || '',
-              status: intervention.status || '',
-              title: intervention.title || '',
-              description: intervention.description,
-              priority: intervention.priority,
-              urgency: intervention.urgency,
-              reference: intervention.reference,
-              created_at: intervention.created_at,
-              location: intervention.specific_location,
-            }}
-            onOpenProgrammingModal={handleOpenProgrammingModalWithData}
-            onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
-            onRejectSlot={(slot) => planning.openRejectSlotModal(slot, intervention.id)}
-            currentUserId={user?.id}
-          />
-        </TabsContent>
+              <TabsContent value="time-slots" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6">
+                <ExecutionTab
+                  interventionId={intervention.id}
+                  timeSlots={timeSlots}
+                  currentStatus={intervention.status}
+                  intervention={{
+                    id: intervention.id,
+                    type: intervention.type || '',
+                    status: intervention.status || '',
+                    title: intervention.title || '',
+                    description: intervention.description,
+                    priority: intervention.priority,
+                    urgency: intervention.urgency,
+                    reference: intervention.reference,
+                    created_at: intervention.created_at,
+                    location: intervention.specific_location,
+                  }}
+                  onOpenProgrammingModal={handleOpenProgrammingModalWithData}
+                  onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
+                  onRejectSlot={(slot) => planning.openRejectSlotModal(slot, intervention.id)}
+                  currentUserId={user?.id}
+                />
+              </TabsContent>
 
-        <TabsContent value="chat" className="space-y-6">
-          <ChatTab
-            interventionId={intervention.id}
-            threads={threads}
-            initialMessagesByThread={initialMessagesByThread}
-            initialParticipantsByThread={initialParticipantsByThread}
-            currentUserId={user?.id || ''}
-            userRole={user?.role || 'gestionnaire'}
-          />
-        </TabsContent>
+              <TabsContent value="chat" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6">
+                <ChatTab
+                  interventionId={intervention.id}
+                  threads={threads}
+                  initialMessagesByThread={initialMessagesByThread}
+                  initialParticipantsByThread={initialParticipantsByThread}
+                  currentUserId={user?.id || ''}
+                  userRole={user?.role || 'gestionnaire'}
+                />
+              </TabsContent>
 
-        <TabsContent value="documents" className="space-y-6">
-          <DocumentsTab
-            interventionId={intervention.id}
-            documents={documents}
-            canManage={true}
-          />
-        </TabsContent>
+              <TabsContent value="documents" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6">
+                <DocumentsTab
+                  interventionId={intervention.id}
+                  documents={documents}
+                  canManage={true}
+                />
+              </TabsContent>
 
-        <TabsContent value="activity" className="space-y-6">
-          <ActivityTab
-            intervention={intervention}
-            activityLogs={activityLogs}
-          />
-        </TabsContent>
-      </Tabs>
+              <TabsContent value="activity" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6">
+                <ActivityTab
+                  intervention={intervention}
+                  activityLogs={activityLogs}
+                />
+              </TabsContent>
+            </div>
+          </Tabs>
+        </CardContent>
+      </Card>
 
       {/* Contact Selector Modal */}
       <ContactSelector

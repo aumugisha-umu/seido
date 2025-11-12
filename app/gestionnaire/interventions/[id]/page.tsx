@@ -64,7 +64,8 @@ export default async function InterventionDetailPage({ params }: PageProps) {
       { data: quotes },
       { data: timeSlots },
       { data: threads, allMessages: threadMessages, allParticipants: threadParticipants },
-      { data: activityLogs }
+      { data: activityLogs },
+      { data: comments }
     ] = await Promise.all([
       // Building
       intervention.building_id
@@ -181,7 +182,15 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         .eq('entity_type', 'intervention')
         .eq('entity_id', id)
         .order('created_at', { ascending: false })
-        .limit(50)
+        .limit(50),
+
+      // Comments
+      supabase
+        .from('intervention_comments')
+        .select('*, user:user_id(id, name, email, avatar_url, role)')
+        .eq('intervention_id', id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
     ])
 
     logger.info('✅ [INTERVENTION-PAGE] Step 2 complete', {
@@ -249,6 +258,7 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         initialMessagesByThread={messagesByThread}
         initialParticipantsByThread={participantsByThread}
         activityLogs={activityLogs || []}
+        comments={comments || []}
       />
     )
   } catch (error) {

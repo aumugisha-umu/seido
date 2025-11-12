@@ -605,6 +605,51 @@ export type Database = {
           },
         ]
       }
+      intervention_comments: {
+        Row: {
+          content: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          intervention_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          intervention_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          intervention_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_comments_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_comments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       intervention_documents: {
         Row: {
           deleted_at: string | null
@@ -1001,9 +1046,7 @@ export type Database = {
           final_cost: number | null
           id: string
           lot_id: string | null
-          manager_comment: string | null
           metadata: Json | null
-          provider_comment: string | null
           reference: string
           requested_date: string | null
           requires_quote: boolean
@@ -1013,7 +1056,6 @@ export type Database = {
           specific_location: string | null
           status: Database["public"]["Enums"]["intervention_status"]
           team_id: string
-          tenant_comment: string | null
           title: string
           type: Database["public"]["Enums"]["intervention_type"]
           updated_at: string
@@ -1031,9 +1073,7 @@ export type Database = {
           final_cost?: number | null
           id?: string
           lot_id?: string | null
-          manager_comment?: string | null
           metadata?: Json | null
-          provider_comment?: string | null
           reference: string
           requested_date?: string | null
           requires_quote?: boolean
@@ -1043,7 +1083,6 @@ export type Database = {
           specific_location?: string | null
           status?: Database["public"]["Enums"]["intervention_status"]
           team_id: string
-          tenant_comment?: string | null
           title: string
           type: Database["public"]["Enums"]["intervention_type"]
           updated_at?: string
@@ -1061,9 +1100,7 @@ export type Database = {
           final_cost?: number | null
           id?: string
           lot_id?: string | null
-          manager_comment?: string | null
           metadata?: Json | null
-          provider_comment?: string | null
           reference?: string
           requested_date?: string | null
           requires_quote?: boolean
@@ -1073,7 +1110,6 @@ export type Database = {
           specific_location?: string | null
           status?: Database["public"]["Enums"]["intervention_status"]
           team_id?: string
-          tenant_comment?: string | null
           title?: string
           type?: Database["public"]["Enums"]["intervention_type"]
           updated_at?: string
@@ -1984,6 +2020,24 @@ export type Database = {
         Returns: boolean
       }
       expire_old_invitations: { Args: never; Returns: number }
+      get_accessible_building_ids: {
+        Args: never
+        Returns: {
+          building_id: string
+        }[]
+      }
+      get_accessible_intervention_ids: {
+        Args: never
+        Returns: {
+          intervention_id: string
+        }[]
+      }
+      get_accessible_lot_ids: {
+        Args: never
+        Returns: {
+          lot_id: string
+        }[]
+      }
       get_building_team_id: { Args: { building_uuid: string }; Returns: string }
       get_current_user_id: { Args: never; Returns: string }
       get_current_user_role: {
@@ -2013,6 +2067,14 @@ export type Database = {
       }
       is_document_owner: { Args: { p_document_id: string }; Returns: boolean }
       is_gestionnaire: { Args: never; Returns: boolean }
+      is_gestionnaire_of_building_team: {
+        Args: { building_uuid: string }
+        Returns: boolean
+      }
+      is_gestionnaire_of_lot_team: {
+        Args: { lot_uuid: string }
+        Returns: boolean
+      }
       is_manager_of_intervention_team: {
         Args: { p_intervention_id: string }
         Returns: boolean

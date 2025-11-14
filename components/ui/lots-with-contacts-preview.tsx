@@ -44,6 +44,12 @@ interface LotsWithContactsPreviewProps {
   lots: LotWithContacts[]
   lotContactIdsMap: Record<string, { lotId: string; lotContactId: string; lotReference: string }>
   teamId: string // Pour charger les contacts disponibles
+  // Building-level contacts (inherited by all lots)
+  buildingManagers?: Array<{ id: string; name: string; email: string; phone?: string; type: string }>
+  buildingTenants?: Array<{ id: string; name: string; email: string; phone?: string; type: string }>
+  buildingProviders?: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }>
+  buildingOwners?: Array<{ id: string; name: string; email: string; phone?: string; type: string }>
+  buildingOthers?: Array<{ id: string; name: string; email: string; phone?: string; type: string }>
 }
 
 /**
@@ -56,7 +62,17 @@ interface LotsWithContactsPreviewProps {
  * - Click sur chevron pour expand/collapse
  * - Modale de confirmation avant suppression de contact
  */
-export function LotsWithContactsPreview({ buildingId, lots, lotContactIdsMap, teamId }: LotsWithContactsPreviewProps) {
+export function LotsWithContactsPreview({
+  buildingId,
+  lots,
+  lotContactIdsMap,
+  teamId,
+  buildingManagers = [],
+  buildingTenants = [],
+  buildingProviders = [],
+  buildingOwners = [],
+  buildingOthers = []
+}: LotsWithContactsPreviewProps) {
   const router = useRouter()
   const { toast } = useToast()
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
@@ -496,6 +512,8 @@ export function LotsWithContactsPreview({ buildingId, lots, lotContactIdsMap, te
                         const contact = managers.find(c => c.id === id)
                         if (contact) handleRemoveContact(contact as any, lot.id, lot.reference)
                       }}
+                      inheritedContacts={buildingManagers}
+                      showInheritedSummary={true}
                     />
                     <ContactSection
                       sectionType="tenants"
@@ -506,6 +524,8 @@ export function LotsWithContactsPreview({ buildingId, lots, lotContactIdsMap, te
                         const contact = tenants.find(c => c.id === id)
                         if (contact) handleRemoveContact(contact as any, lot.id, lot.reference)
                       }}
+                      inheritedContacts={buildingTenants}
+                      showInheritedSummary={true}
                     />
                     <ContactSection
                       sectionType="providers"
@@ -516,6 +536,8 @@ export function LotsWithContactsPreview({ buildingId, lots, lotContactIdsMap, te
                         const contact = providers.find(c => c.id === id)
                         if (contact) handleRemoveContact(contact as any, lot.id, lot.reference)
                       }}
+                      inheritedContacts={buildingProviders}
+                      showInheritedSummary={true}
                     />
                     <ContactSection
                       sectionType="owners"
@@ -526,6 +548,8 @@ export function LotsWithContactsPreview({ buildingId, lots, lotContactIdsMap, te
                         const contact = owners.find(c => c.id === id)
                         if (contact) handleRemoveContact(contact as any, lot.id, lot.reference)
                       }}
+                      inheritedContacts={buildingOwners}
+                      showInheritedSummary={true}
                     />
                     <ContactSection
                       sectionType="others"
@@ -536,6 +560,8 @@ export function LotsWithContactsPreview({ buildingId, lots, lotContactIdsMap, te
                         const contact = others.find(c => c.id === id)
                         if (contact) handleRemoveContact(contact as any, lot.id, lot.reference)
                       }}
+                      inheritedContacts={buildingOthers}
+                      showInheritedSummary={true}
                     />
                   </div>
                 </CardContent>

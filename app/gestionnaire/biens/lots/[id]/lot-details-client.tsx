@@ -261,11 +261,11 @@ export default function LotDetailsClient({
 
   // Transform building contacts by role for inheritance display
   const transformBuildingContactsByRole = () => {
-    const buildingManagers: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
-    const buildingTenants: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
-    const buildingProviders: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
-    const buildingOwners: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
-    const buildingOthers: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
+    const buildingManagers: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
+    const buildingTenants: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
+    const buildingProviders: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
+    const buildingOwners: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
+    const buildingOthers: Array<{ id: string; name: string; email: string; phone?: string; company?: string; type: string; speciality?: string }> = []
 
     buildingContacts.forEach((contact) => {
       const transformedContact = {
@@ -273,6 +273,7 @@ export default function LotDetailsClient({
         name: contact.user.name,
         email: contact.user.email,
         phone: contact.user.phone,
+        company: contact.user.company,
         type: contact.user.role || 'other',
         speciality: contact.user.speciality
       }

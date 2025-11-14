@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useState } from "react"
 import { Button } from "@/components/ui/button"
 import {
   Users,
@@ -13,7 +13,9 @@ import {
   UserRound,
   LucideIcon,
   Edit,
-  Building
+  Building,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react"
 
 // Base contact interface - compatible with both Contact and UserType
@@ -23,6 +25,7 @@ interface BaseContact {
   email: string
   type?: string
   phone?: string | null
+  company?: string | null
   speciality?: string
 }
 
@@ -203,6 +206,9 @@ export function ContactSection({
   const label = customLabel || config.label
   const addButtonLabel = customAddButtonLabel || config.addButtonLabel
 
+  // Local state for inherited contacts expansion
+  const [isInheritedExpanded, setIsInheritedExpanded] = useState(false)
+
   // Determine if a contact can be removed
   const canRemove = (contact: BaseContact): boolean => {
     if (canRemoveContact) {
@@ -230,10 +236,14 @@ export function ContactSection({
 
       {/* Scrollable contact list - max 3 contacts visible (138px = 46px * 3) */}
       <div className="p-2 bg-white overflow-y-auto max-h-[138px] space-y-1.5 flex-1">
-        {/* Inherited contacts summary card (from building) */}
+        {/* Inherited contacts summary card (from building) - Collapsible */}
         {showInheritedSummary && inheritedContacts.length > 0 && (
-          <div className="p-2 bg-blue-50/40 rounded border border-blue-200/60">
-            <div className="flex items-center gap-2">
+          <div className="bg-blue-50/40 rounded border border-blue-200/60 overflow-hidden">
+            {/* Summary header - clickable to expand/collapse */}
+            <div
+              className="p-2 flex items-center gap-2 cursor-pointer hover:bg-blue-50/60 transition-colors"
+              onClick={() => setIsInheritedExpanded(!isInheritedExpanded)}
+            >
               <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
                 <Building className="w-4 h-4 text-blue-700" />
               </div>
@@ -246,7 +256,47 @@ export function ContactSection({
                   Hérité{inheritedContacts.length > 1 ? 's' : ''} de l'immeuble
                 </div>
               </div>
+              <div className="flex-shrink-0">
+                {isInheritedExpanded ? (
+                  <ChevronUp className="w-4 h-4 text-blue-700" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 text-blue-700" />
+                )}
+              </div>
             </div>
+
+            {/* Expanded contact list */}
+            {isInheritedExpanded && (
+              <div className="border-t border-blue-200/60 bg-white/50">
+                <div className="p-2 space-y-1.5 max-h-[138px] overflow-y-auto">
+                  {inheritedContacts.map((contact) => (
+                    <div
+                      key={contact.id}
+                      className="flex items-center gap-2 p-2 bg-white rounded border border-blue-100"
+                    >
+                      {/* Avatar for managers, icon for others */}
+                      {sectionType === 'managers' ? (
+                        <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                          <User className="w-4 h-4 text-blue-700" />
+                        </div>
+                      ) : (
+                        <Icon className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm truncate text-gray-900">{contact.name}</div>
+                        <div className="text-xs text-gray-500 truncate">{contact.email}</div>
+                        {contact.phone && (
+                          <div className="text-xs text-gray-500 truncate">{contact.phone}</div>
+                        )}
+                        {contact.company && (
+                          <div className="text-xs text-gray-600 truncate font-medium">🏢 {contact.company}</div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

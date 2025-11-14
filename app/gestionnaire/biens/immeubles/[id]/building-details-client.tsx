@@ -28,6 +28,7 @@ interface BuildingContact {
     name: string
     email: string
     phone?: string
+    company?: string
     role: string
     provider_category?: string
     speciality?: string
@@ -288,15 +289,27 @@ export default function BuildingDetailsClient({
 
   // Transform building contacts by role + Create buildingContactIds map
   const buildingManagers = buildingContacts
-    .filter(bc => bc.user.role === 'gestionnaire')
+    .filter(bc => bc.user.role === 'gestionnaire' || bc.user.role === 'admin')
     .map(bc => ({
       id: bc.user.id,
       name: bc.user.name,
       email: bc.user.email,
       phone: bc.user.phone,
+      company: bc.user.company,
       type: 'manager'
     }))
-  
+
+  const buildingTenants = buildingContacts
+    .filter(bc => bc.user.role === 'locataire')
+    .map(bc => ({
+      id: bc.user.id,
+      name: bc.user.name,
+      email: bc.user.email,
+      phone: bc.user.phone,
+      company: bc.user.company,
+      type: 'tenant'
+    }))
+
   const buildingContactIds: Record<string, string> = {}
 
   buildingContacts.forEach(bc => {
@@ -310,6 +323,7 @@ export default function BuildingDetailsClient({
       name: bc.user.name,
       email: bc.user.email,
       phone: bc.user.phone,
+      company: bc.user.company,
       type: 'provider',
       speciality: bc.user.speciality || bc.user.provider_category
     }))
@@ -320,15 +334,17 @@ export default function BuildingDetailsClient({
       name: bc.user.name,
       email: bc.user.email,
       phone: bc.user.phone,
+      company: bc.user.company,
       type: 'owner'
     }))
   const others = buildingContacts
-    .filter(bc => bc.user.role !== 'prestataire' && bc.user.role !== 'proprietaire' && bc.user.role !== 'locataire')
+    .filter(bc => bc.user.role !== 'prestataire' && bc.user.role !== 'proprietaire' && bc.user.role !== 'locataire' && bc.user.role !== 'gestionnaire' && bc.user.role !== 'admin')
     .map(bc => ({
       id: bc.user.id,
       name: bc.user.name,
       email: bc.user.email,
       phone: bc.user.phone,
+      company: bc.user.company,
       type: 'other'
     }))
 
@@ -469,6 +485,11 @@ export default function BuildingDetailsClient({
                     lots={lotsWithContacts as any}
                     lotContactIdsMap={lotContactIdsMap}
                     teamId={teamId}
+                    buildingManagers={buildingManagers}
+                    buildingTenants={buildingTenants}
+                    buildingProviders={providers}
+                    buildingOwners={owners}
+                    buildingOthers={others}
                   />
                 </div>
               </div>

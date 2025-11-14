@@ -342,8 +342,6 @@ export function useContactStats() {
         gestionnaire: { total: 0, active: 0 },
         locataire: { total: 0, active: 0 },
         prestataire: { total: 0, active: 0 },
-        notaire: { total: 0, active: 0 },
-        assurance: { total: 0, active: 0 },
         proprietaire: { total: 0, active: 0 },
         autre: { total: 0, active: 0 }
       },

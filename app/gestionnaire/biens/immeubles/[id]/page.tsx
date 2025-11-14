@@ -112,6 +112,24 @@ export default async function BuildingDetailsPage({
       elapsed: `${Date.now() - startTime}ms`
     })
 
+    // Generate lot contact IDs lookup map (like building contacts pattern)
+    const lotContactIdsMap: Record<string, { lotId: string; lotContactId: string; lotReference: string }> = {}
+    lotsWithContacts.forEach(lot => {
+      lot.lot_contacts.forEach((lc: any) => {
+        if (lc.user?.id) {
+          lotContactIdsMap[lc.user.id] = {
+            lotId: lot.id,
+            lotContactId: lc.id,
+            lotReference: lot.reference
+          }
+        }
+      })
+    })
+    logger.info('✅ [BUILDING-PAGE-SERVER] Lot contact IDs map generated', {
+      totalMappings: Object.keys(lotContactIdsMap).length,
+      elapsed: `${Date.now() - startTime}ms`
+    })
+
     // Load interventions for all lots (parallel)
     let interventions: unknown[] = []
     if (lots.length > 0) {
@@ -208,6 +226,7 @@ export default async function BuildingDetailsPage({
         interventionsWithDocs={interventionsWithDocs}
         buildingContacts={buildingContacts}
         lotsWithContacts={lotsWithContacts}
+        lotContactIdsMap={lotContactIdsMap}
         teamId={team.id}
       />
     )

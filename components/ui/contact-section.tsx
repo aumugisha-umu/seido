@@ -12,7 +12,8 @@ import {
   UserCircle,
   UserRound,
   LucideIcon,
-  Edit
+  Edit,
+  Building
 } from "lucide-react"
 
 // Base contact interface - compatible with both Contact and UserType
@@ -176,6 +177,10 @@ interface ContactSectionProps {
   canRemoveContact?: (contact: BaseContact) => boolean // Custom logic for remove button
   customLabel?: string // Override default label
   customAddButtonLabel?: string // Override default add button label
+
+  // Inherited contacts (from building when viewing a lot)
+  inheritedContacts?: BaseContact[] // Building-level contacts inherited by this lot
+  showInheritedSummary?: boolean // If true, display inherited contact summary card
 }
 
 export function ContactSection({
@@ -187,7 +192,9 @@ export function ContactSection({
   minRequired,
   canRemoveContact,
   customLabel,
-  customAddButtonLabel
+  customAddButtonLabel,
+  inheritedContacts = [],
+  showInheritedSummary = false
 }: ContactSectionProps) {
   const config = SECTION_CONFIGS[sectionType]
   const Icon = config.icon
@@ -223,6 +230,32 @@ export function ContactSection({
 
       {/* Scrollable contact list - max 3 contacts visible (138px = 46px * 3) */}
       <div className="p-2 bg-white overflow-y-auto max-h-[138px] space-y-1.5 flex-1">
+        {/* Inherited contacts summary card (from building) */}
+        {showInheritedSummary && inheritedContacts.length > 0 && (
+          <div className="p-2 bg-blue-50/40 rounded border border-blue-200/60">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                <Building className="w-4 h-4 text-blue-700" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-medium text-sm text-blue-900">
+                  {inheritedContacts.length} {label.toLowerCase().replace(/s$/, '')}
+                  {inheritedContacts.length === 1 ? ' associé' : 's associés'}
+                </div>
+                <div className="text-xs text-blue-700">
+                  Hérité{inheritedContacts.length > 1 ? 's' : ''} de l'immeuble
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Separator between inherited summary and lot-specific contacts */}
+        {!readOnly && showInheritedSummary && inheritedContacts.length > 0 && contacts.length === 0 && (
+          <div className="border-t border-slate-200 my-1.5 pt-1.5" />
+        )}
+
+        {/* Lot-specific contacts */}
         {contacts.length > 0 ? (
           contacts.map((contact) => {
             const canRemoveThisContact = canRemove(contact)
@@ -253,16 +286,14 @@ export function ContactSection({
               </div>
             )
           })
+        ) : showMinRequiredWarning ? (
+          <div className="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700 text-center">
+            ⚠️ Au moins {minRequired} {minRequired === 1 ? label.toLowerCase().replace(/s$/, '') : label.toLowerCase()} requis
+          </div>
         ) : (
-          <>
-            {showMinRequiredWarning ? (
-              <div className="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700 text-center">
-                ⚠️ Au moins {minRequired} {minRequired === 1 ? label.toLowerCase().replace(/s$/, '') : label.toLowerCase()} requis
-              </div>
-            ) : (
-              <p className="text-xs text-gray-500 px-2 py-1">{config.emptyMessage}</p>
-            )}
-          </>
+          !showInheritedSummary || inheritedContacts.length === 0 ? (
+            <p className="text-xs text-gray-500 px-2 py-1">{config.emptyMessage}</p>
+          ) : null
         )}
       </div>
 

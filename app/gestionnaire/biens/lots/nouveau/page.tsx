@@ -2080,6 +2080,7 @@ export default function NewLotPage() {
             ref={contactSelectorRef}
             teamId={userTeam?.id || ""}
             displayMode="compact"
+            selectionMode="multi"
             hideUI={true}
             selectedContacts={safeBuildingContacts}
             lotContactAssignments={lotContactAssignments}
@@ -2150,6 +2151,7 @@ export default function NewLotPage() {
           ref={contactSelectorRef}
           teamId={userTeam?.id || ""}
           displayMode="compact"
+          selectionMode="multi"
           hideUI={true}
           selectedContacts={{
             tenant: [],

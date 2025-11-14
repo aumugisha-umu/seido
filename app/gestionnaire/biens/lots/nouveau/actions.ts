@@ -31,6 +31,32 @@ export async function assignContactToLotAction(
     }
 
     logger.info(`[SERVER-ACTION] Contact assigned successfully`)
+
+    // ✅ Revalidate lot page cache
+    revalidatePath(`/gestionnaire/biens/lots/${lotId}`)
+    revalidateTag('lots')
+    revalidateTag(`lot-${lotId}`)
+
+    // ✅ Revalidate building page if lot belongs to a building
+    try {
+      const supabase = await createServerActionSupabaseClient()
+      const { data: lotData } = await supabase
+        .from('lots')
+        .select('building_id')
+        .eq('id', lotId)
+        .single()
+
+      if (lotData?.building_id) {
+        revalidatePath(`/gestionnaire/biens/immeubles/${lotData.building_id}`)
+        revalidateTag(`building-${lotData.building_id}`)
+        revalidateTag('buildings')
+        logger.info(`[SERVER-ACTION] Revalidated building cache: ${lotData.building_id}`)
+      }
+    } catch (error) {
+      logger.warn('[SERVER-ACTION] Could not revalidate building cache:', error)
+      // Don't fail the action if revalidation fails
+    }
+
     return { success: true, data: result.data }
   } catch (error) {
     logger.error(`[SERVER-ACTION] Exception in assignContactToLotAction:`, error)

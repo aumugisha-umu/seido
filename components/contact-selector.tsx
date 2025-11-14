@@ -132,6 +132,9 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   const [pendingSelections, setPendingSelections] = useState<string[]>([])
   const [initialSelections, setInitialSelections] = useState<string[]>([])
 
+  // État pour le chargement lors de la confirmation
+  const [isConfirming, setIsConfirming] = useState(false)
+
   // États pour le modal de création
   const [isContactFormModalOpen, setIsContactFormModalOpen] = useState(false)
   const [prefilledContactType, setPrefilledContactType] = useState<string>("")
@@ -157,16 +160,28 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   }
 
   // ✅ Fonction simplifiée pour ouvrir le modal - Les données sont déjà en cache via SWR!
-  const handleOpenContactModal = useCallback((_contactType: string) => {
-    logger.info('🚀 [ContactSelector] Opening modal for:', _contactType)
+  const handleOpenContactModal = useCallback((_contactType: string, contextLotId?: string) => {
+    logger.info('🚀 [ContactSelector] Opening modal for:', _contactType, 'lotId:', contextLotId)
 
     // Initialiser l'état du modal
     setSelectedContactType(_contactType)
     setSearchTerm("")
 
-    // NOUVEAU : Initialiser les sélections temporaires avec les contacts actuellement sélectionnés
-    const currentlySelected = selectedContacts[_contactType] || []
-    const currentIds = currentlySelected.map(c => c.id)
+    // NOUVEAU : Initialiser les sélections avec TOUS les contacts (immeuble + lot si applicable)
+    const buildingContactsOfType = selectedContacts[_contactType] || []
+    let allContactsOfType = [...buildingContactsOfType]
+
+    // Si on est dans le contexte d'un lot, inclure aussi ses contacts
+    if (contextLotId && lotContactAssignments[contextLotId]) {
+      const lotContactsOfType = lotContactAssignments[contextLotId][_contactType] || []
+      lotContactsOfType.forEach(lotContact => {
+        if (!allContactsOfType.some(c => c.id === lotContact.id)) {
+          allContactsOfType.push(lotContact)
+        }
+      })
+    }
+
+    const currentIds = allContactsOfType.map(c => c.id)
     setPendingSelections(currentIds)
     setInitialSelections(currentIds)
 
@@ -175,14 +190,14 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     // ✅ Pas d'appel API - SWR a déjà chargé les données!
     // ✅ Pas de timeout - les données sont instantanées depuis le cache
     // ✅ Pas de loading state manuel - SWR gère isLoading automatiquement
-  }, [selectedContacts])
+  }, [selectedContacts, lotContactAssignments])
 
   // Exposer les méthodes publiques via ref
   useImperativeHandle(ref, () => ({
     openContactModal: (contactType: string, contextLotId?: string) => {
       logger.info('🎯 [ContactSelector] External openContactModal called:', contactType, 'lotId:', contextLotId)
       setExternalLotId(contextLotId)
-      handleOpenContactModal(contactType)
+      handleOpenContactModal(contactType, contextLotId)
     }
   }), [handleOpenContactModal])
 
@@ -279,7 +294,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   }
 
   // NOUVEAU : Confirmer les changements (calculer diff et appliquer)
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     const contextLotId = externalLotId || lotId
 
     // Calculer les contacts à ajouter et à retirer
@@ -292,35 +307,43 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       contactType: selectedContactType
     })
 
-    // Retirer les contacts désélectionnés
-    toRemove.forEach(contactId => {
-      if (onContactRemoved) {
-        onContactRemoved(contactId, selectedContactType, { lotId: contextLotId })
-      }
-    })
+    // Activer l'état de chargement
+    setIsConfirming(true)
 
-    // Ajouter les nouveaux contacts sélectionnés
-    toAdd.forEach(contactId => {
-      const contact = teamContacts?.find(c => c.id === contactId)
-      if (contact && onContactSelected) {
-        const newContact: Contact = {
-          id: contact.id,
-          name: contact.name,
-          email: contact.email,
-          type: selectedContactType,
-          phone: contact.phone || undefined,
-          speciality: contact.provider_category || undefined,
-          is_company: contact.is_company,
-          company_id: contact.company_id,
-          company: contact.company
+    try {
+      // Retirer les contacts désélectionnés (await chaque opération)
+      for (const contactId of toRemove) {
+        if (onContactRemoved) {
+          await onContactRemoved(contactId, selectedContactType, { lotId: contextLotId })
         }
-        onContactSelected(newContact, selectedContactType, { lotId: contextLotId })
       }
-    })
 
-    // Fermer le modal et nettoyer
-    setIsContactModalOpen(false)
-    cleanContactContext()
+      // Ajouter les nouveaux contacts sélectionnés (await chaque opération)
+      for (const contactId of toAdd) {
+        const contact = teamContacts?.find(c => c.id === contactId)
+        if (contact && onContactSelected) {
+          const newContact: Contact = {
+            id: contact.id,
+            name: contact.name,
+            email: contact.email,
+            type: selectedContactType,
+            phone: contact.phone || undefined,
+            speciality: contact.provider_category || undefined,
+            is_company: contact.is_company,
+            company_id: contact.company_id,
+            company: contact.company
+          }
+          await onContactSelected(newContact, selectedContactType, { lotId: contextLotId })
+        }
+      }
+    } finally {
+      // Désactiver l'état de chargement
+      setIsConfirming(false)
+
+      // Fermer le modal et nettoyer SEULEMENT après toutes les opérations
+      setIsContactModalOpen(false)
+      cleanContactContext()
+    }
   }
 
   // NOUVEAU : Annuler les changements (revenir à l'état initial)
@@ -872,9 +895,19 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                   variant="default"
                   className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
                   onClick={handleConfirm}
+                  disabled={isConfirming}
                 >
-                  Confirmer
-                  {pendingSelections.length > 0 && ` (${pendingSelections.length})`}
+                  {isConfirming ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Traitement...
+                    </>
+                  ) : (
+                    <>
+                      Confirmer
+                      {pendingSelections.length > 0 && ` (${pendingSelections.length})`}
+                    </>
+                  )}
                 </Button>
               </div>
             </div>

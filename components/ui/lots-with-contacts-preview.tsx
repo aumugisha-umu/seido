@@ -42,6 +42,7 @@ interface LotWithContacts {
 interface LotsWithContactsPreviewProps {
   buildingId: string
   lots: LotWithContacts[]
+  lotContactIdsMap: Record<string, { lotId: string; lotContactId: string; lotReference: string }>
   teamId: string // Pour charger les contacts disponibles
 }
 
@@ -55,7 +56,7 @@ interface LotsWithContactsPreviewProps {
  * - Click sur chevron pour expand/collapse
  * - Modale de confirmation avant suppression de contact
  */
-export function LotsWithContactsPreview({ buildingId, lots, teamId }: LotsWithContactsPreviewProps) {
+export function LotsWithContactsPreview({ buildingId, lots, lotContactIdsMap, teamId }: LotsWithContactsPreviewProps) {
   const router = useRouter()
   const { toast } = useToast()
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
@@ -173,6 +174,78 @@ export function LotsWithContactsPreview({ buildingId, lots, teamId }: LotsWithCo
       toast({
         title: "Erreur",
         description: error instanceof Error ? error.message : "Impossible d'ajouter le contact",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Handle contact removal from modal (using lookup map like building contacts)
+  const handleContactRemoved = async (contactId: string, contactType: string, context?: { lotId?: string }) => {
+    try {
+      console.log('🔍 [DEBUG-LOT-REMOVAL] Starting removal attempt:', {
+        contactId,
+        contactType,
+        contextLotId: context?.lotId,
+        hasLotContactIdsMap: !!lotContactIdsMap,
+        mapSize: Object.keys(lotContactIdsMap).length,
+        allMapKeys: Object.keys(lotContactIdsMap),
+        allMapValues: Object.values(lotContactIdsMap)
+      })
+
+      // Use lookup map to find lot_contact ID (like building contacts pattern)
+      const contactInfo = lotContactIdsMap[contactId]
+
+      console.log('🔍 [DEBUG-LOT-REMOVAL] Lookup result:', {
+        contactId,
+        foundInMap: !!contactInfo,
+        contactInfo
+      })
+
+      if (!contactInfo) {
+        console.error('❌ [DEBUG-LOT-REMOVAL] Contact NOT found in lookup map:', {
+          contactId,
+          availableKeys: Object.keys(lotContactIdsMap)
+        })
+        throw new Error('Contact non trouvé dans les lots')
+      }
+
+      console.log('🚀 [DEBUG-LOT-REMOVAL] Calling removeContactFromLotAction:', {
+        lotContactId: contactInfo.lotContactId,
+        lotId: contactInfo.lotId,
+        lotReference: contactInfo.lotReference
+      })
+
+      const result = await removeContactFromLotAction(contactInfo.lotContactId)
+
+      console.log('📥 [DEBUG-LOT-REMOVAL] Server action result:', {
+        success: result.success,
+        error: result.error,
+        fullResult: result
+      })
+
+      if (result.success) {
+        toast({
+          title: "Contact retiré",
+          description: `Contact retiré du lot ${contactInfo.lotReference}.`,
+        })
+        // Server action handles revalidation - no router.refresh() needed
+      } else {
+        console.error('❌ [DEBUG-LOT-REMOVAL] Server action failed:', result.error)
+        toast({
+          title: "Erreur",
+          description: result.error || "Impossible de retirer le contact",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      console.error('❌ [DEBUG-LOT-REMOVAL] Exception caught:', {
+        error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined
+      })
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Impossible de retirer le contact",
         variant: "destructive"
       })
     }
@@ -410,7 +483,7 @@ export function LotsWithContactsPreview({ buildingId, lots, teamId }: LotsWithCo
                 </div>
               </CardHeader>
 
-              {isExpanded && contactsCount > 0 && (
+              {isExpanded && (
                 <CardContent className="pt-0 pb-4 px-0">
                   {/* Grid layout for contacts - 5 columns on desktop (ajout gestionnaires) */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-2">
@@ -467,14 +540,6 @@ export function LotsWithContactsPreview({ buildingId, lots, teamId }: LotsWithCo
                   </div>
                 </CardContent>
               )}
-
-              {isExpanded && contactsCount === 0 && (
-                <CardContent className="pt-0 pb-4 px-0">
-                  <div className="text-center py-4 text-sm text-gray-500">
-                    Aucun contact assigné à ce lot
-                  </div>
-                </CardContent>
-              )}
             </Card>
           </div>
         )
@@ -501,11 +566,13 @@ export function LotsWithContactsPreview({ buildingId, lots, teamId }: LotsWithCo
       ref={contactSelectorRef}
       teamId={teamId}
       displayMode="compact"
+      selectionMode="multi"
       hideUI={true}
       lotContactAssignments={formatLotContactAssignments()}
       lotId={currentLotId}
       onContactSelected={handleContactSelected}
       onContactCreated={handleContactSelected}
+      onContactRemoved={handleContactRemoved}
     />
     </>
   )

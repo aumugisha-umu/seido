@@ -87,6 +87,7 @@ interface LotDetailsClientProps {
   }
   interventions: Intervention[]
   contacts: LotContact[]
+  buildingContacts: LotContact[]
   interventionsWithDocs: Intervention[]
   isOccupied: boolean
   teamId: string
@@ -96,6 +97,7 @@ export default function LotDetailsClient({
   lot,
   interventions,
   contacts: initialContacts,
+  buildingContacts,
   interventionsWithDocs,
   isOccupied: initialIsOccupied,
   teamId
@@ -257,6 +259,48 @@ export default function LotDetailsClient({
 
   const { managers, tenants, providers, owners, others } = transformContactsByRole()
 
+  // Transform building contacts by role for inheritance display
+  const transformBuildingContactsByRole = () => {
+    const buildingManagers: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
+    const buildingTenants: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
+    const buildingProviders: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
+    const buildingOwners: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
+    const buildingOthers: Array<{ id: string; name: string; email: string; phone?: string; type: string; speciality?: string }> = []
+
+    buildingContacts.forEach((contact) => {
+      const transformedContact = {
+        id: contact.user_id,
+        name: contact.user.name,
+        email: contact.user.email,
+        phone: contact.user.phone,
+        type: contact.user.role || 'other',
+        speciality: contact.user.speciality
+      }
+
+      switch (contact.user.role) {
+        case 'gestionnaire':
+        case 'admin':
+          buildingManagers.push(transformedContact)
+          break
+        case 'locataire':
+          buildingTenants.push(transformedContact)
+          break
+        case 'prestataire':
+          buildingProviders.push(transformedContact)
+          break
+        case 'proprietaire':
+          buildingOwners.push(transformedContact)
+          break
+        default:
+          buildingOthers.push(transformedContact)
+      }
+    })
+
+    return { buildingManagers, buildingTenants, buildingProviders, buildingOwners, buildingOthers }
+  }
+
+  const { buildingManagers, buildingTenants, buildingProviders, buildingOwners, buildingOthers } = transformBuildingContactsByRole()
+
   // Create mapping of user_id to lot_contact_id for deletion
   const lotContactIds: Record<string, string> = {}
   contacts.forEach((contact) => {
@@ -388,6 +432,11 @@ export default function LotDetailsClient({
                 providers={providers}
                 owners={owners}
                 others={others}
+                buildingManagers={buildingManagers}
+                buildingTenants={buildingTenants}
+                buildingProviders={buildingProviders}
+                buildingOwners={buildingOwners}
+                buildingOthers={buildingOthers}
                 lotContactIds={lotContactIds}
                 teamId={teamId}
               />

@@ -726,7 +726,7 @@ export default function NewImmeubleePage({
 
       // ✅ Preparer les building_contacts (contacts de l'immeuble)
       const contactsData = [
-        // Contacts de l'immeuble (provider, notary, insurance, other)
+        // Contacts de l'immeuble (provider, owner, other)
         ...Object.entries(buildingContacts).flatMap(([contactType, contactArray]) =>
           contactArray.map(contact => ({
             id: contact.id,
@@ -1117,8 +1117,7 @@ export default function NewImmeubleePage({
               {teamManagers.length > 0 ? (
                 <div className="max-h-64 overflow-y-auto">
                   <div className="space-y-2">
-                    {teamManagers.map((manager) => {
-                      if (!manager.user) return null // Skip if user data is missing
+                    {teamManagers.filter(manager => manager.user).map((manager) => {
                       const isAlreadyAssigned = Boolean(selectedLotForManager &&
                         getAssignedManagers(selectedLotForManager).some(m => m.id === manager.user?.id))
                       const isBuildingManager = buildingManagers.some(m => m.id === manager.user?.id)
@@ -1307,6 +1306,7 @@ export default function NewImmeubleePage({
           ref={contactSelectorRef}
           teamId={userTeam.id}
           displayMode="compact"
+          selectionMode="multi"
           hideUI={true}
           selectedContacts={buildingContacts}
           lotContactAssignments={lotContactAssignments}

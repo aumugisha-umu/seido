@@ -90,7 +90,6 @@ interface InterventionDetail {
   }
   contacts: {
     locataires: DatabaseContact[]
-    syndics: DatabaseContact[]
     autres: DatabaseContact[]
   }
   scheduling: {
@@ -289,7 +288,6 @@ export function InterventionDetailTabs({
         available: true,
         badge: userRole === 'gestionnaire'
           ? (intervention.contacts?.locataires?.length || 0) +
-            (intervention.contacts?.syndics?.length || 0) +
             (intervention.contacts?.autres?.length || 0)
           : 0,
       },
@@ -491,22 +489,6 @@ export function InterventionDetailTabs({
                       </div>
                     )}
 
-                    {/* Syndics - pour gestionnaires seulement */}
-                    {userRole === 'gestionnaire' && intervention.contacts.syndics.map((contact) => (
-                      <div key={contact.id} className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                            <Users className="h-4 w-4 text-orange-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{contact.name}</p>
-                            <p className="text-xs text-orange-600">Syndic</p>
-                            <p className="text-xs text-gray-500 truncate">{contact.email}</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
                     {/* Prestataires avec devis accepté - Visibles pour gestionnaires, locataires et autres prestataires */}
                     {getApprovedProviders()
                       .filter(provider => userRole === 'gestionnaire' || userRole === 'locataire' || provider.id !== userId)
@@ -611,7 +593,6 @@ export function InterventionDetailTabs({
                 {(!shouldShowFullContacts() && !intervention.manager && !intervention.assignedContact) ||
                  (shouldShowFullContacts() && userRole === 'gestionnaire' &&
                   intervention.contacts.locataires.length === 0 &&
-                  intervention.contacts.syndics.length === 0 &&
                   intervention.contacts.autres.length === 0 &&
                   !intervention.manager &&
                   getApprovedProviders().length === 0) ? (

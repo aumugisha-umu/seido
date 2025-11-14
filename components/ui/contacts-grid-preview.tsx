@@ -149,6 +149,38 @@ export function ContactsGridPreview({
     }
   }
 
+  // Handle contact removal from modal
+  const handleContactRemoved = async (contactId: string, contactType: string) => {
+    try {
+      // Find the building_contact entry for this user
+      const buildingContactId = buildingContactIds[contactId]
+      if (!buildingContactId) {
+        throw new Error('Contact non trouvé dans l\'immeuble')
+      }
+
+      const result = await removeContactFromBuildingAction(buildingContactId)
+
+      if (result.success) {
+        toast({
+          title: "Contact retiré",
+          description: `Contact retiré de l'immeuble.`,
+        })
+      } else {
+        toast({
+          title: "Erreur",
+          description: result.error || "Impossible de retirer le contact",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Impossible de retirer le contact",
+        variant: "destructive"
+      })
+    }
+  }
+
   // Format contacts for ContactSelector
   const formatSelectedContacts = () => {
     return {
@@ -233,10 +265,12 @@ export function ContactsGridPreview({
         ref={contactSelectorRef}
         teamId={teamId}
         displayMode="compact"
+        selectionMode="multi"
         hideUI={true}
         selectedContacts={formatSelectedContacts()}
         onContactSelected={handleContactSelected}
         onContactCreated={handleContactSelected}
+        onContactRemoved={handleContactRemoved}
       />
     </>
   )

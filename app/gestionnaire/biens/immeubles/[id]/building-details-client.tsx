@@ -65,6 +65,7 @@ interface BuildingDetailsClientProps {
   interventionsWithDocs: unknown[]
   buildingContacts: BuildingContact[]
   lotsWithContacts: LotWithContacts[]
+  lotContactIdsMap: Record<string, { lotId: string; lotContactId: string; lotReference: string }>
   teamId: string
 }
 
@@ -75,7 +76,8 @@ export default function BuildingDetailsClient({
   interventionsWithDocs,
   buildingContacts,
   teamId,
-  lotsWithContacts
+  lotsWithContacts,
+  lotContactIdsMap
 }: BuildingDetailsClientProps) {
   const [activeTab, setActiveTab] = useState("overview")
   const router = useRouter()
@@ -465,6 +467,7 @@ export default function BuildingDetailsClient({
                   <LotsWithContactsPreview
                     buildingId={building.id}
                     lots={lotsWithContacts as any}
+                    lotContactIdsMap={lotContactIdsMap}
                     teamId={teamId}
                   />
                 </div>

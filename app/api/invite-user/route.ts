@@ -112,11 +112,7 @@ export async function POST(request: Request) {
           'gestionnaire': { role: 'gestionnaire', provider_category: null },
           'locataire': { role: 'locataire', provider_category: null },
           'prestataire': { role: 'prestataire', provider_category: 'prestataire' },
-          'proprietaire': { role: 'proprietaire', provider_category: null }, // Proprietaire est maintenant un rôle distinct
-          // Anciennes catégories spécialisées → mappées vers 'autre'
-          'syndic': { role: 'prestataire', provider_category: 'autre' },
-          'notaire': { role: 'prestataire', provider_category: 'autre' },
-          'assurance': { role: 'prestataire', provider_category: 'autre' },
+          'proprietaire': { role: 'proprietaire', provider_category: null },
           'autre': { role: 'prestataire', provider_category: 'autre' }
         }
 

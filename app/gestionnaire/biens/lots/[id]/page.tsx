@@ -3,7 +3,8 @@ import { notFound } from 'next/navigation'
 import {
   createServerLotService,
   createServerInterventionService,
-  createServerLotContactRepository
+  createServerLotContactRepository,
+  createServerBuildingRepository
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
 import LotDetailsClient from './lot-details-client'
@@ -184,6 +185,55 @@ export default async function LotDetailsPage({
       elapsed: `${Date.now() - startTime}ms`
     })
 
+    // Load building contacts if lot has a building (for inheritance display)
+    let buildingContacts: any[] = []
+    if (lot.building_id) {
+      logger.info('📍 [LOT-PAGE-SERVER] Step 3b: Loading building contacts...', { buildingId: lot.building_id })
+      try {
+        const buildingRepository = await createServerBuildingRepository()
+        const buildingResult = await buildingRepository.findByIdWithRelations(lot.building_id)
+
+        if (buildingResult.success && buildingResult.data) {
+          const buildingData = buildingResult.data as any
+          const buildingContactsData = buildingData.building_contacts || []
+
+          buildingContacts = buildingContactsData.map((bc: any) => ({
+            id: bc.id,
+            user_id: bc.user_id,
+            building_id: bc.building_id,
+            lot_id: null,
+            type: bc.user?.role === 'locataire' ? 'tenant' :
+                  bc.user?.role === 'prestataire' ? 'provider' :
+                  bc.user?.role === 'gestionnaire' || bc.user?.role === 'admin' ? 'manager' :
+                  bc.user?.role === 'proprietaire' ? 'owner' : 'tenant',
+            status: 'active' as const,
+            created_at: bc.created_at || new Date().toISOString(),
+            updated_at: bc.updated_at || new Date().toISOString(),
+            user: {
+              id: bc.user?.id || '',
+              name: bc.user?.name || 'Unknown',
+              email: bc.user?.email || '',
+              phone: bc.user?.phone,
+              role: bc.user?.role,
+              provider_category: bc.user?.provider_category,
+              is_active: bc.user?.is_active !== false,
+              company: bc.user?.company,
+              address: bc.user?.address,
+              speciality: bc.user?.speciality
+            }
+          }))
+
+          logger.info('✅ [LOT-PAGE-SERVER] Building contacts loaded', {
+            buildingId: lot.building_id,
+            contactCount: buildingContacts.length
+          })
+        }
+      } catch (error) {
+        logger.warn('⚠️ [LOT-PAGE-SERVER] Could not load building contacts', { error })
+        buildingContacts = []
+      }
+    }
+
     // Calculate occupation from lot_contacts
     const hasTenant = transformedContacts.some((contact: { user: { role?: string } }) =>
       contact.user?.role === 'locataire'
@@ -237,6 +287,7 @@ export default async function LotDetailsPage({
         lot={lot}
         interventions={interventions}
         contacts={transformedContacts}
+        buildingContacts={buildingContacts}
         interventionsWithDocs={interventionsWithDocs}
         isOccupied={hasTenant}
         teamId={team.id}

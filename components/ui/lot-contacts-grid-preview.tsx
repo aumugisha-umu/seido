@@ -4,7 +4,8 @@ import { useState, useRef } from "react"
 import { ContactSection } from "@/components/ui/contact-section"
 import { ContactDeleteConfirmModal } from "@/components/ui/contact-delete-confirm-modal"
 import { useToast } from "@/components/ui/use-toast"
-import { removeContactFromLotAction, assignContactToLotAction } from "@/app/gestionnaire/biens/lots/nouveau/actions"
+import { removeContactFromLotAction } from "@/app/gestionnaire/biens/immeubles/[id]/actions"
+import { assignContactToLotAction } from "@/app/gestionnaire/biens/lots/nouveau/actions"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 
 interface Contact {
@@ -24,6 +25,11 @@ interface LotContactsGridPreviewProps {
   providers: Contact[]
   owners: Contact[]
   others: Contact[]
+  buildingManagers?: Contact[]
+  buildingTenants?: Contact[]
+  buildingProviders?: Contact[]
+  buildingOwners?: Contact[]
+  buildingOthers?: Contact[]
   lotContactIds: Record<string, string> // Maps user_id to lot_contact_id
   teamId: string
 }
@@ -48,6 +54,11 @@ export function LotContactsGridPreview({
   providers,
   owners,
   others,
+  buildingManagers = [],
+  buildingTenants = [],
+  buildingProviders = [],
+  buildingOwners = [],
+  buildingOthers = [],
   lotContactIds,
   teamId
 }: LotContactsGridPreviewProps) {
@@ -119,7 +130,7 @@ export function LotContactsGridPreview({
     }
 
     const contactType = contactTypeMap[sectionType] || 'other'
-    contactSelectorRef.current?.openContactModal(contactType)
+    contactSelectorRef.current?.openContactModal(contactType, lotId)
   }
 
   // Handle contact selection from modal
@@ -151,14 +162,59 @@ export function LotContactsGridPreview({
     }
   }
 
-  // Format contacts for ContactSelector
+  // Handle contact removal from modal
+  const handleContactRemoved = async (contactId: string, contactType: string) => {
+    try {
+      // Find the lot_contact entry for this user
+      const lotContactId = lotContactIds[contactId]
+      if (!lotContactId) {
+        throw new Error('Contact non trouvé dans le lot')
+      }
+
+      const result = await removeContactFromLotAction(lotContactId)
+
+      if (result.success) {
+        toast({
+          title: "Contact retiré",
+          description: `Contact retiré du lot.`,
+        })
+      } else {
+        toast({
+          title: "Erreur",
+          description: result.error || "Impossible de retirer le contact",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Impossible de retirer le contact",
+        variant: "destructive"
+      })
+    }
+  }
+
+  // Format building contacts for ContactSelector (inherited contacts)
   const formatSelectedContacts = () => {
     return {
-      manager: managers,
-      tenant: tenants,
-      provider: providers,
-      owner: owners,
-      other: others
+      manager: buildingManagers,
+      tenant: buildingTenants,
+      provider: buildingProviders,
+      owner: buildingOwners,
+      other: buildingOthers
+    }
+  }
+
+  // Format lot-specific contacts for ContactSelector
+  const formatLotContactAssignments = () => {
+    return {
+      [lotId]: {
+        manager: managers,
+        tenant: tenants,
+        provider: providers,
+        owner: owners,
+        other: others
+      }
     }
   }
 
@@ -176,6 +232,8 @@ export function LotContactsGridPreview({
             const contact = managers.find(c => c.id === id)
             if (contact) handleRemoveContact(contact)
           }}
+          inheritedContacts={buildingManagers}
+          showInheritedSummary={true}
         />
 
         {/* Tenants Section */}
@@ -188,6 +246,8 @@ export function LotContactsGridPreview({
             const contact = tenants.find(c => c.id === id)
             if (contact) handleRemoveContact(contact)
           }}
+          inheritedContacts={buildingTenants}
+          showInheritedSummary={true}
         />
 
         {/* Providers Section */}
@@ -200,6 +260,8 @@ export function LotContactsGridPreview({
             const contact = providers.find(c => c.id === id)
             if (contact) handleRemoveContact(contact)
           }}
+          inheritedContacts={buildingProviders}
+          showInheritedSummary={true}
         />
 
         {/* Owners Section */}
@@ -212,6 +274,8 @@ export function LotContactsGridPreview({
             const contact = owners.find(c => c.id === id)
             if (contact) handleRemoveContact(contact)
           }}
+          inheritedContacts={buildingOwners}
+          showInheritedSummary={true}
         />
 
         {/* Others Section */}
@@ -224,6 +288,8 @@ export function LotContactsGridPreview({
             const contact = others.find(c => c.id === id)
             if (contact) handleRemoveContact(contact)
           }}
+          inheritedContacts={buildingOthers}
+          showInheritedSummary={true}
         />
       </div>
 
@@ -247,10 +313,14 @@ export function LotContactsGridPreview({
         ref={contactSelectorRef}
         teamId={teamId}
         displayMode="compact"
+        selectionMode="multi"
         hideUI={true}
+        lotId={lotId}
         selectedContacts={formatSelectedContacts()}
+        lotContactAssignments={formatLotContactAssignments()}
         onContactSelected={handleContactSelected}
         onContactCreated={handleContactSelected}
+        onContactRemoved={handleContactRemoved}
       />
     </>
   )

@@ -106,6 +106,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
         *,
         building:building_id(name, address, city, team_id),
         lot_contacts(
+          id,
           is_primary,
           user:user_id(id, name, email, phone, role, provider_category)
         )
@@ -166,6 +167,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .select(`
         *,
         lot_contacts(
+          id,
           is_primary,
           user:user_id(id, name, email, phone, role, provider_category)
         )
@@ -208,6 +210,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
         *,
         building:building_id(name, address, city, team_id),
         lot_contacts(
+          id,
           is_primary,
           user:user_id(id, name, email, phone, role, provider_category)
         )
@@ -260,6 +263,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
         *,
         building:building_id(name, address, city),
         lot_contacts(
+          id,
           is_primary,
           user:user_id(id, name, email, phone, role, provider_category)
         )
@@ -458,6 +462,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
         *,
         building:building_id(name, address, city),
         lot_contacts(
+          id,
           user:user_id(role)
         )
       `)

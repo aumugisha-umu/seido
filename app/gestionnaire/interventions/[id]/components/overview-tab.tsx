@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
 import { InterventionProgressCard } from '@/components/interventions/intervention-progress-card'
 import { InterventionCommentsCard } from '@/components/interventions/intervention-comments-card'
+import { InterventionProviderGuidelines } from '@/components/interventions/intervention-provider-guidelines'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
@@ -250,8 +251,20 @@ export function OverviewTab({
             quotes={quotes}
             schedulingType={schedulingType}
             schedulingSlots={schedulingSlotsForPreview}
-            instructions={intervention.manager_instructions || null}
+            instructions={intervention.provider_guidelines || null}
           />
+
+          {/* Editable Provider Guidelines */}
+          <Card>
+            <CardContent className="pt-6">
+              <InterventionProviderGuidelines
+                interventionId={intervention.id}
+                guidelines={intervention.provider_guidelines || null}
+                currentUserRole={currentUserRole}
+                onUpdate={onRefresh}
+              />
+            </CardContent>
+          </Card>
 
           {/* Alert for urgent intervention */}
           {intervention.urgency === 'urgente' && (

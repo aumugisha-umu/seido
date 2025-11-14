@@ -18,7 +18,12 @@ import {
   RefreshCw,
   X,
   UserX,
-  Loader2
+  Loader2,
+  Calendar,
+  Archive,
+  Edit as EditIcon,
+  Trash2,
+  Send
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
@@ -29,7 +34,7 @@ import {
 } from '@/lib/services'
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { PropertiesNavigator } from "@/components/properties/properties-navigator"
-import { ContactDetailHeader } from "@/components/contact-detail-header"
+import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
 import { logger } from '@/lib/logger'
 import { useToast } from "@/hooks/use-toast"
 
@@ -533,31 +538,106 @@ export function ContactDetailsClient({
   // RENDER
   // ============================================================================
 
+  // Prepare header data
+  const getRoleBadge = (): DetailPageHeaderBadge => {
+    const roleConfig = userRoles.find(r => r.value === contact.role) || userRoles[0]
+    return {
+      label: roleConfig.label,
+      icon: User,
+      color: roleConfig.color.replace('bg-', 'bg-').replace('text-', 'text-') + ' border-' + roleConfig.color.split('-')[1] + '-200',
+      dotColor: 'bg-' + roleConfig.color.split('-')[1] + '-500'
+    }
+  }
+
+  const getInvitationBadge = (): DetailPageHeaderBadge | null => {
+    if (!invitationStatus) return null
+
+    const statusMap: Record<string, { label: string; color: string; dotColor: string }> = {
+      pending: { label: 'Invitation envoyée', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', dotColor: 'bg-yellow-500' },
+      accepted: { label: 'Accès actif', color: 'bg-green-100 text-green-800 border-green-200', dotColor: 'bg-green-500' },
+      expired: { label: 'Invitation expirée', color: 'bg-red-100 text-red-800 border-red-200', dotColor: 'bg-red-500' },
+      revoked: { label: 'Accès révoqué', color: 'bg-gray-100 text-gray-800 border-gray-200', dotColor: 'bg-gray-500' }
+    }
+
+    return statusMap[invitationStatus] || null
+  }
+
+  const headerBadges: DetailPageHeaderBadge[] = [getRoleBadge(), getInvitationBadge()].filter(Boolean) as DetailPageHeaderBadge[]
+
+  const headerMetadata: DetailPageHeaderMetadata[] = [
+    contact.email && {
+      icon: Mail,
+      text: contact.email
+    },
+    contact.speciality && contact.role === 'prestataire' && {
+      icon: Wrench,
+      text: specialities.find(s => s.value === contact.speciality)?.label || contact.speciality
+    },
+    contact.created_at && {
+      icon: Calendar,
+      text: `Créé le ${new Date(contact.created_at).toLocaleDateString('fr-FR')}`
+    }
+  ].filter(Boolean) as DetailPageHeaderMetadata[]
+
+  const primaryActions: DetailPageHeaderAction[] = [
+    {
+      label: 'Modifier',
+      icon: EditIcon,
+      onClick: handleEdit,
+      variant: 'outline'
+    }
+  ]
+
+  // Add invitation action if applicable
+  if (!invitationStatus || invitationStatus === 'expired' || invitationStatus === 'revoked') {
+    primaryActions.push({
+      label: 'Inviter',
+      icon: Send,
+      onClick: () => setShowInviteModal(true),
+      variant: 'default'
+    })
+  } else if (invitationStatus === 'pending') {
+    primaryActions.push({
+      label: invitationLoading ? 'Envoi...' : 'Renvoyer invitation',
+      icon: invitationLoading ? Loader2 : RefreshCw,
+      onClick: () => handleInvitationAction('resend'),
+      variant: 'default',
+      disabled: invitationLoading
+    })
+  }
+
+  const dropdownActions: DetailPageHeaderAction[] = [
+    {
+      label: 'Archiver',
+      icon: Archive,
+      onClick: handleArchive
+    }
+  ]
+
+  // Add revoke access if invitation accepted
+  if (invitationStatus === 'accepted') {
+    dropdownActions.push({
+      label: 'Retirer l\'accès',
+      icon: UserX,
+      onClick: () => setShowRevokeModal(true)
+    })
+  }
+
   return (
-    <div className="layout-padding min-h-screen bg-slate-50">
-      {/* Header */}
-      <ContactDetailHeader
-        contact={{
-          id: contact.id,
-          name: contact.name,
-          email: contact.email,
-          phone: contact.phone,
-          role: contact.role,
-          provider_category: contact.provider_category,
-          speciality: contact.speciality,
-          createdAt: contact.created_at || new Date().toISOString(),
-          createdBy: contact.created_by,
-        }}
-        invitationStatus={invitationStatus}
-        invitationLoading={invitationLoading}
+    <>
+      {/* Unified Detail Page Header */}
+      <DetailPageHeader
         onBack={handleBack}
-        onEdit={handleEdit}
-        onArchive={handleArchive}
-        onInvitationAction={handleInvitationAction}
-        customActions={[]}
+        backButtonText="Retour aux contacts"
+        title={contact.name}
+        badges={headerBadges}
+        metadata={headerMetadata}
+        primaryActions={primaryActions}
+        dropdownActions={dropdownActions}
       />
 
-      {/* Tabs Navigation */}
+      <div className="layout-padding min-h-screen bg-slate-50">
+        {/* Tabs Navigation */}
       <div className="content-max-width px-4 sm:px-6 lg:px-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3 bg-slate-100">
@@ -1054,6 +1134,7 @@ export function ContactDetailsClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </>
   )
 }

@@ -46,9 +46,7 @@ const InterventionUpdateSchema = z.object({
   type: z.enum(['plomberie', 'electricite', 'menuiserie', 'peinture', 'chauffage', 'climatisation', 'serrurerie', 'vitrerie', 'nettoyage', 'jardinage', 'autre'] as const).optional(),
   urgency: z.enum(['basse', 'normale', 'haute', 'urgente'] as const).optional(),
   specific_location: z.string().optional().nullable(),
-  tenant_comment: z.string().optional().nullable(),
-  manager_comment: z.string().optional().nullable(),
-  provider_comment: z.string().optional().nullable(),
+  provider_guidelines: z.string().max(5000).optional().nullable(),
   estimated_cost: z.number().positive().optional().nullable(),
   final_cost: z.number().positive().optional().nullable()
 })
@@ -2057,14 +2055,10 @@ export async function programInterventionAction(
     }
 
     // Update intervention status to 'planification'
+    // Note: Manager comments are now stored in intervention_comments table
     const updateData: any = {
       status: 'planification' as InterventionStatus,
       updated_at: new Date().toISOString()
-    }
-
-    if (managerCommentParts.length > 0) {
-      const existingComment = intervention.manager_comment || ''
-      updateData.manager_comment = existingComment + (existingComment ? ' | ' : '') + managerCommentParts.join(' | ')
     }
 
     const { data: updatedIntervention, error: updateError } = await supabase
@@ -2141,6 +2135,83 @@ export async function programInterventionAction(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
+}
+
+/**
+ * Update Provider Guidelines Action
+ * Allows gestionnaires to update the general instructions for providers
+ */
+export async function updateProviderGuidelinesAction(
+  interventionId: string,
+  guidelines: string | null
+): Promise<ActionResult<Intervention>> {
+  try {
+    logger.info('📝 [SERVER-ACTION] Updating provider guidelines', {
+      interventionId,
+      guidelinesLength: guidelines?.length || 0
+    })
+
+    const { supabase, user } = await createServerActionSupabaseClient()
+
+    if (!user) {
+      return { success: false, error: 'Non authentifié' }
+    }
+
+    // Validate guidelines length
+    if (guidelines && guidelines.length > 5000) {
+      return {
+        success: false,
+        error: 'Les instructions ne doivent pas dépasser 5000 caractères'
+      }
+    }
+
+    // Get intervention to verify permissions
+    const { data: intervention, error: fetchError } = await supabase
+      .from('interventions')
+      .select('*')
+      .eq('id', interventionId)
+      .single()
+
+    if (fetchError || !intervention) {
+      logger.error('❌ Intervention not found', { interventionId, error: fetchError })
+      return { success: false, error: 'Intervention non trouvée' }
+    }
+
+    // Update provider guidelines
+    const { data: updated, error: updateError } = await supabase
+      .from('interventions')
+      .update({ provider_guidelines: guidelines?.trim() || null })
+      .eq('id', interventionId)
+      .select()
+      .single()
+
+    if (updateError || !updated) {
+      logger.error('❌ Failed to update provider guidelines', { error: updateError })
+      return {
+        success: false,
+        error: 'Erreur lors de la mise à jour des instructions'
+      }
+    }
+
+    logger.info('✅ Provider guidelines updated successfully', {
+      interventionId,
+      hasGuidelines: !!updated.provider_guidelines
+    })
+
+    // Revalidate all relevant paths
+    revalidatePath('/gestionnaire/interventions')
+    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
+    revalidatePath('/prestataire/interventions')
+    revalidatePath(`/prestataire/interventions/${interventionId}`)
+
+    return { success: true, data: updated }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error updating provider guidelines:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
     }
   }
 }

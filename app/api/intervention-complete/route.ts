@@ -129,23 +129,14 @@ export async function POST(request: NextRequest) {
     }
     commentParts.push(`Terminée par ${user.name} (${user.role}) le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`)
 
-    const existingComment = user.role === 'prestataire' ? 
-      intervention.provider_comment : 
-      intervention.manager_comment
-
-    const updatedComment = existingComment + (existingComment ? ' | ' : '') + commentParts.join(' | ')
+    // Note: Comments are now stored in intervention_comments table
+    // The completion comment should be saved via the comments system
 
     // Update intervention status and details
     const updateData = {
       status: 'cloturee_par_prestataire' as Database['public']['Enums']['intervention_status'],
       completed_date: new Date().toISOString(),
       updated_at: new Date().toISOString()
-    }
-
-    if (user.role === 'prestataire') {
-      updateData.provider_comment = updatedComment
-    } else {
-      updateData.manager_comment = updatedComment
     }
 
     // Add final cost if provided

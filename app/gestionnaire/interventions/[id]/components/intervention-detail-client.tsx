@@ -19,8 +19,9 @@ import { ActivityTab } from './activity-tab'
 import { ExecutionTab } from '@/components/intervention/tabs/execution-tab'
 
 // Intervention components
-import { InterventionDetailHeader } from '@/components/intervention/intervention-detail-header'
+import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from '@/components/ui/detail-page-header'
 import { InterventionActionPanelHeader } from '@/components/intervention/intervention-action-panel-header'
+import { Building2, MapPin, User, Calendar, AlertCircle, Archive, Edit, XCircle } from 'lucide-react'
 
 // Hooks
 import { useAuth } from '@/hooks/use-auth'
@@ -524,39 +525,120 @@ export function InterventionDetailClient({
     }
   }
 
+  // Prepare header data
+  const getStatusBadge = (): DetailPageHeaderBadge => {
+    const statusMap: Record<string, { label: string; color: string; dotColor: string }> = {
+      demande: { label: 'Demande', color: 'bg-blue-100 text-blue-800 border-blue-200', dotColor: 'bg-blue-500' },
+      rejetee: { label: 'Rejetée', color: 'bg-red-100 text-red-800 border-red-200', dotColor: 'bg-red-500' },
+      approuvee: { label: 'Approuvée', color: 'bg-green-100 text-green-800 border-green-200', dotColor: 'bg-green-500' },
+      demande_de_devis: { label: 'Devis demandé', color: 'bg-purple-100 text-purple-800 border-purple-200', dotColor: 'bg-purple-500' },
+      planification: { label: 'Planification', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', dotColor: 'bg-yellow-500' },
+      planifiee: { label: 'Planifiée', color: 'bg-indigo-100 text-indigo-800 border-indigo-200', dotColor: 'bg-indigo-500' },
+      en_cours: { label: 'En cours', color: 'bg-blue-100 text-blue-800 border-blue-200', dotColor: 'bg-blue-500' },
+      cloturee_par_prestataire: { label: 'Clôturée (prestataire)', color: 'bg-green-100 text-green-800 border-green-200', dotColor: 'bg-green-500' },
+      cloturee_par_locataire: { label: 'Clôturée (locataire)', color: 'bg-green-100 text-green-800 border-green-200', dotColor: 'bg-green-500' },
+      cloturee_par_gestionnaire: { label: 'Clôturée', color: 'bg-gray-100 text-gray-800 border-gray-200', dotColor: 'bg-gray-500' },
+      annulee: { label: 'Annulée', color: 'bg-red-100 text-red-800 border-red-200', dotColor: 'bg-red-500' },
+    }
+    const status = statusMap[intervention.status] || statusMap.demande
+    return { ...status, icon: AlertCircle }
+  }
+
+  const getUrgencyBadge = (): DetailPageHeaderBadge | null => {
+    const urgency = intervention.urgency || 'normale'
+    const urgencyMap: Record<string, { label: string; color: string; dotColor: string }> = {
+      haute: { label: 'Urgente', color: 'bg-orange-100 text-orange-800 border-orange-200', dotColor: 'bg-orange-500' },
+      normale: { label: 'Normale', color: 'bg-blue-100 text-blue-800 border-blue-200', dotColor: 'bg-blue-500' },
+      basse: { label: 'Basse', color: 'bg-gray-100 text-gray-800 border-gray-200', dotColor: 'bg-gray-500' },
+    }
+    return urgency !== 'normale' ? urgencyMap[urgency] || null : null
+  }
+
+  const headerBadges: DetailPageHeaderBadge[] = [getStatusBadge(), getUrgencyBadge()].filter(Boolean) as DetailPageHeaderBadge[]
+
+  const headerMetadata: DetailPageHeaderMetadata[] = [
+    intervention.building && {
+      icon: Building2,
+      text: intervention.building.name || 'Immeuble'
+    },
+    intervention.lot && {
+      icon: MapPin,
+      text: intervention.lot.reference || 'Lot'
+    },
+    intervention.creator && {
+      icon: User,
+      text: intervention.creator.name
+    },
+    intervention.created_at && {
+      icon: Calendar,
+      text: new Date(intervention.created_at).toLocaleDateString('fr-FR')
+    }
+  ].filter(Boolean) as DetailPageHeaderMetadata[]
+
+  // Primary actions (visible buttons)
+  const getPrimaryActions = (): DetailPageHeaderAction[] => {
+    const actions: DetailPageHeaderAction[] = []
+
+    // Add Edit action for most statuses
+    if (!['annulee', 'cloturee_par_gestionnaire'].includes(intervention.status)) {
+      actions.push({
+        label: 'Modifier',
+        icon: Edit,
+        onClick: () => {
+          // TODO: Implement edit logic
+          console.log('Edit intervention')
+        },
+        variant: 'outline'
+      })
+    }
+
+    return actions
+  }
+
+  // Dropdown actions (in overflow menu)
+  const getDropdownActions = (): DetailPageHeaderAction[] => {
+    const actions: DetailPageHeaderAction[] = []
+
+    // Archive action
+    actions.push({
+      label: 'Archiver',
+      icon: Archive,
+      onClick: () => {
+        console.log('Archive intervention')
+      }
+    })
+
+    // Cancel action (if not already cancelled or finalized)
+    if (!['annulee', 'cloturee_par_gestionnaire'].includes(intervention.status)) {
+      actions.push({
+        label: 'Annuler l\'intervention',
+        icon: XCircle,
+        onClick: () => {
+          // TODO: Open cancel modal
+          console.log('Cancel intervention')
+        }
+      })
+    }
+
+    return actions
+  }
+
   return (
-    <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
-      {/* Intervention Detail Header with Action Panel */}
-      <InterventionDetailHeader
-        intervention={{
-          id: intervention.id,
-          title: intervention.title,
-          reference: intervention.reference || '',
-          status: intervention.status,
-          urgency: intervention.urgency || 'normale',
-          createdAt: intervention.created_at || '',
-          createdBy: intervention.creator?.name || 'Utilisateur',
-          lot: intervention.lot ? {
-            reference: intervention.lot.reference || '',
-            building: intervention.lot.building ? {
-              name: intervention.lot.building.name || ''
-            } : undefined
-          } : undefined,
-          building: intervention.building ? {
-            name: intervention.building.name || ''
-          } : undefined
-        }}
+    <>
+      {/* Unified Detail Page Header */}
+      <DetailPageHeader
         onBack={() => router.push('/gestionnaire/interventions')}
-        onArchive={() => {
-          // TODO: Implement archive logic
-          console.log('Archive intervention')
-        }}
-        onStatusAction={(action) => {
-          console.log('Status action:', action)
-          // Actions are handled by InterventionActionPanelHeader
-        }}
-        displayMode="custom"
-        actionPanel={
+        backButtonText="Retour aux interventions"
+        title={intervention.title}
+        badges={headerBadges}
+        metadata={headerMetadata}
+        primaryActions={getPrimaryActions()}
+        dropdownActions={getDropdownActions()}
+      />
+
+      <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
+        {/* Action Panel for Status-specific Actions */}
+        <div className="mb-4">
           <InterventionActionPanelHeader
             intervention={{
               id: intervention.id,
@@ -577,8 +659,7 @@ export function InterventionDetailClient({
             onProposeSlots={handleOpenProgrammingModalWithData}
             timeSlots={timeSlots}
           />
-        }
-      />
+        </div>
 
       {/* Programming Modal */}
       <ProgrammingModal
@@ -791,21 +872,22 @@ export function InterventionDetailClient({
         </CardContent>
       </Card>
 
-      {/* Contact Selector Modal */}
-      <ContactSelector
-        ref={contactSelectorRef}
-        teamId={intervention.team_id || currentUserTeam?.id || ""}
-        displayMode="compact"
-        hideUI={true}
-        selectedContacts={{
-          manager: managers,
-          provider: providers
-        }}
-        onContactSelected={handleContactSelected}
-        onContactCreated={handleContactCreated}
-        onContactRemoved={handleContactRemoved}
-        onRequestContactCreation={handleRequestContactCreation}
-      />
-    </div>
+        {/* Contact Selector Modal */}
+        <ContactSelector
+          ref={contactSelectorRef}
+          teamId={intervention.team_id || currentUserTeam?.id || ""}
+          displayMode="compact"
+          hideUI={true}
+          selectedContacts={{
+            manager: managers,
+            provider: providers
+          }}
+          onContactSelected={handleContactSelected}
+          onContactCreated={handleContactCreated}
+          onContactRemoved={handleContactRemoved}
+          onRequestContactCreation={handleRequestContactCreation}
+        />
+      </div>
+    </>
   )
 }

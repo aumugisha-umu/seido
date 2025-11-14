@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Eye, FileText, Wrench, Plus, Home, Info } from "lucide-react"
+import { Eye, FileText, Wrench, Plus, Home, Info, Building2, MapPin, Calendar, User, Archive, Edit as EditIcon, Trash2 } from "lucide-react"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { DocumentsSection } from "@/components/intervention/documents-section"
-import { PropertyDetailHeader } from "@/components/property-detail-header"
+import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
 import { BuildingContactsNavigator } from "@/components/contacts/building-contacts-navigator"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { logger } from '@/lib/logger'
@@ -354,33 +354,89 @@ export default function BuildingDetailsClient({
     { id: "documents", label: "Documents", icon: FileText, count: null },
   ]
 
+  // Prepare header data
+  const headerBadges: DetailPageHeaderBadge[] = []
+
+  // Add occupancy badge if there are lots
+  if (stats.totalLots > 0) {
+    const occupancyRate = stats.occupancyRate
+    const badgeColor = occupancyRate >= 80
+      ? 'bg-green-100 text-green-800 border-green-200'
+      : occupancyRate >= 50
+      ? 'bg-yellow-100 text-yellow-800 border-yellow-200'
+      : 'bg-red-100 text-red-800 border-red-200'
+
+    headerBadges.push({
+      label: `${stats.occupiedLots}/${stats.totalLots} lots occupés`,
+      color: badgeColor,
+      dotColor: occupancyRate >= 80 ? 'bg-green-500' : occupancyRate >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+    })
+  }
+
+  const headerMetadata: DetailPageHeaderMetadata[] = [
+    building.address && {
+      icon: MapPin,
+      text: `${building.address}, ${building.city || ''}`
+    },
+    building.created_at && {
+      icon: Calendar,
+      text: `Créé le ${new Date(building.created_at).toLocaleDateString('fr-FR')}`
+    },
+    (building as { manager?: { name: string } }).manager?.name && {
+      icon: User,
+      text: (building as { manager?: { name: string } }).manager?.name || ''
+    }
+  ].filter(Boolean) as DetailPageHeaderMetadata[]
+
+  const primaryActions: DetailPageHeaderAction[] = [
+    {
+      label: 'Modifier',
+      icon: EditIcon,
+      onClick: handleEdit,
+      variant: 'outline'
+    },
+    {
+      label: 'Créer intervention',
+      icon: Plus,
+      onClick: () => handleCustomAction('add-intervention'),
+      variant: 'default'
+    },
+    {
+      label: 'Ajouter lot',
+      icon: Home,
+      onClick: () => handleCustomAction('add-lot'),
+      variant: 'outline'
+    }
+  ]
+
+  const dropdownActions: DetailPageHeaderAction[] = [
+    {
+      label: 'Archiver',
+      icon: Archive,
+      onClick: () => logger.info("Archive building:", building.id)
+    },
+    {
+      label: 'Supprimer',
+      icon: Trash2,
+      onClick: () => setShowDeleteModal(true)
+    }
+  ]
+
   return (
-    <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
-      {/* Header */}
-      <PropertyDetailHeader
-        property={{
-          id: building.id,
-          title: building.name,
-          name: building.name,
-          createdAt: building.created_at,
-          createdBy: (building as { manager?: { name: string } }).manager?.name,
-          address: building.address,
-          city: building.city,
-          totalLots: stats.totalLots,
-          occupiedLots: stats.occupiedLots,
-          occupancyRate: stats.occupancyRate,
-        }}
-        type="building"
+    <>
+      {/* Unified Detail Page Header */}
+      <DetailPageHeader
         onBack={handleBack}
-        onEdit={handleEdit}
-        customActions={[
-          { key: "add-intervention", label: "Créer une intervention", icon: Plus, onClick: () => handleCustomAction("add-intervention") },
-          { key: "add-lot", label: "Ajouter un lot", icon: Home, onClick: () => handleCustomAction("add-lot") },
-        ]}
-        onArchive={() => logger.info("Archive building:", building.id)}
+        backButtonText="Retour aux biens"
+        title={building.name}
+        badges={headerBadges}
+        metadata={headerMetadata}
+        primaryActions={primaryActions}
+        dropdownActions={dropdownActions}
       />
 
-      {error && (
+      <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
+        {error && (
         <div className="content-max-width px-4 sm:px-6 lg:px-8 py-4">
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
             {error}
@@ -542,18 +598,19 @@ export default function BuildingDetailsClient({
           </CardContent>
         </Card>
 
-      {/* Delete Confirmation Modal */}
-      <DeleteConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        onConfirm={confirmDelete}
-        title="Confirmer la suppression"
-        message="Êtes-vous sûr de vouloir supprimer cet immeuble ? Cette action supprimera également tous les lots associés et leurs données."
-        itemName={building?.name}
-        itemType="immeuble"
-        isLoading={isDeleting}
-        danger={true}
-      />
-    </div>
+        {/* Delete Confirmation Modal */}
+        <DeleteConfirmModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={confirmDelete}
+          title="Confirmer la suppression"
+          message="Êtes-vous sûr de vouloir supprimer cet immeuble ? Cette action supprimera également tous les lots associés et leurs données."
+          itemName={building?.name}
+          itemType="immeuble"
+          isLoading={isDeleting}
+          danger={true}
+        />
+      </div>
+    </>
   )
 }

@@ -362,7 +362,6 @@ export async function POST(request: NextRequest) {
       team_id: interventionTeamId,
       status: interventionStatus, // ✅ Statut déterminé selon les règles métier
       scheduled_date: scheduledDate,
-      manager_comment: location ? `Localisation: ${location}` : null,
       requires_quote: expectsQuote || false,
       scheduling_type: schedulingType,
       specific_location: location
@@ -792,20 +791,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Store additional metadata in manager_comment
-    const managerCommentParts = []
-    if (buildingId && !lotId) managerCommentParts.push('Intervention sur bâtiment entier')
-    if (location) managerCommentParts.push(`Localisation: ${location}`)
-    if (expectsQuote) managerCommentParts.push('Devis requis')
-    if (globalMessage) managerCommentParts.push(`Instructions: ${globalMessage}`)
-    if (schedulingType === 'flexible') managerCommentParts.push(`${timeSlots?.length || 0} créneaux proposés`)
+    // Store provider guidelines and additional metadata
+    const updateData: {
+      provider_guidelines?: string
+      metadata?: Record<string, unknown>
+    } = {}
 
-    // Update intervention with additional metadata if needed
-    if (managerCommentParts.length > 0) {
-      // ✅ FIX: Pass user.id as third parameter (required by interventionService.update signature)
-      await interventionService.update(intervention.id, {
-        manager_comment: managerCommentParts.join(' | ')
-      }, user.id)
+    // Store provider guidelines if provided
+    if (globalMessage && globalMessage.trim()) {
+      updateData.provider_guidelines = globalMessage.trim()
+    }
+
+    // Store system metadata in JSONB metadata field
+    const systemMetadata: Record<string, unknown> = {}
+    if (buildingId && !lotId) systemMetadata.building_level = true
+    if (location) systemMetadata.specific_location = location
+    if (expectsQuote) systemMetadata.requires_quote = expectsQuote
+    if (schedulingType === 'flexible' && timeSlots?.length) {
+      systemMetadata.proposed_slots_count = timeSlots.length
+    }
+
+    if (Object.keys(systemMetadata).length > 0) {
+      updateData.metadata = systemMetadata
+    }
+
+    // Update intervention with provider guidelines and metadata if needed
+    if (Object.keys(updateData).length > 0) {
+      await interventionService.update(intervention.id, updateData, user.id)
     }
 
     logger.info({}, "🎉 Manager intervention creation completed successfully")

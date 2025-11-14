@@ -209,10 +209,8 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString()
     }
 
-    if (managerCommentParts.length > 0) {
-      const existingComment = intervention.manager_comment || ''
-      updateData.manager_comment = existingComment + (existingComment ? ' | ' : '') + managerCommentParts.join(' | ')
-    }
+    // Note: Manager comments about scheduling are now stored in intervention_comments table
+    // The managerCommentParts should be saved via the comments system if needed
 
     const updatedIntervention = await interventionService.update(interventionId, updateData)
 

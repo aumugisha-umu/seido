@@ -6,7 +6,8 @@
       "WebSearch",
       "WebFetch(domain:supabase.com)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:dev.to)"
+      "WebFetch(domain:dev.to)",
+      "WebFetch(domain:docs.flutterflow.io)"
     ],
     "deny": [],
     "ask": []

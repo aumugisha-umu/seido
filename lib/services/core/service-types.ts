@@ -155,8 +155,7 @@ export interface Intervention {
   estimated_cost?: number | null
   final_cost?: number | null
   tenant_comment?: string | null
-  manager_comment?: string | null
-  provider_comment?: string | null
+  provider_guidelines?: string | null
   specific_location?: string | null
   requires_quote?: boolean | null
   quote_deadline?: string | null
@@ -201,8 +200,7 @@ export interface InterventionInsert {
   requested_date?: string | null
   estimated_cost?: number | null
   tenant_comment?: string | null
-  manager_comment?: string | null
-  provider_comment?: string | null
+  provider_guidelines?: string | null
   specific_location?: string | null
   requires_quote?: boolean | null
   quote_deadline?: string | null
@@ -226,8 +224,7 @@ export interface InterventionUpdate {
   estimated_cost?: number | null
   final_cost?: number | null
   tenant_comment?: string | null
-  manager_comment?: string | null
-  provider_comment?: string | null
+  provider_guidelines?: string | null
   specific_location?: string | null
   requires_quote?: boolean | null
   quote_deadline?: string | null

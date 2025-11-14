@@ -82,15 +82,12 @@ export async function POST(request: NextRequest) {
 
     // Build manager comment with rejection reason and internal comment
     const managerCommentParts = [`REJETÉ: ${rejectionReason}`]
-    if (internalComment) {
-      managerCommentParts.push(`Note interne: ${internalComment}`)
-    }
-    const fullManagerComment = managerCommentParts.join(' | ')
+    // Note: Comments (rejection reason, internal notes) are now stored in intervention_comments table
+    // The reason and internalComment parameters should be saved as comments via the comments system
 
-    // Update intervention status and add rejection reason
+    // Update intervention status
     const updatedIntervention = await interventionService.update(interventionId, {
       status: 'rejetee' as Database['public']['Enums']['intervention_status'],
-      manager_comment: fullManagerComment,
       updated_at: new Date().toISOString()
     })
 

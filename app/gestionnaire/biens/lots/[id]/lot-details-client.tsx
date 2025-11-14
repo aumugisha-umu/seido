@@ -4,12 +4,12 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck, Info } from "lucide-react"
+import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck, Info, Building2, MapPin, Calendar, User, Archive, Edit as EditIcon, Trash2, Home } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { determineAssignmentType } from '@/lib/services'
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import { DocumentsSection } from "@/components/intervention/documents-section"
-import { PropertyDetailHeader } from "@/components/property-detail-header"
+import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { logger } from '@/lib/logger'
 import { deleteLotAction } from './actions'
@@ -314,59 +314,101 @@ export default function LotDetailsClient({
     { id: "documents", label: "Documents", icon: FileText },
   ]
 
+  // Prepare header data
+  const headerBadges: DetailPageHeaderBadge[] = []
+
+  // Add category badge
+  headerBadges.push({
+    label: getCategoryLabel(lot.category),
+    icon: Home,
+    color: 'bg-blue-100 text-blue-800 border-blue-200',
+    dotColor: 'bg-blue-500'
+  })
+
+  // Add occupancy badge
+  if (isOccupied) {
+    headerBadges.push({
+      label: 'Occupé',
+      color: 'bg-green-100 text-green-800 border-green-200',
+      dotColor: 'bg-green-500'
+    })
+  } else {
+    headerBadges.push({
+      label: 'Libre',
+      color: 'bg-gray-100 text-gray-800 border-gray-200',
+      dotColor: 'bg-gray-500'
+    })
+  }
+
+  const headerMetadata: DetailPageHeaderMetadata[] = [
+    lot.building && {
+      icon: Building2,
+      text: lot.building.name
+    },
+    lot.building && {
+      icon: MapPin,
+      text: `${lot.building.address}, ${lot.building.city}`
+    },
+    lot.floor !== undefined && {
+      icon: Info,
+      text: `Étage ${lot.floor}`
+    },
+    lot.created_at && {
+      icon: Calendar,
+      text: `Créé le ${new Date(lot.created_at).toLocaleDateString('fr-FR')}`
+    }
+  ].filter(Boolean) as DetailPageHeaderMetadata[]
+
+  const primaryActions: DetailPageHeaderAction[] = [
+    {
+      label: 'Modifier',
+      icon: EditIcon,
+      onClick: handleEdit,
+      variant: 'outline'
+    },
+    {
+      label: 'Créer intervention',
+      icon: Plus,
+      onClick: () => handleCustomAction('add-intervention'),
+      variant: 'default'
+    }
+  ]
+
+  const dropdownActions: DetailPageHeaderAction[] = [
+    {
+      label: 'Archiver',
+      icon: Archive,
+      onClick: () => logger.info("Archive lot:", lot.id)
+    },
+    {
+      label: 'Supprimer',
+      icon: Trash2,
+      onClick: () => setShowDeleteModal(true)
+    }
+  ]
+
   return (
-    <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
-      {/* Header */}
-      <PropertyDetailHeader
-        property={{
-          id: lot.id,
-          title: lot.reference,
-          reference: lot.reference,
-          createdAt: lot.created_at,
-          createdBy: lot.manager?.name,
-          isOccupied,
-          apartmentNumber: lot.apartment_number,
-          floor: lot.floor,
-          building: lot.building ? {
-            name: lot.building.name,
-            address: lot.building.address,
-            city: lot.building.city,
-          } : undefined,
-        }}
-        type="lot"
+    <>
+      {/* Unified Detail Page Header */}
+      <DetailPageHeader
         onBack={handleBack}
-        onEdit={handleEdit}
-        customActions={[
-          { key: "add-intervention", label: "Créer une intervention", icon: Plus, onClick: () => handleCustomAction("add-intervention") },
-        ]}
-        onArchive={() => logger.info("Archive lot:", lot.id)}
+        backButtonText="Retour aux biens"
+        title={lot.reference}
+        subtitle={lot.surface_area || lot.rooms ? `${lot.surface_area ? lot.surface_area + ' m²' : ''} ${lot.surface_area && lot.rooms ? '·' : ''} ${lot.rooms ? lot.rooms + ' pièces' : ''}`.trim() : undefined}
+        badges={headerBadges}
+        metadata={headerMetadata}
+        primaryActions={primaryActions}
+        dropdownActions={dropdownActions}
       />
 
-      {error && (
-        <div className="content-max-width px-4 sm:px-6 lg:px-8 py-4">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-            {error}
+      <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
+        {error && (
+          <div className="content-max-width px-4 sm:px-6 lg:px-8 py-4">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+              {error}
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Surface and rooms info */}
-      {(lot.surface_area || lot.rooms) && (
-        <div className="content-max-width px-4 sm:px-6 lg:px-8 pb-4">
-          <div className="flex items-center justify-center space-x-6 text-sm text-slate-600">
-            {lot.surface_area && (
-              <div className="flex items-center space-x-1">
-                <span>📐 {lot.surface_area} m²</span>
-              </div>
-            )}
-            {lot.rooms && (
-              <div className="flex items-center space-x-1">
-                <span>🏠 {lot.rooms} pièces</span>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+        )}
 
       {/* Tabs Navigation */}
       <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-0 mb-6">
@@ -491,18 +533,19 @@ export default function LotDetailsClient({
           </CardContent>
         </Card>
 
-      {/* Delete Confirmation Modal */}
-      <DeleteConfirmModal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        onConfirm={confirmDelete}
-        title="Confirmer la suppression"
-        message="Êtes-vous sûr de vouloir supprimer ce lot ? Cette action supprimera également toutes les données associées (interventions, contacts, etc.)."
-        itemName={lot?.reference}
-        itemType="lot"
-        isLoading={isDeleting}
-        danger={true}
-      />
-    </div>
+        {/* Delete Confirmation Modal */}
+        <DeleteConfirmModal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          onConfirm={confirmDelete}
+          title="Confirmer la suppression"
+          message="Êtes-vous sûr de vouloir supprimer ce lot ? Cette action supprimera également toutes les données associées (interventions, contacts, etc.)."
+          itemName={lot?.reference}
+          itemType="lot"
+          isLoading={isDeleting}
+          danger={true}
+        />
+      </div>
+    </>
   )
 }

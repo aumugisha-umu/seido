@@ -81,6 +81,7 @@
     "embla-carousel-react": "8.5.1",
     "geist": "latest",
     "input-otp": "1.4.1",
+    "ioredis": "^5.8.2",
     "isomorphic-dompurify": "^2.31.0",
     "lokijs": "^1.5.12",
     "lucide-react": "^0.454.0",
@@ -111,6 +112,7 @@
   "devDependencies": {
     "@next/bundle-analyzer": "^15.5.4",
     "@tailwindcss/postcss": "^4.1.9",
+    "@types/ioredis": "^4.28.10",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-big-calendar": "^1.16.3",

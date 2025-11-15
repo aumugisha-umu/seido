@@ -1,9 +1,14 @@
+'use client'
+
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CompanySelector } from "@/components/ui/company-selector"
+import { CompanySearch } from "@/components/ui/company-search"
 import { Building2, Plus } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import type { CompanyLookupResult } from '@/lib/types/cbeapi.types'
 
 interface Company {
   id: string
@@ -40,6 +45,8 @@ export function Step2Company({
   country,
   onFieldChange
 }: Step2CompanyProps) {
+  const { toast } = useToast()
+
   // Formater le numéro de TVA : supprimer espaces et caractères spéciaux, mettre en majuscule
   const formatVatNumber = (value: string): string => {
     return value
@@ -47,6 +54,24 @@ export function Step2Company({
       .replace(/[^A-Za-z0-9]/g, '') // Garder seulement lettres et chiffres
       .toUpperCase() // Tout en majuscule
   }
+
+  // Fonction pour pré-remplir le formulaire avec les données d'une entreprise
+  const handleCompanySelect = (company: CompanyLookupResult) => {
+    onFieldChange('companyName', company.name)
+    onFieldChange('vatNumber', company.vat_number)
+    onFieldChange('street', company.street)
+    onFieldChange('streetNumber', company.street_number)
+    onFieldChange('postalCode', company.postal_code)
+    onFieldChange('city', company.city)
+    onFieldChange('country', company.country)
+
+    toast({
+      title: "✅ Entreprise trouvée",
+      description: `Les données de ${company.name} ont été pré-remplies.`,
+      variant: "default"
+    })
+  }
+
 
   return (
     <div className="space-y-8">
@@ -141,6 +166,36 @@ export function Step2Company({
             <h3 className="font-semibold text-gray-900">Détails de la nouvelle société</h3>
           </div>
 
+          {/* Barres de recherche côte à côte */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <CompanySearch
+              searchType="name"
+              teamId={teamId}
+              onSelect={handleCompanySelect}
+              label="Rechercher par nom d'entreprise"
+              placeholder="Tapez le nom de l'entreprise..."
+            />
+            <CompanySearch
+              searchType="vat"
+              teamId={teamId}
+              onSelect={handleCompanySelect}
+              label="Rechercher par numéro de TVA"
+              placeholder="BE0123456789"
+            />
+          </div>
+
+          {/* Séparateur */}
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-200"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-4 bg-purple-50/30 text-gray-500">
+                Ou remplissez manuellement le formulaire ci-dessous
+              </span>
+            </div>
+          </div>
+
           {/* Nom de la société */}
           <div className="space-y-2">
             <Label htmlFor="company-name">
@@ -154,7 +209,7 @@ export function Step2Company({
             />
           </div>
 
-          {/* Numéro de TVA */}
+          {/* Numéro de TVA (lecture seule après recherche) */}
           <div className="space-y-2">
             <Label htmlFor="vat-number">
               Numéro de TVA <span className="text-red-500">*</span>

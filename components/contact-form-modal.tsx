@@ -9,13 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Building2, Mail, AlertCircle, User } from "lucide-react"
+import { Building2, Mail, AlertCircle, User, Search, Loader2, CheckCircle2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 import { createBrowserSupabaseClient } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
 import { validateVatNumber } from '@/lib/utils/vat-validator'
 import { CompanySelector } from '@/components/ui/company-selector'
+import type { CompanyLookupResult } from '@/lib/types/cbeapi.types'
 
 // ✅ Mapping des noms de pays vers codes ISO (pour VARCHAR(2) en BDD)
 const countryNameToISO: Record<string, string> = {
@@ -151,6 +152,18 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
   const [errors, setErrors] = useState<FormErrors>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // États pour la recherche automatique via CBEAPI
+  const [isLookingUp, setIsLookingUp] = useState(false)
+  const [lookupError, setLookupError] = useState<string | null>(null)
+  const [lookupSuccess, setLookupSuccess] = useState(false)
+
+  // États pour la recherche par nom
+  const [searchName, setSearchName] = useState("")
+  const [isSearchingByName, setIsSearchingByName] = useState(false)
+  const [nameSearchResults, setNameSearchResults] = useState<CompanyLookupResult[]>([])
+  const [showNameResults, setShowNameResults] = useState(false)
+  const [searchNameError, setSearchNameError] = useState<string | null>(null)
+
   // Sync defaultType from parent when modal opens or defaultType changes
   useEffect(() => {
     if (!isOpen) {
@@ -198,6 +211,72 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
     // Réinitialiser les erreurs quand le type change
     setErrors({})
   }, [formData.type])
+
+  // Debounced search by name
+  useEffect(() => {
+    // Ne rien faire si le champ est vide ou < 2 caractères
+    if (!searchName.trim() || searchName.trim().length < 2) {
+      setNameSearchResults([])
+      setShowNameResults(false)
+      return
+    }
+
+    // Debounce de 500ms
+    const timeoutId = setTimeout(async () => {
+      setIsSearchingByName(true)
+      setSearchNameError(null)
+
+      try {
+        logger.info({ searchName, teamId }, '🔍 [CONTACT-FORM] Starting name search')
+
+        const response = await fetch('/api/company/lookup', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            searchType: 'name',
+            name: searchName.trim(),
+            teamId,
+            limit: 10
+          })
+        })
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }))
+
+          if (response.status === 404) {
+            setNameSearchResults([])
+            setSearchNameError('Aucune entreprise trouvée')
+          } else {
+            setSearchNameError(errorData.error || 'Erreur lors de la recherche')
+          }
+
+          logger.warn({ searchName, error: errorData }, '⚠️ [CONTACT-FORM] Name search failed')
+          return
+        }
+
+        const result: { success: boolean; data: CompanyLookupResult[]; count: number } = await response.json()
+
+        if (result.success && result.data) {
+          setNameSearchResults(result.data)
+          setShowNameResults(true)
+          logger.info({ resultsCount: result.count }, '✅ [CONTACT-FORM] Name search successful')
+        } else {
+          setNameSearchResults([])
+          setSearchNameError('Aucun résultat')
+        }
+
+      } catch (error) {
+        logError(error, '[CONTACT-FORM] Exception during name search')
+        setSearchNameError('Erreur de connexion')
+      } finally {
+        setIsSearchingByName(false)
+      }
+    }, 500) // Debounce 500ms
+
+    return () => clearTimeout(timeoutId)
+  }, [searchName, teamId])
 
   // Fonction pour valider un email
   const isValidEmail = (_email: string): boolean => {
@@ -291,6 +370,144 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
           ? 'Problème de connexion. Vérifiez votre réseau et réessayez.'
           : 'Erreur de validation, veuillez réessayer'
       }
+    }
+  }
+
+  // ✅ NOUVELLE FONCTION: Sélectionner une entreprise depuis la liste de résultats
+  const handleSelectCompanyFromSearch = (company: CompanyLookupResult) => {
+    logger.info({ companyName: company.name }, '📋 [CONTACT-FORM] Company selected from name search')
+
+    // Pré-remplir tous les champs
+    setFormData(prev => ({
+      ...prev,
+      companyName: company.name,
+      vatNumber: company.vat_number,
+      street: company.street,
+      streetNumber: company.street_number,
+      postalCode: company.postal_code,
+      city: company.city,
+      country: company.country === 'BE' ? 'Belgique' :
+              company.country === 'FR' ? 'France' :
+              company.country === 'NL' ? 'Pays-Bas' :
+              company.country === 'DE' ? 'Allemagne' :
+              company.country === 'LU' ? 'Luxembourg' :
+              company.country === 'CH' ? 'Suisse' :
+              prev.country
+    }))
+
+    // Fermer la liste des résultats
+    setShowNameResults(false)
+    setSearchName("") // Effacer le champ de recherche
+    setLookupSuccess(true)
+
+    toast({
+      title: "✅ Entreprise sélectionnée",
+      description: `Les données de ${company.name} ont été pré-remplies.`,
+      variant: "success"
+    })
+  }
+
+  // ✅ NOUVELLE FONCTION: Rechercher les données de l'entreprise via le numéro TVA
+  const handleVatLookup = async () => {
+    // 1. Vérifier que le numéro de TVA est rempli
+    if (!formData.vatNumber?.trim()) {
+      setLookupError('Veuillez entrer un numéro de TVA')
+      return
+    }
+
+    // 2. Valider le format avec vat-validator
+    const validation = validateVatNumber(formData.vatNumber)
+    if (!validation.isValid) {
+      setLookupError(validation.error || 'Format de numéro de TVA invalide')
+      return
+    }
+
+    // 3. Réinitialiser les états
+    setLookupError(null)
+    setLookupSuccess(false)
+    setIsLookingUp(true)
+
+    try {
+      logger.info({ vatNumber: formData.vatNumber, teamId }, '🔍 [CONTACT-FORM] Starting VAT lookup')
+
+      // 4. Appeler l'API de lookup
+      const response = await fetch('/api/company/lookup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          searchType: 'vat',
+          vatNumber: formData.vatNumber,
+          teamId
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Erreur inconnue' }))
+
+        if (response.status === 404) {
+          setLookupError('Aucune entreprise trouvée avec ce numéro de TVA')
+        } else if (response.status === 429) {
+          setLookupError('Trop de requêtes. Veuillez attendre un moment.')
+        } else {
+          setLookupError(errorData.error || 'Erreur lors de la recherche')
+        }
+
+        logger.warn({ vatNumber: formData.vatNumber, error: errorData }, '⚠️ [CONTACT-FORM] VAT lookup failed')
+        return
+      }
+
+      // 5. Parser la réponse
+      const result: { success: boolean; data: CompanyLookupResult } = await response.json()
+
+      if (!result.success || !result.data) {
+        setLookupError('Aucune donnée reçue')
+        return
+      }
+
+      const company = result.data
+
+      logger.info({ companyName: company.name, source: company.source }, '✅ [CONTACT-FORM] VAT lookup successful')
+
+      // 6. Pré-remplir le formulaire avec les données récupérées
+      setFormData(prev => ({
+        ...prev,
+        companyName: company.name,
+        vatNumber: company.vat_number,
+        street: company.street,
+        streetNumber: company.street_number,
+        postalCode: company.postal_code,
+        city: company.city,
+        country: company.country === 'BE' ? 'Belgique' :
+                company.country === 'FR' ? 'France' :
+                company.country === 'NL' ? 'Pays-Bas' :
+                company.country === 'DE' ? 'Allemagne' :
+                company.country === 'LU' ? 'Luxembourg' :
+                company.country === 'CH' ? 'Suisse' :
+                prev.country // Fallback
+      }))
+
+      // 7. Afficher un message de succès
+      setLookupSuccess(true)
+
+      toast({
+        title: "✅ Entreprise trouvée",
+        description: `Les données de ${company.name} ont été pré-remplies. Vous pouvez les modifier si nécessaire.`,
+        variant: "success"
+      })
+
+    } catch (error) {
+      logError(error, '[CONTACT-FORM] Exception during VAT lookup')
+      setLookupError('Erreur de connexion. Veuillez réessayer.')
+
+      toast({
+        title: "❌ Erreur de recherche",
+        description: "Impossible de se connecter au service de recherche. Veuillez réessayer.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsLookingUp(false)
     }
   }
 
@@ -792,6 +1009,82 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
           {/* Champs Nouvelle Société */}
           {formData.contactType === 'company' && formData.companyMode === 'new' && (
             <>
+              {/* Champ de recherche par nom */}
+              <div className="space-y-2">
+                <Label htmlFor="searchName" className="text-sm font-medium text-gray-700">
+                  Rechercher une entreprise par nom
+                </Label>
+                <div className="relative">
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <Input
+                        id="searchName"
+                        name="searchName"
+                        type="text"
+                        placeholder="Tapez le nom de l'entreprise..."
+                        value={searchName}
+                        onChange={(e) => {
+                          setSearchName(e.target.value)
+                          setSearchNameError(null)
+                        }}
+                        onFocus={() => {
+                          if (nameSearchResults.length > 0) {
+                            setShowNameResults(true)
+                          }
+                        }}
+                        className="w-full pl-10"
+                      />
+                      {isSearchingByName && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-gray-400" />
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Liste déroulante des résultats */}
+                  {showNameResults && nameSearchResults.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {nameSearchResults.map((company, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => handleSelectCompanyFromSearch(company)}
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                        >
+                          <div className="flex items-start gap-3">
+                            <Building2 className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-gray-900">{company.name}</div>
+                              <div className="text-xs text-gray-500 mt-1">
+                                TVA: {company.vat_number}
+                              </div>
+                              <div className="text-xs text-gray-500">
+                                {company.street} {company.street_number}, {company.postal_code} {company.city}
+                              </div>
+                              {company.status === 'inactive' && (
+                                <div className="inline-block mt-1 px-2 py-0.5 bg-red-100 text-red-700 text-xs rounded">
+                                  Inactive
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {searchNameError && (
+                    <div className="flex items-center gap-1 text-amber-600 text-xs mt-1">
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{searchNameError}</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">
+                  Ou remplissez manuellement le formulaire ci-dessous
+                </p>
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="companyName" className="text-sm font-medium text-gray-700">
                   Nom de la société <span className="text-red-500">*</span>
@@ -817,22 +1110,71 @@ const ContactFormModal = ({ isOpen, onClose, onSubmit, defaultType = "tenant", t
                 <Label htmlFor="vatNumber" className="text-sm font-medium text-gray-700">
                   Numéro de TVA <span className="text-red-500">*</span>
                 </Label>
-                <Input
-                  id="vatNumber"
-                  name="vatNumber"
-                  type="text"
-                  placeholder="BE0123456789"
-                  value={formData.vatNumber || ""}
-                  onChange={(e) => handleInputChange('vatNumber', e.target.value.toUpperCase())}
-                  className={`w-full ${errors.vatNumber ? 'border-red-500 focus:border-red-500' : ''}`}
-                />
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Input
+                      id="vatNumber"
+                      name="vatNumber"
+                      type="text"
+                      placeholder="BE0123456789"
+                      value={formData.vatNumber || ""}
+                      onChange={(e) => {
+                        handleInputChange('vatNumber', e.target.value.toUpperCase())
+                        // Réinitialiser les états de lookup quand l'utilisateur modifie le numéro
+                        setLookupSuccess(false)
+                        setLookupError(null)
+                      }}
+                      onKeyDown={(e) => {
+                        // Permettre de rechercher avec Entrée
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          handleVatLookup()
+                        }
+                      }}
+                      className={`w-full ${errors.vatNumber ? 'border-red-500 focus:border-red-500' : ''}`}
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleVatLookup}
+                    disabled={isLookingUp || !formData.vatNumber?.trim()}
+                    className="flex items-center gap-2 px-4 whitespace-nowrap"
+                  >
+                    {isLookingUp ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Recherche...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4" />
+                        Rechercher
+                      </>
+                    )}
+                  </Button>
+                </div>
                 {errors.vatNumber && (
                   <div className="flex items-center gap-1 text-red-500 text-xs mt-1">
                     <AlertCircle className="w-3 h-3" />
                     <span>{errors.vatNumber}</span>
                   </div>
                 )}
-                <p className="text-xs text-gray-500">Format: BE0123456789, FR12345678901, etc.</p>
+                {lookupError && (
+                  <div className="flex items-center gap-1 text-red-500 text-xs mt-1">
+                    <AlertCircle className="w-3 h-3" />
+                    <span>{lookupError}</span>
+                  </div>
+                )}
+                {lookupSuccess && (
+                  <div className="flex items-center gap-1 text-green-600 text-xs mt-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    <span>Données récupérées avec succès depuis CBEAPI</span>
+                  </div>
+                )}
+                <p className="text-xs text-gray-500">
+                  Format: BE0123456789, FR12345678901, etc. • Appuyez sur Entrée pour rechercher
+                </p>
               </div>
 
               {/* Adresse de la société */}

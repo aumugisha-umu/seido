@@ -6,8 +6,15 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Building2, Home, Users, MapPin, Eye, ChevronDown, AlertCircle, Zap, Edit, Wrench, UserCircle, Check, X } from "lucide-react"
+import { Building2, Home, Users, MapPin, Eye, ChevronDown, AlertCircle, Zap, Edit, Wrench, UserCircle, Check, X, MoreVertical, Archive } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 import { useBuildings } from "@/hooks/use-buildings"
 import type { Building as BuildingType, Lot as LotType } from "@/hooks/use-buildings"
 import LotCard from "@/components/lot-card"
@@ -328,26 +335,59 @@ function PropertySelectorView({
                               {isSelected ? "Sélectionné" : "Sélectionner"}
                             </Button>
                           ) : (
-                            <>
-                              <Button 
-                                variant="ghost" 
+                            <div className="flex items-center space-x-1">
+                              <Button
+                                variant="ghost"
                                 size="sm"
                                 className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
                                 onClick={() => router.push(`/gestionnaire/biens/immeubles/modifier/${building.id}`)}
-                                title="Modifier l'immeuble"
+                                title="Modifier"
                               >
-                                <Edit className="h-3 w-3" />
+                                <Edit className="h-4 w-4" />
                               </Button>
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="ghost"
                                 size="sm"
-                                className="h-8 px-3 text-xs"
+                                className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
                                 onClick={() => router.push(`/gestionnaire/biens/immeubles/${building.id}`)}
+                                title="Voir détails"
                               >
-                                <Eye className="h-3 w-3 mr-1" />
-                                Détails
+                                <Eye className="h-4 w-4" />
                               </Button>
-                            </>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                                    title="Plus d'actions"
+                                  >
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem
+                                    onClick={() => router.push(`/gestionnaire/biens/immeubles/${building.id}#lots`)}
+                                    className="cursor-pointer"
+                                  >
+                                    <Home className="h-4 w-4 mr-2" />
+                                    Voir les lots
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      // Future feature: Archive building
+                                      console.log('Archive building:', building.id)
+                                    }}
+                                    className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                    disabled
+                                  >
+                                    <Archive className="h-4 w-4 mr-2" />
+                                    Archiver
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -433,27 +473,60 @@ function PropertySelectorView({
                                     )}
                                   </div>
                                   
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex items-center gap-0.5">
                                     {mode === "view" && (
                                       <>
-                                        <Button 
-                                          variant="ghost" 
+                                        <Button
+                                          variant="ghost"
                                           size="sm"
-                                          className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
+                                          className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
                                           onClick={() => router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)}
-                                          title="Modifier le lot"
+                                          title="Modifier"
                                         >
-                                          <Edit className="h-3 w-3" />
+                                          <Edit className="h-3.5 w-3.5" />
                                         </Button>
-                                        <Button 
-                                          variant="ghost" 
+                                        <Button
+                                          variant="ghost"
                                           size="sm"
-                                          className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
+                                          className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
                                           onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
-                                          title="Voir les détails du lot"
+                                          title="Voir détails"
                                         >
-                                          <Eye className="h-3 w-3" />
+                                          <Eye className="h-3.5 w-3.5" />
                                         </Button>
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
+                                              title="Plus d'actions"
+                                            >
+                                              <MoreVertical className="h-3.5 w-3.5" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end" className="w-48">
+                                            <DropdownMenuItem
+                                              onClick={() => router.push(`/gestionnaire/contacts?lot=${lot.id}`)}
+                                              className="cursor-pointer"
+                                            >
+                                              <Users className="h-4 w-4 mr-2" />
+                                              Gérer les locataires
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                              onClick={() => {
+                                                // Future feature: Archive lot
+                                                console.log('Archive lot:', lot.id)
+                                              }}
+                                              className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                              disabled
+                                            >
+                                              <Archive className="h-4 w-4 mr-2" />
+                                              Archiver
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
                                       </>
                                     )}
 

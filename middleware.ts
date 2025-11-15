@@ -99,6 +99,17 @@ export async function middleware(request: NextRequest) {
   const protectedPrefixes = ['/admin', '/gestionnaire', '/locataire', '/prestataire']
   const isProtectedRoute = protectedPrefixes.some(prefix => pathname.startsWith(prefix))
 
+  // 🎭 DEMO MODE: Skip Supabase auth for /demo routes (they use DemoProvider)
+  // Also skip Next.js internal data requests (RSC refreshes, Server Actions)
+  if (pathname.startsWith('/demo') || pathname.startsWith('/_next/data/')) {
+    console.log('🎭 [MIDDLEWARE] Skipping Supabase auth check for:', pathname)
+    return NextResponse.next({
+      request: {
+        headers: request.headers,
+      },
+    })
+  }
+
   if (isProtectedRoute) {
     // ✅ PATTERN OFFICIEL SUPABASE SSR + NEXT.JS 15
     // Créer la response en avance pour gérer correctement les cookies
@@ -147,7 +158,7 @@ export async function middleware(request: NextRequest) {
       const { data: { user }, error } = await supabase.auth.getUser()
 
       if (error || !user) {
-        console.log('🚫 [MIDDLEWARE] Authentication failed:', error?.message || 'No user')
+        console.log('🚫 [MIDDLEWARE] Authentication failed for', pathname, ':', error?.message || 'No user')
         response.cookies.set('middleware-check', 'true', { maxAge: 5 })
         return NextResponse.redirect(new URL('/auth/login?reason=session_expired', request.url))
       }

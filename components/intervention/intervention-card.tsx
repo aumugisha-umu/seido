@@ -354,18 +354,13 @@ export function InterventionCard({
         break
     }
 
-    // Actions communes (modifier/supprimer) selon le contexte
+    // Actions communes (supprimer uniquement - Edit est maintenant dans le header)
     if (['demande', 'approuvee', 'planification'].includes(intervention.status)) {
       if (userContext === 'gestionnaire' || (userContext === 'locataire' && intervention.status === 'demande')) {
         if (actions.length > 0) {
           actions.push({ separator: true })
         }
         actions.push(
-          {
-            label: "Modifier",
-            icon: Edit,
-            onClick: () => handleAction('edit'),
-          },
           {
             label: "Supprimer",
             icon: Trash2,
@@ -377,6 +372,12 @@ export function InterventionCard({
     }
 
     return actions
+  }
+
+  // Check if user can edit this intervention
+  const canEdit = () => {
+    return ['demande', 'approuvee', 'planification'].includes(intervention.status) &&
+      (userContext === 'gestionnaire' || (userContext === 'locataire' && intervention.status === 'demande'))
   }
 
   // Handle action clicks
@@ -547,12 +548,12 @@ export function InterventionCard({
   // Full card rendering - Material Design spacing équilibré
   return (
     <Card
-      className="group hover:shadow-sm transition-all duration-200 flex flex-col hover:bg-slate-50/50 py-0 gap-0 max-w-[360px] w-full"
+      className="group hover:shadow-sm transition-all duration-200 flex flex-col hover:bg-slate-50/50 p-0 gap-0 w-full"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <CardContent className="p-0 flex flex-col">
-        <div className="px-4 py-4 flex flex-col">
+      <CardContent className="p-4 flex flex-col">
+        <div className="flex flex-col">
           <div className="space-y-4">
             {/* Badge action interactif - Affiche les boutons au hover */}
             <div className={`
@@ -621,20 +622,37 @@ export function InterventionCard({
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex-shrink-0 flex items-center space-x-2">
+              {/* Action Buttons: Edit → View → Menu */}
+              <div className="flex-shrink-0 flex items-center space-x-1">
+                {canEdit() && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                    onClick={() => handleAction('edit')}
+                    title="Modifier"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  className="h-8 w-8 p-0 text-sm flex-shrink-0"
+                  className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
                   onClick={() => router.push(getInterventionUrl(intervention.id))}
+                  title="Voir détails"
                 >
                   <Eye className="h-4 w-4" />
                 </Button>
                 {availableActions.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                        title="Plus d'actions"
+                      >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>

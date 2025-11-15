@@ -470,7 +470,7 @@ export default function ContentNavigator({
         </div>
 
         {/* Tab Content */}
-        <div className="mt-2 flex-1 flex flex-col min-h-0">
+        <div className="mt-2 flex-1 flex flex-col min-h-0 overflow-y-auto">
           {activeTabData?.content}
         </div>
       </div>

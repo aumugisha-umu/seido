@@ -7,7 +7,10 @@
       "WebFetch(domain:supabase.com)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:dev.to)",
-      "WebFetch(domain:docs.flutterflow.io)"
+      "WebFetch(domain:docs.flutterflow.io)",
+      "Bash(npm install:*)",
+      "Bash(dir:*)",
+      "WebFetch(domain:viesapi.eu)"
     ],
     "deny": [],
     "ask": []

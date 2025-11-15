@@ -28,7 +28,7 @@ import ContactFormModal from "@/components/contact-form-modal"
 
 import { determineAssignmentType, createContactInvitationService } from '@/lib/services'
 import { logger, logError } from '@/lib/logger'
-import { useTeamContacts } from '@/hooks/use-team-contacts'
+import { useDemoAwareTeamContacts } from '@/hooks/use-demo-aware-team-contacts'
 
 const contactInvitationService = createContactInvitationService()
 
@@ -139,8 +139,8 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   const [isContactFormModalOpen, setIsContactFormModalOpen] = useState(false)
   const [prefilledContactType, setPrefilledContactType] = useState<string>("")
 
-  // ✅ Hook SWR pour fetcher les contacts avec cache intelligent
-  const { data: teamContacts, isLoading: isLoadingContacts, error: loadingError } = useTeamContacts(teamId)
+  // ✅ Hook SWR demo-aware pour fetcher les contacts avec cache intelligent
+  const { data: teamContacts, isLoading: isLoadingContacts, error: loadingError } = useDemoAwareTeamContacts(teamId)
 
   // ✅ Plus besoin de refs pour le chargement - SWR gère tout
 

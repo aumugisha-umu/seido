@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { Users, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle, X, ChevronDown, ChevronUp, Eye, MoreHorizontal, Archive, Building2 } from "lucide-react"
+import { Users, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle, X, ChevronDown, ChevronUp, Eye, MoreHorizontal, MoreVertical, Archive, Building2 } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import ContentNavigator from "@/components/content-navigator"
@@ -610,21 +610,22 @@ export function ContactsPageClient({
                       )}
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                       {filteredContacts.map((contact) => (
-                        <div
+                        <Card
                           key={contact.id}
-                          className="flex items-center justify-between p-4 bg-white rounded-lg border hover:shadow-sm transition-shadow"
+                          className="p-3 flex flex-col hover:shadow-md transition-shadow"
                         >
-                          <div className="flex items-center space-x-4">
-                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-blue-600 font-semibold text-lg">
+                          {/* Header avec avatar, nom, badges et actions */}
+                          <div className="flex items-start gap-2 mb-2">
+                            <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                              <span className="text-blue-600 font-semibold text-sm">
                                 {contact.name?.charAt(0)?.toUpperCase() || '?'}
                               </span>
                             </div>
-                            <div className="flex-1">
-                              <div className="flex items-center space-x-3 mb-1">
-                                <h3 className="font-medium text-slate-900">{contact.name}</h3>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <h3 className="font-medium text-slate-900 text-base">{contact.name}</h3>
                                 {contact.role && (
                                   <Badge
                                     variant="secondary"
@@ -633,7 +634,6 @@ export function ContactsPageClient({
                                     {getContactTypeLabel(contact)}
                                   </Badge>
                                 )}
-                                {/* Badge Société avec nom */}
                                 {contact.is_company && contact.company && (
                                   <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs flex items-center gap-1">
                                     <Building2 className="h-3 w-3" />
@@ -642,7 +642,6 @@ export function ContactsPageClient({
                                 )}
                                 {getCurrentUserBadge(contact.email)}
                                 {getContactInvitationBadge(contact.email)}
-                                {/* Legacy company field (pour contacts sans is_company) */}
                                 {!contact.is_company && contact.companyLegacy && (
                                   <Badge variant="secondary" className="bg-gray-100 text-gray-800 text-xs">
                                     {contact.companyLegacy}
@@ -654,84 +653,88 @@ export function ContactsPageClient({
                                   </Badge>
                                 )}
                               </div>
-                              <div className="flex items-center space-x-4 text-sm text-slate-600">
-                                <div className="flex items-center space-x-1">
-                                  <Mail className="h-3 w-3" />
-                                  <span>{contact.email}</span>
-                                </div>
-                                {contact.phone && (
-                                  <div className="flex items-center space-x-1">
-                                    <Phone className="h-3 w-3" />
-                                    <span>{contact.phone}</span>
-                                  </div>
-                                )}
-                              </div>
-                              {/* Adresse legacy */}
-                              {!contact.is_company && contact.address && (
-                                <div className="flex items-center space-x-1 text-sm text-slate-500 mt-1">
-                                  <MapPin className="h-3 w-3" />
-                                  <span>{contact.address}</span>
-                                </div>
-                              )}
-                              {contact.notes && (
-                                <div className="text-sm text-slate-500 mt-1">
-                                  <span>{contact.notes}</span>
-                                </div>
-                              )}
+                            </div>
+
+                            {/* Actions standardisées: Edit → View → Menu */}
+                            <div className="flex-shrink-0 flex items-center space-x-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                                onClick={() => router.push(`/gestionnaire/contacts/modifier/${contact.id}`)}
+                                title="Modifier"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                                onClick={() => router.push(`/gestionnaire/contacts/details/${contact.id}`)}
+                                title="Voir détails"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                                    title="Plus d'actions"
+                                  >
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem
+                                    onClick={() => window.open(`mailto:${contact.email}`, '_blank')}
+                                    className="cursor-pointer"
+                                  >
+                                    <Send className="h-4 w-4 mr-2" />
+                                    Contacter
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      logger.info(`Archiver contact: ${contact.id}`)
+                                      setError("Fonctionnalité d'archivage bientôt disponible")
+                                    }}
+                                    className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                  >
+                                    <Archive className="h-4 w-4 mr-2" />
+                                    Archiver
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           </div>
 
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-sky-600 hover:text-sky-700 hover:bg-sky-50"
-                              onClick={() => router.push(`/gestionnaire/contacts/details/${contact.id}`)}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              Détails
-                            </Button>
-
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-slate-600 hover:text-slate-700"
-                                >
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="w-48">
-                                <DropdownMenuItem
-                                  onClick={() => router.push(`/gestionnaire/contacts/modifier/${contact.id}`)}
-                                  className="cursor-pointer"
-                                >
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Modifier
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  onClick={() => window.open(`mailto:${contact.email}`, '_blank')}
-                                  className="cursor-pointer"
-                                >
-                                  <Send className="h-4 w-4 mr-2" />
-                                  Contacter
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    logger.info(`Archiver contact: ${contact.id}`)
-                                    setError("Fonctionnalité d'archivage bientôt disponible")
-                                  }}
-                                  className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
-                                >
-                                  <Archive className="h-4 w-4 mr-2" />
-                                  Archiver
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                          {/* Détails empilés verticalement - flex-1 pour pousser le bouton en bas */}
+                          <div className="space-y-1.5 text-sm text-slate-600 flex-1">
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                              <span className="truncate">{contact.email}</span>
+                            </div>
+                            {contact.phone && (
+                              <div className="flex items-center gap-2">
+                                <Phone className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                                <span>{contact.phone}</span>
+                              </div>
+                            )}
+                            {!contact.is_company && contact.address && (
+                              <div className="flex items-start gap-2">
+                                <MapPin className="h-4 w-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                                <span className="text-slate-500">{contact.address}</span>
+                              </div>
+                            )}
+                            {contact.notes && (
+                              <div className="text-slate-500 pt-1.5 border-t mt-2">
+                                <span>{contact.notes}</span>
+                              </div>
+                            )}
                           </div>
-                        </div>
+                        </Card>
                       ))}
                     </div>
                   )}
@@ -758,24 +761,24 @@ export function ContactsPageClient({
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {filteredInvitations.map((invitation) => (
-                      <div
+                      <Card
                         key={invitation.id}
                         className={
                           resentInvitations[invitation.id]?.success
-                            ? 'p-3 rounded-lg border bg-green-50 border-green-200'
-                            : 'p-3 rounded-lg border bg-orange-50 border-orange-200'
+                            ? 'p-4 bg-green-50 border-green-200'
+                            : 'p-4 bg-orange-50 border-orange-200'
                         }
                       >
                         {resentInvitations[invitation.id]?.success ? (
                           <div>
-                            <div className="flex items-center space-x-2 mb-3">
-                              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
                                 <span className="text-white text-xs">✓</span>
                               </div>
-                              <div>
-                                <div className="font-medium text-green-800">
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-green-800 text-sm truncate">
                                   Invitation renvoyée à {invitation.email}
                                 </div>
                                 <div className="text-xs text-green-600">
@@ -784,14 +787,14 @@ export function ContactsPageClient({
                               </div>
                             </div>
                             <div className="text-sm text-green-700 mb-3">
-                              <p className="font-medium mb-1">
+                              <p className="font-medium mb-1 text-xs">
                                 ✅ Lien de connexion généré avec succès !
                               </p>
                               <p className="text-xs text-green-600 mb-2">
                                 Un email de connexion a été envoyé à l'utilisateur.
                               </p>
                               {resentInvitations[invitation.id]?.magicLink && (
-                                <p>
+                                <p className="text-xs">
                                   Vous pouvez également copier le lien de connexion ci-dessous pour l'envoyer manuellement :
                                 </p>
                               )}
@@ -803,7 +806,7 @@ export function ContactsPageClient({
                                     {resentInvitations[invitation.id]?.magicLink}
                                   </code>
                                 </div>
-                                <div className="flex space-x-2">
+                                <div className="flex flex-col gap-2">
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -815,11 +818,11 @@ export function ContactsPageClient({
                                     disabled={copiedLinks[invitation.id]}
                                     className={
                                       copiedLinks[invitation.id]
-                                        ? 'text-green-700 bg-green-100 border-green-400'
-                                        : 'text-green-600 hover:text-green-700 hover:bg-green-50 border-green-300'
+                                        ? 'text-green-700 bg-green-100 border-green-400 w-full'
+                                        : 'text-green-600 hover:text-green-700 hover:bg-green-50 border-green-300 w-full'
                                     }
                                   >
-                                    {copiedLinks[invitation.id] ? "✅ Copié !" : "📋 Copier le lien d'invitation"}
+                                    {copiedLinks[invitation.id] ? "✅ Copié !" : "📋 Copier le lien"}
                                   </Button>
                                   <Button
                                     size="sm"
@@ -828,7 +831,7 @@ export function ContactsPageClient({
                                       e.stopPropagation();
                                       handleCloseSuccessState(invitation.id);
                                     }}
-                                    className="text-gray-600 hover:text-gray-700 hover:bg-gray-50 border-gray-300"
+                                    className="text-gray-600 hover:text-gray-700 hover:bg-gray-50 border-gray-300 w-full"
                                   >
                                     Fermer
                                   </Button>
@@ -844,88 +847,85 @@ export function ContactsPageClient({
                                     Le destinataire recevra un lien de connexion magique directement dans sa boîte mail.
                                   </p>
                                 </div>
-                                <div className="flex space-x-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCloseSuccessState(invitation.id);
+                                  }}
+                                  className="text-gray-600 hover:text-gray-700 hover:bg-gray-50 border-gray-300 w-full"
+                                >
+                                  Fermer
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="flex items-center gap-2 mb-3">
+                              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                                <Send className="h-4 w-4 text-orange-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium text-gray-900 text-sm truncate mb-1">{invitation.email}</div>
+                                {getStatusBadge(invitation.status || 'pending')}
+                              </div>
+                            </div>
+
+                            <div className="space-y-2 text-xs text-gray-600 mb-3">
+                              <div>{getContactTypeLabel(invitation)} • {invitation.name}</div>
+                              {invitation.company && (
+                                <div>Société : {invitation.company}</div>
+                              )}
+                              <div className="text-gray-500">
+                                Envoyée le {new Date(invitation.created_at).toLocaleDateString('fr-FR')}
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col gap-2">
+                              {(invitation.status || 'pending') === 'pending' && (
+                                <>
                                   <Button
                                     size="sm"
                                     variant="outline"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleCloseSuccessState(invitation.id);
+                                      handleResendInvitation(invitation.id);
                                     }}
-                                    className="text-gray-600 hover:text-gray-700 hover:bg-gray-50 border-gray-300"
+                                    disabled={resendingInvitations[invitation.id] || loadingInvitations}
+                                    className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200 w-full"
                                   >
-                                    Fermer
+                                    <Send className="h-3 w-3 mr-1" />
+                                    {resendingInvitations[invitation.id] ? "Génération..." : "Renvoyer invitation"}
                                   </Button>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center">
-                                <Send className="h-4 w-4 text-orange-600" />
-                              </div>
-                              <div>
-                                <div className="flex items-center space-x-2 mb-1">
-                                  <span className="font-medium text-gray-900">{invitation.email}</span>
-                                  {getStatusBadge(invitation.status || 'pending')}
-                                </div>
-                                <div className="flex items-center space-x-4 text-sm text-gray-600">
-                                  <span>
-                                    {getContactTypeLabel(invitation)} • {invitation.name}
-                                  </span>
-                                  {invitation.company && (
-                                    <span>• {invitation.company}</span>
-                                  )}
-                                  <span>• Envoyée le {new Date(invitation.created_at).toLocaleDateString('fr-FR')}</span>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center space-x-2">
-                              {(invitation.status || 'pending') === 'pending' && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleResendInvitation(invitation.id);
-                                  }}
-                                  disabled={resendingInvitations[invitation.id] || loadingInvitations}
-                                  className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 border-orange-200"
-                                >
-                                  <Send className="h-3 w-3 mr-1" />
-                                  {resendingInvitations[invitation.id] ? "Génération..." : "Renvoyer invitation"}
-                                </Button>
-                              )}
-
-                              {(invitation.status || 'pending') === 'pending' && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleCancelInvitation(invitation.id);
-                                  }}
-                                  disabled={cancellingInvitations[invitation.id] || loadingInvitations}
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-                                >
-                                  <X className="h-3 w-3 mr-1" />
-                                  {cancellingInvitations[invitation.id] ? "Annulation..." : "Annuler invitation"}
-                                </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCancelInvitation(invitation.id);
+                                    }}
+                                    disabled={cancellingInvitations[invitation.id] || loadingInvitations}
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 w-full"
+                                  >
+                                    <X className="h-3 w-3 mr-1" />
+                                    {cancellingInvitations[invitation.id] ? "Annulation..." : "Annuler invitation"}
+                                  </Button>
+                                </>
                               )}
 
                               {(invitation.status && invitation.status !== 'pending') && (
-                                <span className="text-sm text-gray-500 italic">
+                                <div className="text-sm text-gray-500 italic text-center py-2">
                                   {invitation.status === 'accepted' && "✅ Invitation acceptée"}
                                   {invitation.status === 'expired' && "⏱️ Invitation expirée"}
                                   {invitation.status === 'cancelled' && "🚫 Invitation annulée"}
-                                </span>
+                                </div>
                               )}
                             </div>
                           </div>
                         )}
-                      </div>
+                      </Card>
                     ))}
                   </div>
                 )
@@ -951,19 +951,20 @@ export function ContactsPageClient({
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {filteredCompanies.map((company) => (
-                      <div
+                      <Card
                         key={company.id}
-                        className="flex items-center justify-between p-4 bg-white rounded-lg border hover:shadow-sm transition-shadow"
+                        className="p-3 flex flex-col hover:shadow-md transition-shadow"
                       >
-                        <div className="flex items-center space-x-4">
-                          <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                            <Building2 className="h-6 w-6 text-purple-600" />
+                        {/* Header avec icône société, nom, badges et actions */}
+                        <div className="flex items-start gap-2 mb-2">
+                          <div className="w-9 h-9 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0">
+                            <Building2 className="h-4 w-4 text-purple-600" />
                           </div>
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3 mb-1">
-                              <h3 className="font-medium text-slate-900">{company.name}</h3>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h3 className="font-medium text-slate-900 text-base">{company.name}</h3>
                               {company.is_active ? (
                                 <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
                                   Active
@@ -979,120 +980,124 @@ export function ContactsPageClient({
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center space-x-4 text-sm text-slate-600">
-                              {company.vat_number && (
-                                <div className="flex items-center space-x-1">
-                                  <Building2 className="h-3 w-3" />
-                                  <span className="font-mono text-xs">TVA: {company.vat_number}</span>
-                                </div>
-                              )}
-                              {company.email && (
-                                <div className="flex items-center space-x-1">
-                                  <Mail className="h-3 w-3" />
-                                  <span>{company.email}</span>
-                                </div>
-                              )}
-                              {company.phone && (
-                                <div className="flex items-center space-x-1">
-                                  <Phone className="h-3 w-3" />
-                                  <span>{company.phone}</span>
-                                </div>
-                              )}
-                            </div>
-                            {/* Adresse de la société */}
-                            {company.city && (
-                              <div className="flex items-center space-x-1 text-sm text-slate-500 mt-1">
-                                <MapPin className="h-3 w-3" />
-                                <span>
-                                  {company.street && `${company.street}`}
-                                  {company.street_number && ` ${company.street_number}`}
-                                  {(company.street || company.street_number) && ', '}
-                                  {company.postal_code && `${company.postal_code} `}
-                                  {company.city}
-                                  {company.country && `, ${company.country}`}
-                                </span>
-                              </div>
-                            )}
-                            {company.notes && (
-                              <div className="text-sm text-slate-500 mt-1">
-                                <span>{company.notes}</span>
-                              </div>
-                            )}
+                          </div>
+
+                          {/* Actions standardisées: Edit → View → Menu */}
+                          <div className="flex-shrink-0 flex items-center space-x-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                              onClick={() => {
+                                logger.info(`Modifier société: ${company.id}`)
+                                setError("Page de modification société bientôt disponible")
+                              }}
+                              title="Modifier"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                              onClick={() => {
+                                logger.info(`Voir détails société: ${company.id}`)
+                                setError("Page de détails société bientôt disponible")
+                              }}
+                              title="Voir détails"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                                  title="Plus d'actions"
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-48">
+                                {company.email && (
+                                  <DropdownMenuItem
+                                    onClick={() => window.open(`mailto:${company.email}`, '_blank')}
+                                    className="cursor-pointer"
+                                  >
+                                    <Send className="h-4 w-4 mr-2" />
+                                    Contacter
+                                  </DropdownMenuItem>
+                                )}
+                                {company.website && (
+                                  <DropdownMenuItem
+                                    onClick={() => window.open(company.website!, '_blank')}
+                                    className="cursor-pointer"
+                                  >
+                                    <Eye className="h-4 w-4 mr-2" />
+                                    Voir le site web
+                                  </DropdownMenuItem>
+                                )}
+                                {(company.email || company.website) && <DropdownMenuSeparator />}
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    logger.info(`${company.is_active ? 'Désactiver' : 'Réactiver'} société: ${company.id}`)
+                                    setError(`Fonctionnalité de ${company.is_active ? 'désactivation' : 'réactivation'} bientôt disponible`)
+                                  }}
+                                  className={`cursor-pointer ${
+                                    company.is_active
+                                      ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+                                      : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                                  }`}
+                                >
+                                  <Archive className="h-4 w-4 mr-2" />
+                                  {company.is_active ? 'Désactiver' : 'Réactiver'}
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </div>
                         </div>
 
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-sky-600 hover:text-sky-700 hover:bg-sky-50"
-                            onClick={() => {
-                              logger.info(`Voir détails société: ${company.id}`)
-                              setError("Page de détails société bientôt disponible")
-                            }}
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            Détails
-                          </Button>
-
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-slate-600 hover:text-slate-700"
-                              >
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48">
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  logger.info(`Modifier société: ${company.id}`)
-                                  setError("Page de modification société bientôt disponible")
-                                }}
-                                className="cursor-pointer"
-                              >
-                                <Edit className="h-4 w-4 mr-2" />
-                                Modifier
-                              </DropdownMenuItem>
-                              {company.email && (
-                                <DropdownMenuItem
-                                  onClick={() => window.open(`mailto:${company.email}`, '_blank')}
-                                  className="cursor-pointer"
-                                >
-                                  <Send className="h-4 w-4 mr-2" />
-                                  Contacter
-                                </DropdownMenuItem>
-                              )}
-                              {company.website && (
-                                <DropdownMenuItem
-                                  onClick={() => window.open(company.website!, '_blank')}
-                                  className="cursor-pointer"
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Voir le site web
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  logger.info(`${company.is_active ? 'Désactiver' : 'Réactiver'} société: ${company.id}`)
-                                  setError(`Fonctionnalité de ${company.is_active ? 'désactivation' : 'réactivation'} bientôt disponible`)
-                                }}
-                                className={`cursor-pointer ${
-                                  company.is_active
-                                    ? 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
-                                    : 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                                }`}
-                              >
-                                <Archive className="h-4 w-4 mr-2" />
-                                {company.is_active ? 'Désactiver' : 'Réactiver'}
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                        {/* Détails empilés verticalement - flex-1 pour pousser le bouton en bas */}
+                        <div className="space-y-1.5 text-sm text-slate-600 flex-1">
+                          {company.vat_number && (
+                            <div className="flex items-center gap-2">
+                              <Building2 className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                              <span className="font-mono text-sm">TVA: {company.vat_number}</span>
+                            </div>
+                          )}
+                          {company.email && (
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                              <span className="truncate">{company.email}</span>
+                            </div>
+                          )}
+                          {company.phone && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                              <span>{company.phone}</span>
+                            </div>
+                          )}
+                          {company.city && (
+                            <div className="flex items-start gap-2">
+                              <MapPin className="h-4 w-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                              <span className="text-slate-500">
+                                {company.street && `${company.street}`}
+                                {company.street_number && ` ${company.street_number}`}
+                                {(company.street || company.street_number) && ', '}
+                                {company.postal_code && `${company.postal_code} `}
+                                {company.city}
+                                {company.country && `, ${company.country}`}
+                              </span>
+                            </div>
+                          )}
+                          {company.notes && (
+                            <div className="text-slate-500 pt-1.5 border-t mt-2">
+                              <span>{company.notes}</span>
+                            </div>
+                          )}
                         </div>
-                      </div>
+                      </Card>
                     ))}
                   </div>
                 )

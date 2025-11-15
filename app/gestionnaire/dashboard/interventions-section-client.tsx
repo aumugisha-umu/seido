@@ -5,7 +5,9 @@ import { Wrench, Clock, Archive, Plus, ArrowRight, AlertTriangle } from "lucide-
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import Link from "next/link"
-import { InterventionsList } from "@/components/interventions/interventions-list"
+import { InterventionsViewContainer } from "@/components/interventions/interventions-view-container"
+import { ViewModeSwitcherV1 } from "@/components/interventions/view-mode-switcher-v1"
+import { useViewMode } from "@/hooks/use-view-mode"
 import ContentNavigator from "@/components/content-navigator"
 import { logger } from '@/lib/logger'
 import { filterPendingActions } from '@/lib/intervention-alert-utils'
@@ -25,7 +27,13 @@ export interface InterventionsSectionClientProps {
 
 export function InterventionsSectionClient({ interventions, actionHooks, onActiveTabChange, initialActiveTab }: InterventionsSectionClientProps) {
   const [interventionsActiveTab, setInterventionsActiveTab] = useState<string | undefined>(initialActiveTab)
-  
+
+  // View mode state (cards, list, calendar)
+  const { viewMode, setViewMode, mounted } = useViewMode({
+    defaultMode: 'cards',
+    syncWithUrl: false
+  })
+
   // Update active tab when initialActiveTab changes
   useEffect(() => {
     if (initialActiveTab !== undefined) {
@@ -95,14 +103,25 @@ export function InterventionsSectionClient({ interventions, actionHooks, onActiv
   const renderInterventionsList = (tabId: string) => {
     const filteredInterventions = getFilteredInterventions(tabId)
 
+    // Don't render until mounted (prevent hydration mismatch)
+    if (!mounted) {
+      return (
+        <div className="animate-pulse space-y-2">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-32 bg-gray-200 rounded-lg" />
+          ))}
+        </div>
+      )
+    }
+
     return (
-      <InterventionsList
+      <InterventionsViewContainer
         interventions={filteredInterventions}
+        userContext="gestionnaire"
         loading={false}
-        horizontal={true}
         emptyStateConfig={{
           title: tabId === "actions_en_attente" ? "Aucune action en attente"
-                : tabId === "en_cours" ? "Aucune intervention en cours" 
+                : tabId === "en_cours" ? "Aucune intervention en cours"
                 : "Aucune intervention terminée",
           description: tabId === "actions_en_attente"
             ? "Toutes vos interventions sont à jour"
@@ -114,7 +133,9 @@ export function InterventionsSectionClient({ interventions, actionHooks, onActiv
           createButtonAction: () => window.location.href = '/gestionnaire/interventions/nouvelle-intervention'
         }}
         showStatusActions={true}
-        userContext="gestionnaire"
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        hideViewSwitcher={true}
         actionHooks={actionHooks}
       />
     )
@@ -147,6 +168,14 @@ export function InterventionsSectionClient({ interventions, actionHooks, onActiv
       content: renderInterventionsList("terminees")
     }
   ]
+
+  // View switcher to pass as right controls
+  const viewSwitcher = mounted ? (
+    <ViewModeSwitcherV1
+      value={viewMode}
+      onChange={setViewMode}
+    />
+  ) : null
 
   return (
     <div className="flex-1 flex flex-col min-h-0 mb-2">
@@ -182,6 +211,7 @@ export function InterventionsSectionClient({ interventions, actionHooks, onActiv
               activeTab={interventionsActiveTab}
               searchPlaceholder="Rechercher par titre, description, ou référence..."
               onSearch={(value) => logger.info("Recherche:", value)}
+              rightControls={viewSwitcher}
               className="shadow-none border-0 bg-transparent flex-1 flex flex-col min-h-0"
             />
         </div>

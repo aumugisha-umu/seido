@@ -180,7 +180,7 @@ export const inviteUserSchema = z.object({
   streetNumber: z.string().max(20).trim().optional().nullable(),
   postalCode: z.string().max(20).trim().optional().nullable(),
   city: z.string().max(100).trim().optional().nullable(),
-  country: z.string().max(100).trim().optional().nullable(),
+  country: z.string().length(2).trim().optional().nullable(),
 }).superRefine((data, ctx) => {
   // Email obligatoire si shouldInviteToApp === true
   if (data.shouldInviteToApp) {

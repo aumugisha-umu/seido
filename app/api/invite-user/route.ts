@@ -79,6 +79,9 @@ export async function POST(request: Request) {
       country
     } = validatedData
 
+    // ✅ Normaliser l'email : convertir chaînes vides en null (pour usage dans toutes les étapes)
+    const normalizedEmail = email?.trim() || null
+
     logger.info({
       email,
       firstName,
@@ -222,9 +225,6 @@ export async function POST(request: Request) {
         }
       }
     }
-
-    // ✅ Normaliser l'email : convertir chaînes vides en null (pour usage dans toutes les étapes)
-    const normalizedEmail = email?.trim() || null
 
     // ============================================================================
     // ÉTAPE 1 (COMMUNE): Créer le profil utilisateur SANS auth (SUPPORT MULTI-ÉQUIPES)

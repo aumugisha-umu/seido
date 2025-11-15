@@ -223,18 +223,17 @@ export function Step2Company({
               <Label htmlFor="country">
                 Pays <span className="text-red-500">*</span>
               </Label>
-              <Select value={country || 'Belgique'} onValueChange={(value) => onFieldChange('country', value)}>
+              <Select value={country || 'BE'} onValueChange={(value) => onFieldChange('country', value)}>
                 <SelectTrigger id="country" className="w-full">
                   <SelectValue placeholder="Sélectionnez un pays" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Belgique">Belgique</SelectItem>
-                  <SelectItem value="France">France</SelectItem>
-                  <SelectItem value="Pays-Bas">Pays-Bas</SelectItem>
-                  <SelectItem value="Allemagne">Allemagne</SelectItem>
-                  <SelectItem value="Luxembourg">Luxembourg</SelectItem>
-                  <SelectItem value="Suisse">Suisse</SelectItem>
-                  <SelectItem value="Autre">Autre</SelectItem>
+                  <SelectItem value="BE">Belgique</SelectItem>
+                  <SelectItem value="FR">France</SelectItem>
+                  <SelectItem value="NL">Pays-Bas</SelectItem>
+                  <SelectItem value="DE">Allemagne</SelectItem>
+                  <SelectItem value="LU">Luxembourg</SelectItem>
+                  <SelectItem value="CH">Suisse</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -44,11 +44,11 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
       validateRequired({ team_id: data.team_id }, ['team_id'])
     }
 
-    // Validate country enum if present
+    // Validate country enum if present (ISO 3166-1 alpha-2 codes)
     if ('country' in data && data.country) {
-      const validCountries = ['belgique', 'france', 'allemagne', 'pays-bas', 'suisse', 'luxembourg', 'autre']
+      const validCountries = ['BE', 'FR', 'DE', 'NL', 'LU', 'CH']
       if (!validCountries.includes(data.country)) {
-        throw new ValidationException(`Invalid country: ${data.country}. Must be one of: ${validCountries.join(', ')}`)
+        throw new ValidationException(`Invalid country code: ${data.country}. Must be one of: ${validCountries.join(', ')}`)
       }
     }
   }
@@ -171,7 +171,7 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
           street_number: companyData.street_number || null,
           postal_code: companyData.postal_code || null,
           city: companyData.city || null,
-          country: companyData.country || 'belgique',
+          country: companyData.country || 'BE',
           team_id: companyData.team_id,
           email: companyData.email || null,
           phone: companyData.phone || null,

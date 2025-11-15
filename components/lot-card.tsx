@@ -3,7 +3,14 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Home, Eye, Users, Wrench, MapPin, Building2, Edit } from "lucide-react"
+import { Home, Eye, Users, Wrench, MapPin, Building2, Edit, MoreVertical, Archive } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import { getLotCategoryConfig } from "@/lib/lot-types"
 
@@ -135,32 +142,70 @@ export default function LotCard({
                     {isSelected ? "✓ Sélectionné" : "Sélectionner"}
                   </Button>
                 ) : (
-                  <>
-                    <Button 
-                      variant="ghost" 
+                  <div className="flex items-center space-x-1">
+                    <Button
+                      variant="ghost"
                       size="sm"
                       className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
                       onClick={(e) => {
                         e.stopPropagation()
                         router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)
                       }}
-                      title="Modifier le lot"
+                      title="Modifier"
                     >
-                      <Edit className="h-3 w-3" />
+                      <Edit className="h-4 w-4" />
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="ghost"
                       size="sm"
-                      className="h-8 px-3 text-xs"
+                      className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
                       onClick={(e) => {
                         e.stopPropagation()
                         router.push(`/gestionnaire/biens/lots/${lot.id}`)
                       }}
+                      title="Voir détails"
                     >
-                      <Eye className="h-3 w-3 mr-1" />
-                      Détails
+                      <Eye className="h-4 w-4" />
                     </Button>
-                  </>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                          onClick={(e) => e.stopPropagation()}
+                          title="Plus d'actions"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/gestionnaire/contacts?lot=${lot.id}`)
+                          }}
+                          className="cursor-pointer"
+                        >
+                          <Users className="h-4 w-4 mr-2" />
+                          Gérer les locataires
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            // Future feature: Archive lot
+                            console.log('Archive lot:', lot.id)
+                          }}
+                          className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                          disabled
+                        >
+                          <Archive className="h-4 w-4 mr-2" />
+                          Archiver
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 )}
               </div>
             </div>

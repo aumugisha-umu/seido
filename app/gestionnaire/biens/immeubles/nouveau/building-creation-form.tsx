@@ -37,7 +37,6 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
 import { toast } from "sonner"
 import { useSaveFormState, useRestoreFormState, loadFormState, clearFormState } from "@/hooks/use-form-persistence"
-import ContactFormModal from "@/components/contact-form-modal"  // Encore utilise pour la creation de gestionnaire
 import { BuildingInfoForm } from "@/components/building-info-form"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 import { useManagerStats } from "@/hooks/use-manager-stats"
@@ -193,9 +192,6 @@ export default function NewImmeubleePage({
   const [isNameChecking, setIsNameChecking] = useState(false)
   // Flag pour tracker si l'utilisateur a édité manuellement le nom de l'immeuble
   const [hasUserEditedName, setHasUserEditedName] = useState(false)
-  
-  // Etats pour la creation de gestionnaire
-  const [isGestionnaireModalOpen, setIsGestionnaireModalOpen] = useState(false)
   
   // Etat pour gerer l'affichage des details de chaque lot
   const [expandedLots, setExpandedLots] = useState<{[key: string]: boolean}>({})
@@ -828,66 +824,8 @@ export default function NewImmeubleePage({
 
   // [SUPPRIME] handleContactCreated maintenant gere dans ContactSelector centralise
 
-  const handleGestionnaireCreated = async (contactData: Contact) => {
-    try {
-      // ✅ Check services are ready
-      if (!services) {
-        logger.error("⏳ Services not ready, cannot create gestionnaire")
-        setError("Services d'authentification en cours de chargement. Veuillez réessayer.")
-        return
-      }
-
-      if (!userTeam?.id) {
-        logger.error("No team found for user")
-        return
-      }
-
-      // Utiliser le service d'invitation pour creer le gestionnaire et optionnellement l'utilisateur
-      const result = await services.contactInvitation.createContactWithOptionalInvite({
-        type: 'gestionnaire',
-        firstName: contactData.firstName,
-        lastName: contactData.lastName,
-        email: contactData.email,
-        phone: contactData.phone,
-        address: contactData.address,
-        speciality: contactData.speciality,
-        notes: contactData.notes,
-        inviteToApp: contactData.inviteToApp,
-        teamId: userTeam.id
-      })
-
-      // ✅ Vérifier que le résultat contient bien les données attendues
-      if (!result.success || !result.data?.contact) {
-        logger.error("❌ [GESTIONNAIRE-CREATION] Échec de la création ou données manquantes:", result)
-        setError("Erreur lors de la création du gestionnaire. Veuillez réessayer.")
-        return
-      }
-
-      // Si l'invitation a reussi, l'utilisateur sera cree avec les bonnes permissions
-      // Creer l'objet manager pour l'etat local
-      const newManager = {
-        user: {
-          id: result.data.contact.id, // ✅ CORRECTION: Accès via result.data.contact
-          name: result.data.contact.name,
-          email: result.data.contact.email,
-          role: 'gestionnaire'
-        },
-        role: 'gestionnaire' // Aligné avec user.role et team_member_role enum
-      }
-
-      setTeamManagers([...teamManagers, newManager])
-      setIsGestionnaireModalOpen(false)
-
-      logger.info("✅ [GESTIONNAIRE-CREATION] Gestionnaire créé avec succès:", newManager.user.name)
-
-    } catch (error) {
-      logger.error("❌ [GESTIONNAIRE-CREATION] Erreur lors de la création du gestionnaire:", error)
-      setError("Erreur lors de la création du gestionnaire. Veuillez réessayer.")
-    }
-  }
-
   const openGestionnaireModal = () => {
-    setIsGestionnaireModalOpen(true)
+    router.push('/gestionnaire/contacts/nouveau')
   }
 
   // Fonctions pour la gestion des gestionnaires assignes aux lots
@@ -1090,15 +1028,6 @@ export default function NewImmeubleePage({
         </div>
 
         {/* [SUPPRIME] Contact Selection Modal et Contact Form Modal maintenant geres dans ContactSelector centralise */}
-
-        {/* Gestionnaire Creation Modal */}
-        <ContactFormModal
-          isOpen={isGestionnaireModalOpen}
-          onClose={() => setIsGestionnaireModalOpen(false)}
-          onSubmit={handleGestionnaireCreated}
-          defaultType="gestionnaire"
-          teamId={userTeam.id}
-        />
 
         {/* Manager Assignment Modal */}
         <Dialog open={isManagerModalOpen} onOpenChange={setIsManagerModalOpen}>

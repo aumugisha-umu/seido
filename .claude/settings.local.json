@@ -10,7 +10,9 @@
       "WebFetch(domain:docs.flutterflow.io)",
       "Bash(npm install:*)",
       "Bash(dir:*)",
-      "WebFetch(domain:viesapi.eu)"
+      "WebFetch(domain:viesapi.eu)",
+      "Bash(npm run lint:*)",
+      "WebFetch(domain:cbeapi.be)"
     ],
     "deny": [],
     "ask": []

@@ -255,12 +255,15 @@ export class CompanyLookupService {
     cacheKey: string
   ): Promise<CompanyLookupServiceResponse> {
     try {
-      // CBEAPI expects VAT without "BE" prefix or with it
-      const url = `${CBEAPI_CONFIG.baseUrl}/company/search?vat=${vatNumber}&limit=1`
+      // CBEAPI direct lookup endpoint requires CBE number in path (not query param)
+      // Strip "BE" prefix if present: BE0775691974 → 0775691974
+      const cbeNumber = vatNumber.replace(/^BE/i, '')
+      const url = `${CBEAPI_CONFIG.baseUrl}/company/${cbeNumber}`
 
       logger.info({
         url,
-        vatNumber
+        vatNumber,
+        cbeNumber
       }, '[COMPANY-LOOKUP] Calling CBEAPI')
 
       // Call API with retry logic
@@ -286,8 +289,8 @@ export class CompanyLookupService {
 
       const data: CbeApiResponse = await response.json()
 
-      // Check if company found
-      if (!data.data || data.data.length === 0) {
+      // Check if company found (direct lookup returns single object, not array)
+      if (!data.data) {
         logger.warn({
           vatNumber
         }, '[COMPANY-LOOKUP] Company not found in CBEAPI')
@@ -299,8 +302,8 @@ export class CompanyLookupService {
         }
       }
 
-      // Map CBEAPI response to our format
-      const company = data.data[0]
+      // Map CBEAPI response to our format (direct lookup returns single object)
+      const company = data.data
       const result = this.mapCbeApiToResult(company, vatNumber)
 
       // Cache the result

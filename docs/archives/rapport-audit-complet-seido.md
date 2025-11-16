@@ -4,7 +4,83 @@
 **Version analysée :** Branche `preview`
 **Périmètre :** Tests, sécurité, architecture, frontend, backend, workflows, performance, accessibilité
 **Équipe d'audit :** Agents spécialisés (tester, seido-debugger, backend-developer, frontend-developer, seido-test-automator, ui-designer)
-**Dernière mise à jour :** 11 novembre 2025 - 20:10 CET (Fix récursion RLS + UI modal devis)
+**Dernière mise à jour :** 16 novembre 2025 - 12:00 CET (Fix recherche TVA CBEAPI)
+
+---
+
+## ✅ CORRECTIONS APPLIQUÉES - 16 novembre 2025 - 12:00 CET
+
+### 🔍 Fix : Recherche par numéro de TVA CBEAPI (400 Bad Request)
+
+**Contexte :** La recherche de sociétés par numéro de TVA dans le wizard de création de contacts retournait une erreur 400 Bad Request, alors que la recherche par nom fonctionnait parfaitement.
+
+#### 🔍 Diagnostic :
+
+**Erreur identifiée :** Utilisation du mauvais endpoint CBEAPI
+- **Requête problématique :** `GET /api/v1/company/search?vat=BE0775691974&limit=1`
+- **Réponse API :** `400 Bad Request`
+- **Logs :** `[COMPANY-LOOKUP] CBEAPI error response - status: 400`
+
+**Cause racine :**
+- ❌ Le endpoint `/company/search` n'accepte QUE les paramètres `name` ou `post_code`
+- ❌ Le code utilisait un paramètre `vat=` qui n'existe pas dans la documentation officielle
+- ❌ Pour les recherches VAT/CBE, CBEAPI utilise un endpoint **complètement différent** : `/company/{cbeNumber}`
+
+**Impact :**
+- ❌ Impossible de créer des contacts en recherchant par numéro de TVA
+- ❌ Workflow de création de contacts partiellement bloqué
+- ✅ Recherche par nom continuait de fonctionner (endpoint correct)
+
+#### ✅ Solution appliquée :
+
+**Migration vers l'endpoint direct `/company/{cbeNumber}`**
+
+**Fichier modifié :** `lib/services/domain/company-lookup.service.ts`
+
+**3 changements dans la méthode `lookupBelgianCompany` :**
+
+1. **URL construction (ligne 259) :**
+   ```typescript
+   // ❌ AVANT (endpoint de recherche - ne supporte pas vat)
+   const url = `${CBEAPI_CONFIG.baseUrl}/company/search?vat=${vatNumber}&limit=1`
+
+   // ✅ APRÈS (endpoint direct - supporte CBE number dans le path)
+   const cbeNumber = vatNumber.replace(/^BE/i, '')
+   const url = `${CBEAPI_CONFIG.baseUrl}/company/${cbeNumber}`
+
+   // Exemple : BE0775691974 → https://cbeapi.be/api/v1/company/0775691974
+   ```
+
+2. **Validation de réponse (ligne 290) :**
+   ```typescript
+   // ❌ AVANT (endpoint /search retourne un array)
+   if (!data.data || data.data.length === 0)
+
+   // ✅ APRÈS (endpoint direct retourne un objet unique)
+   if (!data.data)
+   ```
+
+3. **Extraction des données (ligne 306) :**
+   ```typescript
+   // ❌ AVANT (accès array)
+   const company = data.data[0]
+
+   // ✅ APRÈS (accès direct)
+   const company = data.data
+   ```
+
+#### 📊 Résultat :
+
+**Endpoints CBEAPI utilisés :**
+- ✅ Recherche par nom : `/company/search?name={nom}` (inchangé)
+- ✅ Recherche par TVA : `/company/{cbeNumber}` (corrigé)
+
+**Tests à effectuer :**
+- [ ] Recherche TVA belge : BE0775691974
+- [ ] Recherche nom : "Bleckmann", "Bigard"
+- [ ] Workflow complet de création de contact via wizard
+
+**Documentation officielle :** https://cbeapi.be/en/docs
 
 ---
 

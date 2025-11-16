@@ -16,8 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import ContentNavigator from "@/components/content-navigator"
 import { useRouter } from "next/navigation"
-import { ContactFormModal } from "@/components/contact-form-modal"
-import { determineAssignmentType, createContactService, createContactInvitationService } from '@/lib/services'
+import { determineAssignmentType, createContactService } from '@/lib/services'
 import { logger } from '@/lib/logger'
 
 // Types for props
@@ -124,10 +123,8 @@ export function ContactsPageClient({
 
   // ✅ Instancier les services nécessaires
   const contactService = createContactService()
-  const contactInvitationService = createContactInvitationService()
 
   // ✅ États UI (inchangés)
-  const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([])
   const [filteredInvitations, setFilteredInvitations] = useState<Invitation[]>([])
   const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([])
@@ -441,39 +438,6 @@ export function ContactsPageClient({
     })
   }
 
-  const handleContactSubmit = async (contactData: any) => {
-    try {
-      logger.info("📞 [CONTACTS-PAGE] Creating contact:", contactData)
-
-      if (!userTeam?.id) {
-        logger.error("❌ [CONTACTS-PAGE] No team found")
-        setError("Aucune équipe trouvée pour créer le contact")
-        return
-      }
-
-      const dataWithTeam = {
-        ...contactData,
-        teamId: userTeam.id
-      }
-
-      const result = await contactInvitationService.createContactWithOptionalInvite(dataWithTeam)
-
-      if (result.invitation) {
-        if (result.invitation.success) {
-          logger.info(`✅ [CONTACTS-PAGE] Invitation sent successfully to: ${contactData.email}`)
-        } else {
-          logger.warn(`⚠️ [CONTACTS-PAGE] Contact created but invitation failed: ${result.invitation.error}`)
-          setError(`Contact créé mais l'invitation a échoué: ${result.invitation.error}`)
-        }
-      }
-
-      await refetchContacts()
-      setIsContactModalOpen(false)
-    } catch (error) {
-      logger.error("❌ [CONTACTS-PAGE] Error creating contact:", error)
-      setError("Erreur lors de la création du contact")
-    }
-  }
 
   const handleDeleteContact = async (contactId: string) => {
     try {
@@ -1188,16 +1152,6 @@ export function ContactsPageClient({
           }}
           filterValues={filters}
         />
-
-      {/* Contact Form Modal */}
-      <ContactFormModal
-        isOpen={isContactModalOpen}
-        onClose={() => setIsContactModalOpen(false)}
-        onSubmit={handleContactSubmit}
-        onSuccess={refetchContacts}
-        defaultType="tenant"
-        teamId={userTeam.id} // ✅ AJOUT: Passer teamId pour validation multi-équipes
-      />
     </div>
   )
 }

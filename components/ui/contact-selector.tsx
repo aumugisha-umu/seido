@@ -1,15 +1,14 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Users, Search } from "lucide-react"
 import { cn } from "@/lib/utils"
-import ContactFormModal from "@/components/contact-form-modal"
-import { createContactInvitationService } from "@/lib/services"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 // Composant SelectItem personnalisé avec bouton au lieu du checkmark
 const CustomSelectItem = ({
   className,
@@ -112,7 +111,7 @@ const ContactSelector = ({
   teamId,
   disableTypeSelection = false
 }: ContactSelectorProps) => {
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
 
   // Log teamId pour debugging
@@ -121,10 +120,11 @@ const ContactSelector = ({
   const handleSelectChange = (value: string) => {
     if (value === "create-new") {
       if (!teamId) {
-        logger.error("❌ [CONTACT-SELECTOR] Cannot open modal: teamId is undefined")
+        logger.error("❌ [CONTACT-SELECTOR] Cannot navigate: teamId is undefined")
         return
       }
-      setIsModalOpen(true)
+      // Redirection vers le wizard de création de contact
+      router.push('/gestionnaire/contacts/nouveau')
     } else {
       onContactSelect(value)
     }
@@ -136,76 +136,6 @@ const ContactSelector = ({
     return selectedContactIds.map(id => String(id)).includes(String(contactId))
   }
 
-  const handleContactCreated = async (contactData: {
-    type: string
-    firstName: string
-    lastName: string
-    email: string
-    phone?: string
-    address?: string
-    speciality?: string
-    notes?: string
-    inviteToApp?: boolean
-  }) => {
-    try {
-      logger.info('🆕 Création d\'un contact:', contactData)
-      
-      if (!teamId) {
-        logger.error("❌ No team found")
-        return
-      }
-
-      // Utiliser le service d'invitation pour créer le contact et optionnellement l'utilisateur
-      const contactInvitationService = createContactInvitationService()
-      const result = await contactInvitationService.createContactWithOptionalInvite({
-        type: contactData.type,
-        firstName: contactData.firstName,
-        lastName: contactData.lastName,
-        email: contactData.email,
-        phone: contactData.phone,
-        address: contactData.address,
-        speciality: contactData.speciality,
-        notes: contactData.notes,
-        inviteToApp: contactData.inviteToApp,
-        teamId: teamId
-      })
-
-      logger.info("✅ Contact créé avec succès:", result.data)
-
-      // Vérifier que le contact a bien été créé avant de notifier
-      if (!result.data?.contact) {
-        logger.error("❌ Contact créé mais aucune donnée retournée:", result)
-        return
-      }
-
-      setIsModalOpen(false)
-
-      // Notifier le parent
-      onContactCreated(result.data.contact)
-
-      // Afficher un message si une invitation a été envoyée
-      if (result.data?.invitation?.success) {
-        logger.info("📧 Invitation envoyée avec succès à:", contactData.email)
-      } else if (result.data?.invitation?.error) {
-        logger.warn("⚠️ Contact créé mais invitation échouée:", result.data.invitation.error)
-      }
-      
-    } catch (error) {
-      logger.error("❌ Erreur lors de la création du contact:", error)
-    }
-  }
-
-  // Mapper les types français (contactType) vers anglais (ContactFormModal)
-  const mapContactTypeToEnglish = (): string => {
-    switch (contactType) {
-      case 'gestionnaire':
-        return 'manager'
-      case 'prestataire':
-        return 'provider'
-      default:
-        return contactType
-    }
-  }
 
   const getContactLabel = () => {
     switch (contactType) {
@@ -311,15 +241,6 @@ const ContactSelector = ({
           </SelectItem>
         </SelectContent>
       </Select>
-
-      <ContactFormModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleContactCreated}
-        defaultType={mapContactTypeToEnglish()}
-        teamId={teamId}
-        disableTypeSelection={disableTypeSelection}
-      />
     </>
   )
 }

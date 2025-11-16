@@ -18,7 +18,6 @@ import {
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import ContactFormModal from "@/components/contact-form-modal"
 import { BuildingInfoForm } from "@/components/building-info-form"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 import { createTeamService, createContactInvitationService } from "@/lib/services"
@@ -102,7 +101,6 @@ export default function EditBuildingClient({
   const [isManagerModalOpen, setIsManagerModalOpen] = useState(false)
   const [selectedLotForManager, setSelectedLotForManager] = useState<string>("")
   const [isBuildingManagerModalOpen, setIsBuildingManagerModalOpen] = useState(false)
-  const [isGestionnaireModalOpen, setIsGestionnaireModalOpen] = useState(false)
 
   // Team managers
   const [teamManagers, setTeamManagers] = useState<Array<{ user: User }>>(initialTeamManagers)
@@ -359,61 +357,8 @@ export default function EditBuildingClient({
     setBuildingManagers(buildingManagers.filter(m => m.user.id !== managerId))
   }
 
-  const handleGestionnaireCreated = async (contactData: Contact) => {
-    try {
-      if (!services) {
-        logger.error("⏳ Services not ready, cannot create gestionnaire")
-        setError("Services d'authentification en cours de chargement. Veuillez réessayer.")
-        return
-      }
-
-      if (!userTeam?.id) {
-        logger.error("No team found for user")
-        return
-      }
-
-      const result = await services.contactInvitation.createContactWithOptionalInvite({
-        type: 'gestionnaire',
-        firstName: contactData.firstName,
-        lastName: contactData.lastName,
-        email: contactData.email,
-        phone: contactData.phone,
-        address: contactData.address,
-        speciality: contactData.speciality,
-        notes: contactData.notes,
-        inviteToApp: contactData.inviteToApp,
-        teamId: userTeam.id
-      })
-
-      if (!result.success || !result.data?.contact) {
-        logger.error("❌ [GESTIONNAIRE-CREATION] Échec de la création ou données manquantes:", result)
-        setError("Erreur lors de la création du gestionnaire. Veuillez réessayer.")
-        return
-      }
-
-      const newManager = {
-        user: {
-          id: result.data.contact.id,
-          name: result.data.contact.name,
-          email: result.data.contact.email,
-          role: 'gestionnaire'
-        },
-        role: 'gestionnaire'
-      }
-
-      setTeamManagers([...teamManagers, newManager])
-      setIsGestionnaireModalOpen(false)
-
-      logger.info("✅ [GESTIONNAIRE-CREATION] Gestionnaire créé avec succès:", newManager.user.name)
-
-    } catch (error) {
-      logger.error("❌ [GESTIONNAIRE-CREATION] Erreur lors de la création du gestionnaire:", error)
-      setError("Erreur lors de la création du gestionnaire. Veuillez réessayer.")
-    }
-  }
-
   const openGestionnaireModal = () => {
-    setIsGestionnaireModalOpen(true)
+    router.push('/gestionnaire/contacts/nouveau')
   }
 
   // Navigation helpers
@@ -710,15 +655,6 @@ export default function EditBuildingClient({
           </Button>
         </div>
       </div>
-
-      {/* Gestionnaire Creation Modal */}
-      <ContactFormModal
-        isOpen={isGestionnaireModalOpen}
-        onClose={() => setIsGestionnaireModalOpen(false)}
-        onSubmit={handleGestionnaireCreated}
-        defaultType="gestionnaire"
-        teamId={userTeam.id}
-      />
 
       {/* Manager Assignment Modal */}
       <Dialog open={isManagerModalOpen} onOpenChange={setIsManagerModalOpen}>

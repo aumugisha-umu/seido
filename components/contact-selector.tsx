@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback, forwardRef, useImperativeHandle } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -23,14 +24,10 @@ import {
   Building,
   Building2
 } from "lucide-react"
-import ContactFormModal from "@/components/contact-form-modal"
 
-
-import { determineAssignmentType, createContactInvitationService } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { determineAssignmentType } from '@/lib/services'
+import { logger } from '@/lib/logger'
 import { useDemoAwareTeamContacts } from '@/hooks/use-demo-aware-team-contacts'
-
-const contactInvitationService = createContactInvitationService()
 
 // Types de contacts avec leurs configurations visuelles
 const contactTypes = [
@@ -135,12 +132,11 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   // État pour le chargement lors de la confirmation
   const [isConfirming, setIsConfirming] = useState(false)
 
-  // États pour le modal de création
-  const [isContactFormModalOpen, setIsContactFormModalOpen] = useState(false)
-  const [prefilledContactType, setPrefilledContactType] = useState<string>("")
+  // Router pour navigation vers wizard
+  const router = useRouter()
 
   // ✅ Hook SWR demo-aware pour fetcher les contacts avec cache intelligent
-  const { data: teamContacts, isLoading: isLoadingContacts, error: loadingError } = useDemoAwareTeamContacts(teamId)
+  const { data: teamContacts, isLoading: isLoadingContacts, error: loadingError} = useDemoAwareTeamContacts(teamId)
 
   // ✅ Plus besoin de refs pour le chargement - SWR gère tout
 
@@ -203,7 +199,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
 
   // [SUPPRIMÉ] Ancienne fonction openContactModal remplacée par handleOpenContactModal
 
-  // Ouvrir le modal de création de contact
+  // Rediriger vers le wizard de création de contact
   const openContactFormModal = (_type: string) => {
     // Si un callback de redirection est fourni, l'utiliser (nouveau flow multi-étapes)
     if (onRequestContactCreation) {
@@ -213,10 +209,9 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       return
     }
 
-    // Sinon, comportement par défaut (ancien modal inline)
-    logger.info(`📝 [CONTACT-SELECTOR] Opening inline modal for type: ${_type}`)
-    setPrefilledContactType(_type)
-    setIsContactFormModalOpen(true)
+    // Sinon, redirection vers le wizard
+    logger.info(`🔗 [CONTACT-SELECTOR] Redirecting to contact creation wizard`)
+    router.push('/gestionnaire/contacts/nouveau')
     setIsContactModalOpen(false)
   }
 
@@ -354,80 +349,10 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     cleanContactContext()
   }
 
-  // Créer un contact (logique centralisée)
-  const handleContactCreated = async (contactData: { type: string; firstName: string; lastName: string; email: string; phone: string; speciality?: string; notes: string; inviteToApp: boolean }) => {
-    try {
-      if (!teamId) {
-        logger.error("❌ [ContactSelector] No teamId provided")
-        return
-      }
-
-      logger.info('🆕 [ContactSelector] Creating contact:', contactData.firstName, contactData.lastName, 'type:', selectedContactType)
-
-      // Utiliser le service d'invitation pour créer le contact
-      const result = await contactInvitationService.createContactWithOptionalInvite({
-        type: contactData.type,
-        firstName: contactData.firstName,
-        lastName: contactData.lastName,
-        email: contactData.email,
-        phone: contactData.phone,
-        speciality: contactData.speciality,
-        notes: contactData.notes,
-        inviteToApp: contactData.inviteToApp,
-        teamId: teamId
-      })
-
-      // Vérifier la réussite et sécuriser l'accès aux propriétés
-      const responseData: any = (result as any) || {}
-      const responseContact: any = responseData.contact || responseData.data?.contact || null
-
-      if (!responseContact) {
-        logger.warn('⚠️ [ContactSelector] Contact created but no contact payload returned. Proceeding with form data fallback')
-      }
-
-      // Validation critique : l'ID du contact doit exister
-      if (!responseContact?.id) {
-        logger.error('❌ [ContactSelector] Contact creation failed - no ID returned:', result)
-        throw new Error('La création du contact a échoué. Aucun ID reçu du serveur.')
-      }
-
-      // Créer le contact pour l'état local (fallbacks si certaines infos manquent)
-      const newContact: Contact = {
-        id: responseContact.id,
-        name: responseContact?.name || `${contactData.firstName} ${contactData.lastName}`.trim(),
-        email: responseContact?.email || contactData.email,
-        type: selectedContactType,
-        phone: responseContact?.phone || contactData.phone,
-        speciality: responseContact?.speciality || contactData.speciality,
-      }
-      
-      logger.info('✅ [ContactSelector] Contact created:', newContact.name)
-      
-      // Déterminer le lotId à utiliser : externe (ouverture ref) ou prop directe
-      const contextLotId = externalLotId || lotId
-      
-      // Appeler les callbacks parent
-      if (onContactSelected) {
-        onContactSelected(newContact, selectedContactType, { lotId: contextLotId })
-      }
-      
-      if (onContactCreated) {
-        onContactCreated(newContact, selectedContactType, { lotId: contextLotId })
-      }
-      
-      // Fermer seulement le modal de création, pas le modal de sélection
-      setIsContactFormModalOpen(false)
-      // Ne pas appeler cleanContactContext() pour garder la modale de sélection ouverte
-      
-    } catch (error) {
-      logger.error("❌ Erreur lors de la création du contact:", error)
-    }
-  }
 
   // Nettoyer le contexte de sélection
   const cleanContactContext = () => {
     setSelectedContactType("")
-    setPrefilledContactType("")
     setExternalLotId(undefined) // Nettoyer le contexte lot pour éviter les assignations incorrectes
   }
 
@@ -914,18 +839,6 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Contact Form Modal */}
-      <ContactFormModal
-        isOpen={isContactFormModalOpen}
-        onClose={() => {
-          setIsContactFormModalOpen(false)
-          cleanContactContext()
-        }}
-        onSubmit={handleContactCreated}
-        defaultType={prefilledContactType}
-        teamId={teamId || ''}
-      />
     </>
   )
 })

@@ -172,9 +172,9 @@ export function validateFrenchVat(vatNumber: string): boolean {
 export function formatVatNumber(vatNumber: string): string {
   const clean = vatNumber.trim().toUpperCase().replace(/\s/g, '')
 
-  // Belgium: BE 0123 456 789
+  // Belgium: BE 0123.456.789 (official format with dots)
   if (clean.startsWith('BE')) {
-    return `${clean.substring(0, 2)} ${clean.substring(2, 6)} ${clean.substring(6, 9)} ${clean.substring(9, 12)}`
+    return `${clean.substring(0, 2)} ${clean.substring(2, 6)}.${clean.substring(6, 9)}.${clean.substring(9, 12)}`
   }
 
   // France: FR 12 123456789

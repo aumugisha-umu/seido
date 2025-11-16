@@ -12,7 +12,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Home, Users, ArrowLeft, ArrowRight, Plus, X, User, MapPin, FileText, Building2, Check, Loader2 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useCreationSuccess } from "@/hooks/use-creation-success"
-import ContactFormModal from "@/components/contact-form-modal"
 import { BuildingInfoForm } from "@/components/building-info-form"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 import PropertySelector from "@/components/property-selector"
@@ -108,8 +107,7 @@ export default function NewLotPage() {
   
   // États pour la gestion des gestionnaires de lot
   const [isLotManagerModalOpen, setIsLotManagerModalOpen] = useState(false)
-  const [isGestionnaireModalOpen, setIsGestionnaireModalOpen] = useState(false)
-  
+
   // États pour les informations générales de l'immeuble (étape 2)
   const [selectedManagerId, setSelectedManagerId] = useState<string>("")
   const [teamManagers, setTeamManagers] = useState<TeamManager[]>([])
@@ -1330,65 +1328,9 @@ export default function NewLotPage() {
     }
   }
 
-  // Fonction pour ouvrir le modal de création de gestionnaire
+  // Fonction pour ouvrir le wizard de création de gestionnaire
   const openGestionnaireModal = () => {
-    setIsGestionnaireModalOpen(true)
-  }
-
-  // Fonction pour gérer la création d'un nouveau gestionnaire
-  const handleGestionnaireCreated = async (contactData: CreateContactData) => {
-    try {
-      logger.info("🆕 Création d'un nouveau gestionnaire:", contactData)
-      
-      if (!userTeam?.id) {
-        logger.error("❌ No team found for user")
-        return
-      }
-
-      // Utiliser la Server Action pour créer le gestionnaire avec le bon contexte d'authentification
-      const result = await createContactWithOptionalInviteAction({
-        type: 'gestionnaire',
-        firstName: contactData.firstName,
-        lastName: contactData.lastName,
-        email: contactData.email,
-        phone: contactData.phone,
-        address: contactData.address,
-        speciality: contactData.speciality,
-        notes: contactData.notes,
-        inviteToApp: contactData.inviteToApp,
-        teamId: userTeam.id
-      })
-
-      if (!result.success || !result.data) {
-        logger.error("❌ Failed to create manager:", result.error)
-        toast({
-          title: "Erreur lors de la création du gestionnaire",
-          description: typeof result.error === 'string' ? result.error : "Une erreur est survenue",
-          variant: "destructive",
-        })
-        return
-      }
-
-      // Si l'invitation a réussi, l'utilisateur sera créé avec les bonnes permissions
-      // Créer l'objet manager pour l'état local avec l'ID réel du contact
-      const newManager = {
-        user: {
-          id: result.data.contact.id, // Utiliser l'ID réel du contact
-          name: result.data.contact.name,
-          email: result.data.contact.email,
-          role: 'gestionnaire'
-        },
-        role: 'gestionnaire' // Aligné avec user.role et team_member_role enum
-      }
-
-      setTeamManagers([...teamManagers, newManager])
-      setIsGestionnaireModalOpen(false)
-
-      logger.info("✅ Gestionnaire créé avec succès, ID:", result.data.contact.id)
-      
-    } catch (error) {
-      logger.error("❌ Erreur lors de la création du gestionnaire:", error)
-    }
+    router.push('/gestionnaire/contacts/nouveau')
   }
 
   const canProceedToNextStep = () => {
@@ -2560,14 +2502,6 @@ export default function NewLotPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Gestionnaire Creation Modal */}
-      <ContactFormModal
-        isOpen={isGestionnaireModalOpen}
-        onClose={() => setIsGestionnaireModalOpen(false)}
-        onSubmit={handleGestionnaireCreated}
-        defaultType="gestionnaire"
-      />
     </div>
   )
 }

@@ -45,6 +45,38 @@ export function CompanySearch({
   const [showResults, setShowResults] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // État spécifique pour le formatage des numéros de TVA belges
+  const [rawVatInput, setRawVatInput] = useState('')
+  const [displayValue, setDisplayValue] = useState('')
+
+  // Helper: Extraire uniquement les chiffres d'un numéro de TVA belge
+  const extractBelgianVatDigits = (input: string): string => {
+    return input
+      .replace(/^BE/i, '') // Retirer le préfixe BE s'il est présent
+      .replace(/[^0-9]/g, '') // Garder uniquement les chiffres
+      .substring(0, 10) // Maximum 10 chiffres pour une TVA belge
+  }
+
+  // Helper: Formater un numéro de TVA belge pour l'affichage
+  const formatBelgianVatDisplay = (digits: string): string => {
+    if (digits.length === 0) return ''
+
+    // Format: BE 0XXX.XXX.XXX
+    let formatted = 'BE '
+
+    if (digits.length <= 4) {
+      formatted += digits
+    } else if (digits.length <= 7) {
+      formatted += digits.substring(0, 4) + '.' + digits.substring(4)
+    } else {
+      formatted += digits.substring(0, 4) + '.'
+        + digits.substring(4, 7) + '.'
+        + digits.substring(7, 10)
+    }
+
+    return formatted
+  }
+
   // Labels par défaut selon le type de recherche
   const defaultLabel = searchType === 'name'
     ? 'Rechercher par nom d\'entreprise'
@@ -52,7 +84,7 @@ export function CompanySearch({
 
   const defaultPlaceholder = searchType === 'name'
     ? 'Tapez le nom de l\'entreprise...'
-    : 'BE0123456789'
+    : 'BE 0123.456.789'
 
   // Recherche avec debounce pour nom, immédiate pour TVA
   useEffect(() => {
@@ -128,7 +160,11 @@ export function CompanySearch({
   const handleSelectCompany = (company: CompanyLookupResult) => {
     onSelect(company)
     setShowResults(false)
-    setSearchValue('') // Reset le champ de recherche
+
+    // Reset tous les états (search générique + états spécifiques VAT)
+    setSearchValue('')
+    setDisplayValue('')
+    setRawVatInput('')
     setResults([])
   }
 
@@ -141,10 +177,10 @@ export function CompanySearch({
 
   // Gestion du blur (fermer dropdown après un délai)
   const handleBlur = () => {
-    // Délai pour permettre le clic sur un résultat
+    // Délai augmenté pour garantir que le clic sur résultat soit capturé
     setTimeout(() => {
       setShowResults(false)
-    }, 200)
+    }, 300)
   }
 
   return (
@@ -165,9 +201,26 @@ export function CompanySearch({
           {/* Input */}
           <Input
             id={`company-search-${searchType}`}
-            value={searchValue}
+            value={searchType === 'vat' ? displayValue : searchValue}
             onChange={(e) => {
-              setSearchValue(e.target.value)
+              const input = e.target.value
+
+              if (searchType === 'vat') {
+                // Extraire uniquement les chiffres
+                const digits = extractBelgianVatDigits(input)
+                setRawVatInput(digits)
+
+                // Formater pour l'affichage
+                const formatted = formatBelgianVatDisplay(digits)
+                setDisplayValue(formatted)
+
+                // Mettre à jour searchValue avec le préfixe BE pour l'API
+                setSearchValue(digits ? `BE${digits}` : '')
+              } else {
+                // Recherche par nom - comportement normal
+                setSearchValue(input)
+              }
+
               setError(null)
             }}
             onFocus={handleFocus}
@@ -189,7 +242,10 @@ export function CompanySearch({
               <button
                 key={index}
                 type="button"
-                onClick={() => handleSelectCompany(company)}
+                onMouseDown={(e) => {
+                  e.preventDefault() // Empêche le blur de se déclencher avant le clic
+                  handleSelectCompany(company)
+                }}
                 className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors focus:bg-gray-50 focus:outline-none"
               >
                 <div className="flex items-start gap-3">

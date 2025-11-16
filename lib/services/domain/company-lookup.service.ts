@@ -16,13 +16,18 @@ import { logger, logError } from '@/lib/logger'
 
 /**
  * Configuration for CBEAPI
+ * Optimized timeouts: 3s for direct lookup (fast), 6s for search (slower)
+ * Reduced retries: 1 retry max (2 attempts total) for faster failure feedback
  */
 const CBEAPI_CONFIG = {
   baseUrl: process.env.CBEAPI_URL || 'https://cbeapi.be/api/v1',
   apiKey: process.env.CBEAPI_KEY || '',
-  timeout: 10000, // 10 seconds
-  maxRetries: 2,
-  retryDelay: 1000 // 1 second
+  timeouts: {
+    directLookup: 3000,   // 3 seconds for /company/{id} (should be fast)
+    search: 6000          // 6 seconds for /company/search (can be slower)
+  },
+  maxRetries: 1,          // 2 attempts total (1 initial + 1 retry) instead of 3
+  retryDelay: 300         // 300ms between retries (reduced from 1000ms)
 }
 
 /**
@@ -103,14 +108,20 @@ export class CompanyLookupService {
       // 2. Call CBEAPI (Belgian companies only for now)
       const url = `${CBEAPI_CONFIG.baseUrl}/company/search?name=${encodeURIComponent(name.trim())}&limit=${limit}`
 
-      logger.info({ url }, '[COMPANY-LOOKUP] Calling CBEAPI for name search')
+      logger.info({
+        url,
+        timeout: CBEAPI_CONFIG.timeouts.search,
+        maxRetries: CBEAPI_CONFIG.maxRetries
+      }, '[COMPANY-LOOKUP] Calling CBEAPI (name search with standard timeout)')
 
+      // Call API with retry logic using STANDARD timeout for search
+      // Search can be slower than direct lookup, so we use 6s timeout
       const response = await this.fetchWithRetry(url, {
         headers: {
           'Authorization': `Bearer ${CBEAPI_CONFIG.apiKey}`,
           'Content-Type': 'application/json'
         }
-      })
+      }) // No custom timeout = uses default search timeout (6s)
 
       if (!response.ok) {
         logger.error({
@@ -263,16 +274,19 @@ export class CompanyLookupService {
       logger.info({
         url,
         vatNumber,
-        cbeNumber
-      }, '[COMPANY-LOOKUP] Calling CBEAPI')
+        cbeNumber,
+        timeout: CBEAPI_CONFIG.timeouts.directLookup,
+        maxRetries: CBEAPI_CONFIG.maxRetries
+      }, '[COMPANY-LOOKUP] Calling CBEAPI (direct lookup with optimized timeout)')
 
-      // Call API with retry logic
+      // Call API with retry logic using SHORT timeout for direct lookup
+      // Direct lookup should be fast (<1s), so we use 3s timeout instead of 6s
       const response = await this.fetchWithRetry(url, {
         headers: {
           'Authorization': `Bearer ${CBEAPI_CONFIG.apiKey}`,
           'Content-Type': 'application/json'
         }
-      })
+      }, 0, CBEAPI_CONFIG.timeouts.directLookup)
 
       if (!response.ok) {
         logger.error({
@@ -391,46 +405,64 @@ export class CompanyLookupService {
 
   /**
    * Fetch with retry logic and timeout
+   * @param url - URL to fetch
+   * @param options - Fetch options
+   * @param retryCount - Current retry attempt (0 = first attempt)
+   * @param timeoutMs - Custom timeout in milliseconds (defaults to search timeout)
    */
   private async fetchWithRetry(
     url: string,
     options: RequestInit,
-    retryCount = 0
+    retryCount = 0,
+    timeoutMs?: number
   ): Promise<Response> {
     try {
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), CBEAPI_CONFIG.timeout)
+
+      // Use custom timeout if provided, otherwise use search timeout as default
+      const timeout = timeoutMs || CBEAPI_CONFIG.timeouts.search
+      const timeoutId = setTimeout(() => controller.abort(), timeout)
+
+      logger.debug({
+        url,
+        timeout,
+        retryCount,
+        attempt: retryCount + 1,
+        maxRetries: CBEAPI_CONFIG.maxRetries + 1
+      }, '[COMPANY-LOOKUP] Fetching with timeout')
 
       const response = await fetch(url, {
         ...options,
         signal: controller.signal
       })
 
-      clearTimeout(timeout)
+      clearTimeout(timeoutId)
 
       // Retry on 5xx errors
       if (response.status >= 500 && retryCount < CBEAPI_CONFIG.maxRetries) {
         logger.warn({
           status: response.status,
-          retryCount
+          retryCount,
+          timeout
         }, '[COMPANY-LOOKUP] Retrying after server error')
 
         await this.delay(CBEAPI_CONFIG.retryDelay * Math.pow(2, retryCount))
-        return this.fetchWithRetry(url, options, retryCount + 1)
+        return this.fetchWithRetry(url, options, retryCount + 1, timeoutMs)
       }
 
       return response
 
     } catch (error) {
-      // Retry on network errors
+      // Retry on network errors (except AbortError which is a timeout)
       if (retryCount < CBEAPI_CONFIG.maxRetries && !(error instanceof Error && error.name === 'AbortError')) {
         logger.warn({
           error: error instanceof Error ? error.message : 'Unknown error',
-          retryCount
+          retryCount,
+          timeout: timeoutMs || CBEAPI_CONFIG.timeouts.search
         }, '[COMPANY-LOOKUP] Retrying after network error')
 
         await this.delay(CBEAPI_CONFIG.retryDelay * Math.pow(2, retryCount))
-        return this.fetchWithRetry(url, options, retryCount + 1)
+        return this.fetchWithRetry(url, options, retryCount + 1, timeoutMs)
       }
 
       throw error

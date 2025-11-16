@@ -10,6 +10,9 @@ import {
   CheckCircle2, Clock, MessageSquare, TrendingUp,
   Zap, Shield, BarChart3, Mail
 } from 'lucide-react'
+import { StatsSection } from './sections/stats-section'
+import { TestimonialsSection } from './sections/testimonials-section'
+import { FAQSection } from './sections/faq-section'
 
 /**
  * VERSION 1 - RECOMMENDED
@@ -63,17 +66,17 @@ export function LandingPageV1() {
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 md:py-24">
         <div className="max-w-4xl mx-auto text-center space-y-8">
-          <Badge variant="secondary" className="mb-4">
-            Plateforme de gestion immobilière
+          <Badge variant="secondary" className="mb-4 animate-float">
+            Rejoignez 500+ gestionnaires en Belgique
           </Badge>
 
           <h1 className="text-4xl md:text-6xl font-bold text-foreground tracking-tight">
-            Fini le calvaire de la coordination des interventions
+            Vos interventions immobilières gérées en 5 min au lieu de 2 heures
           </h1>
 
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Centralisez vos demandes, coordonnez vos prestataires, satisfaites vos locataires.
-            SEIDO simplifie la gestion de vos interventions de A à Z.
+            Finies les relances par SMS, email, appel. SEIDO centralise tout.
+            Vos locataires sont contents. Vous gagnez 1h30 par intervention.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
@@ -121,6 +124,9 @@ export function LandingPageV1() {
           </div>
         </div>
       </section>
+
+      {/* Stats Section with Animated Counters */}
+      <StatsSection />
 
       {/* Pain Points Section */}
       <section id="features" className="container mx-auto px-4 py-16 md:py-24">
@@ -415,6 +421,9 @@ export function LandingPageV1() {
         </div>
       </section>
 
+      {/* Testimonials Section with Carousel */}
+      <TestimonialsSection />
+
       {/* Pricing Section */}
       <section id="pricing" className="container mx-auto px-4 py-16 md:py-24">
         <div className="max-w-4xl mx-auto text-center mb-12">
@@ -428,13 +437,13 @@ export function LandingPageV1() {
 
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {/* Mensuel */}
-          <Card>
+          <Card className="hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">Mensuel</CardTitle>
               <CardDescription>Flexibilité maximale</CardDescription>
               <div className="pt-4">
-                <span className="text-4xl font-bold text-foreground">3€</span>
-                <span className="text-muted-foreground">/lot/mois</span>
+                <span className="text-4xl font-bold text-foreground">5€</span>
+                <span className="text-muted-foreground">/bien/mois</span>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -465,19 +474,19 @@ export function LandingPageV1() {
           </Card>
 
           {/* Annuel */}
-          <Card className="border-primary shadow-lg relative">
-            <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">
-              Économisez 33%
+          <Card className="border-brand-purple shadow-xl relative hover:shadow-2xl hover:-translate-y-1 hover:border-brand-indigo transition-all duration-300 animate-glow">
+            <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-purple hover:bg-brand-indigo">
+              Économisez 17%
             </Badge>
             <CardHeader className="text-center">
               <CardTitle className="text-2xl">Annuel</CardTitle>
-              <CardDescription>Meilleure offre</CardDescription>
+              <CardDescription>Meilleure offre ⭐</CardDescription>
               <div className="pt-4">
-                <span className="text-4xl font-bold text-foreground">2€</span>
-                <span className="text-muted-foreground">/lot/mois</span>
+                <span className="text-4xl font-bold text-foreground">50€</span>
+                <span className="text-muted-foreground">/bien/an</span>
               </div>
-              <p className="text-sm text-muted-foreground pt-2">
-                Soit 24€/lot/an au lieu de 36€
+              <p className="text-sm text-brand-purple font-medium pt-2">
+                Seulement 4.17€/mois par bien
               </p>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -513,23 +522,26 @@ export function LandingPageV1() {
         </p>
       </section>
 
+      {/* FAQ Section with Accordion */}
+      <FAQSection />
+
       {/* Final CTA */}
-      <section className="bg-primary text-primary-foreground py-16">
+      <section className="bg-brand-gradient text-white py-20 animate-gradient">
         <div className="container mx-auto px-4 text-center">
           <div className="max-w-3xl mx-auto space-y-6">
             <h2 className="text-3xl md:text-4xl font-bold">
               Prêt à simplifier votre gestion immobilière ?
             </h2>
             <p className="text-lg opacity-90">
-              Rejoignez les gestionnaires qui ont déjà adopté SEIDO
+              Rejoignez les 500+ gestionnaires qui gagnent 1h30 par jour avec SEIDO
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
               <Link href="/auth/signup">
-                <Button size="lg" variant="secondary" className="min-w-[200px]">
+                <Button size="lg" className="min-w-[200px] bg-white text-brand-purple hover:bg-gray-100 shadow-xl hover:shadow-2xl transition-all duration-300">
                   Démarrer gratuitement
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="min-w-[200px] bg-transparent border-primary-foreground text-primary-foreground hover:bg-primary-foreground/10">
+              <Button size="lg" variant="outline" className="min-w-[200px] bg-transparent border-white text-white hover:bg-white/20">
                 <Mail className="w-4 h-4 mr-2" />
                 Contacter l'équipe
               </Button>

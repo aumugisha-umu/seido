@@ -67,6 +67,11 @@ module.exports = {
           DEFAULT: "oklch(var(--card))",
           foreground: "oklch(var(--card-foreground))",
         },
+        // SEIDO Brand Colors (Purple/Indigo gradient)
+        brand: {
+          purple: 'oklch(0.5500 0.1800 300)', // #667eea
+          indigo: 'oklch(0.4800 0.1500 285)', // #764ba2
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -82,10 +87,27 @@ module.exports = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        // SEIDO Landing Page Animations
+        "count-up": {
+          from: { opacity: "0", transform: "scale(0.5)" },
+          to: { opacity: "1", transform: "scale(1)" },
+        },
+        "glow": {
+          "0%, 100%": { boxShadow: "0 0 20px rgba(99, 102, 241, 0.5)" },
+          "50%": { boxShadow: "0 0 40px rgba(99, 102, 241, 0.8)" },
+        },
+        "gradient": {
+          "0%, 100%": { backgroundPosition: "0% 50%" },
+          "50%": { backgroundPosition: "100% 50%" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        // SEIDO Landing Page Animations
+        "count-up": "count-up 2s ease-out",
+        "glow": "glow 2s ease-in-out infinite",
+        "gradient": "gradient 8s ease infinite",
       },
     },
   },

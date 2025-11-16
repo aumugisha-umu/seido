@@ -12,7 +12,9 @@
       "Bash(dir:*)",
       "WebFetch(domain:viesapi.eu)",
       "Bash(npm run lint:*)",
-      "WebFetch(domain:cbeapi.be)"
+      "WebFetch(domain:cbeapi.be)",
+      "WebFetch(domain:www.ublo.immo)",
+      "WebFetch(domain:www.smovin.app)"
     ],
     "deny": [],
     "ask": []

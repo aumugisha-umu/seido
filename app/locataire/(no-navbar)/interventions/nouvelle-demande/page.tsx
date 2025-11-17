@@ -21,7 +21,7 @@ import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
 import { generateId, generateInterventionId } from "@/lib/id-utils"
 import { useAuth } from "@/hooks/use-auth"
 import { logger, logError } from '@/lib/logger'
-import { getTenantLots } from '../actions'
+import { getTenantLots } from '@/app/locataire/(with-navbar)/interventions/actions'
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { tenantInterventionSteps } from "@/lib/step-configurations"
 import { InterventionConfirmationSummary, type InterventionConfirmationData } from "@/components/interventions/intervention-confirmation-summary"

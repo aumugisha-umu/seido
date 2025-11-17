@@ -27,7 +27,7 @@ import {
 
 import { determineAssignmentType } from '@/lib/services'
 import { logger } from '@/lib/logger'
-import { useDemoAwareTeamContacts } from '@/hooks/use-demo-aware-team-contacts'
+import { useTeamContacts } from '@/hooks/use-team-contacts'
 
 // Types de contacts avec leurs configurations visuelles
 const contactTypes = [
@@ -135,8 +135,8 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   // Router pour navigation vers wizard
   const router = useRouter()
 
-  // ✅ Hook SWR demo-aware pour fetcher les contacts avec cache intelligent
-  const { data: teamContacts, isLoading: isLoadingContacts, error: loadingError} = useDemoAwareTeamContacts(teamId)
+  // ✅ Hook SWR pour fetcher les contacts avec cache intelligent
+  const { data: teamContacts, isLoading: isLoadingContacts, error: loadingError} = useTeamContacts(teamId!)
 
   // ✅ Plus besoin de refs pour le chargement - SWR gère tout
 

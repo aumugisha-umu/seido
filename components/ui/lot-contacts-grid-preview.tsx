@@ -4,8 +4,8 @@ import { useState, useRef } from "react"
 import { ContactSection } from "@/components/ui/contact-section"
 import { ContactDeleteConfirmModal } from "@/components/ui/contact-delete-confirm-modal"
 import { useToast } from "@/components/ui/use-toast"
-import { removeContactFromLotAction } from "@/app/gestionnaire/biens/immeubles/[id]/actions"
-import { assignContactToLotAction } from "@/app/gestionnaire/biens/lots/nouveau/actions"
+import { removeContactFromLotAction } from "@/app/gestionnaire/(no-navbar)/biens/immeubles/[id]/actions"
+import { assignContactToLotAction } from "@/app/gestionnaire/(no-navbar)/biens/lots/nouveau/actions"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 
 interface Contact {

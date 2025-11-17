@@ -4,7 +4,7 @@ import { useState, useRef } from "react"
 import { ContactSection } from "@/components/ui/contact-section"
 import { ContactDeleteConfirmModal } from "@/components/ui/contact-delete-confirm-modal"
 import { useToast } from "@/components/ui/use-toast"
-import { removeContactFromBuildingAction, assignContactToBuildingAction } from "@/app/gestionnaire/biens/immeubles/[id]/actions"
+import { removeContactFromBuildingAction, assignContactToBuildingAction } from "@/app/gestionnaire/(no-navbar)/biens/immeubles/[id]/actions"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 import { ContactTypeDropdown } from "@/components/contact-type-dropdown"
 

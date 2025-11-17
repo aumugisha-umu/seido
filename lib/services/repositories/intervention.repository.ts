@@ -67,11 +67,11 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     }
 
     if ('title' in data && data.title) {
-      validateLength(data.title, 'title', 3, 200)
+      validateLength(data.title, 3, 200, 'title')
     }
 
     if ('description' in data && data.description) {
-      validateLength(data.description, 'description', 10, 2000)
+      validateLength(data.description, 10, 2000, 'description')
     }
 
     if ('status' in data && data.status) {

@@ -88,11 +88,11 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
   protected async validate(data: TeamInsert | TeamUpdate): Promise<void> {
     if ('name' in data && data.name) {
       validateRequired({ name: data.name }, ['name'])
-      validateLength(data.name, 'name', 2, 100)
+      validateLength(data.name, 2, 100, 'name')
     }
 
     if ('description' in data && data.description) {
-      validateLength(data.description, 'description', 0, 500)
+      validateLength(data.description, 0, 500, 'description')
     }
 
     if ('created_by' in data && data.created_by) {

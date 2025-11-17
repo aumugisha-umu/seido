@@ -14,7 +14,8 @@
       "Bash(npm run lint:*)",
       "WebFetch(domain:cbeapi.be)",
       "WebFetch(domain:www.ublo.immo)",
-      "WebFetch(domain:www.smovin.app)"
+      "WebFetch(domain:www.smovin.app)",
+      "Bash(node -e:*)"
     ],
     "deny": [],
     "ask": []

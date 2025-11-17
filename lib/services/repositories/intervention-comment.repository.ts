@@ -56,7 +56,7 @@ export class InterventionCommentRepository extends BaseRepository<
     }
 
     if ('content' in data && data.content) {
-      validateLength(data.content, 'content', 1, 2000)
+      validateLength(data.content, 1, 2000, 'content')
     }
   }
 

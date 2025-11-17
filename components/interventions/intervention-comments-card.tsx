@@ -10,12 +10,12 @@ import { useState, useTransition, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { MessageSquare, Send, Trash2, Loader2 } from 'lucide-react'
+import { MessageSquare, Trash2, Plus } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
 import { addInterventionComment, deleteInterventionComment } from '@/app/actions/intervention-comment-actions'
+import { AddCommentModal } from '@/components/interventions/modals/add-comment-modal'
 import type { Database } from '@/lib/database.types'
 
 type User = Database['public']['Tables']['users']['Row']
@@ -41,7 +41,7 @@ export function InterventionCommentsCard({
   currentUserRole
 }: InterventionCommentsCardProps) {
   const [comments, setComments] = useState(initialComments)
-  const [newComment, setNewComment] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   // Sync state when initialComments changes (fixes hydration)
@@ -52,25 +52,29 @@ export function InterventionCommentsCard({
   // Only gestionnaires can add comments (per requirements)
   const canAddComment = currentUserRole === 'gestionnaire' || currentUserRole === 'admin'
 
-  const handleAddComment = () => {
-    if (!newComment.trim()) {
+  const handleAddComment = async (content: string) => {
+    if (!content.trim()) {
       toast.error('Le commentaire ne peut pas être vide')
       return
     }
 
-    startTransition(async () => {
-      const result = await addInterventionComment({
-        interventionId,
-        content: newComment
-      })
+    return new Promise<void>((resolve, reject) => {
+      startTransition(async () => {
+        const result = await addInterventionComment({
+          interventionId,
+          content
+        })
 
-      if (result.success) {
-        setComments([result.data, ...comments])
-        setNewComment('')
-        toast.success('Commentaire ajouté')
-      } else {
-        toast.error(result.error)
-      }
+        if (result.success) {
+          setComments([result.data, ...comments])
+          toast.success('Commentaire ajouté')
+          setIsModalOpen(false)
+          resolve()
+        } else {
+          toast.error(result.error)
+          reject(new Error(result.error))
+        }
+      })
     })
   }
 
@@ -129,42 +133,25 @@ export function InterventionCommentsCard({
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <MessageSquare className="h-5 w-5" />
-          Commentaires ({comments.length})
-        </CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <MessageSquare className="h-5 w-5" />
+            Commentaires ({comments.length})
+          </CardTitle>
+          {canAddComment && (
+            <Button
+              onClick={() => setIsModalOpen(true)}
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+            >
+              <Plus className="h-4 w-4" />
+              Nouveau
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Add comment form (gestionnaires only) */}
-        {canAddComment && (
-          <div className="space-y-3">
-            <Textarea
-              placeholder="Ajouter un commentaire..."
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              className="min-h-[80px] resize-none"
-              disabled={isPending}
-            />
-            <Button
-              onClick={handleAddComment}
-              disabled={isPending || !newComment.trim()}
-              className="w-full"
-              size="sm"
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Envoi...
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  Ajouter un commentaire
-                </>
-              )}
-            </Button>
-          </div>
-        )}
 
         {/* Comments list */}
         <div className="space-y-3">
@@ -238,6 +225,14 @@ export function InterventionCommentsCard({
           )}
         </div>
       </CardContent>
+
+      {/* Add Comment Modal */}
+      <AddCommentModal
+        open={isModalOpen}
+        onOpenChange={setIsModalOpen}
+        onSubmit={handleAddComment}
+        isSubmitting={isPending}
+      />
     </Card>
   )
 }

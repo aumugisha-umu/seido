@@ -16,7 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import ContentNavigator from "@/components/content-navigator"
 import { useRouter } from "next/navigation"
-import { determineAssignmentType, createContactService } from '@/lib/services'
+import { determineAssignmentType, createContactService, createContactInvitationService } from '@/lib/services'
 import { logger } from '@/lib/logger'
 
 // Types for props
@@ -123,6 +123,7 @@ export function ContactsPageClient({
 
   // ✅ Instancier les services nécessaires
   const contactService = createContactService()
+  const contactInvitationService = createContactInvitationService()
 
   // ✅ États UI (inchangés)
   const [filteredContacts, setFilteredContacts] = useState<Contact[]>([])

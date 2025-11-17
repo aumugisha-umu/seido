@@ -13,6 +13,9 @@ import { useTenantData } from "@/hooks/use-tenant-data"
 import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
 import ContentNavigator from "@/components/content-navigator"
 import { InterventionsList } from "@/components/interventions/interventions-list"
+import { InterventionsViewContainer } from "@/components/interventions/interventions-view-container"
+import { ViewModeSwitcherV1 } from "@/components/interventions/view-mode-switcher-v1"
+import { useViewMode } from "@/hooks/use-view-mode"
 import TenantHeaderV1 from "@/components/ui-proposals/tenant-header-v1"
 import { logger } from '@/lib/logger'
 import { PWADashboardPrompt } from '@/components/pwa/pwa-dashboard-prompt'
@@ -34,6 +37,12 @@ export default function LocataireDashboard() {
 
   // ✅ NOUVEAU: Surveillance de session inactive sur dashboard
   useDashboardSessionTimeout()
+
+  // View mode state (cards, list, calendar)
+  const { viewMode, setViewMode, mounted: viewMounted } = useViewMode({
+    defaultMode: 'cards',
+    syncWithUrl: false
+  })
 
   // Afficher la vérification d'équipe en cours ou échoué
   if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
@@ -151,15 +160,27 @@ export default function LocataireDashboard() {
   const renderInterventionsList = (tabId: string) => {
     const filteredInterventions = getFilteredInterventions(tabId)
 
+    // Don't render until mounted (prevent hydration mismatch)
+    if (!viewMounted) {
+      return (
+        <div className="animate-pulse space-y-2">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-32 bg-gray-200 rounded-lg" />
+          ))}
+        </div>
+      )
+    }
+
     return (
-      <InterventionsList
+      <InterventionsViewContainer
         interventions={filteredInterventions}
+        userContext="locataire"
         loading={loading}
         emptyStateConfig={{
-          title: tabId === "actions_en_attente" ? "Aucune action en attente" 
-                : tabId === "en_cours" ? "Aucune intervention en cours" 
+          title: tabId === "actions_en_attente" ? "Aucune action en attente"
+                : tabId === "en_cours" ? "Aucune intervention en cours"
                 : "Aucune intervention terminée",
-          description: tabId === "actions_en_attente" 
+          description: tabId === "actions_en_attente"
             ? "Toutes vos interventions sont à jour"
             : tabId === "en_cours"
             ? "Vos demandes d'intervention apparaîtront ici"
@@ -167,7 +188,9 @@ export default function LocataireDashboard() {
           showCreateButton: false
         }}
         showStatusActions={true}
-        userContext="locataire"
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        hideViewSwitcher={true}
       />
     )
   }
@@ -199,6 +222,14 @@ export default function LocataireDashboard() {
       content: renderInterventionsList("terminees")
     }
   ]
+
+  // View switcher to pass as right controls
+  const viewSwitcher = viewMounted ? (
+    <ViewModeSwitcherV1
+      value={viewMode}
+      onChange={setViewMode}
+    />
+  ) : null
 
   // Convertir les interventions en format PendingAction
   const convertToPendingActions = () => {
@@ -292,6 +323,7 @@ export default function LocataireDashboard() {
               activeTab={interventionsActiveTab}
               searchPlaceholder="Rechercher par titre, description, ou référence..."
               onSearch={(value) => logger.info("Recherche:", value)}
+              rightControls={viewSwitcher}
               className="shadow-none border-0 bg-transparent flex-1 flex flex-col min-h-0"
             />
           </div>

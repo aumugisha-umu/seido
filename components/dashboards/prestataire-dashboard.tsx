@@ -16,6 +16,9 @@ import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useInterventionPlanning } from "@/hooks/use-intervention-planning"
 import ContentNavigator from "@/components/content-navigator"
 import { InterventionsList } from "@/components/interventions/interventions-list"
+import { InterventionsViewContainer } from "@/components/interventions/interventions-view-container"
+import { ViewModeSwitcherV1 } from "@/components/interventions/view-mode-switcher-v1"
+import { useViewMode } from "@/hooks/use-view-mode"
 import { InterventionCancellationProvider } from "@/contexts/intervention-cancellation-context"
 import { InterventionCancellationManager } from "@/components/intervention/intervention-cancellation-manager"
 import { PendingActionsCompactHybrid } from "@/components/ui-proposals/pending-actions-compact-hybrid"
@@ -40,6 +43,12 @@ export default function PrestataireDashboard() {
 
   // ✅ NOUVEAU: Surveillance de session inactive sur dashboard
   useDashboardSessionTimeout()
+
+  // View mode state (cards, list, calendar)
+  const { viewMode, setViewMode, mounted: viewMounted } = useViewMode({
+    defaultMode: 'cards',
+    syncWithUrl: false
+  })
 
   // Hooks pour les actions d'intervention (prestataire)
   const executionHook = useInterventionExecution()
@@ -137,13 +146,25 @@ export default function PrestataireDashboard() {
   const renderInterventionsList = (tabId: string) => {
     const filteredInterventions = getFilteredInterventions(tabId)
 
+    // Don't render until mounted (prevent hydration mismatch)
+    if (!viewMounted) {
+      return (
+        <div className="animate-pulse space-y-2">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-32 bg-gray-200 rounded-lg" />
+          ))}
+        </div>
+      )
+    }
+
     return (
-      <InterventionsList
+      <InterventionsViewContainer
         interventions={filteredInterventions}
+        userContext="prestataire"
         loading={loading}
         emptyStateConfig={{
           title: tabId === "actions_en_attente" ? "Aucune action en attente"
-                : tabId === "en_cours" ? "Aucune intervention en cours" 
+                : tabId === "en_cours" ? "Aucune intervention en cours"
                 : "Aucune intervention clôturée",
           description: tabId === "actions_en_attente"
             ? "Toutes vos interventions sont à jour"
@@ -153,7 +174,9 @@ export default function PrestataireDashboard() {
           showCreateButton: false
         }}
         showStatusActions={true}
-        userContext="prestataire"
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        hideViewSwitcher={true}
         actionHooks={actionHooks}
       />
     )
@@ -187,6 +210,14 @@ export default function PrestataireDashboard() {
       content: renderInterventionsList("cloturees")
     }
   ]
+
+  // View switcher to pass as right controls
+  const viewSwitcher = viewMounted ? (
+    <ViewModeSwitcherV1
+      value={viewMode}
+      onChange={setViewMode}
+    />
+  ) : null
 
   // Convertir les interventions en format PendingAction pour le composant
   const convertToPendingActions = () => {
@@ -295,6 +326,7 @@ export default function PrestataireDashboard() {
                 activeTab={interventionsActiveTab}
                 searchPlaceholder="Rechercher par titre, description, ou référence..."
                 onSearch={(value) => logger.info("Recherche:", value)}
+                rightControls={viewSwitcher}
                 className="shadow-none border-0 bg-transparent flex-1 flex flex-col min-h-0"
               />
             </div>

@@ -1924,7 +1924,8 @@ export async function programInterventionAction(
     })
 
     // Check if intervention can be scheduled
-    if (!['approuvee', 'planification'].includes(intervention.status)) {
+    // Allow 'demande_de_devis' to enable planning while waiting for quote
+    if (!['approuvee', 'planification', 'demande_de_devis'].includes(intervention.status)) {
       return {
         success: false,
         error: `L'intervention ne peut pas être planifiée (statut actuel: ${intervention.status})`
@@ -1938,6 +1939,22 @@ export async function programInterventionAction(
         error: 'Vous n\'êtes pas autorisé à modifier cette intervention'
       }
     }
+
+    // Check for active quote requests (pending or sent)
+    // This determines if we should keep 'demande_de_devis' status or transition to 'planification'
+    const { data: activeQuotes, error: quotesError } = await supabase
+      .from('intervention_quotes')
+      .select('id, status')
+      .eq('intervention_id', interventionId)
+      .in('status', ['pending', 'sent'])
+
+    if (quotesError) {
+      logger.error('❌ [SERVER-ACTION] Error checking active quotes:', quotesError)
+    }
+
+    const hasActiveQuotes = activeQuotes && activeQuotes.length > 0
+
+    logger.info(`📊 [SERVER-ACTION] Active quotes check: ${hasActiveQuotes ? 'YES' : 'NO'} (${activeQuotes?.length || 0} quotes)`)
 
     const { option, directSchedule, proposedSlots } = planningData
 
@@ -2034,6 +2051,19 @@ export async function programInterventionAction(
       case 'organize': {
         // Autonomous organization - tenant and provider coordinate directly
         logger.info('📅 [SERVER-ACTION] Organization mode - autonomous coordination')
+
+        // Save scheduling method as 'flexible'
+        const { error: updateError } = await supabase
+          .from('interventions')
+          .update({ scheduling_method: 'flexible' })
+          .eq('id', interventionId)
+
+        if (updateError) {
+          logger.error('❌ [SERVER-ACTION] Error updating scheduling_method:', updateError)
+          throw updateError
+        }
+
+        logger.info('✅ [SERVER-ACTION] Scheduling method set to flexible')
         break
       }
 
@@ -2054,11 +2084,26 @@ export async function programInterventionAction(
       managerCommentParts.push(`Planification autonome activée`)
     }
 
-    // Update intervention status to 'planification'
+    // Update intervention status
+    // Keep 'demande_de_devis' if active quotes exist, otherwise transition to 'planification'
     // Note: Manager comments are now stored in intervention_comments table
+    const newStatus = (intervention.status === 'demande_de_devis' && hasActiveQuotes)
+      ? 'demande_de_devis' as InterventionStatus
+      : 'planification' as InterventionStatus
+
+    logger.info(`📅 [SERVER-ACTION] Status decision: ${intervention.status} → ${newStatus} (hasActiveQuotes: ${hasActiveQuotes})`)
+
     const updateData: any = {
-      status: 'planification' as InterventionStatus,
+      status: newStatus,
       updated_at: new Date().toISOString()
+    }
+
+    // Add scheduling_method based on option (for direct and propose modes)
+    // Note: 'organize' mode already set scheduling_method in its case block
+    if (option === 'direct') {
+      updateData.scheduling_method = 'direct'
+    } else if (option === 'propose') {
+      updateData.scheduling_method = 'slots'
     }
 
     const { data: updatedIntervention, error: updateError } = await supabase
@@ -2074,6 +2119,8 @@ export async function programInterventionAction(
     }
 
     // Create quote requests if requireQuote is enabled and providers are selected
+    let quoteStats: { totalSelected: number; skipped: number; created: number } | null = null
+
     if (planningData.requireQuote && planningData.selectedProviders && planningData.selectedProviders.length > 0) {
       logger.info('📋 [SERVER-ACTION] Creating quote requests for selected providers', {
         interventionId,
@@ -2081,16 +2128,67 @@ export async function programInterventionAction(
       })
 
       try {
-        // Create quote requests for each selected provider
-        await createQuoteRequestsForProviders({
-          interventionId,
-          teamId: intervention.team_id,
-          providerIds: planningData.selectedProviders,
-          createdBy: user.id,
-          messageType: 'global',
-          globalMessage: planningData.instructions || undefined,
-          supabase
+        // Check for existing active quotes (pending or sent)
+        // to avoid creating duplicates
+        const { data: existingQuotes, error: quotesCheckError } = await supabase
+          .from('intervention_quotes')
+          .select('id, provider_id, status')
+          .eq('intervention_id', interventionId)
+          .in('status', ['pending', 'sent'])
+
+        if (quotesCheckError) {
+          logger.error('❌ [SERVER-ACTION] Error checking existing quotes:', quotesCheckError)
+          throw quotesCheckError
+        }
+
+        // Build set of provider IDs that already have active quotes
+        const existingProviderIds = new Set(
+          (existingQuotes || []).map(q => q.provider_id)
+        )
+
+        // Filter out providers who already have active quotes
+        const newProviderIds = planningData.selectedProviders.filter(
+          providerId => !existingProviderIds.has(providerId)
+        )
+
+        const skippedCount = existingProviderIds.size
+        const newCount = newProviderIds.length
+
+        quoteStats = {
+          totalSelected: planningData.selectedProviders.length,
+          skipped: skippedCount,
+          created: newCount
+        }
+
+        logger.info('📊 [SERVER-ACTION] Quote creation analysis:', {
+          totalSelected: planningData.selectedProviders.length,
+          alreadyHaveQuotes: skippedCount,
+          willCreateNew: newCount,
+          existingQuoteDetails: existingQuotes?.map(q => ({
+            id: q.id,
+            provider: q.provider_id,
+            status: q.status
+          }))
         })
+
+        // Only create quotes for NEW providers
+        if (newProviderIds.length > 0) {
+          await createQuoteRequestsForProviders({
+            interventionId,
+            teamId: intervention.team_id,
+            providerIds: newProviderIds,
+            createdBy: user.id,
+            messageType: 'global',
+            globalMessage: planningData.instructions || undefined,
+            supabase
+          })
+
+          logger.info('✅ [SERVER-ACTION] Created quote requests for NEW providers only', {
+            newQuotesCount: newProviderIds.length
+          })
+        } else {
+          logger.info('⏭️ [SERVER-ACTION] Skipped quote creation - all selected providers already have active quotes')
+        }
 
         // Update intervention status to 'demande_de_devis' after creating quote requests
         const { error: statusUpdateError } = await supabase
@@ -2129,7 +2227,13 @@ export async function programInterventionAction(
     revalidatePath('/prestataire/interventions')
     revalidatePath(`/prestataire/interventions/${interventionId}`)
 
-    return { success: true, data: updatedIntervention }
+    return {
+      success: true,
+      data: {
+        intervention: updatedIntervention,
+        quoteStats
+      }
+    }
   } catch (error) {
     logger.error('❌ [SERVER-ACTION] Error programming intervention:', error)
     return {

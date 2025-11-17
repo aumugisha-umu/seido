@@ -23,6 +23,7 @@ import {
   Loader2,
 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -32,6 +33,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import ActivityLog from "@/components/activity-log"
 import { type Notification } from "@/hooks/use-notifications"
 import { useToast } from "@/hooks/use-toast"
+import { getNotificationNavigationUrl } from "@/lib/notification-utils"
 
 interface NotificationsPageProps {
   role: 'gestionnaire' | 'locataire' | 'prestataire' | 'admin'
@@ -379,6 +381,7 @@ export default function NotificationsPageComponent({
             ) : (
               <NotificationsList
                 notifications={teamNotifications}
+                role={role}
                 onMarkAsRead={(notification) => handleMarkAsRead(notification, false)}
                 onArchive={(id, title) => handleArchiveNotification(id, title)}
                 updatingNotifications={updatingNotifications}
@@ -432,6 +435,7 @@ export default function NotificationsPageComponent({
             ) : (
               <NotificationsList
                 notifications={personalNotifications}
+                role={role}
                 onMarkAsRead={(notification) => handleMarkAsRead(notification, true)}
                 onArchive={(id, title) => handleArchiveNotification(id, title)}
                 updatingNotifications={updatingNotifications}
@@ -480,6 +484,7 @@ export default function NotificationsPageComponent({
 // Composant pour organiser les notifications par statut lu/non lu
 function NotificationsList({
   notifications,
+  role,
   onMarkAsRead,
   onArchive,
   updatingNotifications,
@@ -488,6 +493,7 @@ function NotificationsList({
   emptyStateDescription
 }: {
   notifications: Notification[]
+  role: 'gestionnaire' | 'locataire' | 'prestataire' | 'admin'
   onMarkAsRead: (notification: Notification) => void
   onArchive: (id: string, title: string) => void
   updatingNotifications: Set<string>
@@ -518,6 +524,7 @@ function NotificationsList({
             <NotificationCard
               key={notification.id}
               notification={notification}
+              role={role}
               onMarkAsRead={() => onMarkAsRead(notification)}
               onArchive={() => onArchive(notification.id, notification.title)}
               isUpdating={updatingNotifications.has(notification.id)}
@@ -547,6 +554,7 @@ function NotificationsList({
             <NotificationCard
               key={notification.id}
               notification={notification}
+              role={role}
               onMarkAsRead={() => onMarkAsRead(notification)}
               onArchive={() => onArchive(notification.id, notification.title)}
               isUpdating={updatingNotifications.has(notification.id)}
@@ -561,18 +569,44 @@ function NotificationsList({
 // Composant pour les cartes de notification
 function NotificationCard({
   notification,
+  role,
   onMarkAsRead,
   onArchive,
   isUpdating = false
 }: {
   notification: Notification
+  role: 'gestionnaire' | 'locataire' | 'prestataire' | 'admin'
   onMarkAsRead?: () => void
   onArchive?: () => void
   isUpdating?: boolean
 }) {
+  const router = useRouter()
+
+  // Obtenir l'URL de navigation
+  const navigationUrl = getNotificationNavigationUrl(notification, role)
+
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Ne pas déclencher la navigation si on clique sur les boutons d'action
+    const target = e.target as HTMLElement
+    if (target.closest('button')) {
+      return
+    }
+
+    if (navigationUrl) {
+      // Marquer comme lu si non lu
+      if (!notification.read && onMarkAsRead) {
+        onMarkAsRead()
+      }
+
+      // Naviguer vers la page de détail
+      router.push(navigationUrl)
+    }
+  }
+
   return (
     <Card
-      className={`transition-all hover:shadow-md ${!notification.read ? "border-l-4 border-l-blue-500 bg-blue-50/30" : ""}`}
+      onClick={handleCardClick}
+      className={`transition-all hover:shadow-md ${navigationUrl ? 'cursor-pointer hover:bg-slate-50' : ''} ${!notification.read ? "border-l-4 border-l-blue-500 bg-blue-50/30" : ""}`}
     >
       <CardContent className="p-3 sm:p-4">
         <div className="flex items-start gap-2 sm:gap-3">

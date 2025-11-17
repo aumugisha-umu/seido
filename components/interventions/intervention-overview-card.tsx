@@ -8,6 +8,7 @@
 import { Card, CardContent } from '@/components/ui/card'
 import type { Database } from '@/lib/database.types'
 import { InterventionSchedulingPreview } from './intervention-scheduling-preview'
+import { InterventionProviderGuidelines } from './intervention-provider-guidelines'
 
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
   building?: Database['public']['Tables']['buildings']['Row']
@@ -44,7 +45,11 @@ interface InterventionOverviewCardProps {
   quotes?: Quote[]
   schedulingType?: "fixed" | "slots" | "flexible" | null
   schedulingSlots?: TimeSlot[] | null
-  instructions?: string | null
+  // Provider guidelines
+  currentUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire'
+  onUpdate?: () => void
+  // Quote actions
+  onCancelQuoteRequest?: (quoteId: string) => void
 }
 
 export function InterventionOverviewCard({
@@ -56,7 +61,9 @@ export function InterventionOverviewCard({
   quotes = [],
   schedulingType = null,
   schedulingSlots = null,
-  instructions = null
+  currentUserRole,
+  onUpdate,
+  onCancelQuoteRequest
 }: InterventionOverviewCardProps) {
 
   return (
@@ -68,6 +75,14 @@ export function InterventionOverviewCard({
           <p className="text-sm whitespace-pre-wrap">{intervention.description}</p>
         </div>
 
+        {/* Editable Provider Guidelines */}
+        <InterventionProviderGuidelines
+          interventionId={intervention.id}
+          guidelines={intervention.provider_guidelines || null}
+          currentUserRole={currentUserRole}
+          onUpdate={onUpdate}
+        />
+
         {/* Scheduling Preview */}
         <InterventionSchedulingPreview
           managers={managers}
@@ -78,7 +93,7 @@ export function InterventionOverviewCard({
           schedulingType={schedulingType}
           scheduledDate={intervention.scheduled_date}
           schedulingSlots={schedulingSlots}
-          instructions={instructions}
+          onCancelQuoteRequest={onCancelQuoteRequest}
         />
       </CardContent>
     </Card>

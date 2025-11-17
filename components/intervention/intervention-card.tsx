@@ -21,7 +21,9 @@ import {
   Check,
   X,
   CheckCircle,
+  CheckCircle2,
   Calendar,
+  CalendarCheck,
   Clock,
   MapPin,
   Building2,
@@ -37,6 +39,12 @@ import {
   UserCheck,
   AlertTriangle,
   TrendingUp,
+  Minus,
+  ArrowDown,
+  XCircle,
+  Play,
+  HelpCircle,
+  type LucideIcon,
 } from "lucide-react"
 
 import {
@@ -47,12 +55,47 @@ import {
   getStatusLabel,
   getPriorityColor,
   getPriorityLabel,
-  getStatusActionMessage
+  getStatusActionMessage,
+  getPriorityIcon,
+  getStatusIcon,
+  getTypeIcon,
 } from "@/lib/intervention-utils"
 import { shouldShowAlertBadge } from "@/lib/intervention-alert-utils"
 import { InterventionActionButtons } from "@/components/intervention/intervention-action-buttons"
 import { InterventionCancelButton } from "@/components/intervention/intervention-cancel-button"
 import { logger, logError } from '@/lib/logger'
+
+/**
+ * Mappe les noms d'icônes Lucide (string) aux composants React
+ * Utilisé pour afficher dynamiquement les icônes dans les badges
+ */
+const iconMap: Record<string, LucideIcon> = {
+  // Icônes d'urgence
+  AlertTriangle,
+  TrendingUp,
+  Minus,
+  ArrowDown,
+  // Icônes de statut
+  Clock,
+  XCircle,
+  CheckCircle,
+  CheckCircle2,
+  FileText,
+  Calendar,
+  CalendarCheck,
+  Play,
+  UserCheck,
+  HelpCircle,
+  // Icônes de catégorie
+  Droplets,
+  Zap,
+  Flame,
+  Key,
+  Paintbrush,
+  Hammer,
+  Wrench,
+}
+
 interface InterventionCardProps {
   intervention: {
     id: string
@@ -464,10 +507,18 @@ export function InterventionCard({
             <h3 className="font-medium text-sm text-slate-900 truncate">
               {intervention.title}
             </h3>
-            <Badge className={`${getStatusColor(intervention.status)} text-xs px-1.5 py-0.5`}>
+            <Badge className={`${getStatusColor(intervention.status)} text-xs px-1.5 py-0.5 flex items-center gap-1`}>
+              {(() => {
+                const StatusIconComponent = iconMap[getStatusIcon(intervention.status)]
+                return StatusIconComponent ? <StatusIconComponent className="h-2.5 w-2.5" /> : null
+              })()}
               {getStatusLabel(intervention.status)}
             </Badge>
-            <Badge className={`${getPriorityColor(intervention.urgency || 'normale')} text-xs px-1.5 py-0.5`}>
+            <Badge className={`${getPriorityColor(intervention.urgency || 'normale')} text-xs px-1.5 py-0.5 flex items-center gap-1`}>
+              {(() => {
+                const PriorityIconComponent = iconMap[getPriorityIcon(intervention.urgency || 'normale')]
+                return PriorityIconComponent ? <PriorityIconComponent className="h-2.5 w-2.5" /> : null
+              })()}
               {getPriorityLabel(intervention.urgency || 'normale')}
             </Badge>
           </div>
@@ -559,24 +610,23 @@ export function InterventionCard({
             <div className={`
               ${isAlertMode ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-200'}
               border rounded px-3 py-2.5 transition-all duration-200
-              ${isHovered ? 'py-3' : 'py-2.5'}
             `}>
-              <div className="flex flex-col gap-2.5 w-full">
-                {/* Icône et texte - Ligne 1 */}
-                <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5 w-full">
+                {/* Icône et texte - flex-1 pour prendre l'espace disponible */}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0
                     ${isAlertMode ? 'bg-orange-100' : 'bg-blue-100'}`}>
                     <Clock className={`h-3 w-3 ${isAlertMode ? 'text-orange-600' : 'text-blue-600'}`} />
                   </div>
-                  <p className={`text-sm font-medium leading-snug
+                  <p className={`text-sm font-medium leading-snug truncate
                     ${isAlertMode ? 'text-orange-800' : 'text-blue-800'}`}>
                     {getStatusActionMessage(intervention.status, userContext)}
                   </p>
                 </div>
 
-                {/* Boutons d'action - Ligne 2 (affichés seulement au hover) */}
+                {/* Boutons d'action - flex-shrink-0 pour qu'ils restent toujours visibles */}
                 {isHovered && (
-                  <div className="flex items-center justify-end w-full">
+                  <div className="flex items-center flex-shrink-0">
                     <InterventionActionButtons
                       intervention={intervention as any}
                       userRole={userContext}
@@ -701,15 +751,27 @@ export function InterventionCard({
             {/* Category, Priority & Status Badges - Ordre: Catégorie → Urgence → Status */}
             <div className="flex flex-wrap items-center gap-2">
               {/* Catégorie */}
-              <Badge className={`${getTypeBadgeColor(intervention.type || 'autre')} text-xs px-2.5 py-1 border`}>
+              <Badge className={`${getTypeBadgeColor(intervention.type || 'autre')} text-xs px-2.5 py-1 border flex items-center gap-1.5`}>
+                {(() => {
+                  const TypeIconComponent = iconMap[getTypeIcon(intervention.type || 'autre')]
+                  return TypeIconComponent ? <TypeIconComponent className="h-3 w-3" /> : null
+                })()}
                 {getTypeLabel(intervention.type || 'autre')}
               </Badge>
               {/* Urgence */}
-              <Badge className={`${getPriorityColor(intervention.urgency || 'normale')} text-xs px-2.5 py-1`}>
+              <Badge className={`${getPriorityColor(intervention.urgency || 'normale')} text-xs px-2.5 py-1 flex items-center gap-1.5`}>
+                {(() => {
+                  const PriorityIconComponent = iconMap[getPriorityIcon(intervention.urgency || 'normale')]
+                  return PriorityIconComponent ? <PriorityIconComponent className="h-3 w-3" /> : null
+                })()}
                 {getPriorityLabel(intervention.urgency || 'normale')}
               </Badge>
               {/* Status */}
-              <Badge className={`${getStatusColor(intervention.status)} text-xs px-2.5 py-1`}>
+              <Badge className={`${getStatusColor(intervention.status)} text-xs px-2.5 py-1 flex items-center gap-1.5`}>
+                {(() => {
+                  const StatusIconComponent = iconMap[getStatusIcon(intervention.status)]
+                  return StatusIconComponent ? <StatusIconComponent className="h-3 w-3" /> : null
+                })()}
                 {getStatusLabel(intervention.status)}
               </Badge>
             </div>
@@ -722,7 +784,7 @@ export function InterventionCard({
             )}
 
             {/* Stats Row - Material Design spacing */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+            <div className="flex items-center justify-between pt-2">
               <div className="flex items-center space-x-4 overflow-hidden">
                 {/* Created date */}
                 <div className="flex items-center space-x-1.5 py-3">

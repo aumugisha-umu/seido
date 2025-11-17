@@ -9,7 +9,8 @@ import { useState } from 'react'
 import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
 import { InterventionProgressCard } from '@/components/interventions/intervention-progress-card'
 import { InterventionCommentsCard } from '@/components/interventions/intervention-comments-card'
-import { InterventionProviderGuidelines } from '@/components/interventions/intervention-provider-guidelines'
+import { CancelQuoteRequestModal } from '@/components/intervention/modals/cancel-quote-request-modal'
+import { useQuoteCancellation } from '@/hooks/use-quote-cancellation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
@@ -153,6 +154,17 @@ export function OverviewTab({
   const [loadingUsers, setLoadingUsers] = useState(false)
   const [assigning, setAssigning] = useState(false)
 
+  // Quote cancellation hook
+  const {
+    isLoading: isCancellingQuote,
+    isConfirmModalOpen: isCancelQuoteModalOpen,
+    handleCancelRequest: handleCancelQuoteRequest,
+    handleConfirmCancel: handleConfirmCancelQuote,
+    handleCancelModal: handleCloseCancelQuoteModal
+  } = useQuoteCancellation({
+    onSuccess: onRefresh
+  })
+
   // Load available users based on role
   const loadAvailableUsers = async (role: 'gestionnaire' | 'prestataire') => {
     setLoadingUsers(true)
@@ -251,20 +263,10 @@ export function OverviewTab({
             quotes={quotes}
             schedulingType={schedulingType}
             schedulingSlots={schedulingSlotsForPreview}
-            instructions={intervention.provider_guidelines || null}
+            currentUserRole={currentUserRole}
+            onUpdate={onRefresh}
+            onCancelQuoteRequest={handleCancelQuoteRequest}
           />
-
-          {/* Editable Provider Guidelines */}
-          <Card>
-            <CardContent className="pt-6">
-              <InterventionProviderGuidelines
-                interventionId={intervention.id}
-                guidelines={intervention.provider_guidelines || null}
-                currentUserRole={currentUserRole}
-                onUpdate={onRefresh}
-              />
-            </CardContent>
-          </Card>
 
           {/* Alert for urgent intervention */}
           {intervention.urgency === 'urgente' && (
@@ -375,6 +377,15 @@ export function OverviewTab({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Cancel Quote Request Modal */}
+      <CancelQuoteRequestModal
+        isOpen={isCancelQuoteModalOpen}
+        onClose={handleCloseCancelQuoteModal}
+        onConfirm={handleConfirmCancelQuote}
+        providerName={quotes.find(q => q.id === quotes[0]?.id)?.provider?.name || 'Prestataire'}
+        isLoading={isCancellingQuote}
+      />
     </>
   )
 }

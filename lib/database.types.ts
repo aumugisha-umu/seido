@@ -1052,6 +1052,7 @@ export type Database = {
           requested_date: string | null
           requires_quote: boolean
           scheduled_date: string | null
+          scheduling_method: string | null
           scheduling_type: Database["public"]["Enums"]["intervention_scheduling_type"]
           selected_slot_id: string | null
           specific_location: string | null
@@ -1080,6 +1081,7 @@ export type Database = {
           requested_date?: string | null
           requires_quote?: boolean
           scheduled_date?: string | null
+          scheduling_method?: string | null
           scheduling_type?: Database["public"]["Enums"]["intervention_scheduling_type"]
           selected_slot_id?: string | null
           specific_location?: string | null
@@ -1108,6 +1110,7 @@ export type Database = {
           requested_date?: string | null
           requires_quote?: boolean
           scheduled_date?: string | null
+          scheduling_method?: string | null
           scheduling_type?: Database["public"]["Enums"]["intervention_scheduling_type"]
           selected_slot_id?: string | null
           specific_location?: string | null

@@ -13,7 +13,6 @@ import {
   Clock,
   CalendarDays,
   FileText,
-  Info,
   Calendar
 } from "lucide-react"
 import { format } from 'date-fns'
@@ -54,8 +53,8 @@ interface InterventionSchedulingPreviewProps {
   scheduledDate?: string | null
   schedulingSlots?: TimeSlot[] | null
 
-  // Instructions
-  instructions?: string | null
+  // Quote actions
+  onCancelQuoteRequest?: (quoteId: string) => void
 }
 
 export function InterventionSchedulingPreview({
@@ -67,7 +66,7 @@ export function InterventionSchedulingPreview({
   schedulingType = null,
   scheduledDate = null,
   schedulingSlots = null,
-  instructions = null
+  onCancelQuoteRequest
 }: InterventionSchedulingPreviewProps) {
 
   // Format date and time
@@ -93,19 +92,6 @@ export function InterventionSchedulingPreview({
 
   return (
     <div className="space-y-6">
-      {/* Instructions (if any) */}
-      {instructions && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Info className="w-4 h-4 text-blue-500" />
-            <h4 className="text-sm font-medium">Instructions générales</h4>
-          </div>
-          <p className="text-sm text-muted-foreground whitespace-pre-wrap bg-blue-50 rounded-lg p-3">
-            {instructions}
-          </p>
-        </div>
-      )}
-
       {/* 1. Participants Section */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
@@ -147,45 +133,32 @@ export function InterventionSchedulingPreview({
           <h4 className="text-sm font-medium">Estimation préalable</h4>
         </div>
 
-        <div className="p-4 bg-amber-50/30 border border-amber-200 rounded-lg space-y-4">
-          {/* Status Badge */}
-          <div className="flex items-center gap-2">
-            {requireQuote ? (
-              <>
-                <Badge className="bg-amber-100 text-amber-800 border-amber-300">
-                  Estimation demandée
-                </Badge>
-                {quotes.length > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    {quotes.length} devis reçu{quotes.length > 1 ? 's' : ''}
-                  </span>
-                )}
-              </>
-            ) : (
-              <Badge variant="outline" className="text-muted-foreground">
-                Pas d&apos;estimation demandée
-              </Badge>
-            )}
-          </div>
-
-          {/* Quote Requests */}
-          {requireQuote && quotes.length > 0 && (
-            <div className="space-y-3 pt-3 border-t border-amber-300">
-              <h5 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
-                <FileText className="h-4 w-4 text-amber-600" />
-                Devis reçus
-              </h5>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {quotes.map(quote => (
-                  <QuoteRequestCard
-                    key={quote.id}
-                    request={quote}
-                  />
-                ))}
+        {/* Estimations received */}
+        {requireQuote && quotes.length > 0 ? (
+          <div className="flex gap-3 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory items-stretch">
+            {quotes.map(quote => (
+              <div key={quote.id} className="min-w-[320px] max-w-[400px] flex-shrink-0 snap-start flex">
+                <QuoteRequestCard
+                  request={quote}
+                  onCancelRequest={onCancelQuoteRequest}
+                  className="flex-1"
+                />
               </div>
-            </div>
-          )}
-        </div>
+            ))}
+          </div>
+        ) : requireQuote ? (
+          <div className="p-4 bg-amber-50/30 border border-amber-200 rounded-lg">
+            <p className="text-sm text-amber-800">
+              En attente d&apos;estimation du prestataire
+            </p>
+          </div>
+        ) : (
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+            <p className="text-sm text-muted-foreground">
+              Pas d&apos;estimation demandée pour cette intervention
+            </p>
+          </div>
+        )}
       </div>
 
       {/* 3. Scheduling Method Section */}

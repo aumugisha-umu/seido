@@ -194,7 +194,29 @@ export const useInterventionPlanning = (
       // Fermer la modale
       setProgrammingModal({ isOpen: false, intervention: null })
 
-      // Message de succès adapté
+      // Show toast with quote creation stats (if applicable)
+      if (result.data?.quoteStats) {
+        const { totalSelected, skipped, created } = result.data.quoteStats
+
+        if (skipped > 0 && created > 0) {
+          toast.success(
+            `${skipped} prestataire${skipped > 1 ? 's ont' : ' a'} déjà une demande active. ${created} nouvelle${created > 1 ? 's' : ''} demande${created > 1 ? 's' : ''} créée${created > 1 ? 's' : ''}.`,
+            { duration: 5000 }
+          )
+        } else if (skipped > 0 && created === 0) {
+          toast.success(
+            `Tous les prestataires sélectionnés (${totalSelected}) ont déjà une demande active.`,
+            { duration: 5000 }
+          )
+        } else if (created > 0) {
+          toast.success(
+            `${created} demande${created > 1 ? 's' : ''} envoyée${created > 1 ? 's' : ''} aux prestataires.`,
+            { duration: 4000 }
+          )
+        }
+      }
+
+      // Message de succès adapté pour planification
       const successMessage = programmingOption === 'organize'
         ? 'Planification autonome activée'
         : 'Créneaux proposés avec succès'

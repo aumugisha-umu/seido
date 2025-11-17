@@ -9,6 +9,8 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 
 // Tab components
 import { OverviewTab } from './overview-tab'
@@ -19,9 +21,16 @@ import { ActivityTab } from './activity-tab'
 import { ExecutionTab } from '@/components/intervention/tabs/execution-tab'
 
 // Intervention components
-import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from '@/components/ui/detail-page-header'
-import { InterventionActionPanelHeader } from '@/components/intervention/intervention-action-panel-header'
-import { Building2, MapPin, User, Calendar, AlertCircle, Archive, Edit, XCircle } from 'lucide-react'
+import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata } from '@/components/ui/detail-page-header'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Building2, MapPin, User, Calendar, AlertCircle, Edit, XCircle, MoreVertical } from 'lucide-react'
 
 // Hooks
 import { useAuth } from '@/hooks/use-auth'
@@ -575,52 +584,24 @@ export function InterventionDetailClient({
     }
   ].filter(Boolean) as DetailPageHeaderMetadata[]
 
-  // Primary actions (visible buttons)
-  const getPrimaryActions = (): DetailPageHeaderAction[] => {
-    const actions: DetailPageHeaderAction[] = []
+  // Helper function to check if action badge should be shown
+  const shouldShowActionBadge = (
+    status: string,
+    quotes: Quote[]
+  ): boolean => {
+    switch (status) {
+      case 'demande':
+      case 'approuvee':
+      case 'cloturee_par_prestataire':
+      case 'cloturee_par_locataire':
+        return true
 
-    // Add Edit action for most statuses
-    if (!['annulee', 'cloturee_par_gestionnaire'].includes(intervention.status)) {
-      actions.push({
-        label: 'Modifier',
-        icon: Edit,
-        onClick: () => {
-          // TODO: Implement edit logic
-          console.log('Edit intervention')
-        },
-        variant: 'outline'
-      })
+      case 'demande_de_devis':
+        return quotes?.some(q => q.status === 'pending' || q.status === 'sent') ?? false
+
+      default:
+        return false
     }
-
-    return actions
-  }
-
-  // Dropdown actions (in overflow menu)
-  const getDropdownActions = (): DetailPageHeaderAction[] => {
-    const actions: DetailPageHeaderAction[] = []
-
-    // Archive action
-    actions.push({
-      label: 'Archiver',
-      icon: Archive,
-      onClick: () => {
-        console.log('Archive intervention')
-      }
-    })
-
-    // Cancel action (if not already cancelled or finalized)
-    if (!['annulee', 'cloturee_par_gestionnaire'].includes(intervention.status)) {
-      actions.push({
-        label: 'Annuler l\'intervention',
-        icon: XCircle,
-        onClick: () => {
-          // TODO: Open cancel modal
-          console.log('Cancel intervention')
-        }
-      })
-    }
-
-    return actions
   }
 
   return (
@@ -632,34 +613,152 @@ export function InterventionDetailClient({
         title={intervention.title}
         badges={headerBadges}
         metadata={headerMetadata}
-        primaryActions={getPrimaryActions()}
-        dropdownActions={getDropdownActions()}
+        actionButtons={
+          <>
+            {/* Desktop Layout (≥1024px) : Badge inline + Boutons complets avec tooltips */}
+            <div className="hidden lg:flex lg:items-center lg:gap-2 transition-all duration-200">
+              {shouldShowActionBadge(intervention.status, quotes) && (
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 border border-amber-200">
+                  <AlertCircle className="w-3.5 h-3.5 text-amber-700" />
+                  <span className="text-xs font-medium text-amber-900 whitespace-nowrap">
+                    Action en attente
+                  </span>
+                </div>
+              )}
+
+              {/* Bouton Modifier avec tooltip */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleOpenProgrammingModalWithData}
+                      className="gap-2 min-h-[36px]"
+                    >
+                      <Edit className="w-4 h-4" />
+                      <span>Modifier la planification</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Proposer de nouveaux créneaux ou modifier le rendez-vous</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* Bouton Annuler avec tooltip */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => {
+                        // TODO: Open cancel modal
+                        console.log('Annuler intervention')
+                      }}
+                      className="gap-2 min-h-[36px]"
+                    >
+                      <XCircle className="w-4 h-4" />
+                      <span>Annuler</span>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Annuler cette intervention définitivement</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
+
+            {/* Tablet Layout (768-1023px) : Badge compact + Labels raccourcis */}
+            <div className="hidden md:flex lg:hidden items-center gap-2 transition-all duration-200">
+              {shouldShowActionBadge(intervention.status, quotes) && (
+                <div className="flex items-center justify-center w-8 h-8 rounded-md bg-amber-50 border border-amber-200">
+                  <AlertCircle className="w-4 h-4 text-amber-700" />
+                  <span className="sr-only">Action en attente</span>
+                </div>
+              )}
+
+              <Button
+                variant="default"
+                size="sm"
+                onClick={handleOpenProgrammingModalWithData}
+                className="gap-1.5 min-h-[36px]"
+              >
+                <Edit className="w-4 h-4" />
+                <span>Modifier</span>
+              </Button>
+
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  // TODO: Open cancel modal
+                  console.log('Annuler intervention')
+                }}
+                className="gap-1.5 min-h-[36px]"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>Annuler</span>
+              </Button>
+            </div>
+
+            {/* Mobile Layout (<768px) : Dropdown menu avec point indicateur */}
+            <div className="md:hidden">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="relative gap-2 min-h-[44px]"
+                  >
+                    {/* Point indicateur rouge animé si action requise */}
+                    {shouldShowActionBadge(intervention.status, quotes) && (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white animate-pulse" />
+                    )}
+                    <MoreVertical className="w-4 h-4" />
+                    <span>Actions</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {/* Badge informatif en haut du menu */}
+                  {shouldShowActionBadge(intervention.status, quotes) && (
+                    <>
+                      <div className="px-2 py-1.5 text-xs font-medium text-amber-900 bg-amber-50 rounded-sm mx-1 mb-1">
+                        <AlertCircle className="w-3 h-3 inline mr-1" />
+                        Action en attente
+                      </div>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+
+                  {/* Action Modifier */}
+                  <DropdownMenuItem onSelect={handleOpenProgrammingModalWithData}>
+                    <Edit className="w-4 h-4 mr-2" />
+                    Modifier la planification
+                  </DropdownMenuItem>
+
+                  <DropdownMenuSeparator />
+
+                  {/* Action Annuler */}
+                  <DropdownMenuItem
+                    className="text-red-600 focus:text-red-600"
+                    onSelect={() => {
+                      // TODO: Open cancel modal
+                      console.log('Annuler intervention')
+                    }}
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Annuler l'intervention
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </>
+        }
       />
 
       <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
-        {/* Action Panel for Status-specific Actions */}
-        <div className="mb-4">
-          <InterventionActionPanelHeader
-            intervention={{
-              id: intervention.id,
-              title: intervention.title,
-              status: intervention.status,
-              tenant_id: intervention.tenant_id || undefined,
-              scheduled_date: intervention.scheduled_date || undefined,
-              quotes: quotes.map(q => ({
-                id: q.id,
-                status: q.status,
-                providerId: q.provider_id,
-                isCurrentUserQuote: q.provider_id === user?.id
-              }))
-            }}
-            userRole="gestionnaire"
-            userId={user?.id || ''}
-            onActionComplete={handleActionComplete}
-            onProposeSlots={handleOpenProgrammingModalWithData}
-            timeSlots={timeSlots}
-          />
-        </div>
 
       {/* Programming Modal */}
       <ProgrammingModal

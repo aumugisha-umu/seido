@@ -65,6 +65,9 @@ export interface DetailPageHeaderProps {
   primaryActions?: DetailPageHeaderAction[]
   dropdownActions?: DetailPageHeaderAction[]
 
+  // Custom action buttons (replaces primaryActions/dropdownActions when provided)
+  actionButtons?: React.ReactNode
+
   // Status indicator (optional alert/warning banner)
   statusIndicator?: {
     message: string
@@ -81,6 +84,7 @@ export function DetailPageHeader({
   metadata = [],
   primaryActions = [],
   dropdownActions = [],
+  actionButtons,
   statusIndicator,
 }: DetailPageHeaderProps) {
   return (
@@ -137,47 +141,54 @@ export function DetailPageHeader({
 
             {/* RIGHT: Actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Primary Actions */}
-              {primaryActions.map((action, idx) => (
-                <Button
-                  key={idx}
-                  variant={action.variant || 'outline'}
-                  size="sm"
-                  onClick={action.onClick}
-                  disabled={action.disabled}
-                  className="flex items-center gap-1.5"
-                >
-                  <action.icon className="h-4 w-4" />
-                  <span className="hidden sm:inline">{action.label}</span>
-                </Button>
-              ))}
-
-              {/* Dropdown Menu for Secondary Actions */}
-              {dropdownActions.length > 0 && (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                      <MoreVertical className="h-4 w-4" />
+              {/* Custom Action Buttons (if provided) */}
+              {actionButtons ? (
+                actionButtons
+              ) : (
+                <>
+                  {/* Primary Actions */}
+                  {primaryActions.map((action, idx) => (
+                    <Button
+                      key={idx}
+                      variant={action.variant || 'outline'}
+                      size="sm"
+                      onClick={action.onClick}
+                      disabled={action.disabled}
+                      className="flex items-center gap-1.5"
+                    >
+                      <action.icon className="h-4 w-4" />
+                      <span className="hidden sm:inline">{action.label}</span>
                     </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    {dropdownActions.map((action, idx) => (
-                      <div key={idx}>
-                        {idx > 0 && action.label.toLowerCase().includes('supprimer') && (
-                          <DropdownMenuSeparator />
-                        )}
-                        <DropdownMenuItem
-                          onClick={action.onClick}
-                          disabled={action.disabled}
-                          className="flex items-center gap-2"
-                        >
-                          <action.icon className="h-4 w-4" />
-                          <span>{action.label}</span>
-                        </DropdownMenuItem>
-                      </div>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                  ))}
+
+                  {/* Dropdown Menu for Secondary Actions */}
+                  {dropdownActions.length > 0 && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        {dropdownActions.map((action, idx) => (
+                          <div key={idx}>
+                            {idx > 0 && action.label.toLowerCase().includes('supprimer') && (
+                              <DropdownMenuSeparator />
+                            )}
+                            <DropdownMenuItem
+                              onClick={action.onClick}
+                              disabled={action.disabled}
+                              className="flex items-center gap-2"
+                            >
+                              <action.icon className="h-4 w-4" />
+                              <span>{action.label}</span>
+                            </DropdownMenuItem>
+                          </div>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </>
               )}
             </div>
           </div>

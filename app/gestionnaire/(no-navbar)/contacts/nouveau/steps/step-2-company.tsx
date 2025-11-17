@@ -196,33 +196,34 @@ export function Step2Company({
             </div>
           </div>
 
-          {/* Nom de la société */}
-          <div className="space-y-2">
-            <Label htmlFor="company-name">
-              Nom de la société <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="company-name"
-              value={companyName || ''}
-              onChange={(e) => onFieldChange('companyName', e.target.value)}
-              placeholder="ACME SPRL"
-            />
-          </div>
+          {/* Nom de la société + Numéro de TVA */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="company-name">
+                Nom de la société <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="company-name"
+                value={companyName || ''}
+                onChange={(e) => onFieldChange('companyName', e.target.value)}
+                placeholder="ACME SPRL"
+              />
+            </div>
 
-          {/* Numéro de TVA (lecture seule après recherche) */}
-          <div className="space-y-2">
-            <Label htmlFor="vat-number">
-              Numéro de TVA <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="vat-number"
-              value={vatNumber || ''}
-              onChange={(e) => onFieldChange('vatNumber', formatVatNumber(e.target.value))}
-              placeholder="BE0123456789"
-            />
-            <p className="text-sm text-gray-500">
-              Format: BE0123456789, FR12345678901, etc.
-            </p>
+            <div className="space-y-2">
+              <Label htmlFor="vat-number">
+                Numéro de TVA <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="vat-number"
+                value={vatNumber || ''}
+                onChange={(e) => onFieldChange('vatNumber', formatVatNumber(e.target.value))}
+                placeholder="BE0123456789"
+              />
+              <p className="text-sm text-gray-500">
+                Format: BE0123456789, FR12345678901, etc.
+              </p>
+            </div>
           </div>
 
           {/* Adresse - Grid 6 colonnes */}

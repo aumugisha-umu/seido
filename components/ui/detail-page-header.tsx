@@ -9,7 +9,7 @@
  * Features:
  * - Sticky positioning (stuck below main app header)
  * - White background with shadow
- * - Left: Back button
+ * - Left: SEIDO Logo + Back button
  * - Center: Title + Badges + Metadata
  * - Right: Primary actions + Dropdown menu
  * - Responsive design (mobile/tablet/desktop)
@@ -25,6 +25,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ArrowLeft, MoreVertical, type LucideIcon } from 'lucide-react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 export interface DetailPageHeaderBadge {
   label: string
@@ -73,6 +76,9 @@ export interface DetailPageHeaderProps {
     message: string
     variant: 'info' | 'warning' | 'error' | 'success'
   }
+
+  // Layout configuration
+  hasGlobalNav?: boolean // true = top-16 (with DashboardHeader), false = top-0 (no navbar)
 }
 
 export function DetailPageHeader({
@@ -86,23 +92,52 @@ export function DetailPageHeader({
   dropdownActions = [],
   actionButtons,
   statusIndicator,
+  hasGlobalNav = false,
 }: DetailPageHeaderProps) {
+  const pathname = usePathname()
+
+  // Extract role from pathname (e.g., /gestionnaire/... → gestionnaire)
+  const role = pathname?.split('/')[1] || 'gestionnaire'
+
+  // Adjust top position based on global nav presence
+  const topClass = hasGlobalNav ? 'top-16' : 'top-0'
+
   return (
     <>
-      {/* Sticky Header - Stuck below main app header (top-16 = 64px) */}
-      <div className="sticky top-16 z-50 bg-white border-b border-gray-200 shadow-sm">
+      {/* Sticky Header - Position depends on global nav */}
+      <div className={`sticky ${topClass} z-50 bg-white border-b border-gray-200 shadow-sm`}>
         <div className="content-max-width px-4 sm:px-6">
           <div className="h-16 flex items-center gap-3 sm:gap-6">
-            {/* LEFT: Back Button */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onBack}
-              className="flex-shrink-0"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="hidden sm:inline ml-2">{backButtonText}</span>
-            </Button>
+            {/* LEFT: Picto + Back Button */}
+            <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
+              {/* SEIDO Picto (clickable to dashboard) */}
+              <Link
+                href={`/${role}/dashboard`}
+                className="flex-shrink-0 hover:opacity-80 transition-opacity p-1.5 -m-1.5 rounded-lg hover:bg-gray-100"
+                aria-label="Retour au dashboard"
+                title="Retour au dashboard"
+              >
+                <Image
+                  src="/images/Logo/Picto_Seido_Color.png"
+                  alt="SEIDO"
+                  width={32}
+                  height={32}
+                  className="h-8 w-8"
+                  priority
+                />
+              </Link>
+
+              {/* Back Button */}
+              <Button
+                variant="ghost"
+                size="default"
+                onClick={onBack}
+                className="flex-shrink-0"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span className="hidden sm:inline ml-2">{backButtonText}</span>
+              </Button>
+            </div>
 
             {/* CENTER: Title + Badges + Metadata */}
             <div className="flex-1 flex items-center justify-center gap-2 sm:gap-3 min-w-0">
@@ -151,7 +186,7 @@ export function DetailPageHeader({
                     <Button
                       key={idx}
                       variant={action.variant || 'outline'}
-                      size="sm"
+                      size="default"
                       onClick={action.onClick}
                       disabled={action.disabled}
                       className="flex items-center gap-1.5"
@@ -165,7 +200,7 @@ export function DetailPageHeader({
                   {dropdownActions.length > 0 && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="default">
                           <MoreVertical className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>

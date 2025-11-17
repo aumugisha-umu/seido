@@ -1,16 +1,17 @@
 import type React from "react"
 import { requireRole } from "@/lib/auth-dal"
-import DashboardHeader from "@/components/dashboard-header"
 import { LocataireLayoutClient } from "./layout-client"
 import { FrillWidget } from "@/components/frill-widget"
 
 /**
- * 🔐 LOCATAIRE LAYOUT - SERVER COMPONENT (Architecture 2025)
+ * 🔐 LOCATAIRE LAYOUT - ROOT LAYOUT (Architecture Next.js 15 + Route Groups)
  *
- * Nouvelle architecture conforme aux best practices Next.js/Supabase :
- * - Authentification gérée par middleware + Server Component
- * - Plus d'AuthGuard client (redondant et source de conflits)
- * - Protection native avec requireRole() du DAL
+ * Pattern officiel Next.js 15 + Supabase:
+ * - Middleware: Token refresh + basic gatekeeper
+ * - Root Layout: Auth + Global UI (FrillWidget, client hooks)
+ * - Route Group Layouts: DashboardHeader conditionnel
+ *   - (with-navbar): Avec DashboardHeader
+ *   - (no-navbar): Sans DashboardHeader (pages gèrent leur propre header)
  */
 
 export default async function LocataireLayout({
@@ -18,25 +19,12 @@ export default async function LocataireLayout({
 }: {
   children: React.ReactNode
 }) {
-  // ✅ AUTHENTIFICATION SERVEUR: Le middleware a déjà vérifié l'auth
-  // requireRole() valide en plus le rôle spécifique côté serveur
-  const { user, profile } = await requireRole(['locataire'])
-
-  // Préparer les données utilisateur pour éviter hydration mismatch
-  const userName = profile.name || user.email?.split('@')[0] || 'Utilisateur'
-  const userInitial = userName.charAt(0).toUpperCase()
+  // ✅ Authentification commune à toutes les pages
+  await requireRole(['locataire'])
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      {/* Header centralisé avec toutes les améliorations */}
-      <DashboardHeader
-        role="locataire"
-        userName={userName}
-        userInitial={userInitial}
-        userEmail={user.email || ''}
-      />
-
-      {/* Contenu principal - Padding global responsive */}
+      {/* Contenu principal - DashboardHeader délégué aux Route Group layouts */}
       <main className="flex-1 flex flex-col min-h-0 layout-container">
         {children}
       </main>

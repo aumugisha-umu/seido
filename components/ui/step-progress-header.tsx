@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Check } from "lucide-react"
 import { LucideIcon } from "lucide-react"
+import Image from "next/image"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 
 export interface StepConfig {
   icon: LucideIcon
@@ -17,23 +20,25 @@ interface StepProgressHeaderProps {
   onBack: () => void
   steps: StepConfig[]
   currentStep: number
+  hasGlobalNav?: boolean // true = top-16 (with DashboardHeader), false = top-0 (no navbar)
 }
 
 /**
- * 🎯 Version 2: "Tab-Style" (~50-70px hauteur)
+ * 🎯 StepProgressHeader - Material Design 3 Compliant
  *
  * UX Concept:
- * - Navigation style onglets (Material Design / Ant Design)
+ * - Navigation style onglets (Material Design 3 Tab principles)
+ * - Bouton retour en position "leading" (gauche) conforme MD3
  * - Focus sur l'étape active avec indicateur bottom-border
  * - Étapes complétées condensées, étapes futures en gris
  * - Affichage contextuel: seul l'actif est visuellement dominant
  *
  * Bonnes pratiques appliquées:
+ * - Leading navigation (back button à gauche) - Material Design 3
  * - Progressive disclosure: Étapes futures minimisées
  * - Active state prominence: Bottom border + couleur
- * - Scan pattern: F-pattern horizontal pour lecture rapide
+ * - F-pattern reading: Navigation à gauche, contenu au centre
  * - Density: Information maximale dans hauteur minimale
- * - Material Design Tab principles
  */
 export const StepProgressHeader = ({
   title,
@@ -42,26 +47,64 @@ export const StepProgressHeader = ({
   onBack,
   steps,
   currentStep,
+  hasGlobalNav = false,
 }: StepProgressHeaderProps) => {
   const progressPercentage = ((currentStep - 1) / (steps.length - 1)) * 100
+  const pathname = usePathname()
+
+  // Extract role from pathname (e.g., /gestionnaire/... → gestionnaire)
+  const role = pathname?.split('/')[1] || 'gestionnaire'
+
+  // Adjust top position based on global nav presence
+  const topClass = hasGlobalNav ? 'top-16' : 'top-0'
 
   return (
-    <div className="sticky top-16 z-50 bg-white border-b border-gray-200 shadow-sm">
-      <div className="content-max-width px-4 sm:px-6 h-16 flex items-center gap-3 sm:gap-6 relative">
+    <div className={`sticky ${topClass} z-50 bg-white border-b border-gray-200 shadow-sm`}>
+      <div className="content-max-width px-4 sm:px-6 h-16 grid grid-cols-3 items-center gap-4 relative">
 
-          {/* Left: Title + Badge */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Left Column: Picto + Back Button */}
+          <div className="flex items-center gap-3 sm:gap-4 justify-start">
+            {/* SEIDO Picto (clickable to dashboard) */}
+            <Link
+              href={`/${role}/dashboard`}
+              className="flex-shrink-0 hover:opacity-80 transition-opacity p-1.5 -m-1.5 rounded-lg hover:bg-gray-100"
+              aria-label="Retour au dashboard"
+              title="Retour au dashboard"
+            >
+              <Image
+                src="/images/Logo/Picto_Seido_Color.png"
+                alt="SEIDO"
+                width={32}
+                height={32}
+                className="h-8 w-8"
+                priority
+              />
+            </Link>
+
+            {/* Back Button (Material Design 3 "Leading" position) */}
+            <Button
+              variant="ghost"
+              size="default"
+              onClick={onBack}
+              className="flex-shrink-0 hover:bg-gray-100"
+            >
+              <ArrowLeft className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{backButtonText}</span>
+            </Button>
+          </div>
+
+          {/* Center Column: Title + Badge (centered in its grid cell) */}
+          <div className="flex items-center justify-center gap-2">
             <h1 className="text-base sm:text-lg font-bold text-gray-900 whitespace-nowrap">
               {title}
             </h1>
-            <Badge variant="secondary" className="hidden lg:flex flex-shrink-0 text-xs">
+            <Badge variant="secondary" className="flex lg:hidden flex-shrink-0 text-xs">
               {currentStep}/{steps.length}
             </Badge>
           </div>
 
-          {/* Center: Tab Navigation */}
-          <div className="relative flex-1 min-w-0 flex justify-center">
-            <div className="flex items-stretch overflow-x-auto scrollbar-hide gap-1">
+          {/* Right Column: Tab Navigation (Steps aligned right) */}
+          <div className="hidden lg:flex items-stretch overflow-x-auto scrollbar-hide gap-1 justify-end">
             {steps.map((step, index) => {
               const stepNumber = index + 1
               const isComplete = currentStep > stepNumber
@@ -100,7 +143,7 @@ export const StepProgressHeader = ({
                   {/* Label - Desktop only, single line */}
                   <span
                     className={`
-                      hidden md:inline text-xs font-medium whitespace-nowrap
+                      hidden xl:inline text-sm font-medium whitespace-nowrap
                       ${isCurrent
                         ? "text-blue-600"
                         : isComplete
@@ -115,18 +158,6 @@ export const StepProgressHeader = ({
               )
             })}
           </div>
-          </div>
-
-          {/* Right: Back Button */}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onBack}
-            className="flex-shrink-0 hover:bg-gray-100"
-          >
-            <ArrowLeft className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">{backButtonText}</span>
-          </Button>
 
         {/* Progress Bar - at bottom border level */}
         <div

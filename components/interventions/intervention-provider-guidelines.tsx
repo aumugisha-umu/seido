@@ -74,12 +74,12 @@ export function InterventionProviderGuidelines({
 
         {canEdit && !isEditing && (
           <Button
-            variant="ghost"
+            variant="outline"
             size="sm"
             onClick={() => setIsEditing(true)}
-            className="h-7 text-xs"
+            className="h-7 text-xs gap-1"
           >
-            <Pencil className="w-3 h-3 mr-1" />
+            <Pencil className="w-3 h-3" />
             Modifier
           </Button>
         )}

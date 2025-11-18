@@ -49,8 +49,13 @@ type Quote = Database['public']['Tables']['intervention_quotes']['Row'] & {
   provider?: Database['public']['Tables']['users']['Row']
 }
 
+type TimeSlotResponse = Database['public']['Tables']['time_slot_responses']['Row'] & {
+  user?: Database['public']['Tables']['users']['Row']
+}
+
 type TimeSlot = Database['public']['Tables']['intervention_time_slots']['Row'] & {
   proposed_by_user?: Database['public']['Tables']['users']['Row']
+  responses?: TimeSlotResponse[]
 }
 
 interface Contact {
@@ -83,6 +88,10 @@ interface OverviewTabProps {
   currentUserId: string
   currentUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire'
   onRefresh: () => void
+  onOpenProgrammingModal?: () => void
+  onCancelSlot?: (slot: TimeSlot) => void
+  onEditParticipants?: () => void
+  onEditQuotes?: () => void
 }
 
 export function OverviewTab({
@@ -93,7 +102,11 @@ export function OverviewTab({
   comments,
   currentUserId,
   currentUserRole,
-  onRefresh
+  onRefresh,
+  onOpenProgrammingModal,
+  onCancelSlot,
+  onEditParticipants,
+  onEditQuotes
 }: OverviewTabProps) {
   // Transform assignments into contacts grouped by role
   const managers: Contact[] = assignments
@@ -263,6 +276,13 @@ export function OverviewTab({
             quotes={quotes}
             schedulingType={schedulingType}
             schedulingSlots={schedulingSlotsForPreview}
+            fullTimeSlots={timeSlots}
+            onOpenProgrammingModal={onOpenProgrammingModal}
+            onCancelSlot={onCancelSlot}
+            canManageSlots={['approuvee', 'demande_de_devis', 'planification'].includes(intervention.status)}
+            currentUserId={currentUserId}
+            onEditParticipants={onEditParticipants}
+            onEditQuotes={onEditQuotes}
             currentUserRole={currentUserRole}
             onUpdate={onRefresh}
             onCancelQuoteRequest={handleCancelQuoteRequest}

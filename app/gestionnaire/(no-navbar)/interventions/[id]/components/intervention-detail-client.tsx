@@ -16,9 +16,7 @@ import { Badge } from '@/components/ui/badge'
 import { OverviewTab } from './overview-tab'
 import { ChatTab } from './chat-tab'
 import { DocumentsTab } from './documents-tab'
-import { QuotesTab } from './quotes-tab'
 import { ActivityTab } from './activity-tab'
-import { ExecutionTab } from '@/components/intervention/tabs/execution-tab'
 
 // Intervention components
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata } from '@/components/ui/detail-page-header'
@@ -637,7 +635,7 @@ export function InterventionDetailClient({
                       className="gap-2 min-h-[36px]"
                     >
                       <Edit className="w-4 h-4" />
-                      <span>Modifier la planification</span>
+                      <span>Modifier</span>
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -735,7 +733,7 @@ export function InterventionDetailClient({
                   {/* Action Modifier */}
                   <DropdownMenuItem onSelect={handleOpenProgrammingModalWithData}>
                     <Edit className="w-4 h-4 mr-2" />
-                    Modifier la planification
+                    Modifier
                   </DropdownMenuItem>
 
                   <DropdownMenuSeparator />
@@ -836,37 +834,9 @@ export function InterventionDetailClient({
       {/* Tabs Navigation */}
       <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4 mb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-6 w-full">
+          <TabsList className="grid grid-cols-4 w-full">
             <TabsTrigger value="overview">
               Vue d'ensemble
-            </TabsTrigger>
-            <TabsTrigger value="quotes" className="relative">
-              Devis
-              {(() => {
-                const { pendingRequests, submittedQuotes } = getQuotesBadges()
-                return (
-                  <div className="absolute -top-1 -right-1 flex gap-1 z-50">
-                    {pendingRequests > 0 && (
-                      <span className="bg-blue-500 text-white text-xs rounded-full px-1.5">
-                        {pendingRequests}
-                      </span>
-                    )}
-                    {submittedQuotes > 0 && (
-                      <span className="bg-red-500 text-white text-xs rounded-full px-1.5">
-                        {submittedQuotes}
-                      </span>
-                    )}
-                  </div>
-                )
-              })()}
-            </TabsTrigger>
-            <TabsTrigger value="time-slots" className="relative">
-              Exécution
-              {getBadgeCount('time-slots') && (
-                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
-                  {getBadgeCount('time-slots')}
-                </span>
-              )}
             </TabsTrigger>
             <TabsTrigger value="chat" className="relative">
               Discussion
@@ -906,38 +876,10 @@ export function InterventionDetailClient({
                   currentUserId={user?.id || ''}
                   currentUserRole={(user?.role as 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire') || 'locataire'}
                   onRefresh={handleRefresh}
-                />
-              </TabsContent>
-
-              <TabsContent value="quotes" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6">
-                <QuotesTab
-                  interventionId={intervention.id}
-                  quotes={quotes}
-                  canManage={true}
-                />
-              </TabsContent>
-
-              <TabsContent value="time-slots" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6">
-                <ExecutionTab
-                  interventionId={intervention.id}
-                  timeSlots={timeSlots}
-                  currentStatus={intervention.status}
-                  intervention={{
-                    id: intervention.id,
-                    type: intervention.type || '',
-                    status: intervention.status || '',
-                    title: intervention.title || '',
-                    description: intervention.description,
-                    priority: intervention.priority,
-                    urgency: intervention.urgency,
-                    reference: intervention.reference,
-                    created_at: intervention.created_at,
-                    location: intervention.specific_location,
-                  }}
                   onOpenProgrammingModal={handleOpenProgrammingModalWithData}
                   onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
-                  onRejectSlot={(slot) => planning.openRejectSlotModal(slot, intervention.id)}
-                  currentUserId={user?.id}
+                  onEditParticipants={handleOpenProgrammingModalWithData}
+                  onEditQuotes={handleOpenProgrammingModalWithData}
                 />
               </TabsContent>
 

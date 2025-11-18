@@ -21,6 +21,15 @@ type Quote = Database['public']['Tables']['intervention_quotes']['Row'] & {
   provider?: User
 }
 
+type TimeSlotResponse = Database['public']['Tables']['time_slot_responses']['Row'] & {
+  user?: User
+}
+
+type FullTimeSlot = Database['public']['Tables']['intervention_time_slots']['Row'] & {
+  proposed_by_user?: User
+  responses?: TimeSlotResponse[]
+}
+
 interface Contact {
   id: string
   name: string
@@ -29,7 +38,7 @@ interface Contact {
   type?: "gestionnaire" | "prestataire" | "locataire"
 }
 
-interface TimeSlot {
+interface SimpleTimeSlot {
   date: string
   startTime: string
   endTime: string
@@ -44,7 +53,17 @@ interface InterventionOverviewCardProps {
   requireQuote?: boolean
   quotes?: Quote[]
   schedulingType?: "fixed" | "slots" | "flexible" | null
-  schedulingSlots?: TimeSlot[] | null
+  schedulingSlots?: SimpleTimeSlot[] | null
+  // Full time slots for compact card display
+  fullTimeSlots?: FullTimeSlot[] | null
+  // Actions for slots
+  onOpenProgrammingModal?: () => void
+  onCancelSlot?: (slot: FullTimeSlot) => void
+  canManageSlots?: boolean
+  currentUserId?: string
+  // Actions for participants and quotes
+  onEditParticipants?: () => void
+  onEditQuotes?: () => void
   // Provider guidelines
   currentUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire'
   onUpdate?: () => void
@@ -61,6 +80,13 @@ export function InterventionOverviewCard({
   quotes = [],
   schedulingType = null,
   schedulingSlots = null,
+  fullTimeSlots = null,
+  onOpenProgrammingModal,
+  onCancelSlot,
+  canManageSlots = false,
+  currentUserId,
+  onEditParticipants,
+  onEditQuotes,
   currentUserRole,
   onUpdate,
   onCancelQuoteRequest
@@ -93,6 +119,13 @@ export function InterventionOverviewCard({
           schedulingType={schedulingType}
           scheduledDate={intervention.scheduled_date}
           schedulingSlots={schedulingSlots}
+          fullTimeSlots={fullTimeSlots}
+          onOpenProgrammingModal={onOpenProgrammingModal}
+          onCancelSlot={onCancelSlot}
+          canManageSlots={canManageSlots}
+          currentUserId={currentUserId}
+          onEditParticipants={onEditParticipants}
+          onEditQuotes={onEditQuotes}
           onCancelQuoteRequest={onCancelQuoteRequest}
         />
       </CardContent>

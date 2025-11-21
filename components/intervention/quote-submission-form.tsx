@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import {
   FileText,
@@ -13,7 +13,8 @@ import {
   Trash2,
   Download,
   Wrench,
-  MessageSquare
+  MessageSquare,
+  AlertCircle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,6 +32,25 @@ import {
   getPriorityLabel
 } from "@/lib/intervention-utils"
 import { FileUploader } from "@/components/ui/file-uploader"
+import { TimeSlotCard } from "./time-slot-card"
+import { RejectSlotModal } from "./modals/reject-slot-modal"
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
+import {
+  acceptTimeSlotAction,
+  rejectTimeSlotAction,
+  withdrawResponseAction
+} from '@/app/actions/intervention-actions'
+import type { Database } from '@/lib/database.types'
+
+type TimeSlotResponse = Database['public']['Tables']['time_slot_responses']['Row'] & {
+  user?: Database['public']['Tables']['users']['Row']
+}
+
+type TimeSlot = Database['public']['Tables']['intervention_time_slots']['Row'] & {
+  proposed_by_user?: Database['public']['Tables']['users']['Row']
+  responses?: TimeSlotResponse[]
+}
 
 interface Intervention {
   id: string
@@ -38,6 +58,8 @@ interface Intervention {
   description: string
   urgency: string
   quote_deadline?: string
+  time_slots?: TimeSlot[]
+  scheduling_type?: 'flexible' | 'fixed' | 'slots'
 }
 
 interface ExistingQuote {
@@ -67,6 +89,12 @@ interface QuoteSubmissionFormProps {
   existingQuote?: ExistingQuote
   quoteRequest?: QuoteRequest
   onSuccess: () => void
+  currentUserId?: string // Needed for time slot responses
+
+  // Optional callbacks for external control (used in modal)
+  onSubmitReady?: (submitFn: () => void) => void
+  onValidationChange?: (isValid: boolean) => void
+  onLoadingChange?: (isLoading: boolean) => void
 }
 
 interface FormData {
@@ -92,13 +120,55 @@ export function QuoteSubmissionForm({
   intervention,
   existingQuote,
   quoteRequest,
-  onSuccess
+  onSuccess,
+  currentUserId,
+  onSubmitReady,
+  onValidationChange,
+  onLoadingChange
 }: QuoteSubmissionFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fieldValidations, setFieldValidations] = useState<Record<string, FieldValidation>>({})
   const quoteToast = useQuoteToast()
+
+  // States for time slot management
+  const [acceptingSlotId, setAcceptingSlotId] = useState<string | null>(null)
+  const [withdrawingSlotId, setWithdrawingSlotId] = useState<string | null>(null)
+  const [rejectModalOpen, setRejectModalOpen] = useState(false)
+  const [slotToReject, setSlotToReject] = useState<TimeSlot | null>(null)
+
+  // Check if intervention has proposed time slots
+  const hasProposedSlots = useMemo(() => {
+    return intervention.time_slots
+      && intervention.time_slots.length > 0
+      && intervention.time_slots.some(slot =>
+        slot.status !== 'cancelled' && slot.status !== 'rejected'
+      )
+  }, [intervention.time_slots])
+
+  // Group slots by date
+  const groupedSlots = useMemo(() => {
+    if (!hasProposedSlots || !intervention.time_slots) return []
+
+    const groups = intervention.time_slots
+      .filter(slot => slot.status !== 'cancelled' && slot.status !== 'rejected')
+      .reduce((acc, slot) => {
+        const date = slot.slot_date
+        const existing = acc.find(g => g.date === date)
+        if (existing) {
+          existing.slots.push(slot)
+        } else {
+          acc.push({ date, slots: [slot] })
+        }
+        return acc
+      }, [] as Array<{ date: string; slots: TimeSlot[] }>)
+
+    // Sort by date
+    groups.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+
+    return groups
+  }, [intervention.time_slots, hasProposedSlots])
 
   const [formData, setFormData] = useState<FormData>({
     laborCost: existingQuote?.laborCost?.toString() || '',
@@ -151,6 +221,127 @@ export function QuoteSubmissionForm({
     }
   }, [quoteRequest])
 
+  // Expose submit handler to parent (for modal footer)
+  // We create a wrapper that will be called by the parent
+  const submitWrapper = useCallback(() => {
+    // Trigger form validation and submission
+    const validationError = validateForm()
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
+    setIsLoading(true)
+    setError(null)
+
+    // Call the async submit logic
+    ;(async () => {
+      try {
+        const attachmentUrls: string[] = []
+
+        const response = await fetch('/api/intervention-quote-submit', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            interventionId: intervention.id,
+            laborCost: parseFloat(formData.laborCost),
+            materialsCost: 0,
+            estimatedDurationHours: parseFloat(formData.estimatedDurationHours),
+            description: formData.workDetails.trim(),
+            providerAvailabilities: formData.providerAvailabilities
+              .filter(avail => avail.date && avail.startTime)
+              .map(avail => ({
+                date: avail.date,
+                startTime: avail.startTime,
+                endTime: avail.isFlexible
+                  ? avail.endTime || null
+                  : calculateEndTime(avail.startTime),
+                isFlexible: avail.isFlexible
+              }))
+          })
+        })
+
+        const result = await response.json()
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Erreur lors de la soumission du devis')
+        }
+
+        quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
+        onSuccess()
+
+      } catch (error) {
+        logger.error('Error submitting quote:', error)
+        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
+        setError(errorMessage)
+        quoteToast.quoteError(errorMessage, 'la soumission du devis')
+      } finally {
+        setIsLoading(false)
+      }
+    })()
+  }, [formData, intervention.id, intervention.title, onSuccess])
+
+  // Use refs to track previous values and avoid calling callbacks during render
+  const prevSubmitReadyRef = useRef<typeof onSubmitReady>(null)
+  const prevValidationChangeRef = useRef<typeof onValidationChange>(null)
+  const prevLoadingChangeRef = useRef<typeof onLoadingChange>(null)
+
+  // Expose submit handler to parent (deferred to avoid render-time setState)
+  useEffect(() => {
+    // Only call if callback changed or on first mount
+    if (onSubmitReady && onSubmitReady !== prevSubmitReadyRef.current) {
+      prevSubmitReadyRef.current = onSubmitReady
+      // Defer to next tick to avoid setState during render
+      const timeoutId = setTimeout(() => {
+        onSubmitReady(submitWrapper)
+      }, 0)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [onSubmitReady, submitWrapper])
+
+  // Notify parent of validation state changes (deferred)
+  useEffect(() => {
+    if (onValidationChange && onValidationChange !== prevValidationChangeRef.current) {
+      prevValidationChangeRef.current = onValidationChange
+      const timeoutId = setTimeout(() => {
+        onValidationChange(isFormValid())
+      }, 0)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [onValidationChange])
+
+  // Also notify when form data changes (validation state might have changed)
+  useEffect(() => {
+    if (onValidationChange) {
+      const timeoutId = setTimeout(() => {
+        onValidationChange(isFormValid())
+      }, 0)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [formData, onValidationChange])
+
+  // Notify parent of loading state changes (deferred)
+  useEffect(() => {
+    if (onLoadingChange && onLoadingChange !== prevLoadingChangeRef.current) {
+      prevLoadingChangeRef.current = onLoadingChange
+      const timeoutId = setTimeout(() => {
+        onLoadingChange(isLoading)
+      }, 0)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [onLoadingChange])
+
+  // Also notify when loading state changes
+  useEffect(() => {
+    if (onLoadingChange) {
+      const timeoutId = setTimeout(() => {
+        onLoadingChange(isLoading)
+      }, 0)
+      return () => clearTimeout(timeoutId)
+    }
+  }, [isLoading, onLoadingChange])
 
   // Validation individuelle des champs selon Design System
   const validateField = (field: keyof FormData, value: string): FieldValidation => {
@@ -313,6 +504,70 @@ export function QuoteSubmissionForm({
     return null
   }
 
+  // Time slot handlers
+  const handleAcceptSlot = async (slotId: string) => {
+    if (!currentUserId) {
+      quoteToast.quoteError('Utilisateur non identifié', 'l\'acceptation du créneau')
+      return
+    }
+
+    setAcceptingSlotId(slotId)
+    try {
+      const result = await acceptTimeSlotAction(slotId, intervention.id)
+      if (result.success) {
+        quoteToast.quoteSuccess('Créneau accepté avec succès')
+        router.refresh()
+      } else {
+        quoteToast.quoteError(result.error || 'Erreur lors de l\'acceptation du créneau', 'l\'acceptation du créneau')
+      }
+    } catch (error) {
+      logger.error('Error accepting slot:', error)
+      quoteToast.quoteError('Erreur lors de l\'acceptation du créneau', 'l\'acceptation du créneau')
+    } finally {
+      setAcceptingSlotId(null)
+    }
+  }
+
+  const handleOpenRejectModal = (slot: TimeSlot) => {
+    setSlotToReject(slot)
+    setRejectModalOpen(true)
+  }
+
+  const handleRejectSlot = async (slotId: string, reason: string) => {
+    try {
+      const result = await rejectTimeSlotAction(slotId, intervention.id, reason)
+      if (result.success) {
+        quoteToast.quoteSuccess('Créneau rejeté')
+        setRejectModalOpen(false)
+        setSlotToReject(null)
+        router.refresh()
+      } else {
+        quoteToast.quoteError(result.error || 'Erreur lors du rejet du créneau', 'le rejet du créneau')
+      }
+    } catch (error) {
+      logger.error('Error rejecting slot:', error)
+      quoteToast.quoteError('Erreur lors du rejet du créneau', 'le rejet du créneau')
+    }
+  }
+
+  const handleWithdrawResponse = async (slotId: string) => {
+    setWithdrawingSlotId(slotId)
+    try {
+      const result = await withdrawResponseAction(slotId, intervention.id)
+      if (result.success) {
+        quoteToast.quoteSuccess('Réponse retirée avec succès')
+        router.refresh()
+      } else {
+        quoteToast.quoteError(result.error || 'Erreur lors du retrait de la réponse', 'le retrait de la réponse')
+      }
+    } catch (error) {
+      logger.error('Error withdrawing response:', error)
+      quoteToast.quoteError('Erreur lors du retrait de la réponse', 'le retrait de la réponse')
+    } finally {
+      setWithdrawingSlotId(null)
+    }
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -379,87 +634,6 @@ export function QuoteSubmissionForm({
 
   return (
     <div className="w-full">
-      {/* Header moderne avec hiérarchie claire */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center">
-            <Wrench className="h-6 w-6 text-sky-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              {existingQuote && quoteRequest?.status !== 'pending' ? 'Modifier le devis' : 'Soumettre un devis'}
-            </h1>
-            <p className="text-slate-600">
-              Intervention: {intervention.title}
-            </p>
-          </div>
-        </div>
-        
-        {/* Résumé compact de l'intervention */}
-        <div className="bg-gradient-to-r from-sky-50 to-slate-50 border border-sky-200 rounded-xl p-6">
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <h2 className="text-lg font-semibold text-slate-900 mb-2">{intervention.title}</h2>
-              <p className="text-slate-700 text-base leading-relaxed">{intervention.description}</p>
-
-              {/* Message personnalisé de la demande de devis */}
-              {quoteRequest?.individual_message && (
-                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-start gap-2">
-                    <MessageSquare className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-blue-900 mb-1">Message du gestionnaire :</p>
-                      <p className="text-sm text-blue-800">{quoteRequest.individual_message}</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            <Badge className={`ml-4 ${getPriorityColor(intervention.urgency)}`}>
-              {getPriorityLabel(intervention.urgency)}
-            </Badge>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-6 text-sm">
-            <div className="flex items-center gap-2 text-slate-600">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-              </svg>
-              <span>{getInterventionLocationText(intervention)}</span>
-            </div>
-
-            {/* Deadline de la demande de devis (prioritaire) ou de l'intervention */}
-            {(quoteRequest?.deadline || intervention.quote_deadline) && (
-              <div className="flex items-center gap-2 text-amber-700 bg-amber-100 px-3 py-1 rounded-full">
-                <Clock className="w-4 h-4" />
-                <span className="font-medium">
-                  Deadline: {new Date(quoteRequest?.deadline || intervention.quote_deadline).toLocaleDateString('fr-FR')}
-                </span>
-              </div>
-            )}
-
-            {/* Informations sur la demande de devis */}
-            {quoteRequest && (
-              <div className="flex items-center gap-2 text-blue-700 bg-blue-100 px-3 py-1 rounded-full">
-                <Calendar className="w-4 h-4" />
-                <span className="font-medium">
-                  Demande reçue le {new Date(quoteRequest.sent_at).toLocaleDateString('fr-FR')}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Alerte informative sur la nature du devis */}
-        <Alert className="bg-amber-50 border-amber-300 border-2 mt-4">
-          <AlertTriangle className="h-4 w-4 text-amber-600" />
-          <AlertDescription className="text-amber-900">
-            <span className="font-medium">À propos des informations du devis :</span> Les données ci-dessous servent uniquement au suivi dans l'application.
-            Pour fournir un devis légalement valable, veuillez l'ajouter en pièce jointe .
-          </AlertDescription>
-        </Alert>
-      </div>
-
       {/* Layout principal */}
       <form onSubmit={handleSubmit} className="space-y-6">
 
@@ -553,8 +727,58 @@ export function QuoteSubmissionForm({
             </CardContent>
           </Card>
 
-        {/* Section Disponibilités Prestataire */}
-        <Card className="shadow-sm border-slate-200">
+        {/* Section modulaire : Horaires proposés OU Disponibilités manuelles */}
+        {hasProposedSlots ? (
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                  <Calendar className="h-4 w-4 text-blue-600" />
+                </div>
+                Horaires proposés
+              </CardTitle>
+              <p className="text-sm text-slate-600">
+                Le gestionnaire a proposé des créneaux horaires. Acceptez ceux qui vous conviennent pour faciliter la planification.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {groupedSlots.map(({ date, slots }) => (
+                <div key={date} className="space-y-3">
+                  <h3 className="text-sm font-semibold text-slate-700 mb-2">
+                    {format(new Date(date), 'EEEE dd MMMM yyyy', { locale: fr })}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {slots.map(slot => (
+                      <TimeSlotCard
+                        key={slot.id}
+                        slot={slot}
+                        currentUserId={currentUserId || ''}
+                        userRole="prestataire"
+                        onAccept={handleAcceptSlot}
+                        onReject={handleOpenRejectModal}
+                        onWithdraw={handleWithdrawResponse}
+                        showActions={true}
+                        compact={true}
+                        accepting={acceptingSlotId}
+                        withdrawing={withdrawingSlotId}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              {/* Message info */}
+              <Alert className="bg-blue-50 border-blue-200">
+                <AlertCircle className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800">
+                  <span className="font-medium">À propos des créneaux :</span> Vous pouvez accepter plusieurs créneaux.
+                  Le gestionnaire sélectionnera le créneau définitif après validation de votre devis.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="shadow-sm border-slate-200">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
                 <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -697,6 +921,7 @@ export function QuoteSubmissionForm({
               )}
             </CardContent>
           </Card>
+        )}
 
         {/* Actions */}
         {error && (
@@ -706,27 +931,29 @@ export function QuoteSubmissionForm({
           </Alert>
         )}
 
-        <Card className="bg-slate-50 border-slate-200">
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-4 justify-end">
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={() => router.back()}
-                disabled={isLoading}
-                className="bg-white text-slate-700 border-slate-300 hover:bg-slate-50 h-12 px-6"
-              >
-                Annuler
-              </Button>
-              <Button
-                type="submit"
-                disabled={isLoading || !isFormValid()}
-                className={`h-12 px-8 font-semibold ${
-                  isFormValid()
-                    ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-lg hover:shadow-xl'
-                    : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                }`}
-              >
+        {/* Only show footer if not controlled externally (no callbacks provided) */}
+        {!onSubmitReady && (
+          <Card className="bg-slate-50 border-slate-200">
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row gap-4 justify-end">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => router.back()}
+                  disabled={isLoading}
+                  className="bg-white text-slate-700 border-slate-300 hover:bg-slate-50 h-12 px-6"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isLoading || !isFormValid()}
+                  className={`h-12 px-8 font-semibold ${
+                    isFormValid()
+                      ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-lg hover:shadow-xl'
+                      : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                  }`}
+                >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -738,11 +965,28 @@ export function QuoteSubmissionForm({
                     {existingQuote && quoteRequest?.status !== 'pending' ? 'Confirmer la modification' : 'Soumettre le devis'}
                   </>
                 )}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </form>
+
+      {/* Modal de rejet de créneau */}
+      <RejectSlotModal
+        isOpen={rejectModalOpen}
+        onClose={() => {
+          setRejectModalOpen(false)
+          setSlotToReject(null)
+        }}
+        slot={slotToReject}
+        interventionId={intervention.id}
+        onSuccess={() => {
+          setRejectModalOpen(false)
+          setSlotToReject(null)
+          router.refresh()
+        }}
+      />
     </div>
   )
 }

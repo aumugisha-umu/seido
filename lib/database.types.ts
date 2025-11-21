@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "13.0.4"
   }
   graphql_public: {
     Tables: {
@@ -241,15 +241,18 @@ export type Database = {
           deleted_by: string | null
           email: string | null
           id: string
+          is_active: boolean | null
           legal_name: string | null
           logo_url: string | null
           name: string
           notes: string | null
           phone: string | null
           postal_code: string | null
-          registration_number: string | null
+          street: string | null
+          street_number: string | null
           team_id: string
           updated_at: string | null
+          vat_number: string | null
           website: string | null
         }
         Insert: {
@@ -261,15 +264,18 @@ export type Database = {
           deleted_by?: string | null
           email?: string | null
           id?: string
+          is_active?: boolean | null
           legal_name?: string | null
           logo_url?: string | null
           name: string
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
-          registration_number?: string | null
+          street?: string | null
+          street_number?: string | null
           team_id: string
           updated_at?: string | null
+          vat_number?: string | null
           website?: string | null
         }
         Update: {
@@ -281,15 +287,18 @@ export type Database = {
           deleted_by?: string | null
           email?: string | null
           id?: string
+          is_active?: boolean | null
           legal_name?: string | null
           logo_url?: string | null
           name?: string
           notes?: string | null
           phone?: string | null
           postal_code?: string | null
-          registration_number?: string | null
+          street?: string | null
+          street_number?: string | null
           team_id?: string
           updated_at?: string | null
+          vat_number?: string | null
           website?: string | null
         }
         Relationships: [
@@ -305,6 +314,64 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      company_members: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          id: string
+          joined_at: string | null
+          left_at: string | null
+          role: string | null
+          team_id: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          id?: string
+          joined_at?: string | null
+          left_at?: string | null
+          role?: string | null
+          team_id: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          id?: string
+          joined_at?: string | null
+          left_at?: string | null
+          role?: string | null
+          team_id?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_members_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_members_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "company_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -531,6 +598,51 @@ export type Database = {
           },
           {
             foreignKeyName: "intervention_assignments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_comments: {
+        Row: {
+          content: string
+          created_at: string
+          deleted_at: string | null
+          id: string
+          intervention_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          intervention_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          deleted_at?: string | null
+          id?: string
+          intervention_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_comments_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_comments_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -926,6 +1038,7 @@ export type Database = {
           building_id: string | null
           completed_date: string | null
           created_at: string
+          created_by: string | null
           deleted_at: string | null
           deleted_by: string | null
           description: string
@@ -933,19 +1046,18 @@ export type Database = {
           final_cost: number | null
           id: string
           lot_id: string | null
-          manager_comment: string | null
           metadata: Json | null
-          provider_comment: string | null
+          provider_guidelines: string | null
           reference: string
           requested_date: string | null
           requires_quote: boolean
           scheduled_date: string | null
+          scheduling_method: string | null
           scheduling_type: Database["public"]["Enums"]["intervention_scheduling_type"]
           selected_slot_id: string | null
           specific_location: string | null
           status: Database["public"]["Enums"]["intervention_status"]
           team_id: string
-          tenant_comment: string | null
           title: string
           type: Database["public"]["Enums"]["intervention_type"]
           updated_at: string
@@ -955,6 +1067,7 @@ export type Database = {
           building_id?: string | null
           completed_date?: string | null
           created_at?: string
+          created_by?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           description: string
@@ -962,19 +1075,18 @@ export type Database = {
           final_cost?: number | null
           id?: string
           lot_id?: string | null
-          manager_comment?: string | null
           metadata?: Json | null
-          provider_comment?: string | null
+          provider_guidelines?: string | null
           reference: string
           requested_date?: string | null
           requires_quote?: boolean
           scheduled_date?: string | null
+          scheduling_method?: string | null
           scheduling_type?: Database["public"]["Enums"]["intervention_scheduling_type"]
           selected_slot_id?: string | null
           specific_location?: string | null
           status?: Database["public"]["Enums"]["intervention_status"]
           team_id: string
-          tenant_comment?: string | null
           title: string
           type: Database["public"]["Enums"]["intervention_type"]
           updated_at?: string
@@ -984,6 +1096,7 @@ export type Database = {
           building_id?: string | null
           completed_date?: string | null
           created_at?: string
+          created_by?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string
@@ -991,19 +1104,18 @@ export type Database = {
           final_cost?: number | null
           id?: string
           lot_id?: string | null
-          manager_comment?: string | null
           metadata?: Json | null
-          provider_comment?: string | null
+          provider_guidelines?: string | null
           reference?: string
           requested_date?: string | null
           requires_quote?: boolean
           scheduled_date?: string | null
+          scheduling_method?: string | null
           scheduling_type?: Database["public"]["Enums"]["intervention_scheduling_type"]
           selected_slot_id?: string | null
           specific_location?: string | null
           status?: Database["public"]["Enums"]["intervention_status"]
           team_id?: string
-          tenant_comment?: string | null
           title?: string
           type?: Database["public"]["Enums"]["intervention_type"]
           updated_at?: string
@@ -1015,6 +1127,13 @@ export type Database = {
             columns: ["building_id"]
             isOneToOne: false
             referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -1671,10 +1790,11 @@ export type Database = {
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
-          email: string
+          email: string | null
           first_name: string | null
           id: string
           is_active: boolean | null
+          is_company: boolean | null
           last_name: string | null
           name: string
           notes: string | null
@@ -1699,10 +1819,11 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
-          email: string
+          email?: string | null
           first_name?: string | null
           id?: string
           is_active?: boolean | null
+          is_company?: boolean | null
           last_name?: string | null
           name: string
           notes?: string | null
@@ -1727,10 +1848,11 @@ export type Database = {
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
-          email?: string
+          email?: string | null
           first_name?: string | null
           id?: string
           is_active?: boolean | null
+          is_company?: boolean | null
           last_name?: string | null
           name?: string
           notes?: string | null
@@ -1904,6 +2026,24 @@ export type Database = {
         Returns: boolean
       }
       expire_old_invitations: { Args: never; Returns: number }
+      get_accessible_building_ids: {
+        Args: never
+        Returns: {
+          building_id: string
+        }[]
+      }
+      get_accessible_intervention_ids: {
+        Args: never
+        Returns: {
+          intervention_id: string
+        }[]
+      }
+      get_accessible_lot_ids: {
+        Args: never
+        Returns: {
+          lot_id: string
+        }[]
+      }
       get_building_team_id: { Args: { building_uuid: string }; Returns: string }
       get_current_user_id: { Args: never; Returns: string }
       get_current_user_role: {
@@ -1933,6 +2073,14 @@ export type Database = {
       }
       is_document_owner: { Args: { p_document_id: string }; Returns: boolean }
       is_gestionnaire: { Args: never; Returns: boolean }
+      is_gestionnaire_of_building_team: {
+        Args: { building_uuid: string }
+        Returns: boolean
+      }
+      is_gestionnaire_of_lot_team: {
+        Args: { lot_uuid: string }
+        Returns: boolean
+      }
       is_manager_of_intervention_team: {
         Args: { p_intervention_id: string }
         Returns: boolean
@@ -1943,6 +2091,14 @@ export type Database = {
       }
       is_prestataire_of_intervention: {
         Args: { intervention_id_param: string }
+        Returns: boolean
+      }
+      is_provider_assigned_to_building: {
+        Args: { building_id: string }
+        Returns: boolean
+      }
+      is_provider_assigned_to_lot: {
+        Args: { lot_id: string }
         Returns: boolean
       }
       is_team_manager: { Args: { check_team_id: string }; Returns: boolean }
@@ -2057,7 +2213,6 @@ export type Database = {
         | "maison"
         | "garage"
         | "local_commercial"
-        | "parking"
         | "autre"
       notification_type:
         | "intervention"
@@ -2323,7 +2478,6 @@ export const Constants = {
         "maison",
         "garage",
         "local_commercial",
-        "parking",
         "autre",
       ],
       notification_type: [

@@ -3,7 +3,14 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Home, Eye, Users, Wrench, MapPin, Building2, User, Edit } from "lucide-react"
+import { Home, Eye, Users, Wrench, MapPin, Building2, Edit, MoreVertical, Archive } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import { getLotCategoryConfig } from "@/lib/lot-types"
 
@@ -94,7 +101,7 @@ export default function LotCard({
       onClick={handleCardClick}
     >
       <CardContent className="p-0 flex flex-col flex-1">
-        <div className="p-4 sm:p-5 flex-1">
+        <div className="flex-1">
           <div className="space-y-3">
             {/* Top Row: Icon + Title + Action */}
             <div className="flex items-start justify-between">
@@ -135,32 +142,70 @@ export default function LotCard({
                     {isSelected ? "✓ Sélectionné" : "Sélectionner"}
                   </Button>
                 ) : (
-                  <>
-                    <Button 
-                      variant="ghost" 
+                  <div className="flex items-center space-x-1">
+                    <Button
+                      variant="ghost"
                       size="sm"
                       className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
                       onClick={(e) => {
                         e.stopPropagation()
                         router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)
                       }}
-                      title="Modifier le lot"
+                      title="Modifier"
                     >
-                      <Edit className="h-3 w-3" />
+                      <Edit className="h-4 w-4" />
                     </Button>
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="ghost"
                       size="sm"
-                      className="h-8 px-3 text-xs"
+                      className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
                       onClick={(e) => {
                         e.stopPropagation()
                         router.push(`/gestionnaire/biens/lots/${lot.id}`)
                       }}
+                      title="Voir détails"
                     >
-                      <Eye className="h-3 w-3 mr-1" />
-                      Détails
+                      <Eye className="h-4 w-4" />
                     </Button>
-                  </>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                          onClick={(e) => e.stopPropagation()}
+                          title="Plus d'actions"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/gestionnaire/contacts?lot=${lot.id}`)
+                          }}
+                          className="cursor-pointer"
+                        >
+                          <Users className="h-4 w-4 mr-2" />
+                          Gérer les locataires
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            // Future feature: Archive lot
+                            console.log('Archive lot:', lot.id)
+                          }}
+                          className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                          disabled
+                        >
+                          <Archive className="h-4 w-4 mr-2" />
+                          Archiver
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 )}
               </div>
             </div>
@@ -189,68 +234,58 @@ export default function LotCard({
                 >
                   {isOccupied ? "Occupé" : "Vacant"}
                 </Badge>
-              </div>
 
-              {/* Tenant Info */}
-              {tenantName && (
-                <div className="flex items-center space-x-2 mb-2">
-                  <div className="w-5 h-5 bg-emerald-100 rounded-md flex items-center justify-center">
-                    <User className="h-3 w-3 text-emerald-600" />
-                  </div>
-                  <span className="text-sm font-medium text-slate-900 truncate">{tenantName}</span>
-                </div>
-              )}
-
-              {/* Contact Summary avec Tooltip */}
-              {(() => {
-                const hasContacts = tenantCount > 0
-                
-                if (!hasContacts) return null
-                
-                return (
-                  <div className="relative mb-2 group">
-                    {/* Summary Badge */}
-                    <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs cursor-help w-fit hover:bg-blue-100 transition-colors">
-                      <Users className="w-3 h-3 text-blue-600" />
-                      <span className="text-blue-700 font-medium">
-                        {tenantCount}
-                      </span>
-                    </div>
-                    
-                    {/* Tooltip on Hover - Positionné relativement avec gestion des bordures */}
-                    <div className="absolute bottom-full left-0 mb-2 w-64 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none group-hover:pointer-events-auto z-[100]
-                                  before:content-[''] before:absolute before:top-full before:left-4 before:w-0 before:h-0 before:border-l-4 before:border-r-4 before:border-t-4 before:border-l-transparent before:border-r-transparent before:border-t-white">
-                      <div className="space-y-2">
-                        <div className="font-medium text-xs text-slate-700 mb-2">Contacts assignés</div>
-                        
-                        {/* Show all tenants */}
-                        {lot.lot_tenants?.length > 0 ? (
-                          <div className="space-y-1">
-                            {lot.lot_tenants.map((tenantInfo, idx: number) => (
-                              <div key={idx} className="flex items-center gap-2 text-xs">
-                                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                                <span className="text-slate-700">{tenantInfo.contact?.name}</span>
-                                <span className="text-slate-500">(locataire)</span>
-                                {tenantInfo.is_primary && (
-                                  <span className="text-xs bg-blue-100 text-blue-700 px-1 py-0.5 rounded">Principal</span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        ) : tenantName && (
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 text-xs">
-                              <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                              <span className="text-slate-700">{tenantName}</span>
-                              <span className="text-slate-500">(locataire)</span>
+                {/* Contact Summary avec Tooltip */}
+                {(() => {
+                  const hasContacts = tenantCount > 0
+                  
+                  if (!hasContacts) return null
+                  
+                  return (
+                    <div className="relative group">
+                      {/* Summary Badge */}
+                      <div className="flex items-center gap-1 px-2 py-1 bg-blue-50 border border-blue-200 rounded text-xs cursor-help w-fit hover:bg-blue-100 transition-colors">
+                        <Users className="w-3 h-3 text-blue-600" />
+                        <span className="text-blue-700 font-medium">
+                          {tenantCount}
+                        </span>
+                      </div>
+                      
+                      {/* Tooltip on Hover - Positionné relativement avec gestion des bordures */}
+                      <div className="absolute bottom-full left-0 mb-2 w-64 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-xl p-3 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none group-hover:pointer-events-auto z-[100]
+                                    before:content-[''] before:absolute before:top-full before:left-4 before:w-0 before:h-0 before:border-l-4 before:border-r-4 before:border-t-4 before:border-l-transparent before:border-r-transparent before:border-t-white">
+                        <div className="space-y-2">
+                          <div className="font-medium text-xs text-slate-700 mb-2">Contacts assignés</div>
+                          
+                          {/* Show all tenants */}
+                          {lot.lot_tenants?.length > 0 ? (
+                            <div className="space-y-1">
+                              {lot.lot_tenants.map((tenantInfo, idx: number) => (
+                                <div key={idx} className="flex items-center gap-2 text-xs">
+                                  <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                  <span className="text-slate-700">{tenantInfo.contact?.name}</span>
+                                  <span className="text-slate-500">(locataire)</span>
+                                  {tenantInfo.is_primary && (
+                                    <span className="text-xs bg-blue-100 text-blue-700 px-1 py-0.5 rounded">Principal</span>
+                                  )}
+                                </div>
+                              ))}
                             </div>
-                          </div>
-                        )}
+                          ) : tenantName && (
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                <span className="text-slate-700">{tenantName}</span>
+                                <span className="text-slate-500">(locataire)</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })()}
+                  )
+                })()}
+              </div>
 
               {/* Property Details */}
               {(lot.floor || lot.surface_area || lot.rooms) && (

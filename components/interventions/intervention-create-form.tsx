@@ -85,7 +85,7 @@ const managerFormSchema = z.object({
   scheduled_date: z.date().optional(),
   specific_location: z.string().optional(),
   estimated_cost: z.number().positive().optional(),
-  manager_comment: z.string().optional(),
+  // manager_comment removed - use intervention_comments table instead
   assigned_managers: z.array(z.string()).optional(),
   assigned_providers: z.array(z.string()).optional()
 })
@@ -136,7 +136,7 @@ export function InterventionCreateForm({
       urgency: 'normale',
       status: 'demande',
       specific_location: '',
-      manager_comment: '',
+      // manager_comment: '', // Removed - use intervention_comments table
       assigned_managers: [],
       assigned_providers: []
     }
@@ -158,7 +158,7 @@ export function InterventionCreateForm({
         team_id,
         tenant_id,
         specific_location: values.specific_location,
-        manager_comment: values.manager_comment,
+        // manager_comment: values.manager_comment, // Removed - use intervention_comments table
         estimated_cost: values.estimated_cost,
         requested_date: values.requested_date?.toISOString(),
         scheduled_date: values.scheduled_date?.toISOString()
@@ -501,7 +501,7 @@ export function InterventionCreateForm({
               />
             </div>
 
-            {/* Manager comment */}
+            {/* Manager comment - REMOVED: Now using intervention_comments table
             <FormField
               control={form.control}
               name="manager_comment"

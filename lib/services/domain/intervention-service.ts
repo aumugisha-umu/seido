@@ -81,8 +81,7 @@ interface InterventionUpdateInput {
   type?: InterventionType
   specific_location?: string | null
   tenant_comment?: string | null
-  manager_comment?: string | null
-  provider_comment?: string | null
+  provider_guidelines?: string | null
   estimated_cost?: number | null
   final_cost?: number | null
 }
@@ -612,7 +611,7 @@ export class InterventionService {
         id,
         'approuvee',
         managerId,
-        { manager_comment: comment }
+        {} // Comments are now stored in intervention_comments table
       )
 
       if (result.success && result.data) {
@@ -639,7 +638,7 @@ export class InterventionService {
         id,
         'rejetee',
         managerId,
-        { manager_comment: reason }
+        {} // Comments are now stored in intervention_comments table
       )
 
       if (result.success && result.data) {
@@ -868,12 +867,12 @@ export class InterventionService {
    */
   async completeByProvider(id: string, providerId: string, report?: string) {
     try {
+      // Note: Provider report should be saved in intervention_comments table
       const result = await this.validateAndUpdateStatus(
         id,
         'cloturee_par_prestataire',
         providerId,
         {
-          provider_comment: report,
           completed_date: new Date().toISOString()
         }
       )

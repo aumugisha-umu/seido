@@ -6,8 +6,15 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Building2, Home, Users, MapPin, Eye, ChevronDown, AlertCircle, Zap, Edit, Wrench, UserCircle, Check, X } from "lucide-react"
+import { Building2, Home, Users, MapPin, Eye, ChevronDown, AlertCircle, Zap, Edit, Wrench, UserCircle, Check, X, MoreVertical, Archive } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
 import { useBuildings } from "@/hooks/use-buildings"
 import type { Building as BuildingType, Lot as LotType } from "@/hooks/use-buildings"
 import LotCard from "@/components/lot-card"
@@ -30,6 +37,7 @@ interface PropertySelectorProps {
   selectedLotId?: string
   showActions?: boolean
   hideLotsSelect?: boolean  // ✅ Masquer les boutons Select des lots (utile pour création de lot)
+  showOnlyBuildings?: boolean  // ✅ Masquer complètement les lots indépendants et leurs tabs
   initialData?: BuildingsData  // ✅ Optional server data
 }
 
@@ -38,6 +46,7 @@ interface PropertySelectorViewProps extends Omit<PropertySelectorProps, 'initial
   individualLots: Lot[]
   loading: boolean
   hideLotsSelect?: boolean
+  showOnlyBuildings?: boolean
 }
 
 // ⚡ PERFORMANCE: Split into two components to avoid unnecessary hook calls
@@ -145,6 +154,7 @@ function PropertySelectorView({
   selectedLotId,
   showActions: _showActions = true,
   hideLotsSelect = false,
+  showOnlyBuildings = false,
   buildings,
   individualLots,
   loading
@@ -237,7 +247,7 @@ function PropertySelectorView({
   }, [individualLots, searchTerm, filters])
 
   const buildingsContent = (
-    <div className="space-y-4">
+    <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
         {loading ? (
           <>
@@ -292,7 +302,7 @@ function PropertySelectorView({
             return (
               <Card key={building.id} className={`group hover:shadow-sm transition-all duration-200 flex flex-col h-full ${isSelected ? "ring-2 ring-sky-500 bg-sky-50/50" : "hover:bg-slate-50/50"}`}>
                 <CardContent className="p-0 flex flex-col flex-1">
-                  <div className="p-4 sm:p-5 flex flex-col flex-1">
+                  <div className="flex flex-col flex-1">
                     <div className="space-y-3 flex-1">
                       <div className="flex items-start justify-between">
                         <div className="flex items-center space-x-3 min-w-0 flex-1 mr-2">
@@ -325,26 +335,59 @@ function PropertySelectorView({
                               {isSelected ? "Sélectionné" : "Sélectionner"}
                             </Button>
                           ) : (
-                            <>
-                              <Button 
-                                variant="ghost" 
+                            <div className="flex items-center space-x-1">
+                              <Button
+                                variant="ghost"
                                 size="sm"
                                 className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
                                 onClick={() => router.push(`/gestionnaire/biens/immeubles/modifier/${building.id}`)}
-                                title="Modifier l'immeuble"
+                                title="Modifier"
                               >
-                                <Edit className="h-3 w-3" />
+                                <Edit className="h-4 w-4" />
                               </Button>
-                              <Button 
-                                variant="outline" 
+                              <Button
+                                variant="ghost"
                                 size="sm"
-                                className="h-8 px-3 text-xs"
+                                className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
                                 onClick={() => router.push(`/gestionnaire/biens/immeubles/${building.id}`)}
+                                title="Voir détails"
                               >
-                                <Eye className="h-3 w-3 mr-1" />
-                                Détails
+                                <Eye className="h-4 w-4" />
                               </Button>
-                            </>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                                    title="Plus d'actions"
+                                  >
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-48">
+                                  <DropdownMenuItem
+                                    onClick={() => router.push(`/gestionnaire/biens/immeubles/${building.id}#lots`)}
+                                    className="cursor-pointer"
+                                  >
+                                    <Home className="h-4 w-4 mr-2" />
+                                    Voir les lots
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem
+                                    onClick={() => {
+                                      // Future feature: Archive building
+                                      console.log('Archive building:', building.id)
+                                    }}
+                                    className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                    disabled
+                                  >
+                                    <Archive className="h-4 w-4 mr-2" />
+                                    Archiver
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           )}
                         </div>
                       </div>
@@ -407,6 +450,8 @@ function PropertySelectorView({
                               <div
                                 key={lot.id}
                                 className={`p-2.5 border border-slate-200 rounded-md bg-white hover:bg-slate-50 transition-colors ${
+                                  lot.status === "occupied" ? "border-l-4 border-l-green-500" : ""
+                                } ${
                                   isLotSelected ? "ring-1 ring-sky-500 bg-sky-50" : ""
                                 }`}
                               >
@@ -414,8 +459,10 @@ function PropertySelectorView({
                                   <div className="flex items-center space-x-2 min-w-0 flex-1">
                                     <div className="font-medium text-sm text-slate-900">{lot.reference}</div>
                                     <Badge
-                                      variant={lot.status === "occupied" ? "default" : "secondary"}
-                                      className="text-xs h-4 px-1.5"
+                                      variant={lot.status === "occupied" ? "secondary" : "secondary"}
+                                      className={`text-xs h-4 px-1.5 ${
+                                        lot.status === "occupied" ? "bg-green-100 text-green-800" : ""
+                                      }`}
                                     >
                                       {lot.status === "occupied" ? "Occupé" : "Libre"}
                                     </Badge>
@@ -426,27 +473,60 @@ function PropertySelectorView({
                                     )}
                                   </div>
                                   
-                                  <div className="flex items-center gap-1">
+                                  <div className="flex items-center gap-0.5">
                                     {mode === "view" && (
                                       <>
-                                        <Button 
-                                          variant="ghost" 
+                                        <Button
+                                          variant="ghost"
                                           size="sm"
-                                          className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
+                                          className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
                                           onClick={() => router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)}
-                                          title="Modifier le lot"
+                                          title="Modifier"
                                         >
-                                          <Edit className="h-3 w-3" />
+                                          <Edit className="h-3.5 w-3.5" />
                                         </Button>
-                                        <Button 
-                                          variant="ghost" 
+                                        <Button
+                                          variant="ghost"
                                           size="sm"
-                                          className="h-6 w-6 p-0 text-slate-500 hover:text-slate-700"
+                                          className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
                                           onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
-                                          title="Voir les détails du lot"
+                                          title="Voir détails"
                                         >
-                                          <Eye className="h-3 w-3" />
+                                          <Eye className="h-3.5 w-3.5" />
                                         </Button>
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
+                                              title="Plus d'actions"
+                                            >
+                                              <MoreVertical className="h-3.5 w-3.5" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end" className="w-48">
+                                            <DropdownMenuItem
+                                              onClick={() => router.push(`/gestionnaire/contacts?lot=${lot.id}`)}
+                                              className="cursor-pointer"
+                                            >
+                                              <Users className="h-4 w-4 mr-2" />
+                                              Gérer les locataires
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator />
+                                            <DropdownMenuItem
+                                              onClick={() => {
+                                                // Future feature: Archive lot
+                                                console.log('Archive lot:', lot.id)
+                                              }}
+                                              className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                              disabled
+                                            >
+                                              <Archive className="h-4 w-4 mr-2" />
+                                              Archiver
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
                                       </>
                                     )}
 
@@ -487,7 +567,7 @@ function PropertySelectorView({
 
                       {isExpanded && (building.lots || []).length > 0 && (
                         <div className="pt-2 border-t border-slate-100 animate-in fade-in-0 slide-in-from-top-2 duration-300">
-                          <div className="max-h-64 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100 rounded-md">
+                          <div className="max-h-64 overflow-y-auto overflow-x-hidden rounded-md">
                             <div className="space-y-2 pr-2">
                               {(building.lots || []).map((lot: Lot) => {
                                 const isLotSelected = selectedLotId === lot.id.toString()
@@ -495,6 +575,8 @@ function PropertySelectorView({
                                   <div
                                     key={lot.id}
                                     className={`p-2.5 border border-slate-200 rounded-md bg-white hover:bg-slate-50 transition-colors ${
+                                      lot.status === "occupied" ? "border-l-4 border-l-green-500" : ""
+                                    } ${
                                       isLotSelected ? "ring-2 ring-sky-500 bg-sky-50" : ""
                                     }`}
                                   >
@@ -622,7 +704,7 @@ function PropertySelectorView({
   )
 
   const individualLotsContent = (
-    <div className="space-y-4">
+    <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
         {filteredIndividualLots.length === 0 ? (
           <div className="col-span-full text-center py-12 px-4">
@@ -687,22 +769,33 @@ function PropertySelectorView({
     </div>
   )
 
-  const tabs = [
-    {
-      id: "buildings",
-      label: "Immeubles",
-      icon: Building2,
-      count: filteredBuildings.length,
-      content: buildingsContent
-    },
-    {
-      id: "individual-lots", 
-      label: "Lots",
-      icon: Home,
-      count: filteredIndividualLots.length,
-      content: individualLotsContent
-    }
-  ]
+  // ✅ Conditionner l'affichage des tabs selon showOnlyBuildings
+  const tabs = showOnlyBuildings
+    ? [
+        {
+          id: "buildings",
+          label: "Immeubles",
+          icon: Building2,
+          count: filteredBuildings.length,
+          content: buildingsContent
+        }
+      ]
+    : [
+        {
+          id: "buildings",
+          label: "Immeubles",
+          icon: Building2,
+          count: filteredBuildings.length,
+          content: buildingsContent
+        },
+        {
+          id: "individual-lots",
+          label: "Lots",
+          icon: Home,
+          count: filteredIndividualLots.length,
+          content: individualLotsContent
+        }
+      ]
 
   const filterConfigs = [
     {
@@ -745,40 +838,39 @@ function PropertySelectorView({
  */
 function PropertySelectorWithInitialData(props: PropertySelectorProps & { initialData: BuildingsData }) {
   // DEBUG: Log received data in PropertySelector with detailed lot info
-  console.log('🔍 [PROPERTY-SELECTOR] Received initialData:', {
-    buildingsCount: props.initialData.buildings.length,
-    lotsCount: props.initialData.lots.length,
-    firstLot: props.initialData.lots[0] ? {
-      reference: props.initialData.lots[0].reference,
-      status: props.initialData.lots[0].status,
-      is_occupied: props.initialData.lots[0].is_occupied
-    } : null,
-    buildings: props.initialData.buildings.map(b => ({
-      id: b.id,
-      name: b.name,
-      lotsCount: b.lots?.length || 0,
-      lotsDetail: b.lots?.map(l => ({
-        reference: l.reference,
-        status: l.status,
-        is_occupied: l.is_occupied
-      }))
-    }))
-  })
+  const buildingsArray = Array.isArray(props.initialData.buildings) ? props.initialData.buildings : []
+  const lotsArray = Array.isArray(props.initialData.lots) ? props.initialData.lots : []
+  
+  // Enhanced logging with JSON.stringify for better visibility
+  console.log('🔍 [PROPERTY-SELECTOR] Received initialData')
+  console.log('   buildingsCount:', buildingsArray.length)
+  console.log('   lotsCount:', lotsArray.length)
+  console.log('   teamId:', props.initialData.teamId)
+  console.log('   buildingsIsArray:', Array.isArray(props.initialData.buildings))
+  console.log('   lotsIsArray:', Array.isArray(props.initialData.lots))
+  console.log('   buildings:', buildingsArray)
+  console.log('   lots:', lotsArray)
+  if (buildingsArray.length > 0) {
+    console.log('   First building:', JSON.stringify(buildingsArray[0], null, 2))
+  }
+  if (lotsArray.length > 0) {
+    console.log('   First lot:', JSON.stringify(lotsArray[0], null, 2))
+  }
 
   // DEBUG: Specifically check first building's first lot
-  if (props.initialData.buildings[0]?.lots?.[0]) {
+  if (buildingsArray[0]?.lots?.[0]) {
     console.log('🔍 [PROPERTY-SELECTOR] First building first lot:', {
-      reference: props.initialData.buildings[0].lots[0].reference,
-      status: props.initialData.buildings[0].lots[0].status,
-      is_occupied: props.initialData.buildings[0].lots[0].is_occupied
+      reference: buildingsArray[0].lots[0].reference,
+      status: buildingsArray[0].lots[0].status,
+      is_occupied: buildingsArray[0].lots[0].is_occupied
     })
   }
 
   return (
     <PropertySelectorView
       {...props}
-      buildings={props.initialData.buildings}
-      individualLots={props.initialData.lots}
+      buildings={buildingsArray}
+      individualLots={lotsArray}
       loading={false}
     />
   )

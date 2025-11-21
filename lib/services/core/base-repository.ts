@@ -15,7 +15,6 @@ import {
   validateUUID,
   NotFoundException
 } from './error-handler'
-import { cache } from '@/lib/cache/cache-manager'
 import { logger } from '@/lib/logger'
 
 /**
@@ -29,9 +28,6 @@ export abstract class BaseRepository<
 > {
   protected readonly supabase: SupabaseClient<Database>
   protected readonly tableName: string
-  protected readonly cache = new Map<string, { data: unknown; timestamp: number }>()
-  protected readonly defaultCacheTTL = 30 // 30 seconds (réduit pour éviter état partagé entre tests)
-  protected readonly listCacheTTL = 300 // 5 minutes for list queries
 
   constructor(supabase: SupabaseClient<Database>, tableName: string) {
     this.supabase = supabase
@@ -44,42 +40,6 @@ export abstract class BaseRepository<
    */
   public getClient(): SupabaseClient<Database> {
     return this.supabase
-  }
-
-  /**
-   * ⚡ PERFORMANCE: Generic cached query wrapper for list operations
-   * Uses CacheManager (L1 LRU + L2 Redis) for optimal performance
-   *
-   * @param cacheKey - Unique cache key (e.g., "buildings:team:abc123")
-   * @param fetcher - Async function that performs the actual database query
-   * @param ttl - Time to live in seconds (default: 5 minutes)
-   * @returns Promise with the cached or fresh data
-   */
-  protected async getCachedOrFetch<T>(
-    cacheKey: string,
-    fetcher: () => Promise<T>,
-    ttl = this.listCacheTTL
-  ): Promise<T> {
-    return await cache.getOrSet(cacheKey, fetcher, ttl)
-  }
-
-  /**
-   * Generate cache key for team-scoped queries
-   */
-  protected getTeamCacheKey(teamId: string, suffix = ''): string {
-    return `${this.tableName}:team:${teamId}${suffix ? ':' + suffix : ''}`
-  }
-
-  /**
-   * Invalidate team-scoped cache entries
-   */
-  protected async invalidateTeamCache(teamId?: string): Promise<void> {
-    if (teamId) {
-      await cache.invalidate(`${this.tableName}:team:${teamId}`)
-    } else {
-      // Invalidate all team caches for this table
-      await cache.invalidate(`${this.tableName}:team:`)
-    }
   }
 
   /**
@@ -106,6 +66,14 @@ export abstract class BaseRepository<
         .insert(dataWithId)
 
       if (insertError) {
+        // ✅ DEBUG: Log raw Supabase error before transformation
+        logger.error(`❌ [${this.tableName}:create:insert] RAW Supabase INSERT error:`, {
+          code: insertError.code,
+          message: insertError.message,
+          details: (insertError as any).details,
+          hint: (insertError as any).hint,
+          dataAttempted: dataWithId
+        })
         return createErrorResponse(handleError(insertError, `${this.tableName}:create:insert`))
       }
 
@@ -128,9 +96,6 @@ export abstract class BaseRepository<
         return createErrorResponse(handleError(selectError, `${this.tableName}:create:select`))
       }
 
-      // Clear cache for this table
-      this.clearTableCache()
-
       return createSuccessResponse(result as unknown as TRow)
     } catch (error) {
       return createErrorResponse(handleError(error, `${this.tableName}:create`))
@@ -139,13 +104,13 @@ export abstract class BaseRepository<
 
   /**
    * Get record by ID
+   * ✅ Next.js 15 Data Cache automatically caches Supabase queries
    */
-  async findById(id: string, useCache = true): Promise<RepositoryResponse<TRow>> {
+  async findById(id: string, _useCache = true): Promise<RepositoryResponse<TRow>> {
     const startTime = Date.now()
     console.log(`🔍 [BASE-REPOSITORY] findById called`, {
       table: this.tableName,
       id,
-      useCache,
       timestamp: new Date().toISOString()
     })
 
@@ -158,28 +123,6 @@ export abstract class BaseRepository<
         table: this.tableName,
         elapsed: `${validateElapsed}ms`
       })
-
-      // Check cache first
-      if (useCache) {
-        console.log(`📍 [BASE-REPOSITORY] Step 2: Checking cache...`, { table: this.tableName })
-        const cacheStart = Date.now()
-        const cached = this.getFromCache(`${this.tableName}:${id}`)
-        const cacheElapsed = Date.now() - cacheStart
-
-        if (cached) {
-          console.log(`🎯 [BASE-REPOSITORY] Cache HIT!`, {
-            table: this.tableName,
-            elapsed: `${cacheElapsed}ms`,
-            totalElapsed: `${Date.now() - startTime}ms`
-          })
-          return createSuccessResponse(cached as TRow)
-        }
-
-        console.log(`❌ [BASE-REPOSITORY] Cache MISS`, {
-          table: this.tableName,
-          elapsed: `${cacheElapsed}ms`
-        })
-      }
 
       // ✅ DIAGNOSTIC: Check browser auth context before query
       console.log(`📍 [BASE-REPOSITORY] Step 3: Checking browser auth context...`, { table: this.tableName })
@@ -249,12 +192,6 @@ export abstract class BaseRepository<
             throw new NotFoundException(this.tableName, id)
           }
           return createErrorResponse(handleError(error, `${this.tableName}:findById`))
-        }
-
-        // Cache the result
-        if (useCache && data) {
-          console.log(`💾 [BASE-REPOSITORY] Caching result...`, { table: this.tableName })
-          this.setCache(`${this.tableName}:${id}`, data)
         }
 
         const totalElapsed = Date.now() - startTime
@@ -487,14 +424,6 @@ export abstract class BaseRepository<
         return createErrorResponse(handleError(error, `${this.tableName}:update`))
       }
 
-      // ✅ FIX #3: Clear cache - including all variations (base, with-relations, summary, etc.)
-      await Promise.all([
-        this.clearCache(`${this.tableName}:${id}`),
-        this.clearCache(`${this.tableName}:${id}:full-relations`),
-        this.clearCache(`${this.tableName}:${id}:with-relations`)
-      ])
-      this.clearTableCache()
-
       return createSuccessResponse(result as unknown as TRow)
     } catch (error) {
       return createErrorResponse(handleError(error, `${this.tableName}:update`))
@@ -522,10 +451,6 @@ export abstract class BaseRepository<
       if (error) {
         return createErrorResponse(handleError(error, `${this.tableName}:delete`))
       }
-
-      // Clear cache
-      await this.clearCache(`${this.tableName}:${_id}`)
-      this.clearTableCache()
 
       return createSuccessResponse(true)
     } catch (error) {
@@ -585,61 +510,6 @@ export abstract class BaseRepository<
     } catch (error) {
       return createErrorResponse(handleError(error, `${this.tableName}:count`))
     }
-  }
-
-  /**
-   * Cache management
-   */
-  protected setCache(key: string, data: unknown, ttl = this.defaultCacheTTL): void {
-    this.cache.set(key, {
-      data,
-      timestamp: Date.now() + ttl * 1000
-    })
-  }
-
-  protected getFromCache(_key: string): unknown | null {
-    const entry = this.cache.get(_key)
-    if (!entry) return null
-
-    if (Date.now() > entry.timestamp) {
-      this.cache.delete(_key)
-      return null
-    }
-
-    return entry.data
-  }
-
-  protected async clearCache(_key: string): Promise<void> {
-    // Clear local Map cache
-    this.cache.delete(_key)
-
-    // ✅ FIX: Also invalidate CacheManager (L1 LRU + L2 Redis)
-    // This ensures getCachedOrFetch() won't return stale data
-    await cache.invalidate(_key).catch(err => {
-      console.warn(`⚠️ [BaseRepository] Failed to invalidate CacheManager for ${_key}:`, err)
-    })
-  }
-
-  protected clearTableCache(): void {
-    // Clear local Map cache
-    const tablePrefix = `${this.tableName}:`
-    const keysToDelete: string[] = []
-    this.cache.forEach((_, key) => {
-      if (key.startsWith(tablePrefix)) {
-        keysToDelete.push(key)
-      }
-    })
-    keysToDelete.forEach(key => this.cache.delete(key))
-
-    // ⚡ PERFORMANCE: Also invalidate CacheManager (L1+L2) cache
-    // Fire-and-forget to avoid blocking mutations
-    cache.invalidate(this.tableName).catch(err => {
-      console.warn(`⚠️ [BaseRepository] Failed to invalidate cache for ${this.tableName}:`, err)
-    })
-  }
-
-  protected clearAllCache(): void {
-    this.cache.clear()
   }
 
   /**

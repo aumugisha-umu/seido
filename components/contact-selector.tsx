@@ -1,10 +1,12 @@
 "use client"
 
 import { useState, useCallback, forwardRef, useImperativeHandle } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   User,
@@ -18,16 +20,14 @@ import {
   Search,
   Loader2,
   Users,
-  Home
+  Home,
+  Building,
+  Building2
 } from "lucide-react"
-import ContactFormModal from "@/components/contact-form-modal"
 
-
-import { determineAssignmentType, createContactInvitationService } from '@/lib/services'
-import { logger, logError } from '@/lib/logger'
+import { determineAssignmentType } from '@/lib/services'
+import { logger } from '@/lib/logger'
 import { useTeamContacts } from '@/hooks/use-team-contacts'
-
-const contactInvitationService = createContactInvitationService()
 
 // Types de contacts avec leurs configurations visuelles
 const contactTypes = [
@@ -46,6 +46,14 @@ interface Contact {
   type: string
   phone?: string
   speciality?: string
+  // Champs société
+  is_company?: boolean
+  company_id?: string | null
+  company?: {
+    id: string
+    name: string
+    vat_number?: string | null
+  } | null
 }
 
 // Props du composant principal (interface simplifiée et centralisée)
@@ -54,6 +62,8 @@ interface ContactSelectorProps {
   teamId?: string
   // Mode d'affichage : compact pour immeuble, full pour lot
   displayMode?: "compact" | "full"
+  // Mode de sélection : single (radio) ou multi (checkbox)
+  selectionMode?: "single" | "multi"
   // Titre principal
   title?: string
   // Description
@@ -62,6 +72,8 @@ interface ContactSelectorProps {
   allowedContactTypes?: string[]
   // Contacts déjà sélectionnés/assignés (pour affichage)
   selectedContacts?: {[contactType: string]: Contact[]}
+  // NOUVEAU: Contacts assignés aux lots (par lotId puis par contactType)
+  lotContactAssignments?: { [lotId: string]: { [contactType: string]: Contact[] } }
   // Callback quand un contact est sélectionné - AVEC CONTEXTE
   onContactSelected?: (contact: Contact, contactType: string, context?: { lotId?: string }) => void
   // Callback quand un contact est retiré - AVEC CONTEXTE
@@ -70,6 +82,8 @@ interface ContactSelectorProps {
   onDirectContactRemove?: (contactId: string, contactType: string, lotId?: string) => void
   // Callback quand un nouveau contact est créé - AVEC CONTEXTE
   onContactCreated?: (contact: Contact, contactType: string, context?: { lotId?: string }) => void
+  // NOUVEAU: Callback pour demander la création d'un contact (avec redirect vers le flow multi-étapes)
+  onRequestContactCreation?: (contactType: string, lotId?: string) => void
   // Classe CSS personnalisée
   className?: string
   // Si true, ne pas afficher le titre
@@ -88,14 +102,17 @@ export interface ContactSelectorRef {
 export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorProps>(({
   teamId,
   displayMode = "full",
+  selectionMode,  // Undefined par défaut → détection automatique
   title = "Assignation des contacts",
   description = "Assignez des contacts à vos lots (optionnel)",
   allowedContactTypes = contactTypes.map(type => type.key),
   selectedContacts = {},
+  lotContactAssignments = {},
   onContactSelected,
   onContactRemoved,
   onDirectContactRemove,
   onContactCreated,
+  onRequestContactCreation,  // NOUVEAU: Callback pour redirect vers le flow multi-étapes
   className = "",
   hideTitle = false,
   hideUI = false,
@@ -108,12 +125,18 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   // NOUVEAU : État pour stocker le lotId temporaire lors de l'ouverture externe
   const [externalLotId, setExternalLotId] = useState<string | undefined>(undefined)
 
-  // États pour le modal de création
-  const [isContactFormModalOpen, setIsContactFormModalOpen] = useState(false)
-  const [prefilledContactType, setPrefilledContactType] = useState<string>("")
+  // NOUVEAU : États pour la sélection temporaire (confirmation différée)
+  const [pendingSelections, setPendingSelections] = useState<string[]>([])
+  const [initialSelections, setInitialSelections] = useState<string[]>([])
+
+  // État pour le chargement lors de la confirmation
+  const [isConfirming, setIsConfirming] = useState(false)
+
+  // Router pour navigation vers wizard
+  const router = useRouter()
 
   // ✅ Hook SWR pour fetcher les contacts avec cache intelligent
-  const { data: teamContacts, isLoading: isLoadingContacts, error: loadingError } = useTeamContacts(teamId)
+  const { data: teamContacts, isLoading: isLoadingContacts, error: loadingError} = useTeamContacts(teamId!)
 
   // ✅ Plus besoin de refs pour le chargement - SWR gère tout
 
@@ -122,35 +145,73 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     allowedContactTypes.includes(type.key)
   )
 
+  // NOUVEAU : Déterminer le mode de sélection effectif (peut être overridé ou automatique)
+  const getEffectiveSelectionMode = (contactType: string): "single" | "multi" => {
+    // Si une prop selectionMode est fournie, l'utiliser
+    if (selectionMode) {
+      return selectionMode
+    }
+    // Sinon, déterminer automatiquement : 'provider' = single, autres = multi
+    return contactType === 'provider' ? 'single' : 'multi'
+  }
+
   // ✅ Fonction simplifiée pour ouvrir le modal - Les données sont déjà en cache via SWR!
-  const handleOpenContactModal = useCallback((_contactType: string) => {
-    logger.info('🚀 [ContactSelector] Opening modal for:', _contactType)
+  const handleOpenContactModal = useCallback((_contactType: string, contextLotId?: string) => {
+    logger.info('🚀 [ContactSelector] Opening modal for:', _contactType, 'lotId:', contextLotId)
 
     // Initialiser l'état du modal
     setSelectedContactType(_contactType)
     setSearchTerm("")
+
+    // NOUVEAU : Initialiser les sélections avec TOUS les contacts (immeuble + lot si applicable)
+    const buildingContactsOfType = selectedContacts[_contactType] || []
+    let allContactsOfType = [...buildingContactsOfType]
+
+    // Si on est dans le contexte d'un lot, inclure aussi ses contacts
+    if (contextLotId && lotContactAssignments[contextLotId]) {
+      const lotContactsOfType = lotContactAssignments[contextLotId][_contactType] || []
+      lotContactsOfType.forEach(lotContact => {
+        if (!allContactsOfType.some(c => c.id === lotContact.id)) {
+          allContactsOfType.push(lotContact)
+        }
+      })
+    }
+
+    const currentIds = allContactsOfType.map(c => c.id)
+    setPendingSelections(currentIds)
+    setInitialSelections(currentIds)
+
     setIsContactModalOpen(true)
 
     // ✅ Pas d'appel API - SWR a déjà chargé les données!
     // ✅ Pas de timeout - les données sont instantanées depuis le cache
     // ✅ Pas de loading state manuel - SWR gère isLoading automatiquement
-  }, [])
+  }, [selectedContacts, lotContactAssignments])
 
   // Exposer les méthodes publiques via ref
   useImperativeHandle(ref, () => ({
     openContactModal: (contactType: string, contextLotId?: string) => {
       logger.info('🎯 [ContactSelector] External openContactModal called:', contactType, 'lotId:', contextLotId)
       setExternalLotId(contextLotId)
-      handleOpenContactModal(contactType)
+      handleOpenContactModal(contactType, contextLotId)
     }
   }), [handleOpenContactModal])
 
   // [SUPPRIMÉ] Ancienne fonction openContactModal remplacée par handleOpenContactModal
 
-  // Ouvrir le modal de création de contact
+  // Rediriger vers le wizard de création de contact
   const openContactFormModal = (_type: string) => {
-    setPrefilledContactType(_type)
-    setIsContactFormModalOpen(true)
+    // Si un callback de redirection est fourni, l'utiliser (nouveau flow multi-étapes)
+    if (onRequestContactCreation) {
+      logger.info(`🔗 [CONTACT-SELECTOR] Triggering redirect to multi-step flow for type: ${_type}`)
+      onRequestContactCreation(_type, externalLotId || lotId)
+      setIsContactModalOpen(false)
+      return
+    }
+
+    // Sinon, redirection vers le wizard
+    logger.info(`🔗 [CONTACT-SELECTOR] Redirecting to contact creation wizard`)
+    router.push('/gestionnaire/contacts/nouveau')
     setIsContactModalOpen(false)
   }
 
@@ -186,9 +247,15 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   // Retirer un contact sélectionné
   const handleRemoveSelectedContact = (contactId: string) => {
     const contextLotId = externalLotId || lotId
-    
+
+    // Protection: Ne pas permettre de retirer un contact hérité de l'immeuble
+    if (isContactInheritedFromBuilding(contactId, selectedContactType)) {
+      logger.warn('⚠️ [ContactSelector] Cannot remove inherited contact:', contactId)
+      return
+    }
+
     logger.info('🗑️ [ContactSelector] Contact removed:', contactId, 'type:', selectedContactType, 'lotId:', contextLotId)
-    
+
     // Appeler le callback parent avec contexte
     if (onContactRemoved) {
       onContactRemoved(contactId, selectedContactType, { lotId: contextLotId })
@@ -197,80 +264,96 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     }
   }
 
-  // Créer un contact (logique centralisée)
-  const handleContactCreated = async (contactData: { type: string; firstName: string; lastName: string; email: string; phone: string; speciality?: string; notes: string; inviteToApp: boolean }) => {
+  // NOUVEAU : Gestion de la sélection temporaire pour mode multi-select (checkbox)
+  const handlePendingToggle = (contactId: string) => {
+    setPendingSelections(prev => {
+      if (prev.includes(contactId)) {
+        // Protection : Ne pas permettre de désélectionner le dernier gestionnaire
+        if (selectedContactType === 'manager' && prev.length === 1) {
+          logger.warn('⚠️ [ContactSelector] Cannot deselect last manager - minimum 1 required')
+          return prev // Garder la sélection actuelle
+        }
+        // Retirer de la sélection
+        return prev.filter(id => id !== contactId)
+      } else {
+        // Ajouter à la sélection
+        return [...prev, contactId]
+      }
+    })
+  }
+
+  // NOUVEAU : Gestion de la sélection temporaire pour mode single-select (radio)
+  const handlePendingSelect = (contactId: string) => {
+    // En mode single-select, remplacer toute la sélection
+    setPendingSelections([contactId])
+  }
+
+  // NOUVEAU : Confirmer les changements (calculer diff et appliquer)
+  const handleConfirm = async () => {
+    const contextLotId = externalLotId || lotId
+
+    // Calculer les contacts à ajouter et à retirer
+    const toAdd = pendingSelections.filter(id => !initialSelections.includes(id))
+    const toRemove = initialSelections.filter(id => !pendingSelections.includes(id))
+
+    logger.info('✅ [ContactSelector] Confirming changes:', {
+      toAdd: toAdd.length,
+      toRemove: toRemove.length,
+      contactType: selectedContactType
+    })
+
+    // Activer l'état de chargement
+    setIsConfirming(true)
+
     try {
-      if (!teamId) {
-        logger.error("❌ [ContactSelector] No teamId provided")
-        return
+      // Retirer les contacts désélectionnés (await chaque opération)
+      for (const contactId of toRemove) {
+        if (onContactRemoved) {
+          await onContactRemoved(contactId, selectedContactType, { lotId: contextLotId })
+        }
       }
 
-      logger.info('🆕 [ContactSelector] Creating contact:', contactData.firstName, contactData.lastName, 'type:', selectedContactType)
-
-      // Utiliser le service d'invitation pour créer le contact
-      const result = await contactInvitationService.createContactWithOptionalInvite({
-        type: contactData.type,
-        firstName: contactData.firstName,
-        lastName: contactData.lastName,
-        email: contactData.email,
-        phone: contactData.phone,
-        speciality: contactData.speciality,
-        notes: contactData.notes,
-        inviteToApp: contactData.inviteToApp,
-        teamId: teamId
-      })
-
-      // Vérifier la réussite et sécuriser l'accès aux propriétés
-      const responseData: any = (result as any) || {}
-      const responseContact: any = responseData.contact || responseData.data?.contact || null
-
-      if (!responseContact) {
-        logger.warn('⚠️ [ContactSelector] Contact created but no contact payload returned. Proceeding with form data fallback')
+      // Ajouter les nouveaux contacts sélectionnés (await chaque opération)
+      for (const contactId of toAdd) {
+        const contact = teamContacts?.find(c => c.id === contactId)
+        if (contact && onContactSelected) {
+          const newContact: Contact = {
+            id: contact.id,
+            name: contact.name,
+            email: contact.email,
+            type: selectedContactType,
+            phone: contact.phone || undefined,
+            speciality: contact.provider_category || undefined,
+            is_company: contact.is_company,
+            company_id: contact.company_id,
+            company: contact.company
+          }
+          await onContactSelected(newContact, selectedContactType, { lotId: contextLotId })
+        }
       }
+    } finally {
+      // Désactiver l'état de chargement
+      setIsConfirming(false)
 
-      // Validation critique : l'ID du contact doit exister
-      if (!responseContact?.id) {
-        logger.error('❌ [ContactSelector] Contact creation failed - no ID returned:', result)
-        throw new Error('La création du contact a échoué. Aucun ID reçu du serveur.')
-      }
-
-      // Créer le contact pour l'état local (fallbacks si certaines infos manquent)
-      const newContact: Contact = {
-        id: responseContact.id,
-        name: responseContact?.name || `${contactData.firstName} ${contactData.lastName}`.trim(),
-        email: responseContact?.email || contactData.email,
-        type: selectedContactType,
-        phone: responseContact?.phone || contactData.phone,
-        speciality: responseContact?.speciality || contactData.speciality,
-      }
-      
-      logger.info('✅ [ContactSelector] Contact created:', newContact.name)
-      
-      // Déterminer le lotId à utiliser : externe (ouverture ref) ou prop directe
-      const contextLotId = externalLotId || lotId
-      
-      // Appeler les callbacks parent
-      if (onContactSelected) {
-        onContactSelected(newContact, selectedContactType, { lotId: contextLotId })
-      }
-      
-      if (onContactCreated) {
-        onContactCreated(newContact, selectedContactType, { lotId: contextLotId })
-      }
-      
-      // Fermer seulement le modal de création, pas le modal de sélection
-      setIsContactFormModalOpen(false)
-      // Ne pas appeler cleanContactContext() pour garder la modale de sélection ouverte
-      
-    } catch (error) {
-      logger.error("❌ Erreur lors de la création du contact:", error)
+      // Fermer le modal et nettoyer SEULEMENT après toutes les opérations
+      setIsContactModalOpen(false)
+      cleanContactContext()
     }
   }
+
+  // NOUVEAU : Annuler les changements (revenir à l'état initial)
+  const handleCancel = () => {
+    logger.info('❌ [ContactSelector] Canceling changes, reverting to initial selections')
+    setPendingSelections(initialSelections)
+    setIsContactModalOpen(false)
+    cleanContactContext()
+  }
+
 
   // Nettoyer le contexte de sélection
   const cleanContactContext = () => {
     setSelectedContactType("")
-    setPrefilledContactType("")
+    setExternalLotId(undefined) // Nettoyer le contexte lot pour éviter les assignations incorrectes
   }
 
   // ✅ Filtrer les contacts depuis le cache SWR selon le type et le terme de recherche
@@ -317,7 +400,11 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     return contactsByType.filter(contact =>
       contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (contact.phone && contact.phone.includes(searchTerm))
+      (contact.phone && contact.phone.includes(searchTerm)) ||
+      // Recherche dans le nom de la société
+      (contact.is_company && contact.company?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      // Recherche dans le numéro de TVA
+      (contact.is_company && contact.company?.vat_number?.toLowerCase().includes(searchTerm.toLowerCase()))
     )
   }
 
@@ -328,13 +415,55 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
 
   // Obtenir les contacts sélectionnés pour un type donné (centralisé)
   const getSelectedContactsByType = (_contactType: string): Contact[] => {
-    return selectedContacts[_contactType] || []
+    const contextLotId = externalLotId || lotId
+
+    // Contacts de l'immeuble (toujours inclus)
+    const buildingContactsOfType = selectedContacts[_contactType] || []
+
+    // Si on est dans le contexte d'un lot, ajouter aussi les contacts du lot
+    if (contextLotId && lotContactAssignments[contextLotId]) {
+      const lotContactsOfType = lotContactAssignments[contextLotId][_contactType] || []
+
+      // Merger les deux listes en évitant les doublons (par id)
+      const allContacts = [...buildingContactsOfType]
+      lotContactsOfType.forEach(lotContact => {
+        if (!allContacts.some(c => c.id === lotContact.id)) {
+          allContacts.push(lotContact)
+        }
+      })
+
+      return allContacts
+    }
+
+    return buildingContactsOfType
   }
 
   // Vérifier si un contact est déjà sélectionné pour le type actuel
   const isContactSelected = (contactId: string, contactType: string): boolean => {
     const selectedContactsOfType = getSelectedContactsByType(contactType)
     return selectedContactsOfType.some(contact => contact.id === contactId)
+  }
+
+  // Vérifier si un contact est hérité de l'immeuble (et non spécifique au lot)
+  const isContactInheritedFromBuilding = (contactId: string, contactType: string): boolean => {
+    const contextLotId = externalLotId || lotId
+
+    // Si on n'est pas dans un contexte de lot, il n'y a pas d'héritage
+    if (!contextLotId) {
+      return false
+    }
+
+    // Le contact est hérité s'il est dans selectedContacts (building-level)
+    // mais PAS ajouté spécifiquement au lot
+    const buildingContactsOfType = selectedContacts[contactType] || []
+    const isInBuildingContacts = buildingContactsOfType.some(c => c.id === contactId)
+
+    // Vérifier s'il est aussi dans les contacts du lot (ce qui signifierait qu'il a été ajouté explicitement)
+    const lotContactsOfType = lotContactAssignments[contextLotId]?.[contactType] || []
+    const isInLotContacts = lotContactsOfType.some(c => c.id === contactId)
+
+    // Hérité = dans building MAIS PAS dans lot-specific
+    return isInBuildingContacts && !isInLotContacts
   }
 
   // Rendu en mode compact (pour création d'immeuble)
@@ -473,19 +602,34 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       {!hideUI && (displayMode === "compact" ? renderCompactMode() : renderFullMode())}
 
       {/* Contact Selection Modal */}
-      <Dialog open={isContactModalOpen} onOpenChange={setIsContactModalOpen}>
+      <Dialog open={isContactModalOpen} onOpenChange={(open) => {
+        setIsContactModalOpen(open)
+        if (!open) {
+          cleanContactContext() // Nettoyer le contexte quand le modal se ferme
+        }
+      }}>
         <DialogContent className="max-w-[95vw] sm:max-w-2xl mx-4 sm:mx-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 flex-wrap">
               {selectedContactType === 'manager' && <Users className="w-5 h-5" />}
               {selectedContactType === 'tenant' && <User className="w-5 h-5" />}
               {selectedContactType === 'provider' && <Briefcase className="w-5 h-5" />}
               {selectedContactType === 'owner' && <Home className="w-5 h-5" />}
               {selectedContactType === 'other' && <MoreHorizontal className="w-5 h-5" />}
-              Sélectionner un {getSelectedContactTypeInfo().label.toLowerCase()}
-              {getSelectedContactsByType(selectedContactType).length > 0 && (
+              Sélectionner {getEffectiveSelectionMode(selectedContactType) === 'single' ? 'un' : 'des'} {getSelectedContactTypeInfo().label.toLowerCase()}{getEffectiveSelectionMode(selectedContactType) === 'multi' ? 's' : ''}
+              {getEffectiveSelectionMode(selectedContactType) === 'single' && (
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                  1 maximum
+                </Badge>
+              )}
+              {selectedContactType === 'manager' && (
+                <Badge variant="secondary" className="bg-amber-100 text-amber-700 text-xs">
+                  1 minimum
+                </Badge>
+              )}
+              {pendingSelections.length > 0 && (
                 <Badge variant="secondary" className="bg-green-100 text-green-700">
-                  {getSelectedContactsByType(selectedContactType).length} sélectionné(s)
+                  {pendingSelections.length} sélectionné(s)
                 </Badge>
               )}
             </DialogTitle>
@@ -550,24 +694,52 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                   <div className="space-y-2">
                     {getFilteredContacts().map((contact) => {
                       const isSelected = isContactSelected(contact.id, selectedContactType)
+                      const isPendingSelected = pendingSelections.includes(contact.id)
+                      const isInherited = isContactInheritedFromBuilding(contact.id, selectedContactType)
+                      const effectiveMode = getEffectiveSelectionMode(selectedContactType)
+                      // Protection : Désactiver la désélection si c'est le dernier gestionnaire
+                      const isLastManager = selectedContactType === 'manager' && isPendingSelected && pendingSelections.length === 1
                       return (
                         <div
                           key={contact.id}
                           className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
-                            isSelected 
-                              ? 'bg-green-50 border-green-200' 
-                              : 'hover:bg-gray-50'
+                            isInherited
+                              ? 'bg-blue-50/30 border-blue-200/50'
+                              : isPendingSelected
+                                ? 'bg-green-50 border-green-200'
+                                : 'hover:bg-gray-50'
                           }`}
                         >
                           <div className="flex-1">
-                            <div className="font-medium flex items-center gap-2">
+                            <div className="font-medium flex items-center gap-2 flex-wrap">
                               {contact.name}
-                              {isSelected && (
+                              {/* Badge Entreprise */}
+                              {contact.is_company && (
+                                <Badge variant="secondary" className="bg-purple-100 text-purple-800 text-xs flex items-center gap-1">
+                                  <Building2 className="h-3 w-3" />
+                                  Entreprise
+                                </Badge>
+                              )}
+                              {isInherited ? (
+                                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border border-blue-300 text-xs flex items-center gap-1">
+                                  <Building className="w-3 h-3" />
+                                  Hérité de l&apos;immeuble
+                                </Badge>
+                              ) : isPendingSelected && (
                                 <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
                                   Sélectionné
                                 </Badge>
                               )}
                             </div>
+                            {/* Nom de la société */}
+                            {contact.is_company && contact.company && (
+                              <div className="text-sm text-purple-700 font-medium mt-1">
+                                {contact.company.name}
+                                {contact.company.vat_number && (
+                                  <span className="text-xs text-purple-600 ml-2">TVA: {contact.company.vat_number}</span>
+                                )}
+                              </div>
+                            )}
                             <div className="text-sm text-gray-500">{contact.email}</div>
                             {contact.phone && (
                               <div className="text-xs text-gray-400">{contact.phone}</div>
@@ -578,19 +750,28 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                               </div>
                             )}
                           </div>
-                          <Button 
-                            onClick={() => isSelected 
-                              ? handleRemoveSelectedContact(contact.id)
-                              : handleAddExistingContact(contact)
-                            } 
-                            className={isSelected 
-                              ? "bg-red-600 text-white hover:bg-red-700" 
-                              : "bg-blue-600 text-white hover:bg-blue-700"
-                            }
-                            size="sm"
-                          >
-                            {isSelected ? "Retirer" : "Sélectionner"}
-                          </Button>
+                          {/* NOUVEAU : Checkbox pour multi-select, Radio pour single-select */}
+                          {isInherited ? (
+                            <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs whitespace-nowrap">
+                              Sur l&apos;immeuble
+                            </Badge>
+                          ) : effectiveMode === 'single' ? (
+                            <input
+                              type="radio"
+                              name={`contact-selection-${selectedContactType}`}
+                              checked={isPendingSelected}
+                              onChange={() => handlePendingSelect(contact.id)}
+                              aria-label={`Sélectionner ${contact.name}`}
+                            />
+                          ) : (
+                            <Checkbox
+                              checked={isPendingSelected}
+                              onCheckedChange={() => handlePendingToggle(contact.id)}
+                              disabled={isLastManager}
+                              aria-label={`Sélectionner ${contact.name}`}
+                              className="h-5 w-5"
+                            />
+                          )}
                         </div>
                       )
                     })}
@@ -628,43 +809,36 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                 Ajouter un {getSelectedContactTypeInfo().label.toLowerCase()}
               </Button>
               <div className="flex gap-2">
-                <Button 
-                  variant="default" 
-                  className="w-full sm:w-auto" 
-                  onClick={() => {
-                    setIsContactModalOpen(false)
-                    cleanContactContext()
-                  }}
-                >
-                  Terminé
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  className="w-full sm:w-auto" 
-                  onClick={() => {
-                    setIsContactModalOpen(false)
-                    cleanContactContext()
-                  }}
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  onClick={handleCancel}
                 >
                   Annuler
+                </Button>
+                <Button
+                  variant="default"
+                  className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
+                  onClick={handleConfirm}
+                  disabled={isConfirming}
+                >
+                  {isConfirming ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Traitement...
+                    </>
+                  ) : (
+                    <>
+                      Confirmer
+                      {pendingSelections.length > 0 && ` (${pendingSelections.length})`}
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Contact Form Modal */}
-      <ContactFormModal
-        isOpen={isContactFormModalOpen}
-        onClose={() => {
-          setIsContactFormModalOpen(false)
-          cleanContactContext()
-        }}
-        onSubmit={handleContactCreated}
-        defaultType={prefilledContactType}
-        teamId={teamId || ''}
-      />
     </>
   )
 })

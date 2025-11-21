@@ -14,6 +14,7 @@ import {
   RefreshCw,
   UserX,
   Phone,
+  Building2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -41,6 +42,13 @@ interface ContactData {
   speciality?: string
   createdAt: string
   createdBy?: string
+  // Champs société
+  is_company?: boolean
+  company?: {
+    id: string
+    name: string
+    vat_number?: string | null
+  } | null
 }
 
 interface ContactHeaderProps {
@@ -222,6 +230,13 @@ export const ContactDetailHeader = ({
       ...categoryConfig,
       icon: User,
     },
+    // Badge Entreprise
+    contact.is_company && contact.company && {
+      color: "bg-purple-100 text-purple-800 border-purple-200",
+      dot: "bg-purple-500",
+      label: "Entreprise",
+      icon: Building2,
+    },
     {
       ...invitationConfig,
       icon: MessageSquare,
@@ -231,7 +246,7 @@ export const ContactDetailHeader = ({
   return (
     <TooltipProvider>
       <div className="py-6">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="content-max-width px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between py-4">
             {/* Section Gauche - Navigation */}
             <div className="flex items-center space-x-4">
@@ -277,15 +292,30 @@ export const ContactDetailHeader = ({
 
                 {/* Informations contextuelles */}
                 <div className="flex items-center justify-center space-x-4 text-sm text-slate-600">
+                  {/* Nom de la société pour contacts entreprise */}
+                  {contact.is_company && contact.company && (
+                    <div className="flex items-center space-x-1">
+                      <Building2 className="h-3 w-3" />
+                      <span className="truncate max-w-xs font-medium">{contact.company.name}</span>
+                    </div>
+                  )}
+
                   <div className="flex items-center space-x-1">
                     <Mail className="h-3 w-3" />
                     <span className="truncate max-w-xs">{contact.email}</span>
                   </div>
-                  
+
                   {contact.phone && (
                     <div className="hidden sm:flex items-center space-x-1">
                       <Phone className="h-3 w-3" />
                       <span>{contact.phone}</span>
+                    </div>
+                  )}
+
+                  {/* Numéro de TVA pour contacts entreprise */}
+                  {contact.is_company && contact.company?.vat_number && (
+                    <div className="hidden md:flex items-center space-x-1">
+                      <span className="font-mono text-xs">{contact.company.vat_number}</span>
                     </div>
                   )}
                   

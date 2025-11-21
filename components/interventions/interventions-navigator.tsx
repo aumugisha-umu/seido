@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import {
@@ -9,7 +9,9 @@ import {
 } from "lucide-react"
 
 import ContentNavigator from "@/components/content-navigator"
-import { InterventionsList } from "@/components/interventions/interventions-list"
+import { InterventionsViewContainer } from "@/components/interventions/interventions-view-container"
+import { ViewModeSwitcherV1 } from "@/components/interventions/view-mode-switcher-v1"
+import { useViewMode } from "@/hooks/use-view-mode"
 import type { InterventionWithRelations } from "@/lib/services"
 
 interface EmptyStateConfig {
@@ -44,6 +46,7 @@ interface InterventionsNavigatorProps {
   showFilters?: boolean
   actionHooks?: ActionHooks
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
+  isEmbeddedInCard?: boolean
 }
 
 export function InterventionsNavigator({
@@ -56,12 +59,19 @@ export function InterventionsNavigator({
   searchPlaceholder = "Rechercher par titre, description, ou lot...",
   showFilters = true,
   actionHooks,
-  userContext = 'gestionnaire'
+  userContext = 'gestionnaire',
+  isEmbeddedInCard = false
 }: InterventionsNavigatorProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [filters, setFilters] = useState({
     type: "all",
     urgency: "all-urgency"
+  })
+
+  // View mode state (cards, list, calendar)
+  const { viewMode, setViewMode, mounted } = useViewMode({
+    defaultMode: 'cards',
+    syncWithUrl: false
   })
 
   // Filter function for interventions based on tab (NOUVEAU WORKFLOW)
@@ -122,26 +132,76 @@ export function InterventionsNavigator({
   // Function to render interventions list
   const renderInterventionsList = (tabId: string) => {
     const filteredData = getFilteredInterventions(tabId)
-    
-    const defaultEmptyConfig = {
-      title: tabId === "toutes" ? "Aucune intervention" : "Aucune intervention dans cette catégorie",
-      description: tabId === "toutes" 
-        ? "Les interventions apparaîtront ici"
-        : "Les interventions de ce statut apparaîtront ici",
-      showCreateButton: false,
-      createButtonText: "Créer une intervention",
-      createButtonAction: () => {}
+
+    // Contextualized empty state messages per tab
+    const getEmptyStateConfig = () => {
+      // Tab-specific messages (priority)
+      switch (tabId) {
+        case "toutes":
+          // Only use external config if truly 0 interventions total
+          if (interventions.length === 0 && emptyStateConfig) {
+            return emptyStateConfig
+          }
+          // Otherwise, differentiate between no data vs filtered results
+          return {
+            title: interventions.length === 0 ? "Aucune intervention" : "Aucun résultat",
+            description: interventions.length === 0
+              ? "Les interventions créées apparaîtront ici."
+              : "Aucune intervention ne correspond à vos critères de recherche ou filtres.",
+            showCreateButton: interventions.length === 0 && (emptyStateConfig?.showCreateButton || false),
+            createButtonText: emptyStateConfig?.createButtonText || "Créer une intervention",
+            createButtonAction: emptyStateConfig?.createButtonAction || (() => {})
+          }
+        case "demandes_group":
+          return {
+            title: "Aucune demande",
+            description: "Les nouvelles demandes d'intervention et celles approuvées apparaîtront ici.",
+            showCreateButton: false
+          }
+        case "en_cours_group":
+          return {
+            title: "Aucune intervention en cours",
+            description: "Les interventions en planification, planifiées, en cours d'exécution ou en attente de validation apparaîtront ici.",
+            showCreateButton: false
+          }
+        case "cloturees_group":
+          return {
+            title: "Aucune intervention clôturée",
+            description: "Les interventions terminées, annulées ou rejetées apparaîtront ici.",
+            showCreateButton: false
+          }
+        default:
+          return {
+            title: "Aucune intervention",
+            description: "Les interventions de ce statut apparaîtront ici.",
+            showCreateButton: false
+          }
+      }
+    }
+
+    const defaultEmptyConfig = getEmptyStateConfig()
+
+    // Don't render until mounted (prevent hydration mismatch)
+    if (!mounted) {
+      return (
+        <div className="animate-pulse space-y-2">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-32 bg-gray-200 rounded-lg" />
+          ))}
+        </div>
+      )
     }
 
     return (
-      <InterventionsList
+      <InterventionsViewContainer
         interventions={filteredData}
-        loading={loading}
-        emptyStateConfig={emptyStateConfig || defaultEmptyConfig}
-        showStatusActions={showStatusActions}
-        contactContext={contactContext}
-        actionHooks={actionHooks}
         userContext={userContext}
+        loading={loading}
+        emptyStateConfig={defaultEmptyConfig}
+        showStatusActions={showStatusActions}
+        viewMode={viewMode}
+        setViewMode={setViewMode}
+        hideViewSwitcher={true}
       />
     )
   }
@@ -233,18 +293,30 @@ export function InterventionsNavigator({
     setSearchTerm("")
   }
 
+  // View switcher to pass as right controls
+  const viewSwitcher = mounted ? (
+    <ViewModeSwitcherV1
+      value={viewMode}
+      onChange={setViewMode}
+    />
+  ) : null
+
+  const contentNavigatorClasses = isEmbeddedInCard
+    ? `${className} bg-transparent border-0 shadow-none`
+    : className
+
   return (
-    <div className={className}>
-      <ContentNavigator
-        tabs={interventionsTabsConfig}
-        defaultTab="toutes"
-        searchPlaceholder={searchPlaceholder}
-        filters={interventionsFiltersConfig}
-        onSearch={handleSearch}
-        onFilterChange={handleFilterChange}
-        onResetFilters={handleResetFilters}
-        filterValues={filters}
-      />
-    </div>
+    <ContentNavigator
+      tabs={interventionsTabsConfig}
+      defaultTab="toutes"
+      searchPlaceholder={searchPlaceholder}
+      filters={interventionsFiltersConfig}
+      onSearch={handleSearch}
+      onFilterChange={handleFilterChange}
+      onResetFilters={handleResetFilters}
+      filterValues={filters}
+      rightControls={viewSwitcher}
+      className={contentNavigatorClasses}
+    />
   )
 }

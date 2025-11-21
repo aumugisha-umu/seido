@@ -67,11 +67,11 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     }
 
     if ('title' in data && data.title) {
-      validateLength(data.title, 'title', 3, 200)
+      validateLength(data.title, 3, 200, 'title')
     }
 
     if ('description' in data && data.description) {
-      validateLength(data.description, 'description', 10, 2000)
+      validateLength(data.description, 10, 2000, 'description')
     }
 
     if ('status' in data && data.status) {
@@ -99,6 +99,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       .from(this.tableName)
       .select(`
         *,
+        creator:created_by(id, name, email, role),
         lot:lot_id(
           id, reference, building_id,
           building:building_id(id, name, address, city, team_id),
@@ -150,6 +151,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       .from(this.tableName)
       .select(`
         *,
+        creator:created_by(id, name, email, role),
         lot:lot_id(
           id, reference,
           building:building_id(id, name, address, city, postal_code, team_id)
@@ -382,6 +384,13 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           role,
           is_primary,
           user:user_id(id, name, email, role, provider_category)
+        ),
+        quotes:intervention_quotes(
+          id,
+          status,
+          amount,
+          provider_id,
+          provider:users!provider_id(name)
         )
       `)
       .eq('team_id', teamId)

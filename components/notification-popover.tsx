@@ -2,10 +2,11 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   Bell,
-  Eye,
-  EyeOff,
+  Mail,
+  MailOpen,
   Archive,
   Loader2,
   CheckCircle,
@@ -19,7 +20,8 @@ import { cn } from "@/lib/utils"
 import {
   getRelativeTime,
   getNotificationIcon,
-  truncateText
+  truncateText,
+  getNotificationNavigationUrl
 } from "@/lib/notification-utils"
 import type { Notification } from "@/hooks/use-notification-popover"
 
@@ -46,8 +48,37 @@ export default function NotificationPopover({
   role,
   onClose
 }: NotificationPopoverProps) {
+  const router = useRouter()
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
+
+  const handleNotificationClick = async (notification: Notification, e: React.MouseEvent) => {
+    // Ne pas déclencher la navigation si on clique sur les boutons d'action
+    const target = e.target as HTMLElement
+    if (target.closest('button')) {
+      return
+    }
+
+    // Obtenir l'URL de navigation
+    const navigationUrl = getNotificationNavigationUrl(notification, role as 'gestionnaire' | 'locataire' | 'prestataire' | 'admin')
+
+    if (navigationUrl) {
+      // Marquer comme lu si non lu
+      if (!notification.read) {
+        try {
+          await onMarkAsRead(notification.id)
+        } catch (error) {
+          console.error('Error marking notification as read:', error)
+        }
+      }
+
+      // Fermer le popover
+      onClose?.()
+
+      // Naviguer vers la page de détail
+      router.push(navigationUrl)
+    }
+  }
 
   const handleMarkAsRead = async (notification: Notification) => {
     if (processingIds.has(notification.id)) return
@@ -172,8 +203,9 @@ export default function NotificationPopover({
               return (
                 <div
                   key={notification.id}
+                  onClick={(e) => handleNotificationClick(notification, e)}
                   className={cn(
-                    "p-3 transition-colors hover:bg-slate-50",
+                    "p-3 transition-colors hover:bg-slate-50 cursor-pointer",
                     !notification.read && "bg-blue-50/30"
                   )}
                 >
@@ -223,9 +255,9 @@ export default function NotificationPopover({
                           {isProcessing ? (
                             <Loader2 className="h-3 w-3 animate-spin" />
                           ) : notification.read ? (
-                            <EyeOff className="h-3 w-3" />
+                            <MailOpen className="h-3 w-3" />
                           ) : (
-                            <Eye className="h-3 w-3" />
+                            <Mail className="h-3 w-3" />
                           )}
                         </Button>
 

@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useAuth } from "./use-auth"
 import { createBrowserSupabaseClient, createStatsService } from "@/lib/services"
-import { useDataRefresh } from './use-cache-management'
 import { logger, logError } from '@/lib/logger'
 export interface ManagerStats {
   buildingsCount: number
@@ -151,16 +150,6 @@ export function useManagerStats() {
       mountedRef.current = false
     }
   }, [])
-
-  // ✅ Intégration au bus de refresh: permet à useNavigationRefresh de déclencher ce hook
-  useDataRefresh('manager-stats', () => {
-    if (user?.id) {
-      // Forcer un refetch en bypassant le cache local de ce hook
-      lastUserIdRef.current = null
-      loadingRef.current = false
-      fetchStats(user.id, true)
-    }
-  })
 
   // ✅ SIMPLIFIÉ: Refetch direct sans couche de cache
   const refetch = useCallback(() => {
@@ -353,9 +342,6 @@ export function useContactStats() {
         gestionnaire: { total: 0, active: 0 },
         locataire: { total: 0, active: 0 },
         prestataire: { total: 0, active: 0 },
-        syndic: { total: 0, active: 0 },
-        notaire: { total: 0, active: 0 },
-        assurance: { total: 0, active: 0 },
         proprietaire: { total: 0, active: 0 },
         autre: { total: 0, active: 0 }
       },

@@ -7,7 +7,7 @@ export type { Database } from '../../database.types'
 export interface User {
   id: string
   auth_user_id: string | null
-  email: string
+  email: string | null
   name: string
   first_name?: string | null
   last_name?: string | null
@@ -29,7 +29,7 @@ export interface User {
 
 export interface UserInsert {
   auth_user_id?: string | null
-  email: string
+  email?: string | null
   name: string
   first_name?: string | null
   last_name?: string | null
@@ -51,7 +51,7 @@ export interface UserInsert {
 
 export interface UserUpdate {
   auth_user_id?: string | null
-  email?: string
+  email?: string | null
   name?: string
   first_name?: string | null
   last_name?: string | null
@@ -155,8 +155,7 @@ export interface Intervention {
   estimated_cost?: number | null
   final_cost?: number | null
   tenant_comment?: string | null
-  manager_comment?: string | null
-  provider_comment?: string | null
+  provider_guidelines?: string | null
   specific_location?: string | null
   requires_quote?: boolean | null
   quote_deadline?: string | null
@@ -169,6 +168,21 @@ export interface Intervention {
   // Legacy field names (for backward compatibility in business logic)
   priority?: 'low' | 'medium' | 'high' | 'urgent'  // Maps to urgency
   category?: string  // Maps to type
+  // ✅ Enriched data for interactive badge (loaded separately)
+  quotes?: Array<{
+    id: string
+    status: string
+    provider_id?: string
+    submitted_by?: string
+    amount?: number
+  }>
+  timeSlots?: Array<{
+    id: string
+    slot_date: string
+    start_time: string
+    status?: string
+    proposed_by?: string
+  }>
 }
 
 export interface InterventionInsert {
@@ -186,8 +200,7 @@ export interface InterventionInsert {
   requested_date?: string | null
   estimated_cost?: number | null
   tenant_comment?: string | null
-  manager_comment?: string | null
-  provider_comment?: string | null
+  provider_guidelines?: string | null
   specific_location?: string | null
   requires_quote?: boolean | null
   quote_deadline?: string | null
@@ -211,8 +224,7 @@ export interface InterventionUpdate {
   estimated_cost?: number | null
   final_cost?: number | null
   tenant_comment?: string | null
-  manager_comment?: string | null
-  provider_comment?: string | null
+  provider_guidelines?: string | null
   specific_location?: string | null
   requires_quote?: boolean | null
   quote_deadline?: string | null
@@ -354,7 +366,7 @@ export interface ValidationResult {
 
 // Common DTOs
 export interface CreateUserDTO {
-  email: string
+  email?: string | null
   name: string
   role: User['role']
   phone?: string
@@ -610,6 +622,15 @@ export interface InterventionWithRelations extends Intervention {
     is_primary: boolean
     user: User
     individual_message?: string
+  }>
+  quotes?: Array<{
+    id: string
+    status: 'draft' | 'pending' | 'sent' | 'accepted' | 'rejected' | 'expired' | 'cancelled'
+    amount?: number
+    provider_id: string
+    provider?: {
+      name: string
+    }
   }>
 }
 

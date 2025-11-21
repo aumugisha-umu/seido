@@ -119,22 +119,12 @@ export async function POST(request: NextRequest) {
     }
     commentParts.push(`Démarrée par ${user.name} (${user.role}) le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`)
 
-    const existingComment = user.role === 'prestataire' ? 
-      intervention.provider_comment : 
-      intervention.manager_comment
-
-    const updatedComment = existingComment + (existingComment ? ' | ' : '') + commentParts.join(' | ')
+    // Note: Comments are now stored in intervention_comments table
 
     // Update intervention status
     const updateData = {
       status: 'en_cours' as Database['public']['Enums']['intervention_status'],
       updated_at: new Date().toISOString()
-    }
-
-    if (user.role === 'prestataire') {
-      updateData.provider_comment = updatedComment
-    } else {
-      updateData.manager_comment = updatedComment
     }
 
     const updatedIntervention = await interventionService.update(interventionId, updateData)

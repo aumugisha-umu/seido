@@ -84,26 +84,15 @@ type StatsInsert = never
 type StatsUpdate = never
 
 export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, StatsUpdate> {
-  // Cache for stats data with different TTLs
-  private statsCache = new Map<string, { data: StatsEntity; timestamp: number; ttl: number }>()
-  private readonly DEFAULT_TTL = 5 * 60 * 1000 // 5 minutes
-  private readonly SYSTEM_STATS_TTL = 15 * 60 * 1000 // 15 minutes for system stats
-  private readonly ACTIVITY_STATS_TTL = 2 * 60 * 1000 // 2 minutes for activity stats
-
   constructor(supabase: SupabaseClient) {
     super(supabase, 'activity_logs') // Base table for activity tracking
   }
 
   /**
    * Get system-wide statistics (admin level)
+   * ✅ Next.js 15 Data Cache automatically caches Supabase queries
    */
   async getSystemStats(): Promise<{ success: true; data: SystemStats }> {
-    const cacheKey = 'system_stats'
-    const cached = this.getFromCache(cacheKey)
-    if (cached) {
-      return { success: true, data: cached }
-    }
-
     try {
       // Get total counts from all services
       const [usersResult, buildingsResult, interventionsResult] = await Promise.all([
@@ -153,7 +142,6 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
         revenueGrowth: Math.round((interventionsGrowthResult.count || 0) * 450)
       }
 
-      this.setToCache(cacheKey, stats, this.SYSTEM_STATS_TTL)
       return { success: true, data: stats }
 
     } catch (error) {
@@ -164,18 +152,13 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
 
   /**
    * Get activity statistics for a team
+   * ✅ Next.js 15 Data Cache automatically caches Supabase queries
    */
   async getActivityStats(
     teamId: string,
     period: '24h' | '7d' | '30d' = '7d',
     userId?: string
   ): Promise<{ success: true; data: ActivityStats }> {
-    const cacheKey = `activity_stats_${teamId}_${period}_${userId || 'all'}`
-    const cached = this.getFromCache(cacheKey)
-    if (cached) {
-      return { success: true, data: cached }
-    }
-
     try {
       // Calculate date range
       const now = new Date()
@@ -260,7 +243,6 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
           .slice(0, 10)
       }
 
-      this.setToCache(cacheKey, stats, this.ACTIVITY_STATS_TTL)
       return { success: true, data: stats }
 
     } catch (error) {
@@ -271,14 +253,9 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
 
   /**
    * Get team statistics
+   * ✅ Next.js 15 Data Cache automatically caches Supabase queries
    */
   async getTeamStats(teamId: string): Promise<{ success: true; data: TeamStats }> {
-    const cacheKey = `team_stats_${teamId}`
-    const cached = this.getFromCache(cacheKey)
-    if (cached) {
-      return { success: true, data: cached }
-    }
-
     try {
       // Get team data with related counts
       const [teamResult, membersResult, buildingsResult, interventionsResult] = await Promise.all([
@@ -330,7 +307,6 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
         lastActivityDate: lastActivity?.created_at || teamResult.data.created_at
       }
 
-      this.setToCache(cacheKey, stats, this.DEFAULT_TTL)
       return { success: true, data: stats }
 
     } catch (error) {
@@ -341,14 +317,9 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
 
   /**
    * Get user statistics
+   * ✅ Next.js 15 Data Cache automatically caches Supabase queries
    */
   async getUserStats(userId: string): Promise<{ success: true; data: UserStats }> {
-    const cacheKey = `user_stats_${userId}`
-    const cached = this.getFromCache(cacheKey)
-    if (cached) {
-      return { success: true, data: cached }
-    }
-
     try {
       // Get user data
       const { data: user, error: userError } = await this.supabase
@@ -397,7 +368,6 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
         }
       }
 
-      this.setToCache(cacheKey, stats, this.DEFAULT_TTL)
       return { success: true, data: stats }
 
     } catch (error) {
@@ -408,14 +378,9 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
 
   /**
    * Get comprehensive dashboard statistics
+   * ✅ Next.js 15 Data Cache automatically caches Supabase queries
    */
   async getDashboardStats(teamId?: string): Promise<{ success: true; data: DashboardStats }> {
-    const cacheKey = `dashboard_stats_${teamId || 'global'}`
-    const cached = this.getFromCache(cacheKey)
-    if (cached) {
-      return { success: true, data: cached }
-    }
-
     try {
       // Get system stats
       const systemStatsResult = await this.getSystemStats()
@@ -442,7 +407,6 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
         }
       }
 
-      this.setToCache(cacheKey, dashboardStats, this.DEFAULT_TTL)
       return { success: true, data: dashboardStats }
 
     } catch (error) {
@@ -452,40 +416,8 @@ export class StatsRepository extends BaseRepository<StatsEntity, StatsInsert, St
   }
 
   /**
-   * Clear stats cache
-   */
-  clearStatsCache(pattern?: string) {
-    if (pattern) {
-      for (const key of this.statsCache.keys()) {
-        if (key.includes(pattern)) {
-          this.statsCache.delete(key)
-        }
-      }
-    } else {
-      this.statsCache.clear()
-    }
-  }
-
-  /**
    * Private helper methods
    */
-  private getFromCache(_key: string): unknown | null {
-    const cached = this.statsCache.get(_key)
-    if (cached && Date.now() - cached.timestamp < cached.ttl) {
-      return cached.data
-    }
-    this.statsCache.delete(_key)
-    return null
-  }
-
-  private setToCache(key: string, data: unknown, ttl: number = this.DEFAULT_TTL) {
-    this.statsCache.set(key, {
-      data,
-      timestamp: Date.now(),
-      ttl
-    })
-  }
-
   private getRolePermissions(_role: string): string[] {
     const permissions: Record<string, string[]> = {
       admin: ['read', 'write', 'delete', 'manage_users', 'manage_teams', 'system_stats'],

@@ -3,13 +3,12 @@
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { 
-  Building, 
-  Users, 
-  Home, 
-  Car, 
-  Store, 
-  ParkingCircle, 
+import {
+  Building,
+  Users,
+  Home,
+  Car,
+  Store,
   MoreHorizontal,
   Check
 } from "lucide-react"
@@ -27,11 +26,10 @@ interface LotCategorySelectorProps {
 
 const iconComponents = {
   Building,
-  Users, 
+  Users,
   Home,
   Car,
   Store,
-  ParkingCircle,
   MoreHorizontal
 }
 
@@ -39,7 +37,6 @@ export function LotCategorySelector({
   value,
   onChange,
   label = "Catégorie du lot",
-  description = "Sélectionnez le type de bien",
   required = false,
   displayMode = "grid",
   className = ""

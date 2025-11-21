@@ -62,9 +62,7 @@ const DEFAULT_LOT_INFO: LotInfo = {
 const DEFAULT_CONTACT_ASSIGNMENTS = {
   tenant: [],
   provider: [],
-  syndic: [],
-  notary: [],
-  insurance: [],
+  owner: [],
   other: [],
 }
 

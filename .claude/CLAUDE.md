@@ -1,8 +1,55 @@
-# CLAUDE.md
+﻿# CLAUDE.md
 
 This file provides guidance to Claude Code when working with this repository.
 
-Never do any build after small changes if the user didn't ask you to. The only situations you are allowed to run build command without asking is after if you've avec made mode than 100 lines of code change and you wand to make sure you didn't break anything, or after a long series of edits without testing
+## 🚫 RÈGLE STRICTE: Pas de Build Automatique
+
+**INTERDICTION ABSOLUE de lancer `npm run build` sans demande explicite de l'utilisateur.**
+
+**Pourquoi cette règle existe:**
+- Les builds Next.js sont longs (~30-60 secondes)
+- Ils consomment des ressources système importantes
+- Ils laissent des processus Node.js actifs qui causent des conflits
+- Ils ne sont pas nécessaires pour valider du code TypeScript
+
+**Ce que tu DOIS faire à la place:**
+
+1. **Pour valider TypeScript sur des fichiers spécifiques:**
+   ```bash
+   # ✅ BON - Validation TS ciblée (rapide, ~2-5 secondes)
+   npx tsc --noEmit components/ui/my-component.tsx
+
+   # ❌ MAUVAIS - Build complet (lent, ~30-60 secondes)
+   npm run build
+   ```
+
+2. **Pour valider ESLint:**
+   ```bash
+   # ✅ BON - Lint ciblé
+   npm run lint -- components/ui/my-component.tsx
+
+   # ❌ MAUVAIS - Build complet
+   npm run build
+   ```
+
+3. **Pour tester l'application:**
+   ```bash
+   # ✅ BON - Demander à l'utilisateur de lancer le dev server
+   "Peux-tu lancer `npm run dev` pour tester les composants créés ?"
+
+   # ❌ MAUVAIS - Lancer un build
+   npm run build
+   ```
+
+**EXCEPTIONS (uniquement si l'utilisateur demande explicitement):**
+- L'utilisateur tape "git*" → Tu peux faire un commit avec build si nécessaire
+- L'utilisateur dit explicitement "fais un build" ou "compile l'app"
+- Préparation avant un déploiement en production
+
+**En résumé:**
+- ❌ **JAMAIS** de `npm run build` spontané
+- ✅ **TOUJOURS** utiliser `npx tsc --noEmit [fichier]` pour validation TS
+- ✅ **TOUJOURS** demander confirmation avant un build
 
 ## 🚨 IMPORTANT: Official Documentation First
 
@@ -30,6 +77,7 @@ Never do any build after small changes if the user didn't ask you to. The only s
 **Notes spéciales** :
 - Port 3000 occupé ? Fermer processus + clean cache + relancer
 - Tests : toujours référencer `tests-new/` et maintenir structure
+- **⚠️ IMPORTANT après un build** : S'assurer que tous les processus Node sont terminés avant de relancer le serveur de développement
 
 ```bash
 # Development
@@ -52,6 +100,54 @@ npm run supabase:types   # Generate TS types
 npm run supabase:push    # Push schema
 npm run supabase:migrate # New migration
 ```
+
+### ⚙️ Workflow après Build
+
+**Après avoir exécuté `npm run build`, TOUJOURS :**
+
+1. **Vérifier si des processus Node.js sont actifs** :
+   ```bash
+   # Windows
+   tasklist | findstr node.exe
+
+   # Linux/Mac
+   ps aux | grep node
+   ```
+
+2. **Si des processus Node.js tournent, les fermer EXPLICITEMENT** :
+   ```bash
+   # Windows
+   taskkill /F /IM node.exe
+
+   # Linux/Mac
+   pkill -9 node
+   ```
+
+3. **Vérifier qu'aucun processus n'occupe le port 3000** :
+   ```bash
+   # Windows
+   netstat -ano | findstr :3000
+
+   # Linux/Mac
+   lsof -i :3000
+   ```
+
+4. **Nettoyer le cache Next.js (optionnel mais recommandé)** :
+   ```bash
+   rm -rf .next
+   ```
+
+5. **Relancer le serveur de développement** :
+   ```bash
+   npm run dev
+   ```
+
+**Pourquoi c'est important ?**
+- Les processus Node.js peuvent rester actifs en arrière-plan après un build
+- Cela peut causer des conflits de port (EADDRINUSE)
+- Des fichiers .next corrompus peuvent persister et causer des erreurs d'hydratation
+- Un nouveau serveur propre garantit que les changements sont bien appliqués
+- ⚠️ **NE JAMAIS lancer npm run dev si des processus Node tournent déjà**
 
 ## Architecture Snapshot
 
@@ -322,6 +418,71 @@ npm test -- --coverage                 # Coverage
 // → Use correct column name from latest migration
 ```
 
+
+### ðŸ”§ Troubleshooting Protocol
+
+**When you encounter a non-trivial error that you can't resolve after 2-3 attempts, ALWAYS:**
+
+1. **Consult the Troubleshooting Checklist**:
+   - ðŸ“– **Read** [docs/troubleshooting-checklist.md](../docs/troubleshooting-checklist.md)
+   - ðŸ” **Find** the relevant section (DB, Auth, RLS, Build, etc.)
+   - âœ… **Follow** the diagnostic checklist step by step
+   - ðŸ“ **Apply** the documented solution
+
+2. **Non-trivial errors include**:
+   - âœ… File editing failures (VSCode auto-save conflicts)
+   - âœ… Database schema mismatches (column not found, enum invalid)
+   - âœ… Authentication loops or missing permissions
+   - âœ… RLS policies blocking legitimate access
+   - âœ… Build errors with TypeScript types
+   - âœ… Hydration mismatches in React
+   - âœ… Performance issues (>3s load time)
+   - âœ… Flaky E2E tests
+   - âŒ NOT for: Basic typos, syntax errors, missing imports
+
+3. **When to UPDATE the checklist**:
+   - âœ… You discover a NEW bug pattern (not already documented)
+   - âœ… Same bug occurred 2+ times in different contexts
+   - âœ… Solution required >10 minutes to find
+   - âœ… Root cause was non-obvious (architectural, config, etc.)
+   - âŒ NOT for: One-off bugs, user-specific issues
+
+4. **How to UPDATE the checklist**:
+   ```markdown
+   ## [Next Number]ï¸âƒ£ [Category Name]
+
+   ### SymptÃ´me
+   [Exact error message or behavior]
+
+   ### Checklist de Diagnostic
+   - [ ] **[Diagnostic question]** ?
+     â†’ [Action to take]
+
+   ### Solutions par Cas
+   #### Cas 1: [Specific case]
+   **Cause**: [Root cause]
+   **Solution**: [Code or steps]
+   ```
+
+5. **Quick Reference - Common Issues**:
+   - **File editing fails** â†’ Section 1 (PowerShell workaround)
+   - **Column not found** â†’ Section 2 (DB schema)
+   - **User not authenticated** â†’ Section 3 (Server auth)
+   - **Permission denied** â†’ Section 4 (RLS policies)
+   - **Build errors** â†’ Section 5 (TypeScript/cache)
+   - **Route 404** â†’ Section 6 (Routing)
+   - **Page slow** â†’ Section 7 (Performance)
+   - **Test timeout** â†’ Section 8 (E2E tests)
+
+**Workflow Example**:
+```
+1. Error: "File has been unexpectedly modified"
+2. Consult checklist Section 1 (File Editing)
+3. Follow diagnostic: File >700 lines? âœ…
+4. Apply solution: PowerShell by line numbers
+5. Success â†’ Continue work
+6. If NEW pattern â†’ Update checklist Section 1
+```
 ### 🎯 Architecture Decisions
 1. **Prefer NEW architecture** (Repository Pattern + Services)
 2. **Repository Pattern** for data access (not direct Supabase calls)

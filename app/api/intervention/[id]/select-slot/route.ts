@@ -212,12 +212,8 @@ export async function PUT(
       updated_at: new Date().toISOString()
     }
 
-    // Add comment if provided
-    if (comment) {
-      const existingComment = intervention.manager_comment || ''
-      const newComment = `Planification: ${comment} | Créneau sélectionné: ${selectedSlot.date} ${selectedSlot.startTime}-${selectedSlot.endTime}`
-      updateData.manager_comment = existingComment + (existingComment ? ' | ' : '') + newComment
-    }
+    // Note: Comments about slot selection are now stored in intervention_comments table
+    // The comment parameter should be saved via the comments system if needed
 
     // Update intervention
     logger.info({ data: updateData }, "💾 [SELECT-SLOT] Updating intervention with data:")

@@ -41,11 +41,23 @@ export const passwordSchema = z
   .regex(/[0-9]/, { message: 'Password must contain number' })
 
 /**
- * Phone number validation (French format)
+ * Phone number validation (flexible international format)
+ * Accepts various formats: +33612345678, 0612345678, +1-555-123-4567, etc.
+ * Minimum 8 digits required
  */
 export const phoneSchema = z
   .string()
-  .regex(/^(\+33|0)[1-9](\d{2}){4}$/, { message: 'Invalid French phone number' })
+  .refine(
+    (val) => {
+      if (!val || val.trim() === '') return true // Optional field
+      // Remove all non-digit characters except +
+      const digits = val.replace(/[^\d+]/g, '')
+      // Check if we have at least 8 digits
+      const digitCount = digits.replace(/\+/g, '').length
+      return digitCount >= 8
+    },
+    { message: 'Le numéro de téléphone doit contenir au moins 8 chiffres' }
+  )
   .optional()
 
 /**
@@ -133,11 +145,22 @@ export const updateUserProfileSchema = z.object({
 /**
  * POST /api/invite-user
  * Creates contact + optionally sends invitation
+ * Supports company contacts (person or company)
  */
 export const inviteUserSchema = z.object({
-  email: emailSchema,
-  firstName: z.string().min(1).max(100).trim(),
-  lastName: z.string().min(1).max(100).trim(),
+  email: z.preprocess(
+    (val) => {
+      // Convertir les chaînes vides ou undefined en null
+      if (val === undefined || val === null) return null
+      if (typeof val === 'string' && val.trim() === '') return null
+      return val
+    },
+    z.union([emailSchema, z.null()]).nullable()
+  ),
+  // ✅ firstName/lastName optionnels pour supporter les contacts société
+  // La validation métier (required pour 'person') est faite dans ContactFormModal
+  firstName: z.string().max(100).trim().optional().nullable(),
+  lastName: z.string().max(100).trim().optional().nullable(),
   role: z.enum(['admin', 'gestionnaire', 'locataire', 'prestataire', 'proprietaire'], {
     errorMap: () => ({ message: 'Invalid role' })
   }),
@@ -147,6 +170,49 @@ export const inviteUserSchema = z.object({
   notes: z.string().max(2000).trim().optional().nullable(),
   speciality: z.string().max(100).trim().optional().nullable(),
   shouldInviteToApp: z.boolean().optional().default(false),
+  // Champs société
+  contactType: z.enum(['person', 'company']).optional().nullable(),
+  companyMode: z.enum(['new', 'existing']).optional().nullable(),
+  companyId: uuidSchema.optional().nullable(),
+  companyName: z.string().min(2).max(255).trim().optional().nullable(),
+  vatNumber: z.string().max(50).trim().optional().nullable(),
+  street: z.string().max(255).trim().optional().nullable(),
+  streetNumber: z.string().max(20).trim().optional().nullable(),
+  postalCode: z.string().max(20).trim().optional().nullable(),
+  city: z.string().max(100).trim().optional().nullable(),
+  country: z.string().length(2).trim().optional().nullable(),
+}).superRefine((data, ctx) => {
+  // Email obligatoire si shouldInviteToApp === true
+  if (data.shouldInviteToApp) {
+    const emailValue = data.email?.trim()
+    if (!emailValue) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "L'email est obligatoire pour envoyer une invitation",
+        path: ['email']
+      })
+    } else {
+      // Valider le format de l'email s'il est fourni
+      const emailValidation = emailSchema.safeParse(emailValue)
+      if (!emailValidation.success) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Format d'email invalide",
+          path: ['email']
+        })
+      }
+    }
+  } else if (data.email && data.email.trim()) {
+    // Si email fourni mais shouldInviteToApp === false, valider le format
+    const emailValidation = emailSchema.safeParse(data.email.trim())
+    if (!emailValidation.success) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Format d'email invalide",
+        path: ['email']
+      })
+    }
+  }
 })
 
 // ============================================================================
@@ -311,13 +377,13 @@ export const createManagerInterventionSchema = z.object({
   selectedProviderIds: z.array(uuidSchema).optional(),
 
   // Scheduling
-  schedulingType: z.enum(['none', 'fixed', 'flexible']).optional(),
+  schedulingType: z.enum(['none', 'fixed', 'flexible', 'slots']).optional(),
   fixedDateTime: z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
     time: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be HH:MM'),
   }).optional().nullable(),
   timeSlots: z.array(z.object({
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
+    date: z.string().min(1, 'Date is required'),
     startTime: z.string().regex(/^\d{2}:\d{2}$/, 'Start time must be HH:MM'),
     endTime: z.string().regex(/^\d{2}:\d{2}$/, 'End time must be HH:MM'),
   })).optional(),

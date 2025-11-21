@@ -15,6 +15,11 @@ export interface LotInfo {
   doorNumber: string
   description: string
   category: LotCategory
+  // Address fields (for independent lots only)
+  street?: string
+  postalCode?: string
+  city?: string
+  country?: string
 }
 
 export interface ContactsByType {
@@ -49,14 +54,25 @@ export function transformLotForEdit(lot: any): {
   managers: Array<{ user: User }>
   building: BuildingInfo | null
 } {
+  // Base lot info
+  const lotInfo: LotInfo = {
+    reference: lot.reference || "",
+    floor: lot.floor !== null && lot.floor !== undefined ? String(lot.floor) : "",
+    doorNumber: lot.apartment_number || "",
+    description: lot.description || "",
+    category: (lot.category as LotCategory) || "appartement"
+  }
+
+  // Add address fields for independent lots (no building association)
+  if (!lot.building_id && !lot.building) {
+    lotInfo.street = lot.street || ""
+    lotInfo.postalCode = lot.postal_code || ""
+    lotInfo.city = lot.city || ""
+    lotInfo.country = lot.country || "Belgique"
+  }
+
   return {
-    lotInfo: {
-      reference: lot.reference || "",
-      floor: lot.floor !== null && lot.floor !== undefined ? String(lot.floor) : "",
-      doorNumber: lot.apartment_number || "",
-      description: lot.description || "",
-      category: (lot.category as LotCategory) || "appartement"
-    },
+    lotInfo,
     contacts: groupContactsByType(lot.lot_contacts || []),
     managers: extractManagers(lot.lot_contacts || []),
     building: lot.building ? {

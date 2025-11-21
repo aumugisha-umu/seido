@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -12,7 +13,6 @@ import { Building2, Users, Search, Mail, Phone, MapPin, Edit, UserPlus, Send, Al
 import { determineAssignmentType, createContactService } from '@/lib/services'
 
 const contactService = createContactService()
-import { ContactFormModal } from "@/components/contact-form-modal"
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
 import type { ContactWithRelations } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
@@ -23,12 +23,12 @@ interface LotContactsListProps {
 }
 
 export const LotContactsList = ({ lotId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
+  const router = useRouter()
   const [contacts, setContacts] = useState<ContactWithRelations[]>(propContacts)
   const [filteredContacts, setFilteredContacts] = useState<ContactWithRelations[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isContactModalOpen, setIsContactModalOpen] = useState(false)
   const [selectedContact, setSelectedContact] = useState<ContactWithRelations | null>(null)
   const [deleteContact, setDeleteContact] = useState<ContactWithRelations | null>(null)
 
@@ -105,39 +105,6 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
   }, [contacts, searchTerm])
 
 
-  const handleContactSubmit = async (contactData: Partial<ContactWithRelations>) => {
-    try {
-      if (selectedContact) {
-        // Update existing contact
-        await contactService.update(selectedContact.id, contactData)
-        logger.info("✅ Contact updated")
-      } else {
-        // Create new contact
-        await contactService.create({
-          ...contactData,
-          team_id: contacts[0]?.team?.id // Use the same team as other contacts
-        })
-        logger.info("✅ Contact created")
-      }
-      
-      // Reload contacts
-      if (onContactsUpdate) {
-        // If parent provides update callback, reload contacts at parent level
-        const updatedContacts = await contactService.getLotContacts(lotId)
-        onContactsUpdate(updatedContacts || [])
-      } else {
-        // Fallback to local loading
-        await loadLotContacts()
-      }
-      
-      setIsContactModalOpen(false)
-      setSelectedContact(null)
-      
-    } catch (error) {
-      logger.error("❌ Error saving contact:", error)
-      setError("Erreur lors de la sauvegarde du contact")
-    }
-  }
 
   const handleDeleteContact = async () => {
     if (!deleteContact) return
@@ -236,10 +203,7 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
               <Badge variant="secondary">{contacts.length}</Badge>
             </div>
             <Button 
-              onClick={() => {
-                setSelectedContact(null)
-                setIsContactModalOpen(true)
-              }}
+              onClick={() => router.push('/gestionnaire/contacts/nouveau')}
               size="sm"
             >
               <UserPlus className="h-4 w-4 mr-2" />
@@ -352,10 +316,7 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        setSelectedContact(contact)
-                        setIsContactModalOpen(true)
-                      }}
+                      onClick={() => router.push('/gestionnaire/contacts/nouveau')}
                     >
                       <Edit className="h-4 w-4" />
                     </Button>
@@ -377,11 +338,8 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
                 <p className="text-gray-600 mb-4">
                   Aucun contact n'est associé à ce lot pour le moment.
                 </p>
-                <Button 
-                  onClick={() => {
-                    setSelectedContact(null)
-                    setIsContactModalOpen(true)
-                  }}
+                <Button
+                  onClick={() => router.push('/gestionnaire/contacts/nouveau')}
                 >
                   <UserPlus className="h-4 w-4 mr-2" />
                   Ajouter le premier contact
@@ -396,20 +354,6 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
           </div>
         </CardContent>
       </Card>
-
-      {/* Contact Form Modal - Using proper props based on ContactFormModalProps */}
-      {isContactModalOpen && (
-        <ContactFormModal
-          isOpen={isContactModalOpen}
-          onClose={() => {
-            setIsContactModalOpen(false)
-            setSelectedContact(null)
-          }}
-          onSubmit={handleContactSubmit}
-          defaultType={selectedContact ? determineAssignmentType(selectedContact) : undefined}
-        />
-      )}
-
     </>
   )
 }

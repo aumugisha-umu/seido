@@ -80,28 +80,28 @@ export function QuoteRequestCard({
       switch (request.quote_status) {
         case 'approved':
           return {
-            label: 'Devis approuvé',
+            label: 'Estimation approuvée',
             variant: 'default' as const,
             className: 'bg-green-100 text-green-800 border-green-200',
             icon: '✅'
           }
         case 'rejected':
           return {
-            label: 'Devis rejeté',
+            label: 'Estimation rejetée',
             variant: 'destructive' as const,
             className: 'bg-red-100 text-red-800 border-red-200',
             icon: '❌'
           }
         case 'pending':
           return {
-            label: 'Devis en attente',
+            label: 'Estimation reçue',
             variant: 'secondary' as const,
             className: 'bg-blue-100 text-blue-800 border-blue-200',
             icon: '📝'
           }
         default:
           return {
-            label: 'Devis reçu',
+            label: 'Estimation reçue',
             variant: 'default' as const,
             className: 'bg-green-100 text-green-800 border-green-200',
             icon: '✅'
@@ -114,42 +114,42 @@ export function QuoteRequestCard({
     switch (currentStatus) {
       case 'sent':
         return {
-          label: 'Envoyée',
+          label: 'Demande envoyée',
           variant: 'outline' as const,
           className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
           icon: '📤'
         }
       case 'viewed':
         return {
-          label: 'Consultée',
+          label: 'Demande consultée',
           variant: 'secondary' as const,
           className: 'bg-blue-100 text-blue-800 border-blue-200',
           icon: '👁️'
         }
       case 'responded':
         return {
-          label: 'Répondu',
+          label: 'Estimation reçue',
           variant: 'default' as const,
           className: 'bg-green-100 text-green-800 border-green-200',
           icon: '✅'
         }
       case 'expired':
         return {
-          label: 'Expirée',
+          label: 'Demande expirée',
           variant: 'destructive' as const,
           className: 'bg-red-100 text-red-800 border-red-200',
           icon: '⏰'
         }
       case 'cancelled':
         return {
-          label: 'Annulée',
+          label: 'Demande annulée',
           variant: 'destructive' as const,
           className: 'bg-gray-100 text-gray-800 border-gray-200',
           icon: '❌'
         }
       default:
         return {
-          label: 'En attente',
+          label: 'En attente de réponse',
           variant: 'outline' as const,
           className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
           icon: '⏳'
@@ -167,12 +167,12 @@ export function QuoteRequestCard({
 
   return (
     <Card
-      className={`transition-all duration-200 hover:shadow-md w-full ${
+      className={`transition-all duration-200 hover:shadow-md w-full h-full flex flex-col ${
         expired ? 'border-red-200 bg-red-50' : 'border-gray-200'
       } ${className}`}
     >
-      <CardContent className="p-4">
-        <div className="space-y-3">
+      <CardContent className="p-2 flex-1 flex flex-col">
+        <div className="space-y-2 flex-1">
           {/* En-tête avec nom et statut */}
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold text-gray-900">
@@ -289,10 +289,10 @@ export function QuoteRequestCard({
                 </div>
               )}
 
-              {/* Montant du devis si disponible */}
+              {/* Montant de l'estimation si disponible */}
               {request.quote_amount && (
                 <div className="text-xs font-semibold text-green-600 mb-1">
-                  Devis: {request.quote_amount.toFixed(2)} €
+                  Estimation: {request.quote_amount.toFixed(2)} €
                 </div>
               )}
             </div>
@@ -339,7 +339,7 @@ export function QuoteRequestCard({
                   </Button>
                 )}
 
-                {onCancelRequest && !request.quote_id && !request.has_quote && ['sent', 'viewed'].includes(getStatus()) && (
+                {onCancelRequest && !request.quote_id && !request.has_quote && ['pending', 'sent', 'viewed'].includes(getStatus()) && (
                   <Button
                     key={`cancel-${request.id}`}
                     variant="outline"

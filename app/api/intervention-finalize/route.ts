@@ -119,13 +119,11 @@ export async function POST(request: NextRequest) {
     
     commentParts.push(`Finalisée par ${user.name} le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`)
 
-    const existingComment = intervention.manager_comment || ''
-    const updatedComment = existingComment + (existingComment ? ' | ' : '') + commentParts.join(' | ')
+    // Note: Comments (finalization notes, admin notes) are now stored in intervention_comments table
 
     // Update intervention to final status
     const updateData = {
       status: 'cloturee_par_gestionnaire' as Database['public']['Enums']['intervention_status'],
-      manager_comment: updatedComment,
       finalized_date: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }

@@ -1,5 +1,6 @@
 import { createBrowserSupabaseClient } from '@/lib/services'
 import type { Database } from '@/lib/database.types'
+import { truncateText } from '@/lib/notification-utils'
 
 // Initialize Supabase client for browser
 const supabase = createBrowserSupabaseClient()
@@ -251,7 +252,7 @@ class NotificationService {
             teamId,
             createdBy,
             type: 'intervention',
-            title: 'Nouvelle intervention sous votre responsabilité',
+            title: `Nouvelle notification : ${truncateText(interventionTitle, 50)}`,
             message: `Une nouvelle intervention "${interventionTitle}"${lotReference ? ` pour ${lotReference}` : ''} vous concerne directement`,
             isPersonal: true,
             metadata: {
@@ -269,7 +270,7 @@ class NotificationService {
             teamId,
             createdBy,
             type: 'intervention',
-            title: 'Nouvelle intervention créée',
+            title: `Nouvelle notification : ${truncateText(interventionTitle, 50)}`,
             message: `Une nouvelle intervention "${interventionTitle}"${lotReference ? ` pour ${lotReference}` : ''} a été créée`,
             isPersonal: false,
             metadata: {
@@ -423,7 +424,7 @@ class NotificationService {
             teamId,
             createdBy: changedBy,
             type: 'status_change',
-            title: 'Statut d\'intervention sous votre responsabilité modifié',
+            title: `Nouvelle notification : ${truncateText(interventionTitle, 50)}`,
             message: `L'intervention "${interventionTitle}"${lotReference ? ` (${lotReference})` : ''} qui vous concerne est passée de "${oldLabel}" à "${newLabel}"`,
             isPersonal: true,
             metadata: {
@@ -443,7 +444,7 @@ class NotificationService {
             teamId,
             createdBy: changedBy,
             type: 'status_change',
-            title: 'Statut d\'intervention modifié',
+            title: `Nouvelle notification : ${truncateText(interventionTitle, 50)}`,
             message: `L'intervention "${interventionTitle}"${lotReference ? ` (${lotReference})` : ''} est passée de "${oldLabel}" à "${newLabel}"`,
             isPersonal: false,
             metadata: {

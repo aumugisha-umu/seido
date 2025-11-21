@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Wrench, Plus } from "lucide-react"
 import { InterventionCard } from "@/components/intervention/intervention-card"
+import { InterventionsEmptyState } from "./interventions-empty-state"
 import type { InterventionWithRelations } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
 interface EmptyStateConfig {
@@ -92,29 +93,13 @@ export function InterventionsList({
         title: "Aucune intervention",
         description: "Les interventions apparaîtront ici",
         showCreateButton: false,
-        createButtonText: "Ajouter une intervention",
+        createButtonText: "Créer une intervention",
         createButtonAction: () => router.push("/gestionnaire/interventions/nouvelle-intervention")
       }
 
       const config = { ...defaultEmptyConfig, ...emptyStateConfig }
 
-      return (
-        <div className={`text-center py-8 ${className}`}>
-          <Wrench className="h-8 w-8 text-slate-400 mx-auto mb-3" />
-          <h3 className="text-sm font-medium text-slate-900 mb-1">
-            {config.title}
-          </h3>
-          <p className="text-slate-500 text-sm mb-4">
-            {config.description}
-          </p>
-          {config.showCreateButton && (
-            <Button onClick={config.createButtonAction} size="sm" className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="h-4 w-4 mr-2" />
-              {config.createButtonText}
-            </Button>
-          )}
-        </div>
-      )
+      return <InterventionsEmptyState {...config} />
     }
 
     return (
@@ -175,7 +160,7 @@ export function InterventionsList({
     }
 
     return (
-      <div className={`grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6 ${className}`}>
+      <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ${className}`}>
         {[...Array(6)].map((_, i) => (
           <div key={i} className="border rounded-lg p-4 lg:p-5 animate-pulse">
             <div className="space-y-3">
@@ -207,46 +192,32 @@ export function InterventionsList({
       title: "Aucune intervention",
       description: "Les interventions apparaîtront ici",
       showCreateButton: false,
-      createButtonText: "Ajouter une intervention",
+      createButtonText: "Créer une intervention",
       createButtonAction: () => router.push("/gestionnaire/interventions/nouvelle-intervention")
     }
 
     const config = { ...defaultEmptyConfig, ...emptyStateConfig }
 
-    return (
-      <div className={`text-center py-12 ${className}`}>
-        <Wrench className="h-12 w-12 text-slate-400 mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-slate-900 mb-2">
-          {config.title}
-        </h3>
-        <p className="text-slate-500 mb-6">
-          {config.description}
-        </p>
-        {config.showCreateButton && (
-          <Button onClick={config.createButtonAction} className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="h-4 w-4 mr-2" />
-            {config.createButtonText}
-          </Button>
-        )}
-      </div>
-    )
+    return <InterventionsEmptyState {...config} />
   }
 
   // Horizontal scroll layout
   if (horizontal) {
     return (
-      <div className={`flex gap-4 overflow-x-auto pb-4 ${className}`}>
+      <div className={`flex gap-3 overflow-x-auto overflow-y-hidden pb-2 ${className}`}>
         {displayedInterventions.map((intervention) => (
-          <div key={intervention.id} className="min-w-[350px] lg:min-w-[400px] flex-shrink-0">
-            <InterventionCard
-              intervention={intervention}
-              userContext={userContext}
-              compact={false}
-              showStatusActions={showStatusActions}
-              contactContext={contactContext}
-              actionHooks={actionHooks}
-              onActionComplete={handleActionComplete}
-            />
+          <div key={intervention.id} className="min-w-[320px] max-w-[320px] lg:min-w-[360px] lg:max-w-[360px] flex-shrink-0">
+            <div>
+              <InterventionCard
+                intervention={intervention}
+                userContext={userContext}
+                compact={false}
+                showStatusActions={showStatusActions}
+                contactContext={contactContext}
+                actionHooks={actionHooks}
+                onActionComplete={handleActionComplete}
+              />
+            </div>
           </div>
         ))}
       </div>
@@ -255,7 +226,7 @@ export function InterventionsList({
 
   // Default grid layout
   return (
-    <div className={`grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6 ${className}`}>
+    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ${className}`}>
       {displayedInterventions.map((intervention) => (
         <InterventionCard
           key={intervention.id}

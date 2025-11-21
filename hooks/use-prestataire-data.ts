@@ -7,7 +7,6 @@ import {
   createUserService,
   createContactInvitationService
 } from "@/lib/services"
-import { useDataRefresh } from './use-cache-management'
 import type { Intervention } from "@/lib/services/core/service-types"
 import { logger, logError } from '@/lib/logger'
 export interface PrestataireDashboardStats {
@@ -26,7 +25,8 @@ export interface PrestataireIntervention {
   description: string
   type: string
   priority: 'basse' | 'normale' | 'haute' | 'urgente'
-  status: string
+  status: string  // ✅ Statut DB original pour la logique d'alerte
+  displayStatus?: string  // ✅ Statut frontend pour l'affichage
   createdAt: string
   estimatedDuration: string
   location: string
@@ -38,6 +38,26 @@ export interface PrestataireIntervention {
   tenant_details?: unknown
   manager?: unknown
   assigned_contact?: unknown
+  // ✅ Enriched data for interactive badge
+  quotes?: Array<{
+    id: string
+    status: string
+    provider_id?: string
+    submitted_by?: string
+    amount?: number
+  }>
+  timeSlots?: Array<{
+    id: string
+    slot_date: string
+    start_time: string
+    status?: string
+    proposed_by?: string
+  }>
+  assignments?: Array<{
+    role: string
+    user_id: string
+    is_primary: boolean
+  }>
 }
 
 export interface UrgentIntervention {
@@ -188,26 +208,64 @@ export const usePrestataireData = (userId: string) => {
       const interventions = interventionsResult.success ? (interventionsResult.data || []) : []
       logger.info("📋 Found interventions:", interventions?.length || 0)
 
+      // ⚡ ENRICHISSEMENT: Ajouter quotes, slots et assignments aux interventions pour le badge interactif
+      logger.info('🔄 [PRESTATAIRE-DATA] Enriching interventions with quotes, slots and assignments...')
+      const interventionsWithDetails = await Promise.all(
+        (interventions || []).map(async (intervention: Intervention) => {
+          const [{ data: quotes }, { data: timeSlots }, { data: assignments }] = await Promise.all([
+            supabase
+              .from('intervention_quotes')
+              .select('id, status, provider_id, submitted_by, amount')
+              .eq('intervention_id', intervention.id)
+              .is('deleted_at', null),
+            supabase
+              .from('intervention_time_slots')
+              .select('id, slot_date, start_time, status, proposed_by')
+              .eq('intervention_id', intervention.id),
+            supabase
+              .from('intervention_assignments')
+              .select('role, user_id, is_primary')
+              .eq('intervention_id', intervention.id)
+          ])
+          return {
+            ...intervention,
+            quotes: quotes || [],
+            timeSlots: timeSlots || [],
+            assignments: assignments || []
+          }
+        })
+      )
+      logger.info('✅ [PRESTATAIRE-DATA] Interventions enriched with quotes, slots and assignments')
+
       // 3. Transform interventions to frontend format
-      const transformedInterventions: PrestataireIntervention[] = (interventions || []).map((intervention: Intervention & { lot?: unknown; tenant?: unknown; manager?: unknown; assigned_contact?: unknown }) => ({
-        id: intervention.id,
-        title: intervention.title,
-        description: intervention.description,
-        type: mapTypeToFrontend(intervention.type),
-        priority: mapUrgencyToPriority(intervention.urgency),
-        status: mapStatusToFrontend(intervention.status),
-        createdAt: intervention.created_at || '',
-        estimatedDuration: "2-3 heures", // TODO: Add this field to database
-        location: `${intervention.lot?.reference || 'N/A'} - ${intervention.lot?.building?.address || 'Adresse inconnue'}`,
-        tenant: intervention.tenant?.name || 'Locataire inconnu',
-        requestedBy: intervention.manager?.name ? `${intervention.manager.name} (Gestionnaire)` : 'Gestionnaire',
-        needsQuote: ['devis-a-fournir', 'approuvee'].includes(mapStatusToFrontend(intervention.status)),
-        reference: intervention.reference,
-        lot: intervention.lot,
-        tenant_details: intervention.tenant,
-        manager: intervention.manager,
-        assigned_contact: intervention.assigned_contact
-      }))
+      const transformedInterventions: PrestataireIntervention[] = interventionsWithDetails.map((intervention: Intervention & { lot?: unknown; tenant?: unknown; manager?: unknown; assigned_contact?: unknown; quotes?: any[]; timeSlots?: any[]; assignments?: any[] }) => {
+        const dbStatus = intervention.status  // Garder le statut DB original pour la logique du badge
+        const frontendStatus = mapStatusToFrontend(dbStatus)
+        
+        return {
+          id: intervention.id,
+          title: intervention.title,
+          description: intervention.description,
+          type: mapTypeToFrontend(intervention.type),
+          priority: mapUrgencyToPriority(intervention.urgency),
+          status: dbStatus,  // ✅ Utiliser le statut DB original pour la logique d'alerte
+          displayStatus: frontendStatus,  // ✅ Nouveau: statut frontend pour l'affichage
+          createdAt: intervention.created_at || '',
+          estimatedDuration: "2-3 heures", // TODO: Add this field to database
+          location: `${intervention.lot?.reference || 'N/A'} - ${intervention.lot?.building?.address || 'Adresse inconnue'}`,
+          tenant: intervention.tenant?.name || 'Locataire inconnu',
+          requestedBy: intervention.manager?.name ? `${intervention.manager.name} (Gestionnaire)` : 'Gestionnaire',
+          needsQuote: ['devis-a-fournir', 'approuvee'].includes(frontendStatus),
+          reference: intervention.reference,
+          lot: intervention.lot,
+          tenant_details: intervention.tenant,
+          manager: intervention.manager,
+          assigned_contact: intervention.assigned_contact,
+          quotes: intervention.quotes || [],
+          timeSlots: intervention.timeSlots || [],
+          assignments: intervention.assignments || []
+        }
+      })
 
       // 4. Calculate stats
       const now = new Date()
@@ -216,22 +274,22 @@ export const usePrestataireData = (userId: string) => {
       const twoMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 2, 1)
       
       const interventionsEnCours = transformedInterventions.filter(i => 
-        ['demande', 'approuvee', 'devis-a-fournir', 'planification', 'planifiee', 'en_cours'].includes(i.status)
+        ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours'].includes(i.status)
       ).length
 
       const urgentesCount = transformedInterventions.filter(i => 
         ['haute', 'urgente'].includes(i.priority) && 
-        ['demande', 'approuvee', 'devis-a-fournir', 'planification', 'planifiee', 'en_cours'].includes(i.status)
+        ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours'].includes(i.status)
       ).length
 
       const terminesCeMois = transformedInterventions.filter(i => {
-        if (i.status !== 'terminee') return false
+        if (!['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire'].includes(i.status)) return false
         const createdDate = new Date(i.createdAt)
         return createdDate >= thisMonth
       }).length
 
       const terminesMoisPrecedent = transformedInterventions.filter(i => {
-        if (i.status !== 'terminee') return false
+        if (!['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire'].includes(i.status)) return false
         const createdDate = new Date(i.createdAt)
         return createdDate >= lastMonth && createdDate < thisMonth
       }).length
@@ -239,7 +297,7 @@ export const usePrestataireData = (userId: string) => {
       // 5. Get urgent interventions for dashboard
       const urgentInterventions: UrgentIntervention[] = transformedInterventions
         .filter(i => ['haute', 'urgente'].includes(i.priority) && 
-                    ['demande', 'approuvee', 'devis-a-fournir', 'planification', 'planifiee', 'en_cours'].includes(i.status))
+                    ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours'].includes(i.status))
         .slice(0, 3) // Show only top 3
         .map(i => ({
           id: i.id,
@@ -299,14 +357,6 @@ export const usePrestataireData = (userId: string) => {
       mountedRef.current = false
     }
   }, [])
-
-  // ✅ Intégration au bus de refresh: permet à useNavigationRefresh de déclencher ce hook
-  useDataRefresh('prestataire-data', () => {
-    // Forcer un refetch en bypassant le cache local
-    lastUserIdRef.current = null
-    loadingRef.current = false
-    loadData(true)
-  })
 
   return {
     ...data,

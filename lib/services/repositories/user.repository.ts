@@ -162,15 +162,21 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
 
   /**
    * Get users by team
+   * @param excludeUserId - Optional user ID to exclude from results (e.g., current user)
    */
-  async findByTeam(teamId: string) {
+  async findByTeam(teamId: string, excludeUserId?: string) {
     validateRequired({ teamId }, ['teamId'])
 
-    const { data, error } = await this.supabase
+    let queryBuilder = this.supabase
       .from(this.tableName)
       .select('*')
       .eq('team_id', teamId)
-      .order('name')
+
+    if (excludeUserId) {
+      queryBuilder = queryBuilder.neq('id', excludeUserId)
+    }
+
+    const { data, error } = await queryBuilder.order('name')
 
     if (error) {
       return { success: false as const, error: handleError(error) }

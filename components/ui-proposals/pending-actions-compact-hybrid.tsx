@@ -323,16 +323,16 @@ export function PendingActionsCompactHybrid({
     if (!urgency || urgency === 'normale') return null
 
     const urgencyConfig = {
-      urgent: { label: 'Urgent', class: 'bg-red-100 text-red-700' },
-      elevee: { label: 'Élevée', class: 'bg-orange-100 text-orange-700' },
-      haute: { label: 'Haute', class: 'bg-orange-100 text-orange-700' }
+      urgent: { label: 'Urgent', class: 'bg-red-100 text-red-700 border-red-300' },
+      elevee: { label: 'Élevée', class: 'bg-orange-100 text-orange-700 border-orange-300' },
+      haute: { label: 'Haute', class: 'bg-orange-100 text-orange-700 border-orange-300' }
     }
 
     const config = urgencyConfig[urgency as keyof typeof urgencyConfig]
     if (!config) return null
 
     return (
-      <Badge className={`${config.class} text-[10px] px-1.5 py-0 h-4 font-medium border-0`}>
+      <Badge className={`${config.class} text-xs px-2 py-0 h-5 font-semibold border`}>
         {config.label}
       </Badge>
     )
@@ -362,7 +362,7 @@ export function PendingActionsCompactHybrid({
             >
               {/* Collapsed view - Compact horizontal layout */}
               <CollapsibleTrigger asChild>
-                <div className="flex items-center gap-3 py-2.5 group hover:bg-accent/50 -mx-2 px-2 rounded-md transition-colors cursor-pointer">
+                <div className="flex items-center gap-1.5 py-1 group hover:bg-accent/50 -mx-2 px-2 rounded-md transition-colors cursor-pointer">
                   {/* Icon */}
                   <div className="flex-shrink-0">
                     <IconComponent className={`w-4 h-4 ${config.iconColor}`} />
@@ -373,7 +373,7 @@ export function PendingActionsCompactHybrid({
                     {/* Badge status */}
                     <Badge
                       variant={config.badgeVariant}
-                      className={`${config.badgeClass} text-[10px] px-1.5 py-0 h-4 font-medium`}
+                      className={`${config.badgeClass} text-xs px-2 py-0 h-5 font-medium border`}
                     >
                       {config.label}
                     </Badge>
@@ -382,7 +382,7 @@ export function PendingActionsCompactHybrid({
                     {(config.isUrgent || action.priority === "urgent") && (
                       <Badge
                         variant="destructive"
-                        className="text-[10px] px-1.5 py-0 h-4 font-medium"
+                        className="text-xs px-2 py-0 h-5 font-semibold border border-red-300"
                       >
                         Urgent
                       </Badge>
@@ -392,14 +392,14 @@ export function PendingActionsCompactHybrid({
                     {getUrgencyBadge(action.urgency)}
 
                     {/* Title */}
-                    <span className="text-sm font-medium text-foreground truncate">
+                    <span className="text-sm font-semibold text-foreground truncate">
                       {action.reference ? `${action.reference} - ${action.title}` : action.title}
                     </span>
 
                     {/* Location - compact */}
                     {action.location && (action.location.building || action.location.lot) && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground ml-auto flex-shrink-0">
-                        <MapPin className="w-3 h-3" />
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-auto flex-shrink-0">
+                        <MapPin className="w-3.5 h-3.5" />
                         <span className="truncate max-w-[200px]">
                           {action.location.building}
                           {action.location.building && action.location.lot && ' • '}
@@ -419,7 +419,7 @@ export function PendingActionsCompactHybrid({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-7 px-3 text-xs bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground flex-shrink-0"
+                    className="h-6 px-2.5 text-xs bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground flex-shrink-0 shadow-sm"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleActionClick(action)
@@ -431,40 +431,40 @@ export function PendingActionsCompactHybrid({
               </CollapsibleTrigger>
 
               {/* Expanded content - ALL intervention details */}
-              <CollapsibleContent className="px-2 pb-3 pt-1 space-y-3 animate-in slide-in-from-top-2">
-                <div className="pl-7 space-y-3">
+              <CollapsibleContent className="px-2 pb-1 pt-0 space-y-1.5 animate-in slide-in-from-top-2">
+                <div className="pl-4 space-y-1.5">
                   {/* Description */}
                   {action.description && (
                     <div className="space-y-1">
-                      <p className="text-xs font-medium text-foreground">Description</p>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
+                      <p className="text-xs font-semibold text-slate-900">Description</p>
+                      <p className="text-sm text-slate-700 leading-normal">
                         {action.description}
                       </p>
                     </div>
                   )}
 
                   {/* Grid Layout: Localisation | Contact | Dates (Desktop: 3 cols, Mobile: stack) */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                     {/* Full Location Details */}
                     {action.location && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium text-foreground">Localisation</p>
-                        <div className="space-y-1.5">
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-slate-900">Localisation</p>
+                        <div className="space-y-0.5">
                           {action.location.building && (
-                            <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                              <Building2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                            <div className="flex items-start gap-2 text-sm text-slate-700">
+                              <Building2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
                               <span>{action.location.building}</span>
                             </div>
                           )}
                           {action.location.lot && (
-                            <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                              <Home className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                            <div className="flex items-start gap-2 text-sm text-slate-700">
+                              <Home className="w-4 h-4 mt-0.5 flex-shrink-0" />
                               <span>{action.location.lot}</span>
                             </div>
                           )}
                           {action.location.address && (
-                            <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                              <MapPin className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                            <div className="flex items-start gap-2 text-sm text-slate-700">
+                              <MapPin className="w-4 h-4 mt-0.5 flex-shrink-0" />
                               <span>
                                 {action.location.address}
                                 {action.location.postal_code && `, ${action.location.postal_code}`}
@@ -478,28 +478,28 @@ export function PendingActionsCompactHybrid({
 
                     {/* Contact Information */}
                     {(action.contact || action.assigned_contact) && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium text-foreground">Contact</p>
-                        <div className="space-y-1.5">
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-slate-900">Contact</p>
+                        <div className="space-y-0.5">
                           {action.contact && (
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <User className="w-3.5 h-3.5 flex-shrink-0" />
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-2 text-sm text-slate-700">
+                                <User className="w-4 h-4 flex-shrink-0" />
                                 <span className="font-medium">{action.contact.name}</span>
-                                <span className="text-xs">({action.contact.role})</span>
+                                <span className="text-xs text-slate-600">({action.contact.role})</span>
                               </div>
                               {action.contact.phone && (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground ml-5">
+                                <div className="flex items-center gap-2 text-sm text-slate-700 ml-5">
                                   <Phone className="w-3 h-3 flex-shrink-0" />
-                                  <a href={`tel:${action.contact.phone}`} className="hover:text-foreground hover:underline">
+                                  <a href={`tel:${action.contact.phone}`} className="hover:text-slate-900 hover:underline">
                                     {action.contact.phone}
                                   </a>
                                 </div>
                               )}
                               {action.contact.email && (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground ml-5">
+                                <div className="flex items-center gap-2 text-sm text-slate-700 ml-5">
                                   <Mail className="w-3 h-3 flex-shrink-0" />
-                                  <a href={`mailto:${action.contact.email}`} className="hover:text-foreground hover:underline truncate">
+                                  <a href={`mailto:${action.contact.email}`} className="hover:text-slate-900 hover:underline truncate">
                                     {action.contact.email}
                                   </a>
                                 </div>
@@ -507,24 +507,24 @@ export function PendingActionsCompactHybrid({
                             </div>
                           )}
                           {action.assigned_contact && (
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <User className="w-3.5 h-3.5 flex-shrink-0" />
+                            <div className="space-y-0.5">
+                              <div className="flex items-center gap-2 text-sm text-slate-700">
+                                <User className="w-4 h-4 flex-shrink-0" />
                                 <span className="font-medium">{action.assigned_contact.name}</span>
-                                <span className="text-xs">(Assigné)</span>
+                                <span className="text-xs text-slate-600">(Assigné)</span>
                               </div>
                               {action.assigned_contact.phone && (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground ml-5">
+                                <div className="flex items-center gap-2 text-sm text-slate-700 ml-5">
                                   <Phone className="w-3 h-3 flex-shrink-0" />
-                                  <a href={`tel:${action.assigned_contact.phone}`} className="hover:text-foreground hover:underline">
+                                  <a href={`tel:${action.assigned_contact.phone}`} className="hover:text-slate-900 hover:underline">
                                     {action.assigned_contact.phone}
                                   </a>
                                 </div>
                               )}
                               {action.assigned_contact.email && (
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground ml-5">
+                                <div className="flex items-center gap-2 text-sm text-slate-700 ml-5">
                                   <Mail className="w-3 h-3 flex-shrink-0" />
-                                  <a href={`mailto:${action.assigned_contact.email}`} className="hover:text-foreground hover:underline truncate">
+                                  <a href={`mailto:${action.assigned_contact.email}`} className="hover:text-slate-900 hover:underline truncate">
                                     {action.assigned_contact.email}
                                   </a>
                                 </div>
@@ -537,24 +537,24 @@ export function PendingActionsCompactHybrid({
 
                     {/* Important Dates */}
                     {action.dates && (action.dates.created || action.dates.planned || action.dates.completed) && (
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium text-foreground">Dates importantes</p>
-                        <div className="space-y-1.5">
+                      <div className="space-y-1">
+                        <p className="text-xs font-semibold text-slate-900">Dates importantes</p>
+                        <div className="space-y-0.5">
                           {action.dates.created && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Clock className="w-3.5 h-3.5 flex-shrink-0" />
+                            <div className="flex items-center gap-2 text-sm text-slate-700">
+                              <Clock className="w-4 h-4 flex-shrink-0" />
                               <span>Créée le {formatDate(action.dates.created)}</span>
                             </div>
                           )}
                           {action.dates.planned && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
+                            <div className="flex items-center gap-2 text-sm text-slate-700">
+                              <Calendar className="w-4 h-4 flex-shrink-0" />
                               <span>Planifiée le {formatDate(action.dates.planned)}</span>
                             </div>
                           )}
                           {action.dates.completed && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <CheckCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                            <div className="flex items-center gap-2 text-sm text-slate-700">
+                              <CheckCircle className="w-4 h-4 flex-shrink-0" />
                               <span>Terminée le {formatDate(action.dates.completed)}</span>
                             </div>
                           )}
@@ -564,10 +564,10 @@ export function PendingActionsCompactHybrid({
                   </div>
 
                   {/* Action button - Full width in expanded state */}
-                  <div className="pt-1">
+                  <div className="pt-0.5">
                     <Button
                       size="sm"
-                      className="w-full h-9 text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+                      className="w-full h-8 text-sm bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm"
                       onClick={(e) => {
                         e.stopPropagation()
                         handleActionClick(action)

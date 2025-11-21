@@ -336,7 +336,7 @@ function LotConfirmationStep() {
                 <Building2 className="h-4 w-4 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-medium text-slate-900">Association immeuble</h3>
+                <h3 className="font-medium text-slate-900">Lier à un immeuble</h3>
                 <p className="text-xs text-slate-600">{getAssociationType()}</p>
               </div>
             </div>

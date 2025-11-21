@@ -23,7 +23,7 @@ export class ContactService {
   constructor(
     private repository: ContactRepository,
     private userService?: UserService
-  ) {}
+  ) { }
 
   /**
    * Get all contacts with pagination
@@ -55,6 +55,19 @@ export class ContactService {
   async getByIdWithRelations(id: string) {
     try {
       const result = await this.repository.findByIdWithRelations(id)
+      return result
+    } catch (error) {
+      throw error
+    }
+  }
+
+  /**
+   * Find a specific contact within a team
+   * Queries team_members to ensure the user belongs to the team (and respects RLS)
+   */
+  async findContactInTeam(teamId: string, contactId: string) {
+    try {
+      const result = await this.repository.findContactInTeam(teamId, contactId)
       return result
     } catch (error) {
       throw error
@@ -245,11 +258,12 @@ export class ContactService {
   /**
    * Get contacts by team with role filtering
    * Uses repository layer to ensure proper filtering (left_at IS NULL + RLS)
+   * @param excludeUserId - Optional user ID to exclude from results (e.g., current user)
    */
-  async getContactsByTeam(teamId: string, role?: User['role']) {
+  async getContactsByTeam(teamId: string, role?: User['role'], excludeUserId?: string) {
     try {
       // ✅ Use repository method that includes left_at filter and RLS
-      const result = await this.repository.findByTeam(teamId, role)
+      const result = await this.repository.findByTeam(teamId, role, excludeUserId)
       return result
     } catch (error) {
       throw error

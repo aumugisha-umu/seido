@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createBrowserSupabaseClient, createInterventionService } from '@/lib/services'
-import { useDataRefresh } from './use-cache-management'
 import { logger } from '@/lib/logger'
 
 interface UseInterventionsReturn {
@@ -103,14 +102,6 @@ export function useInterventions(): UseInterventionsReturn {
   useEffect(() => {
     loadInterventions(false) // Utilisation normale du cache
   }, [loadInterventions])
-
-  // ✅ Intégration au bus de refresh: permet à useNavigationRefresh de déclencher ce hook
-  useDataRefresh('interventions', () => {
-    // Forcer un refetch en bypassant le cache local de ce hook
-    lastFetchTimeRef.current = 0
-    loadingRef.current = false
-    loadInterventions(true)
-  })
 
   // Nettoyage au démontage
   useEffect(() => {

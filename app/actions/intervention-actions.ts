@@ -14,6 +14,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
+import { createQuoteRequestsForProviders } from '@/app/api/create-manager-intervention/create-quote-requests'
 
 // Type aliases
 type InterventionUrgency = Database['public']['Enums']['intervention_urgency']
@@ -45,9 +46,7 @@ const InterventionUpdateSchema = z.object({
   type: z.enum(['plomberie', 'electricite', 'menuiserie', 'peinture', 'chauffage', 'climatisation', 'serrurerie', 'vitrerie', 'nettoyage', 'jardinage', 'autre'] as const).optional(),
   urgency: z.enum(['basse', 'normale', 'haute', 'urgente'] as const).optional(),
   specific_location: z.string().optional().nullable(),
-  tenant_comment: z.string().optional().nullable(),
-  manager_comment: z.string().optional().nullable(),
-  provider_comment: z.string().optional().nullable(),
+  provider_guidelines: z.string().max(5000).optional().nullable(),
   estimated_cost: z.number().positive().optional().nullable(),
   final_cost: z.number().positive().optional().nullable()
 })
@@ -1866,6 +1865,10 @@ export async function programInterventionAction(
       startTime: string
       endTime: string
     }>
+    // Quote request data
+    requireQuote?: boolean
+    selectedProviders?: string[]
+    instructions?: string
   }
 ): Promise<ActionResult<Intervention>> {
   try {
@@ -1921,7 +1924,8 @@ export async function programInterventionAction(
     })
 
     // Check if intervention can be scheduled
-    if (!['approuvee', 'planification'].includes(intervention.status)) {
+    // Allow 'demande_de_devis' to enable planning while waiting for quote
+    if (!['approuvee', 'planification', 'demande_de_devis'].includes(intervention.status)) {
       return {
         success: false,
         error: `L'intervention ne peut pas être planifiée (statut actuel: ${intervention.status})`
@@ -1935,6 +1939,22 @@ export async function programInterventionAction(
         error: 'Vous n\'êtes pas autorisé à modifier cette intervention'
       }
     }
+
+    // Check for active quote requests (pending or sent)
+    // This determines if we should keep 'demande_de_devis' status or transition to 'planification'
+    const { data: activeQuotes, error: quotesError } = await supabase
+      .from('intervention_quotes')
+      .select('id, status')
+      .eq('intervention_id', interventionId)
+      .in('status', ['pending', 'sent'])
+
+    if (quotesError) {
+      logger.error('❌ [SERVER-ACTION] Error checking active quotes:', quotesError)
+    }
+
+    const hasActiveQuotes = activeQuotes && activeQuotes.length > 0
+
+    logger.info(`📊 [SERVER-ACTION] Active quotes check: ${hasActiveQuotes ? 'YES' : 'NO'} (${activeQuotes?.length || 0} quotes)`)
 
     const { option, directSchedule, proposedSlots } = planningData
 
@@ -2031,6 +2051,19 @@ export async function programInterventionAction(
       case 'organize': {
         // Autonomous organization - tenant and provider coordinate directly
         logger.info('📅 [SERVER-ACTION] Organization mode - autonomous coordination')
+
+        // Save scheduling method as 'flexible'
+        const { error: updateError } = await supabase
+          .from('interventions')
+          .update({ scheduling_method: 'flexible' })
+          .eq('id', interventionId)
+
+        if (updateError) {
+          logger.error('❌ [SERVER-ACTION] Error updating scheduling_method:', updateError)
+          throw updateError
+        }
+
+        logger.info('✅ [SERVER-ACTION] Scheduling method set to flexible')
         break
       }
 
@@ -2051,15 +2084,26 @@ export async function programInterventionAction(
       managerCommentParts.push(`Planification autonome activée`)
     }
 
-    // Update intervention status to 'planification'
+    // Update intervention status
+    // Keep 'demande_de_devis' if active quotes exist, otherwise transition to 'planification'
+    // Note: Manager comments are now stored in intervention_comments table
+    const newStatus = (intervention.status === 'demande_de_devis' && hasActiveQuotes)
+      ? 'demande_de_devis' as InterventionStatus
+      : 'planification' as InterventionStatus
+
+    logger.info(`📅 [SERVER-ACTION] Status decision: ${intervention.status} → ${newStatus} (hasActiveQuotes: ${hasActiveQuotes})`)
+
     const updateData: any = {
-      status: 'planification' as InterventionStatus,
+      status: newStatus,
       updated_at: new Date().toISOString()
     }
 
-    if (managerCommentParts.length > 0) {
-      const existingComment = intervention.manager_comment || ''
-      updateData.manager_comment = existingComment + (existingComment ? ' | ' : '') + managerCommentParts.join(' | ')
+    // Add scheduling_method based on option (for direct and propose modes)
+    // Note: 'organize' mode already set scheduling_method in its case block
+    if (option === 'direct') {
+      updateData.scheduling_method = 'direct'
+    } else if (option === 'propose') {
+      updateData.scheduling_method = 'slots'
     }
 
     const { data: updatedIntervention, error: updateError } = await supabase
@@ -2074,7 +2118,106 @@ export async function programInterventionAction(
       return { success: false, error: 'Erreur lors de la mise à jour de l\'intervention' }
     }
 
-    logger.info('✅ [SERVER-ACTION] Intervention programmed successfully')
+    // Create quote requests if requireQuote is enabled and providers are selected
+    let quoteStats: { totalSelected: number; skipped: number; created: number } | null = null
+
+    if (planningData.requireQuote && planningData.selectedProviders && planningData.selectedProviders.length > 0) {
+      logger.info('📋 [SERVER-ACTION] Creating quote requests for selected providers', {
+        interventionId,
+        providerCount: planningData.selectedProviders.length
+      })
+
+      try {
+        // Check for existing active quotes (pending or sent)
+        // to avoid creating duplicates
+        const { data: existingQuotes, error: quotesCheckError } = await supabase
+          .from('intervention_quotes')
+          .select('id, provider_id, status')
+          .eq('intervention_id', interventionId)
+          .in('status', ['pending', 'sent'])
+
+        if (quotesCheckError) {
+          logger.error('❌ [SERVER-ACTION] Error checking existing quotes:', quotesCheckError)
+          throw quotesCheckError
+        }
+
+        // Build set of provider IDs that already have active quotes
+        const existingProviderIds = new Set(
+          (existingQuotes || []).map(q => q.provider_id)
+        )
+
+        // Filter out providers who already have active quotes
+        const newProviderIds = planningData.selectedProviders.filter(
+          providerId => !existingProviderIds.has(providerId)
+        )
+
+        const skippedCount = existingProviderIds.size
+        const newCount = newProviderIds.length
+
+        quoteStats = {
+          totalSelected: planningData.selectedProviders.length,
+          skipped: skippedCount,
+          created: newCount
+        }
+
+        logger.info('📊 [SERVER-ACTION] Quote creation analysis:', {
+          totalSelected: planningData.selectedProviders.length,
+          alreadyHaveQuotes: skippedCount,
+          willCreateNew: newCount,
+          existingQuoteDetails: existingQuotes?.map(q => ({
+            id: q.id,
+            provider: q.provider_id,
+            status: q.status
+          }))
+        })
+
+        // Only create quotes for NEW providers
+        if (newProviderIds.length > 0) {
+          await createQuoteRequestsForProviders({
+            interventionId,
+            teamId: intervention.team_id,
+            providerIds: newProviderIds,
+            createdBy: user.id,
+            messageType: 'global',
+            globalMessage: planningData.instructions || undefined,
+            supabase
+          })
+
+          logger.info('✅ [SERVER-ACTION] Created quote requests for NEW providers only', {
+            newQuotesCount: newProviderIds.length
+          })
+        } else {
+          logger.info('⏭️ [SERVER-ACTION] Skipped quote creation - all selected providers already have active quotes')
+        }
+
+        // Update intervention status to 'demande_de_devis' after creating quote requests
+        const { error: statusUpdateError } = await supabase
+          .from('interventions')
+          .update({ status: 'demande_de_devis' })
+          .eq('id', interventionId)
+
+        if (statusUpdateError) {
+          logger.error('❌ [SERVER-ACTION] Error updating intervention status to demande_de_devis:', statusUpdateError)
+        } else {
+          logger.info('✅ [SERVER-ACTION] Intervention status updated to demande_de_devis')
+          // Update the returned intervention status
+          if (updatedIntervention) {
+            updatedIntervention.status = 'demande_de_devis'
+          }
+        }
+
+      } catch (quoteError) {
+        logger.error('❌ [SERVER-ACTION] Error creating quote requests:', quoteError)
+        // Don't fail the whole operation if quote creation fails
+        // The intervention is still programmed, just without the quote requests
+      }
+    }
+
+    const finalStatus = planningData.requireQuote && planningData.selectedProviders?.length > 0
+      ? 'demande_de_devis'
+      : (planningData.option === 'organize' ? 'planification' : 'planifiee')
+
+    logger.info('✅ [SERVER-ACTION] Intervention programmed successfully', { finalStatus })
 
     // Revalidate intervention pages
     revalidatePath('/gestionnaire/interventions')
@@ -2084,12 +2227,95 @@ export async function programInterventionAction(
     revalidatePath('/prestataire/interventions')
     revalidatePath(`/prestataire/interventions/${interventionId}`)
 
-    return { success: true, data: updatedIntervention }
+    return {
+      success: true,
+      data: {
+        intervention: updatedIntervention,
+        quoteStats
+      }
+    }
   } catch (error) {
     logger.error('❌ [SERVER-ACTION] Error programming intervention:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
+}
+
+/**
+ * Update Provider Guidelines Action
+ * Allows gestionnaires to update the general instructions for providers
+ */
+export async function updateProviderGuidelinesAction(
+  interventionId: string,
+  guidelines: string | null
+): Promise<ActionResult<Intervention>> {
+  try {
+    logger.info('📝 [SERVER-ACTION] Updating provider guidelines', {
+      interventionId,
+      guidelinesLength: guidelines?.length || 0
+    })
+
+    const { supabase, user } = await createServerActionSupabaseClient()
+
+    if (!user) {
+      return { success: false, error: 'Non authentifié' }
+    }
+
+    // Validate guidelines length
+    if (guidelines && guidelines.length > 5000) {
+      return {
+        success: false,
+        error: 'Les instructions ne doivent pas dépasser 5000 caractères'
+      }
+    }
+
+    // Get intervention to verify permissions
+    const { data: intervention, error: fetchError } = await supabase
+      .from('interventions')
+      .select('*')
+      .eq('id', interventionId)
+      .single()
+
+    if (fetchError || !intervention) {
+      logger.error('❌ Intervention not found', { interventionId, error: fetchError })
+      return { success: false, error: 'Intervention non trouvée' }
+    }
+
+    // Update provider guidelines
+    const { data: updated, error: updateError } = await supabase
+      .from('interventions')
+      .update({ provider_guidelines: guidelines?.trim() || null })
+      .eq('id', interventionId)
+      .select()
+      .single()
+
+    if (updateError || !updated) {
+      logger.error('❌ Failed to update provider guidelines', { error: updateError })
+      return {
+        success: false,
+        error: 'Erreur lors de la mise à jour des instructions'
+      }
+    }
+
+    logger.info('✅ Provider guidelines updated successfully', {
+      interventionId,
+      hasGuidelines: !!updated.provider_guidelines
+    })
+
+    // Revalidate all relevant paths
+    revalidatePath('/gestionnaire/interventions')
+    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
+    revalidatePath('/prestataire/interventions')
+    revalidatePath(`/prestataire/interventions/${interventionId}`)
+
+    return { success: true, data: updated }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error updating provider guidelines:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
     }
   }
 }

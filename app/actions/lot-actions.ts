@@ -6,10 +6,9 @@
  */
 
 import { createServerActionSupabaseClient, createServerActionLotService } from '@/lib/services'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import type { Lot } from '@/lib/services/core/service-types'
 import { logger } from '@/lib/logger'
-import { cache } from '@/lib/cache/cache-manager'
 
 /**
  * Update a complete lot with contacts and managers
@@ -187,24 +186,23 @@ export async function updateCompleteLot(data: {
       logger.info('✅ [LOT-UPDATE] New contacts inserted:', data.contacts.length)
     }
 
-    // Step 3: Invalidate caches
-    logger.info('🗑️ [LOT-UPDATE] Invalidating caches...')
+    // Step 3: Revalidate Next.js cache (tags + paths)
+    logger.info('🗑️ [LOT-UPDATE] Revalidating Next.js cache...')
 
-    // Invalidate CacheManager (L1+L2)
-    await cache.invalidate(`lots:${data.lotId}:full-relations`)
-    await cache.invalidate(`lots:${data.lotId}`)
-
-    // Invalidate team-level cache
+    // Invalidate tags (Next.js 15 Data Cache)
+    revalidateTag('lots')
+    revalidateTag(`lot-${data.lotId}`)
     if (lotData.team_id) {
-      await cache.invalidate(`lots:team:${lotData.team_id}`)
+      revalidateTag(`lots-team-${lotData.team_id}`)
     }
 
-    logger.info('✅ [LOT-UPDATE] Caches invalidated')
-
-    // Step 4: Revalidate Next.js paths
+    // Invalidate paths (Next.js 15 Router Cache)
+    revalidatePath('/gestionnaire/biens')
     revalidatePath('/gestionnaire/biens/lots')
     revalidatePath(`/gestionnaire/biens/lots/${data.lotId}`)
     revalidatePath(`/gestionnaire/biens/lots/modifier/${data.lotId}`)
+
+    logger.info('✅ [LOT-UPDATE] Next.js cache revalidated')
 
     logger.info('✅ [SERVER-ACTION] Lot updated successfully:', {
       lotId: data.lotId,

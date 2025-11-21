@@ -3,10 +3,9 @@
 export const LOT_CATEGORIES = [
   'appartement',
   'collocation',
-  'maison', 
+  'maison',
   'garage',
   'local_commercial',
-  'parking',
   'autre'
 ] as const
 
@@ -53,14 +52,6 @@ export const LOT_CATEGORY_CONFIG = {
     color: 'text-orange-600',
     bgColor: 'bg-orange-50',
     borderColor: 'border-orange-200'
-  },
-  parking: {
-    label: 'Parking',
-    description: 'Place de stationnement',
-    icon: 'ParkingCircle', 
-    color: 'text-slate-600',
-    bgColor: 'bg-slate-50',
-    borderColor: 'border-slate-200'
   },
   autre: {
     label: 'Autre',

@@ -6,6 +6,7 @@ import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { inviteUserSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { createServerActionCompanyRepository } from '@/lib/services/repositories/company.repository'
 
 // Client Supabase avec permissions admin
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -64,8 +65,22 @@ export async function POST(request: Request) {
       phone,
       notes, // ✅ AJOUT: Notes sur le contact
       speciality, // ✅ AJOUT: Spécialité pour les prestataires
-      shouldInviteToApp = false  // ✅ NOUVELLE LOGIQUE SIMPLE
+      shouldInviteToApp = false,  // ✅ NOUVELLE LOGIQUE SIMPLE
+      // Champs société
+      contactType,
+      companyMode,
+      companyId: providedCompanyId,
+      companyName,
+      vatNumber,
+      street,
+      streetNumber,
+      postalCode,
+      city,
+      country
     } = validatedData
+
+    // ✅ Normaliser l'email : convertir chaînes vides en null (pour usage dans toutes les étapes)
+    const normalizedEmail = email?.trim() || null
 
     logger.info({
       email,
@@ -75,7 +90,9 @@ export async function POST(request: Request) {
       providerCategory, // ✅ LOG: Afficher le providerCategory reçu
       speciality,
       shouldInviteToApp,
-      teamId
+      teamId,
+      contactType,
+      companyMode
     }, '📧 [INVITE-USER-SIMPLE] Creating contact:')
 
     // ✅ FIX: Si providerCategory est déjà fourni par le service, l'utiliser directement
@@ -98,11 +115,7 @@ export async function POST(request: Request) {
           'gestionnaire': { role: 'gestionnaire', provider_category: null },
           'locataire': { role: 'locataire', provider_category: null },
           'prestataire': { role: 'prestataire', provider_category: 'prestataire' },
-          'proprietaire': { role: 'proprietaire', provider_category: null }, // Proprietaire est maintenant un rôle distinct
-          // Anciennes catégories spécialisées → mappées vers 'autre'
-          'syndic': { role: 'prestataire', provider_category: 'autre' },
-          'notaire': { role: 'prestataire', provider_category: 'autre' },
-          'assurance': { role: 'prestataire', provider_category: 'autre' },
+          'proprietaire': { role: 'proprietaire', provider_category: null },
           'autre': { role: 'prestataire', provider_category: 'autre' }
         }
 
@@ -118,6 +131,100 @@ export async function POST(request: Request) {
     let userProfile
     let invitationResult = null
     let authUserId: string | null = null
+    let finalCompanyId: string | null = null
+
+    // Construire le nom du contact selon le type (utilisé pour user.name et activity logs)
+    let contactName: string
+    if (contactType === 'company') {
+      // Pour société: utiliser nom/prénom si fournis, sinon nom de société
+      if (firstName?.trim() || lastName?.trim()) {
+        contactName = `${firstName || ''} ${lastName || ''}`.trim()
+      } else {
+        contactName = companyName || 'Contact société'
+      }
+    } else {
+      // Pour personne physique
+      contactName = `${firstName || ''} ${lastName || ''}`.trim()
+    }
+
+    // ============================================================================
+    // ÉTAPE 0 (SI SOCIÉTÉ): Créer ou récupérer la société
+    // ============================================================================
+    if (contactType === 'company') {
+      logger.info({ companyMode }, '🏢 [STEP-0] Processing company contact...')
+
+      if (companyMode === 'existing') {
+        // Mode: Société existante
+        if (!providedCompanyId) {
+          logger.error({}, '❌ [STEP-0] Missing companyId for existing company')
+          return NextResponse.json(
+            { error: 'ID de société requis pour lier à une société existante' },
+            { status: 400 }
+          )
+        }
+        finalCompanyId = providedCompanyId
+        logger.info({ companyId: finalCompanyId }, '✅ [STEP-0] Using existing company')
+
+      } else {
+        // Mode: Nouvelle société
+        logger.info({ companyName, vatNumber }, '🆕 [STEP-0] Creating new company...')
+
+        if (!companyName || !vatNumber || !street || !streetNumber || !postalCode || !city || !country) {
+          logger.error({}, '❌ [STEP-0] Missing required fields for company creation')
+          return NextResponse.json(
+            { error: 'Tous les champs de la société sont requis (nom, TVA, adresse complète)' },
+            { status: 400 }
+          )
+        }
+
+        try {
+          const companyRepository = await createServerActionCompanyRepository()
+
+          // Vérifier si le numéro de TVA existe déjà dans cette équipe
+          const existingCompanyResult = await companyRepository.findByVatNumber(vatNumber, teamId)
+
+          if (existingCompanyResult.success && existingCompanyResult.data) {
+            logger.warn({ vatNumber }, '⚠️ [STEP-0] Company with this VAT number already exists in team')
+            return NextResponse.json(
+              { error: `Une société avec le numéro de TVA ${vatNumber} existe déjà dans votre équipe` },
+              { status: 409 }
+            )
+          }
+
+          // Créer la nouvelle société
+          const companyResult = await companyRepository.createWithAddress({
+            name: companyName,
+            vat_number: vatNumber,
+            email: normalizedEmail, // Email du contact (peut être null)
+            team_id: teamId,
+            street,
+            street_number: streetNumber,
+            postal_code: postalCode,
+            city,
+            country,
+            is_active: true
+          })
+
+          if (!companyResult.success || !companyResult.data) {
+            logger.error({ error: companyResult.error }, '❌ [STEP-0] Failed to create company')
+            return NextResponse.json(
+              { error: 'Erreur lors de la création de la société: ' + (companyResult.error?.message || 'Unknown error') },
+              { status: 500 }
+            )
+          }
+
+          finalCompanyId = companyResult.data.id
+          logger.info({ companyId: finalCompanyId }, '✅ [STEP-0] Company created successfully')
+
+        } catch (companyError) {
+          logger.error({ error: companyError }, '❌ [STEP-0] Exception during company creation')
+          return NextResponse.json(
+            { error: 'Erreur lors de la création de la société: ' + (companyError instanceof Error ? companyError.message : String(companyError)) },
+            { status: 500 }
+          )
+        }
+      }
+    }
 
     // ============================================================================
     // ÉTAPE 1 (COMMUNE): Créer le profil utilisateur SANS auth (SUPPORT MULTI-ÉQUIPES)
@@ -125,18 +232,25 @@ export async function POST(request: Request) {
     logger.info({}, '👤 [STEP-1] Creating user profile (multi-team support)...')
 
     try {
-      // ✅ MULTI-ÉQUIPES: Vérifier si l'utilisateur existe dans L'ÉQUIPE COURANTE uniquement
-      const { data: existingUserInCurrentTeam, error: checkError } = await supabaseAdmin
-        .from('users')
-        .select('*')
-        .eq('email', email)
-        .eq('team_id', teamId) // ✅ Vérifier dans l'équipe courante uniquement
-        .is('deleted_at', null) // ✅ FIX: Utiliser .is() pour vérifier NULL sur colonne timestamp
-        .maybeSingle()
 
-      if (checkError && checkError.code !== 'PGRST116') {
-        logger.error({ error: checkError }, '❌ [STEP-1] Error checking existing user in current team:')
-        throw new Error('Failed to check existing user: ' + checkError?.message)
+      // ✅ MULTI-ÉQUIPES: Vérifier si l'utilisateur existe dans L'ÉQUIPE COURANTE uniquement
+      // Ne vérifier que si email est fourni (pas de vérification d'unicité si email est null)
+      let existingUserInCurrentTeam = null
+      if (normalizedEmail) {
+        const { data: existingUser, error: checkError } = await supabaseAdmin
+          .from('users')
+          .select('*')
+          .eq('email', normalizedEmail)
+          .eq('team_id', teamId) // ✅ Vérifier dans l'équipe courante uniquement
+          .is('deleted_at', null) // ✅ FIX: Utiliser .is() pour vérifier NULL sur colonne timestamp
+          .maybeSingle()
+
+        if (checkError && checkError.code !== 'PGRST116') {
+          logger.error({ error: checkError }, '❌ [STEP-1] Error checking existing user in current team:')
+          throw new Error('Failed to check existing user: ' + checkError?.message)
+        }
+
+        existingUserInCurrentTeam = existingUser
       }
 
       // ✅ CAS 1: Utilisateur existe déjà dans l'équipe courante → ERREUR
@@ -151,14 +265,15 @@ export async function POST(request: Request) {
       // ✅ CAS 2: Utilisateur n'existe pas dans l'équipe courante → CRÉER nouvelle entrée
       // (même si l'email existe dans une autre équipe, on crée une nouvelle entrée public.users)
       logger.info({}, '📝 [STEP-1] Creating new user profile for this team...')
+
       const { data: newUser, error: createError } = await supabaseAdmin
         .from('users')
         .insert({
           auth_user_id: null, // Sera lié après si invitation
-          email: email,
-          name: `${firstName} ${lastName}`,
-          first_name: firstName,
-          last_name: lastName,
+          email: normalizedEmail, // Peut être null si invitation désactivée
+          name: contactName,
+          first_name: firstName || null,
+          last_name: lastName || null,
           role: validUserRole,
           provider_category: finalProviderCategory,
           speciality: speciality || null,
@@ -167,6 +282,9 @@ export async function POST(request: Request) {
           team_id: teamId,
           is_active: true,
           password_set: false,
+          // Champs société
+          is_company: contactType === 'company',
+          company_id: finalCompanyId,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
@@ -233,18 +351,19 @@ export async function POST(request: Request) {
 
       try {
         // SOUS-ÉTAPE 1: Générer le lien d'invitation officiel Supabase (crée auth automatiquement)
+        // Note: normalizedEmail ne peut pas être null ici car la validation Zod garantit que email est requis si shouldInviteToApp === true
         logger.info({}, '🔗 [STEP-3-INVITE-1] Generating official Supabase invite link (auto-creates auth user)...')
         const { data: inviteLink, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
           type: 'invite',
-          email: email,
+          email: normalizedEmail!, // Non-null assertion car garanti par validation Zod
           options: {
             redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
             data: {
               // ✅ Metadata pour l'auth user (équivalent à user_metadata de createUser)
-              full_name: `${firstName} ${lastName}`,
-              first_name: firstName,
-              last_name: lastName,
-              display_name: `${firstName} ${lastName}`,
+              full_name: contactName,
+              first_name: firstName || null,
+              last_name: lastName || null,
+              display_name: contactName,
               role: validUserRole,
               provider_category: finalProviderCategory,
               team_id: teamId,
@@ -284,11 +403,12 @@ export async function POST(request: Request) {
         logger.info({}, '✅ [STEP-3-INVITE-2] Auth linked to profile via Service Role')
 
         // SOUS-ÉTAPE 3: Créer l'enregistrement d'invitation dans user_invitations
+        // Note: normalizedEmail ne peut pas être null ici car la validation Zod garantit que email est requis si shouldInviteToApp === true
         logger.info({}, '📋 [STEP-3-INVITE-3] Creating invitation record in user_invitations...')
         const { data: invitationRecord, error: invitationError } = await supabaseAdmin
           .from('user_invitations')
           .insert({
-            email: email,
+            email: normalizedEmail!, // Non-null assertion car garanti par validation Zod
             first_name: firstName,
             last_name: lastName,
             role: validUserRole,
@@ -311,8 +431,9 @@ export async function POST(request: Request) {
         }
 
         // SOUS-ÉTAPE 4: Envoyer l'email via Resend
+        // Note: normalizedEmail ne peut pas être null ici car la validation Zod garantit que email est requis si shouldInviteToApp === true
         logger.info({}, '📨 [STEP-3-INVITE-4] Sending invitation email via Resend...')
-        const emailResult = await emailService.sendInvitationEmail(email, {
+        const emailResult = await emailService.sendInvitationEmail(normalizedEmail!, {
           firstName,
           inviterName: `${currentUserProfile.first_name || currentUserProfile.name || 'Un membre'}`,
           teamName: teamId,
@@ -366,8 +487,8 @@ export async function POST(request: Request) {
           action_type: shouldInviteToApp ? 'invite' : 'create',
           entity_type: 'contact',
           entity_id: userProfile.id,
-          entity_name: `${firstName} ${lastName}`,
-          description: `Contact ${shouldInviteToApp ? 'créé et invité' : 'créé'}: ${firstName} ${lastName}${speciality ? ` (${speciality})` : ''}`,
+          entity_name: contactName,
+          description: `Contact ${shouldInviteToApp ? 'créé et invité' : 'créé'}: ${contactName}${speciality ? ` (${speciality})` : ''}`,
           status: 'success',
           metadata: { email, speciality, shouldInviteToApp }
         })

@@ -4,7 +4,6 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createBrowserSupabaseClient, createTenantService } from '@/lib/services'
 import { useAuth } from './use-auth'
 import { useResolvedUserId } from './use-resolved-user-id'
-import { useDataRefresh } from './use-cache-management'
 import { logger, logError } from '@/lib/logger'
 interface TenantData {
   id: string
@@ -53,6 +52,26 @@ interface TenantIntervention {
     phone: string
     email: string
   }
+  // ✅ Enriched data for interactive badge
+  quotes?: Array<{
+    id: string
+    status: string
+    provider_id?: string
+    submitted_by?: string
+    amount?: number
+  }>
+  timeSlots?: Array<{
+    id: string
+    slot_date: string
+    start_time: string
+    status?: string
+    proposed_by?: string
+  }>
+  assignments?: Array<{
+    role: string
+    user_id: string
+    is_primary: boolean
+  }>
 }
 
 export const useTenantData = () => {
@@ -154,8 +173,37 @@ export const useTenantData = () => {
         nextPaymentDate: 0 // TODO: implement payment date
       }
 
+      // ⚡ ENRICHISSEMENT: Ajouter quotes, slots et assignments aux interventions pour le badge interactif
+      logger.info('🔄 [TENANT-DATA] Enriching interventions with quotes, slots and assignments...')
+      const interventionsWithDetails = await Promise.all(
+        data.interventions.map(async (i: any) => {
+          const [{ data: quotes }, { data: timeSlots }, { data: assignments }] = await Promise.all([
+            supabase
+              .from('intervention_quotes')
+              .select('id, status, provider_id, submitted_by, amount')
+              .eq('intervention_id', i.id)
+              .is('deleted_at', null),
+            supabase
+              .from('intervention_time_slots')
+              .select('id, slot_date, start_time, status, proposed_by')
+              .eq('intervention_id', i.id),
+            supabase
+              .from('intervention_assignments')
+              .select('role, user_id, is_primary')
+              .eq('intervention_id', i.id)
+          ])
+          return {
+            ...i,
+            quotes: quotes || [],
+            timeSlots: timeSlots || [],
+            assignments: assignments || []
+          }
+        })
+      )
+      logger.info('✅ [TENANT-DATA] Interventions enriched with quotes, slots and assignments')
+
       // Transform interventions
-      const transformedInterventions: TenantIntervention[] = data.interventions.map((i: any) => ({
+      const transformedInterventions: TenantIntervention[] = interventionsWithDetails.map((i: any) => ({
         id: i.id,
         title: i.title,
         description: i.description || '',
@@ -165,7 +213,10 @@ export const useTenantData = () => {
         urgency: i.urgency || 'normale',
         type: i.intervention_type || i.type || 'autre',
         lot: i.lot,
-        assigned_contact: i.assigned_contact
+        assigned_contact: i.assigned_contact,
+        quotes: i.quotes || [],
+        timeSlots: i.timeSlots || [],
+        assignments: i.assignments || []
       }))
 
       if (mountedRef.current) {
@@ -198,14 +249,6 @@ export const useTenantData = () => {
       mountedRef.current = false
     }
   }, [])
-
-  // ✅ Intégration au bus de refresh: permet à useNavigationRefresh de déclencher ce hook
-  useDataRefresh('tenant-data', () => {
-    // Forcer un refetch en bypassant le cache local
-    lastResolvedIdRef.current = null
-    loadingRef.current = false
-    fetchTenantData(true)
-  })
 
   const refreshData = useCallback(async () => {
     logger.info('🔄 [TENANT-DATA] Manual refresh requested')

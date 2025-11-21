@@ -79,9 +79,7 @@ export interface TeamData {
 export interface ContactAssignments {
   tenant: Contact[]
   provider: Contact[]
-  syndic: Contact[]
-  notary: Contact[]
-  insurance: Contact[]
+  owner: Contact[]
   other: Contact[]
 }
 

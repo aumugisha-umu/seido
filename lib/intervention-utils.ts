@@ -126,6 +126,89 @@ export const getPriorityLabel = (urgency: string) => {
   }
 }
 
+/**
+ * Retourne le nom de l'icône Lucide appropriée pour chaque niveau d'urgence
+ * Bonnes pratiques UX : utiliser des icônes de gravité croissante
+ */
+export const getPriorityIcon = (urgency: string): string => {
+  switch (urgency) {
+    case "urgente":
+      return "AlertTriangle" // Triangle d'alerte pour urgence maximale
+    case "haute":
+      return "TrendingUp" // Flèche montante pour priorité élevée
+    case "normale":
+      return "Minus" // Ligne horizontale pour priorité normale
+    case "basse":
+      return "ArrowDown" // Flèche descendante pour faible priorité
+    default:
+      return "Minus"
+  }
+}
+
+/**
+ * Retourne le nom de l'icône Lucide appropriée pour chaque statut d'intervention
+ * Bonnes pratiques UX : icônes sémantiques reflétant l'état du workflow
+ */
+export const getStatusIcon = (status: string): string => {
+  switch (status) {
+    // Phase 1: Demande
+    case "demande":
+      return "Clock" // Horloge pour "en attente"
+    case "rejetee":
+      return "XCircle" // Croix pour rejet
+    case "approuvee":
+      return "CheckCircle" // Check pour approbation
+
+    // Phase 2: Planification & Exécution
+    case "demande_de_devis":
+      return "FileText" // Document pour devis
+    case "planification":
+      return "Calendar" // Calendrier pour planification
+    case "planifiee":
+      return "CalendarCheck" // Calendrier validé pour intervention planifiée
+    case "en_cours":
+      return "Play" // Play pour intervention en cours
+
+    // Phase 3: Clôture
+    case "cloturee_par_prestataire":
+      return "UserCheck" // Utilisateur validé pour clôture prestataire
+    case "cloturee_par_locataire":
+      return "CheckCircle2" // Double check pour validation locataire
+    case "cloturee_par_gestionnaire":
+      return "CheckCircle" // Check final pour clôture gestionnaire
+
+    // Transversal
+    case "annulee":
+      return "XCircle" // Croix pour annulation
+
+    default:
+      return "HelpCircle" // Point d'interrogation pour statut inconnu
+  }
+}
+
+/**
+ * Retourne le nom de l'icône Lucide appropriée pour chaque catégorie d'intervention
+ * Bonnes pratiques UX : icônes métier facilement reconnaissables
+ */
+export const getTypeIcon = (type: string): string => {
+  switch (type?.toLowerCase()) {
+    case "plomberie":
+      return "Droplets" // Gouttes d'eau
+    case "electricite":
+      return "Zap" // Éclair
+    case "chauffage":
+      return "Flame" // Flamme
+    case "serrurerie":
+      return "Key" // Clé
+    case "peinture":
+      return "Paintbrush" // Pinceau
+    case "maintenance":
+      return "Hammer" // Marteau
+    default:
+      return "Wrench" // Clé à molette par défaut
+  }
+}
+
 export const getStatusActionMessage = (status: string, userContext?: 'gestionnaire' | 'prestataire' | 'locataire'): string => {
   // Messages adaptés selon le contexte utilisateur
   if (userContext === 'prestataire') {

@@ -27,49 +27,45 @@ export function useCreationSuccess() {
   }: CreationSuccessOptions) => {
     logger.info("🎉 Handling creation success...")
 
-    // 1. Redirection immédiate
-    router.push(redirectPath)
-    
-    // 2. Après redirection, gérer le refresh et le toast
-    setTimeout(async () => {
-      let softRefreshSuccess = false
-
-      // 3. Tentative de soft refresh avec router.refresh() FIRST
-      try {
-        logger.info("🔄 Attempting Next.js router refresh...")
-        router.refresh() // Force Server Component re-fetch
-        softRefreshSuccess = true
-        logger.info("✅ Router refresh triggered")
-
-        // 4. Optionally call additional refreshData if provided
-        if (refreshData) {
-          logger.info("🔄 Calling additional refreshData...")
-          await refreshData()
-        }
-      } catch (error) {
-        logger.warn("⚠️ Soft refresh failed:", error)
+    // 1. Refresh des données AVANT la navigation
+    try {
+      if (refreshData) {
+        logger.info("🔄 Calling refreshData before navigation...")
+        await refreshData()
       }
 
-      // 5. Toast après le refresh (seulement si un titre est fourni)
-      if (successTitle) {
-        toast({
-          title: successTitle,
-          description: successDescription,
-          variant: "success",
-        })
-      }
+      logger.info("🔄 Triggering router.refresh()...")
+      router.refresh() // Force Server Component re-fetch
+      logger.info("✅ Data refreshed successfully")
+    } catch (error) {
+      logger.warn("⚠️ Refresh failed:", error)
 
-      // 6. Hard refresh fallback si nécessaire
-      if (!softRefreshSuccess && hardRefreshFallback) {
+      // Hard refresh fallback si nécessaire
+      if (hardRefreshFallback) {
         logger.info(`🔄 Scheduling hard refresh in ${hardRefreshDelay}ms...`)
         setTimeout(() => {
           logger.info("🔄 Soft refresh failed, doing hard refresh...")
           window.location.reload()
         }, hardRefreshDelay)
+        return // Exit early pour éviter la navigation
       }
-      
-    }, 100) // Délai court pour permettre la redirection
-    
+    }
+
+    // 2. Afficher le toast (seulement si un titre est fourni)
+    if (successTitle) {
+      toast({
+        title: successTitle,
+        description: successDescription,
+        variant: "success",
+      })
+    }
+
+    // 3. Navigation après un court délai pour garantir que le refresh est appliqué
+    setTimeout(() => {
+      logger.info(`🚀 Navigating to ${redirectPath}...`)
+      router.push(redirectPath)
+    }, 500) // Délai augmenté pour garantir la stabilité
+
   }, [router, toast])
 
   return { handleSuccess }

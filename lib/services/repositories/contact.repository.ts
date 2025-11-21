@@ -63,7 +63,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       .select(`
         *,
         team:team_id(id, name, description),
-        company:company_id(id, name, address, city)
+        company:company_id(id, name, vat_number, street, street_number, postal_code, city, country, email, phone, is_active)
       `)
       .eq('id', _id)
       .eq('deleted_at', null)  // Exclude soft-deleted users
@@ -89,7 +89,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       .select(`
         *,
         team:team_id(id, name, description),
-        company:company_id(id, name, address, city)
+        company:company_id(id, name, vat_number, street, street_number, postal_code, city, country, email, phone, is_active)
       `)
       .eq('id', userId)
       .eq('deleted_at', null)
@@ -144,8 +144,9 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
   /**
    * Get contacts by team
    * NEW SCHEMA: Queries team_members → users
+   * @param excludeUserId - Optional user ID to exclude from results (e.g., current user)
    */
-  async findByTeam(teamId: string, role?: string) {
+  async findByTeam(teamId: string, role?: string, excludeUserId?: string) {
     let queryBuilder = this.supabase
       .from('team_members')
       .select(`
@@ -168,6 +169,18 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
           notes,
           first_name,
           last_name,
+          is_company,
+          company_id,
+          company:company_id (
+            id,
+            name,
+            vat_number,
+            street,
+            street_number,
+            postal_code,
+            city,
+            country
+          ),
           created_at,
           updated_at
         )
@@ -178,6 +191,11 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     if (role) {
       // This needs to query the user role, not team_member role
       queryBuilder = queryBuilder.filter('user.role', 'eq', role)
+    }
+
+    if (excludeUserId) {
+      // Exclude specific user (e.g., current user)
+      queryBuilder = queryBuilder.neq('user_id', excludeUserId)
     }
 
     const { data, error } = await queryBuilder.order('joined_at', { ascending: false })
@@ -201,7 +219,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       .select(`
         *,
         team:team_id(id, name, description),
-        company:company_id(id, name, address, city)
+        company:company_id(id, name, vat_number, street, street_number, postal_code, city, country, email, phone, is_active)
       `)
       .eq('role', role)
       .eq('deleted_at', null)
@@ -351,6 +369,34 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     }
 
     return { success: true as const, data: data[0] }
+  }
+  /**
+   * Find a specific contact within a team
+   * Queries team_members to ensure the user belongs to the team (and respects RLS)
+   */
+  async findContactInTeam(teamId: string, contactId: string) {
+    const { data, error } = await this.supabase
+      .from('team_members')
+      .select(`
+        user:user_id (
+          *,
+          team:team_id(id, name, description),
+          company:company_id(id, name, vat_number, street, street_number, postal_code, city, country, email, phone, is_active)
+        )
+      `)
+      .eq('team_id', teamId)
+      .eq('user_id', contactId)
+      .is('left_at', null)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return { success: true as const, data: null }
+      }
+      return createErrorResponse(handleError(error, 'team_members:query'))
+    }
+
+    return { success: true as const, data: data?.user as unknown as Contact }
   }
 }
 

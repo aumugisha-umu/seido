@@ -10,6 +10,7 @@ import { logger } from '@/lib/logger'
 export const useSessionFocusRefresh = () => {
   const supabaseRef = useRef<ReturnType<typeof createBrowserSupabaseClient> | null>(null)
   const { forceRefreshCurrentSection } = useNavigationRefresh()
+  const wasHiddenRef = useRef(false) // Track if window was actually hidden
 
   useEffect(() => {
     supabaseRef.current = createBrowserSupabaseClient()
@@ -28,23 +29,25 @@ export const useSessionFocusRefresh = () => {
       }
     }
 
-    const handleFocus = async () => {
-      await ensureSession()
-      forceRefreshCurrentSection()
-    }
-
+    // ✅ FIX: Only trigger on visibility change (tab switching), not internal focus events
     const handleVisibility = async () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'visible' && wasHiddenRef.current) {
+        // Window was hidden and now visible again (user returned to tab)
+        logger.info('👁️ [FOCUS-REFRESH] Window became visible after being hidden, refreshing...')
+        wasHiddenRef.current = false
         await ensureSession()
         forceRefreshCurrentSection()
+      } else if (document.visibilityState === 'hidden') {
+        // Track that window became hidden
+        wasHiddenRef.current = true
       }
     }
 
-    window.addEventListener('focus', handleFocus)
+    // ❌ REMOVED: window.addEventListener('focus', handleFocus) - caused refresh on input clicks
+    // ✅ KEPT: Only use visibilitychange for true tab switching
     document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
-      window.removeEventListener('focus', handleFocus)
       document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [forceRefreshCurrentSection])

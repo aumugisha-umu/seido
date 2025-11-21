@@ -64,11 +64,6 @@ export interface TeamWithMembers extends Team {
  * Manages all database operations for teams with advanced member management and caching
  */
 export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate> {
-  // Cache for team data
-  private teamsCache = new Map<string, { data: TeamWithMembers[], timestamp: number }>()
-  private readonly CACHE_TTL = 5 * 60 * 1000 // 5 minutes
-  private readonly STALE_WHILE_REVALIDATE_TTL = 30 * 60 * 1000 // 30 minutes
-
   constructor(supabase: SupabaseClient) {
     super(supabase, 'teams')
   }
@@ -93,11 +88,11 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
   protected async validate(data: TeamInsert | TeamUpdate): Promise<void> {
     if ('name' in data && data.name) {
       validateRequired({ name: data.name }, ['name'])
-      validateLength(data.name, 'name', 2, 100)
+      validateLength(data.name, 2, 100, 'name')
     }
 
     if ('description' in data && data.description) {
-      validateLength(data.description, 'description', 0, 500)
+      validateLength(data.description, 0, 500, 'description')
     }
 
     if ('created_by' in data && data.created_by) {
@@ -263,7 +258,8 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
   }
 
   /**
-   * Get teams for a specific user with intelligent caching
+   * Get teams for a specific user
+   * ✅ Next.js 15: Data Cache + Request Memoization (automatic)
    */
   async findUserTeams(userId: string): Promise<{ success: true; data: TeamWithMembers[] }> {
     // Protection against undefined userId
@@ -278,45 +274,13 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
       return { success: true, data: [] }
     }
 
-    // Check cache first
-    const cacheKey = `teams_${userId}`
-    const cached = this.teamsCache.get(cacheKey)
-    const now = Date.now()
-
-    // Return fresh cache
-    if (cached && (now - cached.timestamp) < this.CACHE_TTL) {
-      logger.info('✅ Returning fresh cached teams data')
-      return { success: true, data: cached.data }
-    }
-
-    // Stale-while-revalidate: return stale data while updating in background
-    if (cached && (now - cached.timestamp) < this.STALE_WHILE_REVALIDATE_TTL) {
-      logger.info('🔄 Returning stale data while revalidating in background')
-
-      // Background update without waiting
-      this.fetchUserTeamsFromDB(userId, cacheKey).catch(async (error) => {
-        if (this.isAuthError(error)) {
-          try {
-            await this.supabase.auth.refreshSession()
-            await this.fetchUserTeamsFromDB(userId, cacheKey)
-            return
-          } catch (retryError) {
-            logger.error('❌ Background team fetch retry failed:', retryError)
-          }
-        }
-        logger.error('❌ Background team fetch failed:', error)
-      })
-
-      return { success: true, data: cached.data }
-    }
-
-    // No valid cache, fetch fresh data (avec retry 401 unique)
+    // Fetch fresh data with auth retry
     try {
-      return await this.fetchUserTeamsFromDB(userId, cacheKey)
+      return await this.fetchUserTeamsFromDB(userId)
     } catch (error) {
       if (this.isAuthError(error)) {
         await this.supabase.auth.refreshSession()
-        return await this.fetchUserTeamsFromDB(userId, cacheKey)
+        return await this.fetchUserTeamsFromDB(userId)
       }
       throw error
     }
@@ -332,7 +296,7 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
    * - Step 3: Get users details separately
    * - Step 4: Merge results in memory
    */
-  private async fetchUserTeamsFromDB(userId: string, cacheKey: string): Promise<{ success: true; data: TeamWithMembers[] }> {
+  private async fetchUserTeamsFromDB(userId: string): Promise<{ success: true; data: TeamWithMembers[] }> {
     try {
       // 🔍 DEBUG: Log user ID and session status
       logger.info('🔍 [TEAM-REPO-DEBUG] Fetching teams for user:', userId)
@@ -368,7 +332,6 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
 
       if (!memberData || memberData.length === 0) {
         logger.info('ℹ️ User is not member of any team')
-        this.teamsCache.set(cacheKey, { data: [], timestamp: Date.now() })
         return { success: true, data: [] }
       }
 
@@ -388,7 +351,6 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
       }
 
       if (!teamData || teamData.length === 0) {
-        this.teamsCache.set(cacheKey, { data: [], timestamp: Date.now() })
         return { success: true, data: [] }
       }
 
@@ -441,9 +403,6 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
           team_members: teamMembers
         }
       })
-
-      // Cache the result
-      this.teamsCache.set(cacheKey, { data: result, timestamp: Date.now() })
 
       return { success: true, data: result }
     } catch (error) {

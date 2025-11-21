@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "./use-auth"
 import { createBrowserSupabaseClient, createTeamService } from "@/lib/services"
-import { useDataRefresh } from './use-cache-management'
 import { logger, logError } from '@/lib/logger'
 export interface ContactsData {
   contacts: unknown[]
@@ -226,16 +225,6 @@ export function useContactsData() {
     // ✅ OPTIMISATION: Appel immédiat pour réactivité maximale
     fetchContactsData(user.id, false) // Utilisation normale du cache
   }, [user?.id, fetchContactsData])
-  // ✅ Intégration au bus de refresh: permet à useNavigationRefresh de déclencher ce hook
-  useDataRefresh('contacts-data', () => {
-    if (user?.id) {
-      // Forcer un refetch en bypassant le cache local de ce hook
-      lastUserIdRef.current = null
-      loadingRef.current = false
-      fetchContactsData(user.id, true)
-    }
-  })
-
 
   // Nettoyage au démontage
   useEffect(() => {

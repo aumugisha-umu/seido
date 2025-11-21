@@ -105,3 +105,51 @@ export function getNotificationTypeLabel(type: string): string {
 
   return labelMap[type] || "Notification"
 }
+
+/**
+ * Interface de notification pour la navigation
+ */
+export interface NotificationNavigable {
+  related_entity_type?: string
+  related_entity_id?: string
+  metadata?: Record<string, any>
+}
+
+/**
+ * Retourne l'URL de navigation appropriée pour une notification
+ * Basé sur le type d'entité liée et le rôle de l'utilisateur
+ */
+export function getNotificationNavigationUrl(
+  notification: NotificationNavigable,
+  userRole: 'gestionnaire' | 'prestataire' | 'locataire' | 'admin'
+): string | null {
+  const entityType = notification.related_entity_type
+  const entityId = notification.related_entity_id || notification.metadata?.intervention_id
+
+  if (!entityType || !entityId) {
+    return null
+  }
+
+  // Navigation vers les interventions
+  if (entityType === 'intervention') {
+    return `/${userRole}/interventions/${entityId}`
+  }
+
+  // Navigation vers les lots (extensible)
+  if (entityType === 'lot') {
+    return `/${userRole}/biens/lots/${entityId}`
+  }
+
+  // Navigation vers les bâtiments (extensible)
+  if (entityType === 'building') {
+    return `/${userRole}/biens/immeubles/${entityId}`
+  }
+
+  // Navigation vers les documents (extensible)
+  if (entityType === 'document') {
+    return `/${userRole}/documents`
+  }
+
+  // Aucune navigation applicable
+  return null
+}

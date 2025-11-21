@@ -1,7 +1,8 @@
 "use client"
 
-// Removed unused useState import
+import { useState } from "react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
@@ -20,7 +21,9 @@ import {
   Check,
   X,
   CheckCircle,
+  CheckCircle2,
   Calendar,
+  CalendarCheck,
   Clock,
   MapPin,
   Building2,
@@ -36,6 +39,12 @@ import {
   UserCheck,
   AlertTriangle,
   TrendingUp,
+  Minus,
+  ArrowDown,
+  XCircle,
+  Play,
+  HelpCircle,
+  type LucideIcon,
 } from "lucide-react"
 
 import {
@@ -46,10 +55,47 @@ import {
   getStatusLabel,
   getPriorityColor,
   getPriorityLabel,
-  getStatusActionMessage
+  getStatusActionMessage,
+  getPriorityIcon,
+  getStatusIcon,
+  getTypeIcon,
 } from "@/lib/intervention-utils"
+import { shouldShowAlertBadge } from "@/lib/intervention-alert-utils"
+import { InterventionActionButtons } from "@/components/intervention/intervention-action-buttons"
 import { InterventionCancelButton } from "@/components/intervention/intervention-cancel-button"
 import { logger, logError } from '@/lib/logger'
+
+/**
+ * Mappe les noms d'icônes Lucide (string) aux composants React
+ * Utilisé pour afficher dynamiquement les icônes dans les badges
+ */
+const iconMap: Record<string, LucideIcon> = {
+  // Icônes d'urgence
+  AlertTriangle,
+  TrendingUp,
+  Minus,
+  ArrowDown,
+  // Icônes de statut
+  Clock,
+  XCircle,
+  CheckCircle,
+  CheckCircle2,
+  FileText,
+  Calendar,
+  CalendarCheck,
+  Play,
+  UserCheck,
+  HelpCircle,
+  // Icônes de catégorie
+  Droplets,
+  Zap,
+  Flame,
+  Key,
+  Paintbrush,
+  Hammer,
+  Wrench,
+}
+
 interface InterventionCardProps {
   intervention: {
     id: string
@@ -103,6 +149,11 @@ export function InterventionCard({
   onActionComplete
 }: InterventionCardProps) {
   const router = useRouter()
+  const { user } = useAuth()
+  const [isHovered, setIsHovered] = useState(false)
+
+  // Déterminer si le badge doit être en mode alerte (orange)
+  const isAlertMode = shouldShowAlertBadge(intervention as any, userContext, user?.id)
 
   // Generate intervention URL based on user context
   const getInterventionUrl = (interventionId: string) => {
@@ -147,6 +198,34 @@ export function InterventionCard({
       color: "bg-amber-100",
       iconColor: "text-amber-600"
     }
+  }
+
+  // Get intervention type label in French
+  const getTypeLabel = (_type: string) => {
+    const labels: Record<string, string> = {
+      plomberie: "Plomberie",
+      electricite: "Électricité",
+      chauffage: "Chauffage",
+      serrurerie: "Serrurerie",
+      peinture: "Peinture",
+      maintenance: "Maintenance",
+      autre: "Autre"
+    }
+    return labels[_type?.toLowerCase()] || "Autre"
+  }
+
+  // Get badge color for intervention type/category
+  const getTypeBadgeColor = (_type: string) => {
+    const colors: Record<string, string> = {
+      plomberie: "bg-blue-100 text-blue-800 border-blue-200",
+      electricite: "bg-yellow-100 text-yellow-800 border-yellow-200",
+      chauffage: "bg-red-100 text-red-800 border-red-200",
+      serrurerie: "bg-gray-100 text-gray-800 border-gray-200",
+      peinture: "bg-purple-100 text-purple-800 border-purple-200",
+      maintenance: "bg-orange-100 text-orange-800 border-orange-200",
+      autre: "bg-slate-100 text-slate-800 border-slate-200"
+    }
+    return colors[_type?.toLowerCase()] || "bg-slate-100 text-slate-800 border-slate-200"
   }
 
   // Get available actions based on status and user role
@@ -318,18 +397,13 @@ export function InterventionCard({
         break
     }
 
-    // Actions communes (modifier/supprimer) selon le contexte
+    // Actions communes (supprimer uniquement - Edit est maintenant dans le header)
     if (['demande', 'approuvee', 'planification'].includes(intervention.status)) {
       if (userContext === 'gestionnaire' || (userContext === 'locataire' && intervention.status === 'demande')) {
         if (actions.length > 0) {
           actions.push({ separator: true })
         }
         actions.push(
-          {
-            label: "Modifier",
-            icon: Edit,
-            onClick: () => handleAction('edit'),
-          },
           {
             label: "Supprimer",
             icon: Trash2,
@@ -343,8 +417,14 @@ export function InterventionCard({
     return actions
   }
 
+  // Check if user can edit this intervention
+  const canEdit = () => {
+    return ['demande', 'approuvee', 'planification'].includes(intervention.status) &&
+      (userContext === 'gestionnaire' || (userContext === 'locataire' && intervention.status === 'demande'))
+  }
+
   // Handle action clicks
-  const handleAction = (_actionType: string) => {
+  const handleAction = (actionType: string) => {
     logger.info(`[InterventionCard] Action: ${actionType} for intervention ${intervention.id}`)
 
     // Route to specific actions based on type
@@ -427,18 +507,26 @@ export function InterventionCard({
             <h3 className="font-medium text-sm text-slate-900 truncate">
               {intervention.title}
             </h3>
-            <Badge className={`${getStatusColor(intervention.status)} text-xs px-1.5 py-0.5`}>
+            <Badge className={`${getStatusColor(intervention.status)} text-xs px-1.5 py-0.5 flex items-center gap-1`}>
+              {(() => {
+                const StatusIconComponent = iconMap[getStatusIcon(intervention.status)]
+                return StatusIconComponent ? <StatusIconComponent className="h-2.5 w-2.5" /> : null
+              })()}
               {getStatusLabel(intervention.status)}
             </Badge>
-            <Badge className={`${getPriorityColor(intervention.urgency)} text-xs px-1.5 py-0.5`}>
-              {getPriorityLabel(intervention.urgency)}
+            <Badge className={`${getPriorityColor(intervention.urgency || 'normale')} text-xs px-1.5 py-0.5 flex items-center gap-1`}>
+              {(() => {
+                const PriorityIconComponent = iconMap[getPriorityIcon(intervention.urgency || 'normale')]
+                return PriorityIconComponent ? <PriorityIconComponent className="h-2.5 w-2.5" /> : null
+              })()}
+              {getPriorityLabel(intervention.urgency || 'normale')}
             </Badge>
           </div>
 
           {/* Location + Creator + Date */}
           <div className="flex items-center gap-1.5 text-xs text-slate-600 flex-wrap">
             <span className="font-medium">
-              {getInterventionLocationText(intervention)}
+              {getInterventionLocationText(intervention as any)}
             </span>
             <span className="hidden sm:inline">•</span>
             <span className="hidden sm:inline">Créé par {getCreatorName(intervention)}</span>
@@ -496,7 +584,7 @@ export function InterventionCard({
                 {/* Bouton d'annulation pour les statuts éligibles */}
                 {showStatusActions && (
                   <InterventionCancelButton
-                    intervention={intervention}
+                    intervention={intervention as any}
                     variant="dropdown-item"
                   />
                 )}
@@ -508,29 +596,74 @@ export function InterventionCard({
     )
   }
 
-  // Full card rendering
+  // Full card rendering - Material Design spacing équilibré
   return (
-    <Card className="group hover:shadow-sm transition-all duration-200 flex flex-col h-full hover:bg-slate-50/50">
-      <CardContent className="p-0 flex flex-col flex-1">
-        <div className="p-3 sm:p-4 lg:p-5 flex flex-col flex-1">
-          <div className="space-y-2.5 sm:space-y-3 flex-1">
+    <Card
+      className="group hover:shadow-sm transition-all duration-200 flex flex-col hover:bg-slate-50/50 p-0 gap-0 w-full"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <CardContent className="p-4 flex flex-col">
+        <div className="flex flex-col">
+          <div className="space-y-4">
+            {/* Badge action interactif - Affiche les boutons au hover */}
+            <div className={`
+              ${isAlertMode ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-200'}
+              border rounded px-3 py-2.5 transition-all duration-200
+            `}>
+              <div className="flex items-center gap-2.5 w-full">
+                {/* Icône et texte - flex-1 pour prendre l'espace disponible */}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0
+                    ${isAlertMode ? 'bg-orange-100' : 'bg-blue-100'}`}>
+                    <Clock className={`h-3 w-3 ${isAlertMode ? 'text-orange-600' : 'text-blue-600'}`} />
+                  </div>
+                  <p className={`text-sm font-medium leading-snug truncate
+                    ${isAlertMode ? 'text-orange-800' : 'text-blue-800'}`}>
+                    {getStatusActionMessage(intervention.status, userContext)}
+                  </p>
+                </div>
+
+                {/* Boutons d'action - flex-shrink-0 pour qu'ils restent toujours visibles */}
+                {isHovered && (
+                  <div className="flex items-center flex-shrink-0">
+                    <InterventionActionButtons
+                      intervention={intervention as any}
+                      userRole={userContext}
+                      userId={user?.id || ''}
+                      compact={true}
+                      onActionComplete={onActionComplete}
+                      onOpenQuoteModal={actionHooks?.quotingHook?.handleQuoteRequest ?
+                        () => actionHooks.quotingHook?.handleQuoteRequest?.(intervention) : undefined}
+                      onProposeSlots={actionHooks?.planningHook?.handleProgrammingModal ?
+                        () => actionHooks.planningHook?.handleProgrammingModal?.(intervention) : undefined}
+                      timeSlots={(intervention as any).timeSlots || []}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+
             {/* Header Row */}
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center space-x-3 min-w-0 flex-1">
                 {/* Type Icon */}
-                <div className={`w-8 h-8 sm:w-10 sm:h-10 ${typeConfig.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
-                  <IconComponent className={`h-4 w-4 sm:h-5 sm:w-5 ${typeConfig.iconColor}`} />
+                <div 
+                  className={`w-10 h-10 ${typeConfig.color} rounded-lg flex items-center justify-center flex-shrink-0`}
+                  title={intervention.type || "Non spécifié"}
+                >
+                  <IconComponent className={`h-5 w-5 ${typeConfig.iconColor}`} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h3 className="font-semibold text-sm sm:text-base text-slate-900 truncate leading-tight">{intervention.title}</h3>
-                  <div className="flex items-center text-xs text-slate-600 mt-0.5 sm:mt-1 min-w-0">
-                    {getInterventionLocationIcon(intervention) === "building" ? (
-                      <Building2 className="h-3 w-3 mr-1 flex-shrink-0" />
+                  <h3 className="font-semibold text-lg text-slate-900 truncate leading-tight mt-0.5">{intervention.title}</h3>
+                  <div className="flex items-center text-sm font-medium text-slate-600 mt-1 min-w-0">
+                    {getInterventionLocationIcon(intervention as any) === "building" ? (
+                      <Building2 className="h-4 w-4 mr-2 flex-shrink-0" />
                     ) : (
-                      <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                      <MapPin className="h-4 w-4 mr-2 flex-shrink-0" />
                     )}
-                    <span className="truncate">{getInterventionLocationText(intervention)}</span>
-                    {isBuildingWideIntervention(intervention) && (
+                    <span className="truncate">{getInterventionLocationText(intervention as any)}</span>
+                    {isBuildingWideIntervention(intervention as any) && (
                       <Badge variant="secondary" className="ml-1 text-xs px-1.5 py-0.5 hidden sm:inline-flex">
                         Bâtiment entier
                       </Badge>
@@ -539,23 +672,38 @@ export function InterventionCard({
                 </div>
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons: Edit → View → Menu */}
               <div className="flex-shrink-0 flex items-center space-x-1">
+                {canEdit() && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                    onClick={() => handleAction('edit')}
+                    title="Modifier"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                )}
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
-                  className="h-8 w-8 sm:w-auto sm:px-3 p-0 sm:p-2 text-xs flex-shrink-0"
+                  className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
                   onClick={() => router.push(getInterventionUrl(intervention.id))}
+                  title="Voir détails"
                 >
-                  <Eye className="h-3 w-3" />
-                  <span className="hidden sm:inline ml-1">Détails</span>
+                  <Eye className="h-4 w-4" />
                 </Button>
                 {availableActions.length > 0 && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 sm:w-auto sm:px-3 p-0 text-slate-500 hover:text-slate-700">
-                        <MoreVertical className="h-3 w-3" />
-                        <span className="hidden sm:inline ml-1">Action</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-slate-500 hover:text-slate-700"
+                        title="Plus d'actions"
+                      >
+                        <MoreVertical className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
@@ -578,7 +726,7 @@ export function InterventionCard({
                       {/* Bouton d'annulation pour les statuts éligibles */}
                       {showStatusActions && (
                         <InterventionCancelButton
-                          intervention={intervention}
+                          intervention={intervention as any}
                           variant="dropdown-item"
                         />
                       )}
@@ -600,70 +748,72 @@ export function InterventionCard({
               </div>
             )}
 
-            {/* Status & Priority Badges */}
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <Badge className={`${getStatusColor(intervention.status)} text-xs px-1.5 sm:px-2 py-0.5 sm:py-1`}>
+            {/* Category, Priority & Status Badges - Ordre: Catégorie → Urgence → Status */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Catégorie */}
+              <Badge className={`${getTypeBadgeColor(intervention.type || 'autre')} text-xs px-2.5 py-1 border flex items-center gap-1.5`}>
+                {(() => {
+                  const TypeIconComponent = iconMap[getTypeIcon(intervention.type || 'autre')]
+                  return TypeIconComponent ? <TypeIconComponent className="h-3 w-3" /> : null
+                })()}
+                {getTypeLabel(intervention.type || 'autre')}
+              </Badge>
+              {/* Urgence */}
+              <Badge className={`${getPriorityColor(intervention.urgency || 'normale')} text-xs px-2.5 py-1 flex items-center gap-1.5`}>
+                {(() => {
+                  const PriorityIconComponent = iconMap[getPriorityIcon(intervention.urgency || 'normale')]
+                  return PriorityIconComponent ? <PriorityIconComponent className="h-3 w-3" /> : null
+                })()}
+                {getPriorityLabel(intervention.urgency || 'normale')}
+              </Badge>
+              {/* Status */}
+              <Badge className={`${getStatusColor(intervention.status)} text-xs px-2.5 py-1 flex items-center gap-1.5`}>
+                {(() => {
+                  const StatusIconComponent = iconMap[getStatusIcon(intervention.status)]
+                  return StatusIconComponent ? <StatusIconComponent className="h-3 w-3" /> : null
+                })()}
                 {getStatusLabel(intervention.status)}
               </Badge>
-              <Badge className={`${getPriorityColor(intervention.urgency)} text-xs px-1.5 sm:px-2 py-0.5 sm:py-1`}>
-                {getPriorityLabel(intervention.urgency)}
-              </Badge>
             </div>
 
-            {/* Action attendue */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 sm:p-3">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Clock className="h-2.5 w-2.5 text-blue-600" />
-                </div>
-                <p className="text-xs sm:text-sm text-blue-800 font-medium">
-                  {getStatusActionMessage(intervention.status, userContext)}
-                </p>
-              </div>
-            </div>
-
-            {/* Description */}
+            {/* Description - Material Design spacing */}
             {intervention.description && (
-              <p className="text-xs sm:text-sm text-slate-600 line-clamp-2 leading-relaxed">
+              <p className="text-sm text-slate-600 line-clamp-2 leading-relaxed">
                 {intervention.description}
               </p>
             )}
 
-            {/* Stats Row */}
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-              <div className="flex items-center space-x-3 lg:space-x-4 overflow-hidden">
-                {/* Type */}
-                <div className="flex items-center space-x-1.5">
-                  <div className={`w-5 h-5 ${typeConfig.color} rounded-md flex items-center justify-center`}>
-                    <IconComponent className={`h-3 w-3 ${typeConfig.iconColor}`} />
+            {/* Stats Row - Material Design spacing */}
+            <div className="flex items-center justify-between pt-2">
+              <div className="flex items-center space-x-4 overflow-hidden">
+                {/* Created date */}
+                <div className="flex items-center space-x-1.5 py-3">
+                  <div className="w-6 h-6 bg-slate-100 rounded flex items-center justify-center">
+                    <Clock className="h-4 w-4 text-slate-600" />
                   </div>
-                  <span className="text-xs text-slate-600 truncate">
-                    {intervention.type || "Non spécifié"}
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="text-xs text-slate-500">Créée le</span>
+                    <span className="text-sm text-slate-600">
+                      {intervention.created_at
+                        ? new Date(intervention.created_at).toLocaleDateString("fr-FR")
+                        : "Inconnue"}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Schedule */}
-                <div className="flex items-center space-x-1.5">
-                  <div className="w-5 h-5 bg-emerald-100 rounded-md flex items-center justify-center">
-                    <Calendar className="h-3 w-3 text-emerald-600" />
+                <div className="flex items-center space-x-1.5 py-3">
+                  <div className="w-6 h-6 bg-emerald-100 rounded flex items-center justify-center">
+                    <Calendar className="h-4 w-4 text-emerald-600" />
                   </div>
-                  <span className="text-xs text-slate-600 hidden sm:inline">
-                    {intervention.scheduled_date
-                      ? new Date(intervention.scheduled_date).toLocaleDateString("fr-FR")
-                      : "Non prog."}
-                  </span>
-                </div>
-
-                {/* Created date */}
-                <div className="flex items-center space-x-1.5">
-                  <div className="w-5 h-5 bg-slate-100 rounded-md flex items-center justify-center">
-                    <Clock className="h-3 w-3 text-slate-600" />
+                  <div className="flex flex-col">
+                    <span className="text-xs text-slate-500">Programmée</span>
+                    <span className="text-sm text-slate-600">
+                      {intervention.scheduled_date
+                        ? new Date(intervention.scheduled_date).toLocaleDateString("fr-FR")
+                        : "Non prog."}
+                    </span>
                   </div>
-                  <span className="text-xs text-slate-500 hidden md:inline">
-                    {intervention.created_at
-                      ? new Date(intervention.created_at).toLocaleDateString("fr-FR")
-                      : "Inconnue"}
-                  </span>
                 </div>
               </div>
             </div>

@@ -3,18 +3,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Building2 } from "lucide-react"
 import AuthLogo from "@/components/ui/auth-logo"
 import { SignupForm } from "./signup-form"
+import { BetaAccessGate } from "../beta-access-gate"
+import { checkBetaAccess } from "@/lib/beta-access"
 import { logger, logError } from '@/lib/logger'
+
 /**
- * 🔐 PAGE SIGNUP - SERVER COMPONENT (Migration Server Components)
+ * 🔐 PAGE SIGNUP - SERVER COMPONENT (Migration Server Components + Beta Protection)
  *
  * Architecture optimisée:
  * 1. Server Component: Structure statique, layout et navigation
  * 2. Client Component (SignupForm): Interactions et logique de formulaire
  * 3. Rendu côté serveur: SEO optimisé, chargement plus rapide
+ * 4. Beta Protection: Cookie check server-side, affiche BetaAccessGate si non autorisé
  */
 
-export default function SignupPage() {
+export default async function SignupPage() {
   logger.info('🔄 [SIGNUP-SERVER] Signup page rendered server-side')
+
+  // ✅ BETA PROTECTION: Vérifier l'accès beta
+  const hasBetaAccess = await checkBetaAccess()
+
+  if (!hasBetaAccess) {
+    logger.info('🔒 [SIGNUP-SERVER] Beta access denied - showing BetaAccessGate')
+    return <BetaAccessGate />
+  }
+
+  logger.info('✅ [SIGNUP-SERVER] Beta access granted - showing signup form')
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">

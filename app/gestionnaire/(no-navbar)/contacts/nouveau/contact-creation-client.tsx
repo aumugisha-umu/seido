@@ -1,0 +1,580 @@
+"use client"
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
+import { StepProgressHeader } from "@/components/ui/step-progress-header"
+import { contactSteps } from "@/lib/step-configurations"
+import { Button } from "@/components/ui/button"
+import { ArrowLeft } from "lucide-react"
+import { toast } from "sonner"
+import { logger } from "@/lib/logger"
+import { Step1Type } from "./steps/step-1-type"
+import { Step2Company } from "./steps/step-2-company"
+import { Step3Contact } from "./steps/step-3-contact"
+import { Step4Confirmation } from "./steps/step-4-confirmation"
+
+// Types
+interface Company {
+  id: string
+  name: string
+  vat_number?: string | null
+}
+
+interface ContactFormData {
+  // Step 1: Type de contact
+  contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre'
+  personOrCompany: 'person' | 'company'
+  specialty?: string
+
+  // Step 2: Informations société (si company)
+  companyMode: 'new' | 'existing'
+  companyId?: string
+  companyName?: string
+  vatNumber?: string
+  street?: string
+  streetNumber?: string
+  postalCode?: string
+  city?: string
+  country?: string
+
+  // Step 3: Informations contact
+  firstName?: string
+  lastName?: string
+  email: string
+  phone?: string
+  notes?: string
+
+  // Step 4: Invitation
+  inviteToApp: boolean
+}
+
+interface ContactCreationClientProps {
+  teamId: string
+  initialCompanies: Company[]
+  // Redirect parameters when coming from another form (e.g., building creation)
+  prefilledType?: string | null
+  sessionKey?: string | null
+  returnUrl?: string | null
+}
+
+export function ContactCreationClient({
+  teamId,
+  initialCompanies,
+  prefilledType,
+  sessionKey,
+  returnUrl
+}: ContactCreationClientProps) {
+  const router = useRouter()
+  const [currentStep, setCurrentStep] = useState(1)
+  const [isCreating, setIsCreating] = useState(false)
+
+  // Mapping des types anglais (ContactSelector) vers français (formulaire)
+  const mapContactType = (type: string | null | undefined): ContactFormData['contactType'] => {
+    if (!type) return 'locataire'
+
+    const mapping: Record<string, ContactFormData['contactType']> = {
+      'tenant': 'locataire',
+      'provider': 'prestataire',
+      'manager': 'gestionnaire',
+      'owner': 'proprietaire',
+      'other': 'autre',
+      // Support direct des valeurs françaises aussi
+      'locataire': 'locataire',
+      'prestataire': 'prestataire',
+      'gestionnaire': 'gestionnaire',
+      'proprietaire': 'proprietaire',
+      'autre': 'autre'
+    }
+
+    return mapping[type.toLowerCase()] || 'locataire'
+  }
+
+  // État du formulaire avec pré-remplissage si venant d'un autre formulaire
+  const [formData, setFormData] = useState<ContactFormData>({
+    contactType: mapContactType(prefilledType),
+    personOrCompany: 'person',
+    companyMode: 'new',
+    email: '',
+    country: 'Belgique',
+    inviteToApp: true
+  })
+
+  // Gérer les changements de formulaire
+  const handleInputChange = (field: keyof ContactFormData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+  }
+
+  // Validation par étape (pour vérifier si le bouton doit être désactivé)
+  const isCurrentStepValid = (): boolean => {
+    switch (currentStep) {
+      case 1: // Type de contact
+        if (!formData.contactType) return false
+        if (!formData.personOrCompany) return false
+        if (formData.contactType === 'prestataire' && !formData.specialty) return false
+        return true
+
+      case 2: // Informations société (seulement si company)
+        if (formData.personOrCompany === 'company') {
+          if (formData.companyMode === 'existing') {
+            if (!formData.companyId) return false
+          } else {
+            // Nouvelle société
+            if (!formData.companyName?.trim()) return false
+            if (!formData.vatNumber?.trim()) return false
+            if (!formData.street?.trim()) return false
+            if (!formData.streetNumber?.trim()) return false
+            if (!formData.postalCode?.trim()) return false
+            if (!formData.city?.trim()) return false
+            if (!formData.country?.trim()) return false
+          }
+        }
+        return true
+
+      case 3: // Informations contact
+        // Validation email conditionnelle selon inviteToApp
+        if (formData.inviteToApp) {
+          // Email obligatoire si invitation activée
+          if (!formData.email?.trim()) return false
+          // Validation basique email
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+          if (!emailRegex.test(formData.email)) return false
+        } else {
+          // Email optionnel - valider format seulement si fourni
+          if (formData.email?.trim()) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            if (!emailRegex.test(formData.email)) return false
+          }
+
+          // Pour les contacts société sans invitation : au moins email OU téléphone requis
+          if (formData.personOrCompany === 'company') {
+            const hasEmail = formData.email?.trim()
+            const hasPhone = formData.phone?.trim()
+            if (!hasEmail && !hasPhone) return false
+          }
+        }
+
+        // Si personne physique, prénom OU nom requis
+        if (formData.personOrCompany === 'person') {
+          if (!formData.firstName?.trim() && !formData.lastName?.trim()) return false
+        }
+        return true
+
+      case 4: // Confirmation - toujours valide
+        return true
+
+      default:
+        return true
+    }
+  }
+
+  // Validation par étape (pour afficher les erreurs)
+  const validateCurrentStep = (): { valid: boolean; errors: string[] } => {
+    const errors: string[] = []
+
+    switch (currentStep) {
+      case 1: // Type de contact
+        if (!formData.contactType) errors.push("Sélectionnez un type de contact")
+        if (!formData.personOrCompany) errors.push("Sélectionnez Personne ou Société")
+        if (formData.contactType === 'prestataire' && !formData.specialty) {
+          errors.push("Sélectionnez une spécialité pour le prestataire")
+        }
+        break
+
+      case 2: // Informations société (seulement si company)
+        if (formData.personOrCompany === 'company') {
+          if (formData.companyMode === 'existing') {
+            if (!formData.companyId) errors.push("Sélectionnez une société existante")
+          } else {
+            // Nouvelle société
+            if (!formData.companyName?.trim()) errors.push("Nom de la société requis")
+            if (!formData.vatNumber?.trim()) errors.push("Numéro de TVA requis")
+            if (!formData.street?.trim()) errors.push("Rue requise")
+            if (!formData.streetNumber?.trim()) errors.push("Numéro de rue requis")
+            if (!formData.postalCode?.trim()) errors.push("Code postal requis")
+            if (!formData.city?.trim()) errors.push("Ville requise")
+            if (!formData.country?.trim()) errors.push("Pays requis")
+          }
+        }
+        break
+
+      case 3: // Informations contact
+        // Validation email conditionnelle selon inviteToApp
+        if (formData.inviteToApp) {
+          // Email obligatoire si invitation activée
+          if (!formData.email?.trim()) {
+            errors.push("Email requis")
+          } else {
+            // Validation basique email
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            if (!emailRegex.test(formData.email)) {
+              errors.push("Email invalide")
+            }
+          }
+        } else {
+          // Email optionnel - valider format seulement si fourni
+          if (formData.email?.trim()) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            if (!emailRegex.test(formData.email)) {
+              errors.push("Email invalide")
+            }
+          }
+
+          // Pour les contacts société sans invitation : au moins email OU téléphone requis
+          if (formData.personOrCompany === 'company') {
+            const hasEmail = formData.email?.trim()
+            const hasPhone = formData.phone?.trim()
+            if (!hasEmail && !hasPhone) {
+              errors.push("Au moins un email ou un numéro de téléphone est requis pour un contact société")
+            }
+          }
+        }
+
+        // Si personne physique, prénom OU nom requis
+        if (formData.personOrCompany === 'person') {
+          if (!formData.firstName?.trim() && !formData.lastName?.trim()) {
+            errors.push("Prénom ou nom requis")
+          }
+        }
+        break
+
+      case 4: // Confirmation - pas de validation
+        break
+    }
+
+    return { valid: errors.length === 0, errors }
+  }
+
+  // Navigation: Suivant
+  const handleNext = () => {
+    const validation = validateCurrentStep()
+
+    if (!validation.valid) {
+      validation.errors.forEach(error => {
+        toast.error(error)
+      })
+      return
+    }
+
+    // Skip step 2 si personne physique
+    if (currentStep === 1 && formData.personOrCompany === 'person') {
+      setCurrentStep(3)
+    } else if (currentStep < contactSteps.length) {
+      setCurrentStep(currentStep + 1)
+    }
+  }
+
+  // Navigation: Retour
+  const handleBack = () => {
+    // Skip step 2 au retour aussi si personne physique
+    if (currentStep === 3 && formData.personOrCompany === 'person') {
+      setCurrentStep(1)
+    } else if (currentStep > 1) {
+      setCurrentStep(currentStep - 1)
+    }
+  }
+
+  // Helper pour formater la spécialité
+  const getSpecialtyLabel = (value: string): string => {
+    const labels: Record<string, string> = {
+      plomberie: 'Plomberie',
+      electricite: 'Électricité',
+      chauffage: 'Chauffage',
+      serrurerie: 'Serrurerie',
+      peinture: 'Peinture et revêtements',
+      menage: 'Ménage et nettoyage',
+      jardinage: 'Jardinage et espaces verts',
+      autre: 'Autre'
+    }
+    return labels[value] || value
+  }
+
+  // Générer le message de succès contextuel
+  const getSuccessMessage = (): string => {
+    const contactName = formData.firstName && formData.lastName
+      ? `${formData.firstName} ${formData.lastName}`
+      : formData.firstName || formData.lastName || formData.email
+
+    const specialtyText = formData.contactType === 'prestataire' && formData.specialty
+      ? ` (${getSpecialtyLabel(formData.specialty)})`
+      : ''
+
+    // A. Personne physique seule
+    if (formData.personOrCompany === 'person') {
+      if (formData.inviteToApp) {
+        return `${contactName}${specialtyText} ajouté et invité avec succès !`
+      }
+      return `${contactName}${specialtyText} ajouté avec succès !`
+    }
+
+    // B. Nouvelle société
+    if (formData.companyMode === 'new') {
+      const hasContactPerson = formData.firstName || formData.lastName
+
+      if (hasContactPerson) {
+        if (formData.inviteToApp) {
+          return `${contactName}${specialtyText} et la société ${formData.companyName} créés et invitation envoyée !`
+        }
+        return `${contactName}${specialtyText} et la société ${formData.companyName} créés avec succès !`
+      } else {
+        if (formData.inviteToApp) {
+          return `Société ${formData.companyName} créée et invitation envoyée à ${formData.email} !`
+        }
+        return `Société ${formData.companyName} créée avec succès !`
+      }
+    }
+
+    // C. Société existante
+    const selectedCompany = formData.companyId
+      ? initialCompanies.find(c => c.id === formData.companyId)
+      : null
+    const companyDisplayName = selectedCompany?.name || formData.companyName || 'la société'
+
+    if (formData.inviteToApp) {
+      return `${contactName}${specialtyText} ajouté à ${companyDisplayName} et invité !`
+    }
+    return `${contactName}${specialtyText} ajouté à ${companyDisplayName} avec succès !`
+  }
+
+  // Création du contact
+  const handleCreate = async () => {
+    setIsCreating(true)
+
+    try {
+      logger.info("📤 [CREATE-CONTACT] Submitting contact creation", { formData })
+
+      // Préparer les données à envoyer
+      const payload: any = {
+        teamId,
+        role: formData.contactType,
+        contactType: formData.personOrCompany,
+        speciality: formData.specialty,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        notes: formData.notes,
+        shouldInviteToApp: formData.inviteToApp
+      }
+
+      // Ajouter les champs société uniquement si contactType === 'company'
+      if (formData.personOrCompany === 'company') {
+        payload.companyMode = formData.companyMode
+        payload.companyId = formData.companyId
+        payload.companyName = formData.companyName
+        payload.vatNumber = formData.vatNumber
+        payload.street = formData.street
+        payload.streetNumber = formData.streetNumber
+        payload.postalCode = formData.postalCode
+        payload.city = formData.city
+        payload.country = formData.country
+      }
+
+      const response = await fetch('/api/invite-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Erreur lors de la création du contact')
+      }
+
+      // Récupérer l'ID du contact créé
+      const result = await response.json()
+      const newContactId = result.userId || result.contactId || result.id
+
+      logger.info("✅ [CREATE-CONTACT] Contact created successfully", { newContactId, result })
+      toast.success(getSuccessMessage())
+
+      // Redirection: Retour au formulaire d'origine si returnUrl fourni, sinon liste des contacts
+      if (returnUrl && sessionKey) {
+        // Créer un objet contact minimal pour le formulaire de retour
+        const contactData = {
+          id: newContactId,
+          name: formData.personOrCompany === 'person'
+            ? `${formData.firstName || ''} ${formData.lastName || ''}`.trim() || 'Contact créé'
+            : formData.companyName || 'Société créée',
+          email: formData.email || '',
+          type: formData.contactType,
+          phone: formData.phone || '',
+          speciality: formData.specialty || ''
+        }
+
+        // Stocker les données du contact dans sessionStorage avec le sessionKey
+        try {
+          sessionStorage.setItem(`contact-data-${sessionKey}`, JSON.stringify(contactData))
+          logger.info(`💾 [CREATE-CONTACT] Contact data saved to sessionStorage`)
+        } catch (err) {
+          logger.error(`❌ [CREATE-CONTACT] Failed to save contact data:`, err)
+        }
+
+        const redirectUrl = `${returnUrl}?sessionKey=${sessionKey}&newContactId=${newContactId}&contactType=${formData.contactType}`
+        logger.info(`🔙 [CREATE-CONTACT] Returning to origin: ${redirectUrl}`)
+        router.push(redirectUrl)
+      } else {
+        router.push('/gestionnaire/contacts')
+        router.refresh()
+      }
+    } catch (error) {
+      logger.error("❌ [CREATE-CONTACT] Error:", error)
+      toast.error(error instanceof Error ? error.message : 'Erreur lors de la création')
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  // Déterminer le sous-titre du header
+  const getStepSubtitle = () => {
+    switch (currentStep) {
+      case 1:
+        return "Sélectionnez le type de contact"
+      case 2:
+        return "Informations de la société"
+      case 3:
+        return "Coordonnées du contact"
+      case 4:
+        return "Vérifiez les informations"
+      default:
+        return ""
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-50">
+      {/* Header avec progression */}
+      <StepProgressHeader
+        title="Créer un contact"
+        subtitle={getStepSubtitle()}
+        backButtonText={returnUrl ? "Annuler" : "Retour à la liste"}
+        onBack={() => {
+          if (returnUrl) {
+            // Retour au formulaire d'origine sans créer de contact
+            // Si sessionKey existe, on le passe pour restaurer l'état du formulaire
+            const redirectUrl = sessionKey
+              ? `${returnUrl}?sessionKey=${sessionKey}&cancelled=true`
+              : returnUrl // Pas de sessionKey = retour simple (cas de intervention-detail)
+            logger.info(`🔙 [CREATE-CONTACT] Cancelled, returning to origin: ${redirectUrl}`)
+            router.push(redirectUrl)
+          } else {
+            router.push('/gestionnaire/contacts')
+          }
+        }}
+        steps={contactSteps}
+        currentStep={currentStep}
+      />
+
+      {/* Contenu principal (scrollable) */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pt-4 pb-20">
+        <div className="content-max-width">
+          {/* Step content will be rendered here */}
+          <div className="bg-white rounded-lg border shadow-sm p-6 transition-all duration-500">
+            {currentStep === 1 && (
+              <Step1Type
+                contactType={formData.contactType}
+                personOrCompany={formData.personOrCompany}
+                specialty={formData.specialty}
+                onContactTypeChange={(value) => handleInputChange('contactType', value)}
+                onPersonOrCompanyChange={(value) => handleInputChange('personOrCompany', value)}
+                onSpecialtyChange={(value) => handleInputChange('specialty', value)}
+              />
+            )}
+
+            {currentStep === 2 && (
+              <Step2Company
+                teamId={teamId}
+                companies={initialCompanies}
+                companyMode={formData.companyMode}
+                companyId={formData.companyId}
+                companyName={formData.companyName}
+                vatNumber={formData.vatNumber}
+                street={formData.street}
+                streetNumber={formData.streetNumber}
+                postalCode={formData.postalCode}
+                city={formData.city}
+                country={formData.country}
+                onFieldChange={handleInputChange}
+              />
+            )}
+
+            {currentStep === 3 && (
+              <Step3Contact
+                personOrCompany={formData.personOrCompany}
+                firstName={formData.firstName}
+                lastName={formData.lastName}
+                email={formData.email}
+                phone={formData.phone}
+                notes={formData.notes}
+                inviteToApp={formData.inviteToApp}
+                onFieldChange={handleInputChange}
+              />
+            )}
+
+            {currentStep === 4 && (
+              <Step4Confirmation
+                contactType={formData.contactType}
+                personOrCompany={formData.personOrCompany}
+                specialty={formData.specialty}
+                companyMode={formData.companyMode}
+                companyId={formData.companyId}
+                companyName={formData.companyName}
+                vatNumber={formData.vatNumber}
+                street={formData.street}
+                streetNumber={formData.streetNumber}
+                postalCode={formData.postalCode}
+                city={formData.city}
+                country={formData.country}
+                firstName={formData.firstName}
+                lastName={formData.lastName}
+                email={formData.email}
+                phone={formData.phone}
+                notes={formData.notes}
+                inviteToApp={formData.inviteToApp}
+                onInviteChange={(value) => handleInputChange('inviteToApp', value)}
+                companies={initialCompanies}
+              />
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer avec navigation */}
+      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">
+        <div className={`flex flex-col sm:flex-row gap-2 content-max-width ${currentStep === 1 ? 'justify-end' : 'justify-between'}`}>
+          {/* Bouton Retour - Affiché seulement à partir de step 2 */}
+          {currentStep > 1 && (
+            <Button
+              variant="outline"
+              onClick={handleBack}
+              disabled={isCreating}
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Retour
+            </Button>
+          )}
+
+          {/* Bouton Suivant/Créer - Toujours affiché */}
+          <Button
+            onClick={() => {
+              if (currentStep === contactSteps.length) {
+                handleCreate()
+              } else {
+                handleNext()
+              }
+            }}
+            disabled={isCreating || !isCurrentStepValid()}
+            className={currentStep === contactSteps.length ? 'bg-green-600 hover:bg-green-700' : ''}
+          >
+            {isCreating ? (
+              "Création en cours..."
+            ) : currentStep === contactSteps.length ? (
+              "Créer le contact"
+            ) : (
+              "Continuer"
+            )}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}

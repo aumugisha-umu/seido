@@ -182,9 +182,10 @@ export class UserService {
 
   /**
    * Get users by team
+   * @param excludeUserId - Optional user ID to exclude from results (e.g., current user)
    */
-  async getUsersByTeam(teamId: string) {
-    return this.repository.findByTeam(teamId)
+  async getUsersByTeam(teamId: string, excludeUserId?: string) {
+    return this.repository.findByTeam(teamId, excludeUserId)
   }
 
   /**

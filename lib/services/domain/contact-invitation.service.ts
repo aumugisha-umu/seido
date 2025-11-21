@@ -8,9 +8,11 @@ import type { ServiceResult, Contact, User } from '../core/service-types'
 import { logger, logError } from '@/lib/logger'
 /**
  * Contact data for invitation flow
+ * Supports both person and company contacts
  */
 export interface ContactInvitationData {
   type: string
+  contactType?: 'person' | 'company' // Type de contact
   firstName: string
   lastName: string
   email: string
@@ -19,6 +21,16 @@ export interface ContactInvitationData {
   notes?: string
   inviteToApp: boolean
   teamId: string
+  // Champs société
+  companyMode?: 'new' | 'existing'
+  companyId?: string | null
+  companyName?: string
+  vatNumber?: string
+  street?: string
+  streetNumber?: string
+  postalCode?: string
+  city?: string
+  country?: string
 }
 
 /**
@@ -87,7 +99,18 @@ export class ContactInvitationService {
             phone: sanitizedPhone,
             notes: contactData.notes,
             speciality: contactData.speciality,
-            shouldInviteToApp: contactData.inviteToApp
+            shouldInviteToApp: contactData.inviteToApp,
+            // Champs société
+            contactType: contactData.contactType,
+            companyMode: contactData.companyMode,
+            companyId: contactData.companyId,
+            companyName: contactData.companyName,
+            vatNumber: contactData.vatNumber,
+            street: contactData.street,
+            streetNumber: contactData.streetNumber,
+            postalCode: contactData.postalCode,
+            city: contactData.city,
+            country: contactData.country
           })
         })
 
@@ -129,7 +152,18 @@ export class ContactInvitationService {
             phone: sanitizedPhone,
             notes: contactData.notes,
             speciality: contactData.speciality,
-            shouldInviteToApp: false // ✅ Skip the Supabase auth invitation
+            shouldInviteToApp: false, // ✅ Skip the Supabase auth invitation
+            // Champs société
+            contactType: contactData.contactType,
+            companyMode: contactData.companyMode,
+            companyId: contactData.companyId,
+            companyName: contactData.companyName,
+            vatNumber: contactData.vatNumber,
+            street: contactData.street,
+            streetNumber: contactData.streetNumber,
+            postalCode: contactData.postalCode,
+            city: contactData.city,
+            country: contactData.country
           }),
           signal: controller.signal // ✅ Ajouter le signal pour timeout
         }).finally(() => clearTimeout(timeoutId)) // ✅ Nettoyer le timeout

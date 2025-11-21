@@ -1,11 +1,10 @@
-"use client"
+﻿"use client"
 
-import { useState } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Search, Filter, ChevronDown } from "lucide-react"
 
@@ -27,6 +26,7 @@ interface FilterConfig {
 interface ContentNavigatorProps {
   tabs: TabConfig[]
   defaultTab?: string
+  activeTab?: string
   searchPlaceholder?: string
   filters?: FilterConfig[]
   onSearch?: (_value: string) => void
@@ -34,11 +34,13 @@ interface ContentNavigatorProps {
   onResetFilters?: () => void
   className?: string
   filterValues?: { [key: string]: string }
+  rightControls?: React.ReactNode
 }
 
 export default function ContentNavigator({
   tabs,
   defaultTab,
+  activeTab: controlledActiveTab,
   searchPlaceholder = "Rechercher...",
   filters = [],
   onSearch,
@@ -46,11 +48,48 @@ export default function ContentNavigator({
   onResetFilters,
   className = "",
   filterValues = {},
+  rightControls,
 }: ContentNavigatorProps) {
   const [showFilters, setShowFilters] = useState(false)
   const [showSearchPopover, setShowSearchPopover] = useState(false)
   const [searchValue, setSearchValue] = useState("")
-  const [activeTab, setActiveTab] = useState(defaultTab || tabs[0]?.id)
+
+  // ✅ FIX 1: Initialize with controlled value OR defaultTab OR first tab (lazy initialization)
+  const [internalActiveTab, setInternalActiveTab] = useState(() => {
+    if (controlledActiveTab !== undefined) return controlledActiveTab
+    if (defaultTab) return defaultTab
+    return tabs[0]?.id || ''
+  })
+
+  // ✅ FIX 2: Memoize tabs structure to prevent unnecessary effects (only when tab IDs change)
+  const stableTabIds = useMemo(() => tabs.map(t => t.id).join(','), [tabs.length, tabs[0]?.id, tabs[tabs.length - 1]?.id])
+
+  // Use controlled activeTab if provided, otherwise use internal state
+  const activeTab = controlledActiveTab !== undefined ? controlledActiveTab : internalActiveTab
+
+  // ✅ FIX 3: Improved useEffect - only update when truly necessary
+  useEffect(() => {
+    // Case 1: Controlled mode - parent controls the active tab
+    if (controlledActiveTab !== undefined) {
+      if (tabs.some(tab => tab.id === controlledActiveTab)) {
+        setInternalActiveTab(controlledActiveTab)
+      }
+      return // Exit early - don't apply defaultTab logic in controlled mode
+    }
+
+    // Case 2: Uncontrolled mode - only reset if current tab no longer exists in tabs array
+    const currentTabExists = tabs.some(tab => tab.id === internalActiveTab)
+
+    if (!currentTabExists) {
+      // Current tab disappeared, fallback to defaultTab or first tab
+      if (defaultTab && tabs.some(tab => tab.id === defaultTab)) {
+        setInternalActiveTab(defaultTab)
+      } else if (tabs[0]) {
+        setInternalActiveTab(tabs[0].id)
+      }
+    }
+    // ✅ CRITICAL: Don't reset if current tab still exists!
+  }, [controlledActiveTab, stableTabIds, defaultTab])
 
   const handleSearchChange = (_value: string) => {
     setSearchValue(_value)
@@ -62,7 +101,10 @@ export default function ContentNavigator({
   }
 
   const handleTabChange = (_tabId: string) => {
-    setActiveTab(_tabId)
+    if (controlledActiveTab === undefined) {
+      setInternalActiveTab(_tabId)
+    }
+    // If controlledActiveTab is provided, parent controls it, so we don't update state
   }
 
   const activeTabData = tabs.find(tab => tab.id === activeTab) || tabs[0]
@@ -85,30 +127,55 @@ export default function ContentNavigator({
     })
   }
 
+  // Détecter si c'est un usage compact (dashboard) via className
+  const isCompact = className.includes('flex-1') || className.includes('min-h-0')
+  
+  // Détecter si c'est le contexte dashboard (embedded sans bordure)
+  const isDashboardEmbedded = className.includes('bg-transparent') || className.includes('border-0')
+
   return (
-    <Card className={className}>
-      <CardContent className="pt-0 space-y-2">
+    <div className={`flex-1 min-h-0 flex flex-col ${!isDashboardEmbedded ? 'border border-slate-200 rounded-lg shadow-sm bg-white' : ''} ${className}`}>
+      {/* Padding container - pas de padding sur dashboard embedded */}
+      <div className={`${
+        isDashboardEmbedded 
+          ? 'space-y-1 flex-1 flex flex-col min-h-0'
+          : isCompact 
+            ? 'p-4 space-y-1 flex-1 flex flex-col min-h-0' 
+            : 'p-6 space-y-2 flex-1 flex flex-col min-h-0'
+      }`}>
         {/* Navigation Controls */}
-        <div className="space-y-2">
+        <div className={`${isCompact ? 'space-y-1 flex-shrink-0' : 'space-y-2 flex-shrink-0'}`}>
           {/* Mobile Layout - Single Row */}
           <div className="block md:hidden">
             {/* Mobile: Selector + Search + Filters on same line */}
-            <div className="flex gap-2">
-              {/* Mobile Tab Dropdown - Flex to fit content */}
-              <div className="flex-1 min-w-0">
+            <div className="flex gap-2 items-center">
+              {/* Mobile Tab Dropdown - Auto width to fit content */}
+              <div className="flex-shrink-0">
                 <Select value={activeTab} onValueChange={handleTabChange}>
-                  <SelectTrigger className="h-10 bg-slate-50 border-slate-200">
+                  <SelectTrigger className={`${isCompact ? 'h-8' : 'h-10'} bg-slate-50 border-slate-200`}>
                     <SelectValue>
                       <div className="flex items-center">
                         {activeTabData && (
                           <>
-                            <activeTabData.icon className="h-4 w-4 mr-2" />
-                            <span className="mr-2">{activeTabData.label}</span>
-                            {activeTabData.count !== undefined && (
-                              <Badge variant="secondary" className="text-xs bg-slate-200 text-slate-700">
-                                {activeTabData.count}
-                              </Badge>
-                            )}
+                            {(() => {
+                              const isAlertTab = activeTabData.id === "actions_en_attente"
+                              const IconComponent = activeTabData.icon
+                              return (
+                                <>
+                                  <IconComponent className={`h-4 w-4 mr-2 ${isAlertTab ? 'text-orange-600' : ''}`} />
+                                  <span className={`mr-2 ${isAlertTab ? 'text-orange-700' : ''}`}>{activeTabData.label}</span>
+                                  {activeTabData.count !== undefined && (
+                                    <Badge variant="secondary" className={`text-xs ${
+                                      isAlertTab 
+                                        ? 'bg-orange-100 text-orange-800 border-orange-200' 
+                                        : 'bg-slate-200 text-slate-700'
+                                    }`}>
+                                      {activeTabData.count}
+                                    </Badge>
+                                  )}
+                                </>
+                              )
+                            })()}
                           </>
                         )}
                       </div>
@@ -117,13 +184,18 @@ export default function ContentNavigator({
                   <SelectContent>
                     {tabs.map((tab) => {
                       const IconComponent = tab.icon
+                      const isAlertTab = tab.id === "actions_en_attente"
                       return (
                         <SelectItem key={tab.id} value={tab.id}>
                           <div className="flex items-center w-full">
-                            <IconComponent className="h-4 w-4 mr-2" />
-                            <span className="mr-2">{tab.label}</span>
+                            <IconComponent className={`h-4 w-4 mr-2 ${isAlertTab ? 'text-orange-600' : ''}`} />
+                            <span className={`mr-2 ${isAlertTab ? 'text-orange-700' : ''}`}>{tab.label}</span>
                             {tab.count !== undefined && (
-                              <Badge variant="secondary" className="ml-auto text-xs bg-slate-200 text-slate-700">
+                              <Badge variant="secondary" className={`ml-auto text-xs ${
+                                isAlertTab 
+                                  ? 'bg-orange-100 text-orange-800 border-orange-200' 
+                                  : 'bg-slate-200 text-slate-700'
+                              }`}>
                                 {tab.count}
                               </Badge>
                             )}
@@ -140,7 +212,7 @@ export default function ContentNavigator({
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-10 px-3 text-slate-600 hover:text-slate-900 border-slate-200"
+                    className={`${isCompact ? 'h-8' : 'h-10'} px-3 text-slate-600 hover:text-slate-900 border-slate-200`}
                   >
                     <Search className="h-4 w-4" />
                   </Button>
@@ -166,7 +238,7 @@ export default function ContentNavigator({
                     variant="outline"
                     size="sm"
                     onClick={() => setShowFilters(!showFilters)}
-                    className="h-10 px-3 text-slate-600 hover:text-slate-900 border-slate-200"
+                    className={`${isCompact ? 'h-8' : 'h-10'} px-3 text-slate-600 hover:text-slate-900 border-slate-200`}
                   >
                     <Filter className="h-4 w-4" />
                     <ChevronDown className={`h-4 w-4 ml-1 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
@@ -245,13 +317,14 @@ export default function ContentNavigator({
           </div>
 
           {/* Tablet & Desktop Layout - Single Row */}
-          <div className="hidden md:flex md:items-center gap-4">
+          <div className={`hidden md:flex md:items-center ${isCompact ? 'gap-2' : 'gap-4'}`}>
             {/* Tablet & Desktop Tabs - Responsive Width */}
             <div className="flex-shrink-0">
-              <div className={`inline-flex h-10 bg-slate-100 rounded-md p-1 overflow-x-auto`}>
+              <div className={`inline-flex ${isCompact ? 'h-8' : 'h-10'} bg-slate-100 rounded-md p-1 overflow-x-auto`}>
                 {tabs.map((tab) => {
                   const IconComponent = tab.icon
                   const isActive = activeTab === tab.id
+                  const isAlertTab = tab.id === "actions_en_attente"
                   return (
                     <button
                       key={tab.id}
@@ -259,18 +332,29 @@ export default function ContentNavigator({
                       className={`
                         inline-flex items-center justify-center whitespace-nowrap rounded-sm px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50
                         ${isActive 
-                          ? 'bg-white text-sky-600 shadow-sm' 
-                          : 'text-slate-600 hover:bg-slate-200/60'
+                          ? isAlertTab
+                            ? 'bg-orange-50 text-orange-700 shadow-sm border border-orange-200'
+                            : 'bg-white text-sky-600 shadow-sm' 
+                          : isAlertTab
+                            ? 'text-orange-600 hover:bg-orange-50'
+                            : 'text-slate-600 hover:bg-slate-200/60'
                         }
                       `}
                     >
-                      <IconComponent className="h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2" />
+                      <IconComponent className={`h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 ${isActive 
+                        ? isAlertTab ? 'text-orange-700' : 'text-sky-600'
+                        : isAlertTab ? 'text-orange-600' : 'text-slate-600'
+                      }`} />
                       {tab.label}
                       {tab.count !== undefined && (
                         <Badge variant="secondary" className={`ml-1 md:ml-2 text-xs ${
                           isActive 
-                            ? 'bg-sky-100 text-sky-800' 
-                            : 'bg-slate-200 text-slate-700'
+                            ? isAlertTab
+                              ? 'bg-orange-100 text-orange-800 border-orange-200'
+                              : 'bg-sky-100 text-sky-800' 
+                            : isAlertTab
+                              ? 'bg-orange-50 text-orange-700 border-orange-200'
+                              : 'bg-slate-200 text-slate-700'
                         }`}>
                           {tab.count}
                         </Badge>
@@ -281,29 +365,17 @@ export default function ContentNavigator({
               </div>
             </div>
 
-            {/* Desktop Search Bar - Takes all available space */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
-              <Input 
-                placeholder={searchPlaceholder}
-                className="pl-10 h-10"
-                value={searchValue}
-                onChange={(e) => handleSearchChange(e.target.value)}
-              />
-            </div>
-
-            {/* Desktop Filters Button - Fixed to the right */}
+            {/* Desktop Filters Button - Icon only, before search */}
             {filters.length > 0 && (
               <div className="relative flex-shrink-0">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setShowFilters(!showFilters)}
-                  className="h-10 px-3 text-slate-600 hover:text-slate-900 border-slate-200"
+                  className="h-10 w-10 p-0 text-slate-600 hover:text-slate-900 border-slate-200"
+                  title="Filtres"
                 >
-                  <Filter className="h-4 w-4 mr-2" />
-                  <span>Filtres</span>
-                  <ChevronDown className={`h-4 w-4 ml-1 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
+                  <Filter className="h-4 w-4" />
                 </Button>
 
                 {/* Filters Dropdown Panel - Desktop */}
@@ -375,15 +447,33 @@ export default function ContentNavigator({
                 )}
               </div>
             )}
+
+            {/* Desktop Search Bar - Takes all available space */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 h-4 w-4" />
+              <Input
+                placeholder={searchPlaceholder}
+                className="pl-10 h-10"
+                value={searchValue}
+                onChange={(e) => handleSearchChange(e.target.value)}
+              />
+            </div>
+
+            {/* Right Controls (e.g., view switcher) */}
+            {rightControls && (
+              <div className="flex-shrink-0">
+                {rightControls}
+              </div>
+            )}
           </div>
 
         </div>
 
         {/* Tab Content */}
-        <div className="mt-2">
+        <div className="mt-2 flex-1 flex flex-col min-h-0 overflow-y-auto">
           {activeTabData?.content}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

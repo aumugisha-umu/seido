@@ -9,7 +9,9 @@ import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { logger, logError } from '@/lib/logger'
+import { Separator } from "@/components/ui/separator"
+import { logger } from '@/lib/logger'
+import { cn } from "@/lib/utils"
 import {
   getInterventionLocationText,
   getInterventionLocationIcon,
@@ -77,7 +79,7 @@ export const QuoteRequestModal = ({
     const relevantProviders = providers.filter(provider => {
       // Si le prestataire n'a pas de catégorie définie, l'inclure par défaut
       if (!provider.provider_category) return true
-      
+
       // Si l'intervention n'a pas de type spécifié, inclure tous les prestataires
       if (!intervention.type) return true
 
@@ -110,8 +112,20 @@ export const QuoteRequestModal = ({
 
   const selectedProvider = filteredProviders.find(p => p.id === selectedProviderId)
 
+  const isFormValid = () => {
+    return selectedProviderId !== ""
+  }
+
   const handleSubmit = () => {
-    if (!selectedProviderId) return
+    if (!isFormValid()) return
+
+    logger.info('📋 Soumission demande de devis', {
+      providerId: selectedProviderId,
+      providerName: selectedProvider?.name,
+      deadline: deadline,
+      notes: additionalNotes
+    })
+
     onSubmit()
   }
 
@@ -169,111 +183,123 @@ export const QuoteRequestModal = ({
           </div>
 
           {/* Sélection du prestataire */}
-          <div className="space-y-3">
-            <Label htmlFor="provider-select" className="text-sm font-medium text-slate-900">
-              Prestataire *
-            </Label>
+          <div className="space-y-6">
+            <div className="space-y-3">
+              <Label htmlFor="provider-select" className="text-sm font-medium text-slate-900">
+                Prestataire *
+              </Label>
+              <p className="text-xs text-slate-500">
+                Sélectionnez le prestataire qui recevra la demande de devis
+              </p>
 
-            <Select value={selectedProviderId} onValueChange={(value) => {
-              const provider = filteredProviders.find(p => p.id === value)
-              if (provider) {
-                onProviderSelect(value, provider.name)
-              }
-            }}>
-              <SelectTrigger>
-                <SelectValue placeholder="Sélectionner un prestataire..." />
-              </SelectTrigger>
-              <SelectContent>
-                {filteredProviders.map((provider) => (
-                  <SelectItem key={provider.id} value={provider.id}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{provider.name}</span>
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <span>{provider.email}</span>
-                        {provider.provider_category && (
-                          <>
-                            <span>•</span>
-                            <span className="capitalize">{provider.provider_category}</span>
-                          </>
-                        )}
+              <Select value={selectedProviderId} onValueChange={(value) => {
+                const provider = filteredProviders.find(p => p.id === value)
+                if (provider) {
+                  onProviderSelect(value, provider.name)
+                }
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Sélectionner un prestataire..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredProviders.map((provider) => (
+                    <SelectItem key={provider.id} value={provider.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{provider.name}</span>
+                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <span>{provider.email}</span>
+                          {provider.provider_category && (
+                            <>
+                              <span>•</span>
+                              <span className="capitalize">{provider.provider_category}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            {filteredProviders.length === 0 && providers.length === 0 && (
-              <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded">
-                <AlertTriangle className="h-4 w-4" />
-                <span>Aucun prestataire n'a été ajouté à votre équipe. Ajoutez des prestataires dans la section Contacts.</span>
-              </div>
-            )}
-            
-            {filteredProviders.length === 0 && providers.length > 0 && (
-              <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded">
-                <AlertTriangle className="h-4 w-4" />
-                <span>Tous vos prestataires sont affichés car aucun ne correspond spécifiquement au type "{intervention.type || 'non spécifié'}".</span>
-              </div>
-            )}
-          </div>
+              {filteredProviders.length === 0 && providers.length === 0 && (
+                <div className="flex items-center gap-2 text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>Aucun prestataire n'a été ajouté à votre équipe. Ajoutez des prestataires dans la section Contacts.</span>
+                </div>
+              )}
 
-          {/* Date limite */}
-          <div className="space-y-3">
-            <Label htmlFor="deadline" className="text-sm font-medium text-slate-900">
-              Date limite pour le devis
-            </Label>
-            <Input
-              id="deadline"
-              type="date"
-              value={deadline}
-              onChange={(e) => onDeadlineChange(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
-              className="w-full"
-            />
-            <p className="text-xs text-slate-500">
-              Le prestataire sera notifié de cette échéance
-            </p>
-          </div>
+              {filteredProviders.length === 0 && providers.length > 0 && (
+                <div className="flex items-center gap-2 text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span>Tous vos prestataires sont affichés car aucun ne correspond spécifiquement au type "{intervention.type || 'non spécifié'}".</span>
+                </div>
+              )}
+            </div>
 
-          {/* Notes supplémentaires */}
-          <div className="space-y-3">
-            <Label htmlFor="notes" className="text-sm font-medium text-slate-900">
-              Instructions supplémentaires
-            </Label>
-            <Textarea
-              id="notes"
-              placeholder="Précisions sur les travaux, contraintes d'accès, matériaux spécifiques..."
-              value={additionalNotes}
-              onChange={(e) => onNotesChange(e.target.value)}
-              rows={4}
-              className="resize-none"
-            />
-            <p className="text-xs text-slate-500">
-              Ces informations aideront le prestataire à établir un devis précis
-            </p>
-          </div>
+            <Separator />
 
-          {/* Informations sélectionnées */}
-          {selectedProvider && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <User className="h-5 w-5 text-blue-600 mt-0.5" />
-                <div className="space-y-1">
-                  <p className="font-medium text-blue-900">{selectedProvider.name}</p>
-                  <p className="text-sm text-blue-700">{selectedProvider.email}</p>
-                  {selectedProvider.phone && (
-                    <p className="text-sm text-blue-700">{selectedProvider.phone}</p>
-                  )}
-                  {selectedProvider.provider_category && (
-                    <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
-                      {selectedProvider.provider_category}
-                    </Badge>
-                  )}
+            {/* Date limite pour le devis */}
+            <div className="space-y-3">
+              <Label htmlFor="deadline" className="text-sm font-medium text-slate-900">
+                Date limite pour le devis
+              </Label>
+              <Input
+                id="deadline"
+                type="date"
+                value={deadline}
+                onChange={(e) => onDeadlineChange(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full"
+              />
+              <p className="text-xs text-slate-500">
+                Le prestataire sera notifié de cette échéance
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="notes" className="text-sm font-medium text-slate-900">
+                Instructions supplémentaires
+              </Label>
+              <Textarea
+                id="notes"
+                placeholder="Précisions sur les travaux, contraintes d'accès, matériaux spécifiques..."
+                value={additionalNotes}
+                onChange={(e) => onNotesChange(e.target.value)}
+                rows={4}
+                className="resize-none"
+              />
+              <p className="text-xs text-slate-500">
+                Ces informations aideront le prestataire à établir un devis précis
+              </p>
+            </div>
+
+            {/* Informations prestataire sélectionné */}
+            {selectedProvider && (
+              <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
+                <div className="flex items-start gap-3">
+                  <User className="h-5 w-5 mt-0.5 text-blue-600" />
+                  <div className="space-y-1 flex-1">
+                    <p className="font-medium text-blue-900">
+                      {selectedProvider.name}
+                    </p>
+                    <p className="text-sm text-blue-700">
+                      {selectedProvider.email}
+                    </p>
+                    {selectedProvider.phone && (
+                      <p className="text-sm text-blue-700">
+                        {selectedProvider.phone}
+                      </p>
+                    )}
+                    {selectedProvider.provider_category && (
+                      <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
+                        {selectedProvider.provider_category}
+                      </Badge>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Erreur */}
           {error && (
@@ -296,8 +322,8 @@ export const QuoteRequestModal = ({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!selectedProviderId || isLoading}
-            className="min-w-[120px]"
+            disabled={!isFormValid() || isLoading}
+            className="min-w-[180px]"
           >
             {isLoading ? (
               <div className="flex items-center gap-2">

@@ -77,10 +77,10 @@ export async function POST(request: NextRequest) {
 
     logger.info("🔄 Updating intervention status to 'approuvee'...")
 
-    // Update intervention status and add internal comment
+    // Update intervention status
+    // Note: Comments are now stored in intervention_comments table
     const updatedIntervention = await interventionService.update(interventionId, {
       status: 'approuvee' as Database['public']['Enums']['intervention_status'],
-      manager_comment: internalComment || null,
       updated_at: new Date().toISOString()
     })
 

@@ -85,7 +85,7 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
     try {
       const { data, error } = await this.supabase
         .from(this.tableName)
-        .select('id, name, vat_number, city, country')
+        .select('id, name, vat_number, street, street_number, postal_code, city, country')
         .eq('team_id', teamId)
         .eq('is_active', true)
         .is('deleted_at', null)

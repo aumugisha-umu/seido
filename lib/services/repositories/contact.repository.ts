@@ -84,7 +84,7 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
    * NEW SCHEMA: Returns user record directly
    */
   async findByUser(userId: string) {
-    const { data, error} = await this.supabase
+    const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
         *,
@@ -369,6 +369,34 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
     }
 
     return { success: true as const, data: data[0] }
+  }
+  /**
+   * Find a specific contact within a team
+   * Queries team_members to ensure the user belongs to the team (and respects RLS)
+   */
+  async findContactInTeam(teamId: string, contactId: string) {
+    const { data, error } = await this.supabase
+      .from('team_members')
+      .select(`
+        user:user_id (
+          *,
+          team:team_id(id, name, description),
+          company:company_id(id, name, vat_number, street, street_number, postal_code, city, country, email, phone, is_active)
+        )
+      `)
+      .eq('team_id', teamId)
+      .eq('user_id', contactId)
+      .is('left_at', null)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        return { success: true as const, data: null }
+      }
+      return createErrorResponse(handleError(error, 'team_members:query'))
+    }
+
+    return { success: true as const, data: data?.user as unknown as Contact }
   }
 }
 

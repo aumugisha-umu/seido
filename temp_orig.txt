@@ -43,7 +43,6 @@ interface InterventionWithManagers {
   manager_id: string | null
   interventionAssignedManagers: string[] // IDs des gestionnaires assignés à CETTE intervention (via intervention_assignments)
   interventionAssignedProviders: string[] // IDs des prestataires assignés à CETTE intervention (via intervention_assignments)
-  interventionAssignedTenants: string[] // IDs des locataires assignés à CETTE intervention (via intervention_assignments)
   buildingManagers: string[] // IDs des gestionnaires du bâtiment (contexte, ne PAS utiliser pour is_personal)
   lotManagers: string[] // IDs des gestionnaires du lot (contexte, ne PAS utiliser pour is_personal)
   teamMembers: Array<{ id: string; role: string; name: string }>
@@ -135,38 +134,18 @@ export class NotificationService {
     // 2. Déterminer les destinataires (business logic) - EXCLUT le créateur
     const recipients = this.determineInterventionRecipients(intervention, createdBy)
 
-    // 3. Créer les notifications avec titre amélioré et messages adaptés par rôle
+    // 3. Créer les notifications avec titre amélioré
     const notifications = await Promise.all(
       recipients.map(async recipient => {
-        // Check if this user is assigned to the intervention and get their role
+        // Check if this user is assigned to the intervention
         const { data: assignment } = await this.repository.supabase
           .from('intervention_assignments')
-          .select('is_primary, role')
+          .select('is_primary')
           .eq('intervention_id', interventionId)
           .eq('user_id', recipient.userId)
           .maybeSingle()
 
         const isAssigned = !!assignment
-
-        // Déterminer le message selon le rôle de l'assignation
-        let message: string
-        if (isAssigned && assignment.role) {
-          switch (assignment.role) {
-            case 'locataire':
-              message = `Une intervention "${intervention.title}" a été créée pour votre logement`
-              break
-            case 'prestataire':
-              message = `Vous avez été assigné(e) à l'intervention "${intervention.title}" en tant que prestataire`
-              break
-            case 'gestionnaire':
-              message = `Vous avez été assigné(e) à l'intervention "${intervention.title}" en tant que gestionnaire`
-              break
-            default:
-              message = `Vous avez été assigné(e) à l'intervention "${intervention.title}"`
-          }
-        } else {
-          message = `Une nouvelle intervention "${intervention.title}" a été créée dans votre équipe`
-        }
 
         return this.repository.create({
           user_id: recipient.userId,
@@ -174,15 +153,16 @@ export class NotificationService {
           created_by: createdBy,
           type: 'intervention',
           title: `Nouvelle intervention - ${context}`, // ✅ Titre avec contexte clair
-          message,
+          message: isAssigned
+            ? `Vous avez été assigné(e) à l'intervention "${intervention.title}"`
+            : `Une nouvelle intervention "${intervention.title}" a été créée dans votre équipe`,
           is_personal: assignment?.is_primary ?? false,
           metadata: {
             intervention_id: interventionId,
             lot_reference: intervention.lot?.reference,
             building_name: buildingName,
             context,
-            is_assigned: isAssigned,
-            assigned_role: assignment?.role || null
+            is_assigned: isAssigned
           },
           related_entity_type: 'intervention',
           related_entity_id: interventionId
@@ -585,119 +565,114 @@ export class NotificationService {
    * Déterminer les destinataires pour une intervention
    */
   private determineInterventionRecipients(
-    intervention: InterventionWithManagers,
-    excludeUserId: string
+      intervention: InterventionWithManagers,
+      excludeUserId: string
   ): NotificationRecipient[] {
     const recipients: NotificationRecipient[] = []
     const processedUserIds = new Set<string>()
-
     // 1. Ajouter tous les utilisateurs directement assignés à l'intervention (gestionnaires, prestataires, locataires)
     const directlyAssignedIds = [
-      ...intervention.interventionAssignedManagers,
-      ...intervention.interventionAssignedProviders,
-      ...intervention.interventionAssignedTenants // ← FIX: Inclure les locataires assignés
+        ...intervention.interventionAssignedManagers,
+        ...intervention.interventionAssignedProviders
     ]
-
     directlyAssignedIds.forEach(userId => {
-      if (userId !== excludeUserId && !processedUserIds.has(userId)) {
-        recipients.push({
-          userId,
-          isPersonal: true // Assigné directement = notification personnelle
-        })
-        processedUserIds.add(userId)
-      }
+        if (userId !== excludeUserId && !processedUserIds.has(userId)) {
+            recipients.push({
+                userId,
+                isPersonal: true // Assigné directement = notification personnelle
+            })
+            processedUserIds.add(userId)
+        }
     })
-
     // 2. Ajouter les gestionnaires de l'équipe non encore inclus (notification d'équipe)
     intervention.teamMembers
-      .filter(member =>
-        member.role === 'gestionnaire' &&
-        member.id !== excludeUserId &&
-        !processedUserIds.has(member.id)
-      )
-      .forEach(manager => {
-        recipients.push({
-          userId: manager.id,
-          isPersonal: false // Gestionnaire d'équipe = notification d'équipe
+        .filter(member =>
+            member.role === 'gestionnaire' &&
+            member.id !== excludeUserId &&
+            !processedUserIds.has(member.id)
+        )
+        .forEach(manager => {
+            recipients.push({
+                userId: manager.id,
+                isPersonal: false // Gestionnaire d'équipe = notification d'équipe
+            })
+            processedUserIds.add(manager.id)
         })
-        processedUserIds.add(manager.id)
-      })
-
     return recipients
-  }
+}
 
 
   /**
    * Déterminer les destinataires pour un lot
    */
   private determineLotRecipients(
-  lot: LotWithManagers,
-  excludeUserId: string
-): NotificationRecipient[] {
-  const directResponsibles = new Set<string>()
+    lot: LotWithManagers,
+    excludeUserId: string
+  ): NotificationRecipient[] {
+    const directResponsibles = new Set<string>()
 
-  lot.lotManagers.forEach(id => {
-    if (id !== excludeUserId) directResponsibles.add(id)
-  })
+    lot.lotManagers.forEach(id => {
+      if (id !== excludeUserId) directResponsibles.add(id)
+    })
 
-  lot.buildingManagers.forEach(id => {
-    if (id !== excludeUserId) directResponsibles.add(id)
-  })
+    lot.buildingManagers.forEach(id => {
+      if (id !== excludeUserId) directResponsibles.add(id)
+    })
 
-  const allManagers = lot.teamMembers
-    .filter(member => member.role === 'gestionnaire' && member.id !== excludeUserId)
+    const allManagers = lot.teamMembers
+      .filter(member => member.role === 'gestionnaire' && member.id !== excludeUserId)
 
-  return allManagers.map(manager => ({
-    userId: manager.id,
-    isPersonal: directResponsibles.has(manager.id)
-  }))
-}
+    return allManagers.map(manager => ({
+      userId: manager.id,
+      isPersonal: directResponsibles.has(manager.id)
+    }))
+  }
 
   /**
    * Déterminer les destinataires pour un contact
    */
   private determineContactRecipients(
-  contact: ContactWithManagers,
-  excludeUserId: string
-): NotificationRecipient[] {
-  const directResponsibles = new Set(
-    contact.relatedBuildingManagers.filter(id => id !== excludeUserId)
-  )
+    contact: ContactWithManagers,
+    excludeUserId: string
+  ): NotificationRecipient[] {
+    const directResponsibles = new Set(
+      contact.relatedBuildingManagers.filter(id => id !== excludeUserId)
+    )
 
-  const allManagers = contact.teamMembers
-    .filter(member => member.role === 'gestionnaire' && member.id !== excludeUserId)
+    const allManagers = contact.teamMembers
+      .filter(member => member.role === 'gestionnaire' && member.id !== excludeUserId)
 
-  return allManagers.map(manager => ({
-    userId: manager.id,
-    isPersonal: directResponsibles.has(manager.id)
-  }))
-}
+    return allManagers.map(manager => ({
+      userId: manager.id,
+      isPersonal: directResponsibles.has(manager.id)
+    }))
+  }
 
   /**
    * Formater le message d'intervention
    */
   private formatInterventionMessage(
-  intervention: InterventionWithManagers,
-  isPersonal: boolean,
-  action: 'created' | 'status_change'
-): string {
-  const lotRef = intervention.lot?.reference ? ` pour ${intervention.lot.reference}` : ''
+    intervention: InterventionWithManagers,
+    isPersonal: boolean,
+    action: 'created' | 'status_change'
+  ): string {
+    const lotRef = intervention.lot?.reference ? ` pour ${intervention.lot.reference}` : ''
 
-  if (action === 'created') {
-    return isPersonal
-      ? `Une nouvelle intervention "${intervention.title}"${lotRef} vous concerne directement`
-      : `Une nouvelle intervention "${intervention.title}"${lotRef} a été créée`
+    if (action === 'created') {
+      return isPersonal
+        ? `Une nouvelle intervention "${intervention.title}"${lotRef} vous concerne directement`
+        : `Une nouvelle intervention "${intervention.title}"${lotRef} a été créée`
+    }
+
+    return `L'intervention "${intervention.title}"${lotRef} a été mise à jour`
   }
-
-  return `L'intervention "${intervention.title}"${lotRef} a été mise à jour`
-}
 
   /**
    * Tronquer un texte
    */
   private truncate(text: string, maxLength: number): string {
-  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
-}
+    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
+  }
 
   // LEGACY METHOD REMOVED - Duplicate with improved method above (lines 106-171)
   // The main notifyInterventionCreated() method now handles all the logic

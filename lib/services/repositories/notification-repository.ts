@@ -561,27 +561,39 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
       return createErrorResponse(handleError(error, 'notifications:getUserStats'))
     }
   }
-  // ============================================================================
-// OPTIMIZED QUERIES FOR DOMAIN SERVICE
-// ============================================================================
-/**
- * Get intervention with all managers (optimized JOIN query)
- * Used by NotificationService to determine recipients
- */
-async getInterventionWithManagers(interventionId: string) {
+  /**
+   * Get intervention with all managers and assigned users (optimized JOIN query)
+   * Used by NotificationService to determine recipients for intervention notifications
+   */
+  async getInterventionWithManagers(interventionId: string) {
     validateUUID(interventionId)
+
     const { data, error } = await this.supabase
-        .from('interventions')
-        .select(`
-      id,
-      title,
-      reference,
-      lot_id,
-      building_id,
-      team_id,
-      created_by,
-      lot:lot_id(
+      .from('interventions')
+      .select(`
+        id,
+        title,
         reference,
+        lot_id,
+        building_id,
+        team_id,
+        created_by,
+        lot:lot_id(
+          reference,
+          building:building_id(
+            name,
+            building_contacts!building_contacts_building_id_fkey(
+              user_id,
+              is_primary,
+              user:user_id(role)
+            )
+          ),
+          lot_contacts!lot_contacts_lot_id_fkey(
+            user_id,
+            is_primary,
+            user:user_id(role)
+          )
+        ),
         building:building_id(
           name,
           building_contacts!building_contacts_building_id_fkey(
@@ -590,61 +602,58 @@ async getInterventionWithManagers(interventionId: string) {
             user:user_id(role)
           )
         ),
-        lot_contacts!lot_contacts_lot_id_fkey(
+        intervention_assignments!intervention_assignments_intervention_id_fkey(
           user_id,
-          is_primary,
-          user:user_id(role)
+          role,
+          is_primary
+        ),
+        team:team_id(
+          id,
+          team_members(
+            user_id,
+            user:user_id(id, name, role)
+          )
         )
-      ),
-      building:building_id(
-        name,
-        building_contacts!building_contacts_building_id_fkey(
-          user_id,
-          is_primary,
-          user:user_id(role)
-        )
-      ),
-      intervention_assignments!intervention_assignments_intervention_id_fkey(
-        user_id,
-        role,
-        is_primary
-      ),
-      team:team_id(
-        id,
-        team_members(
-          user_id,
-          user:user_id(id, name, role)
-        )
-      )
-    `)
-        .eq('id', interventionId)
-        .single()
-    if (error) throw handleError(error, 'notifications:getInterventionWithManagers')
-    // Transform to expected format
-    return {
-        ...data,
-        interventionAssignedManagers: (data.intervention_assignments || [])
-            .filter((a: any) => a.role === 'gestionnaire')
-            .map((a: any) => a.user_id),
-        interventionAssignedProviders: (data.intervention_assignments || [])
-            .filter((a: any) => a.role === 'prestataire')
-            .map((a: any) => a.user_id),
-        buildingManagers: data.lot?.building?.building_contacts
-            ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
-            ?.map(c => c.user_id) || [],
-        lotManagers: data.lot?.lot_contacts
-            ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
-            ?.map(c => c.user_id) || [],
-        teamMembers: data.team?.team_members
-            ?.filter(tm => tm.user)
-            ?.map(tm => ({
-                id: tm.user_id,
-                role: tm.user.role,
-                name: tm.user.name
-            })) || []
-    }
-}
+      `)
+      .eq('id', interventionId)
+      .single()
 
+    if (error) throw handleError(error, 'notifications:getInterventionWithManagers')
+
+    return {
+      ...data,
+      // Extract IDs from intervention_assignments by role
+      interventionAssignedManagers: data.intervention_assignments
+        ?.filter(a => a.role === 'gestionnaire')
+        ?.map(a => a.user_id) || [],
+      interventionAssignedProviders: data.intervention_assignments
+        ?.filter(a => a.role === 'prestataire')
+        ?.map(a => a.user_id) || [],
+      interventionAssignedTenants: data.intervention_assignments
+        ?.filter(a => a.role === 'locataire')
+        ?.map(a => a.user_id) || [],
+      // Extract building managers from lot or direct building
+      buildingManagers: (data.lot?.building?.building_contacts || data.building?.building_contacts || [])
+        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
+        ?.map(c => c.user_id) || [],
+      // Extract lot managers
+      lotManagers: data.lot?.lot_contacts
+        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
+        ?.map(c => c.user_id) || [],
+      // Extract team members
+      teamMembers: data.team?.team_members
+        ?.filter(tm => tm.user)
+        ?.map(tm => ({
+          id: tm.user_id,
+          role: tm.user.role,
+          name: tm.user.name
+        })) || []
+    }
+  }
+
+  /**
+   * Get building with all managers (optimized JOIN query)
+   */
   async getBuildingWithManagers(buildingId: string) {
     validateUUID(buildingId)
 
@@ -658,7 +667,6 @@ async getInterventionWithManagers(interventionId: string) {
         building_contacts!building_contacts_building_id_fkey(
           user_id,
           is_primary,
-          end_date,
           user:user_id(role)
         ),
         team:team_id(
@@ -677,7 +685,7 @@ async getInterventionWithManagers(interventionId: string) {
     return {
       ...data,
       buildingManagers: data.building_contacts
-        ?.filter(c => c.is_primary && !c.end_date && c.user?.role === 'gestionnaire')
+        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
         ?.map(c => c.user_id) || [],
       teamMembers: data.team?.team_members
         ?.filter(tm => tm.user)
@@ -707,14 +715,12 @@ async getInterventionWithManagers(interventionId: string) {
           building_contacts!building_contacts_building_id_fkey(
             user_id,
             is_primary,
-            end_date,
             user:user_id(role)
           )
         ),
         lot_contacts!lot_contacts_lot_id_fkey(
           user_id,
           is_primary,
-          end_date,
           user:user_id(role)
         ),
         team:team_id(
@@ -733,10 +739,10 @@ async getInterventionWithManagers(interventionId: string) {
     return {
       ...data,
       lotManagers: data.lot_contacts
-        ?.filter(c => c.is_primary && !c.end_date && c.user?.role === 'gestionnaire')
+        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
         ?.map(c => c.user_id) || [],
       buildingManagers: data.building?.building_contacts
-        ?.filter(c => c.is_primary && !c.end_date && c.user?.role === 'gestionnaire')
+        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
         ?.map(c => c.user_id) || [],
       teamMembers: data.team?.team_members
         ?.filter(tm => tm.user)
@@ -768,7 +774,6 @@ async getInterventionWithManagers(interventionId: string) {
             building_contacts!building_contacts_building_id_fkey(
               user_id,
               is_primary,
-              end_date,
               user:user_id(role)
             )
           )
@@ -780,7 +785,6 @@ async getInterventionWithManagers(interventionId: string) {
               building_contacts!building_contacts_building_id_fkey(
                 user_id,
                 is_primary,
-                end_date,
                 user:user_id(role)
               )
             )
@@ -804,13 +808,13 @@ async getInterventionWithManagers(interventionId: string) {
 
     user.building_contacts?.forEach(bc => {
       bc.building?.building_contacts
-        ?.filter(c => c.is_primary && !c.end_date && c.user?.role === 'gestionnaire')
+        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
         ?.forEach(c => buildingManagersSet.add(c.user_id))
     })
 
     user.lot_contacts?.forEach(lc => {
       lc.lot?.building?.building_contacts
-        ?.filter(c => c.is_primary && !c.end_date && c.user?.role === 'gestionnaire')
+        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
         ?.forEach(c => buildingManagersSet.add(c.user_id))
     })
 

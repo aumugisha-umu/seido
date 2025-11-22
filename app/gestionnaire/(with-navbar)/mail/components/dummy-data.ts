@@ -22,6 +22,7 @@ export interface DummyEmail {
   conversation_id?: string
   thread_order?: number
   is_parent?: boolean
+  email_connection_id?: string
 }
 
 export interface DummyAttachment {

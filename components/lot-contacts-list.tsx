@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Building2, Users, Search, Mail, Phone, MapPin, Edit, UserPlus, Send, AlertCircle } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
 
 import { determineAssignmentType, createContactService } from '@/lib/services'
 
@@ -24,6 +25,7 @@ interface LotContactsListProps {
 
 export const LotContactsList = ({ lotId, contacts: propContacts = [], onContactsUpdate }: LotContactsListProps) => {
   const router = useRouter()
+  const { userProfile } = useAuth()
   const [contacts, setContacts] = useState<ContactWithRelations[]>(propContacts)
   const [filteredContacts, setFilteredContacts] = useState<ContactWithRelations[]>([])
   const [searchTerm, setSearchTerm] = useState("")
@@ -108,10 +110,10 @@ export const LotContactsList = ({ lotId, contacts: propContacts = [], onContacts
 
   const handleDeleteContact = async () => {
     if (!deleteContact) return
-    
+
     try {
-      await contactService.delete(deleteContact.id)
-      
+      await contactService.delete(deleteContact.id, userProfile?.id)
+
       // Reload contacts
       if (onContactsUpdate) {
         // If parent provides update callback, reload contacts at parent level

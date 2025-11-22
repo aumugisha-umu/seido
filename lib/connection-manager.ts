@@ -1,6 +1,6 @@
 "use client"
 
-import React from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from './supabase'
 import { logger, logError } from '@/lib/logger'
 /**
@@ -199,9 +199,9 @@ export const connectionManager = new ConnectionManager()
 
 // Hook pour utiliser le gestionnaire de connexion dans les composants React
 export function useConnectionStatus() {
-  const [isOnline, setIsOnline] = React.useState(connectionManager.isConnected())
+  const [isOnline, setIsOnline] = useState(connectionManager.isConnected())
 
-  React.useEffect(() => {
+  useEffect(() => {
     const unsubscribe = connectionManager.onConnectionChange(setIsOnline)
     return unsubscribe
   }, [])

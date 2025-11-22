@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
-import { notificationService } from '@/lib/notification-service'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { workCompletionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
@@ -184,10 +183,9 @@ export async function POST(
           teamId: intervention.team_id,
           createdBy: user.id,
           type: 'intervention',
-          priority: 'high',
           title: 'Travaux terminés',
           message: `Les travaux pour "${intervention.title}" sont terminés. Veuillez valider la réalisation.`,
-          isPersonal: true,
+          isPersonal: true, // Locataire toujours personnel
           metadata: {
             interventionId: interventionId,
             interventionTitle: intervention.title,
@@ -198,16 +196,22 @@ export async function POST(
           relatedEntityId: interventionId
         }) : Promise.resolve()
 
-      const managerNotificationPromises = contacts?.map(contact =>
+      // Get managers from intervention_assignments instead of intervention_contacts
+      const { data: managerAssignments } = await supabase
+        .from('intervention_assignments')
+        .select('user:users!user_id(id, name, email, role), is_primary')
+        .eq('intervention_id', interventionId)
+        .eq('role', 'gestionnaire')
+
+      const managerNotificationPromises = managerAssignments?.map(assignment =>
         notificationService.createNotification({
-          userId: contact.user.id,
+          userId: assignment.user.id,
           teamId: intervention.team_id,
           createdBy: user.id,
           type: 'intervention',
-          priority: 'normal',
           title: 'Rapport de fin de travaux reçu',
           message: `${user.name} a soumis un rapport de fin pour "${intervention.title}"`,
-          isPersonal: true,
+          isPersonal: assignment.is_primary ?? false, // ✅ Basé sur assignation (FIX du BUG hardcodé)
           metadata: {
             interventionId: interventionId,
             interventionTitle: intervention.title,

@@ -4,6 +4,8 @@ import { createLotService } from '@/lib/services/domain/lot.service'
 import type { LotUpdate } from '@/lib/services/core/service-types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { updateLotSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { notifyLotUpdated, notifyLotDeleted } from '@/app/actions/notification-actions'
+import { createActivityLogger } from '@/lib/activity-logger'
 
 /**
  * GET /api/lots/[id]
@@ -111,6 +113,37 @@ export async function PUT(
 
     logger.info({ lotId: id }, '✅ [LOTS-API] Lot updated successfully')
 
+    // 📝 ACTIVITY LOG: Lot modifié
+    try {
+      const activityLogger = await createActivityLogger()
+      activityLogger.setContext({ userId: userProfile.id, teamId: userProfile.team_id || '' })
+      await activityLogger.logLotAction(
+        'update',
+        id,
+        result.data!.reference,
+        { changes: Object.keys(validatedData) }
+      )
+      logger.info({ lotId: id }, '📝 [LOTS-API] Activity logged')
+    } catch (logError) {
+      logger.error({ error: logError, lotId: id }, '⚠️ [LOTS-API] Failed to log activity')
+    }
+
+    // 🔔 NOTIFICATION: Lot modifié
+    try {
+      const notifResult = await notifyLotUpdated({
+        lotId: id,
+        changes: validatedData
+      })
+
+      if (notifResult.success) {
+        logger.info({ lotId: id, count: notifResult.data?.length }, '🔔 [LOTS-API] Lot update notifications sent')
+      } else {
+        logger.error({ error: notifResult.error, lotId: id }, '⚠️ [LOTS-API] Failed to send notifications')
+      }
+    } catch (notifError) {
+      logger.error({ error: notifError, lotId: id }, '⚠️ [LOTS-API] Failed to send lot update notification')
+    }
+
     return NextResponse.json({
       success: true,
       lot: result.data
@@ -164,6 +197,41 @@ export async function DELETE(
     }
 
     logger.info({ lotId: id }, '✅ [LOTS-API] Lot deleted successfully')
+
+    const lotReference = result.data?.reference || 'Lot supprimé'
+    const buildingId = result.data?.building_id || ''
+
+    // 📝 ACTIVITY LOG: Lot supprimé
+    try {
+      const activityLogger = await createActivityLogger()
+      activityLogger.setContext({ userId: userProfile.id, teamId: userProfile.team_id || '' })
+      await activityLogger.logLotAction(
+        'delete',
+        id,
+        lotReference
+      )
+      logger.info({ lotId: id }, '📝 [LOTS-API] Activity logged')
+    } catch (logError) {
+      logger.error({ error: logError, lotId: id }, '⚠️ [LOTS-API] Failed to log activity')
+    }
+
+    // 🔔 NOTIFICATION: Lot supprimé
+    try {
+      const notifResult = await notifyLotDeleted({
+        id,
+        reference: lotReference,
+        building_id: buildingId,
+        team_id: result.data?.team_id || userProfile.team_id || ''
+      })
+
+      if (notifResult.success) {
+        logger.info({ lotId: id, count: notifResult.data?.length }, '🔔 [LOTS-API] Lot deletion notifications sent')
+      } else {
+        logger.error({ error: notifResult.error, lotId: id }, '⚠️ [LOTS-API] Failed to send notifications')
+      }
+    } catch (notifError) {
+      logger.error({ error: notifError, lotId: id }, '⚠️ [LOTS-API] Failed to send lot deletion notification')
+    }
 
     return NextResponse.json({
       success: true,

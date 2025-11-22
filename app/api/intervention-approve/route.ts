@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { notificationService } from '@/lib/notification-service'
+import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
@@ -88,13 +88,17 @@ export async function POST(request: NextRequest) {
 
     // Send notifications with proper logic (personal/team)
     try {
-      await notificationService.notifyInterventionStatusChanged(
-        intervention, 
-        'demande', 
-        'approuvee', 
-        user.id
-      )
-      logger.info({}, "📧 Notifications sent with proper logic")
+      const notifResult = await notifyInterventionStatusChange({
+        interventionId: intervention.id,
+        oldStatus: 'demande',
+        newStatus: 'approuvee'
+      })
+
+      if (notifResult.success) {
+        logger.info({ count: notifResult.data?.length }, "📧 Notifications sent successfully")
+      } else {
+        logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed")
+      }
     } catch (notifError) {
       logger.warn({ notifError: notifError }, "⚠️ Could not send notifications:")
       // Don't fail the approval for notification errors

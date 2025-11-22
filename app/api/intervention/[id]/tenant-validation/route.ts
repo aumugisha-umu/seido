@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
-import { notificationService } from '@/lib/notification-service'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { tenantValidationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
@@ -195,10 +194,9 @@ export async function POST(
           teamId: intervention.team_id,
           createdBy: user.id,
           type: 'intervention',
-          priority: validationType === 'contest' ? 'high' : 'normal',
           title,
           message,
-          isPersonal: true,
+          isPersonal: contact.is_primary ?? (contact.role === 'prestataire'), // ✅ Primary ou prestataire = personnel
           metadata: {
             interventionId: interventionId,
             interventionTitle: intervention.title,

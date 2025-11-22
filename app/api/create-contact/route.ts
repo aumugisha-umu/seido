@@ -5,6 +5,7 @@ import type { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { createContactSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { createContactNotification } from '@/app/actions/notification-actions'
 
 // Créer un client Supabase avec les permissions service-role pour bypass les RLS
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -115,6 +116,19 @@ export async function POST(request: Request) {
     }
 
     logger.info({ user: result.id }, '✅ [CREATE-CONTACT-API] User/Contact created successfully:')
+
+    // 🔔 NOTIFICATION: Nouveau contact créé
+    try {
+      const notifResult = await createContactNotification(result.id)
+
+      if (notifResult.success) {
+        logger.info({ contactId: result.id, count: notifResult.data?.length }, '🔔 [CREATE-CONTACT-API] Contact creation notifications sent')
+      } else {
+        logger.error({ error: notifResult.error, contactId: result.id }, '⚠️ [CREATE-CONTACT-API] Failed to send notifications')
+      }
+    } catch (notifError) {
+      logger.error({ error: notifError, contactId: result.id }, '⚠️ [CREATE-CONTACT-API] Failed to send contact creation notification')
+    }
 
     return NextResponse.json({
       success: true,

@@ -4,6 +4,8 @@ import { createLotService } from '@/lib/services/domain/lot.service'
 import type { LotInsert } from '@/lib/services/core/service-types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { createLotSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { createLotNotification } from '@/app/actions/notification-actions'
+import { createActivityLogger } from '@/lib/activity-logger'
 
 /**
  * GET /api/lots
@@ -124,6 +126,36 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info({ lotId: result.data?.id }, '✅ [LOTS-API] Lot created successfully')
+
+    // 📝 ACTIVITY LOG: Lot créé
+    try {
+      const activityLogger = await createActivityLogger()
+      // Note: team_id isn't directly on lot, we'd need to fetch building's team_id
+      // For now, using userProfile's team as fallback
+      activityLogger.setContext({ userId: userProfile.id, teamId: userProfile.team_id || '' })
+      await activityLogger.logLotAction(
+        'create',
+        result.data!.id,
+        result.data!.reference,
+        { building_id: validatedData.building_id, category: validatedData.category }
+      )
+      logger.info({ lotId: result.data?.id }, '📝 [LOTS-API] Activity logged')
+    } catch (logError) {
+      logger.error({ error: logError, lotId: result.data?.id }, '⚠️ [LOTS-API] Failed to log activity')
+    }
+
+    // 🔔 NOTIFICATION: Nouveau lot créé
+    try {
+      const notifResult = await createLotNotification(result.data!.id)
+
+      if (notifResult.success) {
+        logger.info({ lotId: result.data?.id, count: notifResult.data?.length }, '🔔 [LOTS-API] Lot creation notifications sent')
+      } else {
+        logger.error({ error: notifResult.error, lotId: result.data?.id }, '⚠️ [LOTS-API] Failed to send notifications')
+      }
+    } catch (notifError) {
+      logger.error({ error: notifError, lotId: result.data?.id }, '⚠️ [LOTS-API] Failed to send lot creation notification')
+    }
 
     return NextResponse.json({
       success: true,

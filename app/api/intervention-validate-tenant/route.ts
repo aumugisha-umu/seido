@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { notificationService } from '@/lib/notification-service'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
@@ -181,9 +180,9 @@ export async function POST(request: NextRequest) {
             teamId: intervention.team_id,
             createdBy: user.id,
             type: 'intervention',
-            priority: priority,
             title: notificationTitle,
             message: notificationMessage,
+            isPersonal: manager.is_primary ?? false, // ✅ Basé sur assignation
             metadata: {
               interventionId: intervention.id,
               interventionTitle: intervention.title,
@@ -203,23 +202,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Notify prestataires
-    const providers = intervention.intervention_contacts?.filter(ic => 
-      ic.role === 'prestataire'
-    ) || []
+    // Notify prestataires from intervention_assignments
+    const { data: assignedProviders } = await supabase
+      .from('intervention_assignments')
+      .select('user:users!user_id(id, name), is_primary')
+      .eq('intervention_id', intervention.id)
+      .eq('role', 'prestataire')
 
-    for (const provider of providers) {
+    for (const assignment of assignedProviders || []) {
+      if (!assignment.user) continue
+
       try {
         await notificationService.createNotification({
-          userId: provider.user.id,
+          userId: assignment.user.id,
           teamId: intervention.team_id!,
           createdBy: user.id,
           type: 'intervention',
-          priority: priority,
           title: notificationTitle,
-          message: validationStatus === 'approved' ? 
+          message: validationStatus === 'approved' ?
             `L'intervention "${intervention.title}" a été validée par le locataire.` :
             `L'intervention "${intervention.title}" a été contestée par le locataire. Des corrections peuvent être nécessaires.`,
+          isPersonal: true, // Prestataire assigné toujours personnel
           metadata: {
             interventionId: intervention.id,
             interventionTitle: intervention.title,

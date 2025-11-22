@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/use-auth'
-import { notificationService } from '@/lib/notification-service'
+import { createNotificationRepository } from '@/lib/services/repositories/notification-repository'
 
 export interface Notification {
   id: string
@@ -55,6 +55,9 @@ export const useNotificationPopover = (
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Create repository instance (browser client)
+  const repository = createNotificationRepository()
+
   const {
     teamId,
     limit = 10,
@@ -78,10 +81,25 @@ export const useNotificationPopover = (
     try {
       setError(null)
 
-      const data = await notificationService.getRecentNotifications(user.id, teamId, limit)
+      // Fetch notifications using repository
+      const result = await repository.findByUser(user.id, {
+        archived: false,
+        read: undefined // Get both read and unread
+      })
 
-      console.log('✅ [USE-NOTIFICATION-POPOVER] Notifications fetched:', data.length)
-      setNotifications(data)
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to fetch notifications')
+      }
+
+      // Filter by team if specified and limit results
+      let notifications = result.data || []
+      if (teamId) {
+        notifications = notifications.filter(n => n.team_id === teamId)
+      }
+      notifications = notifications.slice(0, limit)
+
+      console.log('✅ [USE-NOTIFICATION-POPOVER] Notifications fetched:', notifications.length)
+      setNotifications(notifications)
     } catch (err) {
       console.error('❌ [USE-NOTIFICATION-POPOVER] Error fetching notifications:', err)
       setError(err instanceof Error ? err.message : 'Erreur lors du chargement des notifications')
@@ -121,7 +139,11 @@ export const useNotificationPopover = (
         )
       )
 
-      await notificationService.markAsRead(id)
+      const result = await repository.markAsRead(id)
+
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to mark as read')
+      }
 
       console.log('✅ [USE-NOTIFICATION-POPOVER] Notification marked as read successfully')
     } catch (err) {
@@ -146,7 +168,15 @@ export const useNotificationPopover = (
         )
       )
 
-      await notificationService.markAsUnread(id)
+      // markAsUnread: Update manually since repository doesn't have this method yet
+      const result = await repository.update(id, {
+        read: false,
+        read_at: null
+      })
+
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to mark as unread')
+      }
 
       console.log('✅ [USE-NOTIFICATION-POPOVER] Notification marked as unread successfully')
     } catch (err) {
@@ -165,7 +195,11 @@ export const useNotificationPopover = (
       // Optimistic update - remove from list
       setNotifications(prev => prev.filter(notif => notif.id !== id))
 
-      await notificationService.archiveNotification(id)
+      const result = await repository.archive(id)
+
+      if (!result.success) {
+        throw new Error(result.error?.message || 'Failed to archive notification')
+      }
 
       console.log('✅ [USE-NOTIFICATION-POPOVER] Notification archived successfully')
     } catch (err) {

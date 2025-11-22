@@ -4,18 +4,9 @@ import { useState, useEffect, useRef } from 'react'
 import { MailboxSidebar } from './components/mailbox-sidebar'
 import { EmailList } from './components/email-list'
 import { EmailDetail } from './components/email-detail'
-import {
-  dummyEmails,
-  dummyBuildings,
-  getEmailsByFolder,
-  getEmailsByBuilding,
-  getEmailById,
-  getUnreadCount,
-  getDraftsCount
-} from './components/dummy-data'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Plus } from 'lucide-react'
+import { Plus, RefreshCw } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -23,47 +14,117 @@ import {
   DialogHeader,
   DialogTitle
 } from '@/components/ui/dialog'
+import { EmailClientService } from '@/lib/services/client/email-client.service'
+import { Email } from '@/lib/types/email-integration'
+import { DummyEmail, DummyBuilding } from './components/dummy-data' // Keep for types/buildings for now
+
+// Adapter to convert real Email to DummyEmail (for UI compatibility)
+const adaptEmail = (email: Email): DummyEmail => ({
+  id: email.id,
+  sender_email: email.from_address,
+  sender_name: email.from_address.split('@')[0], // Simple extraction
+  recipient_email: email.to_addresses[0],
+  subject: email.subject,
+  snippet: email.body_text?.substring(0, 100) || '',
+  body_html: email.body_html || email.body_text || '',
+  received_at: email.received_at || new Date().toISOString(),
+  is_read: email.status === 'read',
+  has_attachments: (email.attachments?.length || 0) > 0,
+  attachments: email.attachments?.map(a => ({
+    id: a.id,
+    filename: a.filename,
+    file_size: a.size_bytes,
+    url: '#', // TODO: Add download URL
+    mime_type: a.content_type || 'application/octet-stream'
+  })) || [],
+  building_id: email.building_id || undefined,
+  building_name: undefined, // TODO: Fetch building name
+  lot_id: email.lot_id || undefined,
+  lot_name: undefined,
+  labels: [], // TODO: Implement labels
+  direction: email.direction,
+  status: email.status,
+  conversation_id: email.id, // TODO: Implement conversation grouping
+  thread_order: 0,
+  is_parent: true,
+  email_connection_id: email.email_connection_id || undefined
+})
 
 export default function EmailPage() {
   const [currentFolder, setCurrentFolder] = useState('inbox')
   const [selectedEmailId, setSelectedEmailId] = useState<string | undefined>(undefined)
   const [showShortcutsDialog, setShowShortcutsDialog] = useState(false)
+  const [emails, setEmails] = useState<DummyEmail[]>([])
+  const [isLoading, setIsLoading] = useState(false)
   const replyActionRef = useRef<(() => void) | null>(null)
 
-  // Get emails based on current folder/filter
-  const getDisplayEmails = () => {
-    // Check if folder is a building ID
-    const building = dummyBuildings.find(b => b.id === currentFolder)
-    if (building) {
-      return getEmailsByBuilding(building.id)
-    }
+  // Fetch emails
+  const fetchEmails = async () => {
+    setIsLoading(true)
+    try {
+      const realEmails = await EmailClientService.getEmails(currentFolder)
+      const adaptedEmails = realEmails.map(adaptEmail)
+      setEmails(adaptedEmails)
 
-    // Check if folder is a label filter
-    if (currentFolder === 'urgent') {
-      return dummyEmails.filter(e => e.labels.includes('Urgent'))
+      // Select first email if none selected
+      if (!selectedEmailId && adaptedEmails.length > 0) {
+        setSelectedEmailId(adaptedEmails[0].id)
+      }
+    } catch (error) {
+      console.error('Failed to fetch emails:', error)
+      toast.error('Failed to load emails')
+    } finally {
+      setIsLoading(false)
     }
-    if (currentFolder === 'intervention') {
-      return dummyEmails.filter(e => e.labels.includes('Intervention'))
-    }
-
-    // Standard folder
-    return getEmailsByFolder(currentFolder)
   }
 
-  const displayEmails = getDisplayEmails()
-  const selectedEmail = selectedEmailId ? getEmailById(selectedEmailId) : displayEmails[0]
+  useEffect(() => {
+    fetchEmails()
+  }, [currentFolder])
+
+  const selectedEmail = emails.find(e => e.id === selectedEmailId)
 
   // Auto-select first email when folder changes
   const handleFolderChange = (folder: string) => {
     setCurrentFolder(folder)
-    const emails = folder === currentFolder ? displayEmails : getEmailsByFolder(folder)
-    setSelectedEmailId(emails[0]?.id)
+    setSelectedEmailId(undefined) // Will be set by useEffect
   }
 
-  // Handlers for email actions (dummy implementations)
-  const handleReply = (replyText: string) => {
-    toast.success('Reply sent (dummy action)')
-    console.log('Reply:', replyText)
+  const handleSync = async () => {
+    toast.promise(EmailClientService.syncEmails(), {
+      loading: 'Syncing emails...',
+      success: () => {
+        fetchEmails()
+        return 'Emails synced'
+      },
+      error: 'Failed to sync emails'
+    })
+  }
+
+  // Handlers for email actions
+  const handleReply = async (replyText: string) => {
+    if (!selectedEmail) return
+
+    if (!selectedEmail.email_connection_id) {
+      toast.error('Cannot reply: No email connection associated with this email')
+      return
+    }
+
+    try {
+      await EmailClientService.sendEmail({
+        emailConnectionId: selectedEmail.email_connection_id,
+        to: selectedEmail.sender_email,
+        subject: selectedEmail.subject.startsWith('Re:') ? selectedEmail.subject : `Re: ${selectedEmail.subject}`,
+        body: replyText,
+        inReplyToEmailId: selectedEmail.id
+      })
+      toast.success('Reply sent')
+      // Refresh emails to show sent email
+      fetchEmails()
+    } catch (error) {
+      console.error('Reply error:', error)
+      toast.error('Failed to send reply')
+    }
   }
 
   const handleArchive = () => {
@@ -75,9 +136,7 @@ export default function EmailPage() {
   }
 
   const handleLinkBuilding = (buildingId: string, lotId?: string) => {
-    const building = dummyBuildings.find(b => b.id === buildingId)
-    const lot = building?.lots.find(l => l.id === lotId)
-    toast.success(`Linked to ${building?.name}${lot ? ` - ${lot.name}` : ''} (dummy action)`)
+    toast.success(`Linked to building (dummy action)`)
   }
 
   const handleCreateIntervention = () => {
@@ -98,94 +157,32 @@ export default function EmailPage() {
 
   const handleBuildingClick = (buildingId: string) => {
     setCurrentFolder(buildingId)
-    const emails = getEmailsByBuilding(buildingId)
-    setSelectedEmailId(emails[0]?.id)
   }
 
   const handleConversationSelect = (conversationId: string) => {
-    // Find the parent email of this conversation
-    const parentEmail = dummyEmails.find(e => 
-      e.conversation_id === conversationId && e.is_parent
-    )
-    if (parentEmail) {
-      setSelectedEmailId(parentEmail.id)
-    }
+    // TODO: Implement conversation selection
   }
 
   // Navigate to next/previous email
   const navigateEmail = (direction: 'next' | 'prev') => {
-    const currentIndex = displayEmails.findIndex(e => e.id === selectedEmailId)
+    const currentIndex = emails.findIndex(e => e.id === selectedEmailId)
     if (currentIndex === -1) return
 
     const newIndex = direction === 'next'
-      ? Math.min(currentIndex + 1, displayEmails.length - 1)
+      ? Math.min(currentIndex + 1, emails.length - 1)
       : Math.max(currentIndex - 1, 0)
 
     if (newIndex !== currentIndex) {
-      setSelectedEmailId(displayEmails[newIndex].id)
-      toast.success(`Navigated to ${direction} email`)
+      setSelectedEmailId(emails[newIndex].id)
     }
   }
-
-  // Keyboard shortcuts handler
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignore shortcuts when typing in input/textarea
-      const target = e.target as HTMLElement
-      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA') {
-        return
-      }
-
-      // Keyboard shortcuts
-      switch (e.key.toLowerCase()) {
-        case 'r':
-          if (selectedEmail) {
-            replyActionRef.current?.()
-            toast.success('Reply mode activated (press R)')
-          }
-          break
-        case 'e':
-          if (selectedEmail) {
-            handleArchive()
-          }
-          break
-        case '#':
-        case 'delete':
-          if (selectedEmail) {
-            handleDelete()
-          }
-          break
-        case 'j':
-          navigateEmail('next')
-          e.preventDefault()
-          break
-        case 'k':
-          navigateEmail('prev')
-          e.preventDefault()
-          break
-        case '?':
-          setShowShortcutsDialog(true)
-          e.preventDefault()
-          break
-        case 'g':
-          // Gmail-style navigation: g+i for inbox
-          if (e.shiftKey) {
-            setCurrentFolder('inbox')
-            toast.success('Navigated to Inbox (Shift+G)')
-          }
-          break
-        default:
-          break
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [selectedEmail, displayEmails, selectedEmailId])
 
   const handleCompose = () => {
     toast.info('Compose new email modal would open here (dummy action)')
   }
+
+  // Dummy buildings for now
+  const dummyBuildings: DummyBuilding[] = []
 
   return (
     <div className="layout-padding flex flex-col flex-1 min-h-0 bg-slate-50">
@@ -195,10 +192,16 @@ export default function EmailPage() {
           <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
             Emails
           </h1>
-          <Button onClick={handleCompose} className="w-fit">
-            <Plus className="h-4 w-4 mr-2" />
-            <span>Composer</span>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleSync} disabled={isLoading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+              Sync
+            </Button>
+            <Button onClick={handleCompose} className="w-fit">
+              <Plus className="h-4 w-4 mr-2" />
+              <span>Composer</span>
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -210,9 +213,9 @@ export default function EmailPage() {
             currentFolder={currentFolder}
             onFolderChange={handleFolderChange}
             unreadCounts={{
-              inbox: getUnreadCount('inbox'),
+              inbox: 0, // TODO: Fetch counts
               sent: 0,
-              drafts: getDraftsCount(),
+              drafts: 0,
               archive: 0
             }}
             buildings={dummyBuildings}
@@ -221,7 +224,7 @@ export default function EmailPage() {
 
           {/* Email List */}
           <EmailList
-            emails={displayEmails}
+            emails={emails}
             selectedEmailId={selectedEmailId}
             onEmailSelect={setSelectedEmailId}
             onConversationSelect={handleConversationSelect}
@@ -246,73 +249,11 @@ export default function EmailPage() {
               <div className="text-center">
                 <p className="text-lg font-semibold mb-2">No email selected</p>
                 <p className="text-sm">Select an email from the list to view it</p>
-                <p className="text-xs mt-4 text-muted-foreground/70">
-                  Press <kbd className="px-2 py-1 bg-muted rounded border">?</kbd> for keyboard shortcuts
-                </p>
               </div>
             </div>
           )}
         </div>
       </div>
-
-      {/* Keyboard Shortcuts Help Dialog */}
-      <Dialog open={showShortcutsDialog} onOpenChange={setShowShortcutsDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Keyboard Shortcuts</DialogTitle>
-            <DialogDescription>
-              Navigate and manage emails faster with these shortcuts
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm">Navigation</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Next email</span>
-                  <kbd className="px-2 py-1 bg-muted rounded border text-xs">J</kbd>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Previous email</span>
-                  <kbd className="px-2 py-1 bg-muted rounded border text-xs">K</kbd>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Go to Inbox</span>
-                  <kbd className="px-2 py-1 bg-muted rounded border text-xs">Shift + G</kbd>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm">Actions</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Reply</span>
-                  <kbd className="px-2 py-1 bg-muted rounded border text-xs">R</kbd>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Archive</span>
-                  <kbd className="px-2 py-1 bg-muted rounded border text-xs">E</kbd>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Delete</span>
-                  <kbd className="px-2 py-1 bg-muted rounded border text-xs">#</kbd>
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="font-semibold text-sm">Help</h4>
-              <div className="space-y-1 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Show this dialog</span>
-                  <kbd className="px-2 py-1 bg-muted rounded border text-xs">?</kbd>
-                </div>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

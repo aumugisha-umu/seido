@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { Database } from "@/lib/database.types"
 import { createServerInterventionService } from '@/lib/services'
-import { notificationService } from '@/lib/notification-service'
+import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { interventionCancelSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
@@ -147,17 +147,19 @@ export async function POST(request: NextRequest) {
     // Envoyer les notifications
     try {
       logger.info({}, "📧 Sending cancellation notifications...")
-      
-      // Paramètres: intervention, statusFrom, statusTo, changedBy, reason
-      await notificationService.notifyInterventionStatusChanged(
-        updatedIntervention,
-        intervention.status, // statusFrom (ancien statut)
-        "annulee",          // statusTo (nouveau statut)
-        authUser.id,        // changedBy
-        cancellationReason  // reason
-      )
-      
-      logger.info({}, "✅ Notifications sent successfully")
+
+      const notifResult = await notifyInterventionStatusChange({
+        interventionId: updatedIntervention.id,
+        oldStatus: intervention.status,
+        newStatus: "annulee",
+        reason: cancellationReason
+      })
+
+      if (notifResult.success) {
+        logger.info({ count: notifResult.data?.length }, "✅ Cancellation notifications sent successfully")
+      } else {
+        logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed")
+      }
     } catch (notificationError) {
       logger.error({ error: notificationError }, "❌ Error sending notifications:")
       // Ne pas faire échouer la requête pour un problème de notification

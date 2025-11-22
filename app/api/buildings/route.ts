@@ -5,6 +5,8 @@ import { createBuildingRepository } from '@/lib/services/repositories/building.r
 import type { CreateBuildingDTO } from '@/lib/services/core/service-types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { createBuildingSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { createBuildingNotification } from '@/app/actions/notification-actions'
+import { createActivityLogger } from '@/lib/activity-logger'
 
 /**
  * GET /api/buildings
@@ -124,6 +126,35 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info({ buildingId: result.data?.id }, '✅ [BUILDINGS-API] Building created successfully')
+
+    // 📝 ACTIVITY LOG: Bâtiment créé
+    try {
+      const activityLogger = await createActivityLogger()
+      activityLogger.setContext({ userId: userProfile.id, teamId: validatedData.team_id })
+      await activityLogger.logBuildingAction(
+        'create',
+        result.data!.id,
+        result.data!.name,
+        { address: validatedData.address, city: validatedData.city }
+      )
+      logger.info({ buildingId: result.data?.id }, '📝 [BUILDINGS-API] Activity logged')
+    } catch (logError) {
+      logger.error({ error: logError, buildingId: result.data?.id }, '⚠️ [BUILDINGS-API] Failed to log activity')
+    }
+
+    // 🔔 NOTIFICATION: Nouveau bâtiment créé
+    try {
+      const notifResult = await createBuildingNotification(result.data!.id)
+
+      if (notifResult.success) {
+        logger.info({ buildingId: result.data?.id, count: notifResult.data?.length }, '🔔 [BUILDINGS-API] Building creation notifications sent')
+      } else {
+        logger.error({ error: notifResult.error, buildingId: result.data?.id }, '⚠️ [BUILDINGS-API] Failed to send notifications')
+      }
+    } catch (notifError) {
+      // Ne pas bloquer la réponse si la notification échoue
+      logger.error({ error: notifError, buildingId: result.data?.id }, '⚠️ [BUILDINGS-API] Failed to send building creation notification')
+    }
 
     return NextResponse.json({
       success: true,

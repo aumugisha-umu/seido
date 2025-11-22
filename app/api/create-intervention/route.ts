@@ -352,130 +352,18 @@ export async function POST(request: NextRequest) {
       // Create notifications for assigned users and team members
       if (effectiveTeamId) {
         try {
-          const { notificationService } = await import('@/lib/notification-service')
-          
-          // 1. Créer des notifications PERSONNELLES pour les gestionnaires directement assignés/responsables du bien
-          //    Ces gestionnaires sont automatiquement assignés car ils sont liés au lot/bâtiment via lot_contacts/building_contacts
-          let personalNotificationPromises: Promise<unknown>[] = []
-          
-          if (assignments && assignments.length > 0) {
-            personalNotificationPromises = assignments
-              .filter((assignment: { user_id: string; role: string; is_primary?: boolean }) => 
-                assignment.user_id !== user.id && // Don't notify the creator
-                assignment.role === 'gestionnaire' // Only managers get personal notifications
-              )
-              .map((assignment: { user_id: string; role: string; is_primary?: boolean }) => {
-              logger.info({
-                userId: assignment.user_id,
-                teamId: effectiveTeamId,
-                createdBy: user.id,
-                isPersonal: true,
-                assignmentRole: assignment.role,
-                isPrimary: assignment.is_primary
-              }, '📬 [CREATE-INTERVENTION] Creating personal notification for manager LINKED TO BUILDING/LOT')
-              return notificationService.createNotification({
-                userId: assignment.user_id,
-                teamId: effectiveTeamId,
-                createdBy: user.id,
-                type: 'intervention',
-                priority: intervention.urgency === 'urgente' ? 'urgent' : 
-                         intervention.urgency === 'haute' ? 'high' : 'normal',
-                title: `Nouvelle intervention créée - ${intervention.title}`,
-                message: `Une nouvelle intervention "${intervention.title}" a été créée dans votre secteur et nécessite votre attention.`,
-                isPersonal: true, // NOTIFICATION PERSONNELLE
-                metadata: { 
-                  intervention_id: intervention.id,
-                  intervention_type: intervention.type,
-                  assignment_role: assignment.role,
-                  is_primary: assignment.is_primary
-                },
-                relatedEntityType: 'intervention',
-                relatedEntityId: intervention.id
-              }).then(result => {
-                if (result) {
-                  logger.info({ userId: assignment.user_id, notificationId: result.id }, "✅ Personal notification created for manager")
-                  return result
-                } else {
-                  logger.error({ userId: assignment.user_id }, "❌ Failed to create personal notification for manager")
-                  return null
-                }
-              })
-            })
+          const { createInterventionNotification } = await import('@/app/actions/notification-actions')
+
+          logger.info({ interventionId: intervention.id }, '📬 [CREATE-INTERVENTION] Creating intervention notifications via Server Action')
+
+          const notifResult = await createInterventionNotification(intervention.id)
+
+          if (notifResult.success) {
+            logger.info({
+              count: notifResult.data?.length || 0
+            }, "✅ Intervention notifications created successfully")
           } else {
-            logger.info({}, 'ℹ️ [CREATE-INTERVENTION] No assignments found, skipping personal notifications')
-          }
-
-          // 2. Créer une notification D'ÉQUIPE pour les gestionnaires de l'équipe NON assignés au bien
-          //    Ces gestionnaires font partie de l'équipe mais ne sont PAS liés au lot/bâtiment spécifique
-          //    Ils reçoivent une notification informative (pas personnelle) pour rester au courant
-          const { data: teamMembers } = await supabase
-            .from('team_members')
-            .select(`
-              user_id,
-              user:user_id(
-                id,
-                role
-              )
-            `)
-            .eq('team_id', effectiveTeamId)
-          
-          if (teamMembers && teamMembers.length > 0) {
-            const teamNotificationPromises = teamMembers
-              .filter(member => 
-                member.user_id !== user.id && // Don't notify the creator
-                member.user?.role === 'gestionnaire' && // Only gestionnaires
-                !(assignments && assignments.some((assignment: { user_id: string }) => assignment.user_id === member.user_id)) // Don't double-notify assigned users (those linked to the building/lot)
-              )
-              .map(member => {
-                logger.info({
-                  userId: member.user_id,
-                  teamId: effectiveTeamId,
-                  createdBy: user.id,
-                  isPersonal: false,
-                  userRole: member.user?.role
-                }, '📬 [CREATE-INTERVENTION] Creating team notification for gestionnaire')
-                return notificationService.createNotification({
-                  userId: member.user_id,
-                  teamId: effectiveTeamId,
-                  createdBy: user.id,
-                  type: 'intervention',
-                  priority: intervention.urgency === 'urgente' ? 'urgent' : 
-                           intervention.urgency === 'haute' ? 'high' : 'normal',
-                  title: `Nouvelle intervention dans l'équipe - ${intervention.title}`,
-                  message: `Une nouvelle intervention "${intervention.title}" a été créée dans votre équipe.`,
-                  isPersonal: false, // NOTIFICATION D'ÉQUIPE
-                  metadata: { 
-                    intervention_id: intervention.id,
-                    intervention_type: intervention.type
-                  },
-                  relatedEntityType: 'intervention',
-                  relatedEntityId: intervention.id
-                }).then(result => {
-                  if (result) {
-                    logger.info({ userId: member.user_id, notificationId: result.id }, "✅ Team notification created for gestionnaire")
-                    return result
-                  } else {
-                    logger.error({ userId: member.user_id }, "❌ Failed to create team notification for gestionnaire")
-                    return null
-                  }
-                })
-              })
-
-            // Attendre toutes les notifications (personnelles + équipe)
-            const [personalResults, teamResults] = await Promise.all([
-              Promise.all(personalNotificationPromises),
-              Promise.all(teamNotificationPromises)
-            ])
-
-            const personalSuccessful = personalResults.filter(result => result !== null).length
-            const teamSuccessful = teamResults.filter(result => result !== null).length
-            
-            logger.info({}, "✅ Notifications summary:")
-            logger.info({ count: assignments?.length || 0 }, "   - total users auto-assigned to intervention")
-            logger.info({ count: personalSuccessful }, "   - personal notifications sent (to managers linked to building/lot)")
-            logger.info({ count: teamSuccessful }, "   - team notifications sent (to managers in team NOT linked to building/lot)")
-          } else {
-            logger.info({}, "⚠️ No team members found for team notifications")
+            logger.error({ error: notifResult.error }, "❌ Failed to create notifications (intervention still created)")
           }
         } catch (notificationError) {
           logger.error({ error: notificationError }, "❌ Error creating notifications (intervention still created)")

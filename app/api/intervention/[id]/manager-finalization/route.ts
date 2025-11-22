@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
-import { notificationService } from '@/lib/notification-service'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { managerFinalizationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
@@ -172,10 +171,12 @@ export async function POST(
     // Send final notifications
     try {
       // Notify all participants
-      const { data: contacts } = await supabase
-        .from('intervention_contacts')
+      const { data: assignments } = await supabase
+        .from('intervention_assignments')
         .select(`
-          user:user_id(id, name, email, role)
+          user:users!user_id(id, name, email, role),
+          is_primary,
+          role
         `)
         .eq('intervention_id', interventionId)
 
@@ -185,10 +186,9 @@ export async function POST(
           teamId: intervention.team_id,
           createdBy: user.id,
           type: 'intervention',
-          priority: 'normal',
           title: 'Intervention finalisée',
           message: `L'intervention "${intervention.title}" a été finalisée par l'administration.`,
-          isPersonal: true,
+          isPersonal: true, // Locataire toujours personnel
           metadata: {
             interventionId: interventionId,
             interventionTitle: intervention.title,
@@ -199,16 +199,15 @@ export async function POST(
           relatedEntityId: interventionId
         }) : Promise.resolve()
 
-      const contactNotificationPromises = contacts?.map(contact =>
+      const contactNotificationPromises = assignments?.map(assignment =>
         notificationService.createNotification({
-          userId: contact.user.id,
+          userId: assignment.user.id,
           teamId: intervention.team_id,
           createdBy: user.id,
           type: 'intervention',
-          priority: 'normal',
           title: 'Intervention finalisée',
           message: `${user.name} a finalisé l'intervention "${intervention.title}"`,
-          isPersonal: true,
+          isPersonal: assignment.is_primary ?? (assignment.role === 'prestataire'), // ✅ Primary ou prestataire assigné
           metadata: {
             interventionId: interventionId,
             interventionTitle: intervention.title,

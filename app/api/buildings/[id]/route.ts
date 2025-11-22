@@ -4,6 +4,8 @@ import { createBuildingService } from '@/lib/services/domain/building.service'
 import type { UpdateBuildingDTO } from '@/lib/services/core/service-types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { updateBuildingSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { notifyBuildingUpdated, notifyBuildingDeleted } from '@/app/actions/notification-actions'
+import { createActivityLogger } from '@/lib/activity-logger'
 
 /**
  * GET /api/buildings/[id]
@@ -111,6 +113,37 @@ export async function PUT(
 
     logger.info({ buildingId: id }, '✅ [BUILDINGS-API] Building updated successfully')
 
+    // 📝 ACTIVITY LOG: Bâtiment modifié
+    try {
+      const activityLogger = await createActivityLogger()
+      activityLogger.setContext({ userId: userProfile.id, teamId: result.data!.team_id })
+      await activityLogger.logBuildingAction(
+        'update',
+        id,
+        result.data!.name,
+        { changes: Object.keys(validatedData) }
+      )
+      logger.info({ buildingId: id }, '📝 [BUILDINGS-API] Activity logged')
+    } catch (logError) {
+      logger.error({ error: logError, buildingId: id }, '⚠️ [BUILDINGS-API] Failed to log activity')
+    }
+
+    // 🔔 NOTIFICATION: Bâtiment modifié
+    try {
+      const notifResult = await notifyBuildingUpdated({
+        buildingId: id,
+        changes: validatedData
+      })
+
+      if (notifResult.success) {
+        logger.info({ buildingId: id, count: notifResult.data?.length }, '🔔 [BUILDINGS-API] Building update notifications sent')
+      } else {
+        logger.error({ error: notifResult.error, buildingId: id }, '⚠️ [BUILDINGS-API] Failed to send notifications')
+      }
+    } catch (notifError) {
+      logger.error({ error: notifError, buildingId: id }, '⚠️ [BUILDINGS-API] Failed to send building update notification')
+    }
+
     return NextResponse.json({
       success: true,
       building: result.data
@@ -164,6 +197,42 @@ export async function DELETE(
     }
 
     logger.info({ buildingId: id }, '✅ [BUILDINGS-API] Building deleted successfully')
+
+    // Note: On ne peut plus accéder au nom/team_id après suppression, donc on les récupère avant
+    const buildingName = result.data?.name || 'Bâtiment supprimé'
+    const teamId = result.data?.team_id || ''
+
+    // 📝 ACTIVITY LOG: Bâtiment supprimé
+    try {
+      const activityLogger = await createActivityLogger()
+      activityLogger.setContext({ userId: userProfile.id, teamId })
+      await activityLogger.logBuildingAction(
+        'delete',
+        id,
+        buildingName
+      )
+      logger.info({ buildingId: id }, '📝 [BUILDINGS-API] Activity logged')
+    } catch (logError) {
+      logger.error({ error: logError, buildingId: id }, '⚠️ [BUILDINGS-API] Failed to log activity')
+    }
+
+    // 🔔 NOTIFICATION: Bâtiment supprimé
+    try {
+      const notifResult = await notifyBuildingDeleted({
+        id,
+        name: buildingName,
+        address: result.data?.address || '',
+        team_id: teamId
+      })
+
+      if (notifResult.success) {
+        logger.info({ buildingId: id, count: notifResult.data?.length }, '🔔 [BUILDINGS-API] Building deletion notifications sent')
+      } else {
+        logger.error({ error: notifResult.error, buildingId: id }, '⚠️ [BUILDINGS-API] Failed to send notifications')
+      }
+    } catch (notifError) {
+      logger.error({ error: notifError, buildingId: id }, '⚠️ [BUILDINGS-API] Failed to send building deletion notification')
+    }
 
     return NextResponse.json({
       success: true,

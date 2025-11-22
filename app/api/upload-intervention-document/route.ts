@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { uploadInterventionDocumentSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { createActivityLogger } from '@/lib/activity-logger'
 
 // Helper function to determine document type from file type and name
 function getDocumentType(mimeType: string, filename: string): string {
@@ -200,6 +201,37 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info({}, "🎉 Document upload completed successfully")
+
+    // 📝 ACTIVITY LOG: Document uploadé
+    try {
+      const activityLogger = await createActivityLogger()
+      activityLogger.setContext({ userId: userProfile.id, teamId: intervention.team_id })
+      await activityLogger.logDocumentAction(
+        'upload',
+        document.id,
+        document.original_filename,
+        { intervention_id: validatedData.interventionId, document_type: document.document_type, file_size: document.file_size }
+      )
+      logger.info({ documentId: document.id }, '📝 [UPLOAD-INTERVENTION-DOC] Activity logged')
+    } catch (logError) {
+      logger.error({ error: logError, documentId: document.id }, '⚠️ [UPLOAD-INTERVENTION-DOC] Failed to log activity')
+    }
+
+    // 🔔 NOTIFICATION: Document uploadé
+    try {
+      const { notifyDocumentUploaded } = await import('@/app/actions/notification-actions')
+      await notifyDocumentUploaded({
+        documentId: document.id,
+        documentName: document.original_filename,
+        teamId: intervention.team_id,
+        uploadedBy: userProfile.id,
+        relatedEntityType: 'intervention',
+        relatedEntityId: validatedData.interventionId
+      })
+      logger.info({ documentId: document.id }, '🔔 [UPLOAD-INTERVENTION-DOC] Document upload notification sent')
+    } catch (notifError) {
+      logger.error({ error: notifError, documentId: document.id }, '⚠️ [UPLOAD-INTERVENTION-DOC] Failed to send document upload notification')
+    }
 
     return NextResponse.json({
       success: true,

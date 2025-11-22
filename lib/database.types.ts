@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "13.0.4"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       activity_logs: {
@@ -534,6 +509,217 @@ export type Database = {
           },
           {
             foreignKeyName: "conversation_threads_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_attachments: {
+        Row: {
+          content_type: string | null
+          created_at: string | null
+          email_id: string
+          filename: string
+          id: string
+          size_bytes: number
+          storage_path: string
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string | null
+          email_id: string
+          filename: string
+          id?: string
+          size_bytes: number
+          storage_path: string
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string | null
+          email_id?: string
+          filename?: string
+          id?: string
+          size_bytes?: number
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_attachments_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_blacklist: {
+        Row: {
+          blocked_by_user_id: string | null
+          created_at: string | null
+          id: string
+          reason: string | null
+          sender_domain: string | null
+          sender_email: string
+          team_id: string
+        }
+        Insert: {
+          blocked_by_user_id?: string | null
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          sender_domain?: string | null
+          sender_email: string
+          team_id: string
+        }
+        Update: {
+          blocked_by_user_id?: string | null
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          sender_domain?: string | null
+          sender_email?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_blacklist_blocked_by_user_id_fkey"
+            columns: ["blocked_by_user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_blacklist_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      emails: {
+        Row: {
+          bcc_addresses: string[] | null
+          body_html: string | null
+          body_text: string | null
+          building_id: string | null
+          cc_addresses: string[] | null
+          created_at: string | null
+          deleted_at: string | null
+          direction: Database["public"]["Enums"]["email_direction"]
+          email_connection_id: string | null
+          from_address: string
+          id: string
+          in_reply_to: string | null
+          intervention_id: string | null
+          lot_id: string | null
+          message_id: string | null
+          received_at: string | null
+          references: string | null
+          search_vector: unknown
+          sent_at: string | null
+          status: Database["public"]["Enums"]["email_status"] | null
+          subject: string
+          team_id: string
+          to_addresses: string[]
+        }
+        Insert: {
+          bcc_addresses?: string[] | null
+          body_html?: string | null
+          body_text?: string | null
+          building_id?: string | null
+          cc_addresses?: string[] | null
+          created_at?: string | null
+          deleted_at?: string | null
+          direction: Database["public"]["Enums"]["email_direction"]
+          email_connection_id?: string | null
+          from_address: string
+          id?: string
+          in_reply_to?: string | null
+          intervention_id?: string | null
+          lot_id?: string | null
+          message_id?: string | null
+          received_at?: string | null
+          references?: string | null
+          search_vector?: unknown
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["email_status"] | null
+          subject: string
+          team_id: string
+          to_addresses: string[]
+        }
+        Update: {
+          bcc_addresses?: string[] | null
+          body_html?: string | null
+          body_text?: string | null
+          building_id?: string | null
+          cc_addresses?: string[] | null
+          created_at?: string | null
+          deleted_at?: string | null
+          direction?: Database["public"]["Enums"]["email_direction"]
+          email_connection_id?: string | null
+          from_address?: string
+          id?: string
+          in_reply_to?: string | null
+          intervention_id?: string | null
+          lot_id?: string | null
+          message_id?: string | null
+          received_at?: string | null
+          references?: string | null
+          search_vector?: unknown
+          sent_at?: string | null
+          status?: Database["public"]["Enums"]["email_status"] | null
+          subject?: string
+          team_id?: string
+          to_addresses?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "emails_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emails_email_connection_id_fkey"
+            columns: ["email_connection_id"]
+            isOneToOne: false
+            referencedRelation: "team_email_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emails_in_reply_to_fkey"
+            columns: ["in_reply_to"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emails_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emails_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emails_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emails_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -1554,6 +1740,83 @@ export type Database = {
           },
         ]
       }
+      team_email_connections: {
+        Row: {
+          created_at: string | null
+          email_address: string
+          id: string
+          imap_host: string
+          imap_password_encrypted: string
+          imap_port: number
+          imap_use_ssl: boolean | null
+          imap_username: string
+          is_active: boolean | null
+          last_error: string | null
+          last_sync_at: string | null
+          last_uid: number | null
+          provider: string
+          smtp_host: string
+          smtp_password_encrypted: string
+          smtp_port: number
+          smtp_use_tls: boolean | null
+          smtp_username: string
+          team_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email_address: string
+          id?: string
+          imap_host: string
+          imap_password_encrypted: string
+          imap_port?: number
+          imap_use_ssl?: boolean | null
+          imap_username: string
+          is_active?: boolean | null
+          last_error?: string | null
+          last_sync_at?: string | null
+          last_uid?: number | null
+          provider: string
+          smtp_host: string
+          smtp_password_encrypted: string
+          smtp_port?: number
+          smtp_use_tls?: boolean | null
+          smtp_username: string
+          team_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email_address?: string
+          id?: string
+          imap_host?: string
+          imap_password_encrypted?: string
+          imap_port?: number
+          imap_use_ssl?: boolean | null
+          imap_username?: string
+          is_active?: boolean | null
+          last_error?: string | null
+          last_sync_at?: string | null
+          last_uid?: number | null
+          provider?: string
+          smtp_host?: string
+          smtp_password_encrypted?: string
+          smtp_port?: number
+          smtp_use_tls?: boolean | null
+          smtp_username?: string
+          team_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_email_connections_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_members: {
         Row: {
           id: string
@@ -2101,6 +2364,10 @@ export type Database = {
         Args: { lot_id: string }
         Returns: boolean
       }
+      is_sender_blacklisted: {
+        Args: { p_sender_email: string; p_team_id: string }
+        Returns: boolean
+      }
       is_team_manager: { Args: { check_team_id: string }; Returns: boolean }
       is_team_member: {
         Args: { allowed_roles?: string[]; check_team_id: string }
@@ -2172,6 +2439,8 @@ export type Database = {
         | "luxembourg"
         | "autre"
       document_visibility_level: "equipe" | "locataire" | "intervention"
+      email_direction: "received" | "sent"
+      email_status: "unread" | "read" | "archived" | "deleted"
       intervention_document_type:
         | "rapport"
         | "photo_avant"
@@ -2382,9 +2651,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {
       activity_action_type: [
@@ -2434,6 +2700,8 @@ export const Constants = {
         "autre",
       ],
       document_visibility_level: ["equipe", "locataire", "intervention"],
+      email_direction: ["received", "sent"],
+      email_status: ["unread", "read", "archived", "deleted"],
       intervention_document_type: [
         "rapport",
         "photo_avant",

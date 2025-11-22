@@ -28,7 +28,6 @@ type Notification = Database['public']['Tables']['notifications']['Row']
 type NotificationInsert = Database['public']['Tables']['notifications']['Insert']
 type NotificationUpdate = Database['public']['Tables']['notifications']['Update']
 type NotificationType = Database['public']['Enums']['notification_type']
-type NotificationPriority = Database['public']['Enums']['notification_priority']
 
 // Extended types
 interface NotificationWithRelations extends Notification {
@@ -39,7 +38,6 @@ interface NotificationWithRelations extends Notification {
 // Filter interface
 interface NotificationFilters {
   type?: NotificationType
-  priority?: NotificationPriority
   read?: boolean
   archived?: boolean
   date_from?: string
@@ -56,7 +54,7 @@ interface BulkNotificationData {
   title: string
   message: string
   type: NotificationType
-  priority?: NotificationPriority
+  is_personal?: boolean
   related_entity_type?: string
   related_entity_id?: string
   metadata?: Record<string, any>
@@ -106,17 +104,6 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
       }
     }
 
-    if ('priority' in data && data.priority !== undefined) {
-      const validPriorities: NotificationPriority[] = ['low', 'normal', 'high', 'urgent']
-      if (!validPriorities.includes(data.priority)) {
-        throw new ValidationException(
-          `Invalid priority. Must be one of: ${validPriorities.join(', ')}`,
-          'notifications',
-          'priority'
-        )
-      }
-    }
-
     // For insert, validate required fields
     if (this.isInsertData(data)) {
       validateRequired(data, ['user_id', 'title', 'message', 'type'])
@@ -161,9 +148,6 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
       if (filters?.type) {
         query = query.eq('type', filters.type)
       }
-      if (filters?.priority) {
-        query = query.eq('priority', filters.priority)
-      }
       if (filters?.read !== undefined) {
         query = query.eq('read', filters.read)
       }
@@ -177,10 +161,9 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
         query = query.lte('created_at', filters.date_to)
       }
 
-      // Order by priority and date
+      // Order by read status and date
       query = query
         .order('read', { ascending: true })
-        .order('priority', { ascending: false })
         .order('created_at', { ascending: false })
         .limit(100)
 
@@ -212,7 +195,6 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
         .eq('user_id', userId)
         .eq('read', false)
         .eq('archived', false)
-        .order('priority', { ascending: false })
         .order('created_at', { ascending: false })
 
       if (error) {
@@ -256,7 +238,6 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
     try {
       const insertData: NotificationInsert = {
         ...data,
-        priority: data.priority || 'normal',
         read: false,
         archived: false,
         metadata: data.metadata ? JSON.stringify(data.metadata) : null
@@ -402,7 +383,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
         title: data.title,
         message: data.message,
         type: data.type,
-        priority: data.priority || 'normal',
+        is_personal: data.is_personal ?? false,
         related_entity_type: data.related_entity_type || null,
         related_entity_id: data.related_entity_id || null,
         metadata: data.metadata ? JSON.stringify(data.metadata) : null,
@@ -478,7 +459,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
     interventionId: string,
     title: string,
     message: string,
-    priority: NotificationPriority = 'normal',
+    isPersonal: boolean = false,
     createdBy?: string
   ) {
     return this.create({
@@ -486,7 +467,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
       title,
       message,
       type: 'intervention',
-      priority,
+      is_personal: isPersonal,
       related_entity_type: 'interventions',
       related_entity_id: interventionId,
       created_by: createdBy
@@ -508,7 +489,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
       title: `Nouveau message de ${senderName}`,
       message: messagePreview.length > 100 ? messagePreview.substring(0, 100) + '...' : messagePreview,
       type: 'chat',
-      priority: 'normal',
+      is_personal: false,
       related_entity_type: 'conversation_threads',
       related_entity_id: threadId,
       created_by: createdBy
@@ -523,7 +504,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
     quoteId: string,
     title: string,
     message: string,
-    priority: NotificationPriority = 'normal',
+    isPersonal: boolean = false,
     createdBy?: string
   ) {
     return this.create({
@@ -531,7 +512,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
       title,
       message,
       type: 'intervention',
-      priority,
+      is_personal: isPersonal,
       related_entity_type: 'intervention_quotes',
       related_entity_id: quoteId,
       created_by: createdBy
@@ -547,7 +528,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
 
       const { data: notifications, error } = await this.supabase
         .from('notifications')
-        .select('type, priority, read, archived')
+        .select('type, is_personal, read, archived')
         .eq('user_id', userId)
 
       if (error) {
@@ -558,28 +539,295 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
         total: notifications?.length || 0,
         unread: 0,
         archived: 0,
-        by_type: {} as Record<NotificationType, number>,
-        by_priority: {} as Record<NotificationPriority, number>
+        personal: 0,
+        by_type: {} as Record<NotificationType, number>
       }
 
       // Initialize counters
       const types: NotificationType[] = ['intervention', 'chat', 'document', 'system', 'team_invite', 'assignment', 'status_change', 'reminder', 'deadline']
-      const priorities: NotificationPriority[] = ['low', 'normal', 'high', 'urgent']
 
       types.forEach(t => stats.by_type[t] = 0)
-      priorities.forEach(p => stats.by_priority[p] = 0)
 
       // Calculate stats
       notifications?.forEach(notification => {
         if (!notification.read) stats.unread++
         if (notification.archived) stats.archived++
+        if (notification.is_personal) stats.personal++
         if (notification.type) stats.by_type[notification.type]++
-        if (notification.priority) stats.by_priority[notification.priority]++
       })
 
       return createSuccessResponse(stats)
     } catch (error) {
       return createErrorResponse(handleError(error, 'notifications:getUserStats'))
+    }
+  }
+  // ============================================================================
+// OPTIMIZED QUERIES FOR DOMAIN SERVICE
+// ============================================================================
+/**
+ * Get intervention with all managers (optimized JOIN query)
+ * Used by NotificationService to determine recipients
+ */
+async getInterventionWithManagers(interventionId: string) {
+    validateUUID(interventionId)
+    const { data, error } = await this.supabase
+        .from('interventions')
+        .select(`
+      id,
+      title,
+      reference,
+      lot_id,
+      building_id,
+      team_id,
+      created_by,
+      lot:lot_id(
+        reference,
+        building:building_id(
+          name,
+          building_contacts!building_contacts_building_id_fkey(
+            user_id,
+            is_primary,
+            user:user_id(role)
+          )
+        ),
+        lot_contacts!lot_contacts_lot_id_fkey(
+          user_id,
+          is_primary,
+          user:user_id(role)
+        )
+      ),
+      building:building_id(
+        name,
+        building_contacts!building_contacts_building_id_fkey(
+          user_id,
+          is_primary,
+          user:user_id(role)
+        )
+      ),
+      intervention_assignments!intervention_assignments_intervention_id_fkey(
+        user_id,
+        role,
+        is_primary
+      ),
+      team:team_id(
+        id,
+        team_members(
+          user_id,
+          user:user_id(id, name, role)
+        )
+      )
+    `)
+        .eq('id', interventionId)
+        .single()
+    if (error) throw handleError(error, 'notifications:getInterventionWithManagers')
+    // Transform to expected format
+    return {
+        ...data,
+        interventionAssignedManagers: (data.intervention_assignments || [])
+            .filter((a: any) => a.role === 'gestionnaire')
+            .map((a: any) => a.user_id),
+        interventionAssignedProviders: (data.intervention_assignments || [])
+            .filter((a: any) => a.role === 'prestataire')
+            .map((a: any) => a.user_id),
+        buildingManagers: data.lot?.building?.building_contacts
+            ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
+            ?.map(c => c.user_id) || [],
+        lotManagers: data.lot?.lot_contacts
+            ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
+            ?.map(c => c.user_id) || [],
+        teamMembers: data.team?.team_members
+            ?.filter(tm => tm.user)
+            ?.map(tm => ({
+                id: tm.user_id,
+                role: tm.user.role,
+                name: tm.user.name
+            })) || []
+    }
+}
+
+  async getBuildingWithManagers(buildingId: string) {
+    validateUUID(buildingId)
+
+    const { data, error } = await this.supabase
+      .from('buildings')
+      .select(`
+        id,
+        name,
+        address,
+        team_id,
+        building_contacts!building_contacts_building_id_fkey(
+          user_id,
+          is_primary,
+          end_date,
+          user:user_id(role)
+        ),
+        team:team_id(
+          id,
+          team_members(
+            user_id,
+            user:user_id(id, name, role)
+          )
+        )
+      `)
+      .eq('id', buildingId)
+      .single()
+
+    if (error) throw handleError(error, 'notifications:getBuildingWithManagers')
+
+    return {
+      ...data,
+      buildingManagers: data.building_contacts
+        ?.filter(c => c.is_primary && !c.end_date && c.user?.role === 'gestionnaire')
+        ?.map(c => c.user_id) || [],
+      teamMembers: data.team?.team_members
+        ?.filter(tm => tm.user)
+        ?.map(tm => ({
+          id: tm.user_id,
+          role: tm.user.role,
+          name: tm.user.name
+        })) || []
+    }
+  }
+
+  /**
+   * Get lot with all managers (optimized JOIN query)
+   */
+  async getLotWithManagers(lotId: string) {
+    validateUUID(lotId)
+
+    const { data, error } = await this.supabase
+      .from('lots')
+      .select(`
+        id,
+        reference,
+        building_id,
+        team_id,
+        building:building_id(
+          name,
+          building_contacts!building_contacts_building_id_fkey(
+            user_id,
+            is_primary,
+            end_date,
+            user:user_id(role)
+          )
+        ),
+        lot_contacts!lot_contacts_lot_id_fkey(
+          user_id,
+          is_primary,
+          end_date,
+          user:user_id(role)
+        ),
+        team:team_id(
+          id,
+          team_members(
+            user_id,
+            user:user_id(id, name, role)
+          )
+        )
+      `)
+      .eq('id', lotId)
+      .single()
+
+    if (error) throw handleError(error, 'notifications:getLotWithManagers')
+
+    return {
+      ...data,
+      lotManagers: data.lot_contacts
+        ?.filter(c => c.is_primary && !c.end_date && c.user?.role === 'gestionnaire')
+        ?.map(c => c.user_id) || [],
+      buildingManagers: data.building?.building_contacts
+        ?.filter(c => c.is_primary && !c.end_date && c.user?.role === 'gestionnaire')
+        ?.map(c => c.user_id) || [],
+      teamMembers: data.team?.team_members
+        ?.filter(tm => tm.user)
+        ?.map(tm => ({
+          id: tm.user_id,
+          role: tm.user.role,
+          name: tm.user.name
+        })) || []
+    }
+  }
+
+  /**
+   * Get contact with all related building managers (optimized JOIN query)
+   */
+  async getContactWithManagers(contactId: string) {
+    validateUUID(contactId)
+
+    const { data: user, error: userError } = await this.supabase
+      .from('users')
+      .select(`
+        id,
+        first_name,
+        last_name,
+        type,
+        team_id,
+        building_contacts:building_contacts!building_contacts_user_id_fkey(
+          building:building_id(
+            id,
+            building_contacts!building_contacts_building_id_fkey(
+              user_id,
+              is_primary,
+              end_date,
+              user:user_id(role)
+            )
+          )
+        ),
+        lot_contacts:lot_contacts!lot_contacts_user_id_fkey(
+          lot:lot_id(
+            building:building_id(
+              id,
+              building_contacts!building_contacts_building_id_fkey(
+                user_id,
+                is_primary,
+                end_date,
+                user:user_id(role)
+              )
+            )
+          )
+        ),
+        team:team_id(
+          id,
+          team_members(
+            user_id,
+            user:user_id(id, name, role)
+          )
+        )
+      `)
+      .eq('id', contactId)
+      .single()
+
+    if (userError) throw handleError(userError, 'notifications:getContactWithManagers')
+
+    // Collect all unique building managers
+    const buildingManagersSet = new Set<string>()
+
+    user.building_contacts?.forEach(bc => {
+      bc.building?.building_contacts
+        ?.filter(c => c.is_primary && !c.end_date && c.user?.role === 'gestionnaire')
+        ?.forEach(c => buildingManagersSet.add(c.user_id))
+    })
+
+    user.lot_contacts?.forEach(lc => {
+      lc.lot?.building?.building_contacts
+        ?.filter(c => c.is_primary && !c.end_date && c.user?.role === 'gestionnaire')
+        ?.forEach(c => buildingManagersSet.add(c.user_id))
+    })
+
+    return {
+      id: user.id,
+      first_name: user.first_name,
+      last_name: user.last_name,
+      type: user.type,
+      team_id: user.team_id,
+      relatedBuildingManagers: Array.from(buildingManagersSet),
+      teamMembers: user.team?.team_members
+        ?.filter(tm => tm.user)
+        ?.map(tm => ({
+          id: tm.user_id,
+          role: tm.user.role,
+          name: tm.user.name
+        })) || []
     }
   }
 }

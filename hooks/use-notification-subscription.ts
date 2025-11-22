@@ -18,7 +18,6 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 // Type aliases
 type Notification = Tables<'notifications'>
 type NotificationType = Enums<'notification_type'>
-type NotificationPriority = Enums<'notification_priority'>
 
 // Extended notification type
 interface NotificationWithMeta extends Notification {
@@ -195,33 +194,25 @@ export function useNotificationSubscription(): UseNotificationSubscriptionReturn
           // Add new notification to the beginning
           setNotifications(prev => [newNotification, ...prev])
 
-          // Show toast based on priority
+          // Show toast based on type and is_personal
           const message = newNotification.title || 'New notification'
-          switch (newNotification.priority) {
-            case 'urgent':
-              toast.error(message, { duration: 10000 })
-              playNotificationSound()
-              break
-            case 'high':
-              toast.warning(message, { duration: 7000 })
-              playNotificationSound()
-              break
-            case 'normal':
-              toast.info(message, { duration: 5000 })
-              break
-            case 'low':
-              // Don't show toast for low priority
-              break
-          }
 
-          // Play sound for urgent/high priority or specific types
-          if (
-            newNotification.priority === 'urgent' ||
-            newNotification.priority === 'high' ||
-            newNotification.type === 'intervention' ||
-            newNotification.type === 'chat'
-          ) {
+          // Personal notifications are more prominent
+          if (newNotification.is_personal) {
+            toast.warning(message, { duration: 7000 })
             playNotificationSound()
+          } else {
+            // Team notifications
+            switch (newNotification.type) {
+              case 'intervention':
+              case 'chat':
+                toast.info(message, { duration: 5000 })
+                playNotificationSound()
+                break
+              default:
+                toast.info(message, { duration: 5000 })
+                break
+            }
           }
         })
         .on('postgres_changes', {

@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { notificationService } from '@/lib/notification-service'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
@@ -157,9 +156,9 @@ export async function POST(request: NextRequest) {
           teamId: intervention.team_id,
           createdBy: user.id,
           type: 'intervention',
-          priority: 'normal',
           title: notificationTitle,
           message: `${baseMessage} L'intervention est maintenant complètement clôturée.`,
+          isPersonal: true, // Locataire toujours personnel
           metadata: {
             interventionId: intervention.id,
             interventionTitle: intervention.title,
@@ -179,33 +178,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Notify prestataires
-    const providers = intervention.intervention_contacts?.filter(ic => 
-      ic.role === 'prestataire'
-    ) || []
+    // Notify prestataires from intervention_assignments
+    try {
+      const { data: assignedProviders } = await supabase
+        .from('intervention_assignments')
+        .select('user:users!user_id(id, name), is_primary')
+        .eq('intervention_id', intervention.id)
+        .eq('role', 'prestataire')
 
-    for (const provider of providers) {
-      try {
-        await notificationService.createNotification({
-          userId: provider.user.id,
-          teamId: intervention.team_id!,
-          createdBy: user.id,
-          type: 'intervention',
-          priority: 'normal',
-          title: notificationTitle,
-          message: `${baseMessage} ${paymentStatus === 'paid' || paymentStatus === 'approved' ? 'Le paiement a été traité.' : 'Le statut du paiement sera mis à jour prochainement.'}`,
-          metadata: {
-            interventionId: intervention.id,
-            interventionTitle: intervention.title,
-            finalAmount: updateData.final_amount || null,
-            paymentStatus: paymentStatus || null
-          },
-          relatedEntityType: 'intervention',
-          relatedEntityId: intervention.id
-        })
-      } catch (notifError) {
-        logger.warn({ provider: provider.user.name, notifError }, "⚠️ Could not send notification to provider:")
+      for (const assignment of assignedProviders || []) {
+        if (!assignment.user) continue
+
+        try {
+          await notificationService.createNotification({
+            userId: assignment.user.id,
+            teamId: intervention.team_id!,
+            createdBy: user.id,
+            type: 'intervention',
+            title: notificationTitle,
+            message: `${baseMessage} ${paymentStatus === 'paid' || paymentStatus === 'approved' ? 'Le paiement a été traité.' : 'Le statut du paiement sera mis à jour prochainement.'}`,
+            isPersonal: true, // Prestataire assigné toujours personnel
+            metadata: {
+              interventionId: intervention.id,
+              interventionTitle: intervention.title,
+              finalAmount: updateData.final_amount || null,
+              paymentStatus: paymentStatus || null
+            },
+            relatedEntityType: 'intervention',
+            relatedEntityId: intervention.id
+          })
+        } catch (notifError) {
+          logger.warn({ provider: assignment.user.name, notifError }, "⚠️ Could not send notification to provider:")
+        }
       }
+    } catch (queryError) {
+      logger.warn({ queryError }, "⚠️ Could not fetch assigned providers")
     }
 
     // Create activity log entry for closure

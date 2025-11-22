@@ -159,6 +159,7 @@ npm run supabase:migrate # New migration
 - **Caching**: Redis (ioredis), LRU cache, DataLoader
 - **Testing**: Vitest, Playwright, @testing-library/react
 - **Email**: Resend (planned)
+- **Notifications**: Server Actions → Domain Service → Repository (NEW: 2025-11-22)
 
 ### Key Directories
 ```
@@ -334,7 +335,68 @@ const supabase = await createServerSupabaseClient()
 - User, Building, Lot, Tenant, Contact, ContactInvitation, Team, Intervention, Stats, Composite
 
 **Additional Services**:
-- AuthService, FileService, CacheManager, QueryOptimizer, NotificationService, InterventionActionsService
+- AuthService, FileService, CacheManager, QueryOptimizer, InterventionActionsService
+
+### Notification Architecture (NEW: 2025-11-22)
+
+**✅ Modern Architecture** (Server Actions → Domain Service → Repository):
+
+```typescript
+// ✅ CORRECT: Use Server Actions from API routes
+import { createInterventionNotification } from '@/app/actions/notification-actions'
+
+const result = await createInterventionNotification(interventionId)
+if (result.success) {
+  logger.info({ count: result.data?.length }, 'Notifications sent')
+}
+```
+
+**❌ Legacy Pattern** (Deprecated):
+```typescript
+// ❌ DEPRECATED: Do not use singleton anymore
+import { notificationService } from '@/lib/notification-service'
+await notificationService.notifyInterventionCreated(...) // DON'T DO THIS
+```
+
+**Available Server Actions** (`app/actions/notification-actions.ts`):
+- `createInterventionNotification(interventionId)` - New intervention
+- `notifyInterventionStatusChange({ interventionId, oldStatus, newStatus, reason? })` - Status change
+- `createBuildingNotification(buildingId)` - New building
+- `notifyBuildingUpdated({ buildingId, changes })` - Building update
+- `notifyBuildingDeleted(building)` - Building deletion
+- `createLotNotification(lotId)` - New lot
+- `notifyLotUpdated({ lotId, changes })` - Lot update
+- `notifyLotDeleted(lot)` - Lot deletion
+- `createContactNotification(contactId)` - New contact
+- `markNotificationAsRead(notificationId)` - Mark as read
+- `markAllNotificationsAsRead()` - Mark all as read
+
+**Architecture Layers**:
+1. **Server Actions** (`app/actions/notification-actions.ts`) - Orchestration
+   - Auth check via `getServerAuthContext()`
+   - Dependency injection (repository → service)
+   - Error handling + structured logging
+2. **Domain Service** (`lib/services/domain/notification.service.ts`) - Business logic
+   - Pure functions (no direct Supabase calls)
+   - Recipient determination logic
+   - Message formatting
+3. **Repository** (`lib/services/repositories/notification-repository.ts`) - Data access
+   - Optimized JOIN queries (replaces N+1 patterns)
+   - RLS-compliant via server client
+   - Caching support
+
+**Migration Status** (see `docs/notification-migration-status.md`):
+- ✅ 12 files migrated to Server Actions
+- ⏳ 15 files still using legacy singleton (intervention workflow)
+- ✅ RLS policy applied (migration `20251122000001`)
+- ✅ Performance indexes added
+
+**Benefits**:
+- **Next.js 15 compliant**: Server Actions instead of singleton
+- **RLS compliant**: Uses server client with proper permissions
+- **Testable**: Dependency injection in Domain Service
+- **Performant**: JOIN queries instead of N+1
+- **Type-safe**: Strict TypeScript throughout
 
 ### Testing
 

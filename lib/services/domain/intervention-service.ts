@@ -34,6 +34,8 @@ import {
   createServerUserService,
   createServerActionUserService
 } from './user.service'
+import { createEmailNotificationService } from './email-notification.service'
+import { createServerNotificationService } from './notification.service'
 import type {
   Intervention,
   InterventionInsert,
@@ -357,8 +359,13 @@ export class InterventionService {
         await this.createInitialConversationThreads(result.data.id, data.team_id, userId)
       }
 
-      // Send notification
-      await this.notifyInterventionCreated(result.data, userId)
+      // Notification will be handled by the API route via NotificationService
+      // No longer calling legacy notifyInterventionCreated()
+
+      // Send email (if created by tenant)
+      if (interventionData.status === 'demande') {
+        await this.sendInterventionCreatedEmail(result.data, userId)
+      }
 
       // Log activity
       await this.logActivity('intervention_created', result.data.id, userId, {
@@ -529,8 +536,8 @@ export class InterventionService {
         })
       }
 
-      // Send notification
-      await this.notifyUserAssigned(intervention.data, userId, role, assignedBy)
+      // Notification will be handled by NotificationService when needed
+      // No longer calling legacy notifyUserAssigned()
 
       // Log activity
       await this.logActivity('user_assigned', interventionId, assignedBy, {
@@ -618,6 +625,9 @@ export class InterventionService {
         // Send notifications
         await this.notifyStatusChange(result.data, 'approuvee', managerId)
 
+        // Send email to tenant
+        await this.sendInterventionApprovedEmail(result.data, managerId, comment)
+
         // Log activity
         await this.logActivity('intervention_approved', id, managerId, { comment })
       }
@@ -644,6 +654,9 @@ export class InterventionService {
       if (result.success && result.data) {
         // Send notifications
         await this.notifyStatusChange(result.data, 'rejetee', managerId)
+
+        // Send email to tenant
+        await this.sendInterventionRejectedEmail(result.data, managerId, reason)
 
         // Log activity
         await this.logActivity('intervention_rejected', id, managerId, { reason })
@@ -685,6 +698,9 @@ export class InterventionService {
 
         // Send notifications
         await this.notifyQuoteRequested(result.data, providerId, managerId)
+
+        // Send email to provider
+        await this.sendQuoteRequestEmail(result.data, providerId, managerId)
 
         // Log activity
         await this.logActivity('quote_requested', id, managerId, { provider: providerId })
@@ -828,6 +844,9 @@ export class InterventionService {
     try {
       if (updatedIntervention) {
         await this.notifyScheduleConfirmed(updatedIntervention, slot, userId)
+
+        // Send email to tenant + provider
+        await this.sendInterventionScheduledEmail(updatedIntervention, slot)
       }
     } catch (notifError) {
       // Non-critical, continue
@@ -880,6 +899,9 @@ export class InterventionService {
       if (result.success && result.data) {
         // Send notifications to tenant for validation
         await this.notifyProviderCompleted(result.data, providerId)
+
+        // Send email to tenant + manager
+        await this.sendInterventionCompletedEmail(result.data, providerId, report)
 
         // Log activity
         await this.logActivity('completed_by_provider', id, providerId, { report })
@@ -1464,23 +1486,9 @@ export class InterventionService {
    * NOTIFICATION METHODS
    */
 
-  private async notifyInterventionCreated(intervention: Intervention, createdBy: string) {
-    if (!this.notificationRepo) return
-
-    try {
-      await this.notificationRepo.create({
-        type: 'intervention_created',
-        title: 'Nouvelle intervention créée',
-        message: `L'intervention "${intervention.title}" a été créée`,
-        team_id: intervention.team_id,
-        intervention_id: intervention.id,
-        created_by: createdBy,
-        target_roles: ['gestionnaire']
-      })
-    } catch (error) {
-      logger.error('Failed to send intervention created notification', error)
-    }
-  }
+  // LEGACY METHOD - REMOVED
+  // Notifications are now handled by NotificationService in API routes
+  // This prevents duplicate notifications and uses the new email-based system
 
   private async notifyStatusChange(intervention: Intervention, newStatus: InterventionStatus, changedBy: string) {
     if (!this.notificationRepo) return
@@ -1500,23 +1508,10 @@ export class InterventionService {
     }
   }
 
-  private async notifyUserAssigned(intervention: Intervention, userId: string, role: string, assignedBy: string) {
-    if (!this.notificationRepo) return
-
-    try {
-      await this.notificationRepo.create({
-        type: 'user_assigned',
-        title: 'Nouvelle assignation',
-        message: `Vous avez été assigné à l'intervention "${intervention.title}"`,
-        team_id: intervention.team_id,
-        intervention_id: intervention.id,
-        created_by: assignedBy,
-        target_users: [userId]
-      })
-    } catch (error) {
-      logger.error('Failed to send user assigned notification', error)
-    }
-  }
+  // LEGACY METHOD - REMOVED
+  // User assignment notifications are now handled by:
+  // 1. NotificationService for manual assignments
+  // 2. The trigger was creating duplicates, so it has been disabled
 
   private async notifyQuoteRequested(intervention: Intervention, providerId: string, requestedBy: string) {
     if (!this.notificationRepo) return
@@ -1643,6 +1638,412 @@ export class InterventionService {
       })
     } catch (error) {
       logger.error('Failed to send time slots proposed notification', error)
+    }
+  }
+
+  /**
+   * EMAIL NOTIFICATIONS
+   * Send emails for critical intervention events
+   */
+
+  /**
+   * Helper: Send intervention created email to manager
+   */
+  private async sendInterventionCreatedEmail(intervention: Intervention, tenantId: string) {
+    try {
+      const emailService = createEmailNotificationService()
+
+      // Fetch tenant details
+      const tenantResult = await this.userService?.getById(tenantId)
+      if (!tenantResult?.success || !tenantResult.data) {
+        logger.warn({ tenantId }, '⚠️ Cannot send intervention created email - tenant not found')
+        return
+      }
+
+      // Fetch managers from team
+      const { data: teamMembers } = await this.interventionRepo.supabase
+        .from('team_members')
+        .select('users(id, email, first_name, last_name)')
+        .eq('team_id', intervention.team_id)
+        .eq('role', 'gestionnaire')
+
+      if (!teamMembers || teamMembers.length === 0) {
+        logger.warn({ teamId: intervention.team_id }, '⚠️ No managers found for team')
+        return
+      }
+
+      // Get property address
+      let propertyAddress = 'Adresse non spécifiée'
+      let lotReference: string | undefined
+
+      if (intervention.lot_id) {
+        const { data: lot } = await this.interventionRepo.supabase
+          .from('lots')
+          .select('reference, buildings(address, city)')
+          .eq('id', intervention.lot_id)
+          .single()
+
+        if (lot) {
+          lotReference = lot.reference || undefined
+          const building = (lot.buildings as any)
+          propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+        }
+      } else if (intervention.building_id) {
+        const { data: building } = await this.interventionRepo.supabase
+          .from('buildings')
+          .select('address, city')
+          .eq('id', intervention.building_id)
+          .single()
+
+        if (building) {
+          propertyAddress = `${building.address}, ${building.city}`
+        }
+      }
+
+      // Send email to first manager (or all managers in future)
+      const manager = (teamMembers[0].users as any)
+      if (manager) {
+        await emailService.sendInterventionCreated({
+          intervention,
+          property: { address: propertyAddress, lotReference },
+          manager,
+          tenant: tenantResult.data,
+        })
+        logger.info({ interventionId: intervention.id }, '📧 Intervention created email sent')
+      }
+    } catch (error) {
+      logger.error({ error, interventionId: intervention.id }, '❌ Failed to send intervention created email')
+    }
+  }
+
+  /**
+   * Helper: Send intervention approved email to tenant
+   */
+  private async sendInterventionApprovedEmail(intervention: Intervention, managerId: string, approvalNotes?: string) {
+    try {
+      const emailService = createEmailNotificationService()
+
+      // Fetch manager and tenant
+      const managerResult = await this.userService?.getById(managerId)
+      if (!managerResult?.success || !managerResult.data) return
+
+      const tenants = await this.getInterventionTenants(intervention.id)
+      if (tenants.length === 0) return
+
+      // Get property address
+      let propertyAddress = 'Adresse non spécifiée'
+      let lotReference: string | undefined
+
+      if (intervention.lot_id) {
+        const { data: lot } = await this.interventionRepo.supabase
+          .from('lots')
+          .select('reference, buildings(address, city)')
+          .eq('id', intervention.lot_id)
+          .single()
+
+        if (lot) {
+          lotReference = lot.reference || undefined
+          const building = (lot.buildings as any)
+          propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+        }
+      } else if (intervention.building_id) {
+        const { data: building } = await this.interventionRepo.supabase
+          .from('buildings')
+          .select('address, city')
+          .eq('id', intervention.building_id)
+          .single()
+
+        if (building) {
+          propertyAddress = `${building.address}, ${building.city}`
+        }
+      }
+
+      // Send to first tenant
+      await emailService.sendInterventionApproved({
+        intervention,
+        property: { address: propertyAddress, lotReference },
+        manager: managerResult.data,
+        tenant: tenants[0],
+        approvalNotes,
+      })
+      logger.info({ interventionId: intervention.id }, '📧 Intervention approved email sent')
+    } catch (error) {
+      logger.error({ error, interventionId: intervention.id }, '❌ Failed to send intervention approved email')
+    }
+  }
+
+  /**
+   * Helper: Send intervention rejected email to tenant
+   */
+  private async sendInterventionRejectedEmail(intervention: Intervention, managerId: string, rejectionReason: string) {
+    try {
+      const emailService = createEmailNotificationService()
+
+      // Fetch manager and tenant
+      const managerResult = await this.userService?.getById(managerId)
+      if (!managerResult?.success || !managerResult.data) return
+
+      const tenants = await this.getInterventionTenants(intervention.id)
+      if (tenants.length === 0) return
+
+      // Get property address
+      let propertyAddress = 'Adresse non spécifiée'
+      let lotReference: string | undefined
+
+      if (intervention.lot_id) {
+        const { data: lot } = await this.interventionRepo.supabase
+          .from('lots')
+          .select('reference, buildings(address, city)')
+          .eq('id', intervention.lot_id)
+          .single()
+
+        if (lot) {
+          lotReference = lot.reference || undefined
+          const building = (lot.buildings as any)
+          propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+        }
+      } else if (intervention.building_id) {
+        const { data: building } = await this.interventionRepo.supabase
+          .from('buildings')
+          .select('address, city')
+          .eq('id', intervention.building_id)
+          .single()
+
+        if (building) {
+          propertyAddress = `${building.address}, ${building.city}`
+        }
+      }
+
+      // Send to first tenant
+      await emailService.sendInterventionRejected({
+        intervention,
+        property: { address: propertyAddress, lotReference },
+        manager: managerResult.data,
+        tenant: tenants[0],
+        rejectionReason,
+      })
+      logger.info({ interventionId: intervention.id }, '📧 Intervention rejected email sent')
+    } catch (error) {
+      logger.error({ error, interventionId: intervention.id }, '❌ Failed to send intervention rejected email')
+    }
+  }
+
+  /**
+   * Helper: Send intervention scheduled emails to tenant + provider
+   */
+  private async sendInterventionScheduledEmail(intervention: Intervention, slot: any) {
+    try {
+      const emailService = createEmailNotificationService()
+
+      // Get tenant, provider, property
+      const tenants = await this.getInterventionTenants(intervention.id)
+      if (tenants.length === 0) {
+        logger.warn({ interventionId: intervention.id }, '⚠️ No tenant found for scheduled email')
+        return
+      }
+
+      // Get provider (assigned_to field)
+      if (!intervention.assigned_to) {
+        logger.warn({ interventionId: intervention.id }, '⚠️ No provider assigned for scheduled email')
+        return
+      }
+
+      const providerResult = await this.userService?.getById(intervention.assigned_to)
+      if (!providerResult?.success || !providerResult.data) {
+        logger.warn({ interventionId: intervention.id }, '⚠️ Provider not found for scheduled email')
+        return
+      }
+
+      // Get property address
+      let propertyAddress = 'Adresse non spécifiée'
+      let lotReference: string | undefined
+
+      if (intervention.lot_id) {
+        const { data: lot } = await this.interventionRepo.supabase
+          .from('lots')
+          .select('reference, buildings(address, city)')
+          .eq('id', intervention.lot_id)
+          .single()
+
+        if (lot) {
+          lotReference = lot.reference || undefined
+          const building = (lot.buildings as any)
+          propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+        }
+      } else if (intervention.building_id) {
+        const { data: building } = await this.interventionRepo.supabase
+          .from('buildings')
+          .select('address, city')
+          .eq('id', intervention.building_id)
+          .single()
+
+        if (building) {
+          propertyAddress = `${building.address}, ${building.city}`
+        }
+      }
+
+      // Parse scheduled date from slot
+      const scheduledDate = new Date(`${slot.slot_date}T${slot.start_time}`)
+      const estimatedDuration = slot.estimated_duration || undefined
+
+      // Send emails
+      await emailService.sendInterventionScheduled({
+        intervention,
+        property: { address: propertyAddress, lotReference },
+        tenant: tenants[0],
+        provider: providerResult.data,
+        scheduledDate,
+        estimatedDuration,
+      })
+      logger.info({ interventionId: intervention.id }, '📧 Intervention scheduled emails sent')
+    } catch (error) {
+      logger.error({ error, interventionId: intervention.id }, '❌ Failed to send intervention scheduled emails')
+    }
+  }
+
+  /**
+   * Helper: Send intervention completed emails to tenant + manager
+   */
+  private async sendInterventionCompletedEmail(intervention: Intervention, providerId: string, completionNotes?: string) {
+    try {
+      const emailService = createEmailNotificationService()
+
+      // Get provider, tenant, manager
+      const providerResult = await this.userService?.getById(providerId)
+      if (!providerResult?.success || !providerResult.data) return
+
+      const tenants = await this.getInterventionTenants(intervention.id)
+      if (tenants.length === 0) return
+
+      // Get managers
+      const { data: teamMembers } = await this.interventionRepo.supabase
+        .from('team_members')
+        .select('users(id, email, first_name, last_name)')
+        .eq('team_id', intervention.team_id)
+        .eq('role', 'gestionnaire')
+
+      if (!teamMembers || teamMembers.length === 0) return
+
+      // Get property address
+      let propertyAddress = 'Adresse non spécifiée'
+      let lotReference: string | undefined
+
+      if (intervention.lot_id) {
+        const { data: lot } = await this.interventionRepo.supabase
+          .from('lots')
+          .select('reference, buildings(address, city)')
+          .eq('id', intervention.lot_id)
+          .single()
+
+        if (lot) {
+          lotReference = lot.reference || undefined
+          const building = (lot.buildings as any)
+          propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+        }
+      } else if (intervention.building_id) {
+        const { data: building } = await this.interventionRepo.supabase
+          .from('buildings')
+          .select('address, city')
+          .eq('id', intervention.building_id)
+          .single()
+
+        if (building) {
+          propertyAddress = `${building.address}, ${building.city}`
+        }
+      }
+
+      // Check if documents exist
+      const { data: documents } = await this.interventionRepo.supabase
+        .from('intervention_documents')
+        .select('id')
+        .eq('intervention_id', intervention.id)
+        .limit(1)
+
+      const hasDocuments = !!documents && documents.length > 0
+      const manager = (teamMembers[0].users as any)
+
+      // Send emails
+      await emailService.sendInterventionCompleted({
+        intervention,
+        property: { address: propertyAddress, lotReference },
+        tenant: tenants[0],
+        manager,
+        provider: providerResult.data,
+        completionNotes,
+        hasDocuments,
+      })
+      logger.info({ interventionId: intervention.id }, '📧 Intervention completed emails sent')
+    } catch (error) {
+      logger.error({ error, interventionId: intervention.id }, '❌ Failed to send intervention completed emails')
+    }
+  }
+
+  /**
+   * Helper: Send quote request email to provider
+   */
+  private async sendQuoteRequestEmail(intervention: Intervention, providerId: string, managerId: string) {
+    try {
+      const emailService = createEmailNotificationService()
+
+      // Get manager and provider
+      const managerResult = await this.userService?.getById(managerId)
+      if (!managerResult?.success || !managerResult.data) return
+
+      const providerResult = await this.userService?.getById(providerId)
+      if (!providerResult?.success || !providerResult.data) return
+
+      // Get quote from database
+      const { data: quote } = await this.interventionRepo.supabase
+        .from('intervention_quotes')
+        .select('*')
+        .eq('intervention_id', intervention.id)
+        .eq('provider_id', providerId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (!quote) {
+        logger.warn({ interventionId: intervention.id }, '⚠️ No quote found for request email')
+        return
+      }
+
+      // Get property address
+      let propertyAddress = 'Adresse non spécifiée'
+
+      if (intervention.lot_id) {
+        const { data: lot } = await this.interventionRepo.supabase
+          .from('lots')
+          .select('buildings(address, city)')
+          .eq('id', intervention.lot_id)
+          .single()
+
+        if (lot) {
+          const building = (lot.buildings as any)
+          propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+        }
+      } else if (intervention.building_id) {
+        const { data: building } = await this.interventionRepo.supabase
+          .from('buildings')
+          .select('address, city')
+          .eq('id', intervention.building_id)
+          .single()
+
+        if (building) {
+          propertyAddress = `${building.address}, ${building.city}`
+        }
+      }
+
+      // Send email
+      await emailService.sendQuoteRequest({
+        quote,
+        intervention,
+        property: { address: propertyAddress },
+        manager: managerResult.data,
+        provider: providerResult.data,
+      })
+      logger.info({ quoteId: quote.id }, '📧 Quote request email sent')
+    } catch (error) {
+      logger.error({ error, interventionId: intervention.id }, '❌ Failed to send quote request email')
     }
   }
 

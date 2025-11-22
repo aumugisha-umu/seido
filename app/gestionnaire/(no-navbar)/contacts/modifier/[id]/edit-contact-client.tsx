@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import { logger } from "@/lib/logger"
+import { useAuth } from "@/hooks/use-auth"
 import { Step1Type } from "../../nouveau/steps/step-1-type"
 import { Step2Company } from "../../nouveau/steps/step-2-company"
 import { Step3Contact } from "../../nouveau/steps/step-3-contact"
@@ -63,6 +64,7 @@ export function EditContactClient({
     teamId
 }: EditContactClientProps) {
     const router = useRouter()
+    const { userProfile } = useAuth()
     const [currentStep, setCurrentStep] = useState(1)
     const [isSaving, setIsSaving] = useState(false)
 
@@ -203,7 +205,7 @@ export function EditContactClient({
             }
 
             const contactService = createContactService()
-            await contactService.update(contactId, updateData)
+            await contactService.update(contactId, updateData, userProfile?.id)
 
             toast.success("Contact modifié avec succès")
             router.push("/gestionnaire/contacts")

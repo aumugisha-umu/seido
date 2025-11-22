@@ -3,6 +3,7 @@ import { logger } from '@/lib/logger'
 import { createPropertyDocumentService, createStorageService } from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { uploadPropertyDocumentSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { createActivityLogger } from '@/lib/activity-logger'
 
 /**
  * POST /api/property-documents/upload
@@ -154,6 +155,49 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info({ documentId: createResult.data?.id }, '✅ [PROPERTY-DOCS-UPLOAD] Upload completed')
+
+    // 📝 ACTIVITY LOG + 🔔 NOTIFICATION: Document property uploadé
+    if (createResult.data) {
+      const relatedEntityType = validatedData.buildingId ? 'building' : 'lot'
+      const relatedEntityId = validatedData.buildingId || validatedData.lotId || ''
+
+      // 📝 ACTIVITY LOG
+      try {
+        const activityLogger = await createActivityLogger()
+        activityLogger.setContext({ userId: userProfile.id, teamId })
+        await activityLogger.logDocumentAction(
+          'upload',
+          createResult.data.id,
+          createResult.data.original_filename,
+          {
+            document_type: documentType,
+            related_entity_type: relatedEntityType,
+            related_entity_id: relatedEntityId,
+            visibility: validatedData.visibility,
+            file_size: createResult.data.file_size
+          }
+        )
+        logger.info({ documentId: createResult.data.id }, '📝 [PROPERTY-DOCS-UPLOAD] Activity logged')
+      } catch (logError) {
+        logger.error({ error: logError, documentId: createResult.data.id }, '⚠️ [PROPERTY-DOCS-UPLOAD] Failed to log activity')
+      }
+
+      // 🔔 NOTIFICATION
+      try {
+        const { notifyDocumentUploaded } = await import('@/app/actions/notification-actions')
+        await notifyDocumentUploaded({
+          documentId: createResult.data.id,
+          documentName: createResult.data.original_filename,
+          teamId: teamId,
+          uploadedBy: userProfile.id,
+          relatedEntityType,
+          relatedEntityId
+        })
+        logger.info({ documentId: createResult.data.id }, '🔔 [PROPERTY-DOCS-UPLOAD] Document upload notification sent')
+      } catch (notifError) {
+        logger.error({ error: notifError, documentId: createResult.data.id }, '⚠️ [PROPERTY-DOCS-UPLOAD] Failed to send document upload notification')
+      }
+    }
 
     return NextResponse.json({
       success: true,

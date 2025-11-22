@@ -102,6 +102,125 @@ interface ContactWithManagers {
 export class NotificationService {
   constructor(private repository: NotificationRepository) { }
 
+  // ============================================================================
+  // REUSABLE HELPERS FOR INTERVENTION NOTIFICATIONS
+  // ============================================================================
+
+  /**
+   * Get all assigned users with their roles for an intervention
+   * Optimized: 1 query instead of N queries
+   * @returns Map for O(1) lookup by userId
+   */
+  private async getAssignedUsersWithRoles(
+    interventionId: string
+  ): Promise<Map<string, { role: string; is_primary: boolean }>> {
+    const { data: assignments } = await this.repository.supabase
+      .from('intervention_assignments')
+      .select('user_id, role, is_primary')
+      .eq('intervention_id', interventionId)
+
+    const assignmentMap = new Map<string, { role: string; is_primary: boolean }>()
+
+    if (assignments) {
+      assignments.forEach(assignment => {
+        assignmentMap.set(assignment.user_id, {
+          role: assignment.role,
+          is_primary: assignment.is_primary
+        })
+      })
+    }
+
+    return assignmentMap
+  }
+
+  /**
+   * Status labels (French)
+   */
+  private readonly STATUS_LABELS: Record<string, string> = {
+    demande: 'Demande',
+    rejetee: 'Rejetée',
+    approuvee: 'Approuvée',
+    demande_de_devis: 'Demande de devis',
+    planification: 'Planification',
+    planifiee: 'Planifiée',
+    en_cours: 'En cours',
+    cloturee_par_prestataire: 'Clôturée par prestataire',
+    cloturee_par_locataire: 'Clôturée par locataire',
+    cloturee_par_gestionnaire: 'Clôturée par gestionnaire',
+    annulee: 'Annulée'
+  }
+
+  /**
+   * Generate role-adapted message for intervention creation
+   */
+  private getInterventionCreatedMessage(
+    intervention: InterventionWithManagers,
+    role: string
+  ): string {
+    switch (role) {
+      case 'locataire':
+        return `Une intervention "${intervention.title}" a été créée pour votre logement`
+      case 'prestataire':
+        return `Vous avez été assigné(e) à l'intervention "${intervention.title}" en tant que prestataire`
+      case 'gestionnaire':
+        return `Vous avez été assigné(e) à l'intervention "${intervention.title}" en tant que gestionnaire`
+      default:
+        return `Vous avez été assigné(e) à l'intervention "${intervention.title}"`
+    }
+  }
+
+  /**
+   * Generate role-adapted message for status change
+   */
+  private getStatusChangeMessage(
+    intervention: InterventionWithManagers,
+    oldStatus: string,
+    newStatus: string,
+    role: string | null,
+    reason?: string
+  ): string {
+    const oldLabel = this.STATUS_LABELS[oldStatus] || oldStatus
+    const newLabel = this.STATUS_LABELS[newStatus] || newStatus
+    const reasonText = reason ? `. Motif: ${reason}` : ''
+
+    // Messages spécifiques pour locataires
+    if (role === 'locataire') {
+      if (oldStatus === 'demande' && newStatus === 'approuvee') {
+        return `Votre demande d'intervention "${intervention.title}" a été approuvée${reasonText}`
+      }
+      if (oldStatus === 'demande' && newStatus === 'rejetee') {
+        return `Votre demande d'intervention "${intervention.title}" a été rejetée${reasonText}`
+      }
+      if (newStatus === 'cloturee_par_prestataire') {
+        return `Le prestataire a terminé les travaux pour "${intervention.title}". Merci de valider${reasonText}`
+      }
+      return `L'intervention "${intervention.title}" dans votre logement est passée de "${oldLabel}" à "${newLabel}"${reasonText}`
+    }
+
+    // Messages spécifiques pour prestataires
+    if (role === 'prestataire') {
+      if (oldStatus === 'approuvee' && newStatus === 'planification') {
+        return `L'intervention "${intervention.title}" qui vous est assignée est maintenant en planification${reasonText}`
+      }
+      if (newStatus === 'en_cours') {
+        return `Vous avez démarré l'intervention "${intervention.title}"${reasonText}`
+      }
+      return `L'intervention "${intervention.title}" à laquelle vous êtes assigné(e) est passée de "${oldLabel}" à "${newLabel}"${reasonText}`
+    }
+
+    // Messages spécifiques pour gestionnaires assignés
+    if (role === 'gestionnaire') {
+      return `L'intervention "${intervention.title}" que vous gérez est passée de "${oldLabel}" à "${newLabel}"${reasonText}`
+    }
+
+    // Fallback pour membres d'équipe (non assignés)
+    return `L'intervention "${intervention.title}" est passée de "${oldLabel}" à "${newLabel}"${reasonText}`
+  }
+
+  // ============================================================================
+  // NOTIFICATION METHODS
+  // ============================================================================
+
   /**
    * Notifier la création d'une intervention
    */
@@ -132,48 +251,30 @@ export class NotificationService {
       ? `${buildingName} - Lot ${lotRef}`
       : buildingName || 'Emplacement non spécifié'
 
-    // 2. Déterminer les destinataires (business logic) - EXCLUT le créateur
+    // 2. Fetch ALL assignments once (performance optimization: 1 query instead of N)
+    const assignmentMap = await this.getAssignedUsersWithRoles(interventionId)
+
+    // 3. Déterminer les destinataires (business logic) - EXCLUT le créateur
     const recipients = this.determineInterventionRecipients(intervention, createdBy)
 
-    // 3. Créer les notifications avec titre amélioré et messages adaptés par rôle
+    // 4. Créer les notifications avec titre amélioré et messages adaptés par rôle
     const notifications = await Promise.all(
       recipients.map(async recipient => {
-        // Check if this user is assigned to the intervention and get their role
-        const { data: assignment } = await this.repository.supabase
-          .from('intervention_assignments')
-          .select('is_primary, role')
-          .eq('intervention_id', interventionId)
-          .eq('user_id', recipient.userId)
-          .maybeSingle()
-
+        // O(1) lookup for assignment instead of database query
+        const assignment = assignmentMap.get(recipient.userId)
         const isAssigned = !!assignment
 
-        // Déterminer le message selon le rôle de l'assignation
-        let message: string
-        if (isAssigned && assignment.role) {
-          switch (assignment.role) {
-            case 'locataire':
-              message = `Une intervention "${intervention.title}" a été créée pour votre logement`
-              break
-            case 'prestataire':
-              message = `Vous avez été assigné(e) à l'intervention "${intervention.title}" en tant que prestataire`
-              break
-            case 'gestionnaire':
-              message = `Vous avez été assigné(e) à l'intervention "${intervention.title}" en tant que gestionnaire`
-              break
-            default:
-              message = `Vous avez été assigné(e) à l'intervention "${intervention.title}"`
-          }
-        } else {
-          message = `Une nouvelle intervention "${intervention.title}" a été créée dans votre équipe`
-        }
+        // Use helper to get role-adapted message
+        const message = isAssigned && assignment.role
+          ? this.getInterventionCreatedMessage(intervention, assignment.role)
+          : `Une nouvelle intervention "${intervention.title}" a été créée dans votre équipe`
 
         return this.repository.create({
           user_id: recipient.userId,
           team_id: teamId,
           created_by: createdBy,
           type: 'intervention',
-          title: `Nouvelle intervention - ${context}`, // ✅ Titre avec contexte clair
+          title: `Nouvelle intervention - ${context}`,
           message,
           is_personal: assignment?.is_primary ?? false,
           metadata: {
@@ -217,45 +318,45 @@ export class NotificationService {
     changedBy: string
     reason?: string
   }) {
+    // 1. Fetch intervention with managers
     const intervention = await this.repository.getInterventionWithManagers(interventionId)
+
+    // 2. Fetch ALL assignments once (performance optimization: 1 query instead of N)
+    const assignmentMap = await this.getAssignedUsersWithRoles(interventionId)
+
+    // 3. Determine recipients
     const recipients = this.determineInterventionRecipients(intervention, changedBy)
 
-    const statusLabels: Record<string, string> = {
-      demande: 'Demande',
-      rejetee: 'Rejetée',
-      approuvee: 'Approuvée',
-      demande_de_devis: 'Demande de devis',
-      planification: 'Planification',
-      planifiee: 'Planifiée',
-      en_cours: 'En cours',
-      cloturee_par_prestataire: 'Clôturée par prestataire',
-      cloturee_par_locataire: 'Clôturée par locataire',
-      cloturee_par_gestionnaire: 'Clôturée par gestionnaire',
-      annulee: 'Annulée'
-    }
-
-    const oldLabel = statusLabels[oldStatus] || oldStatus
-    const newLabel = statusLabels[newStatus] || newStatus
-
+    // 4. Create role-adapted notifications
     const notifications = await Promise.all(
       recipients.map(recipient => {
-        const message = recipient.isPersonal
-          ? `L'intervention "${intervention.title}" qui vous concerne est passée de "${oldLabel}" à "${newLabel}"${reason ? `. Motif: ${reason}` : ''}`
-          : `L'intervention "${intervention.title}" est passée de "${oldLabel}" à "${newLabel}"`
+        // O(1) lookup for assignment
+        const assignment = assignmentMap.get(recipient.userId)
+
+        // Use helper to get role-adapted message
+        const message = this.getStatusChangeMessage(
+          intervention,
+          oldStatus,
+          newStatus,
+          assignment?.role || null,
+          reason
+        )
 
         return this.repository.create({
           user_id: recipient.userId,
           team_id: teamId,
           created_by: changedBy,
           type: 'status_change',
-          title: `Intervention ${newLabel.toLowerCase()}`,
+          title: `Intervention ${this.STATUS_LABELS[newStatus]?.toLowerCase() || newStatus}`,
           message,
           is_personal: recipient.isPersonal,
           metadata: {
             intervention_id: interventionId,
             old_status: oldStatus,
             new_status: newStatus,
-            reason: reason || null
+            reason: reason || null,
+            is_assigned: !!assignment,
+            assigned_role: assignment?.role || null
           },
           related_entity_type: 'intervention',
           related_entity_id: interventionId

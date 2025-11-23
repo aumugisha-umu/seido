@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Inbox, Send, FileText, Archive, Building, Settings, Star, Wrench } from 'lucide-react'
-import { DummyBuilding } from './dummy-data'
+import { Building as BuildingType } from './types'
 
 interface MailboxSidebarProps {
   currentFolder: string
@@ -16,7 +16,7 @@ interface MailboxSidebarProps {
     drafts: number
     archive: number
   }
-  buildings: DummyBuilding[]
+  buildings: BuildingType[]
   onBuildingClick: (buildingId: string) => void
 }
 

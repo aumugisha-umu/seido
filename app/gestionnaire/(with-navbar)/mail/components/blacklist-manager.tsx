@@ -8,10 +8,10 @@ import { Ban, Trash2, Plus } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
-import { DummyBlacklistEntry } from './dummy-data'
+import { BlacklistEntry } from './types'
 
 interface BlacklistManagerProps {
-  blacklist: DummyBlacklistEntry[]
+  blacklist: BlacklistEntry[]
   onUnblock: (blacklistId: string) => void
   onAddManual: () => void
 }

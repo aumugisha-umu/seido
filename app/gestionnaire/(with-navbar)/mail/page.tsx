@@ -9,11 +9,11 @@ import { Button } from '@/components/ui/button'
 import { Plus, RefreshCw } from 'lucide-react'
 import { EmailClientService } from '@/lib/services/client/email-client.service'
 import { Email } from '@/lib/types/email-integration'
-import { DummyEmail, DummyBuilding } from './components/dummy-data'
+import { MailboxEmail, Building } from './components/types'
 import { useRealtimeEmails } from '@/hooks/use-realtime-emails'
 
-// Adapter to convert real Email to DummyEmail (for UI compatibility)
-const adaptEmail = (email: Email, buildings: DummyBuilding[]): DummyEmail => {
+// Adapter to convert real Email to MailboxEmail (for UI compatibility)
+const adaptEmail = (email: Email, buildings: Building[]): MailboxEmail => {
   const building = buildings.find(b => b.id === email.building_id)
   const lot = building?.lots.find(l => l.id === email.lot_id)
 
@@ -25,6 +25,7 @@ const adaptEmail = (email: Email, buildings: DummyBuilding[]): DummyEmail => {
     subject: email.subject,
     snippet: email.body_text?.substring(0, 100) || '',
     body_html: email.body_html || email.body_text || '',
+    body_text: email.body_text || null,
     received_at: email.received_at || email.sent_at || new Date().toISOString(),
     is_read: email.status === 'read',
     has_attachments: (email.attachments?.length || 0) > 0,
@@ -53,7 +54,7 @@ export default function EmailPage() {
   const [currentFolder, setCurrentFolder] = useState('inbox')
   const [selectedEmailId, setSelectedEmailId] = useState<string | undefined>(undefined)
   const [realEmails, setRealEmails] = useState<Email[]>([])
-  const [buildings, setBuildings] = useState<DummyBuilding[]>([])
+  const [buildings, setBuildings] = useState<Building[]>([])
   const [isLoading, setIsLoading] = useState(false)
 
   const [teamId, setTeamId] = useState<string | undefined>(undefined)
@@ -119,8 +120,8 @@ export default function EmailPage() {
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
-          // Map API buildings to DummyBuilding format
-          const mappedBuildings: DummyBuilding[] = data.buildings.map((b: any) => ({
+          // Map API buildings to Building format
+          const mappedBuildings: Building[] = data.buildings.map((b: any) => ({
             id: b.id,
             name: b.name,
             address: b.address,
@@ -317,7 +318,11 @@ export default function EmailPage() {
   }
 
   const handleConversationSelect = (conversationId: string) => {
-    // TODO: Implement conversation selection
+    // Find the parent email of this conversation and select it
+    const parentEmail = emails.find(e => e.conversation_id === conversationId && e.is_parent)
+    if (parentEmail) {
+      setSelectedEmailId(parentEmail.id)
+    }
   }
 
   const handleCompose = () => {
@@ -372,6 +377,7 @@ export default function EmailPage() {
             <EmailDetail
               key={selectedEmail.id}
               email={selectedEmail}
+              allEmails={emails}
               buildings={buildings}
               onReply={handleReply}
               onArchive={handleArchive}

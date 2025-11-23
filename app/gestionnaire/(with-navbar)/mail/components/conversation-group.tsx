@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { ChevronDown, ChevronRight } from 'lucide-react'
-import { DummyEmail, ConversationGroup } from './dummy-data'
+import { MailboxEmail, ConversationGroup } from './types'
 import { EmailListItem } from './email-list-item'
 
 interface ConversationGroupProps {

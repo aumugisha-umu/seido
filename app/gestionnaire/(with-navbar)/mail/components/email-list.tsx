@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Search, SortDesc } from 'lucide-react'
 import { EmailListItem } from './email-list-item'
-import { DummyEmail, groupEmailsByConversation, ConversationGroup } from './dummy-data'
+import { MailboxEmail, groupEmailsByConversation, ConversationGroup } from './types'
 import { ConversationGroupComponent } from './conversation-group'
 import { ScrollArea } from '@/components/ui/scroll-area'
 
 interface EmailListProps {
-  emails: DummyEmail[]
+  emails: MailboxEmail[]
   selectedEmailId?: string
   onEmailSelect: (emailId: string) => void
   onConversationSelect?: (conversationId: string) => void

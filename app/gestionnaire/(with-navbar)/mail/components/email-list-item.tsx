@@ -4,10 +4,10 @@ import { Badge } from '@/components/ui/badge'
 import { Paperclip, Building } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { DummyEmail } from './dummy-data'
+import { MailboxEmail } from './types'
 
 interface EmailListItemProps {
-  email: DummyEmail
+  email: MailboxEmail
   isSelected: boolean
   onClick: () => void
 }

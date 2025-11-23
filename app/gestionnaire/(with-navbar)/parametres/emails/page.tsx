@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { BlacklistManager } from '../../mail/components/blacklist-manager'
 import { EmailConnectionForm } from './components/email-connection-form'
 import { EmailConnectionList } from './components/email-connection-list'
-import { dummyBlacklist } from '../../mail/components/dummy-data'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Plus, Loader2 } from 'lucide-react'
@@ -28,7 +27,7 @@ interface EmailConnection {
 }
 
 export default function EmailSettingsPage() {
-  const [blacklist, setBlacklist] = useState(dummyBlacklist)
+  const [blacklist, setBlacklist] = useState([])
   const [connections, setConnections] = useState<EmailConnection[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [showAddDialog, setShowAddDialog] = useState(false)

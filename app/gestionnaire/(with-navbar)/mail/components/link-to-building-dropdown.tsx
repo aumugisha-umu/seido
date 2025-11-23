@@ -8,13 +8,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
 import { Command, CommandInput, CommandList, CommandGroup, CommandItem } from '@/components/ui/command'
-import { Building, Check } from 'lucide-react'
+import { Building as BuildingIcon, Check } from 'lucide-react'
 import { toast } from 'sonner'
-import { DummyBuilding } from './dummy-data'
+import { Building } from './types'
 
 interface LinkToBuildingDropdownProps {
   emailId: string
-  buildings: DummyBuilding[]
+  buildings: Building[]
   currentBuildingId?: string
   currentLotId?: string
   onLink: (buildingId: string, lotId?: string) => void
@@ -56,7 +56,7 @@ export function LinkToBuildingDropdown({
               className="flex items-center justify-between"
             >
               <div className="flex items-center gap-2">
-                <Building className="h-4 w-4" />
+                <BuildingIcon className="h-4 w-4" />
                 <div>
                   <div className="font-medium">{building.name}</div>
                   <div className="text-xs text-muted-foreground">{building.address}</div>

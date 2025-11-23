@@ -57,7 +57,7 @@ export function ConversationGroupComponent({
         `}
         onClick={handleParentClick}
         role="button"
-        aria-label={`Conversation: ${group.parent.subject}`}
+        aria-label={`Conversation : ${group.parent.subject}`}
         tabIndex={0}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -121,7 +121,7 @@ export function ConversationGroupComponent({
               `}
               onClick={() => onEmailSelect(child.id)}
               role="button"
-              aria-label={`Message from ${child.sender_name}: ${child.subject}`}
+              aria-label={`Message de ${child.sender_name} : ${child.subject}`}
               tabIndex={0}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') {

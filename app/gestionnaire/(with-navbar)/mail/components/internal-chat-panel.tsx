@@ -46,14 +46,14 @@ export const InternalChatPanel = ({
           'w-full h-14 px-6 flex items-center justify-between hover:bg-slate-50 transition-colors',
           isOpen && 'border-b'
         )}
-        aria-label={isOpen ? 'Close internal chat' : 'Open internal chat'}
+        aria-label={isOpen ? 'Fermer la discussion interne' : 'Ouvrir la discussion interne'}
         aria-expanded={isOpen}
       >
         <div className="flex items-center gap-3">
           <MessageSquare className="h-5 w-5 text-slate-600" />
-          <span className="font-medium text-slate-900">💬 Internal Team Chat</span>
+          <span className="font-medium text-slate-900">💬 Discussion interne de l'équipe</span>
           <Badge variant="secondary" className="text-xs">
-            Private
+            Privé
           </Badge>
           {unreadCount > 0 && (
             <Badge variant="destructive" className="text-xs">
@@ -76,10 +76,10 @@ export const InternalChatPanel = ({
             <div className="h-full border rounded-lg bg-slate-50/50 flex items-center justify-center">
               <div className="text-center text-muted-foreground">
                 <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
-                <p className="text-sm font-medium mb-1">Internal chat will be integrated here</p>
-                <p className="text-xs">(Reuses existing ChatInterface component)</p>
+                <p className="text-sm font-medium mb-1">Le chat interne sera intégré ici</p>
+                <p className="text-xs">(Réutilise le composant ChatInterface existant)</p>
                 <p className="text-xs mt-2 text-slate-500">
-                  Thread ID: email-{emailId}
+                  ID du fil : email-{emailId}
                 </p>
               </div>
             </div>

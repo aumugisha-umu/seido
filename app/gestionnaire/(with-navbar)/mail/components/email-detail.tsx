@@ -153,7 +153,7 @@ export function EmailDetail({
       onReply?.(replyText)
       setReplyText('')
       setShowReplyBox(false)
-      toast.success('Reply sent!')
+      toast.success('Réponse envoyée !')
     }
   }
 
@@ -192,32 +192,32 @@ export function EmailDetail({
           <h1 className="text-xl font-semibold truncate flex-1 min-w-0">{email.subject}</h1>
           
           {/* Actions */}
-          <div className="flex gap-2 shrink-0" role="toolbar" aria-label="Email actions">
+          <div className="flex gap-2 shrink-0" role="toolbar" aria-label="Actions email">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowReplyBox(!showReplyBox)}
-              aria-label="Reply to this email"
+              aria-label="Répondre à cet email"
               aria-expanded={showReplyBox}
               className="px-2 md:group-hover/header:px-3 transition-all"
             >
               <Reply className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden md:group-hover/header:inline md:group-hover/header:ml-1.5 whitespace-nowrap">Reply</span>
+              <span className="hidden md:group-hover/header:inline md:group-hover/header:ml-1.5 whitespace-nowrap">Répondre</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
-              aria-label="Forward this email"
+              aria-label="Transférer cet email"
               className="px-2 md:group-hover/header:px-3 transition-all"
             >
               <Forward className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden md:group-hover/header:inline md:group-hover/header:ml-1.5 whitespace-nowrap">Forward</span>
+              <span className="hidden md:group-hover/header:inline md:group-hover/header:ml-1.5 whitespace-nowrap">Transférer</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={onDelete}
-              aria-label="Delete this email"
+              aria-label="Supprimer cet email"
             >
               <Trash className="h-4 w-4" aria-hidden="true" />
             </Button>
@@ -225,11 +225,11 @@ export function EmailDetail({
               variant="outline"
               size="sm"
               onClick={() => setShowProcessedDialog(true)}
-              aria-label="Mark as processed"
+              aria-label="Marquer comme traité"
               className="px-2 md:group-hover/header:px-3 transition-all"
             >
               <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden md:group-hover/header:inline md:group-hover/header:ml-1.5 whitespace-nowrap">Mark as Processed</span>
+              <span className="hidden md:group-hover/header:inline md:group-hover/header:ml-1.5 whitespace-nowrap">Marquer comme traité</span>
             </Button>
 
             {/* More actions */}
@@ -246,19 +246,19 @@ export function EmailDetail({
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setShowLinkDialog(true)}>
                   <BuildingIcon className="mr-2 h-4 w-4" aria-hidden="true" />
-                  {email.building_id ? 'Change link' : 'Link to Building'}
+                  {email.building_id ? 'Changer le lien' : 'Lier à un immeuble'}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowProcessedDialog(true)}>
                   <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Mark as Processed
+                  Marquer comme traité
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onCreateIntervention}>
                   <Wrench className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Create Intervention
+                  Créer une intervention
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowMarkDialog(true)}>
                   <Ban className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Mark as irrelevant
+                  Marquer comme non pertinent
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -268,7 +268,7 @@ export function EmailDetail({
         {/* 2. Ligne 2: From, expéditeur, date et heure - Pleine largeur */}
         <div className="mb-3 min-w-0 w-full">
           <div className="flex items-center gap-2 text-sm text-muted-foreground flex-nowrap min-w-0">
-            <span className="font-medium text-foreground shrink-0 hidden sm:inline">From:</span>
+            <span className="font-medium text-foreground shrink-0 hidden sm:inline">De:</span>
             <span className="min-w-0 truncate">{email.sender_name} ({email.sender_email})</span>
             <span className="shrink-0">•</span>
             <span className="shrink-0 whitespace-nowrap">
@@ -288,7 +288,7 @@ export function EmailDetail({
             <Badge variant="secondary" className="transition-all md:group-hover/header:px-2">
               <Paperclip className="h-3 w-3" />
               <span className="hidden md:group-hover/header:inline md:group-hover/header:ml-1.5 whitespace-nowrap">
-                {email.attachments.length} attachment{email.attachments.length > 1 ? 's' : ''}
+                {email.attachments.length} pièce{email.attachments.length > 1 ? 's' : ''} jointe{email.attachments.length > 1 ? 's' : ''}
               </span>
               <span className="md:hidden">{email.attachments.length}</span>
             </Badge>
@@ -341,7 +341,7 @@ export function EmailDetail({
             {email.has_attachments && email.attachments.length > 0 && (
               <div className="mt-8 pt-6 border-t border-slate-300 px-4">
                 <h3 className="text-sm font-semibold text-slate-900 mb-4">
-                  📎 Attachments ({email.attachments.length})
+                  📎 Pièces jointes ({email.attachments.length})
                 </h3>
                 <div className="space-y-3">
                   {email.attachments.map((attachment) => (
@@ -364,7 +364,7 @@ export function EmailDetail({
                         variant="ghost"
                         size="sm"
                         className="shrink-0"
-                        aria-label={`Download ${attachment.filename}`}
+                        aria-label={`Télécharger ${attachment.filename}`}
                       >
                         <Download className="h-4 w-4" aria-hidden="true" />
                       </Button>
@@ -448,7 +448,7 @@ export function EmailDetail({
       <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>Link to Building</DialogTitle>
+            <DialogTitle>Lier à un immeuble</DialogTitle>
           </DialogHeader>
           <div className="py-4">
             <LinkToBuildingDropdown

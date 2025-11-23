@@ -175,7 +175,7 @@ export default function EmailPage() {
       }
     } catch (error) {
       console.error('Failed to fetch emails:', error)
-      toast.error('Failed to load emails')
+      toast.error('Échec du chargement des emails')
     } finally {
       setIsLoading(false)
     }
@@ -207,13 +207,13 @@ export default function EmailPage() {
 
   const handleSync = async () => {
     toast.promise(EmailClientService.syncEmails(), {
-      loading: 'Syncing emails...',
+      loading: 'Synchronisation des emails...',
       success: () => {
         fetchEmails()
         fetchCounts()
-        return 'Emails synced'
+        return 'Emails synchronisés'
       },
-      error: 'Failed to sync emails'
+      error: 'Échec de la synchronisation'
     })
   }
 
@@ -222,7 +222,7 @@ export default function EmailPage() {
     if (!selectedEmail) return
 
     if (!selectedEmail.email_connection_id) {
-      toast.error('Cannot reply: No email connection associated with this email')
+      toast.error('Impossible de répondre : Aucune connexion email associée')
       return
     }
 
@@ -234,11 +234,11 @@ export default function EmailPage() {
         body: replyText,
         inReplyToEmailId: selectedEmail.id
       })
-      toast.success('Reply sent')
+      toast.success('Réponse envoyée')
       fetchEmails()
     } catch (error) {
       console.error('Reply error:', error)
-      toast.error('Failed to send reply')
+      toast.error('Échec de l\'envoi de la réponse')
     }
   }
 
@@ -246,10 +246,10 @@ export default function EmailPage() {
     if (!selectedEmailId) return
     try {
       await EmailClientService.archiveEmail(selectedEmailId)
-      toast.success('Email archived')
+      toast.success('Email archivé')
       fetchEmails()
     } catch (error) {
-      toast.error('Failed to archive email')
+      toast.error('Échec de l\'archivage')
     }
   }
 
@@ -257,10 +257,10 @@ export default function EmailPage() {
     if (!selectedEmailId) return
     try {
       await EmailClientService.deleteEmail(selectedEmailId)
-      toast.success('Email deleted')
+      toast.success('Email supprimé')
       fetchEmails()
     } catch (error) {
-      toast.error('Failed to delete email')
+      toast.error('Échec de la suppression')
     }
   }
 
@@ -268,15 +268,15 @@ export default function EmailPage() {
     if (!selectedEmailId) return
     try {
       await EmailClientService.linkToBuilding(selectedEmailId, buildingId, lotId)
-      toast.success('Linked to building')
+      toast.success('Lié à l\'immeuble')
       fetchEmails()
     } catch (error) {
-      toast.error('Failed to link building')
+      toast.error('Échec de la liaison')
     }
   }
 
   const handleCreateIntervention = () => {
-    toast.success('Intervention creation modal would open here (dummy action)')
+    toast.success('Modal de création d\'intervention s\'ouvrira ici (action factice)')
   }
 
   const handleSoftDelete = async (emailId: string) => {
@@ -290,7 +290,7 @@ export default function EmailPage() {
   }
 
   const handleBlacklist = (emailId: string, senderEmail: string, reason?: string) => {
-    toast.success(`Blacklisted ${senderEmail} (dummy action)`)
+    toast.success(`${senderEmail} bloqué (action factice)`)
   }
 
   const handleMarkAsProcessed = async () => {
@@ -299,10 +299,10 @@ export default function EmailPage() {
     // For now, let's mark as read if not already
     try {
       await EmailClientService.markAsRead(selectedEmailId)
-      toast.success('Marked as processed')
+      toast.success('Marqué comme traité')
       fetchEmails()
     } catch (error) {
-      toast.error('Failed to mark as processed')
+      toast.error('Échec du marquage')
     }
   }
 
@@ -314,7 +314,7 @@ export default function EmailPage() {
     // We might need to update API to support building_id filter.
     // For now, let's just log.
     console.log('Filter by building:', buildingId)
-    toast.info('Filtering by building not yet implemented')
+    toast.info('Filtrage par immeuble pas encore implémenté')
   }
 
   const handleConversationSelect = (conversationId: string) => {
@@ -326,7 +326,7 @@ export default function EmailPage() {
   }
 
   const handleCompose = () => {
-    toast.info('Compose new email modal would open here (dummy action)')
+    toast.info('Modal de rédaction d\'email s\'ouvrira ici (action factice)')
   }
 
   return (
@@ -340,11 +340,11 @@ export default function EmailPage() {
           <div className="flex gap-2">
             <Button variant="outline" onClick={handleSync} disabled={isLoading}>
               <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Sync
+              Synchroniser
             </Button>
             <Button onClick={handleCompose} className="w-fit">
               <Plus className="h-4 w-4 mr-2" />
-              <span>Composer</span>
+              <span>Rédiger</span>
             </Button>
           </div>
         </div>

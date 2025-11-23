@@ -70,32 +70,32 @@ export function EmailList({
   const groupedItems = groupEmailsByConversation(filteredEmails)
 
   return (
-    <div className="w-[400px] border-r flex flex-col h-full" role="region" aria-label="Email list">
+    <div className="w-[400px] border-r flex flex-col h-full" role="region" aria-label="Liste d'emails">
       {/* Search Bar (Balanced variant) */}
       <div className="p-4 border-b space-y-3">
         <div className="relative">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <Input
-            placeholder="Search emails..."
+            placeholder="Rechercher des emails..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8"
-            aria-label="Search emails by sender, subject, or content"
+            aria-label="Rechercher des emails par expéditeur, sujet ou contenu"
             suppressHydrationWarning
           />
         </div>
 
         {/* Filters Toolbar (Balanced variant) */}
-        <div className="flex gap-2 flex-wrap" role="toolbar" aria-label="Email filters">
+        <div className="flex gap-2 flex-wrap" role="toolbar" aria-label="Filtres d'emails">
           <Select value={dateFilter} onValueChange={setDateFilter}>
-            <SelectTrigger className="h-8 text-xs w-[130px]" aria-label="Filter by date">
+            <SelectTrigger className="h-8 text-xs w-[130px]" aria-label="Filtrer par date">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All time</SelectItem>
-              <SelectItem value="today">Today</SelectItem>
-              <SelectItem value="week">This week</SelectItem>
-              <SelectItem value="month">This month</SelectItem>
+              <SelectItem value="all">Toute période</SelectItem>
+              <SelectItem value="today">Aujourd'hui</SelectItem>
+              <SelectItem value="week">Cette semaine</SelectItem>
+              <SelectItem value="month">Ce mois-ci</SelectItem>
             </SelectContent>
           </Select>
 
@@ -104,20 +104,20 @@ export function EmailList({
             size="sm"
             className="h-8 text-xs"
             onClick={() => setHasAttachments(!hasAttachments)}
-            aria-label={hasAttachments ? "Remove attachments filter" : "Filter emails with attachments"}
+            aria-label={hasAttachments ? "Retirer le filtre pièces jointes" : "Filtrer les emails avec pièces jointes"}
             aria-pressed={hasAttachments}
           >
-            📎 Has attachments
+            📎 Avec pièces jointes
           </Button>
 
           <Button
             variant="outline"
             size="sm"
             className="h-8 text-xs"
-            aria-label="Sort emails"
+            aria-label="Trier les emails"
           >
             <SortDesc className="mr-1 h-3 w-3" aria-hidden="true" />
-            Sort
+            Trier
           </Button>
         </div>
       </div>
@@ -126,10 +126,10 @@ export function EmailList({
       <ScrollArea className="flex-1 min-h-0">
         {groupedItems.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground" role="status">
-            <p>No emails found</p>
+            <p>Aucun email trouvé</p>
             {searchQuery && (
               <p className="text-sm mt-2">
-                Try adjusting your search or filters
+                Essayez d'ajuster votre recherche ou vos filtres
               </p>
             )}
           </div>
@@ -173,7 +173,7 @@ export function EmailList({
 
       {/* Pagination / Count Display */}
       <div className="p-3 border-t text-xs text-muted-foreground text-center">
-        Showing {filteredEmails.length} of {totalEmails || filteredEmails.length} items
+        Affichage de {filteredEmails.length} sur {totalEmails || filteredEmails.length} éléments
       </div>
     </div>
   )

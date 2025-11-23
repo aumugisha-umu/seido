@@ -34,10 +34,10 @@ export function LinkToBuildingDropdown({
     setLoading(true)
     try {
       onLink(buildingId, lotId)
-      toast.success('Email linked to building/lot')
+      toast.success('Email lié à l\'immeuble/lot')
       setOpen(false)
     } catch (error) {
-      toast.error('Failed to link email')
+      toast.error('Échec de la liaison')
     } finally {
       setLoading(false)
     }
@@ -45,7 +45,7 @@ export function LinkToBuildingDropdown({
 
   return (
     <Command>
-      <CommandInput placeholder="Search buildings or lots..." />
+      <CommandInput placeholder="Rechercher des immeubles ou lots..." />
       <CommandList>
         {buildings.map((building) => (
           <CommandGroup key={building.id} heading={building.name}>

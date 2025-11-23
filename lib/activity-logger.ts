@@ -1,6 +1,7 @@
 import { createServerSupabaseClient, type ServerSupabaseClient } from '@/lib/services'
 import type { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
+import { generateActivityEntityName } from '@/lib/utils/activity-name-generator'
 
 // Types pour le système de logging
 type ActivityActionType = Database['public']['Enums']['activity_action_type']
@@ -20,6 +21,12 @@ interface LogActivityParams {
   errorMessage?: string
   ipAddress?: string
   userAgent?: string
+  // ✅ NOUVEAU: Champs pour filtrage et affichage enrichi
+  interventionId?: string
+  buildingId?: string
+  lotId?: string
+  displayTitle?: string
+  displayContext?: string
 }
 
 interface ActivityLoggerContext {
@@ -55,20 +62,33 @@ class ActivityLogger {
         action_type: params.actionType,
         entity_type: params.entityType,
         entity_id: params.entityId || null,
-        entity_name: params.entityName || null,
+        entity_name: params.entityName || generateActivityEntityName(params.entityType, params.actionType),
         description: params.description,
         status: params.status || 'success',
         metadata: params.metadata || {},
         error_message: params.errorMessage || null,
         ip_address: params.ipAddress || this.context.ipAddress || null,
         user_agent: params.userAgent || this.context.userAgent || null,
+        // ✅ NOUVEAU: Champs pour filtrage et affichage enrichi
+        intervention_id: params.interventionId || null,
+        building_id: params.buildingId || null,
+        lot_id: params.lotId || null,
+        display_title: params.displayTitle || null,
+        display_context: params.displayContext || null,
       }
 
       // Validation des champs obligatoires
       if (!logData.team_id || !logData.user_id) {
-        console.error('ActivityLogger: team_id and user_id are required')
+        console.error('❌ ActivityLogger: team_id and user_id are required', {
+          team_id: logData.team_id,
+          user_id: logData.user_id,
+          context: this.context
+        })
         return null
       }
+
+      // 🔍 DEBUG: Log the data being sent
+      console.log('📝 ActivityLogger: Attempting to insert log:', JSON.stringify(logData, null, 2))
 
       const { data, error } = await this.supabase
         .from('activity_logs')
@@ -77,18 +97,22 @@ class ActivityLogger {
         .single()
 
       if (error) {
-        console.error('ActivityLogger: Error saving log:', {
+        console.error('❌ ActivityLogger: Error saving log:', {
           message: error.message,
           code: error.code,
           details: error.details,
-          hint: error.hint
+          hint: error.hint,
+          sentData: logData
         })
+        console.error('❌ Full error object:', JSON.stringify(error, null, 2))
         return null
       }
 
+      console.log('✅ ActivityLogger: Log saved successfully:', data?.id)
       return data?.id || null
     } catch (error) {
-      console.error('ActivityLogger: Unexpected error:', error instanceof Error ? error.message : String(error))
+      console.error('❌ ActivityLogger: Unexpected error:', error instanceof Error ? error.message : String(error))
+      console.error('❌ Full exception:', error)
       return null
     }
   }
@@ -128,7 +152,7 @@ class ActivityLogger {
       actionType,
       entityType: 'user',
       entityId: userId,
-      entityName: userName,
+      entityName: generateActivityEntityName('user', actionType),
       description,
       metadata: details,
       teamId: this.context.teamId!,
@@ -161,7 +185,7 @@ class ActivityLogger {
       actionType,
       entityType: 'team',
       entityId: teamId,
-      entityName: teamName,
+      entityName: generateActivityEntityName('team', actionType),
       description,
       metadata: details,
       teamId: this.context.teamId!,
@@ -194,7 +218,7 @@ class ActivityLogger {
       actionType,
       entityType: 'building',
       entityId: buildingId,
-      entityName: buildingName,
+      entityName: generateActivityEntityName('building', actionType),
       description,
       metadata: details,
       teamId: this.context.teamId!,
@@ -233,7 +257,7 @@ class ActivityLogger {
       actionType,
       entityType: 'lot',
       entityId: lotId,
-      entityName: lotReference,
+      entityName: generateActivityEntityName('lot', actionType),
       description,
       metadata: details,
       teamId: this.context.teamId!,
@@ -272,7 +296,7 @@ class ActivityLogger {
       actionType,
       entityType: 'contact',
       entityId: contactId,
-      entityName: contactName,
+      entityName: generateActivityEntityName('contact', actionType),
       description,
       metadata: details,
       teamId: this.context.teamId!,
@@ -287,37 +311,80 @@ class ActivityLogger {
     interventionRef: string,
     details?: Record<string, unknown>
   ) {
+    // ✅ Charger l'intervention avec relations pour extraire building_id et lot_id
+    let buildingId: string | null = null
+    let lotId: string | null = null
+    let displayTitle: string | null = null
+    let displayContext: string | null = null
+
+    try {
+      const { data: intervention } = await this.supabase
+        .from('interventions')
+        .select(`
+          id,
+          title,
+          reference,
+          lot_id,
+          building_id,
+          lot:lot_id(
+            id,
+            reference,
+            building_id,
+            building:building_id(id, name)
+          )
+        `)
+        .eq('id', interventionId)
+        .single()
+
+      if (intervention) {
+        // ✅ Extraire building_id: priorité à lot.building_id
+        buildingId = intervention.lot?.building_id || intervention.building_id || null
+        lotId = intervention.lot_id || null
+        
+        // ✅ Construire affichage enrichi
+        displayTitle = details?.title as string || intervention.title || interventionRef
+        const lotRef = intervention.lot?.reference
+        const buildingName = intervention.lot?.building?.name
+        displayContext = lotRef
+          ? `${buildingName} - Lot ${lotRef}`
+          : buildingName || null
+      }
+    } catch (error) {
+      console.error('⚠️ ActivityLogger: Failed to load intervention relations:', error)
+      // Continue sans ces infos si erreur
+    }
+
     let description = ''
     
     switch (actionType) {
       case 'create':
-        description = `Nouvelle intervention créée : ${interventionRef}`
+        description = `Nouvelle intervention créée : ${displayTitle || interventionRef}`
         break
       case 'update':
-        description = `Intervention modifiée : ${interventionRef}`
+        description = `Intervention modifiée : ${displayTitle || interventionRef}`
         break
       case 'delete':
-        description = `Intervention supprimée : ${interventionRef}`
+        description = `Intervention supprimée : ${displayTitle || interventionRef}`
         break
       case 'assign':
-        description = `Intervention assignée : ${interventionRef}`
+        description = `Intervention assignée : ${displayTitle || interventionRef}`
         break
       case 'approve':
-        description = `Intervention approuvée : ${interventionRef}`
+        description = `Intervention approuvée : ${displayTitle || interventionRef}`
         break
       case 'reject':
-        description = `Intervention rejetée : ${interventionRef}`
+        description = `Intervention rejetée : ${displayTitle || interventionRef}`
         break
       case 'complete':
-        description = `Intervention terminée : ${interventionRef}`
+        description = `Intervention terminée : ${displayTitle || interventionRef}`
         break
       case 'cancel':
-        description = `Intervention annulée : ${interventionRef}`
+        description = `Intervention annulée : ${displayTitle || interventionRef}`
         break
       case 'status_change':
         const fromStatus = details?.from_status || 'unknown'
         const toStatus = details?.to_status || 'unknown'
-        description = `Statut changé de '${fromStatus}' vers '${toStatus}' : ${interventionRef}`
+        description = `Statut changé de '${fromStatus}' vers '${toStatus}' : ${displayTitle || interventionRef}`
         break
     }
 
@@ -325,11 +392,17 @@ class ActivityLogger {
       actionType,
       entityType: 'intervention',
       entityId: interventionId,
-      entityName: interventionRef,
+      entityName: generateActivityEntityName('intervention', actionType),
       description,
       metadata: details,
       teamId: this.context.teamId!,
       userId: this.context.userId!,
+      // ✅ NOUVEAU: Relations et affichage enrichi
+      interventionId,
+      buildingId,
+      lotId,
+      displayTitle,
+      displayContext,
     })
   }
 
@@ -358,7 +431,7 @@ class ActivityLogger {
       actionType,
       entityType: 'document',
       entityId: documentId,
-      entityName: fileName,
+      entityName: generateActivityEntityName('document', actionType),
       description,
       metadata: details,
       teamId: this.context.teamId!,
@@ -400,7 +473,7 @@ class ActivityLogger {
       entityType,
       entityName,
       description: `Échec de l'action ${actionType} sur ${entityType} : ${entityName}`,
-      status: 'failed',
+      status: 'failure',  // ✅ Fixed: changed from 'failed' to match database enum (success|failure|pending)
       errorMessage,
       metadata: details,
       teamId: this.context.teamId!,

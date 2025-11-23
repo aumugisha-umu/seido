@@ -45,6 +45,7 @@ import type {
 } from '../core/service-types'
 import type { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
+import { generateActivityEntityName } from '@/lib/utils/activity-name-generator'
 import {
   ValidationException,
   ConflictException,
@@ -354,10 +355,10 @@ export class InterventionService {
         return result  // Contains { id: string }
       }
 
-      // Auto-create conversation threads (only if we have complete data)
-      if (this.conversationRepo) {
-        await this.createInitialConversationThreads(result.data.id, data.team_id, userId)
-      }
+      // ✅ REMOVED: Auto-create conversation threads - now handled by database trigger
+      // The trigger add_assignment_to_conversation_participants() (SECURITY DEFINER)
+      // automatically creates threads when intervention_assignments are created.
+      // This avoids RLS permission issues and duplicate thread creation.
 
       // Notification will be handled by the API route via NotificationService
       // No longer calling legacy notifyInterventionCreated()
@@ -367,7 +368,7 @@ export class InterventionService {
         await this.sendInterventionCreatedEmail(result.data, userId)
       }
 
-      // Log activity
+      // Log activity (now uses updated schema)
       await this.logActivity('intervention_created', result.data.id, userId, {
         title: data.title,
         urgency: data.urgency
@@ -2059,23 +2060,135 @@ export class InterventionService {
     overrideClient?: any
   ) {
     try {
+      // ✅ UPDATED: Use findByIdWithRelations to get lot.building_id
+      // Use repository directly to get complete data with relations
+      const intervention = await this.interventionRepo.findByIdWithRelations(interventionId)
+      if (!intervention.success || !intervention.data) {
+        logger.error(`Cannot log activity: intervention ${interventionId} not found`)
+        return
+      }
+
+      const { 
+        team_id, 
+        reference, 
+        title, 
+        lot, 
+        building, 
+        lot_id, 
+        building_id 
+      } = intervention.data
+
+      if (!team_id) {
+        logger.error(`Cannot log activity: intervention ${interventionId} has no team_id`)
+        return
+      }
+
+      // ✅ Extraire le building_id depuis lot si disponible (priorité)
+      const resolvedBuildingId = lot?.building_id || building_id || null
+
+      // ✅ Construire le contexte patrimonial comme dans les notifications
+      const lotRef = lot?.reference
+      const buildingName = lot?.building?.name || building?.name
+      const displayContext = lotRef
+        ? `${buildingName} - Lot ${lotRef}`
+        : buildingName || 'Emplacement non spécifié'
+
+      // ✅ Utiliser le titre au lieu de la référence pour l'affichage
+      const displayTitle = title || reference
+
+      // Map old action names to new schema
+      const actionTypeMap: Record<string, string> = {
+        'intervention_created': 'create',
+        'intervention_updated': 'update',
+        'intervention_deleted': 'delete',
+        'user_assigned': 'assign',
+        'user_unassigned': 'unassign',
+        'intervention_approved': 'approve',
+        'intervention_rejected': 'reject',
+        'quote_requested': 'status_change',
+        'planning_started': 'status_change',
+        'intervention_started': 'status_change',
+        'completed_by_provider': 'complete',
+        'validated_by_tenant': 'status_change',
+        'finalized_by_manager': 'complete',
+        'intervention_cancelled': 'cancel',
+        'time_slots_proposed': 'status_change'
+      }
+
+      const action_type = actionTypeMap[action] || 'update'
+
+      // ✅ Generate description with displayTitle instead of reference
+      const descriptions: Record<string, string> = {
+        'intervention_created': `Intervention créée : ${displayTitle}`,
+        'intervention_updated': `Intervention modifiée : ${displayTitle}`,
+        'intervention_deleted': `Intervention supprimée : ${displayTitle}`,
+        'user_assigned': `Utilisateur assigné à l'intervention : ${displayTitle}`,
+        'user_unassigned': `Utilisateur retiré de l'intervention : ${displayTitle}`,
+        'intervention_approved': `Intervention approuvée : ${displayTitle}`,
+        'intervention_rejected': `Intervention rejetée : ${displayTitle}`,
+        'quote_requested': `Devis demandé pour : ${displayTitle}`,
+        'planning_started': `Planification démarrée : ${displayTitle}`,
+        'intervention_started': `Intervention démarrée : ${displayTitle}`,
+        'completed_by_provider': `Intervention complétée par prestataire : ${displayTitle}`,
+        'validated_by_tenant': `Intervention validée par locataire : ${displayTitle}`,
+        'finalized_by_manager': `Intervention finalisée par gestionnaire : ${displayTitle}`,
+        'intervention_cancelled': `Intervention annulée : ${displayTitle}`,
+        'time_slots_proposed': `Créneaux horaires proposés : ${displayTitle}`
+      }
+
+      const description = descriptions[action] || `Action ${action} sur ${displayTitle}`
+
       // Use override client (e.g., service role) if provided, otherwise use repository client
       const client = overrideClient || this.interventionRepo.supabase
 
       await client
         .from('activity_logs')
         .insert({
-          table_name: 'interventions',
-          record_id: interventionId,
-          action,
+          team_id,
           user_id: userId,
-          metadata,
+          action_type,
+          entity_type: 'intervention',
+          entity_id: interventionId,
+          entity_name: generateActivityEntityName('intervention', action_type),
+          description,
+          status: 'success',
+          // ✅ NOUVEAU: Relations directes pour filtrage
+          intervention_id: interventionId,
+          building_id: resolvedBuildingId, // ✅ Utilise lot.building_id en priorité
+          lot_id: lot_id || null,
+          // ✅ NOUVEAU: Affichage enrichi
+          display_title: displayTitle,
+          display_context: displayContext,
+          // ✅ Enrichir metadata
+          metadata: {
+            ...metadata,
+            title,
+            reference,
+            lot_reference: lotRef,
+            building_name: buildingName,
+            resolved_building_id: resolvedBuildingId // Pour debug
+          },
           created_at: new Date().toISOString()
         })
 
-      logger.info(`Activity logged: ${action} on intervention ${interventionId} by user ${userId}`)
+      logger.info(`✅ Activity logged: ${action} on intervention ${interventionId} by user ${userId}`)
     } catch (error) {
-      logger.error('Failed to log activity', error)
+      console.error('❌ Failed to log activity - FULL DETAILS:', {
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorName: error instanceof Error ? error.name : 'Unknown',
+        stack: error instanceof Error ? error.stack : undefined,
+        action,
+        interventionId,
+        userId,
+        errorObject: JSON.stringify(error, Object.getOwnPropertyNames(error), 2)
+      })
+      logger.error('❌ Failed to log activity:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        action,
+        interventionId,
+        userId
+      })
     }
   }
 }

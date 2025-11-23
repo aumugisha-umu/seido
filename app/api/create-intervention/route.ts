@@ -171,9 +171,15 @@ export async function POST(request: NextRequest) {
 
     // Generate unique reference for the intervention
     const generateReference = () => {
-      const timestamp = new Date().toISOString().slice(2, 10).replace('-', '').replace('-', '') // YYMMDD
-      const random = Math.random().toString(36).substring(2, 6).toUpperCase() // 4 random chars
-      return `INT-${timestamp}-${random}`
+      const now = new Date()
+      const year = String(now.getFullYear()).slice(-2)
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const day = String(now.getDate()).padStart(2, '0')
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      const seconds = String(now.getSeconds()).padStart(2, '0')
+      const timestamp = `${year}${month}${day}${hours}${minutes}${seconds}`
+      return `INT-${timestamp}`
     }
 
     // Prepare intervention data (according to new schema)
@@ -263,13 +269,19 @@ export async function POST(request: NextRequest) {
     // Log successful intervention creation
     if (teamId) {
       try {
-        const { activityLogger } = await import('@/lib/activity-logger')
+        logger.info({ userId: user.id, teamId, userName: user.name }, "📝 Attempting to create activity log...")
+        
+        // ✅ FIX: Use factory function to create proper server instance instead of legacy singleton
+        const { createActivityLogger } = await import('@/lib/activity-logger')
+        const activityLogger = await createActivityLogger()
         
         // Set context BEFORE calling log methods
         activityLogger.setContext({
           userId: user.id,
           teamId: teamId
         })
+        
+        logger.info({ interventionId: intervention.id, reference: intervention.reference }, "📝 Calling logInterventionAction...")
         
         const logResult = await activityLogger.logInterventionAction(
           'create',
@@ -289,11 +301,13 @@ export async function POST(request: NextRequest) {
         if (logResult) {
           logger.info({ logResult }, "✅ Activity log created for intervention creation")
         } else {
-          logger.error({}, "❌ Failed to create activity log - returned null")
+          logger.error({ userId: user.id, teamId }, "❌ Failed to create activity log - returned null (check console for details)")
         }
       } catch (error) {
-        logger.error({ error }, "❌ Error creating activity log")
+        logger.error({ error, userId: user.id, teamId }, "❌ Exception while creating activity log")
       }
+    } else {
+      logger.warn({ userId: user.id }, "⚠️ No teamId available, skipping activity log creation")
     }
 
     // Auto-assign relevant users to the intervention

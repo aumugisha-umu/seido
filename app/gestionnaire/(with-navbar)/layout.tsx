@@ -31,7 +31,7 @@ export default async function WithNavbarLayout({
   const userInitial = userName.charAt(0).toUpperCase()
 
   return (
-    <>
+    <div className="flex flex-col h-screen overflow-hidden">
       <DashboardHeader
         role="gestionnaire"
         userName={userName}
@@ -39,7 +39,9 @@ export default async function WithNavbarLayout({
         userEmail={user.email || ''}
         teamId={team.id}
       />
-      {children}
-    </>
+      <main className="flex-1 min-h-0 flex flex-col">
+        {children}
+      </main>
+    </div>
   )
 }

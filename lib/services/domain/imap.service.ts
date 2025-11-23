@@ -22,9 +22,9 @@ export interface ParsedEmail {
 export class ImapService {
     static async fetchNewEmails(
         connection: TeamEmailConnection
-    ): Promise<ParsedEmail[]> {
+    ): Promise<{ emails: ParsedEmail[], maxUid: number }> {
         return new Promise((resolve, reject) => {
-            const password = EncryptionService.decryptPassword(
+            const password = EncryptionService.decrypt(
                 connection.imap_password_encrypted
             );
 
@@ -34,12 +34,14 @@ export class ImapService {
                 host: connection.imap_host,
                 port: connection.imap_port,
                 tls: connection.imap_use_ssl,
-                tlsOptions: { rejectUnauthorized: false }, // Often needed for self-signed certs or some providers
+                tlsOptions: { rejectUnauthorized: false },
                 connTimeout: 30000,
                 authTimeout: 10000
             });
 
-            const emails: ParsedEmail[] = [];
+            const parsedEmails: ParsedEmail[] = [];
+            let maxUid = connection.last_uid || 0;
+            const parsingPromises: Promise<void>[] = [];
 
             imap.once('ready', () => {
                 imap.openBox('INBOX', false, (err, box) => {
@@ -48,72 +50,81 @@ export class ImapService {
                         return reject(err);
                     }
 
-                    // Search for emails since sync_from_date
-                    // If sync_from_date is set, only fetch emails received after that date
-                    // Otherwise, fetch UNSEEN emails
-                    // IMAP SINCE requires date in format: DD-Mon-YYYY (e.g., "24-Oct-2025")
+                    // Search strategy:
+                    // 1. If last_uid > 0, search for UIDs > last_uid
+                    // 2. If sync_from_date is set, search SINCE date (initial sync)
+                    // 3. Fallback to UNSEEN
                     let searchCriteria: any[];
-                    if (connection.sync_from_date) {
+
+                    if (connection.last_uid && connection.last_uid > 0) {
+                        // UID search: last_uid + 1 : *
+                        searchCriteria = [['UID', `${connection.last_uid + 1}:*`]];
+                    } else if (connection.sync_from_date) {
                         const date = new Date(connection.sync_from_date);
-                        const day = date.getDate();
-                        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-                        const month = monthNames[date.getMonth()];
-                        const year = date.getFullYear();
-                        const formattedDate = `${day}-${month}-${year}`;
-                        searchCriteria = ['SINCE', formattedDate];
+                        searchCriteria = [['SINCE', date]];
                     } else {
                         searchCriteria = ['UNSEEN'];
                     }
 
                     console.log('IMAP Search Criteria:', searchCriteria);
 
-                    imap.search(searchCriteria, (err, results) => {
+                    imap.search(searchCriteria, (err, uids) => {
                         if (err) {
                             console.error('IMAP Search Error:', err);
                             imap.end();
                             return reject(err);
                         }
 
-                        console.log('IMAP Search Results:', results?.length || 0);
-
-                        if (!results || results.length === 0) {
+                        if (!uids || uids.length === 0) {
                             imap.end();
-                            return resolve([]);
+                            return resolve({ emails: [], maxUid });
                         }
 
-                        const f = imap.fetch(results, { bodies: '' });
+                        // Update maxUid
+                        const currentMax = Math.max(...uids);
+                        if (currentMax > maxUid) maxUid = currentMax;
+
+                        console.log(`Found ${uids.length} emails. Fetching...`);
+
+                        const f = imap.fetch(uids, { bodies: '', struct: true });
 
                         f.on('message', (msg, seqno) => {
-                            let buffer = '';
+                            const parsePromise = new Promise<void>((resolveParse) => {
+                                let buffer = '';
 
-                            msg.on('body', (stream, info) => {
-                                stream.on('data', (chunk) => {
-                                    buffer += chunk.toString('utf8');
+                                msg.on('body', (stream, info) => {
+                                    stream.on('data', (chunk) => {
+                                        buffer += chunk.toString('utf8');
+                                    });
+                                });
+
+                                msg.once('end', () => {
+                                    simpleParser(buffer)
+                                        .then(parsed => {
+                                            parsedEmails.push({
+                                                messageId: parsed.messageId || '',
+                                                from: parsed.from?.text || '',
+                                                to: Array.isArray(parsed.to) ? parsed.to.map(t => t.text) : [parsed.to?.text || ''],
+                                                subject: parsed.subject || '',
+                                                text: parsed.text,
+                                                html: parsed.html || parsed.textAsHtml,
+                                                date: parsed.date || new Date(),
+                                                attachments: parsed.attachments.map(att => ({
+                                                    filename: att.filename || 'unknown',
+                                                    contentType: att.contentType,
+                                                    size: att.size,
+                                                    content: att.content
+                                                }))
+                                            });
+                                            resolveParse();
+                                        })
+                                        .catch(err => {
+                                            console.error('Error parsing email:', err);
+                                            resolveParse(); // Resolve anyway to not block other emails
+                                        });
                                 });
                             });
-
-                            msg.once('end', () => {
-                                // Parse the email
-                                simpleParser(buffer)
-                                    .then(parsed => {
-                                        emails.push({
-                                            messageId: parsed.messageId || '',
-                                            from: parsed.from?.text || '',
-                                            to: Array.isArray(parsed.to) ? parsed.to.map(t => t.text) : [parsed.to?.text || ''],
-                                            subject: parsed.subject || '',
-                                            text: parsed.text,
-                                            html: parsed.html || parsed.textAsHtml,
-                                            date: parsed.date || new Date(),
-                                            attachments: parsed.attachments.map(att => ({
-                                                filename: att.filename || 'unknown',
-                                                contentType: att.contentType,
-                                                size: att.size,
-                                                content: att.content
-                                            }))
-                                        });
-                                    })
-                                    .catch(err => console.error('Error parsing email:', err));
-                            });
+                            parsingPromises.push(parsePromise);
                         });
 
                         f.once('error', (err) => {
@@ -121,13 +132,11 @@ export class ImapService {
                         });
 
                         f.once('end', () => {
-                            // Wait a bit for parsing to finish (simpleParser is async)
-                            // In a real app, we should track parsing promises.
-                            // Hack for MVP:
-                            setTimeout(() => {
+                            // Wait for all parsing to complete
+                            Promise.all(parsingPromises).then(() => {
                                 imap.end();
-                                resolve(emails);
-                            }, 2000);
+                                resolve({ emails: parsedEmails, maxUid });
+                            });
                         });
                     });
                 });
@@ -135,10 +144,6 @@ export class ImapService {
 
             imap.once('error', (err: any) => {
                 reject(err);
-            });
-
-            imap.once('end', () => {
-                // Connection ended
             });
 
             imap.connect();

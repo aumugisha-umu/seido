@@ -1,40 +1,65 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { ImapService } from '@/lib/services/domain/imap.service';
-import { EmailConnectionRepository } from '@/lib/services/repositories/email-connection.repository';
-import { EmailRepository } from '@/lib/services/repositories/email.repository';
-import { EmailBlacklistRepository } from '@/lib/services/repositories/email-blacklist.repository';
 import { EmailSyncService } from '@/lib/services/domain/email-sync.service';
 
-// Service Role Client for Cron Job (bypasses RLS)
-const supabaseAdmin = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
+// This route is called by Vercel Cron
 export async function GET(request: Request) {
-    // Verify Cron Secret (optional but recommended)
+    // Verify Vercel Cron header
     const authHeader = request.headers.get('authorization');
     if (process.env.CRON_SECRET && authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return new NextResponse('Unauthorized', { status: 401 });
     }
 
     try {
-        const connectionRepo = new EmailConnectionRepository(supabaseAdmin);
-        const syncService = new EmailSyncService(supabaseAdmin);
+        // Create a Supabase client with service role to bypass RLS
+        // We need to fetch ALL active connections across ALL teams
+        const supabase = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
 
-        // 1. Get all active connections
-        const connections = await connectionRepo.getActiveConnections();
-        const results = [];
+        // 1. Fetch all active connections
+        const { data: connections, error } = await supabase
+            .from('team_email_connections')
+            .select('*')
+            .eq('is_active', true);
 
-        for (const connection of connections) {
-            const result = await syncService.syncConnection(connection);
-            results.push(result);
+        if (error) {
+            console.error('Error fetching connections:', error);
+            return NextResponse.json({ error: error.message }, { status: 500 });
         }
 
-        return NextResponse.json({ success: true, results });
+        if (!connections || connections.length === 0) {
+            return NextResponse.json({ message: 'No active connections to sync' });
+        }
+
+        console.log(`Starting sync for ${connections.length} connections...`);
+
+        const syncService = new EmailSyncService(supabase);
+        const results = [];
+
+        // 2. Sync each connection
+        for (const connection of connections) {
+            try {
+                const result = await syncService.syncConnection(connection as any);
+                results.push(result);
+            } catch (err: any) {
+                console.error(`Failed to sync connection ${connection.id}:`, err);
+                results.push({
+                    connectionId: connection.id,
+                    status: 'error',
+                    error: err.message
+                });
+            }
+        }
+
+        return NextResponse.json({
+            success: true,
+            results
+        });
+
     } catch (error: any) {
-        console.error('Sync error:', error);
+        console.error('Cron sync error:', error);
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

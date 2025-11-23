@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getApiAuthContext } from '@/lib/api-auth-helper';
 import { EmailSyncService } from '@/lib/services/domain/email-sync.service';
+import { createClient } from '@supabase/supabase-js';
 
 export async function POST(
     request: Request,
@@ -31,7 +32,13 @@ export async function POST(
             return NextResponse.json({ error: 'Connection not found' }, { status: 404 });
         }
 
-        const syncService = new EmailSyncService(supabase);
+        // Use Service Role client to bypass RLS for sync operations
+        const serviceClient = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        const syncService = new EmailSyncService(serviceClient);
         const result = await syncService.syncConnection(connection as unknown as any);
 
         return NextResponse.json({ success: true, result });

@@ -1,74 +1,176 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { MailboxSidebar } from './components/mailbox-sidebar'
 import { EmailList } from './components/email-list'
 import { EmailDetail } from './components/email-detail'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Plus, RefreshCw } from 'lucide-react'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
 import { EmailClientService } from '@/lib/services/client/email-client.service'
 import { Email } from '@/lib/types/email-integration'
-import { DummyEmail, DummyBuilding } from './components/dummy-data' // Keep for types/buildings for now
+import { DummyEmail, DummyBuilding } from './components/dummy-data'
+import { useRealtimeEmails } from '@/hooks/use-realtime-emails'
 
 // Adapter to convert real Email to DummyEmail (for UI compatibility)
-const adaptEmail = (email: Email): DummyEmail => ({
-  id: email.id,
-  sender_email: email.from_address,
-  sender_name: email.from_address.split('@')[0], // Simple extraction
-  recipient_email: email.to_addresses[0],
-  subject: email.subject,
-  snippet: email.body_text?.substring(0, 100) || '',
-  body_html: email.body_html || email.body_text || '',
-  received_at: email.received_at || new Date().toISOString(),
-  is_read: email.status === 'read',
-  has_attachments: (email.attachments?.length || 0) > 0,
-  attachments: email.attachments?.map(a => ({
-    id: a.id,
-    filename: a.filename,
-    file_size: a.size_bytes,
-    url: '#', // TODO: Add download URL
-    mime_type: a.content_type || 'application/octet-stream'
-  })) || [],
-  building_id: email.building_id || undefined,
-  building_name: undefined, // TODO: Fetch building name
-  lot_id: email.lot_id || undefined,
-  lot_name: undefined,
-  labels: [], // TODO: Implement labels
-  direction: email.direction,
-  status: email.status,
-  conversation_id: email.id, // TODO: Implement conversation grouping
-  thread_order: 0,
-  is_parent: true,
-  email_connection_id: email.email_connection_id || undefined
-})
+const adaptEmail = (email: Email, buildings: DummyBuilding[]): DummyEmail => {
+  const building = buildings.find(b => b.id === email.building_id)
+  const lot = building?.lots.find(l => l.id === email.lot_id)
+
+  return {
+    id: email.id,
+    sender_email: email.from_address,
+    sender_name: email.from_address.split('@')[0], // Simple extraction
+    recipient_email: email.to_addresses[0],
+    subject: email.subject,
+    snippet: email.body_text?.substring(0, 100) || '',
+    body_html: email.body_html || email.body_text || '',
+    received_at: email.received_at || email.sent_at || new Date().toISOString(),
+    is_read: email.status === 'read',
+    has_attachments: (email.attachments?.length || 0) > 0,
+    attachments: email.attachments?.map(a => ({
+      id: a.id,
+      filename: a.filename,
+      file_size: a.size_bytes,
+      url: '#', // TODO: Add download URL
+      mime_type: a.content_type || 'application/octet-stream'
+    })) || [],
+    building_id: email.building_id || undefined,
+    building_name: building?.name,
+    lot_id: email.lot_id || undefined,
+    lot_name: lot?.name,
+    labels: [], // TODO: Implement labels
+    direction: email.direction,
+    status: email.status,
+    conversation_id: email.id, // TODO: Implement conversation grouping
+    thread_order: 0,
+    is_parent: true,
+    email_connection_id: email.email_connection_id || undefined
+  }
+}
 
 export default function EmailPage() {
   const [currentFolder, setCurrentFolder] = useState('inbox')
   const [selectedEmailId, setSelectedEmailId] = useState<string | undefined>(undefined)
-  const [showShortcutsDialog, setShowShortcutsDialog] = useState(false)
-  const [emails, setEmails] = useState<DummyEmail[]>([])
+  const [realEmails, setRealEmails] = useState<Email[]>([])
+  const [buildings, setBuildings] = useState<DummyBuilding[]>([])
   const [isLoading, setIsLoading] = useState(false)
-  const replyActionRef = useRef<(() => void) | null>(null)
+
+  const [teamId, setTeamId] = useState<string | undefined>(undefined)
+
+  const [counts, setCounts] = useState({ inbox: 0, sent: 0, drafts: 0, archive: 0 })
+
+  const [totalEmails, setTotalEmails] = useState(0)
+  const [offset, setOffset] = useState(0)
+  const LIMIT = 50
+
+  // Derived state
+  const emails = useMemo(() => realEmails.map(e => adaptEmail(e, buildings)), [realEmails, buildings])
+  const selectedEmail = emails.find(e => e.id === selectedEmailId)
+
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 Selected Email ID changed:', selectedEmailId)
+    console.log('🔍 Selected Email object:', selectedEmail)
+    console.log('🔍 Total emails:', emails.length)
+  }, [selectedEmailId, selectedEmail, emails.length])
+
+  // Fetch team ID
+  useEffect(() => {
+    const fetchTeamId = async () => {
+      try {
+        const response = await fetch('/api/user-teams')
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success && data.teamId) {
+            setTeamId(data.teamId)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch team ID:', error)
+      }
+    }
+    fetchTeamId()
+  }, [])
+
+  // Real-time subscription
+  useRealtimeEmails({
+    teamId,
+    onNewEmail: (newEmail) => {
+      // Add new email to the top of the list if it belongs to the current folder
+      if (currentFolder === 'inbox' && newEmail.direction === 'received') {
+        setRealEmails(prev => [newEmail, ...prev])
+        // Update counts
+        setCounts(prev => ({ ...prev, inbox: prev.inbox + 1 }))
+        setTotalEmails(prev => prev + 1)
+      }
+      if (currentFolder === 'sent' && newEmail.direction === 'sent') {
+        setRealEmails(prev => [newEmail, ...prev])
+        setCounts(prev => ({ ...prev, sent: prev.sent + 1 }))
+        setTotalEmails(prev => prev + 1)
+      }
+    }
+  })
+
+  // Fetch buildings
+  const fetchBuildings = async () => {
+    try {
+      const response = await fetch('/api/buildings')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          // Map API buildings to DummyBuilding format
+          const mappedBuildings: DummyBuilding[] = data.buildings.map((b: any) => ({
+            id: b.id,
+            name: b.name,
+            address: b.address,
+            emailCount: 0, // TODO: Fetch counts per building if needed
+            lots: []
+          }))
+          setBuildings(mappedBuildings)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch buildings:', error)
+    }
+  }
+
+  // Fetch counts
+  const fetchCounts = async () => {
+    try {
+      const data = await EmailClientService.getCounts()
+      setCounts(data)
+    } catch (error) {
+      console.error('Failed to fetch counts:', error)
+    }
+  }
 
   // Fetch emails
-  const fetchEmails = async () => {
+  const fetchEmails = async (isLoadMore = false) => {
     setIsLoading(true)
     try {
-      const realEmails = await EmailClientService.getEmails(currentFolder)
-      const adaptedEmails = realEmails.map(adaptEmail)
-      setEmails(adaptedEmails)
+      const currentOffset = isLoadMore ? offset : 0
+      const data = await EmailClientService.getEmails(currentFolder, undefined, LIMIT, currentOffset)
 
-      // Select first email if none selected
-      if (!selectedEmailId && adaptedEmails.length > 0) {
-        setSelectedEmailId(adaptedEmails[0].id)
+      if (isLoadMore) {
+        setRealEmails(prev => [...prev, ...data.emails])
+        setOffset(prev => prev + LIMIT)
+      } else {
+        setRealEmails(data.emails)
+        setOffset(LIMIT)
+        // Always select first email on initial load
+        if (data.emails.length > 0) {
+          setSelectedEmailId(data.emails[0].id)
+        } else {
+          setSelectedEmailId(undefined)
+        }
+      }
+
+      setTotalEmails(data.total)
+
+      // Also refresh counts on initial load
+      if (!isLoadMore) {
+        fetchCounts()
       }
     } catch (error) {
       console.error('Failed to fetch emails:', error)
@@ -78,16 +180,28 @@ export default function EmailPage() {
     }
   }
 
+  // Initial fetch
   useEffect(() => {
-    fetchEmails()
-  }, [currentFolder])
+    fetchBuildings()
+    fetchCounts()
+  }, [])
 
-  const selectedEmail = emails.find(e => e.id === selectedEmailId)
+  // Fetch emails when folder changes
+  useEffect(() => {
+    setOffset(0)
+    fetchEmails(false)
+  }, [currentFolder])
 
   // Auto-select first email when folder changes
   const handleFolderChange = (folder: string) => {
     setCurrentFolder(folder)
-    setSelectedEmailId(undefined) // Will be set by useEffect
+    setSelectedEmailId(undefined) // Will be set by fetchEmails/useEffect
+  }
+
+  const handleLoadMore = () => {
+    if (realEmails.length < totalEmails && !isLoading) {
+      fetchEmails(true)
+    }
   }
 
   const handleSync = async () => {
@@ -95,6 +209,7 @@ export default function EmailPage() {
       loading: 'Syncing emails...',
       success: () => {
         fetchEmails()
+        fetchCounts()
         return 'Emails synced'
       },
       error: 'Failed to sync emails'
@@ -119,7 +234,6 @@ export default function EmailPage() {
         inReplyToEmailId: selectedEmail.id
       })
       toast.success('Reply sent')
-      // Refresh emails to show sent email
       fetchEmails()
     } catch (error) {
       console.error('Reply error:', error)
@@ -127,62 +241,88 @@ export default function EmailPage() {
     }
   }
 
-  const handleArchive = () => {
-    toast.success('Email archived (dummy action)')
+  const handleArchive = async () => {
+    if (!selectedEmailId) return
+    try {
+      await EmailClientService.archiveEmail(selectedEmailId)
+      toast.success('Email archived')
+      fetchEmails()
+    } catch (error) {
+      toast.error('Failed to archive email')
+    }
   }
 
-  const handleDelete = () => {
-    toast.success('Email deleted (dummy action)')
+  const handleDelete = async () => {
+    if (!selectedEmailId) return
+    try {
+      await EmailClientService.deleteEmail(selectedEmailId)
+      toast.success('Email deleted')
+      fetchEmails()
+    } catch (error) {
+      toast.error('Failed to delete email')
+    }
   }
 
-  const handleLinkBuilding = (buildingId: string, lotId?: string) => {
-    toast.success(`Linked to building (dummy action)`)
+  const handleLinkBuilding = async (buildingId: string, lotId?: string) => {
+    if (!selectedEmailId) return
+    try {
+      await EmailClientService.linkToBuilding(selectedEmailId, buildingId, lotId)
+      toast.success('Linked to building')
+      fetchEmails()
+    } catch (error) {
+      toast.error('Failed to link building')
+    }
   }
 
   const handleCreateIntervention = () => {
     toast.success('Intervention creation modal would open here (dummy action)')
   }
 
-  const handleSoftDelete = (emailId: string) => {
-    toast.success('Email soft deleted (dummy action)')
+  const handleSoftDelete = async (emailId: string) => {
+    try {
+      await EmailClientService.deleteEmail(emailId)
+      toast.success('Email deleted')
+      fetchEmails()
+    } catch (error) {
+      toast.error('Failed to delete email')
+    }
   }
 
   const handleBlacklist = (emailId: string, senderEmail: string, reason?: string) => {
     toast.success(`Blacklisted ${senderEmail} (dummy action)`)
   }
 
-  const handleMarkAsProcessed = () => {
-    toast.success('Email/Conversation marked as processed (dummy action)')
+  const handleMarkAsProcessed = async () => {
+    if (!selectedEmailId) return
+    // Assuming processed means read or archived, or maybe we need a specific flag
+    // For now, let's mark as read if not already
+    try {
+      await EmailClientService.markAsRead(selectedEmailId)
+      toast.success('Marked as processed')
+      fetchEmails()
+    } catch (error) {
+      toast.error('Failed to mark as processed')
+    }
   }
 
   const handleBuildingClick = (buildingId: string) => {
-    setCurrentFolder(buildingId)
+    // Filter by building (not implemented in API yet, but we can filter locally or add param)
+    // For now, just set folder to buildingId (which might not work if API doesn't support it)
+    // Actually, API supports 'folder' param. If we pass buildingId, API needs to handle it.
+    // Current API only handles 'inbox', 'sent', 'archive'.
+    // We might need to update API to support building_id filter.
+    // For now, let's just log.
+    console.log('Filter by building:', buildingId)
+    toast.info('Filtering by building not yet implemented')
   }
 
   const handleConversationSelect = (conversationId: string) => {
     // TODO: Implement conversation selection
   }
 
-  // Navigate to next/previous email
-  const navigateEmail = (direction: 'next' | 'prev') => {
-    const currentIndex = emails.findIndex(e => e.id === selectedEmailId)
-    if (currentIndex === -1) return
-
-    const newIndex = direction === 'next'
-      ? Math.min(currentIndex + 1, emails.length - 1)
-      : Math.max(currentIndex - 1, 0)
-
-    if (newIndex !== currentIndex) {
-      setSelectedEmailId(emails[newIndex].id)
-    }
-  }
-
   const handleCompose = () => {
     toast.info('Compose new email modal would open here (dummy action)')
   }
-
-  // Dummy buildings for now
-  const dummyBuildings: DummyBuilding[] = []
 
   return (
     <div className="layout-padding flex flex-col flex-1 min-h-0 bg-slate-50">
@@ -206,19 +346,14 @@ export default function EmailPage() {
       </div>
 
       {/* White Card with Email Interface */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 flex-1 min-h-0 overflow-y-auto overflow-x-visible p-6">
-        <div className="flex h-full rounded-lg overflow-x-visible overflow-y-auto">
+      <div className="bg-white rounded-lg shadow-sm border border-slate-200 flex-1 min-h-0 overflow-hidden flex flex-col">
+        <div className="flex flex-1 min-h-0 w-full">
           {/* Sidebar */}
           <MailboxSidebar
             currentFolder={currentFolder}
             onFolderChange={handleFolderChange}
-            unreadCounts={{
-              inbox: 0, // TODO: Fetch counts
-              sent: 0,
-              drafts: 0,
-              archive: 0
-            }}
-            buildings={dummyBuildings}
+            unreadCounts={counts}
+            buildings={buildings}
             onBuildingClick={handleBuildingClick}
           />
 
@@ -228,13 +363,16 @@ export default function EmailPage() {
             selectedEmailId={selectedEmailId}
             onEmailSelect={setSelectedEmailId}
             onConversationSelect={handleConversationSelect}
+            totalEmails={totalEmails}
+            onLoadMore={handleLoadMore}
           />
 
           {/* Email Detail */}
           {selectedEmail ? (
             <EmailDetail
+              key={selectedEmail.id}
               email={selectedEmail}
-              buildings={dummyBuildings}
+              buildings={buildings}
               onReply={handleReply}
               onArchive={handleArchive}
               onDelete={handleDelete}
@@ -245,7 +383,7 @@ export default function EmailPage() {
               onMarkAsProcessed={handleMarkAsProcessed}
             />
           ) : (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground">
+            <div className="flex-1 flex items-center justify-center text-muted-foreground bg-slate-50/50">
               <div className="text-center">
                 <p className="text-lg font-semibold mb-2">No email selected</p>
                 <p className="text-sm">Select an email from the list to view it</p>

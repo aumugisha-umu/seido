@@ -84,6 +84,66 @@ export class EmailRepository extends BaseRepository<Email> {
     }
 
     /**
+     * Récupère les emails par dossier avec compte total
+     */
+    async getEmailsByFolder(
+        teamId: string,
+        folder: string,
+        options: {
+            limit: number;
+            offset: number;
+            search?: string;
+        }
+    ): Promise<{ data: Email[]; count: number }> {
+        let query = this.supabase
+            .from(this.tableName)
+            .select('*', { count: 'exact' })
+            .eq('team_id', teamId);
+
+        // Search logic
+        if (options.search) {
+            query = query.textSearch('search_vector', options.search, {
+                type: 'websearch',
+                config: 'french'
+            });
+        } else {
+            // Folder logic
+            if (folder === 'inbox') {
+                query = query
+                    .eq('direction', 'received')
+                    .neq('status', 'archived')
+                    // We can't easily filter 'deleted' if it's a soft delete column or status
+                    // Assuming status != 'deleted' if that status exists, or deleted_at is null
+                    // For now, let's assume status based filtering as per current schema usage
+                    // If 'deleted' is a status:
+                    // .neq('status', 'deleted')
+                    // But supabase doesn't support multiple neq easily on same column in all client versions without chaining
+                    // Let's chain
+                    .neq('status', 'deleted');
+            } else if (folder === 'sent') {
+                query = query.eq('direction', 'sent');
+            } else if (folder === 'archive') {
+                query = query.eq('status', 'archived');
+            }
+        }
+
+        // Order
+        query = query.order('received_at', { ascending: false });
+
+        // Pagination
+        query = query.range(options.offset, options.offset + options.limit - 1);
+
+        const { data, error, count } = await query;
+
+        if (error) throw error;
+
+        return {
+            data: data || [],
+            count: count || 0
+        };
+    }
+
+    /**
      * Recherche plein texte
      */
     async searchEmails(teamId: string, query: string): Promise<Email[]> {
@@ -160,5 +220,19 @@ export class EmailRepository extends BaseRepository<Email> {
             .eq('id', emailId);
 
         if (error) throw error;
+    }
+    /**
+     * Met à jour un email
+     */
+    async updateEmail(emailId: string, updates: Partial<Email>): Promise<Email> {
+        const { data, error } = await this.supabase
+            .from(this.tableName)
+            .update(updates)
+            .eq('id', emailId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return data;
     }
 }

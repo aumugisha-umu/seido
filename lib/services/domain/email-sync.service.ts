@@ -28,9 +28,11 @@ export class EmailSyncService {
     async syncConnection(connection: TeamEmailConnection): Promise<SyncResult> {
         try {
             // Fetch new emails
-            const parsedEmails = await ImapService.fetchNewEmails(connection);
+            const { emails: parsedEmails, maxUid } = await ImapService.fetchNewEmails(connection);
 
             if (parsedEmails.length === 0) {
+                // Still update last_sync_at even if no new emails
+                await this.connectionRepo.updateLastUid(connection.id, maxUid);
                 return { connectionId: connection.id, status: 'no_new_emails' };
             }
 
@@ -65,7 +67,9 @@ export class EmailSyncService {
                 // Save attachments
                 if (email.attachments.length > 0) {
                     for (const att of email.attachments) {
-                        const fileName = `${connection.team_id}/${Date.now()}_${att.filename}`;
+                        // Sanitize filename to prevent Storage errors (remove special chars)
+                        const sanitizedFilename = (att.filename || 'unknown').replace(/[^a-zA-Z0-9.-]/g, '_');
+                        const fileName = `${connection.team_id}/${Date.now()}_${sanitizedFilename}`;
 
                         // Upload to Storage
                         const { data: uploadData, error: uploadError } = await this.supabase.storage
@@ -91,8 +95,8 @@ export class EmailSyncService {
                 processedCount++;
             }
 
-            // Update connection status
-            await this.connectionRepo.updateLastUid(connection.id, connection.last_uid); // Keep same UID for now, just update timestamp
+            // Update connection status with new maxUid
+            await this.connectionRepo.updateLastUid(connection.id, maxUid);
 
             return {
                 connectionId: connection.id,

@@ -42,8 +42,8 @@ export class EmailConnectionRepository extends BaseRepository<TeamEmailConnectio
     async createConnection(dto: CreateEmailConnectionDTO): Promise<TeamEmailConnection> {
         const encrypted = {
             ...dto,
-            imap_password_encrypted: EncryptionService.encryptPassword(dto.imap_password),
-            smtp_password_encrypted: EncryptionService.encryptPassword(dto.smtp_password),
+            imap_password_encrypted: EncryptionService.encrypt(dto.imap_password),
+            smtp_password_encrypted: EncryptionService.encrypt(dto.smtp_password),
         };
 
         // Supprimer les mots de passe en clair

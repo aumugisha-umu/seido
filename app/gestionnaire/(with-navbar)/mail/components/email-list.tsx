@@ -15,17 +15,41 @@ interface EmailListProps {
   selectedEmailId?: string
   onEmailSelect: (emailId: string) => void
   onConversationSelect?: (conversationId: string) => void
+  totalEmails?: number
+  onLoadMore?: () => void
 }
 
 export function EmailList({
   emails,
   selectedEmailId,
   onEmailSelect,
-  onConversationSelect
+  onConversationSelect,
+  totalEmails = 0,
+  onLoadMore
 }: EmailListProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [dateFilter, setDateFilter] = useState<string>('all')
   const [hasAttachments, setHasAttachments] = useState(false)
+
+  // Sentinel ref for infinite scroll
+  const loadMoreRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && onLoadMore) {
+          onLoadMore()
+        }
+      },
+      { threshold: 0.1 }
+    )
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current)
+    }
+
+    return () => observer.disconnect()
+  }, [onLoadMore, emails.length]) // Re-observe when list changes
 
   const filteredEmails = emails.filter((email) => {
     const query = searchQuery.toLowerCase()
@@ -57,6 +81,7 @@ export function EmailList({
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8"
             aria-label="Search emails by sender, subject, or content"
+            suppressHydrationWarning
           />
         </div>
 
@@ -98,7 +123,7 @@ export function EmailList({
       </div>
 
       {/* Email List with ScrollArea */}
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 min-h-0">
         {groupedItems.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground" role="status">
             <p>No emails found</p>
@@ -139,13 +164,16 @@ export function EmailList({
                 )
               }
             })}
+
+            {/* Sentinel for infinite scroll */}
+            <div ref={loadMoreRef} className="h-4 w-full" />
           </div>
         )}
       </ScrollArea>
 
-      {/* Pagination (optional for Balanced variant) */}
+      {/* Pagination / Count Display */}
       <div className="p-3 border-t text-xs text-muted-foreground text-center">
-        Showing {groupedItems.length} of {emails.length} items
+        Showing {filteredEmails.length} of {totalEmails || filteredEmails.length} items
       </div>
     </div>
   )

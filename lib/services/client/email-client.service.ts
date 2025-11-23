@@ -4,10 +4,17 @@ export class EmailClientService {
     /**
      * Fetch emails from the API
      */
-    static async getEmails(folder: string = 'inbox', search?: string): Promise<Email[]> {
+    static async getEmails(
+        folder: string = 'inbox',
+        search?: string,
+        limit: number = 50,
+        offset: number = 0
+    ): Promise<{ emails: Email[]; total: number }> {
         const params = new URLSearchParams();
         if (folder) params.append('folder', folder);
         if (search) params.append('search', search);
+        params.append('limit', limit.toString());
+        params.append('offset', offset.toString());
 
         const response = await fetch(`/api/emails?${params.toString()}`);
         if (!response.ok) {
@@ -15,7 +22,22 @@ export class EmailClientService {
         }
 
         const data = await response.json();
-        return data.emails;
+        return {
+            emails: data.emails,
+            total: data.total || 0
+        };
+    }
+
+    /**
+     * Fetch email counts
+     */
+    static async getCounts(): Promise<{ inbox: number; sent: number; archive: number; drafts: number }> {
+        const response = await fetch('/api/emails/counts');
+        if (!response.ok) {
+            throw new Error('Failed to fetch email counts');
+        }
+        const data = await response.json();
+        return data.counts;
     }
 
     /**
@@ -50,5 +72,52 @@ export class EmailClientService {
         if (!response.ok) {
             throw new Error('Failed to sync emails');
         }
+    }
+    /**
+     * Update an email
+     */
+    static async updateEmail(emailId: string, updates: Partial<Email>): Promise<Email> {
+        const response = await fetch(`/api/emails/${emailId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(updates),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to update email');
+        }
+
+        const data = await response.json();
+        return data.email;
+    }
+
+    static async archiveEmail(emailId: string): Promise<void> {
+        await this.updateEmail(emailId, { status: 'archived' });
+    }
+
+    static async deleteEmail(emailId: string): Promise<void> {
+        // Soft delete via API special flag or just status if we prefer
+        // The API route handles { deleted: true } for soft delete
+        const response = await fetch(`/api/emails/${emailId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deleted: true }),
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to delete email');
+        }
+    }
+
+    static async markAsRead(emailId: string): Promise<void> {
+        await this.updateEmail(emailId, { status: 'read' });
+    }
+
+    static async markAsUnread(emailId: string): Promise<void> {
+        await this.updateEmail(emailId, { status: 'unread' });
+    }
+
+    static async linkToBuilding(emailId: string, buildingId: string, lotId?: string): Promise<void> {
+        await this.updateEmail(emailId, { building_id: buildingId, lot_id: lotId || null });
     }
 }

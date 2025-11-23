@@ -22,22 +22,23 @@ export async function GET(request: NextRequest) {
 
     // Parser query params
     const { searchParams } = new URL(request.url)
-    const teamId = searchParams.get('teamId')
+    const queryTeamId = searchParams.get('teamId')
     const page = searchParams.get('page')
     const limit = searchParams.get('limit')
 
-    logger.info({ teamId, userId: userProfile.id, role: userProfile.role }, '🏢 [BUILDINGS-API] GET request')
+    logger.info({ queryTeamId, userId: userProfile.id, role: userProfile.role }, '🏢 [BUILDINGS-API] GET request')
 
     // Initialiser le service
     const buildingService = createBuildingService(supabase)
 
+    // Determine effective team ID
+    // If user has a team, force it. Otherwise allow query param (for admins)
+    const effectiveTeamId = userProfile.team_id || queryTeamId;
+
     // Récupérer les bâtiments
     let result
-    if (teamId) {
-      result = await buildingService.getBuildingsByTeam(teamId, {
-        userId: userProfile.id,
-        userRole: userProfile.role
-      })
+    if (effectiveTeamId) {
+      result = await buildingService.getBuildingsByTeam(effectiveTeamId)
     } else if (page && limit) {
       result = await buildingService.getAll({
         page: parseInt(page),

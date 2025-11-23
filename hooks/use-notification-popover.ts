@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { createNotificationRepository } from '@/lib/services/repositories/notification-repository'
+import { useRealtimeNotifications } from './use-realtime-notifications'
 
 export interface Notification {
   id: string
@@ -61,19 +62,24 @@ export const useNotificationPopover = (
   const {
     teamId,
     limit = 10,
-    autoRefresh = true,
-    refreshInterval = 30000 // 30 seconds
+    autoRefresh = false, // DISABLED: Use Supabase Realtime instead of polling
+    refreshInterval = 60000 // 60 seconds (if manually enabled)
   } = options
 
   const fetchNotifications = useCallback(async () => {
     console.log('🔍 [USE-NOTIFICATION-POPOVER] fetchNotifications called with:', {
       userId: user?.id,
       teamId,
-      limit
+      limit,
+      hasUserId: !!user?.id,
+      hasTeamId: !!teamId
     })
 
     if (!user?.id || !teamId) {
-      console.log('❌ [USE-NOTIFICATION-POPOVER] Missing user ID or team ID, skipping fetch')
+      console.log('❌ [USE-NOTIFICATION-POPOVER] Missing user ID or team ID, skipping fetch', {
+        userId: user?.id,
+        teamId
+      })
       setLoading(false)
       return
     }
@@ -81,6 +87,7 @@ export const useNotificationPopover = (
     try {
       setError(null)
 
+      console.log('📡 [USE-NOTIFICATION-POPOVER] Fetching notifications from repository...')
       // Fetch notifications using repository
       const result = await repository.findByUser(user.id, {
         archived: false,
@@ -91,14 +98,18 @@ export const useNotificationPopover = (
         throw new Error(result.error?.message || 'Failed to fetch notifications')
       }
 
+      console.log('📦 [USE-NOTIFICATION-POPOVER] Repository returned:', result.data?.length, 'notifications')
+
       // Filter by team if specified and limit results
       let notifications = result.data || []
       if (teamId) {
+        console.log('🔍 [USE-NOTIFICATION-POPOVER] Filtering by teamId:', teamId)
         notifications = notifications.filter(n => n.team_id === teamId)
+        console.log('✅ [USE-NOTIFICATION-POPOVER] After team filter:', notifications.length, 'notifications')
       }
       notifications = notifications.slice(0, limit)
 
-      console.log('✅ [USE-NOTIFICATION-POPOVER] Notifications fetched:', notifications.length)
+      console.log('✅ [USE-NOTIFICATION-POPOVER] Final notifications count:', notifications.length)
       setNotifications(notifications)
     } catch (err) {
       console.error('❌ [USE-NOTIFICATION-POPOVER] Error fetching notifications:', err)
@@ -113,6 +124,32 @@ export const useNotificationPopover = (
   useEffect(() => {
     fetchNotifications()
   }, [fetchNotifications])
+
+  // Realtime subscription for instant updates
+  useRealtimeNotifications({
+    userId: user?.id,
+    teamId,
+    enabled: !!user?.id && !!teamId,
+    onInsert: (notification) => {
+      console.log('[NOTIFICATION-POPOVER] New notification received via Realtime')
+      // Add to top of list if it matches team filter
+      if (!teamId || notification.team_id === teamId) {
+        setNotifications(prev => [notification, ...prev].slice(0, limit))
+      }
+    },
+    onUpdate: (notification) => {
+      console.log('[NOTIFICATION-POPOVER] Notification updated via Realtime')
+      // Update in list
+      setNotifications(prev =>
+        prev.map(n => n.id === notification.id ? notification : n)
+      )
+    },
+    onDelete: (notification) => {
+      console.log('[NOTIFICATION-POPOVER] Notification deleted via Realtime')
+      // Remove from list
+      setNotifications(prev => prev.filter(n => n.id !== notification.id))
+    }
+  })
 
   // Auto-refresh if enabled
   useEffect(() => {

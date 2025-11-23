@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useTeamStatus } from '@/hooks/use-team-status'
 import { logger, logError } from '@/lib/logger'
+import { useRealtimeNotifications } from './use-realtime-notifications'
 interface UseGlobalNotificationsReturn {
   unreadCount: number
   loading: boolean
@@ -9,31 +10,22 @@ interface UseGlobalNotificationsReturn {
   refetch: () => Promise<void>
 }
 
-export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
+interface UseGlobalNotificationsOptions {
+  teamId?: string
+}
+
+export const useGlobalNotifications = (options: UseGlobalNotificationsOptions = {}): UseGlobalNotificationsReturn => {
+  const { teamId: propTeamId } = options
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [userTeamId, setUserTeamId] = useState<string | null>(null)
 
-  // Récupérer l'ID de l'équipe de l'utilisateur via API
-  const fetchUserTeam = async () => {
-    if (!user?.id || teamStatus !== 'verified') return
+  // Use prop teamId if available
+  const userTeamId = propTeamId
 
-    try {
-      const response = await fetch('/api/user-teams')
-      if (!response.ok) {
-        throw new Error('Failed to fetch user teams')
-      }
-      const result = await response.json()
-      if (result.success && result.data && result.data.length > 0) {
-        setUserTeamId(result.data[0].id)
-      }
-    } catch (error) {
-      logger.error('Error fetching user team:', error)
-    }
-  }
+  // Removed: Client-side team fetching (now passed via props)
 
   const fetchUnreadCount = async () => {
     logger.info('🔍 [GLOBAL-NOTIFICATIONS] fetchUnreadCount called with:', {
@@ -42,7 +34,7 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
       hasTeam,
       userTeamId
     })
-    
+
     if (!user?.id || teamStatus !== 'verified' || !hasTeam || !userTeamId) {
       logger.info('❌ [GLOBAL-NOTIFICATIONS] Conditions not met, skipping fetch')
       setUnreadCount(0)
@@ -52,7 +44,7 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
 
     try {
       setError(null)
-      
+
       // Récupérer les notifications personnelles non lues
       const personalParams = new URLSearchParams({
         limit: '50',
@@ -97,13 +89,13 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
 
       const personalCount = personalResult.success ? (personalResult.data || []).length : 0
       const teamCount = teamResult.success ? (teamResult.data || []).length : 0
-      
+
       logger.info('📊 [GLOBAL-NOTIFICATIONS] Notification counts:', {
         personalCount,
         teamCount,
         total: personalCount + teamCount
       })
-      
+
       setUnreadCount(personalCount + teamCount)
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error'
@@ -114,12 +106,7 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
     }
   }
 
-  // Fetch user team when user is available and team status is verified
-  useEffect(() => {
-    if (user?.id && teamStatus === 'verified' && hasTeam) {
-      fetchUserTeam()
-    }
-  }, [user?.id, teamStatus, hasTeam])
+
 
   // Fetch unread count when all conditions are met
   useEffect(() => {
@@ -128,13 +115,40 @@ export const useGlobalNotifications = (): UseGlobalNotificationsReturn => {
     }
   }, [user?.id, teamStatus, hasTeam, userTeamId])
 
-  // Auto-refresh every 30 seconds
+  // Realtime subscription for instant updates
+  useRealtimeNotifications({
+    userId: user?.id,
+    teamId: userTeamId || undefined,
+    enabled: teamStatus === 'verified' && hasTeam && !!userTeamId,
+    onInsert: (notification) => {
+      logger.info('[GLOBAL-NOTIFICATIONS] New notification received via Realtime')
+      // Increment unread count if notification is unread
+      if (!notification.read) {
+        setUnreadCount(prev => prev + 1)
+      }
+    },
+    onUpdate: (notification) => {
+      logger.info('[GLOBAL-NOTIFICATIONS] Notification updated via Realtime')
+      // Refetch to get accurate count
+      fetchUnreadCount()
+    },
+    onDelete: () => {
+      logger.info('[GLOBAL-NOTIFICATIONS] Notification deleted via Realtime')
+      // Refetch to get accurate count
+      fetchUnreadCount()
+    }
+  })
+
+  // Auto-refresh disabled - use Supabase Realtime instead
+  // TODO: Implement Supabase Realtime subscriptions for instant notifications
+  /*
   useEffect(() => {
     if (teamStatus !== 'verified' || !hasTeam || !userTeamId) return
 
     const interval = setInterval(fetchUnreadCount, 30000)
     return () => clearInterval(interval)
   }, [user?.id, teamStatus, hasTeam, userTeamId])
+  */
 
   // Écouter les événements de mise à jour des notifications
   useEffect(() => {

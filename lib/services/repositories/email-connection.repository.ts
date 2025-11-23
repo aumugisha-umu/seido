@@ -7,6 +7,7 @@ export interface CreateEmailConnectionDTO {
     team_id: string;
     provider: 'gmail' | 'outlook' | 'yahoo' | 'ovh' | 'custom';
     email_address: string;
+    sync_from_date?: string; // ISO date string
 
     imap_host: string;
     imap_port: number;
@@ -24,6 +25,15 @@ export interface CreateEmailConnectionDTO {
 export class EmailConnectionRepository extends BaseRepository<TeamEmailConnection> {
     constructor(supabaseClient: SupabaseClient) {
         super(supabaseClient, 'team_email_connections');
+    }
+
+    protected validate(entity: Partial<TeamEmailConnection>): void {
+        if (!entity.email_address) {
+            throw new Error('Email address is required');
+        }
+        if (!entity.provider) {
+            throw new Error('Provider is required');
+        }
     }
 
     /**

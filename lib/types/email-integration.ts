@@ -4,8 +4,9 @@ export type EmailStatus = 'unread' | 'read' | 'archived' | 'deleted';
 export interface TeamEmailConnection {
     id: string;
     team_id: string;
-    provider: 'gmail' | 'outlook' | 'yahoo' | 'ovh' | 'custom';
+    provider: string;
     email_address: string;
+    sync_from_date?: string | null;
 
     imap_host: string;
     imap_port: number;
@@ -20,9 +21,9 @@ export interface TeamEmailConnection {
     smtp_password_encrypted: string;
 
     last_uid: number;
-    last_sync_at: string | null;
+    last_sync_at?: string | null;
     is_active: boolean;
-    last_error: string | null;
+    last_error?: string | null;
 
     created_at: string;
     updated_at: string;

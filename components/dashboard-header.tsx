@@ -33,6 +33,7 @@ interface DashboardHeaderProps {
   userName?: string
   userInitial?: string
   userEmail?: string
+  teamId?: string // Team ID passed from server
 }
 
 const roleConfigs: Record<string, HeaderConfig> = {
@@ -75,11 +76,11 @@ export default function DashboardHeader({
   role,
   userName: serverUserName,
   userInitial: serverUserInitial,
-  userEmail: serverUserEmail
+  userEmail: serverUserEmail,
+  teamId: serverTeamId
 }: DashboardHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isNotificationPopoverOpen, setIsNotificationPopoverOpen] = useState(false)
-  const [userTeamId, setUserTeamId] = useState<string | undefined>(undefined)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const config = roleConfigs[role] || roleConfigs.gestionnaire
@@ -87,7 +88,9 @@ export default function DashboardHeader({
   const pathname = usePathname()
   const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
-  const { unreadCount: globalUnreadCount, refetch: refetchGlobalNotifications } = useGlobalNotifications()
+  const { unreadCount: globalUnreadCount, refetch: refetchGlobalNotifications } = useGlobalNotifications({
+    teamId: serverTeamId
+  })
 
   // Hook pour le popover de notifications
   const {
@@ -99,7 +102,7 @@ export default function DashboardHeader({
     archive,
     refetch: refetchPopoverNotifications
   } = useNotificationPopover({
-    teamId: userTeamId,
+    teamId: serverTeamId,
     limit: 10,
     autoRefresh: isNotificationPopoverOpen,
     refreshInterval: 30000
@@ -112,25 +115,8 @@ export default function DashboardHeader({
     refetchGlobalNotifications() // Refresh le compteur global
   }
 
-  // Charger l'équipe de l'utilisateur pour le popover
-  useEffect(() => {
-    const fetchUserTeam = async () => {
-      if (!user?.id || teamStatus !== 'verified') return
-
-      try {
-        const response = await fetch('/api/user-teams')
-        if (!response.ok) throw new Error('Failed to fetch user teams')
-        const result = await response.json()
-        if (result.success && result.data && result.data.length > 0) {
-          setUserTeamId(result.data[0].id)
-        }
-      } catch (error) {
-        logger.error('Error fetching user team:', error)
-      }
-    }
-
-    fetchUserTeam()
-  }, [user?.id, teamStatus])
+  // Removed: Client-side team fetching (now passed from server)
+  // Team ID is now provided via serverTeamId prop from server component
 
   // ✅ Utiliser les props du serveur en priorité pour éviter hydration mismatch
   // Fallback sur useAuth() seulement si props non fournies (backward compatibility)
@@ -146,7 +132,7 @@ export default function DashboardHeader({
     if (!href.endsWith('/dashboard')) {
       return pathname.startsWith(href + '/')
     }
-    
+
     // Pour les dashboards, seule la correspondance exacte compte
     return false
   }
@@ -199,7 +185,7 @@ export default function DashboardHeader({
     } else {
       document.body.style.overflow = ''
     }
-    
+
     return () => {
       document.body.style.overflow = ''
     }
@@ -331,7 +317,7 @@ export default function DashboardHeader({
       {isMobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-30">
           {/* Overlay backdrop */}
-          <div 
+          <div
             className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm"
             onClick={() => setIsMobileMenuOpen(false)}
           />
@@ -339,7 +325,7 @@ export default function DashboardHeader({
           {/* Menu panel */}
           <div className="fixed top-16 inset-x-0 bottom-0 bg-white border-b border-slate-200 shadow-lg">
             <div className="flex flex-col h-full content-max-width px-5 sm:px-6 lg:px-10 py-4">
-              
+
               {/* Navigation principale - affichée seulement si navigation existe */}
               {config.navigation.length > 0 && (
                 <>
@@ -386,7 +372,7 @@ export default function DashboardHeader({
                     <User className="h-6 w-6" />
                     <span className="text-base">Mon profil</span>
                   </button>
-                  
+
                   <button
                     className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px] text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-300"
                   >

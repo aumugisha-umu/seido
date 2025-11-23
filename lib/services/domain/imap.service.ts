@@ -48,18 +48,33 @@ export class ImapService {
                         return reject(err);
                     }
 
-                    // Search for unseen emails or emails since last sync
-                    // For simplicity in this MVP, we'll fetch UNSEEN.
-                    // In production, we should use UIDs and connection.last_uid.
-                    // Example: ['UID', `${connection.last_uid + 1}:*`]
-                    // But if last_uid is 0, we might fetch everything.
-                    // Let's stick to UNSEEN for now to avoid fetching full history on first run.
+                    // Search for emails since sync_from_date
+                    // If sync_from_date is set, only fetch emails received after that date
+                    // Otherwise, fetch UNSEEN emails
+                    // IMAP SINCE requires date in format: DD-Mon-YYYY (e.g., "24-Oct-2025")
+                    let searchCriteria: any[];
+                    if (connection.sync_from_date) {
+                        const date = new Date(connection.sync_from_date);
+                        const day = date.getDate();
+                        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        const month = monthNames[date.getMonth()];
+                        const year = date.getFullYear();
+                        const formattedDate = `${day}-${month}-${year}`;
+                        searchCriteria = ['SINCE', formattedDate];
+                    } else {
+                        searchCriteria = ['UNSEEN'];
+                    }
 
-                    imap.search(['UNSEEN'], (err, results) => {
+                    console.log('IMAP Search Criteria:', searchCriteria);
+
+                    imap.search(searchCriteria, (err, results) => {
                         if (err) {
+                            console.error('IMAP Search Error:', err);
                             imap.end();
                             return reject(err);
                         }
+
+                        console.log('IMAP Search Results:', results?.length || 0);
 
                         if (!results || results.length === 0) {
                             imap.end();

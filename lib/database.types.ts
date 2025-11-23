@@ -1760,6 +1760,7 @@ export type Database = {
           smtp_port: number
           smtp_use_tls: boolean | null
           smtp_username: string
+          sync_from_date: string | null
           team_id: string
           updated_at: string | null
         }
@@ -1782,6 +1783,7 @@ export type Database = {
           smtp_port?: number
           smtp_use_tls?: boolean | null
           smtp_username: string
+          sync_from_date?: string | null
           team_id: string
           updated_at?: string | null
         }
@@ -1804,6 +1806,7 @@ export type Database = {
           smtp_port?: number
           smtp_use_tls?: boolean | null
           smtp_username?: string
+          sync_from_date?: string | null
           team_id?: string
           updated_at?: string | null
         }

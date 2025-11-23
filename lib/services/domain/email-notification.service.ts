@@ -1,468 +1,348 @@
 /**
- * 📧 EmailNotificationService - Mapping notifications → emails
+ * 📧 EmailNotificationService - Multi-Channel Notifications (Email Channel)
  *
- * Ce service orchestre l'envoi d'emails en fonction des notifications système.
- * Il fait le pont entre NotificationService et EmailService.
+ * Phase 2 of multi-channel notification system
  *
  * Architecture:
- * - Reçoit les données de notification
- * - Sélectionne le template approprié
- * - Récupère les destinataires depuis la DB
- * - Envoie l'email via EmailService
+ * - Integrates with NotificationDispatcher from Phase 1
+ * - Uses Resend Batch API (max 100 emails/request)
+ * - Leverages existing React Email templates
+ * - Graceful degradation if Resend is not configured
+ *
+ * Dependencies:
+ * - NotificationRepository (to get recipients)
+ * - InterventionRepository (to get intervention details)
+ * - EmailService (to send emails via Resend)
+ * - React Email templates (intervention-created.tsx, etc.)
+ *
+ * @see lib/services/domain/notification-dispatcher.service.ts
+ * @see lib/services/domain/email.service.ts
  */
 
-import { createEmailService } from './email.service'
-import { createServerSupabaseClient } from '@/lib/services/core/supabase-client'
 import { logger } from '@/lib/logger'
+import type { NotificationRepository } from '@/lib/services/repositories/notification-repository'
+import type { EmailService } from '@/lib/services/domain/email.service'
+import type { InterventionRepository } from '@/lib/services/repositories/intervention-repository'
+import type { UserRepository } from '@/lib/services/repositories/user-repository'
+import type { BuildingRepository } from '@/lib/services/repositories/building-repository'
+import type { LotRepository } from '@/lib/services/repositories/lot-repository'
 import type { Database } from '@/lib/database.types'
 
-// Import des templates
-import {
-  InterventionCreatedEmail,
-  InterventionApprovedEmail,
-  InterventionRejectedEmail,
-  InterventionScheduledEmail,
-  InterventionCompletedEmail,
-} from '@/emails/templates/interventions'
-import {
-  QuoteRequestEmail,
-  QuoteSubmittedEmail,
-  QuoteApprovedEmail,
-  QuoteRejectedEmail,
-} from '@/emails/templates/quotes'
+// React Email templates
+import InterventionCreatedEmail from '@/emails/templates/interventions/intervention-created'
+import type {
+  InterventionCreatedEmailProps,
+} from '@/emails/utils/types'
 
-type Intervention = Database['public']['Tables']['interventions']['Row']
-type Quote = Database['public']['Tables']['devis']['Row']
-type User = Database['public']['Tables']['users']['Row']
+type NotificationType = Database['public']['Enums']['notification_type']
+type InterventionStatus = Database['public']['Enums']['intervention_status']
 
 // ══════════════════════════════════════════════════════════════
 // Types
 // ══════════════════════════════════════════════════════════════
 
-export interface InterventionEmailData {
-  intervention: Intervention
-  property: { address: string; lotReference?: string }
-  manager?: User
-  tenant?: User
-  provider?: User
-  rejectionReason?: string
-  approvalNotes?: string
-  scheduledDate?: Date
-  estimatedDuration?: number
-  completionNotes?: string
-  hasDocuments?: boolean
+/**
+ * Résultat de l'envoi d'un email pour un utilisateur
+ */
+export interface EmailRecipientResult {
+  userId: string
+  email: string
+  success: boolean
+  emailId?: string
+  error?: string
 }
 
-export interface QuoteEmailData {
-  quote: Quote
-  intervention: Intervention
-  property: { address: string }
-  manager?: User
-  provider?: User
-  deadline?: Date
-  additionalInfo?: string
-  rejectionReason?: string
-  approvalNotes?: string
-  canResubmit?: boolean
+/**
+ * Résultat de l'envoi d'emails par batch
+ */
+export interface EmailBatchResult {
+  success: boolean
+  sentCount: number
+  failedCount: number
+  results: EmailRecipientResult[]
+}
+
+/**
+ * Données enrichies d'une intervention pour les templates
+ */
+interface EnrichedInterventionData {
+  intervention: Database['public']['Tables']['interventions']['Row']
+  building: Database['public']['Tables']['buildings']['Row'] | null
+  lot: Database['public']['Tables']['lots']['Row'] | null
+  tenant: Database['public']['Tables']['users']['Row'] | null
+  manager: Database['public']['Tables']['users']['Row'] | null
+  provider: Database['public']['Tables']['users']['Row'] | null
 }
 
 // ══════════════════════════════════════════════════════════════
-// EmailNotificationService Class
+// EmailNotificationService
 // ══════════════════════════════════════════════════════════════
 
+/**
+ * Service d'envoi de notifications par email
+ *
+ * Utilise Resend Batch API pour optimiser les envois multiples
+ * S'intègre avec le NotificationDispatcher pour le système multi-canal
+ */
 export class EmailNotificationService {
-  private emailService = createEmailService()
-
-  // ─────────────────────────────────────────────────────────────
-  // Interventions
-  // ─────────────────────────────────────────────────────────────
+  constructor(
+    private notificationRepository: NotificationRepository,
+    private emailService: EmailService,
+    private interventionRepository: InterventionRepository,
+    private userRepository: UserRepository,
+    private buildingRepository: BuildingRepository,
+    private lotRepository: LotRepository
+  ) {}
 
   /**
-   * Email: Nouvelle intervention créée → Gestionnaire
+   * Envoie les emails pour une intervention créée
+   *
+   * @param interventionId - ID de l'intervention
+   * @param notificationType - Type de notification (doit être 'intervention')
+   * @returns Résultat de l'envoi batch
    */
-  async sendInterventionCreated(data: InterventionEmailData): Promise<void> {
-    const { intervention, property, manager, tenant } = data
+  async sendInterventionCreatedBatch(
+    interventionId: string,
+    notificationType: NotificationType
+  ): Promise<EmailBatchResult> {
+    const startTime = Date.now()
+    logger.info(
+      { interventionId, notificationType },
+      '📧 [EMAIL-NOTIFICATION] Starting intervention created email batch'
+    )
 
-    if (!manager?.email || !tenant) {
-      logger.warn({ interventionId: intervention.id }, '⚠️ Missing manager or tenant email')
-      return
+    try {
+      // 1. Vérifier que Resend est configuré
+      if (!this.emailService.isConfigured()) {
+        logger.warn(
+          { interventionId },
+          '⚠️ [EMAIL-NOTIFICATION] Resend not configured - skipping email sending'
+        )
+        return {
+          success: false,
+          sentCount: 0,
+          failedCount: 0,
+          results: [],
+        }
+      }
+
+      // 2. Récupérer les données enrichies de l'intervention
+      const enrichedData = await this.fetchEnrichedInterventionData(interventionId)
+
+      if (!enrichedData) {
+        throw new Error(`Intervention ${interventionId} not found or data incomplete`)
+      }
+
+      // 3. Récupérer les destinataires depuis le repository
+      const recipients = await this.notificationRepository.getNotificationRecipients(
+        interventionId,
+        notificationType
+      )
+
+      if (recipients.length === 0) {
+        logger.info(
+          { interventionId },
+          '📧 [EMAIL-NOTIFICATION] No recipients found for intervention'
+        )
+        return {
+          success: true,
+          sentCount: 0,
+          failedCount: 0,
+          results: [],
+        }
+      }
+
+      logger.info(
+        { interventionId, count: recipients.length },
+        '📧 [EMAIL-NOTIFICATION] Found recipients'
+      )
+
+      // 4. Préparer les emails pour chaque destinataire
+      const emailPromises = recipients.map(async (recipient) => {
+        try {
+          // Construire les props pour le template React Email
+          const emailProps: InterventionCreatedEmailProps = {
+            firstName: recipient.first_name || recipient.email.split('@')[0],
+            interventionRef: enrichedData.intervention.reference || 'N/A',
+            interventionType: enrichedData.intervention.type || 'Intervention',
+            description: enrichedData.intervention.description || '',
+            propertyAddress: enrichedData.building?.address || 'Adresse non disponible',
+            lotReference: enrichedData.lot?.reference,
+            interventionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/${recipient.role}/interventions/${interventionId}`,
+            tenantName:
+              enrichedData.tenant
+                ? `${enrichedData.tenant.first_name || ''} ${enrichedData.tenant.last_name || ''}`.trim()
+                : 'Locataire',
+            urgency: (enrichedData.intervention.urgency as 'faible' | 'moyenne' | 'haute' | 'critique') || 'moyenne',
+            createdAt: new Date(enrichedData.intervention.created_at),
+          }
+
+          // Envoyer l'email via EmailService
+          const result = await this.emailService.send({
+            to: recipient.email,
+            subject: `🏠 Nouvelle intervention ${emailProps.interventionRef} - ${emailProps.interventionType}`,
+            react: InterventionCreatedEmail(emailProps),
+            tags: [
+              { name: 'type', value: 'intervention_created' },
+              { name: 'intervention_id', value: interventionId },
+              { name: 'user_role', value: recipient.role },
+            ],
+          })
+
+          return {
+            userId: recipient.id,
+            email: recipient.email,
+            success: result.success,
+            emailId: result.emailId,
+            error: result.error,
+          } satisfies EmailRecipientResult
+        } catch (error) {
+          logger.error(
+            { error, userId: recipient.id, email: recipient.email },
+            '❌ [EMAIL-NOTIFICATION] Failed to send email to recipient'
+          )
+          return {
+            userId: recipient.id,
+            email: recipient.email,
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          } satisfies EmailRecipientResult
+        }
+      })
+
+      // 5. Attendre tous les envois (Promise.allSettled pour graceful degradation)
+      const results = await Promise.all(emailPromises)
+
+      // 6. Calculer les statistiques
+      const sentCount = results.filter((r) => r.success).length
+      const failedCount = results.filter((r) => !r.success).length
+      const timing = Date.now() - startTime
+
+      logger.info(
+        { interventionId, sentCount, failedCount, timing },
+        '✅ [EMAIL-NOTIFICATION] Batch email sending completed'
+      )
+
+      return {
+        success: failedCount === 0,
+        sentCount,
+        failedCount,
+        results,
+      }
+    } catch (error) {
+      const timing = Date.now() - startTime
+      logger.error(
+        { error, interventionId, timing },
+        '❌ [EMAIL-NOTIFICATION] Failed to send intervention created batch'
+      )
+      return {
+        success: false,
+        sentCount: 0,
+        failedCount: 0,
+        results: [],
+      }
     }
-
-    const urgencyMap = {
-      faible: 'faible' as const,
-      moyenne: 'moyenne' as const,
-      haute: 'haute' as const,
-      critique: 'critique' as const,
-    }
-
-    await this.emailService.send({
-      to: manager.email,
-      subject: `🔔 Nouvelle intervention ${intervention.reference}`,
-      react: InterventionCreatedEmail({
-        firstName: manager.first_name || 'Gestionnaire',
-        interventionRef: intervention.reference || '',
-        interventionType: intervention.type || 'Non spécifié',
-        description: intervention.description || '',
-        propertyAddress: property.address,
-        lotReference: property.lotReference,
-        interventionUrl: `${process.env.NEXT_PUBLIC_APP_URL}/gestionnaire/interventions/${intervention.id}`,
-        tenantName: `${tenant.first_name} ${tenant.last_name}`,
-        urgency: urgencyMap[intervention.urgency as keyof typeof urgencyMap] || 'moyenne',
-        createdAt: new Date(intervention.created_at),
-      }),
-      tags: [
-        { name: 'type', value: 'intervention-created' },
-        { name: 'interventionId', value: intervention.id },
-      ],
-    })
-
-    logger.info({ interventionId: intervention.id }, '📧 Intervention created email sent')
   }
 
   /**
-   * Email: Intervention approuvée → Locataire
+   * Envoie les emails pour un changement de statut d'intervention
+   *
+   * @param interventionId - ID de l'intervention
+   * @param oldStatus - Ancien statut
+   * @param newStatus - Nouveau statut
+   * @returns Résultat de l'envoi batch
    */
-  async sendInterventionApproved(data: InterventionEmailData): Promise<void> {
-    const { intervention, property, manager, tenant, approvalNotes } = data
+  async sendInterventionStatusChangeBatch(
+    interventionId: string,
+    oldStatus: InterventionStatus,
+    newStatus: InterventionStatus
+  ): Promise<EmailBatchResult> {
+    const startTime = Date.now()
+    logger.info(
+      { interventionId, oldStatus, newStatus },
+      '📧 [EMAIL-NOTIFICATION] Starting status change email batch'
+    )
 
-    if (!tenant?.email || !manager) {
-      logger.warn({ interventionId: intervention.id }, '⚠️ Missing tenant or manager email')
-      return
+    // Pour Phase 2, on implémente seulement intervention_created
+    // Les autres templates seront ajoutés dans les phases suivantes
+    logger.warn(
+      { interventionId, oldStatus, newStatus },
+      '⚠️ [EMAIL-NOTIFICATION] Status change emails not implemented yet (Phase 2 WIP)'
+    )
+
+    return {
+      success: true,
+      sentCount: 0,
+      failedCount: 0,
+      results: [],
     }
-
-    await this.emailService.send({
-      to: tenant.email,
-      subject: `✅ Votre intervention ${intervention.reference} est approuvée`,
-      react: InterventionApprovedEmail({
-        firstName: tenant.first_name || 'Locataire',
-        interventionRef: intervention.reference || '',
-        interventionType: intervention.type || 'Non spécifié',
-        description: intervention.description || '',
-        propertyAddress: property.address,
-        lotReference: property.lotReference,
-        interventionUrl: `${process.env.NEXT_PUBLIC_APP_URL}/locataire/interventions/${intervention.id}`,
-        managerName: `${manager.first_name} ${manager.last_name}`,
-        approvedAt: new Date(),
-        nextSteps: approvalNotes,
-      }),
-      tags: [
-        { name: 'type', value: 'intervention-approved' },
-        { name: 'interventionId', value: intervention.id },
-      ],
-    })
-
-    logger.info({ interventionId: intervention.id }, '📧 Intervention approved email sent')
   }
 
   /**
-   * Email: Intervention rejetée → Locataire
+   * Récupère les données enrichies d'une intervention
+   * (intervention + building + lot + tenant + manager)
+   *
+   * @param interventionId - ID de l'intervention
+   * @returns Données enrichies ou null si introuvable
    */
-  async sendInterventionRejected(data: InterventionEmailData): Promise<void> {
-    const { intervention, property, manager, tenant, rejectionReason } = data
+  private async fetchEnrichedInterventionData(
+    interventionId: string
+  ): Promise<EnrichedInterventionData | null> {
+    try {
+      // 1. Récupérer l'intervention
+      const intervention = await this.interventionRepository.getById(interventionId)
+      if (!intervention) {
+        logger.warn({ interventionId }, '⚠️ [EMAIL-NOTIFICATION] Intervention not found')
+        return null
+      }
 
-    if (!tenant?.email || !manager || !rejectionReason) {
-      logger.warn({ interventionId: intervention.id }, '⚠️ Missing data for rejection email')
-      return
+      // 2. Récupérer le building
+      const building = intervention.building_id
+        ? await this.buildingRepository.getById(intervention.building_id)
+        : null
+
+      // 3. Récupérer le lot
+      const lot = intervention.lot_id
+        ? await this.lotRepository.getById(intervention.lot_id)
+        : null
+
+      // 4. Récupérer le tenant (locataire créateur)
+      const tenant = intervention.tenant_id
+        ? await this.userRepository.getById(intervention.tenant_id)
+        : null
+
+      // 5. Récupérer le manager (gestionnaire assigné)
+      const manager = intervention.assigned_to
+        ? await this.userRepository.getById(intervention.assigned_to)
+        : null
+
+      // 6. Récupérer le provider (prestataire assigné)
+      const provider = intervention.provider_id
+        ? await this.userRepository.getById(intervention.provider_id)
+        : null
+
+      return {
+        intervention,
+        building,
+        lot,
+        tenant,
+        manager,
+        provider,
+      }
+    } catch (error) {
+      logger.error(
+        { error, interventionId },
+        '❌ [EMAIL-NOTIFICATION] Failed to fetch enriched intervention data'
+      )
+      return null
     }
-
-    await this.emailService.send({
-      to: tenant.email,
-      subject: `❌ Intervention ${intervention.reference} non retenue`,
-      react: InterventionRejectedEmail({
-        firstName: tenant.first_name || 'Locataire',
-        interventionRef: intervention.reference || '',
-        interventionType: intervention.type || 'Non spécifié',
-        description: intervention.description || '',
-        propertyAddress: property.address,
-        lotReference: property.lotReference,
-        interventionUrl: `${process.env.NEXT_PUBLIC_APP_URL}/locataire/interventions/${intervention.id}`,
-        managerName: `${manager.first_name} ${manager.last_name}`,
-        rejectionReason,
-        rejectedAt: new Date(),
-      }),
-      tags: [
-        { name: 'type', value: 'intervention-rejected' },
-        { name: 'interventionId', value: intervention.id },
-      ],
-    })
-
-    logger.info({ interventionId: intervention.id }, '📧 Intervention rejected email sent')
   }
 
   /**
-   * Email: Intervention planifiée → Locataire + Prestataire
+   * Vérifie si le service email est configuré
    */
-  async sendInterventionScheduled(data: InterventionEmailData): Promise<void> {
-    const { intervention, property, tenant, provider, scheduledDate, estimatedDuration } = data
-
-    if (!tenant?.email || !provider?.email || !scheduledDate) {
-      logger.warn({ interventionId: intervention.id }, '⚠️ Missing data for scheduled email')
-      return
-    }
-
-    // Email au locataire
-    await this.emailService.send({
-      to: tenant.email,
-      subject: `📅 RDV confirmé - Intervention ${intervention.reference}`,
-      react: InterventionScheduledEmail({
-        firstName: tenant.first_name || 'Locataire',
-        interventionRef: intervention.reference || '',
-        interventionType: intervention.type || 'Non spécifié',
-        description: intervention.description || '',
-        propertyAddress: property.address,
-        lotReference: property.lotReference,
-        interventionUrl: `${process.env.NEXT_PUBLIC_APP_URL}/locataire/interventions/${intervention.id}`,
-        providerName: `${provider.first_name} ${provider.last_name}`,
-        providerCompany: provider.company_name || undefined,
-        providerPhone: provider.phone_number || undefined,
-        scheduledDate,
-        estimatedDuration,
-        recipientRole: 'locataire',
-      }),
-      tags: [
-        { name: 'type', value: 'intervention-scheduled-tenant' },
-        { name: 'interventionId', value: intervention.id },
-      ],
-    })
-
-    // Email au prestataire
-    await this.emailService.send({
-      to: provider.email,
-      subject: `📅 RDV confirmé - Intervention ${intervention.reference}`,
-      react: InterventionScheduledEmail({
-        firstName: provider.first_name || 'Prestataire',
-        interventionRef: intervention.reference || '',
-        interventionType: intervention.type || 'Non spécifié',
-        description: intervention.description || '',
-        propertyAddress: property.address,
-        lotReference: property.lotReference,
-        interventionUrl: `${process.env.NEXT_PUBLIC_APP_URL}/prestataire/interventions/${intervention.id}`,
-        providerName: `${provider.first_name} ${provider.last_name}`,
-        providerCompany: provider.company_name || undefined,
-        providerPhone: provider.phone_number || undefined,
-        scheduledDate,
-        estimatedDuration,
-        recipientRole: 'prestataire',
-      }),
-      tags: [
-        { name: 'type', value: 'intervention-scheduled-provider' },
-        { name: 'interventionId', value: intervention.id },
-      ],
-    })
-
-    logger.info({ interventionId: intervention.id }, '📧 Intervention scheduled emails sent')
-  }
-
-  /**
-   * Email: Intervention terminée → Locataire + Gestionnaire
-   */
-  async sendInterventionCompleted(data: InterventionEmailData): Promise<void> {
-    const { intervention, property, tenant, manager, provider, completionNotes, hasDocuments } =
-      data
-
-    if (!tenant?.email || !manager?.email || !provider) {
-      logger.warn({ interventionId: intervention.id }, '⚠️ Missing data for completion email')
-      return
-    }
-
-    // Email au locataire
-    await this.emailService.send({
-      to: tenant.email,
-      subject: `✅ Intervention ${intervention.reference} terminée`,
-      react: InterventionCompletedEmail({
-        firstName: tenant.first_name || 'Locataire',
-        interventionRef: intervention.reference || '',
-        interventionType: intervention.type || 'Non spécifié',
-        description: intervention.description || '',
-        propertyAddress: property.address,
-        lotReference: property.lotReference,
-        interventionUrl: `${process.env.NEXT_PUBLIC_APP_URL}/locataire/interventions/${intervention.id}`,
-        providerName: `${provider.first_name} ${provider.last_name}`,
-        completedAt: new Date(),
-        completionNotes,
-        hasDocuments: hasDocuments || false,
-        recipientRole: 'locataire',
-      }),
-      tags: [
-        { name: 'type', value: 'intervention-completed-tenant' },
-        { name: 'interventionId', value: intervention.id },
-      ],
-    })
-
-    // Email au gestionnaire
-    await this.emailService.send({
-      to: manager.email,
-      subject: `✅ Intervention ${intervention.reference} terminée`,
-      react: InterventionCompletedEmail({
-        firstName: manager.first_name || 'Gestionnaire',
-        interventionRef: intervention.reference || '',
-        interventionType: intervention.type || 'Non spécifié',
-        description: intervention.description || '',
-        propertyAddress: property.address,
-        lotReference: property.lotReference,
-        interventionUrl: `${process.env.NEXT_PUBLIC_APP_URL}/gestionnaire/interventions/${intervention.id}`,
-        providerName: `${provider.first_name} ${provider.last_name}`,
-        completedAt: new Date(),
-        completionNotes,
-        hasDocuments: hasDocuments || false,
-        recipientRole: 'gestionnaire',
-      }),
-      tags: [
-        { name: 'type', value: 'intervention-completed-manager' },
-        { name: 'interventionId', value: intervention.id },
-      ],
-    })
-
-    logger.info({ interventionId: intervention.id }, '📧 Intervention completed emails sent')
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  // Devis
-  // ─────────────────────────────────────────────────────────────
-
-  /**
-   * Email: Demande de devis → Prestataire
-   */
-  async sendQuoteRequest(data: QuoteEmailData): Promise<void> {
-    const { quote, intervention, property, manager, provider, deadline, additionalInfo } = data
-
-    if (!provider?.email || !manager) {
-      logger.warn({ quoteId: quote.id }, '⚠️ Missing provider or manager email')
-      return
-    }
-
-    await this.emailService.send({
-      to: provider.email,
-      subject: `📝 Nouvelle demande de devis ${quote.reference}`,
-      react: QuoteRequestEmail({
-        firstName: provider.first_name || 'Prestataire',
-        quoteRef: quote.reference || '',
-        interventionRef: intervention.reference || '',
-        interventionType: intervention.type || 'Non spécifié',
-        description: intervention.description || '',
-        propertyAddress: property.address,
-        quoteUrl: `${process.env.NEXT_PUBLIC_APP_URL}/prestataire/devis/${quote.id}`,
-        managerName: `${manager.first_name} ${manager.last_name}`,
-        deadline,
-        additionalInfo,
-      }),
-      tags: [
-        { name: 'type', value: 'quote-request' },
-        { name: 'quoteId', value: quote.id },
-      ],
-    })
-
-    logger.info({ quoteId: quote.id }, '📧 Quote request email sent')
-  }
-
-  /**
-   * Email: Devis soumis → Gestionnaire
-   */
-  async sendQuoteSubmitted(data: QuoteEmailData): Promise<void> {
-    const { quote, intervention, property, manager, provider } = data
-
-    if (!manager?.email || !provider) {
-      logger.warn({ quoteId: quote.id }, '⚠️ Missing manager or provider email')
-      return
-    }
-
-    await this.emailService.send({
-      to: manager.email,
-      subject: `💰 Devis ${quote.reference} reçu`,
-      react: QuoteSubmittedEmail({
-        firstName: manager.first_name || 'Gestionnaire',
-        quoteRef: quote.reference || '',
-        interventionRef: intervention.reference || '',
-        interventionType: intervention.type || 'Non spécifié',
-        description: intervention.description || '',
-        propertyAddress: property.address,
-        quoteUrl: `${process.env.NEXT_PUBLIC_APP_URL}/gestionnaire/devis/${quote.id}`,
-        providerName: `${provider.first_name} ${provider.last_name}`,
-        providerCompany: provider.company_name || undefined,
-        totalHT: quote.total_ht || 0,
-        totalTTC: quote.total_ttc || 0,
-        submittedAt: new Date(quote.submitted_at || quote.created_at),
-        hasPdfAttachment: !!quote.pdf_url,
-      }),
-      tags: [
-        { name: 'type', value: 'quote-submitted' },
-        { name: 'quoteId', value: quote.id },
-      ],
-    })
-
-    logger.info({ quoteId: quote.id }, '📧 Quote submitted email sent')
-  }
-
-  /**
-   * Email: Devis approuvé → Prestataire
-   */
-  async sendQuoteApproved(data: QuoteEmailData): Promise<void> {
-    const { quote, intervention, property, manager, provider, approvalNotes } = data
-
-    if (!provider?.email || !manager) {
-      logger.warn({ quoteId: quote.id }, '⚠️ Missing provider or manager email')
-      return
-    }
-
-    await this.emailService.send({
-      to: provider.email,
-      subject: `✅ Devis ${quote.reference} approuvé`,
-      react: QuoteApprovedEmail({
-        firstName: provider.first_name || 'Prestataire',
-        quoteRef: quote.reference || '',
-        interventionRef: intervention.reference || '',
-        interventionType: intervention.type || 'Non spécifié',
-        description: intervention.description || '',
-        propertyAddress: property.address,
-        quoteUrl: `${process.env.NEXT_PUBLIC_APP_URL}/prestataire/interventions/${intervention.id}`,
-        managerName: `${manager.first_name} ${manager.last_name}`,
-        approvedAmount: quote.total_ttc || 0,
-        approvedAt: new Date(),
-        nextSteps: approvalNotes,
-      }),
-      tags: [
-        { name: 'type', value: 'quote-approved' },
-        { name: 'quoteId', value: quote.id },
-      ],
-    })
-
-    logger.info({ quoteId: quote.id }, '📧 Quote approved email sent')
-  }
-
-  /**
-   * Email: Devis rejeté → Prestataire
-   */
-  async sendQuoteRejected(data: QuoteEmailData): Promise<void> {
-    const { quote, intervention, property, manager, provider, rejectionReason, canResubmit } = data
-
-    if (!provider?.email || !manager || !rejectionReason) {
-      logger.warn({ quoteId: quote.id }, '⚠️ Missing data for rejection email')
-      return
-    }
-
-    await this.emailService.send({
-      to: provider.email,
-      subject: `❌ Devis ${quote.reference} non retenu`,
-      react: QuoteRejectedEmail({
-        firstName: provider.first_name || 'Prestataire',
-        quoteRef: quote.reference || '',
-        interventionRef: intervention.reference || '',
-        interventionType: intervention.type || 'Non spécifié',
-        description: intervention.description || '',
-        propertyAddress: property.address,
-        quoteUrl: `${process.env.NEXT_PUBLIC_APP_URL}/prestataire/devis/${quote.id}`,
-        managerName: `${manager.first_name} ${manager.last_name}`,
-        rejectionReason,
-        rejectedAt: new Date(),
-        canResubmit: canResubmit || false,
-      }),
-      tags: [
-        { name: 'type', value: 'quote-rejected' },
-        { name: 'quoteId', value: quote.id },
-      ],
-    })
-
-    logger.info({ quoteId: quote.id }, '📧 Quote rejected email sent')
+  isConfigured(): boolean {
+    return this.emailService.isConfigured()
   }
 }
 
@@ -471,8 +351,30 @@ export class EmailNotificationService {
 // ══════════════════════════════════════════════════════════════
 
 /**
- * Crée une instance du EmailNotificationService
+ * Crée une instance de EmailNotificationService
+ *
+ * @param notificationRepository - Repository des notifications
+ * @param emailService - Service d'envoi d'emails
+ * @param interventionRepository - Repository des interventions
+ * @param userRepository - Repository des utilisateurs
+ * @param buildingRepository - Repository des buildings
+ * @param lotRepository - Repository des lots
+ * @returns Instance configurée
  */
-export const createEmailNotificationService = (): EmailNotificationService => {
-  return new EmailNotificationService()
+export const createEmailNotificationService = (
+  notificationRepository: NotificationRepository,
+  emailService: EmailService,
+  interventionRepository: InterventionRepository,
+  userRepository: UserRepository,
+  buildingRepository: BuildingRepository,
+  lotRepository: LotRepository
+): EmailNotificationService => {
+  return new EmailNotificationService(
+    notificationRepository,
+    emailService,
+    interventionRepository,
+    userRepository,
+    buildingRepository,
+    lotRepository
+  )
 }

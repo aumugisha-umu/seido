@@ -32,6 +32,9 @@ interface QuoteSubmissionModalProps {
 
   // Callbacks
   onSuccess: () => void
+
+  // Display options
+  hideEstimationSection?: boolean // Hide estimation fields (for availability-only mode)
 }
 
 // Types from QuoteSubmissionForm
@@ -63,7 +66,8 @@ export function QuoteSubmissionModal({
   intervention,
   existingQuote,
   quoteRequest,
-  onSuccess
+  onSuccess,
+  hideEstimationSection = false
 }: QuoteSubmissionModalProps) {
 
   // Get current user ID for time slot responses
@@ -118,7 +122,7 @@ export function QuoteSubmissionModal({
       customHeight="90vh"
     >
       <InterventionModalHeader
-        title="Soumettre une estimation"
+        title={hideEstimationSection ? "Ajouter mes disponibilités" : "Soumettre une estimation"}
         icon={Wrench}
         intervention={intervention}
         summaryAdditionalContent={managerMessageContent}
@@ -128,7 +132,6 @@ export function QuoteSubmissionModal({
       <InterventionModalContent
         backgroundColor="slate"
         padding="lg"
-        withCard
       >
         <QuoteSubmissionForm
           intervention={{
@@ -147,6 +150,7 @@ export function QuoteSubmissionModal({
           onSubmitReady={setSubmitHandler}
           onValidationChange={setIsFormValid}
           onLoadingChange={setIsLoading}
+          hideEstimationSection={hideEstimationSection}
         />
       </InterventionModalContent>
 

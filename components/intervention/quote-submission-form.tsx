@@ -95,6 +95,9 @@ interface QuoteSubmissionFormProps {
   onSubmitReady?: (submitFn: () => void) => void
   onValidationChange?: (isValid: boolean) => void
   onLoadingChange?: (isLoading: boolean) => void
+
+  // Display options
+  hideEstimationSection?: boolean // Hide estimation fields (for availability-only mode)
 }
 
 interface FormData {
@@ -103,11 +106,11 @@ interface FormData {
   workDetails: string
   estimatedDurationHours: string
   attachments: File[]
+  globalIsFlexible: boolean // Toggle global pour tous les créneaux
   providerAvailabilities: Array<{
     date: string
     startTime: string
     endTime?: string
-    isFlexible: boolean // Toggle individuel par disponibilité
   }>
 }
 
@@ -124,7 +127,8 @@ export function QuoteSubmissionForm({
   currentUserId,
   onSubmitReady,
   onValidationChange,
-  onLoadingChange
+  onLoadingChange,
+  hideEstimationSection = false
 }: QuoteSubmissionFormProps) {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(false)
@@ -176,9 +180,11 @@ export function QuoteSubmissionForm({
     workDetails: existingQuote?.workDetails || '',
     estimatedDurationHours: existingQuote?.estimatedDurationHours?.toString() || '1',
     attachments: existingQuote?.attachments || [],
+    globalIsFlexible: false,
     providerAvailabilities: existingQuote?.providerAvailabilities?.map(avail => ({
-      ...avail,
-      isFlexible: avail.isFlexible ?? false
+      date: avail.date,
+      startTime: avail.startTime,
+      endTime: avail.endTime
     })) || []
   })
 
@@ -192,9 +198,11 @@ export function QuoteSubmissionForm({
         workDetails: existingQuote.workDetails || '',
         estimatedDurationHours: existingQuote.estimatedDurationHours?.toString() || '1',
         attachments: existingQuote.attachments || [],
+        globalIsFlexible: false,
         providerAvailabilities: existingQuote.providerAvailabilities?.map(avail => ({
-          ...avail,
-          isFlexible: avail.isFlexible ?? false
+          date: avail.date,
+          startTime: avail.startTime,
+          endTime: avail.endTime
         })) || []
       })
     }
@@ -255,10 +263,10 @@ export function QuoteSubmissionForm({
               .map(avail => ({
                 date: avail.date,
                 startTime: avail.startTime,
-                endTime: avail.isFlexible
+                endTime: formData.globalIsFlexible
                   ? avail.endTime || null
                   : calculateEndTime(avail.startTime),
-                isFlexible: avail.isFlexible
+                isFlexible: formData.globalIsFlexible
               }))
           })
         })
@@ -394,12 +402,19 @@ export function QuoteSubmissionForm({
     const newAvailability = {
       date: '',
       startTime: '',
-      endTime: '',
-      isFlexible: false // Par défaut en mode horaire précis
+      endTime: ''
     }
     setFormData(prev => ({
       ...prev,
       providerAvailabilities: [...prev.providerAvailabilities, newAvailability]
+    }))
+  }
+
+  // Toggle global pour type de disponibilité
+  const setGlobalFlexible = (isFlexible: boolean) => {
+    setFormData(prev => ({
+      ...prev,
+      globalIsFlexible: isFlexible
     }))
   }
 
@@ -423,7 +438,7 @@ export function QuoteSubmissionForm({
     return parseFloat(formData.laborCost) || 0
   }
 
-  // Calcule l'heure de fin basée sur l'heure de début et la durée estimée
+  // Calcule l'heure de fin basée sur l'heure de début et la durée estimée globale
   const calculateEndTime = (startTime: string): string => {
     if (!startTime || !formData.estimatedDurationHours) return ''
 
@@ -600,10 +615,10 @@ export function QuoteSubmissionForm({
             .map(avail => ({
               date: avail.date,
               startTime: avail.startTime,
-              endTime: avail.isFlexible
+              endTime: formData.globalIsFlexible
                 ? avail.endTime || null // Heure de fin manuelle en mode flexible
                 : calculateEndTime(avail.startTime), // Calcul auto en mode précis
-              isFlexible: avail.isFlexible
+              isFlexible: formData.globalIsFlexible
             }))
         })
       })
@@ -638,94 +653,97 @@ export function QuoteSubmissionForm({
       <form onSubmit={handleSubmit} className="space-y-6">
 
         {/* Card unifiée - Détails du devis */}
-        <Card className="shadow-sm border-slate-200">
-          <CardHeader className="pb-4">
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
-              <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">
-                <FileText className="h-4 w-4 text-sky-600" />
-              </div>
-              Détails de votre devis
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Durée et Coût sur la même ligne */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Durée estimée - EN PREMIER */}
-              <div className="space-y-2">
-                <Label htmlFor="estimatedDurationHours" className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Durée estimée (heures) *
-                </Label>
-                <Input
-                  id="estimatedDurationHours"
-                  type="number"
-                  step="0.5"
-                  min="0"
-                  max="168"
-                  value={formData.estimatedDurationHours}
-                  onChange={(e) => handleInputChange('estimatedDurationHours', e.target.value)}
-                  placeholder="1"
-                  required
-                  className={`h-11 ${getInputClasses('estimatedDurationHours')}`}
-                />
-                {renderFieldFeedback('estimatedDurationHours')}
+        {/* Estimation Section - Can be hidden for availability-only mode */}
+        {!hideEstimationSection && (
+          <Card className="shadow-sm border-slate-200">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">
+                <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">
+                  <FileText className="h-4 w-4 text-sky-600" />
+                </div>
+                Détails de votre devis
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Durée et Coût sur la même ligne */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Durée estimée - EN PREMIER */}
+                <div className="space-y-2">
+                  <Label htmlFor="estimatedDurationHours" className="text-sm font-medium text-slate-700 flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Durée estimée (heures) *
+                  </Label>
+                  <Input
+                    id="estimatedDurationHours"
+                    type="number"
+                    step="0.5"
+                    min="0"
+                    max="168"
+                    value={formData.estimatedDurationHours}
+                    onChange={(e) => handleInputChange('estimatedDurationHours', e.target.value)}
+                    placeholder="1"
+                    required
+                    className={`h-11 ${getInputClasses('estimatedDurationHours')}`}
+                  />
+                  {renderFieldFeedback('estimatedDurationHours')}
+                </div>
+
+                {/* Coût total */}
+                <div className="space-y-2">
+                  <Label htmlFor="laborCost" className="text-slate-700 font-medium mb-2 flex items-center gap-2">
+                    <Euro className="h-4 w-4" />
+                    Coût total (€) *
+                  </Label>
+                  <Input
+                    id="laborCost"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.laborCost}
+                    onChange={(e) => handleInputChange('laborCost', e.target.value)}
+                    placeholder="0.00"
+                    className={`h-11 ${getInputClasses('laborCost')}`}
+                    required
+                  />
+                  {renderFieldFeedback('laborCost')}
+                </div>
               </div>
 
-              {/* Coût total */}
-              <div className="space-y-2">
-                <Label htmlFor="laborCost" className="text-slate-700 font-medium mb-2 flex items-center gap-2">
-                  <Euro className="h-4 w-4" />
-                  Coût total (€) *
-                </Label>
-                <Input
-                  id="laborCost"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={formData.laborCost}
-                  onChange={(e) => handleInputChange('laborCost', e.target.value)}
-                  placeholder="0.00"
-                  className={`h-11 ${getInputClasses('laborCost')}`}
-                  required
-                />
-                {renderFieldFeedback('laborCost')}
-              </div>
-            </div>
+              {/* Description des travaux + Documents - Layout 50/50 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Description des travaux - 50% */}
+                <div className="space-y-2">
+                  <Label htmlFor="workDetails" className="text-slate-700 font-medium mb-2 block">
+                    Détail des travaux *
+                  </Label>
+                  <Textarea
+                    id="workDetails"
+                    value={formData.workDetails}
+                    onChange={(e) => handleInputChange('workDetails', e.target.value)}
+                    placeholder="Description détaillée des étapes, méthodes et matériaux à utiliser..."
+                    className={`resize-none min-h-[200px] ${getInputClasses('workDetails')}`}
+                    required
+                  />
+                  {renderFieldFeedback('workDetails')}
+                  <p className="text-sm text-slate-500 mt-1">
+                    Décrivez précisément les travaux à effectuer pour établir votre devis
+                  </p>
+                </div>
 
-            {/* Description des travaux + Documents - Layout 50/50 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Description des travaux - 50% */}
-              <div className="space-y-2">
-                <Label htmlFor="workDetails" className="text-slate-700 font-medium mb-2 block">
-                  Détail des travaux *
-                </Label>
-                <Textarea
-                  id="workDetails"
-                  value={formData.workDetails}
-                  onChange={(e) => handleInputChange('workDetails', e.target.value)}
-                  placeholder="Description détaillée des étapes, méthodes et matériaux à utiliser..."
-                  className={`resize-none min-h-[200px] ${getInputClasses('workDetails')}`}
-                  required
-                />
-                {renderFieldFeedback('workDetails')}
-                <p className="text-sm text-slate-500 mt-1">
-                  Décrivez précisément les travaux à effectuer pour établir votre devis
-                </p>
+                {/* File Uploader - 50% */}
+                <div>
+                  <FileUploader
+                    files={formData.attachments}
+                    onFilesChange={(files) => setFormData(prev => ({ ...prev, attachments: files }))}
+                    accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                    maxSize={10}
+                    label="Pièce(s) jointe(s)"
+                  />
+                </div>
               </div>
-
-              {/* File Uploader - 50% */}
-              <div>
-                <FileUploader
-                  files={formData.attachments}
-                  onFilesChange={(files) => setFormData(prev => ({ ...prev, attachments: files }))}
-                  accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                  maxSize={10}
-                  label="Pièce(s) jointe(s)"
-                />
-              </div>
-            </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+        )}
 
         {/* Section modulaire : Horaires proposés OU Disponibilités manuelles */}
         {hasProposedSlots ? (
@@ -800,96 +818,138 @@ export function QuoteSubmissionForm({
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {formData.providerAvailabilities.map((avail, index) => (
-                    <div key={index} className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-                      {/* Toggle individuel */}
-                      <div className="flex items-center justify-between pb-2 border-b border-blue-200">
-                        <Label className="text-sm font-medium text-slate-700">Type de disponibilité</Label>
+                <div className="space-y-4">
+                  {/* 1. Carte de Contrôle Global */}
+                  <Card className="bg-blue-50 border-blue-200 shadow-sm">
+                    <CardContent className="pt-4 space-y-4">
+                      {/* Toggle global */}
+                      <div>
+                        <Label className="text-sm font-semibold text-slate-900 mb-3 block">
+                          Type de disponibilité pour tous les créneaux
+                        </Label>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => updateAvailability(index, 'isFlexible', false)}
-                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                              !avail.isFlexible
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white text-slate-600 hover:bg-slate-100'
+                            onClick={() => setGlobalFlexible(false)}
+                            className={`flex-1 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                              !formData.globalIsFlexible
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
                             }`}
                           >
-                            <Clock className="w-3 h-3 inline mr-1" />
+                            <Clock className="w-4 h-4 inline mr-2" />
                             Horaire précis
                           </button>
                           <button
                             type="button"
-                            onClick={() => updateAvailability(index, 'isFlexible', true)}
-                            className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                              avail.isFlexible
-                                ? 'bg-blue-600 text-white'
-                                : 'bg-white text-slate-600 hover:bg-slate-100'
+                            onClick={() => setGlobalFlexible(true)}
+                            className={`flex-1 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                              formData.globalIsFlexible
+                                ? 'bg-blue-600 text-white shadow-md'
+                                : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
                             }`}
                           >
-                            <Calendar className="w-3 h-3 inline mr-1" />
+                            <Calendar className="w-4 h-4 inline mr-2" />
                             Créneau flexible
                           </button>
                         </div>
                       </div>
 
-                      {/* Champs de saisie */}
-                      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
-                        <div className="md:col-span-1">
-                          <Label className="text-sm font-medium text-slate-700">Date</Label>
-                          <Input
-                            type="date"
-                            value={avail.date}
-                            onChange={(e) => updateAvailability(index, 'date', e.target.value)}
-                            className="mt-1"
-                            min={new Date().toISOString().split('T')[0]}
-                          />
+                      {/* Champ durée conditionnel */}
+                      {!formData.globalIsFlexible && (
+                        <div className="bg-white border border-blue-200 rounded-lg p-4">
+                          <Label htmlFor="global-duration" className="text-sm font-semibold text-slate-900 mb-1 block">
+                            Durée estimée pour tous les créneaux
+                          </Label>
+                          <p className="text-xs text-slate-600 mb-3">
+                            Cette durée sera appliquée automatiquement à tous vos créneaux en mode "Horaire précis"
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Input
+                              id="global-duration"
+                              type="number"
+                              step="0.5"
+                              min="0.5"
+                              max="168"
+                              value={formData.estimatedDurationHours}
+                              onChange={(e) => handleInputChange('estimatedDurationHours', e.target.value)}
+                              placeholder="1"
+                              className="h-10 max-w-[120px]"
+                            />
+                            <span className="text-sm font-medium text-slate-700">heure(s)</span>
+                          </div>
                         </div>
-                        <div className="md:col-span-1">
-                          <Label className="text-sm font-medium text-slate-700">Heure début</Label>
-                          <Input
-                            type="time"
-                            value={avail.startTime}
-                            onChange={(e) => updateAvailability(index, 'startTime', e.target.value)}
-                            className="mt-1"
-                          />
-                        </div>
-                        <div className="md:col-span-1">
-                          {avail.isFlexible ? (
-                            <>
-                              <Label className="text-sm font-medium text-slate-700">Heure fin</Label>
-                              <Input
-                                type="time"
-                                value={avail.endTime || ''}
-                                onChange={(e) => updateAvailability(index, 'endTime', e.target.value)}
-                                className="mt-1"
-                              />
-                            </>
-                          ) : (
-                            <>
-                              <Label className="text-sm font-medium text-slate-700">Fin estimée</Label>
-                              <div className="mt-1 p-2 text-sm text-slate-600 flex items-center gap-1 min-h-[40px] bg-white rounded border border-slate-200">
-                                <Clock className="h-3 w-3" />
-                                {avail.startTime && formData.estimatedDurationHours ? calculateEndTime(avail.startTime) : '--:--'}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                        <div className="md:col-span-1">
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* 2. Cartes de Créneaux Individuels */}
+                  {formData.providerAvailabilities.map((avail, index) => (
+                    <Card key={index} className="border-slate-200 shadow-sm">
+                      <CardContent className="pt-4">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="text-sm font-semibold text-slate-700">
+                            Créneau {index + 1}
+                          </h3>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
                             onClick={() => removeAvailability(index)}
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50 w-full"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
                           >
                             <Trash2 className="h-4 w-4 mr-1" />
                             Supprimer
                           </Button>
                         </div>
-                      </div>
-                    </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {/* Date */}
+                          <div>
+                            <Label className="text-sm font-medium text-slate-700 mb-1 block">Date</Label>
+                            <Input
+                              type="date"
+                              value={avail.date}
+                              onChange={(e) => updateAvailability(index, 'date', e.target.value)}
+                              min={new Date().toISOString().split('T')[0]}
+                              className="h-10"
+                            />
+                          </div>
+
+                          {/* Heure début */}
+                          <div>
+                            <Label className="text-sm font-medium text-slate-700 mb-1 block">Heure début</Label>
+                            <Input
+                              type="time"
+                              value={avail.startTime}
+                              onChange={(e) => updateAvailability(index, 'startTime', e.target.value)}
+                              className="h-10"
+                            />
+                          </div>
+
+                          {/* Heure fin (conditionnel selon toggle global) */}
+                          {formData.globalIsFlexible ? (
+                            <div>
+                              <Label className="text-sm font-medium text-slate-700 mb-1 block">Heure fin</Label>
+                              <Input
+                                type="time"
+                                value={avail.endTime || ''}
+                                onChange={(e) => updateAvailability(index, 'endTime', e.target.value)}
+                                className="h-10"
+                              />
+                            </div>
+                          ) : (
+                            <div>
+                              <Label className="text-sm font-medium text-slate-700 mb-1 block">Fin calculée</Label>
+                              <div className="h-10 px-3 py-2 text-sm text-slate-600 bg-slate-50 rounded-md border border-slate-200 flex items-center gap-2">
+                                <Clock className="h-4 w-4 text-slate-400" />
+                                {avail.startTime ? calculateEndTime(avail.startTime) : '--:--'}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
                 </div>
               )}

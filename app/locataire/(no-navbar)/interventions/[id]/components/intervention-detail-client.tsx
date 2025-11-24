@@ -15,10 +15,11 @@ import { DocumentsTab } from '@/app/gestionnaire/(no-navbar)/interventions/[id]/
 import { ExecutionTab } from '@/components/intervention/tabs/execution-tab'
 import { selectTimeSlotAction, validateByTenantAction } from '@/app/actions/intervention-actions'
 import { toast } from 'sonner'
-import { Activity, FileText, Calendar } from 'lucide-react'
+import { Activity, FileText, Building2, MapPin, Calendar } from 'lucide-react'
 
 // Intervention components
-import { InterventionDetailHeader } from '@/components/intervention/intervention-detail-header'
+import { DetailPageHeader } from '@/components/ui/detail-page-header'
+import type { DetailPageHeaderBadge, DetailPageHeaderMetadata } from '@/components/ui/detail-page-header'
 import { InterventionActionPanelHeader } from '@/components/intervention/intervention-action-panel-header'
 import { ChatTab } from './chat-tab'
 
@@ -205,39 +206,82 @@ export function LocataireInterventionDetailClient({
     }
   }
 
+  // Helper functions for DetailPageHeader
+  const getStatusBadge = (): DetailPageHeaderBadge => {
+    const statusConfig: Record<string, { label: string; color: string; dotColor: string }> = {
+      'demande': { label: 'Demande', color: 'bg-blue-50 border-blue-200 text-blue-900', dotColor: 'bg-blue-500' },
+      'approuvee': { label: 'Approuvée', color: 'bg-green-50 border-green-200 text-green-900', dotColor: 'bg-green-500' },
+      'demande_de_devis': { label: 'Demande de devis', color: 'bg-amber-50 border-amber-200 text-amber-900', dotColor: 'bg-amber-500' },
+      'planification': { label: 'Planification', color: 'bg-purple-50 border-purple-200 text-purple-900', dotColor: 'bg-purple-500' },
+      'planifiee': { label: 'Planifiée', color: 'bg-indigo-50 border-indigo-200 text-indigo-900', dotColor: 'bg-indigo-500' },
+      'en_cours': { label: 'En cours', color: 'bg-cyan-50 border-cyan-200 text-cyan-900', dotColor: 'bg-cyan-500' },
+      'cloturee_par_locataire': { label: 'Clôturée', color: 'bg-emerald-50 border-emerald-200 text-emerald-900', dotColor: 'bg-emerald-500' },
+      'cloturee_par_gestionnaire': { label: 'Clôturée', color: 'bg-slate-50 border-slate-200 text-slate-900', dotColor: 'bg-slate-500' },
+      'annulee': { label: 'Annulée', color: 'bg-red-50 border-red-200 text-red-900', dotColor: 'bg-red-500' },
+      'rejetee': { label: 'Rejetée', color: 'bg-red-50 border-red-200 text-red-900', dotColor: 'bg-red-500' }
+    }
+    const config = statusConfig[intervention.status] || statusConfig['demande']
+    return {
+      label: config.label,
+      color: config.color,
+      dotColor: config.dotColor
+    }
+  }
+
+  const getUrgencyBadge = (): DetailPageHeaderBadge | null => {
+    const urgency = intervention.urgency || 'normale'
+    if (urgency === 'normale') return null
+
+    const urgencyConfig: Record<string, { label: string; color: string; dotColor: string }> = {
+      'haute': { label: 'Urgent', color: 'bg-red-50 border-red-200 text-red-900', dotColor: 'bg-red-500' },
+      'moyenne': { label: 'Prioritaire', color: 'bg-yellow-50 border-yellow-200 text-yellow-900', dotColor: 'bg-yellow-500' }
+    }
+    const config = urgencyConfig[urgency]
+    return config ? {
+      label: config.label,
+      color: config.color,
+      dotColor: config.dotColor
+    } : null
+  }
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    })
+  }
+
+  const getMetadata = (): DetailPageHeaderMetadata[] => {
+    const metadata: DetailPageHeaderMetadata[] = []
+
+    if (intervention.building?.name) {
+      metadata.push({ icon: Building2, text: intervention.building.name })
+    }
+
+    if (intervention.lot?.reference) {
+      metadata.push({ icon: MapPin, text: `Lot ${intervention.lot.reference}` })
+    }
+
+    // Note: Pas de "Créé par" pour le locataire (moins pertinent)
+
+    if (intervention.created_at) {
+      metadata.push({ icon: Calendar, text: formatDate(intervention.created_at) })
+    }
+
+    return metadata
+  }
+
   return (
     <div className="container max-w-6xl mx-auto space-y-6">
       {/* Intervention Detail Header with Action Panel */}
-      <InterventionDetailHeader
-        intervention={{
-          id: intervention.id,
-          title: intervention.title,
-          reference: intervention.reference || '',
-          status: intervention.status,
-          urgency: intervention.urgency || 'normale',
-          createdAt: intervention.created_at || '',
-          createdBy: intervention.creator?.name || 'Utilisateur',
-          lot: intervention.lot ? {
-            reference: intervention.lot.reference || '',
-            building: intervention.lot.building ? {
-              name: intervention.lot.building.name || ''
-            } : undefined
-          } : undefined,
-          building: intervention.building ? {
-            name: intervention.building.name || ''
-          } : undefined
-        }}
+      <DetailPageHeader
         onBack={() => router.push('/locataire/interventions')}
-        onArchive={() => {
-          // TODO: Implement archive logic for tenant
-          console.log('Archive intervention')
-        }}
-        onStatusAction={(action) => {
-          console.log('Status action:', action)
-          // Actions are handled by InterventionActionPanelHeader
-        }}
-        displayMode="custom"
-        actionPanel={
+        backButtonText="Retour"
+        title={intervention.title}
+        badges={[getStatusBadge(), getUrgencyBadge()].filter((badge): badge is DetailPageHeaderBadge => badge !== null)}
+        metadata={getMetadata()}
+        actionButtons={
           <InterventionActionPanelHeader
             intervention={{
               id: intervention.id,
@@ -251,6 +295,7 @@ export function LocataireInterventionDetailClient({
             onActionComplete={handleActionComplete}
           />
         }
+        hasGlobalNav={false}
       />
 
       {/* Tabs */}

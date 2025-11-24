@@ -511,6 +511,15 @@ export function InterventionActionButtons({
           return
 
         case 'add_availabilities':
+          // Open modal via callback (for prestataire)
+          if (onProposeSlots) {
+            onProposeSlots()
+            return
+          }
+          // Fallback redirection pour gestionnaire
+          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
+          return
+
         case 'reschedule':
           window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
           return

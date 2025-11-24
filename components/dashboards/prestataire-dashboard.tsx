@@ -261,7 +261,7 @@ export default function PrestataireDashboard() {
       {/* 📱 PWA Installation Prompt - Triggered automatically on dashboard */}
       <PWADashboardPrompt />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col h-full min-h-0">
+      <div className="layout-container flex flex-col h-full min-h-0">
         {/* Page Header - Simple et centré */}
         <div className="flex-shrink-0 text-center lg:text-left mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">

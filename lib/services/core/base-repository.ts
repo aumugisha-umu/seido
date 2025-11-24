@@ -93,6 +93,15 @@ export abstract class BaseRepository<
         .single()
 
       if (selectError) {
+        // ✅ FIX: If SELECT fails due to RLS (PGRST116), return success with ID and input data
+        // This ensures the creation is not reported as failed just because the user can't see the result
+        if (selectError.code === 'PGRST116') {
+          logger.warn(`⚠️ [${this.tableName}:create:select] RLS prevented reading created record. Returning partial data.`, {
+            id: newId,
+            table: this.tableName
+          })
+          return createSuccessResponse({ ...dataWithId } as unknown as TRow)
+        }
         return createErrorResponse(handleError(selectError, `${this.tableName}:create:select`))
       }
 

@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import ContentNavigator from "@/components/content-navigator"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/use-auth"
 import { determineAssignmentType, createContactService, createContactInvitationService } from '@/lib/services'
 import { logger } from '@/lib/logger'
 
@@ -443,7 +444,7 @@ export function ContactsPageClient({
   const handleDeleteContact = async (contactId: string) => {
     try {
       logger.info(`🗑️ Deleting contact: ${contactId}`)
-      await contactService.delete(contactId)
+      await contactService.delete(contactId, user?.id)
       await refetchContacts()
     } catch (error) {
       logger.error("❌ Error deleting contact:", error)

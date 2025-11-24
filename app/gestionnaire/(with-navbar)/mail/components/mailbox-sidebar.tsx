@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Inbox, Send, FileText, Archive, Building, Settings, Star, Wrench } from 'lucide-react'
-import { DummyBuilding } from './dummy-data'
+import { Building as BuildingType } from './types'
 
 interface MailboxSidebarProps {
   currentFolder: string
@@ -16,7 +16,7 @@ interface MailboxSidebarProps {
     drafts: number
     archive: number
   }
-  buildings: DummyBuilding[]
+  buildings: BuildingType[]
   onBuildingClick: (buildingId: string) => void
 }
 
@@ -38,7 +38,7 @@ export function MailboxSidebar({
             onClick={() => onFolderChange('inbox')}
           >
             <Inbox className="mr-2 h-4 w-4" />
-            Inbox
+            Boîte de réception
             {unreadCounts.inbox > 0 && (
               <Badge className="ml-auto" variant="default">
                 {unreadCounts.inbox}
@@ -52,7 +52,7 @@ export function MailboxSidebar({
             onClick={() => onFolderChange('sent')}
           >
             <Send className="mr-2 h-4 w-4" />
-            Sent
+            Envoyés
           </Button>
 
           <Button
@@ -61,7 +61,7 @@ export function MailboxSidebar({
             onClick={() => onFolderChange('drafts')}
           >
             <FileText className="mr-2 h-4 w-4" />
-            Drafts
+            Brouillons
             {unreadCounts.drafts > 0 && (
               <Badge className="ml-auto" variant="secondary">
                 {unreadCounts.drafts}
@@ -75,7 +75,7 @@ export function MailboxSidebar({
             onClick={() => onFolderChange('archive')}
           >
             <Archive className="mr-2 h-4 w-4" />
-            Archive
+            Archives
           </Button>
 
           <Separator className="my-2" />
@@ -83,7 +83,7 @@ export function MailboxSidebar({
           {/* Buildings */}
           <div className="px-2 py-1">
             <h3 className="text-xs font-semibold text-muted-foreground">
-              Buildings
+              Immeubles
             </h3>
           </div>
 
@@ -109,7 +109,7 @@ export function MailboxSidebar({
           {/* Labels */}
           <div className="px-2 py-1">
             <h3 className="text-xs font-semibold text-muted-foreground">
-              Labels
+              Étiquettes
             </h3>
           </div>
 
@@ -140,7 +140,7 @@ export function MailboxSidebar({
             onClick={() => onFolderChange('settings')}
           >
             <Settings className="mr-2 h-4 w-4" />
-            Settings
+            Paramètres
           </Button>
         </nav>
       </ScrollArea>

@@ -23,7 +23,8 @@ import {
   UserCheck,
   UserX,
   UserCog,
-  Eye
+  Eye,
+  Tag
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -255,7 +256,7 @@ export default function ActivityLog({ activities, loading, error }: ActivityLogP
   }
 
   return (
-    <div className="space-y-1 sm:space-y-1">
+    <div className="max-h-[calc(100vh-320px)] overflow-y-auto space-y-1 sm:space-y-1 pr-1">
       {activities.map((activity) => (
         <Card 
           key={activity.id} 
@@ -321,11 +322,21 @@ export default function ActivityLog({ activities, loading, error }: ActivityLogP
                         </span>
                       </div>
 
-                      {/* Entité concernée */}
+                      {/* Contexte patrimonial (prioritaire) */}
+                      {(activity as any).display_context && (
+                        <div className="flex items-center gap-1 bg-amber-100 px-1 sm:px-1.5 py-0.5 rounded-full">
+                          <Building className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-amber-600 flex-shrink-0" />
+                          <span className="text-xs text-amber-700 truncate max-w-[120px] sm:max-w-[200px]">
+                            {(activity as any).display_context}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Référence technique (secondaire) */}
                       {activity.entity_name && (
-                        <div className="flex items-center gap-1 bg-blue-100 px-1 sm:px-1.5 py-0.5 rounded-full">
-                          {getEntityIcon(activity.entity_type)}
-                          <span className="text-xs text-blue-700 truncate max-w-[60px] sm:max-w-none">
+                        <div className="flex items-center gap-1 bg-slate-100 px-1 sm:px-1.5 py-0.5 rounded-full">
+                          <Tag className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-slate-500 flex-shrink-0" />
+                          <span className="text-xs text-slate-600 font-mono truncate max-w-[80px] sm:max-w-none">
                             {activity.entity_name}
                           </span>
                         </div>

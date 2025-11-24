@@ -8,6 +8,8 @@ import { ContactRepository, createContactRepository, createServerContactReposito
 import { UserService, createUserService, createServerUserService, createServerActionUserService } from './user.service'
 import { ValidationException, NotFoundException } from '../core/error-handler'
 import { logger, logError } from '@/lib/logger'
+// Note: notifyContactUpdated and notifyContactDeleted Server Actions to be created in future if needed
+import { createActivityLogger } from '@/lib/activity-logger'
 import type {
   Contact,
   ContactInsert,
@@ -111,7 +113,7 @@ export class ContactService {
   /**
    * Update contact with validation
    */
-  async update(id: string, updates: ContactUpdate) {
+  async update(id: string, updates: ContactUpdate, updatedBy?: string) {
     // Check if contact exists
     const existingContact = await this.repository.findById(id)
     if (!existingContact.success) return existingContact
@@ -136,13 +138,35 @@ export class ContactService {
       await this.logContactUpdate(result.data, updates)
     }
 
+    // 📝 ACTIVITY LOG + 🔔 NOTIFICATION: Contact modifié
+    if (result.success && result.data && updatedBy) {
+      // 📝 ACTIVITY LOG
+      try {
+        const activityLogger = await createActivityLogger()
+        activityLogger.setContext({ userId: updatedBy, teamId: result.data.team_id || '' })
+        await activityLogger.logContactAction(
+          'update',
+          id,
+          result.data.name,
+          { changes: Object.keys(updates) }
+        )
+        logger.info({ contactId: id }, '📝 [CONTACT-SERVICE] Activity logged')
+      } catch (logError) {
+        logger.error({ error: logError, contactId: id }, '⚠️ [CONTACT-SERVICE] Failed to log activity')
+      }
+
+      // 🔔 NOTIFICATION (TODO: Implement notifyContactUpdated Server Action if needed)
+      // For now, contact updates don't trigger notifications
+      logger.info({ contactId: id }, 'ℹ️ [CONTACT-SERVICE] Contact updated (notifications not implemented)')
+    }
+
     return result
   }
 
   /**
    * Delete contact with validation
    */
-  async delete(id: string) {
+  async delete(id: string, deletedBy?: string) {
     // Check if contact exists
     const existingContact = await this.repository.findById(id)
     if (!existingContact.success) return existingContact
@@ -156,6 +180,27 @@ export class ContactService {
     // Log activity
     if (result.success) {
       await this.logContactDeletion(existingContact.data)
+    }
+
+    // 📝 ACTIVITY LOG + 🔔 NOTIFICATION: Contact supprimé
+    if (result.success && deletedBy) {
+      // 📝 ACTIVITY LOG
+      try {
+        const activityLogger = await createActivityLogger()
+        activityLogger.setContext({ userId: deletedBy, teamId: existingContact.data.team_id || '' })
+        await activityLogger.logContactAction(
+          'delete',
+          id,
+          existingContact.data.name
+        )
+        logger.info({ contactId: id }, '📝 [CONTACT-SERVICE] Activity logged')
+      } catch (logError) {
+        logger.error({ error: logError, contactId: id }, '⚠️ [CONTACT-SERVICE] Failed to log activity')
+      }
+
+      // 🔔 NOTIFICATION (TODO: Implement notifyContactDeleted Server Action if needed)
+      // For now, contact deletions don't trigger notifications
+      logger.info({ contactId: id }, 'ℹ️ [CONTACT-SERVICE] Contact deleted (notifications not implemented)')
     }
 
     return result

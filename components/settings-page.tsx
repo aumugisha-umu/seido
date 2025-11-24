@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Bell, Smartphone } from "lucide-react"
+import { ArrowLeft, Bell, Smartphone, Mail } from "lucide-react"
 import { PushNotificationToggle } from "@/components/push-notification-toggle"
 import { TestNotificationsPanel } from "@/components/test-notifications-panel"
 import { InstallPWAButton } from "@/components/install-pwa-button"
@@ -57,6 +57,21 @@ export default function SettingsPage({ role, dashboardPath }: SettingsPageProps)
 
           {/* Test notifications push */}
           <TestNotificationsPanel />
+
+          {/* Email Settings (Gestionnaire only) */}
+          {role === 'gestionnaire' && (
+            <Card className="cursor-pointer hover:bg-muted/50 transition-colors" onClick={() => router.push('/gestionnaire/parametres/emails')}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  Intégration Email
+                </CardTitle>
+                <CardDescription>
+                  Connectez vos comptes email pour synchroniser et envoyer des messages.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          )}
 
           {/* Installation PWA */}
           <InstallPWAButton />

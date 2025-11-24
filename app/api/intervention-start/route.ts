@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { notificationService } from '@/lib/notification-service'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
@@ -142,9 +141,9 @@ export async function POST(request: NextRequest) {
           teamId: intervention.team_id,
           createdBy: user.id,
           type: 'intervention',
-          priority: 'high',
           title: 'Intervention démarrée',
           message: notificationMessage,
+          isPersonal: true, // Locataire toujours personnel
           metadata: {
             interventionId: intervention.id,
             interventionTitle: intervention.title,
@@ -162,34 +161,43 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Notify other stakeholders (gestionnaires if started by prestataire, or prestataires if started by gestionnaire)
-    const notifyRoles = user.role === 'prestataire' ? ['gestionnaire'] : ['prestataire']
-    const stakeholders = intervention.intervention_contacts?.filter(ic => 
-      notifyRoles.includes(ic.role) && ic.user.id !== user.id
-    ) || []
+    // Notify other stakeholders from intervention_assignments (gestionnaires if started by prestataire, or prestataires if started by gestionnaire)
+    try {
+      const notifyRole = user.role === 'prestataire' ? 'gestionnaire' : 'prestataire'
+      const { data: stakeholders } = await supabase
+        .from('intervention_assignments')
+        .select('user:users!user_id(id, name), is_primary')
+        .eq('intervention_id', intervention.id)
+        .eq('role', notifyRole)
+        .neq('user_id', user.id)
 
-    for (const stakeholder of stakeholders) {
-      try {
-        await notificationService.createNotification({
-          userId: stakeholder.user.id,
-          teamId: intervention.team_id!,
-          createdBy: user.id,
-          type: 'intervention',
-          priority: 'normal',
-          title: 'Intervention démarrée',
-          message: notificationMessage,
-          metadata: {
-            interventionId: intervention.id,
-            interventionTitle: intervention.title,
-            startedBy: user.name,
-            startedByRole: user.role
-          },
-          relatedEntityType: 'intervention',
-          relatedEntityId: intervention.id
-        })
-      } catch (notifError) {
-        logger.warn({ stakeholder: stakeholder.user.name, notifError }, "⚠️ Could not send notification to stakeholder:")
+      for (const assignment of stakeholders || []) {
+        if (!assignment.user) continue
+
+        try {
+          await notificationService.createNotification({
+            userId: assignment.user.id,
+            teamId: intervention.team_id!,
+            createdBy: user.id,
+            type: 'intervention',
+            title: 'Intervention démarrée',
+            message: notificationMessage,
+            isPersonal: assignment.is_primary ?? true, // Assigné = personnel
+            metadata: {
+              interventionId: intervention.id,
+              interventionTitle: intervention.title,
+              startedBy: user.name,
+              startedByRole: user.role
+            },
+            relatedEntityType: 'intervention',
+            relatedEntityId: intervention.id
+          })
+        } catch (notifError) {
+          logger.warn({ stakeholder: assignment.user.name, notifError }, "⚠️ Could not send notification to stakeholder:")
+        }
       }
+    } catch (queryError) {
+      logger.warn({ queryError }, "⚠️ Could not fetch stakeholders")
     }
 
     return NextResponse.json({

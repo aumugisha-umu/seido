@@ -97,3 +97,188 @@ export interface SendEmailOptions {
   /** Tags pour Resend analytics */
   tags?: Array<{ name: string; value: string }>
 }
+
+/**
+ * ═══════════════════════════════════════════════════════════
+ * 🔧 TEMPLATES INTERVENTIONS
+ * ═══════════════════════════════════════════════════════════
+ */
+
+/**
+ * Props communes pour tous les emails d'intervention
+ */
+export interface BaseInterventionEmailProps extends BaseEmailProps {
+  /** Référence de l'intervention (ex: "INT-2024-001") */
+  interventionRef: string
+  /** Type d'intervention (ex: "Plomberie", "Électricité") */
+  interventionType: string
+  /** Description de l'intervention */
+  description: string
+  /** Adresse du bien concerné */
+  propertyAddress: string
+  /** Référence du lot (ex: "Apt 3B") */
+  lotReference?: string
+  /** URL pour voir les détails de l'intervention */
+  interventionUrl: string
+}
+
+/**
+ * Props pour le template "Nouvelle intervention créée"
+ * Envoyé au gestionnaire quand un locataire crée une intervention
+ */
+export interface InterventionCreatedEmailProps extends BaseInterventionEmailProps {
+  /** Nom du locataire qui a créé la demande */
+  tenantName: string
+  /** Niveau d'urgence */
+  urgency: 'faible' | 'moyenne' | 'haute' | 'critique'
+  /** Date de création */
+  createdAt: Date
+}
+
+/**
+ * Props pour le template "Intervention approuvée"
+ * Envoyé au locataire quand le gestionnaire approuve
+ */
+export interface InterventionApprovedEmailProps extends BaseInterventionEmailProps {
+  /** Nom du gestionnaire qui a approuvé */
+  managerName: string
+  /** Date d'approbation */
+  approvedAt: Date
+  /** Prochaines étapes */
+  nextSteps?: string
+}
+
+/**
+ * Props pour le template "Intervention rejetée"
+ * Envoyé au locataire quand le gestionnaire rejette
+ */
+export interface InterventionRejectedEmailProps extends BaseInterventionEmailProps {
+  /** Nom du gestionnaire qui a rejeté */
+  managerName: string
+  /** Raison du rejet */
+  rejectionReason: string
+  /** Date de rejet */
+  rejectedAt: Date
+}
+
+/**
+ * Props pour le template "Intervention planifiée"
+ * Envoyé au locataire ET au prestataire quand un créneau est confirmé
+ */
+export interface InterventionScheduledEmailProps extends BaseInterventionEmailProps {
+  /** Nom du prestataire assigné */
+  providerName: string
+  /** Entreprise du prestataire */
+  providerCompany?: string
+  /** Téléphone du prestataire */
+  providerPhone?: string
+  /** Date et heure du rendez-vous */
+  scheduledDate: Date
+  /** Durée estimée (en minutes) */
+  estimatedDuration?: number
+  /** Nom du destinataire (locataire ou prestataire) */
+  recipientRole: 'locataire' | 'prestataire'
+}
+
+/**
+ * Props pour le template "Intervention terminée"
+ * Envoyé au locataire et gestionnaire quand le prestataire clôture
+ */
+export interface InterventionCompletedEmailProps extends BaseInterventionEmailProps {
+  /** Nom du prestataire */
+  providerName: string
+  /** Date de clôture */
+  completedAt: Date
+  /** Commentaire de clôture */
+  completionNotes?: string
+  /** Si des documents ont été ajoutés (photos, facture) */
+  hasDocuments: boolean
+  /** Nom du destinataire */
+  recipientRole: 'locataire' | 'gestionnaire'
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════
+ * 💰 TEMPLATES DEVIS
+ * ═══════════════════════════════════════════════════════════
+ */
+
+/**
+ * Props communes pour tous les emails de devis
+ */
+export interface BaseQuoteEmailProps extends BaseEmailProps {
+  /** Référence du devis (ex: "DEV-2024-001") */
+  quoteRef: string
+  /** Référence de l'intervention associée */
+  interventionRef: string
+  /** Type d'intervention */
+  interventionType: string
+  /** Description de l'intervention */
+  description: string
+  /** Adresse du bien */
+  propertyAddress: string
+  /** URL pour voir le devis */
+  quoteUrl: string
+}
+
+/**
+ * Props pour "Demande de devis envoyée"
+ * Envoyé au prestataire quand le gestionnaire demande un devis
+ */
+export interface QuoteRequestEmailProps extends BaseQuoteEmailProps {
+  /** Nom du gestionnaire qui demande */
+  managerName: string
+  /** Date limite de soumission */
+  deadline?: Date
+  /** Informations complémentaires */
+  additionalInfo?: string
+}
+
+/**
+ * Props pour "Devis soumis"
+ * Envoyé au gestionnaire quand le prestataire soumet son devis
+ */
+export interface QuoteSubmittedEmailProps extends BaseQuoteEmailProps {
+  /** Nom du prestataire */
+  providerName: string
+  /** Entreprise du prestataire */
+  providerCompany?: string
+  /** Montant total HT */
+  totalHT: number
+  /** Montant total TTC */
+  totalTTC: number
+  /** Date de soumission */
+  submittedAt: Date
+  /** Si un PDF est attaché */
+  hasPdfAttachment: boolean
+}
+
+/**
+ * Props pour "Devis approuvé"
+ * Envoyé au prestataire quand le gestionnaire approuve
+ */
+export interface QuoteApprovedEmailProps extends BaseQuoteEmailProps {
+  /** Nom du gestionnaire qui approuve */
+  managerName: string
+  /** Montant approuvé TTC */
+  approvedAmount: number
+  /** Date d'approbation */
+  approvedAt: Date
+  /** Instructions pour la suite */
+  nextSteps?: string
+}
+
+/**
+ * Props pour "Devis rejeté"
+ * Envoyé au prestataire quand le gestionnaire rejette
+ */
+export interface QuoteRejectedEmailProps extends BaseQuoteEmailProps {
+  /** Nom du gestionnaire qui rejette */
+  managerName: string
+  /** Raison du rejet */
+  rejectionReason: string
+  /** Date de rejet */
+  rejectedAt: Date
+  /** Si le prestataire peut soumettre un nouveau devis */
+  canResubmit: boolean
+}

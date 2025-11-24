@@ -1,6 +1,6 @@
 import { defaultCache } from '@serwist/next/worker'
 import type { PrecacheEntry, SerwistGlobalConfig } from 'serwist'
-import { Serwist } from 'serwist'
+import { Serwist, NetworkOnly, NetworkFirst, ExpirationPlugin } from 'serwist'
 
 declare global {
   interface WorkerGlobalScope extends SerwistGlobalConfig {
@@ -14,8 +14,46 @@ const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
   clientsClaim: true,
-  navigationPreload: true,
-  runtimeCaching: defaultCache,
+  navigationPreload: false,
+  runtimeCaching: [
+    {
+      matcher: ({ url }: { url: URL }) => url.pathname.startsWith('/api/'),
+      handler: new NetworkOnly({
+        plugins: [
+          new ExpirationPlugin({
+            maxEntries: 16,
+            maxAgeSeconds: 24 * 60 * 60, // 24 hours
+          }),
+        ],
+        networkTimeoutSeconds: 10,
+      }),
+    },
+    {
+      matcher: ({ url }: { url: URL }) => url.pathname.startsWith('/_next/static/'),
+      handler: new NetworkOnly(),
+    },
+    {
+      matcher: ({ url }: { url: URL }) => url.pathname.startsWith('/_next/image'),
+      handler: new NetworkFirst({
+        cacheName: 'next-image',
+        plugins: [
+          new ExpirationPlugin({
+            maxEntries: 64,
+            maxAgeSeconds: 24 * 60 * 60, // 24 hours
+          }),
+          {
+            cacheWillUpdate: async ({ response }) => {
+              if (response && response.status === 200) {
+                return response;
+              }
+              return null;
+            }
+          }
+        ]
+      }),
+    },
+    ...defaultCache,
+  ],
   disableDevLogs: true
 })
 
@@ -50,7 +88,7 @@ self.addEventListener('push', (event) => {
       tag: data.notificationId || 'seido-notification',
       renotify: true,
       silent: false
-    }
+    } as any
 
     event.waitUntil(
       self.registration.showNotification(data.title || 'SEIDO', options)

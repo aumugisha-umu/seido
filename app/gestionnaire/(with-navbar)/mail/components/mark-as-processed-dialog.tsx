@@ -35,21 +35,21 @@ export function MarkAsProcessedDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-green-600" />
-            Mark as Processed
+            Marquer comme traité
           </DialogTitle>
           <DialogDescription>
             {isConversation
-              ? 'Are you sure you want to mark this conversation as processed? This will mark all messages in the conversation as processed.'
-              : 'Are you sure you want to mark this email as processed?'}
+              ? 'Êtes-vous sûr de vouloir marquer cette conversation comme traitée ? Cela marquera tous les messages de la conversation comme traités.'
+              : 'Êtes-vous sûr de vouloir marquer cet email comme traité ?'}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            Annuler
           </Button>
           <Button onClick={handleConfirm} className="bg-green-600 hover:bg-green-700">
             <CheckCircle2 className="mr-2 h-4 w-4" />
-            Mark as Processed
+            Marquer comme traité
           </Button>
         </DialogFooter>
       </DialogContent>

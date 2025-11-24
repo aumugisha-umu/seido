@@ -30,7 +30,7 @@ export default async function GestionnaireLayout({
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Contenu principal - DashboardHeader délégué aux Route Group layouts */}
-      <main className="flex-1 flex flex-col min-h-0">
+      <main className="flex-1 flex flex-col min-h-0 overflow-y-auto">
         {children}
       </main>
 

@@ -4,10 +4,10 @@ import { Badge } from '@/components/ui/badge'
 import { Paperclip, Building } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
-import { DummyEmail } from './dummy-data'
+import { MailboxEmail } from './types'
 
 interface EmailListItemProps {
-  email: DummyEmail
+  email: MailboxEmail
   isSelected: boolean
   onClick: () => void
 }
@@ -32,7 +32,7 @@ export function EmailListItem({
       `}
       onClick={onClick}
       role="listitem"
-      aria-label={`Email from ${email.sender_name}: ${email.subject}. ${email.is_read ? 'Read' : 'Unread'}`}
+      aria-label={`Email de ${email.sender_name}: ${email.subject}. ${email.is_read ? 'Lu' : 'Non lu'}`}
       aria-current={isSelected ? 'true' : 'false'}
       tabIndex={0}
       onKeyDown={(e) => {

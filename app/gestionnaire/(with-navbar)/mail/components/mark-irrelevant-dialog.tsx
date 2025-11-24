@@ -50,17 +50,17 @@ export function MarkAsIrrelevantDialog({
       if (action === 'soft_delete') {
         onSoftDelete(email.id)
         onArchive?.() // Auto-archive when marked as irrelevant
-        toast.success('Email hidden and archived')
+        toast.success('Email masqué et archivé')
       } else {
         onBlacklist(email.id, email.sender_email, reason)
         onArchive?.() // Auto-archive when blacklisted
-        toast.success(`🚫 Blocked ${email.sender_email} and archived`)
+        toast.success(`🚫 ${email.sender_email} bloqué et archivé`)
       }
       onOpenChange(false)
       setReason('')
       setAction('soft_delete')
     } catch (error) {
-      toast.error('Failed to process action')
+      toast.error('Échec du traitement de l\'action')
     } finally {
       setLoading(false)
     }
@@ -70,14 +70,14 @@ export function MarkAsIrrelevantDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="max-w-md">
         <AlertDialogHeader>
-          <AlertDialogTitle>Mark this email as irrelevant?</AlertDialogTitle>
+          <AlertDialogTitle>Marquer cet email comme non pertinent ?</AlertDialogTitle>
           <AlertDialogDescription className="text-sm text-muted-foreground mt-2">
-            From: <span className="font-medium text-foreground">{email.sender_name}</span> ({email.sender_email})
+            De: <span className="font-medium text-foreground">{email.sender_name}</span> ({email.sender_email})
           </AlertDialogDescription>
         </AlertDialogHeader>
 
         <div className="space-y-4 my-4">
-          <p className="text-sm font-semibold">Choose an action:</p>
+          <p className="text-sm font-semibold">Choisissez une action :</p>
 
           <RadioGroup value={action} onValueChange={(v) => setAction(v as ActionType)}>
             {/* Option 1: Soft Delete */}
@@ -85,10 +85,10 @@ export function MarkAsIrrelevantDialog({
               <RadioGroupItem value="soft_delete" id="soft_delete" className="mt-1" />
               <div className="flex-1">
                 <Label htmlFor="soft_delete" className="cursor-pointer font-medium">
-                  Hide this email only
+                  Masquer uniquement cet email
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  This email will be hidden from your inbox. You can restore it later from Trash.
+                  Cet email sera masqué de votre boîte de réception. Vous pourrez le restaurer plus tard depuis la corbeille.
                 </p>
               </div>
             </div>
@@ -99,20 +99,20 @@ export function MarkAsIrrelevantDialog({
               <div className="flex-1">
                 <Label htmlFor="blacklist" className="cursor-pointer font-medium flex items-center gap-1">
                   <Ban className="w-4 h-4" />
-                  Block all future emails from this sender
+                  Bloquer tous les futurs emails de cet expéditeur
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1">
-                  This email will be deleted AND all future emails from <strong>{email.sender_email}</strong> will be automatically blocked.
+                  Cet email sera supprimé ET tous les futurs emails de <strong>{email.sender_email}</strong> seront automatiquement bloqués.
                 </p>
 
                 {action === 'blacklist' && (
                   <div className="mt-3">
                     <Label htmlFor="reason" className="text-xs">
-                      Optional reason (for team reference):
+                      Raison facultative (pour référence de l'équipe) :
                     </Label>
                     <Textarea
                       id="reason"
-                      placeholder="e.g., Promotional emails, Spam, etc."
+                      placeholder="ex: Emails promotionnels, Spam, etc."
                       value={reason}
                       onChange={(e) => setReason(e.target.value)}
                       className="mt-1 h-20 text-sm"
@@ -126,10 +126,10 @@ export function MarkAsIrrelevantDialog({
 
         <AlertDialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
-            Cancel
+            Annuler
           </Button>
           <Button onClick={handleConfirm} disabled={loading} variant="destructive">
-            {loading ? 'Processing...' : 'Confirm'}
+            {loading ? 'Traitement...' : 'Confirmer'}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

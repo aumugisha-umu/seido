@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { quoteRejectSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { createEmailNotificationService } from '@/lib/services/domain/email-notification.service'
 
 export async function POST(
   request: NextRequest,
@@ -68,6 +69,56 @@ export async function POST(
       return NextResponse.json({
         error: 'Erreur lors du rejet du devis'
       }, { status: 500 })
+    }
+
+    // Send email to provider
+    try {
+      const emailService = createEmailNotificationService()
+
+      // Get provider and intervention
+      const { data: provider } = await supabase
+        .from('users')
+        .select('id, email, first_name, last_name, company_name')
+        .eq('id', quote.provider_id)
+        .single()
+
+      const { data: intervention } = await supabase
+        .from('interventions')
+        .select(`
+          *,
+          lot_id,
+          building_id,
+          lots(buildings(address, city)),
+          buildings(address, city)
+        `)
+        .eq('id', quote.intervention_id)
+        .single()
+
+      if (provider && intervention) {
+        // Get property address
+        let propertyAddress = 'Adresse non spécifiée'
+        if (intervention.lot_id && intervention.lots) {
+          const lot = intervention.lots as any
+          const building = lot.buildings
+          propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+        } else if (intervention.building_id && intervention.buildings) {
+          const building = intervention.buildings as any
+          propertyAddress = `${building.address}, ${building.city}`
+        }
+
+        await emailService.sendQuoteRejected({
+          quote,
+          intervention: intervention as any,
+          property: { address: propertyAddress },
+          manager: userData,
+          provider,
+          rejectionReason: reason.trim(),
+          canResubmit: false, // By default, rejected quotes cannot be resubmitted
+        })
+        logger.info({ quoteId: quote.id }, '📧 Quote rejected email sent')
+      }
+    } catch (emailError) {
+      logger.warn({ emailError }, '⚠️ Could not send quote rejection email')
     }
 
     return NextResponse.json({

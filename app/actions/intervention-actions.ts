@@ -15,6 +15,7 @@ import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
 import { createQuoteRequestsForProviders } from '@/app/api/create-manager-intervention/create-quote-requests'
+import { createInterventionNotification } from './notification-actions'
 
 // Type aliases
 type InterventionUrgency = Database['public']['Enums']['intervention_urgency']
@@ -88,192 +89,6 @@ interface DashboardStats {
  */
 async function getAuthenticatedUser() {
   const supabase = await createServerActionSupabaseClient()
-  const { data: { session }, error } = await supabase.auth.getSession()
-
-  if (!session || error) {
-    return null
-  }
-
-  // Get database user ID from auth user ID
-  const { data: userData } = await supabase
-    .from('users')
-    .select('id, role, team_id')
-    .eq('auth_user_id', session.user.id)
-    .single()
-
-  if (!userData) {
-    return null
-  }
-
-  // If team_id is null, query from team_members table (multi-team support)
-  if (!userData.team_id) {
-    const { data: teamMember } = await supabase
-      .from('team_members')
-      .select('team_id')
-      .eq('user_id', userData.id)
-      .is('left_at', null)
-      .limit(1)
-      .single()
-
-    // Populate team_id from team_members
-    return {
-      ...userData,
-      team_id: teamMember?.team_id || null
-    }
-  }
-
-  return userData
-}
-
-/**
- * CRUD OPERATIONS
- */
-
-/**
- * Create new intervention
- */
-export async function createInterventionAction(
-  data: z.infer<typeof InterventionCreateSchema>
-): Promise<ActionResult<Intervention>> {
-  try {
-    // Auth check
-    const user = await getAuthenticatedUser()
-    if (!user) {
-      return { success: false, error: 'Authentication required' }
-    }
-
-    // Validate input
-    const validatedData = InterventionCreateSchema.parse(data)
-
-    logger.info('📝 [SERVER-ACTION] Creating intervention:', {
-      title: validatedData.title,
-      userId: user.id,
-      teamId: validatedData.team_id
-    })
-
-    // Create service and execute
-    const interventionService = await createServerActionInterventionService()
-    const result = await interventionService.create({
-      ...validatedData,
-      tenant_id: user.role === 'locataire' ? user.id : null
-    }, user.id)
-
-    if (result.success && result.data) {
-      // Revalidate all intervention pages
-      revalidatePath('/gestionnaire/interventions')
-      revalidatePath('/locataire/interventions')
-      revalidatePath('/prestataire/interventions')
-
-      return { success: true, data: result.data }
-    }
-
-    return { success: false, error: result.error || 'Failed to create intervention' }
-  } catch (error) {
-    logger.error('❌ [SERVER-ACTION] Error creating intervention:', error)
-    return {
-      success: false,
-      error: error instanceof z.ZodError
-        ? `Validation error: ${error.errors[0].message}`
-        : error instanceof Error
-          ? error.message
-          : 'Unknown error occurred'
-    }
-  }
-}
-
-/**
- * Update intervention
- */
-export async function updateInterventionAction(
-  id: string,
-  data: z.infer<typeof InterventionUpdateSchema>
-): Promise<ActionResult<Intervention>> {
-  try {
-    // Auth check
-    const user = await getAuthenticatedUser()
-    if (!user) {
-      return { success: false, error: 'Authentication required' }
-    }
-
-    // Validate input
-    const validatedData = InterventionUpdateSchema.parse(data)
-
-    logger.info('✏️ [SERVER-ACTION] Updating intervention:', {
-      id,
-      userId: user.id
-    })
-
-    // Create service and execute
-    const interventionService = await createServerActionInterventionService()
-    const result = await interventionService.update(id, validatedData, user.id)
-
-    if (result.success && result.data) {
-      // Revalidate intervention pages
-      revalidatePath('/gestionnaire/interventions')
-      revalidatePath(`/gestionnaire/interventions/${id}`)
-      revalidatePath('/locataire/interventions')
-      revalidatePath(`/locataire/interventions/${id}`)
-
-      return { success: true, data: result.data }
-    }
-
-    return { success: false, error: result.error || 'Failed to update intervention' }
-  } catch (error) {
-    logger.error('❌ [SERVER-ACTION] Error updating intervention:', error)
-    return {
-      success: false,
-      error: error instanceof z.ZodError
-        ? `Validation error: ${error.errors[0].message}`
-        : error instanceof Error
-          ? error.message
-          : 'Unknown error occurred'
-    }
-  }
-}
-
-/**
- * Delete intervention
- */
-export async function deleteInterventionAction(id: string): Promise<ActionResult<void>> {
-  try {
-    // Auth check
-    const user = await getAuthenticatedUser()
-    if (!user) {
-      return { success: false, error: 'Authentication required' }
-    }
-
-    // Only managers can delete
-    if (!['gestionnaire', 'admin'].includes(user.role)) {
-      return { success: false, error: 'Insufficient permissions' }
-    }
-
-    logger.info('🗑️ [SERVER-ACTION] Deleting intervention:', {
-      id,
-      userId: user.id
-    })
-
-    // Create service and execute
-    const interventionService = await createServerActionInterventionService()
-    const result = await interventionService.delete(id, user.id)
-
-    if (result.success) {
-      // Revalidate intervention pages
-      revalidatePath('/gestionnaire/interventions')
-
-      return { success: true, data: undefined }
-    }
-
-    return { success: false, error: result.error || 'Failed to delete intervention' }
-  } catch (error) {
-    logger.error('❌ [SERVER-ACTION] Error deleting intervention:', error)
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' }
-  }
-}
-
-/**
- * Get single intervention
- */
-export async function getInterventionAction(id: string): Promise<ActionResult<Intervention>> {
   try {
     // Auth check
     const user = await getAuthenticatedUser()
@@ -1437,8 +1252,8 @@ export async function acceptTimeSlotAction(
     // Determine which field should have been updated based on user role
     const expectedField =
       user.role === 'gestionnaire' || user.role === 'admin' ? 'selected_by_manager' :
-      user.role === 'prestataire' ? 'selected_by_provider' :
-      'selected_by_tenant'
+        user.role === 'prestataire' ? 'selected_by_provider' :
+          'selected_by_tenant'
 
     const wasUpdatedByTrigger = updatedSlot?.[expectedField] === true
 
@@ -1538,10 +1353,10 @@ export async function acceptTimeSlotAction(
             errorType: typeof confirmResult.error,
             errorDetails: confirmResult.error instanceof Error
               ? {
-                  name: confirmResult.error.name,
-                  message: confirmResult.error.message,
-                  stack: confirmResult.error.stack
-                }
+                name: confirmResult.error.name,
+                message: confirmResult.error.message,
+                stack: confirmResult.error.stack
+              }
               : confirmResult.error,
             context: {
               interventionId,

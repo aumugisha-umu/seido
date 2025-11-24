@@ -76,6 +76,8 @@ export default function NotificationsPage() {
   const [userTeam, setUserTeam] = useState<any>(null)
   const [updatingNotifications, setUpdatingNotifications] = useState<Set<string>>(new Set())
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
+  // ✅ Fix hydration: Ne render conditionnel qu'après montage client
+  const [isMounted, setIsMounted] = useState(false)
 
   // Hook pour les notifications d'équipe (activité des collègues)
   const { 
@@ -120,6 +122,11 @@ export default function NotificationsPage() {
     refreshInterval: 60000,
     limit: 100
   })
+
+  // ✅ Marquer comme monté après hydratation
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Récupérer l'équipe de l'utilisateur via API
   useEffect(() => {
@@ -266,13 +273,17 @@ export default function NotificationsPage() {
     }
   }
 
-  // Loading état si on charge l'équipe
-  if (teamStatus === 'checking') {
+  // ✅ Afficher un état de chargement pendant l'hydratation OU si teamStatus est 'checking'
+  if (!isMounted || teamStatus === 'checking') {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-          <p>Chargement de votre équipe...</p>
+      <div className="layout-padding">
+        <div className="content-max-width">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-slate-400" />
+              <p className="text-slate-600">Chargement...</p>
+            </div>
+          </div>
         </div>
       </div>
     )

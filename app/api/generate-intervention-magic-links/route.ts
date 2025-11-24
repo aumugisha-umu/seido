@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { notificationService } from '@/lib/notification-service'
 import { Database } from '@/lib/database.types'
 import { createClient } from '@supabase/supabase-js'
 import { createServerUserService } from '@/lib/services'
@@ -161,10 +160,9 @@ export async function POST(request: NextRequest) {
               teamId: intervention.team_id,
               createdBy: user.id,
               type: 'intervention',
-              priority: 'high',
               title: 'Demande de devis reçue',
               message: `Nouvelle demande de devis pour "${intervention.title}". Lien d'accès généré.`,
-              isPersonal: true,
+              isPersonal: true, // Notification directe au prestataire (demande de devis)
               metadata: {
                 interventionId: interventionId,
                 interventionTitle: intervention.title,

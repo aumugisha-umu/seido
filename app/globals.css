@@ -439,6 +439,43 @@
   }
 
   /* Scrollbar styles moved to unified global section above (line ~35) */
+
+  /* Email content override - Prevent overflow from marketing emails */
+  .prose table,
+  .break-words table {
+    max-width: 100% !important;
+    width: auto !important;
+    table-layout: fixed !important;
+  }
+  
+  .prose img,
+  .break-words img {
+    max-width: 100% !important;
+    height: auto !important;
+    width: auto !important;
+  }
+  
+  .prose td,
+  .prose th,
+  .break-words td,
+  .break-words th {
+    word-wrap: break-word !important;
+    overflow-wrap: break-word !important;
+  }
+  
+  /* Force container to hide overflow */
+  .prose,
+  .break-words {
+    overflow-x: hidden !important;
+    max-width: 100% !important;
+  }
+  
+  /* Remove any fixed widths */
+  .prose [style*="width"],
+  .break-words [style*="width"] {
+    max-width: 100% !important;
+    width: auto !important;
+  }
 }
 
 /* ============================================

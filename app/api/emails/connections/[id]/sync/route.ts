@@ -1,0 +1,49 @@
+import { NextResponse } from 'next/server';
+import { getApiAuthContext } from '@/lib/api-auth-helper';
+import { EmailSyncService } from '@/lib/services/domain/email-sync.service';
+import { createClient } from '@supabase/supabase-js';
+
+export async function POST(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const { id } = await params;
+        const authResult = await getApiAuthContext();
+        if (!authResult.success) return authResult.error;
+
+        const { supabase, userProfile } = authResult.data;
+
+        if (!userProfile?.team_id) {
+            return NextResponse.json({ error: 'No team found' }, { status: 404 });
+        }
+
+        const connectionId = id;
+
+        // Fetch connection details
+        const { data: connection, error } = await supabase
+            .from('team_email_connections')
+            .select('*')
+            .eq('id', connectionId)
+            .eq('team_id', userProfile.team_id)
+            .single();
+
+        if (error || !connection) {
+            return NextResponse.json({ error: 'Connection not found' }, { status: 404 });
+        }
+
+        // Use Service Role client to bypass RLS for sync operations
+        const serviceClient = createClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
+
+        const syncService = new EmailSyncService(serviceClient);
+        const result = await syncService.syncConnection(connection as unknown as any);
+
+        return NextResponse.json({ success: true, result });
+    } catch (error: any) {
+        console.error('Sync error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}

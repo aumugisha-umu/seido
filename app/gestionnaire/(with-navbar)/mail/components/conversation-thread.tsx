@@ -1,6 +1,6 @@
 'use client'
 
-import { DummyEmail } from './dummy-data'
+import { MailboxEmail } from './types'
 import { Card, CardContent } from '@/components/ui/card'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -10,10 +10,10 @@ import { Paperclip } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 
 interface ConversationThreadProps {
-  emails: DummyEmail[]
+  emails: MailboxEmail[]
 }
 
-function EmailThreadItem({ email }: { email: DummyEmail }) {
+function EmailThreadItem({ email }: { email: MailboxEmail }) {
   const sanitizedBody = useMemo(() => {
     return DOMPurify.sanitize(email.body_html, {
       ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'span', 'table', 'tr', 'td', 'th', 'tbody', 'thead', 'img'],
@@ -25,23 +25,6 @@ function EmailThreadItem({ email }: { email: DummyEmail }) {
   return (
     <Card className="border">
       <CardContent className="p-6">
-        {/* Header compact - sans sujet ni badges */}
-        <div className="mb-4 pb-4 border-b">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground flex-nowrap min-w-0">
-            <span className="font-medium text-foreground shrink-0 hidden sm:inline">From:</span>
-            <span className="min-w-0 truncate">{email.sender_name} ({email.sender_email})</span>
-            <span className="shrink-0">•</span>
-            <span className="shrink-0 whitespace-nowrap">
-              <span className="sm:hidden">
-                {format(new Date(email.received_at), 'dd/MM/yy', { locale: fr })}
-              </span>
-              <span className="hidden sm:inline">
-                {format(new Date(email.received_at), 'PPp', { locale: fr })}
-              </span>
-            </span>
-          </div>
-        </div>
-
         {/* Email body */}
         <div
           className="w-full break-words [&_*]:max-w-full [&_*]:box-border [&_div]:block [&_div]:w-full [&_table]:w-full prose prose-sm max-w-none"

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
-import { notificationService } from '@/lib/notification-service'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { selectSlotSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
@@ -255,9 +254,9 @@ export async function PUT(
           teamId: intervention.team_id!,
           createdBy: user.id,
           type: 'intervention',
-          priority: 'high',
           title: 'Intervention planifiée',
           message: `Votre intervention "${intervention.title}" a été planifiée pour le ${new Date(selectedSlot.date).toLocaleDateString('fr-FR')} de ${selectedSlot.startTime} à ${selectedSlot.endTime}.`,
+          isPersonal: true, // Locataire toujours personnel
           metadata: {
             interventionId: intervention.id,
             interventionTitle: intervention.title,
@@ -270,30 +269,34 @@ export async function PUT(
       )
     }
 
-    // Notify assigned contacts (prestataires/gestionnaires) if they're not the one who selected
-    for (const contact of intervention.intervention_contacts) {
-      if (contact.user_id !== user.id) {
-        notificationPromises.push(
-          notificationService.createNotification({
-            userId: contact.user_id,
-            teamId: intervention.team_id!,
-            createdBy: user.id,
-            type: 'intervention',
-            priority: 'high',
-            title: 'Intervention planifiée',
-            message: `L'intervention "${intervention.title}" a été planifiée pour le ${new Date(selectedSlot.date).toLocaleDateString('fr-FR')} de ${selectedSlot.startTime} à ${selectedSlot.endTime}.`,
-            metadata: {
-              interventionId: intervention.id,
-              interventionTitle: intervention.title,
-              scheduledDate: scheduledDateTime,
-              scheduledBy: user.name,
-              userRole: contact.user.role
-            },
-            relatedEntityType: 'intervention',
-            relatedEntityId: intervention.id
-          })
-        )
-      }
+    // Notify assigned contacts from intervention_assignments (prestataires/gestionnaires) if they're not the one who selected
+    const { data: assignments } = await supabase
+      .from('intervention_assignments')
+      .select('user_id, role, is_primary')
+      .eq('intervention_id', intervention.id)
+      .neq('user_id', user.id)
+
+    for (const assignment of assignments || []) {
+      notificationPromises.push(
+        notificationService.createNotification({
+          userId: assignment.user_id,
+          teamId: intervention.team_id!,
+          createdBy: user.id,
+          type: 'intervention',
+          title: 'Intervention planifiée',
+          message: `L'intervention "${intervention.title}" a été planifiée pour le ${new Date(selectedSlot.date).toLocaleDateString('fr-FR')} de ${selectedSlot.startTime} à ${selectedSlot.endTime}.`,
+          isPersonal: assignment.is_primary ?? true, // Assigné = personnel
+          metadata: {
+            interventionId: intervention.id,
+            interventionTitle: intervention.title,
+            scheduledDate: scheduledDateTime,
+            scheduledBy: user.name,
+            userRole: assignment.role
+          },
+          relatedEntityType: 'intervention',
+          relatedEntityId: intervention.id
+        })
+      )
     }
 
     // Send all notifications

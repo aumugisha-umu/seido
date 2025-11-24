@@ -145,27 +145,39 @@ export default function NotificationPopover({
             </Badge>
           )}
         </div>
-        {hasUnread && !loading && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleMarkAllAsRead}
-            disabled={markingAllAsRead}
-            className="h-8 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-          >
-            {markingAllAsRead ? (
-              <>
-                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                Marquage...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="h-3 w-3 mr-1" />
-                Tout marquer lu
-              </>
-            )}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {hasUnread && !loading && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleMarkAllAsRead}
+              disabled={markingAllAsRead}
+              className="h-8 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            >
+              {markingAllAsRead ? (
+                <>
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  Marquage...
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Tout marquer lu
+                </>
+              )}
+            </Button>
+          )}
+          <Link href={`/${role}/notifications`} onClick={onClose}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+            >
+              <ExternalLink className="h-3 w-3 mr-1" />
+              Voir tout
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Content */}

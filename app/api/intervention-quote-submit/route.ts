@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { notificationService } from '@/lib/notification-service'
+import { createCustomNotification } from '@/app/actions/notification-actions'
+import { createEmailNotificationService } from '@/lib/services/domain/email-notification.service'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
@@ -188,22 +189,20 @@ export async function POST(request: NextRequest) {
     try {
       const { data: managers } = await supabase
         .from('intervention_assignments')
-        .select('user:users!user_id(id, name, email)')
+        .select('user:users!user_id(id, name, email), is_primary')
         .eq('intervention_id', interventionId)
         .eq('role', 'gestionnaire')
 
       if (managers && managers.length > 0) {
         const notificationPromises = managers.map(async (manager) => {
           if (!manager.user) return
-          return notificationService.createNotification({
+          return createCustomNotification({
             userId: manager.user.id,
             teamId: intervention.team_id,
-            createdBy: user.id,
             type: 'intervention',
-            priority: 'high',
             title: 'Nouveau devis reçu',
             message: `${user.name} a soumis un devis de ${totalAmount.toFixed(2)}€ pour l'intervention "${intervention.title}"`,
-            isPersonal: true,
+            isPersonal: manager.is_primary ?? true,
             metadata: {
               interventionId,
               interventionTitle: intervention.title,
@@ -222,6 +221,59 @@ export async function POST(request: NextRequest) {
       }
     } catch (notifError) {
       logger.warn({ notifError }, "⚠️ Could not send notifications")
+    }
+
+    // Send email to manager
+    try {
+      const emailService = createEmailNotificationService()
+
+      // Get manager (first one found)
+      const { data: teamMembers } = await supabase
+        .from('team_members')
+        .select('users(id, email, first_name, last_name)')
+        .eq('team_id', intervention.team_id)
+        .eq('role', 'gestionnaire')
+        .limit(1)
+        .single()
+
+      if (teamMembers && teamMembers.users) {
+        const manager = teamMembers.users as any
+
+        // Get property address
+        const { data: interventionDetails } = await supabase
+          .from('interventions')
+          .select(`
+            lot_id,
+            building_id,
+            lots(reference, buildings(address, city)),
+            buildings(address, city)
+          `)
+          .eq('id', interventionId)
+          .single()
+
+        let propertyAddress = 'Adresse non spécifiée'
+        if (interventionDetails) {
+          if (interventionDetails.lot_id && interventionDetails.lots) {
+            const lot = interventionDetails.lots as any
+            const building = lot.buildings
+            propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+          } else if (interventionDetails.building_id && interventionDetails.buildings) {
+            const building = interventionDetails.buildings as any
+            propertyAddress = `${building.address}, ${building.city}`
+          }
+        }
+
+        await emailService.sendQuoteSubmitted({
+          quote: updatedQuote,
+          intervention: intervention as any,
+          property: { address: propertyAddress },
+          manager,
+          provider: user,
+        })
+        logger.info({ quoteId: updatedQuote.id }, '📧 Quote submitted email sent')
+      }
+    } catch (emailError) {
+      logger.warn({ emailError }, '⚠️ Could not send quote submission email')
     }
 
     return NextResponse.json({

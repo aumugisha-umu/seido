@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { quoteApproveSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { createEmailNotificationService } from '@/lib/services/domain/email-notification.service'
 
 export async function POST(
   request: NextRequest,
@@ -166,6 +167,57 @@ export async function POST(
     }
 
     logger.info({}, '🎉 [API-APPROVE] Process completed successfully!')
+
+    // Send email to provider
+    try {
+      const emailService = createEmailNotificationService()
+
+      // Get provider
+      const { data: provider } = await supabase
+        .from('users')
+        .select('id, email, first_name, last_name, company_name')
+        .eq('id', quote.provider_id)
+        .single()
+
+      if (provider) {
+        // Get property address
+        const { data: interventionDetails } = await supabase
+          .from('interventions')
+          .select(`
+            lot_id,
+            building_id,
+            lots(buildings(address, city)),
+            buildings(address, city)
+          `)
+          .eq('id', quote.intervention_id)
+          .single()
+
+        let propertyAddress = 'Adresse non spécifiée'
+        if (interventionDetails) {
+          if (interventionDetails.lot_id && interventionDetails.lots) {
+            const lot = interventionDetails.lots as any
+            const building = lot.buildings
+            propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+          } else if (interventionDetails.building_id && interventionDetails.buildings) {
+            const building = interventionDetails.buildings as any
+            propertyAddress = `${building.address}, ${building.city}`
+          }
+        }
+
+        await emailService.sendQuoteApproved({
+          quote,
+          intervention: quote.intervention as any,
+          property: { address: propertyAddress },
+          manager: userData,
+          provider,
+          approvalNotes: comments,
+        })
+        logger.info({ quoteId: quote.id }, '📧 Quote approved email sent')
+      }
+    } catch (emailError) {
+      logger.warn({ emailError }, '⚠️ Could not send quote approval email')
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Devis approuvé avec succès'

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { notificationService } from '@/lib/notification-service'
+import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
@@ -172,15 +172,23 @@ export async function POST(request: NextRequest) {
 
           // Notify provider of rejection
           try {
+            // Vérifier si le prestataire est assigné à l'intervention
+            const { data: providerAssignment } = await supabase
+              .from('intervention_assignments')
+              .select('id')
+              .eq('intervention_id', quote.intervention_id)
+              .eq('user_id', otherQuote.provider.id)
+              .eq('role', 'prestataire')
+              .maybeSingle()
+
             await notificationService.createNotification({
               userId: otherQuote.provider.id,
               teamId: quote.intervention.team_id,
               createdBy: user.id,
               type: 'intervention',
-              priority: 'normal',
               title: 'Devis non retenu',
               message: `Votre devis pour l'intervention "${quote.intervention.title}" n'a pas été retenu. Un autre prestataire a été sélectionné.`,
-              isPersonal: true,
+              isPersonal: !!providerAssignment,
               metadata: {
                 interventionId: quote.intervention_id,
                 interventionTitle: quote.intervention.title,
@@ -202,17 +210,25 @@ export async function POST(request: NextRequest) {
 
     // Send notification to provider about quote validation
     try {
+      // Vérifier si le prestataire est assigné à l'intervention
+      const { data: providerAssignment } = await supabase
+        .from('intervention_assignments')
+        .select('id')
+        .eq('intervention_id', quote.intervention_id)
+        .eq('user_id', quote.provider.id)
+        .eq('role', 'prestataire')
+        .maybeSingle()
+
       const notificationData = {
         userId: quote.provider.id,
         teamId: quote.intervention.team_id,
         createdBy: user.id,
         type: 'intervention' as const,
-        priority: action === 'approve' ? 'high' : 'normal' as const,
         title: action === 'approve' ? 'Devis approuvé !' : 'Devis rejeté',
         message: action === 'approve'
           ? `Félicitations ! Votre devis de ${quote.total_amount.toFixed(2)}€ pour l'intervention "${quote.intervention.title}" a été approuvé.`
           : `Votre devis pour l'intervention "${quote.intervention.title}" a été rejeté. Motif: ${rejectionReason}`,
-        isPersonal: true,
+        isPersonal: !!providerAssignment,
         metadata: {
           interventionId: quote.intervention_id,
           interventionTitle: quote.intervention.title,
@@ -236,13 +252,17 @@ export async function POST(request: NextRequest) {
     // Send status change notifications if intervention status changed
     if (action === 'approve') {
       try {
-        await notificationService.notifyInterventionStatusChanged(
-          quote.intervention,
-          'demande_de_devis',
-          'planifiee',
-          user.id
-        )
-        logger.info({}, "📧 Intervention status change notifications sent")
+        const notifResult = await notifyInterventionStatusChange({
+          interventionId: quote.intervention.id,
+          oldStatus: 'demande_de_devis',
+          newStatus: 'planifiee'
+        })
+
+        if (notifResult.success) {
+          logger.info({ count: notifResult.data?.length }, "📧 Intervention status change notifications sent")
+        } else {
+          logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed")
+        }
       } catch (notifError) {
         logger.warn({ notifError }, "⚠️ Could not send status change notifications")
       }

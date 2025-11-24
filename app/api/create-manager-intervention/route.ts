@@ -5,6 +5,10 @@ import { logger } from '@/lib/logger'
 import { createQuoteRequestsForProviders } from './create-quote-requests'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { createManagerInterventionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { createServerNotificationRepository } from '@/lib/services'
+import { NotificationService } from '@/lib/services/domain/notification.service'
+import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
+import { NotificationRepository } from '@/lib/services/repositories/notification-repository'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "🔧 create-manager-intervention API route called")
@@ -138,14 +142,14 @@ export async function POST(request: NextRequest) {
       selectedManagerIds: selectedManagerIds?.length || 0,
       hasLogement: !!(selectedBuildingId || selectedLotId)
     }, "🔍 Validating required fields")
-    
+
     if (!title || !description || (!selectedBuildingId && !selectedLotId)) {
       return NextResponse.json({
         success: false,
         error: 'Champs requis manquants (titre, description, logement)'
       }, { status: 400 })
     }
-    
+
     if (!selectedManagerIds || selectedManagerIds.length === 0) {
       return NextResponse.json({
         success: false,
@@ -156,7 +160,7 @@ export async function POST(request: NextRequest) {
     // Get user data from database
     logger.info({}, "👤 Getting user data...")
     logger.info({ authUserId: authUser.id }, "👤 Looking for user with auth_user_id")
-    
+
     // ✅ Utiliser findByAuthUserId au lieu de getById pour la nouvelle structure DB
     let user
     try {
@@ -180,7 +184,7 @@ export async function POST(request: NextRequest) {
         logger.error({ fallbackError }, "❌ Both methods failed")
       }
     }
-    
+
     if (!user) {
       logger.error({ authUserId: authUser.id }, "❌ No user found for auth_user_id")
       return NextResponse.json({
@@ -302,9 +306,15 @@ export async function POST(request: NextRequest) {
 
     // Generate unique reference for the intervention
     const generateReference = () => {
-      const timestamp = new Date().toISOString().slice(2, 10).replace('-', '').replace('-', '') // YYMMDD
-      const random = Math.random().toString(36).substring(2, 6).toUpperCase() // 4 random chars
-      return `INT-${timestamp}-${random}`
+      const now = new Date()
+      const year = String(now.getFullYear()).slice(-2)
+      const month = String(now.getMonth() + 1).padStart(2, '0')
+      const day = String(now.getDate()).padStart(2, '0')
+      const hours = String(now.getHours()).padStart(2, '0')
+      const minutes = String(now.getMinutes()).padStart(2, '0')
+      const seconds = String(now.getSeconds()).padStart(2, '0')
+      const timestamp = `${year}${month}${day}${hours}${minutes}${seconds}`
+      return `INT-${timestamp}`
     }
 
     // Determine scheduled date based on scheduling type
@@ -318,10 +328,10 @@ export async function POST(request: NextRequest) {
 
     // Prepare intervention data
     logger.info({ selectedManagerIds }, "📝 Preparing intervention data with multiple managers")
-    
+
     // ✅ LOGIQUE MÉTIER: Déterminer le statut selon les règles de création par gestionnaire
     let interventionStatus: Database['public']['Enums']['intervention_status']
-    
+
     logger.info({
       hasProviders: selectedProviderIds && selectedProviderIds.length > 0,
       expectsQuote,
@@ -336,7 +346,7 @@ export async function POST(request: NextRequest) {
       interventionStatus = 'demande_de_devis'
       logger.info({}, "✅ Statut déterminé: DEMANDE_DE_DEVIS (prestataires + devis requis)")
 
-    // CAS 2: Planifiée directement si conditions strictes remplies
+      // CAS 2: Planifiée directement si conditions strictes remplies
     } else if (
       selectedManagerIds.length === 1 && // Que le gestionnaire créateur
       (!selectedProviderIds || selectedProviderIds.length === 0) && // Pas de prestataires
@@ -346,12 +356,12 @@ export async function POST(request: NextRequest) {
       interventionStatus = 'planifiee'
       logger.info({}, "✅ Statut déterminé: PLANIFIEE (seul gestionnaire + date fixe)")
 
-    // CAS 3: Planification dans tous les autres cas
+      // CAS 3: Planification dans tous les autres cas
     } else {
       interventionStatus = 'planification'
       logger.info({}, "✅ Statut déterminé: PLANIFICATION (cas par défaut)")
     }
-    
+
     const interventionData: Record<string, unknown> = {
       title,
       description,
@@ -822,6 +832,33 @@ export async function POST(request: NextRequest) {
 
     logger.info({}, "🎉 Manager intervention creation completed successfully")
 
+    // ✅ NOTIFICATIONS: Send notifications to team members
+    try {
+      logger.info({ interventionId: intervention.id }, "📬 [API] Creating intervention notifications")
+
+      // ✅ Use Service Role to bypass RLS for notification context fetching
+      // This ensures we can fetch the full intervention details even if RLS blocked the read for the user
+      const serviceRoleClient = createServiceRoleSupabaseClient()
+      const notificationRepository = new NotificationRepository(serviceRoleClient)
+      const notificationService = new NotificationService(notificationRepository)
+
+      const notifications = await notificationService.notifyInterventionCreated({
+        interventionId: intervention.id,
+        teamId: intervention.team_id,
+        createdBy: user.id
+      })
+
+      logger.info({
+        reference: intervention.reference,
+        title: intervention.title,
+        status: intervention.status,
+        created_at: intervention.created_at
+      }, "✅ [API] Notifications created successfully")
+
+    } catch (error) {
+      logger.error(error, "⚠️ [API] Failed to create notifications")
+    }
+
     return NextResponse.json({
       success: true,
       intervention: {
@@ -835,7 +872,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error({ error }, "❌ Error in create-manager-intervention API")
+    logger.error(error, "❌ Error in create-manager-intervention API")
     logger.error({
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack',

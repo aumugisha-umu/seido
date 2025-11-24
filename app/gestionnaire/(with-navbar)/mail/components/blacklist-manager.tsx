@@ -8,10 +8,10 @@ import { Ban, Trash2, Plus } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
-import { DummyBlacklistEntry } from './dummy-data'
+import { BlacklistEntry } from './types'
 
 interface BlacklistManagerProps {
-  blacklist: DummyBlacklistEntry[]
+  blacklist: BlacklistEntry[]
   onUnblock: (blacklistId: string) => void
   onAddManual: () => void
 }
@@ -27,9 +27,9 @@ export function BlacklistManager({
     setLoading(id)
     try {
       onUnblock(id)
-      toast.success(`Unblocked ${email}`)
+      toast.success(`${email} débloqué`)
     } catch (error) {
-      toast.error('Failed to unblock sender')
+      toast.error('Échec du déblocage de l\'expéditeur')
     } finally {
       setLoading(null)
     }
@@ -41,15 +41,15 @@ export function BlacklistManager({
         <div>
           <CardTitle className="flex items-center gap-2">
             <Ban className="w-5 h-5" />
-            Blocked Senders ({blacklist.length})
+            Expéditeurs bloqués ({blacklist.length})
           </CardTitle>
           <CardDescription className="mt-1">
-            Emails from these senders will be automatically ignored
+            Les emails de ces expéditeurs seront automatiquement ignorés
           </CardDescription>
         </div>
         <Button onClick={onAddManual} size="sm">
           <Plus className="w-4 h-4 mr-1" />
-          Add manually
+          Ajouter manuellement
         </Button>
       </CardHeader>
 
@@ -57,7 +57,7 @@ export function BlacklistManager({
         {blacklist.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Ban className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>No blocked senders yet</p>
+            <p>Aucun expéditeur bloqué pour le moment</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -80,12 +80,12 @@ export function BlacklistManager({
 
                   {entry.reason && (
                     <p className="text-sm text-muted-foreground mb-1">
-                      Reason: {entry.reason}
+                      Raison : {entry.reason}
                     </p>
                   )}
 
                   <p className="text-xs text-muted-foreground">
-                    Blocked by: {entry.is_current_user ? 'You' : entry.blocked_by_user_name}
+                    Bloqué par : {entry.is_current_user ? 'Vous' : entry.blocked_by_user_name}
                     {' • '}
                     {formatDistanceToNow(new Date(entry.created_at), {
                       addSuffix: true,
@@ -101,7 +101,7 @@ export function BlacklistManager({
                   disabled={loading === entry.id}
                 >
                   <Trash2 className="w-4 h-4 mr-1" />
-                  Unblock
+                  Débloquer
                 </Button>
               </div>
             ))}

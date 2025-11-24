@@ -25,20 +25,23 @@ export default async function WithNavbarLayout({
   children: React.ReactNode
 }) {
   // ✅ Fetch data for DashboardHeader (cached via React.cache())
-  const { user, profile } = await getServerAuthContext('gestionnaire')
+  const { user, profile, team } = await getServerAuthContext('gestionnaire')
 
   const userName = profile.name || user.email?.split('@')[0] || 'Utilisateur'
   const userInitial = userName.charAt(0).toUpperCase()
 
   return (
-    <>
+    <div className="flex flex-col h-screen">
       <DashboardHeader
         role="gestionnaire"
         userName={userName}
         userInitial={userInitial}
         userEmail={user.email || ''}
+        teamId={team.id}
       />
-      {children}
-    </>
+      <main className="flex-1 overflow-y-auto">
+        {children}
+      </main>
+    </div>
   )
 }

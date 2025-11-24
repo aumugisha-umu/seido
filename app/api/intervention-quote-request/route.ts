@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { notificationService } from '@/lib/notification-service'
+import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
@@ -261,13 +261,17 @@ export async function POST(request: NextRequest) {
     // Send status change notifications (only if status actually changed)
     if (intervention.status === 'approuvee') {
       try {
-        await notificationService.notifyInterventionStatusChanged(
-          intervention,
-          'approuvee',
-          'demande_de_devis',
-          user.id
-        )
-        logger.info({}, "📧 Status change notifications sent")
+        const notifResult = await notifyInterventionStatusChange({
+          interventionId: intervention.id,
+          oldStatus: 'approuvee',
+          newStatus: 'demande_de_devis'
+        })
+
+        if (notifResult.success) {
+          logger.info({ count: notifResult.data?.length }, "📧 Status change notifications sent")
+        } else {
+          logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed")
+        }
       } catch (notifError) {
         logger.warn({ notifError: notifError }, "⚠️ Could not send status notifications:")
       }

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { notificationService } from '@/lib/notification-service'
+import { createServerNotificationService } from '@/lib/services'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
@@ -195,16 +195,75 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     // Create notification for managers and providers
     logger.info({}, "🔔 [DEBUG] Creating notifications")
     try {
-      await notificationService.notifyAvailabilityResponse({
-        interventionId: id,
-        interventionTitle: intervention.title || `Intervention ${intervention.type || ''}`,
-        responseType: available ? 'accept' : 'reject',
-        tenantName: user.name,
-        message: reason || statusMessage,
-        teamId: intervention.lot?.building?.team_id,
-        lotReference: intervention.lot?.reference
-      })
-      logger.info({}, '✅ Availability response notifications sent')
+      const notificationService = await createServerNotificationService()
+
+      // Get managers and providers assigned to this intervention
+      const { data: assignments } = await supabase
+        .from('intervention_assignments')
+        .select(`
+          user:users!user_id(id, name, email),
+          is_primary,
+          role
+        `)
+        .eq('intervention_id', id)
+        .in('role', ['gestionnaire', 'prestataire'])
+
+      if (!assignments || assignments.length === 0) {
+        logger.warn({}, 'No contacts found for intervention')
+      } else {
+        // Prepare messages based on response type
+        const responseType = available ? 'accept' : 'reject'
+        let managerTitle: string, managerMessage: string, providerTitle: string, providerMessage: string
+
+        if (available) {
+          managerTitle = `Créneaux acceptés - ${intervention.title || `Intervention ${intervention.type || ''}`}`
+          managerMessage = `${user.name} a accepté les créneaux proposés pour l'intervention${intervention.lot?.reference ? ` (${intervention.lot.reference})` : ''}.`
+          providerTitle = `Créneaux acceptés - ${intervention.title || `Intervention ${intervention.type || ''}`}`
+          providerMessage = `Le locataire ${user.name} a accepté vos créneaux proposés${intervention.lot?.reference ? ` (${intervention.lot.reference})` : ''}.`
+        } else {
+          managerTitle = `Créneaux rejetés - ${intervention.title || `Intervention ${intervention.type || ''}`}`
+          managerMessage = `${user.name} a rejeté tous les créneaux proposés pour l'intervention${intervention.lot?.reference ? ` (${intervention.lot.reference})` : ''}.`
+          providerTitle = `Créneaux rejetés - ${intervention.title || `Intervention ${intervention.type || ''}`}`
+          providerMessage = `Le locataire ${user.name} a rejeté vos créneaux proposés${intervention.lot?.reference ? ` (${intervention.lot.reference})` : ''}.`
+        }
+
+        // Add tenant's message/reason if provided
+        const tenantMessage = reason || statusMessage
+        if (tenantMessage) {
+          managerMessage += ` Message: "${tenantMessage}"`
+          providerMessage += ` Message: "${tenantMessage}"`
+        }
+
+        // Send notifications to assigned contacts
+        const notificationPromises = assignments.map(assignment => {
+          const isManager = assignment.role === 'gestionnaire'
+          const title = isManager ? managerTitle : providerTitle
+          const message = isManager ? managerMessage : providerMessage
+
+          return notificationService.createNotification({
+            userId: assignment.user.id,
+            teamId: intervention.lot?.building?.team_id,
+            createdBy: user.id,
+            type: 'intervention',
+            title,
+            message,
+            isPersonal: assignment.is_primary ?? (assignment.role === 'prestataire'), // ✅ Primary ou prestataire assigné
+            metadata: {
+              interventionId: id,
+              interventionTitle: intervention.title || `Intervention ${intervention.type || ''}`,
+              responseType,
+              tenantName: user.name,
+              tenantMessage,
+              actionRequired: available ? 'schedule_intervention' : 'review_availability_response'
+            },
+            relatedEntityType: 'intervention',
+            relatedEntityId: id
+          })
+        })
+
+        await Promise.all(notificationPromises)
+        logger.info({ count: assignments.length }, '✅ Availability response notifications sent to contacts')
+      }
     } catch (notificationError) {
       logger.error({ error: notificationError }, '❌ Error sending availability response notifications:')
       // Don't fail the request for notification errors

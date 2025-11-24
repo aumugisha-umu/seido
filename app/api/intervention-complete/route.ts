@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { notificationService } from '@/lib/notification-service'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
@@ -210,9 +209,9 @@ export async function POST(request: NextRequest) {
           teamId: intervention.team_id,
           createdBy: user.id,
           type: 'intervention',
-          priority: 'high',
           title: 'Intervention terminée - Validation demandée',
           message: notificationMessage,
+          isPersonal: true, // Locataire toujours personnel
           metadata: {
             interventionId: intervention.id,
             interventionTitle: intervention.title,
@@ -245,9 +244,9 @@ export async function POST(request: NextRequest) {
             teamId: intervention.team_id!,
             createdBy: user.id,
             type: 'intervention',
-            priority: 'normal',
             title: 'Intervention terminée par prestataire',
             message: `L'intervention "${intervention.title}" a été terminée par ${user.name}. En attente de validation par le locataire.`,
+            isPersonal: manager.is_primary ?? false, // Basé sur assignation
             metadata: {
               interventionId: intervention.id,
               interventionTitle: intervention.title,

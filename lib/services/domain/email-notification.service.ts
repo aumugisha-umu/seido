@@ -27,6 +27,7 @@ import type { UserRepository } from '@/lib/services/repositories/user-repository
 import type { BuildingRepository } from '@/lib/services/repositories/building-repository'
 import type { LotRepository } from '@/lib/services/repositories/lot-repository'
 import type { Database } from '@/lib/database.types'
+import { determineInterventionRecipients } from './notification-helpers'
 
 // React Email templates
 import InterventionCreatedEmail from '@/emails/templates/interventions/intervention-created'
@@ -60,18 +61,6 @@ export interface EmailBatchResult {
   sentCount: number
   failedCount: number
   results: EmailRecipientResult[]
-}
-
-/**
- * Données enrichies d'une intervention pour les templates
- */
-interface EnrichedInterventionData {
-  intervention: Database['public']['Tables']['interventions']['Row']
-  building: Database['public']['Tables']['buildings']['Row'] | null
-  lot: Database['public']['Tables']['lots']['Row'] | null
-  tenant: Database['public']['Tables']['users']['Row'] | null
-  manager: Database['public']['Tables']['users']['Row'] | null
-  provider: Database['public']['Tables']['users']['Row'] | null
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -126,23 +115,135 @@ export class EmailNotificationService {
         }
       }
 
-      // 2. Récupérer les données enrichies de l'intervention
-      const enrichedData = await this.fetchEnrichedInterventionData(interventionId)
+      // 2. Récupérer l'intervention complète avec tous les détails
+      logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] Step 2: Fetching intervention details')
+      const interventionResult = await this.interventionRepository.findById(interventionId)
 
-      if (!enrichedData) {
-        throw new Error(`Intervention ${interventionId} not found or data incomplete`)
+      if (!interventionResult.success || !interventionResult.data) {
+        logger.error({
+          interventionId,
+          error: interventionResult.error || 'Not found'
+        }, '❌ [EMAIL-NOTIFICATION] Intervention not found')
+        throw new Error(`Intervention ${interventionId} not found`)
       }
 
-      // 3. Récupérer les destinataires depuis le repository
-      const recipients = await this.notificationRepository.getNotificationRecipients(
+      const intervention = interventionResult.data
+
+      logger.info({
         interventionId,
-        notificationType
+        hasBuilding: !!intervention.building_id,
+        hasLot: !!intervention.lot_id,
+        hasCreatedBy: !!intervention.created_by
+      }, '✅ [EMAIL-NOTIFICATION] Intervention loaded')
+
+      // 3. Récupérer l'intervention enrichie avec managers (pour destinataires)
+      logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] Step 3: Fetching intervention with managers')
+      const interventionWithManagers = await this.notificationRepository.getInterventionWithManagers(interventionId)
+
+      if (!interventionWithManagers) {
+        logger.error({ interventionId }, '❌ [EMAIL-NOTIFICATION] Intervention managers data not found')
+        throw new Error(`Intervention ${interventionId} managers data not found`)
+      }
+
+      logger.info({
+        interventionId,
+        assignedManagers: interventionWithManagers.interventionAssignedManagers?.length || 0,
+        assignedProviders: interventionWithManagers.interventionAssignedProviders?.length || 0,
+        assignedTenants: interventionWithManagers.interventionAssignedTenants?.length || 0,
+        teamMembers: interventionWithManagers.teamMembers?.length || 0
+      }, '✅ [EMAIL-NOTIFICATION] Intervention with managers loaded')
+
+      // 4. Récupérer les données additionnelles (building, lot)
+      logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] Step 4: Fetching building and lot')
+      const buildingResult = intervention.building_id
+        ? await this.buildingRepository.findById(intervention.building_id)
+        : null
+
+      const lotResult = intervention.lot_id
+        ? await this.lotRepository.findById(intervention.lot_id)
+        : null
+
+      const building = buildingResult?.success ? buildingResult.data : null
+      const lot = lotResult?.success ? lotResult.data : null
+
+      logger.info({
+        interventionId,
+        hasBuilding: !!building,
+        hasLot: !!lot
+      }, '✅ [EMAIL-NOTIFICATION] Building and lot fetched')
+
+      // 5. Récupérer le créateur
+      logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] Step 5: Fetching creator')
+      const creatorResult = intervention.created_by
+        ? await this.userRepository.findById(intervention.created_by)
+        : null
+
+      const creator = creatorResult?.success ? creatorResult.data : null
+
+      logger.info({
+        interventionId,
+        hasCreator: !!creator,
+        creatorId: intervention.created_by
+      }, '✅ [EMAIL-NOTIFICATION] Creator fetched')
+
+      // 6. Déterminer les destinataires avec le helper partagé
+      logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] Step 6: Determining recipients')
+      const recipientList = determineInterventionRecipients(
+        interventionWithManagers,
+        interventionWithManagers.created_by // Exclure le créateur
       )
 
-      if (recipients.length === 0) {
-        logger.info(
+      logger.info({
+        interventionId,
+        recipientCount: recipientList.length,
+        recipients: recipientList.map(r => ({ userId: r.userId, isPersonal: r.isPersonal }))
+      }, '✅ [EMAIL-NOTIFICATION] Recipients determined')
+
+      if (recipientList.length === 0) {
+        logger.warn(
           { interventionId },
-          '📧 [EMAIL-NOTIFICATION] No recipients found for intervention'
+          '⚠️ [EMAIL-NOTIFICATION] No recipients found for intervention'
+        )
+        return {
+          success: true,
+          sentCount: 0,
+          failedCount: 0,
+          results: [],
+        }
+      }
+
+      // 7. Récupérer les détails des utilisateurs (email, first_name, role) en batch
+      logger.info({ interventionId, userIdCount: recipientList.length }, '📧 [EMAIL-NOTIFICATION] Step 7: Fetching user details')
+      const userIds = recipientList.map(r => r.userId)
+      const usersResult = await this.userRepository.findByIds(userIds)
+
+      if (!usersResult.success || !usersResult.data) {
+        logger.error({
+          interventionId,
+          error: usersResult.error || 'Unknown error'
+        }, '❌ [EMAIL-NOTIFICATION] Failed to fetch user details')
+        throw new Error('Failed to fetch user details for recipients')
+      }
+
+      logger.info({
+        interventionId,
+        usersFound: usersResult.data.length,
+        usersRequested: userIds.length
+      }, '✅ [EMAIL-NOTIFICATION] User details fetched')
+
+      // Filtrer uniquement les utilisateurs avec email
+      const recipients = usersResult.data.filter(user => user.email)
+
+      logger.info({
+        interventionId,
+        recipientsWithEmail: recipients.length,
+        recipientsWithoutEmail: usersResult.data.length - recipients.length
+      }, '✅ [EMAIL-NOTIFICATION] Recipients filtered by email')
+
+      if (recipients.length === 0) {
+        logger.warn(
+          { interventionId, totalRecipients: userIds.length },
+          '⚠️ [EMAIL-NOTIFICATION] No recipients with email found'
         )
         return {
           success: true,
@@ -153,74 +254,75 @@ export class EmailNotificationService {
       }
 
       logger.info(
-        { interventionId, count: recipients.length },
-        '📧 [EMAIL-NOTIFICATION] Found recipients'
+        { interventionId, count: recipients.length, totalRecipients: userIds.length },
+        '📧 [EMAIL-NOTIFICATION] Found recipients with email'
       )
 
-      // 4. Préparer les emails pour chaque destinataire
-      const emailPromises = recipients.map(async (recipient) => {
-        try {
-          // Construire les props pour le template React Email
-          const emailProps: InterventionCreatedEmailProps = {
-            firstName: recipient.first_name || recipient.email.split('@')[0],
-            interventionRef: enrichedData.intervention.reference || 'N/A',
-            interventionType: enrichedData.intervention.type || 'Intervention',
-            description: enrichedData.intervention.description || '',
-            propertyAddress: enrichedData.building?.address || 'Adresse non disponible',
-            lotReference: enrichedData.lot?.reference,
-            interventionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/${recipient.role}/interventions/${interventionId}`,
-            tenantName:
-              enrichedData.tenant
-                ? `${enrichedData.tenant.first_name || ''} ${enrichedData.tenant.last_name || ''}`.trim()
-                : 'Locataire',
-            urgency: (enrichedData.intervention.urgency as 'faible' | 'moyenne' | 'haute' | 'critique') || 'moyenne',
-            createdAt: new Date(enrichedData.intervention.created_at),
-          }
+      // 8. Préparer tous les emails pour le batch (1 seule requête HTTP)
+      logger.info({ interventionId, recipientCount: recipients.length }, '📧 [EMAIL-NOTIFICATION] Step 8: Preparing batch emails')
 
-          // Envoyer l'email via EmailService
-          const result = await this.emailService.send({
-            to: recipient.email,
-            subject: `🏠 Nouvelle intervention ${emailProps.interventionRef} - ${emailProps.interventionType}`,
-            react: InterventionCreatedEmail(emailProps),
-            tags: [
-              { name: 'type', value: 'intervention_created' },
-              { name: 'intervention_id', value: interventionId },
-              { name: 'user_role', value: recipient.role },
-            ],
-          })
+      // Mapper urgency de la DB vers le template
+      const urgencyMap: Record<string, 'faible' | 'moyenne' | 'haute' | 'critique'> = {
+        'basse': 'faible',
+        'normale': 'moyenne',
+        'haute': 'haute',
+        'urgente': 'critique'
+      }
 
-          return {
-            userId: recipient.id,
-            email: recipient.email,
-            success: result.success,
-            emailId: result.emailId,
-            error: result.error,
-          } satisfies EmailRecipientResult
-        } catch (error) {
-          logger.error(
-            { error, userId: recipient.id, email: recipient.email },
-            '❌ [EMAIL-NOTIFICATION] Failed to send email to recipient'
-          )
-          return {
-            userId: recipient.id,
-            email: recipient.email,
-            success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
-          } satisfies EmailRecipientResult
+      const emailsToSend = recipients.map((recipient) => {
+        // Construire les props pour le template React Email
+        const emailProps: InterventionCreatedEmailProps = {
+          firstName: recipient.first_name || recipient.email.split('@')[0],
+          interventionRef: intervention.reference || 'N/A',
+          interventionType: intervention.type || 'Intervention',
+          description: intervention.description || intervention.title || '',
+          propertyAddress: building?.address || 'Adresse non disponible',
+          lotReference: lot?.reference,
+          interventionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/${recipient.role}/interventions/${interventionId}`,
+          tenantName:
+            creator
+              ? `${creator.first_name || ''} ${creator.last_name || ''}`.trim()
+              : 'Créateur',
+          urgency: urgencyMap[intervention.urgency || 'normale'] || 'moyenne',
+          createdAt: new Date(intervention.created_at),
+        }
+
+        return {
+          to: recipient.email,
+          subject: `🏠 Nouvelle intervention ${emailProps.interventionRef} - ${emailProps.interventionType}`,
+          react: InterventionCreatedEmail(emailProps),
+          tags: [
+            { name: 'type', value: 'intervention_created' },
+            { name: 'intervention_id', value: interventionId },
+            { name: 'user_role', value: recipient.role },
+          ],
         }
       })
 
-      // 5. Attendre tous les envois (Promise.allSettled pour graceful degradation)
-      const results = await Promise.all(emailPromises)
+      // 9. Envoyer via Resend Batch API (1 seule requête pour tous les emails)
+      logger.info({ interventionId, emailCount: emailsToSend.length }, '📧 [EMAIL-NOTIFICATION] Step 9: Sending batch via Resend')
+      const batchResult = await this.emailService.sendBatch(emailsToSend)
 
-      // 6. Calculer les statistiques
+      // 10. Mapper les résultats batch vers le format EmailRecipientResult
+      const results: EmailRecipientResult[] = batchResult.results.map((result) => {
+        const recipient = recipients[result.index]
+        return {
+          userId: recipient.id,
+          email: recipient.email,
+          success: !result.error,
+          emailId: result.emailId,
+          error: result.error,
+        }
+      })
+
+      // 11. Calculer les statistiques
       const sentCount = results.filter((r) => r.success).length
       const failedCount = results.filter((r) => !r.success).length
       const timing = Date.now() - startTime
 
       logger.info(
-        { interventionId, sentCount, failedCount, timing },
-        '✅ [EMAIL-NOTIFICATION] Batch email sending completed'
+        { interventionId, sentCount, failedCount, timing, totalEmails: recipients.length },
+        '✅ [EMAIL-NOTIFICATION] Batch email sending completed via Resend Batch API'
       )
 
       return {
@@ -232,7 +334,13 @@ export class EmailNotificationService {
     } catch (error) {
       const timing = Date.now() - startTime
       logger.error(
-        { error, interventionId, timing },
+        {
+          interventionId,
+          timing,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error',
+          errorStack: error instanceof Error ? error.stack : undefined,
+          error: error
+        },
         '❌ [EMAIL-NOTIFICATION] Failed to send intervention created batch'
       )
       return {
@@ -275,66 +383,6 @@ export class EmailNotificationService {
       sentCount: 0,
       failedCount: 0,
       results: [],
-    }
-  }
-
-  /**
-   * Récupère les données enrichies d'une intervention
-   * (intervention + building + lot + tenant + manager)
-   *
-   * @param interventionId - ID de l'intervention
-   * @returns Données enrichies ou null si introuvable
-   */
-  private async fetchEnrichedInterventionData(
-    interventionId: string
-  ): Promise<EnrichedInterventionData | null> {
-    try {
-      // 1. Récupérer l'intervention
-      const intervention = await this.interventionRepository.getById(interventionId)
-      if (!intervention) {
-        logger.warn({ interventionId }, '⚠️ [EMAIL-NOTIFICATION] Intervention not found')
-        return null
-      }
-
-      // 2. Récupérer le building
-      const building = intervention.building_id
-        ? await this.buildingRepository.getById(intervention.building_id)
-        : null
-
-      // 3. Récupérer le lot
-      const lot = intervention.lot_id
-        ? await this.lotRepository.getById(intervention.lot_id)
-        : null
-
-      // 4. Récupérer le tenant (locataire créateur)
-      const tenant = intervention.tenant_id
-        ? await this.userRepository.getById(intervention.tenant_id)
-        : null
-
-      // 5. Récupérer le manager (gestionnaire assigné)
-      const manager = intervention.assigned_to
-        ? await this.userRepository.getById(intervention.assigned_to)
-        : null
-
-      // 6. Récupérer le provider (prestataire assigné)
-      const provider = intervention.provider_id
-        ? await this.userRepository.getById(intervention.provider_id)
-        : null
-
-      return {
-        intervention,
-        building,
-        lot,
-        tenant,
-        manager,
-        provider,
-      }
-    } catch (error) {
-      logger.error(
-        { error, interventionId },
-        '❌ [EMAIL-NOTIFICATION] Failed to fetch enriched intervention data'
-      )
-      return null
     }
   }
 

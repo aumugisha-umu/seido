@@ -18,83 +18,21 @@
 import type { NotificationRepository } from '../repositories/notification-repository'
 import type { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
+import {
+  determineInterventionRecipients,
+  determineBuildingRecipients,
+  determineLotRecipients,
+  determineContactRecipients,
+  formatInterventionMessage,
+  truncate,
+  type NotificationRecipient,
+  type InterventionWithManagers,
+  type BuildingWithManagers,
+  type LotWithManagers,
+  type ContactWithManagers
+} from './notification-helpers'
 
 type NotificationType = Database['public']['Enums']['notification_type']
-
-/**
- * Recipient pour une notification
- */
-interface NotificationRecipient {
-  userId: string
-  isPersonal: boolean // true = notification personnelle, false = notification d'équipe
-}
-
-/**
- * Intervention enrichie avec managers
- */
-interface InterventionWithManagers {
-  id: string
-  title: string
-  reference: string
-  lot_id: string | null
-  team_id: string
-  created_by: string
-  assigned_to: string | null
-  manager_id: string | null
-  interventionAssignedManagers: string[] // IDs des gestionnaires assignés à CETTE intervention (via intervention_assignments)
-  interventionAssignedProviders: string[] // IDs des prestataires assignés à CETTE intervention (via intervention_assignments)
-  interventionAssignedTenants: string[] // IDs des locataires assignés à CETTE intervention (via intervention_assignments)
-  buildingManagers: string[] // IDs des gestionnaires du bâtiment (contexte, ne PAS utiliser pour is_personal)
-  lotManagers: string[] // IDs des gestionnaires du lot (contexte, ne PAS utiliser pour is_personal)
-  teamMembers: Array<{ id: string; role: string; name: string }>
-  lot?: {
-    reference: string
-    building?: {
-      name: string
-    }
-  }
-}
-
-/**
- * Bâtiment enrichi avec managers
- */
-interface BuildingWithManagers {
-  id: string
-  name: string
-  address: string
-  team_id: string
-  buildingManagers: string[] // IDs des gestionnaires principaux
-  teamMembers: Array<{ id: string; role: string; name: string }>
-}
-
-/**
- * Lot enrichi avec managers
- */
-interface LotWithManagers {
-  id: string
-  reference: string
-  building_id: string
-  team_id: string
-  lotManagers: string[] // IDs des gestionnaires du lot
-  buildingManagers: string[] // IDs des gestionnaires du bâtiment parent
-  teamMembers: Array<{ id: string; role: string; name: string }>
-  building?: {
-    name: string
-  }
-}
-
-/**
- * Contact enrichi avec managers
- */
-interface ContactWithManagers {
-  id: string
-  first_name: string
-  last_name: string
-  type: string
-  team_id: string
-  relatedBuildingManagers: string[] // Gestionnaires des bâtiments liés
-  teamMembers: Array<{ id: string; role: string; name: string }>
-}
 
 /**
  * Notification Domain Service
@@ -255,7 +193,7 @@ export class NotificationService {
     const assignmentMap = await this.getAssignedUsersWithRoles(interventionId)
 
     // 3. Déterminer les destinataires (business logic) - EXCLUT le créateur
-    const recipients = this.determineInterventionRecipients(intervention, createdBy)
+    const recipients = determineInterventionRecipients(intervention, createdBy)
 
     // 4. Créer les notifications avec titre amélioré et messages adaptés par rôle
     const notifications = await Promise.all(
@@ -380,7 +318,7 @@ export class NotificationService {
     createdBy: string
   }) {
     const building = await this.repository.getBuildingWithManagers(buildingId)
-    const recipients = this.determineBuildingRecipients(building, createdBy)
+    const recipients = determineBuildingRecipients(building, createdBy)
 
     const notifications = await Promise.all(
       recipients.map(recipient => {
@@ -425,7 +363,7 @@ export class NotificationService {
     changes: Record<string, any>
   }) {
     const building = await this.repository.getBuildingWithManagers(buildingId)
-    const recipients = this.determineBuildingRecipients(building, updatedBy)
+    const recipients = determineBuildingRecipients(building, updatedBy)
 
     const notifications = await Promise.all(
       recipients.map(recipient => {
@@ -468,7 +406,7 @@ export class NotificationService {
     deletedBy: string
   }) {
     const buildingWithManagers = await this.repository.getBuildingWithManagers(building.id)
-    const recipients = this.determineBuildingRecipients(buildingWithManagers, deletedBy)
+    const recipients = determineBuildingRecipients(buildingWithManagers, deletedBy)
 
     const notifications = await Promise.all(
       recipients.map(recipient => {
@@ -510,7 +448,7 @@ export class NotificationService {
     createdBy: string
   }) {
     const lot = await this.repository.getLotWithManagers(lotId)
-    const recipients = this.determineLotRecipients(lot, createdBy)
+    const recipients = determineLotRecipients(lot, createdBy)
 
     const notifications = await Promise.all(
       recipients.map(recipient => {
@@ -562,7 +500,7 @@ export class NotificationService {
     changes: Record<string, any>
   }) {
     const lot = await this.repository.getLotWithManagers(lotId)
-    const recipients = this.determineLotRecipients(lot, updatedBy)
+    const recipients = determineLotRecipients(lot, updatedBy)
 
     const notifications = await Promise.all(
       recipients.map(recipient => {
@@ -606,7 +544,7 @@ export class NotificationService {
     deletedBy: string
   }) {
     const lotWithManagers = await this.repository.getLotWithManagers(lot.id)
-    const recipients = this.determineLotRecipients(lotWithManagers, deletedBy)
+    const recipients = determineLotRecipients(lotWithManagers, deletedBy)
 
     const notifications = await Promise.all(
       recipients.map(recipient => {
@@ -648,7 +586,7 @@ export class NotificationService {
     createdBy: string
   }) {
     const contact = await this.repository.getContactWithManagers(contactId)
-    const recipients = this.determineContactRecipients(contact, createdBy)
+    const recipients = determineContactRecipients(contact, createdBy)
 
     const notifications = await Promise.all(
       recipients.map(recipient => {
@@ -679,126 +617,11 @@ export class NotificationService {
   }
 
   // ============================================================================
-  // PRIVATE METHODS (Business Logic)
+  // PRIVATE METHODS (Business Logic) - NOW USING SHARED HELPERS
   // ============================================================================
 
-  /**
-   * Déterminer les destinataires pour une intervention
-   */
-  private determineInterventionRecipients(
-    intervention: InterventionWithManagers,
-    excludeUserId: string
-  ): NotificationRecipient[] {
-    const recipients: NotificationRecipient[] = []
-    const processedUserIds = new Set<string>()
-
-    // 1. Ajouter tous les utilisateurs directement assignés à l'intervention (gestionnaires, prestataires, locataires)
-    const directlyAssignedIds = [
-      ...intervention.interventionAssignedManagers,
-      ...intervention.interventionAssignedProviders,
-      ...intervention.interventionAssignedTenants // ← FIX: Inclure les locataires assignés
-    ]
-
-    directlyAssignedIds.forEach(userId => {
-      if (userId !== excludeUserId && !processedUserIds.has(userId)) {
-        recipients.push({
-          userId,
-          isPersonal: true // Assigné directement = notification personnelle
-        })
-        processedUserIds.add(userId)
-      }
-    })
-
-    // 2. Ajouter les gestionnaires de l'équipe non encore inclus (notification d'équipe)
-    intervention.teamMembers
-      .filter(member =>
-        member.role === 'gestionnaire' &&
-        member.id !== excludeUserId &&
-        !processedUserIds.has(member.id)
-      )
-      .forEach(manager => {
-        recipients.push({
-          userId: manager.id,
-          isPersonal: false // Gestionnaire d'équipe = notification d'équipe
-        })
-        processedUserIds.add(manager.id)
-      })
-
-    return recipients
-  }
-
-
-  /**
-   * Déterminer les destinataires pour un lot
-   */
-  private determineLotRecipients(
-  lot: LotWithManagers,
-  excludeUserId: string
-): NotificationRecipient[] {
-  const directResponsibles = new Set<string>()
-
-  lot.lotManagers.forEach(id => {
-    if (id !== excludeUserId) directResponsibles.add(id)
-  })
-
-  lot.buildingManagers.forEach(id => {
-    if (id !== excludeUserId) directResponsibles.add(id)
-  })
-
-  const allManagers = lot.teamMembers
-    .filter(member => member.role === 'gestionnaire' && member.id !== excludeUserId)
-
-  return allManagers.map(manager => ({
-    userId: manager.id,
-    isPersonal: directResponsibles.has(manager.id)
-  }))
-}
-
-  /**
-   * Déterminer les destinataires pour un contact
-   */
-  private determineContactRecipients(
-  contact: ContactWithManagers,
-  excludeUserId: string
-): NotificationRecipient[] {
-  const directResponsibles = new Set(
-    contact.relatedBuildingManagers.filter(id => id !== excludeUserId)
-  )
-
-  const allManagers = contact.teamMembers
-    .filter(member => member.role === 'gestionnaire' && member.id !== excludeUserId)
-
-  return allManagers.map(manager => ({
-    userId: manager.id,
-    isPersonal: directResponsibles.has(manager.id)
-  }))
-}
-
-  /**
-   * Formater le message d'intervention
-   */
-  private formatInterventionMessage(
-  intervention: InterventionWithManagers,
-  isPersonal: boolean,
-  action: 'created' | 'status_change'
-): string {
-  const lotRef = intervention.lot?.reference ? ` pour ${intervention.lot.reference}` : ''
-
-  if (action === 'created') {
-    return isPersonal
-      ? `Une nouvelle intervention "${intervention.title}"${lotRef} vous concerne directement`
-      : `Une nouvelle intervention "${intervention.title}"${lotRef} a été créée`
-  }
-
-  return `L'intervention "${intervention.title}"${lotRef} a été mise à jour`
-}
-
-  /**
-   * Tronquer un texte
-   */
-  private truncate(text: string, maxLength: number): string {
-  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
-}
+  // Note: Business logic methods moved to notification-helpers.ts
+  // This allows sharing logic between NotificationService (DB) and EmailNotificationService (Email)
 
   // LEGACY METHOD REMOVED - Duplicate with improved method above (lines 106-171)
   // The main notifyInterventionCreated() method now handles all the logic

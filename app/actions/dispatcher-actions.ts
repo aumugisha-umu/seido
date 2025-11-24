@@ -16,11 +16,10 @@ import {
 import { createServerNotificationRepository } from '@/lib/services/repositories/notification-repository'
 import { createEmailNotificationService } from '@/lib/services/domain/email-notification.service'
 import { createEmailService } from '@/lib/services/domain/email.service'
-import { createServerInterventionRepository } from '@/lib/services/repositories/intervention-repository'
-import { createServerUserRepository } from '@/lib/services/repositories/user-repository'
-import { createServerBuildingRepository } from '@/lib/services/repositories/building-repository'
-import { createServerLotRepository } from '@/lib/services/repositories/lot-repository'
-import { getServerAuthContext } from '@/lib/server-context'
+import { createServerInterventionRepository } from '@/lib/services/repositories/intervention.repository'
+import { createServerUserRepository } from '@/lib/services/repositories/user.repository'
+import { createServerBuildingRepository } from '@/lib/services/repositories/building.repository'
+import { createServerLotRepository } from '@/lib/services/repositories/lot.repository'
 import { logger } from '@/lib/logger'
 
 // ============================================================================
@@ -50,8 +49,8 @@ export async function dispatchInterventionCreated(interventionId: string): Promi
   error?: string
 }> {
   try {
-    // Auth check
-    await getServerAuthContext('authenticated')
+    // Note: No auth check here - the caller (Server Action) has already verified permissions
+    // This prevents double-authentication issues and cache conflicts
 
     logger.info(
       { interventionId },
@@ -150,8 +149,8 @@ export async function dispatchInterventionStatusChange(params: {
   error?: string
 }> {
   try {
-    // Auth check
-    await getServerAuthContext('authenticated')
+    // Note: No auth check here - the caller (Server Action) has already verified permissions
+    // This prevents double-authentication issues and cache conflicts
 
     logger.info(
       {

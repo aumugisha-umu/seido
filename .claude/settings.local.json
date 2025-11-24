@@ -17,7 +17,9 @@
       "WebFetch(domain:www.smovin.app)",
       "Bash(node -e:*)",
       "Bash(ls:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(powershell:*)",
+      "WebFetch(domain:resend.com)"
     ],
     "deny": [],
     "ask": []

@@ -75,7 +75,19 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
     // Quotes (provider can only see their own quotes)
     supabase
       .from('intervention_quotes')
-      .select('*, provider:users!provider_id(*)')
+      .select(`
+        id,
+        intervention_id,
+        provider_id,
+        amount,
+        description,
+        line_items,
+        status,
+        quote_type,
+        created_at,
+        updated_at,
+        provider:users!provider_id(*)
+      `)
       .eq('intervention_id', id)
       .eq('provider_id', userData.id)
       .is('deleted_at', null)

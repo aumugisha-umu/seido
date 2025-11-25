@@ -132,7 +132,7 @@ export function InterventionActionButtons({
   const getCurrentUserQuote = () => {
     if (userRole !== 'prestataire' || !intervention.quotes) return null
     return intervention.quotes.find(quote =>
-      quote.providerId === userId || (quote as any).submitted_by === userId
+      quote.providerId === userId || (quote as any).created_by === userId
     )
   }
 

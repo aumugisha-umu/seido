@@ -215,7 +215,7 @@ export const usePrestataireData = (userId: string) => {
           const [{ data: quotes }, { data: timeSlots }, { data: assignments }] = await Promise.all([
             supabase
               .from('intervention_quotes')
-              .select('id, status, provider_id, submitted_by, amount')
+              .select('id, status, provider_id, created_by, amount')
               .eq('intervention_id', intervention.id)
               .is('deleted_at', null),
             supabase

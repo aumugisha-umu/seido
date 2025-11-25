@@ -188,15 +188,15 @@ export function InterventionsSectionClient({ interventions, actionHooks, onActiv
             <h2 className="text-xs sm:text-sm font-semibold text-gray-900 leading-tight">Interventions</h2>
           </div>
           <div className="flex items-center gap-1 flex-shrink-0">
-            <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white h-6 sm:h-7 px-1.5 sm:px-2 text-xs">
+            <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm">
               <Link href="/gestionnaire/interventions/nouvelle-intervention" className="flex items-center">
-                <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5 sm:mr-1" />
+                <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
                 <span className="hidden sm:inline">Ajouter</span>
               </Link>
             </Button>
-            <Button asChild variant="outline" size="sm" className="flex-shrink-0 h-6 sm:h-7 px-1.5 sm:px-2">
+            <Button asChild variant="outline" size="sm" className="flex-shrink-0 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm">
               <Link href="/gestionnaire/interventions" className="flex items-center">
-                <ArrowRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 sm:mr-0.5" />
+                <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-0.5" />
                 <span className="hidden sm:inline text-xs">Toutes</span>
               </Link>
             </Button>

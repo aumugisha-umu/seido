@@ -322,7 +322,7 @@ export function QuoteSubmissionForm({
           if (isEditMode) {
             quoteToast.systemNotification('Devis modifié', `Votre devis de ${calculateTotal().toFixed(2)}€ a été mis à jour`, 'info')
           } else {
-            quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
+          quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
           }
           onSuccess()
 
@@ -346,7 +346,7 @@ export function QuoteSubmissionForm({
   // Now that the modal uses useRef instead of useState, we can pass the function directly
   useEffect(() => {
     if (onSubmitReady) {
-      onSubmitReady(submitWrapper)
+        onSubmitReady(submitWrapper)
     }
   }, [onSubmitReady, submitWrapper])
 
@@ -675,7 +675,7 @@ export function QuoteSubmissionForm({
       if (existingQuote?.id) {
         quoteToast.systemNotification('Devis modifié', `Votre devis de ${calculateTotal().toFixed(2)}€ a été mis à jour`, 'info')
       } else {
-        quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
+      quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
       }
 
       // Appel direct du callback de succès

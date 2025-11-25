@@ -173,7 +173,7 @@ export interface Intervention {
     id: string
     status: string
     provider_id?: string
-    submitted_by?: string
+    created_by?: string
     amount?: number
   }>
   timeSlots?: Array<{

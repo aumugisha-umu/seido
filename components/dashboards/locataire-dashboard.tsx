@@ -306,10 +306,10 @@ export default function LocataireDashboard() {
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
               <Button 
-                className="bg-blue-600 hover:bg-blue-700 text-white h-6 sm:h-7 px-1.5 sm:px-2 text-xs"
+                className="bg-blue-600 hover:bg-blue-700 text-white h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
                 onClick={() => router.push("/locataire/interventions/nouvelle-demande")}
               >
-                <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5 sm:mr-1" />
+                <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
                 <span className="hidden sm:inline">Créer une demande</span>
               </Button>
             </div>

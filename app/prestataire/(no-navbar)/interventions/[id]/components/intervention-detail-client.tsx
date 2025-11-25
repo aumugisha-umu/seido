@@ -360,7 +360,9 @@ export function PrestataireInterventionDetailClient({
                 status: q.status,
                 providerId: q.provider_id,
                 isCurrentUserQuote: q.provider_id === currentUser.id,
-                amount: q.amount
+                amount: q.amount,
+                description: q.description,
+                line_items: q.line_items
               }))
             }}
             userRole="prestataire"

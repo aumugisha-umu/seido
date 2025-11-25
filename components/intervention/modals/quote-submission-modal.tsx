@@ -118,8 +118,7 @@ export function QuoteSubmissionModal({
     <InterventionModalBase
       open={open}
       onOpenChange={onOpenChange}
-      customWidth="900px"
-      customHeight="90vh"
+      size="xl"
     >
       <InterventionModalHeader
         title={hideEstimationSection ? "Ajouter mes disponibilités" : "Soumettre une estimation"}

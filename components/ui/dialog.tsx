@@ -57,11 +57,23 @@ function DialogContent({
   // Check if custom width classes are provided
   // This allows specific dialogs to override the default sm:max-w-lg (512px)
   const hasCustomWidth = className?.includes('w-[') ||
-                         className?.includes('max-w-[') ||
-                         className?.includes('sm:w-') ||
-                         className?.includes('md:w-') ||
-                         className?.includes('lg:w-') ||
-                         className?.includes('xl:w-')
+    className?.includes('max-w-[') ||
+    className?.includes('sm:w-') ||
+    className?.includes('md:w-') ||
+    className?.includes('lg:w-') ||
+    className?.includes('xl:w-') ||
+    // Also detect standard Tailwind max-w classes
+    className?.includes('max-w-sm') ||
+    className?.includes('max-w-md') ||
+    className?.includes('max-w-lg') ||
+    className?.includes('max-w-xl') ||
+    className?.includes('max-w-2xl') ||
+    className?.includes('max-w-3xl') ||
+    className?.includes('max-w-4xl') ||
+    className?.includes('max-w-5xl') ||
+    className?.includes('max-w-6xl') ||
+    className?.includes('max-w-7xl') ||
+    className?.includes('max-w-full')
 
   return (
     <DialogPortal data-slot="dialog-portal">

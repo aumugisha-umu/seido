@@ -366,6 +366,7 @@ export function PrestataireInterventionDetailClient({
             timeSlots={timeSlots}
             onActionComplete={handleActionComplete}
             onOpenQuoteModal={handleOpenQuoteModal}
+            onEditQuote={handleEditQuote}
             onRejectQuoteRequest={handleRejectQuoteRequest}
             onCancelQuote={handleCancelQuote}
             onProposeSlots={handleOpenAvailabilityModal}

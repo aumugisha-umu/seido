@@ -83,6 +83,7 @@ interface InterventionActionButtonsProps {
   compact?: boolean
   onActionComplete?: (navigateToTab?: string) => void
   onOpenQuoteModal?: () => void
+  onEditQuote?: (_quote: Quote) => void
   onCancelQuote?: (_quoteId: string) => void
   onCancelIntervention?: () => void
   onRejectQuoteRequest?: (_quote: Quote) => void
@@ -104,6 +105,7 @@ export function InterventionActionButtons({
   compact = false,
   onActionComplete,
   onOpenQuoteModal,
+  onEditQuote,
   onCancelQuote,
   onCancelIntervention,
   onRejectQuoteRequest,
@@ -129,8 +131,8 @@ export function InterventionActionButtons({
   // Fonction pour détecter le devis existant du prestataire connecté
   const getCurrentUserQuote = () => {
     if (userRole !== 'prestataire' || !intervention.quotes) return null
-    return intervention.quotes.find(quote => 
-      quote.provider_id === userId || quote.submitted_by === userId
+    return intervention.quotes.find(quote =>
+      quote.providerId === userId || (quote as any).submitted_by === userId
     )
   }
 
@@ -473,8 +475,17 @@ export function InterventionActionButtons({
           return
 
         case 'submit_quote':
-        case 'edit_quote':
           if (onOpenQuoteModal) {
+            onOpenQuoteModal()
+          } else {
+            window.location.href = `/prestataire/interventions/${intervention.id}?action=quote`
+          }
+          return
+
+        case 'edit_quote':
+          if (currentUserQuote && onEditQuote) {
+            onEditQuote(currentUserQuote)
+          } else if (onOpenQuoteModal) {
             onOpenQuoteModal()
           } else {
             window.location.href = `/prestataire/interventions/${intervention.id}?action=quote`
@@ -723,13 +734,12 @@ export function InterventionActionButtons({
               {action.badge?.show && (
                 <Badge
                   variant={action.badge.variant === 'default' ? 'secondary' :
-                           action.badge.variant === 'warning' ? 'outline' :
-                           action.badge.variant}
-                  className={`ml-1 text-xs ${
-                    action.badge.variant === 'warning' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                    action.badge.variant === 'warning' ? 'outline' :
+                      action.badge.variant}
+                  className={`ml-1 text-xs ${action.badge.variant === 'warning' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
                     action.badge.variant === 'success' ? 'bg-green-100 text-green-800' :
-                    'bg-slate-200 text-slate-700'
-                  }`}
+                      'bg-slate-200 text-slate-700'
+                    }`}
                 >
                   {action.badge.value}
                 </Badge>
@@ -776,18 +786,18 @@ export function InterventionActionButtons({
               <div>
                 <label className="block text-sm font-medium mb-2">
                   {selectedAction.key === 'reject' ? 'Motif du rejet *' :
-                   selectedAction.key === 'contest_work' ? 'Description du problème *' :
-                   selectedAction.key === 'complete_work' ? 'Rapport de fin de travaux *' :
-                   'Commentaire *'}
+                    selectedAction.key === 'contest_work' ? 'Description du problème *' :
+                      selectedAction.key === 'complete_work' ? 'Rapport de fin de travaux *' :
+                        'Commentaire *'}
                 </label>
                 <Textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   placeholder={
                     selectedAction.key === 'reject' ? 'Expliquez pourquoi cette intervention est rejetée...' :
-                    selectedAction.key === 'contest_work' ? 'Décrivez le problème constaté...' :
-                    selectedAction.key === 'complete_work' ? 'Résumé des travaux effectués...' :
-                    'Ajoutez un commentaire...'
+                      selectedAction.key === 'contest_work' ? 'Décrivez le problème constaté...' :
+                        selectedAction.key === 'complete_work' ? 'Résumé des travaux effectués...' :
+                          'Ajoutez un commentaire...'
                   }
                   rows={4}
                 />

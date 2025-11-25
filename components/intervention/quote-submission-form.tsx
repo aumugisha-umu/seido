@@ -188,6 +188,12 @@ export function QuoteSubmissionForm({
     })) || []
   })
 
+  // Ref for formData to avoid stale closures in submitWrapper
+  const formDataRef = useRef(formData)
+  useEffect(() => {
+    formDataRef.current = formData
+  }, [formData])
+
   // Mettre à jour le formulaire quand existingQuote change
   useEffect(() => {
     if (existingQuote) {
@@ -207,6 +213,19 @@ export function QuoteSubmissionForm({
       })
     }
   }, [existingQuote])
+
+  // Valider les champs au chargement initial
+  useEffect(() => {
+    const fieldsToValidate: (keyof FormData)[] = ['laborCost', 'workDetails']
+    const initialValidations: Record<string, FieldValidation> = {}
+
+    fieldsToValidate.forEach(field => {
+      const value = formData[field].toString()
+      initialValidations[field] = validateField(field, value)
+    })
+
+    setFieldValidations(initialValidations)
+  }, []) // Seulement au mount
 
   // Marquer la quote_request comme consultée lors du chargement du formulaire
   useEffect(() => {
@@ -232,64 +251,72 @@ export function QuoteSubmissionForm({
   // Expose submit handler to parent (for modal footer)
   // We create a wrapper that will be called by the parent
   const submitWrapper = useCallback(() => {
+    // Use the ref to get the latest data
+    const currentFormData = formDataRef.current
+
     // Trigger form validation and submission
-    const validationError = validateForm()
-    if (validationError) {
-      setError(validationError)
+    // We re-implement validation logic locally to be sure we check the latest data
+    if (!currentFormData.laborCost || parseFloat(currentFormData.laborCost) < 0) {
+      setError("Le coût total est requis et doit être positif")
+      return
+    }
+
+    if (!currentFormData.workDetails.trim()) {
+      setError("La description des travaux est requise")
       return
     }
 
     setIsLoading(true)
     setError(null)
 
-    // Call the async submit logic
-    ;(async () => {
-      try {
-        const attachmentUrls: string[] = []
+      // Call the async submit logic
+      ; (async () => {
+        try {
+          const attachmentUrls: string[] = []
 
-        const response = await fetch('/api/intervention-quote-submit', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            interventionId: intervention.id,
-            laborCost: parseFloat(formData.laborCost),
-            materialsCost: 0,
-            estimatedDurationHours: parseFloat(formData.estimatedDurationHours),
-            description: formData.workDetails.trim(),
-            providerAvailabilities: formData.providerAvailabilities
-              .filter(avail => avail.date && avail.startTime)
-              .map(avail => ({
-                date: avail.date,
-                startTime: avail.startTime,
-                endTime: formData.globalIsFlexible
-                  ? avail.endTime || null
-                  : calculateEndTime(avail.startTime),
-                isFlexible: formData.globalIsFlexible
-              }))
+          const response = await fetch('/api/intervention-quote-submit', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              interventionId: intervention.id,
+              laborCost: parseFloat(currentFormData.laborCost),
+              materialsCost: 0,
+              estimatedDurationHours: parseFloat(currentFormData.estimatedDurationHours),
+              description: currentFormData.workDetails.trim(),
+              providerAvailabilities: currentFormData.providerAvailabilities
+                .filter(avail => avail.date && avail.startTime)
+                .map(avail => ({
+                  date: avail.date,
+                  startTime: avail.startTime,
+                  endTime: currentFormData.globalIsFlexible
+                    ? avail.endTime || null
+                    : calculateEndTime(avail.startTime),
+                  isFlexible: currentFormData.globalIsFlexible
+                }))
+            })
           })
-        })
 
-        const result = await response.json()
+          const result = await response.json()
 
-        if (!response.ok) {
-          throw new Error(result.error || 'Erreur lors de la soumission du devis')
+          if (!response.ok) {
+            throw new Error(result.error || 'Erreur lors de la soumission du devis')
+          }
+
+          quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
+          onSuccess()
+
+        } catch (error) {
+          logger.error('Error submitting quote:', error)
+          const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
+          setError(errorMessage)
+          quoteToast.quoteError(errorMessage, 'la soumission du devis')
+        } finally {
+          setIsLoading(false)
         }
-
-        quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
-        onSuccess()
-
-      } catch (error) {
-        logger.error('Error submitting quote:', error)
-        const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
-        setError(errorMessage)
-        quoteToast.quoteError(errorMessage, 'la soumission du devis')
-      } finally {
-        setIsLoading(false)
-      }
-    })()
-  }, [formData, intervention.id, intervention.title, onSuccess])
+      })()
+  }, [intervention.id, intervention.title, onSuccess])
 
   // Use refs to track previous values and avoid calling callbacks during render
   const prevSubmitReadyRef = useRef<typeof onSubmitReady>(null)
@@ -661,52 +688,28 @@ export function QuoteSubmissionForm({
                 <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">
                   <FileText className="h-4 w-4 text-sky-600" />
                 </div>
-                Détails de votre devis
+                Détails de votre estimation
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Durée et Coût sur la même ligne */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Durée estimée - EN PREMIER */}
-                <div className="space-y-2">
-                  <Label htmlFor="estimatedDurationHours" className="text-sm font-medium text-slate-700 flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Durée estimée (heures) *
-                  </Label>
-                  <Input
-                    id="estimatedDurationHours"
-                    type="number"
-                    step="0.5"
-                    min="0"
-                    max="168"
-                    value={formData.estimatedDurationHours}
-                    onChange={(e) => handleInputChange('estimatedDurationHours', e.target.value)}
-                    placeholder="1"
-                    required
-                    className={`h-11 ${getInputClasses('estimatedDurationHours')}`}
-                  />
-                  {renderFieldFeedback('estimatedDurationHours')}
-                </div>
-
-                {/* Coût total */}
-                <div className="space-y-2">
-                  <Label htmlFor="laborCost" className="text-slate-700 font-medium mb-2 flex items-center gap-2">
-                    <Euro className="h-4 w-4" />
-                    Coût total (€) *
-                  </Label>
-                  <Input
-                    id="laborCost"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.laborCost}
-                    onChange={(e) => handleInputChange('laborCost', e.target.value)}
-                    placeholder="0.00"
-                    className={`h-11 ${getInputClasses('laborCost')}`}
-                    required
-                  />
-                  {renderFieldFeedback('laborCost')}
-                </div>
+              {/* Coût total */}
+              <div className="space-y-2">
+                <Label htmlFor="laborCost" className="text-slate-700 font-medium mb-2 flex items-center gap-2">
+                  <Euro className="h-4 w-4" />
+                  Coût total (€) *
+                </Label>
+                <Input
+                  id="laborCost"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.laborCost}
+                  onChange={(e) => handleInputChange('laborCost', e.target.value)}
+                  placeholder="0.00"
+                  className={`h-11 ${getInputClasses('laborCost')}`}
+                  required
+                />
+                {renderFieldFeedback('laborCost')}
               </div>
 
               {/* Description des travaux + Documents - Layout 50/50 */}
@@ -725,9 +728,6 @@ export function QuoteSubmissionForm({
                     required
                   />
                   {renderFieldFeedback('workDetails')}
-                  <p className="text-sm text-slate-500 mt-1">
-                    Décrivez précisément les travaux à effectuer pour établir votre devis
-                  </p>
                 </div>
 
                 {/* File Uploader - 50% */}
@@ -741,8 +741,8 @@ export function QuoteSubmissionForm({
                   />
                 </div>
               </div>
-              </CardContent>
-            </Card>
+            </CardContent>
+          </Card>
         )}
 
         {/* Section modulaire : Horaires proposés OU Disponibilités manuelles */}
@@ -831,11 +831,10 @@ export function QuoteSubmissionForm({
                           <button
                             type="button"
                             onClick={() => setGlobalFlexible(false)}
-                            className={`flex-1 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                              !formData.globalIsFlexible
-                                ? 'bg-blue-600 text-white shadow-md'
-                                : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
-                            }`}
+                            className={`flex-1 px-4 py-3 rounded-lg text-sm font-medium transition-all ${!formData.globalIsFlexible
+                              ? 'bg-blue-600 text-white shadow-md'
+                              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                              }`}
                           >
                             <Clock className="w-4 h-4 inline mr-2" />
                             Horaire précis
@@ -843,11 +842,10 @@ export function QuoteSubmissionForm({
                           <button
                             type="button"
                             onClick={() => setGlobalFlexible(true)}
-                            className={`flex-1 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                              formData.globalIsFlexible
-                                ? 'bg-blue-600 text-white shadow-md'
-                                : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
-                            }`}
+                            className={`flex-1 px-4 py-3 rounded-lg text-sm font-medium transition-all ${formData.globalIsFlexible
+                              ? 'bg-blue-600 text-white shadow-md'
+                              : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                              }`}
                           >
                             <Calendar className="w-4 h-4 inline mr-2" />
                             Créneau flexible
@@ -1008,23 +1006,22 @@ export function QuoteSubmissionForm({
                 <Button
                   type="submit"
                   disabled={isLoading || !isFormValid()}
-                  className={`h-12 px-8 font-semibold ${
-                    isFormValid()
-                      ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-lg hover:shadow-xl'
-                      : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                  }`}
+                  className={`h-12 px-8 font-semibold ${isFormValid()
+                    ? 'bg-sky-600 hover:bg-sky-700 text-white shadow-lg hover:shadow-xl'
+                    : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                    }`}
                 >
-                {isLoading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    <span>Envoi en cours...</span>
-                  </div>
-                ) : (
-                  <>
-                    <Euro className="h-5 w-5 mr-2" />
-                    {existingQuote && quoteRequest?.status !== 'pending' ? 'Confirmer la modification' : 'Soumettre le devis'}
-                  </>
-                )}
+                  {isLoading ? (
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <span>Envoi en cours...</span>
+                    </div>
+                  ) : (
+                    <>
+                      <Euro className="h-5 w-5 mr-2" />
+                      {existingQuote && quoteRequest?.status !== 'pending' ? 'Confirmer la modification' : 'Soumettre le devis'}
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -1050,4 +1047,3 @@ export function QuoteSubmissionForm({
     </div>
   )
 }
-

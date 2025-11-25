@@ -81,38 +81,11 @@ export async function POST(request: NextRequest) {
 
     // Check if intervention is in quote request status
     if (intervention.status !== 'demande_de_devis') {
-      return NextResponse.json({
-        success: false,
-        error: `Un devis ne peut être soumis que pour les interventions en demande de devis (statut actuel: ${intervention.status})`
-      }, { status: 400 })
-    }
-
-    // Check if a quote request exists for this provider
-    const { data: existingQuote, error: quoteError } = await supabase
-      .from('intervention_quotes')
-      .select('*')
-      .eq('intervention_id', interventionId)
-      .eq('provider_id', user.id)
-      .single()
-
-    if (quoteError || !existingQuote) {
-      logger.error({ quoteError, interventionId, providerId: user.id }, "❌ No existing quote found")
-      return NextResponse.json({
-        success: false,
-        error: 'Aucune demande de devis trouvée pour ce prestataire'
-      }, { status: 404 })
-    }
-
-    logger.info({ quoteId: existingQuote.id, currentStatus: existingQuote.status }, "✅ Found existing quote to update")
-
-    // Prepare line_items JSONB with breakdown
-    const lineItems = [
-      {
-        description: 'Main d\'œuvre',
+      description: 'Main d\'œuvre',
         quantity: estimatedDurationHours || 1,
-        unit_price: laborCostNum / (estimatedDurationHours || 1),
-        total: laborCostNum
-      }
+          unit_price: laborCostNum / (estimatedDurationHours || 1),
+            total: laborCostNum
+    }
     ]
 
     if (materialsCostNum > 0) {

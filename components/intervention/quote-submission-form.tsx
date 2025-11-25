@@ -260,21 +260,20 @@ export function QuoteSubmissionForm({
     // Use the ref to get the latest data
     const currentFormData = formDataRef.current
 
-    // Trigger form validation and submission
-    // We re-implement validation logic locally to be sure we check the latest data
+    // Check if we have availabilities to submit
+    const hasAvailabilities = currentFormData.providerAvailabilities.some(avail =>
+      avail.date && avail.startTime
+    )
 
-    // En mode "disponibilités uniquement", on vérifie seulement les disponibilités
+    // Validation based on mode
     if (hideEstimationSection) {
-      const hasValidAvailability = currentFormData.providerAvailabilities.some(avail =>
-        avail.date && avail.startTime && (currentFormData.globalIsFlexible ? true : avail.endTime || currentFormData.estimatedDurationHours)
-      )
-
-      if (!hasValidAvailability) {
+      // Availability-only mode: must have at least one availability
+      if (!hasAvailabilities) {
         setError("Veuillez renseigner au moins une disponibilité valide")
         return
       }
     } else {
-      // En mode normal, on vérifie les champs d'estimation
+      // Quote mode: must have quote fields
       if (!currentFormData.laborCost || parseFloat(currentFormData.laborCost) < 0) {
         setError("Le coût total est requis et doit être positif")
         return
@@ -286,7 +285,6 @@ export function QuoteSubmissionForm({
       }
     }
 
-    // Détecter le mode édition
     const isEditMode = !!existingQuote?.id
 
     setIsLoading(true)
@@ -296,66 +294,125 @@ export function QuoteSubmissionForm({
       isEditMode,
       quoteId: existingQuote?.id,
       interventionId: intervention.id,
-      hideEstimationSection
+      hideEstimationSection,
+      hasAvailabilities
     })
 
       // Call the async submit logic
       ; (async () => {
         try {
-          const attachmentUrls: string[] = []
-
-          const response = await fetch('/api/intervention-quote-submit', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              interventionId: intervention.id,
-              quoteId: existingQuote?.id, // Passer l'ID du devis si en mode édition
-              laborCost: hideEstimationSection ? 0 : parseFloat(currentFormData.laborCost),
-              materialsCost: 0,
-              estimatedDurationHours: hideEstimationSection ? 1 : parseFloat(currentFormData.estimatedDurationHours),
-              description: hideEstimationSection ? '' : currentFormData.workDetails.trim(),
-              providerAvailabilities: currentFormData.providerAvailabilities
-                .filter(avail => avail.date && avail.startTime)
-                .map(avail => ({
-                  date: avail.date,
-                  startTime: avail.startTime,
-                  endTime: currentFormData.globalIsFlexible
-                    ? avail.endTime || null
-                    : calculateEndTime(avail.startTime),
-                  isFlexible: currentFormData.globalIsFlexible
-                }))
-            })
-          })
-
-          const result = await response.json()
-
-          if (!response.ok) {
-            throw new Error(result.error || 'Erreur lors de la soumission du devis')
-          }
-
-          // Toast de succès adapté au mode
+          // Scenario 1: Availability-only mode
           if (hideEstimationSection) {
+            await submitAvailabilities(currentFormData)
             quoteToast.systemNotification('Disponibilités enregistrées', 'Vos disponibilités ont été enregistrées avec succès', 'info')
-          } else if (isEditMode) {
-            quoteToast.systemNotification('Devis modifié', `Votre devis de ${calculateTotal().toFixed(2)}€ a été mis à jour`, 'info')
-          } else {
-            quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
+            onSuccess()
+            return
           }
+
+          // Scenario 2 & 3: Quote mode (with or without availabilities)
+          await submitQuote(currentFormData, isEditMode)
+
+          // If we have availabilities, submit them too
+          if (hasAvailabilities) {
+            await submitAvailabilities(currentFormData)
+            // Success message for quote + availabilities
+            if (isEditMode) {
+              quoteToast.systemNotification('Devis et disponibilités mis à jour', 'Votre devis et vos disponibilités ont été mis à jour avec succès', 'info')
+            } else {
+              quoteToast.systemNotification('Devis et disponibilités enregistrés', `Votre devis de ${calculateTotal().toFixed(2)}€ et vos disponibilités ont été enregistrés avec succès`, 'info')
+            }
+          } else {
+            // Success message for quote only
+            if (isEditMode) {
+              quoteToast.systemNotification('Devis modifié', `Votre devis de ${calculateTotal().toFixed(2)}€ a été mis à jour`, 'info')
+            } else {
+              quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
+            }
+          }
+
           onSuccess()
 
         } catch (error) {
-          logger.error('Error submitting quote:', error)
+          logger.error('Error submitting:', error)
           const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
           setError(errorMessage)
-          const errorAction = hideEstimationSection ? 'l\'enregistrement des disponibilités' : (isEditMode ? 'la modification du devis' : 'la soumission du devis')
+
+          const errorAction = hideEstimationSection
+            ? 'l\'enregistrement des disponibilités'
+            : (isEditMode ? 'la modification du devis' : 'la soumission du devis')
+
           quoteToast.quoteError(errorMessage, errorAction)
         } finally {
           setIsLoading(false)
         }
       })()
   }, [intervention.id, intervention.title, onSuccess, existingQuote?.id, hideEstimationSection])
+
+  // Helper function to submit quote
+  const submitQuote = async (formData: typeof formDataRef.current, isEditMode: boolean) => {
+    const response = await fetch('/api/intervention-quote-submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id,
+        quoteId: existingQuote?.id,
+        laborCost: parseFloat(formData.laborCost),
+        materialsCost: 0,
+        estimatedDurationHours: parseFloat(formData.estimatedDurationHours),
+        description: formData.workDetails.trim(),
+        providerAvailabilities: [] // Don't send availabilities here anymore
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Erreur lors de la soumission du devis')
+    }
+
+    logger.info('✅ Quote submitted successfully', { quoteId: result.quote?.id })
+    return result
+  }
+
+  // Helper function to submit availabilities
+  const submitAvailabilities = async (formData: typeof formDataRef.current) => {
+    const validAvailabilities = formData.providerAvailabilities
+      .filter(avail => avail.date && avail.startTime)
+      .map(avail => ({
+        date: avail.date,
+        startTime: avail.startTime,
+        endTime: formData.globalIsFlexible
+          ? avail.endTime || null
+          : calculateEndTime(avail.startTime),
+        isFlexible: formData.globalIsFlexible
+      }))
+
+    if (validAvailabilities.length === 0) {
+      throw new Error('Aucune disponibilité valide à enregistrer')
+    }
+
+    const response = await fetch('/api/intervention-availability-submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        interventionId: intervention.id,
+        providerAvailabilities: validAvailabilities
+      })
+    })
+
+    const result = await response.json()
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Erreur lors de la soumission des disponibilités')
+    }
+
+    logger.info('✅ Availabilities submitted successfully', { count: result.availabilities?.length })
+    return result
+  }
 
   // Use refs to track previous values and avoid calling callbacks during render
   const prevValidationChangeRef = useRef<typeof onValidationChange>(null)

@@ -32,6 +32,11 @@ import { Building2, MapPin, User as UserIcon, Calendar } from 'lucide-react'
 
 // Modals
 import { QuoteSubmissionModal } from '@/components/intervention/modals/quote-submission-modal'
+import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
+import { ModifyChoiceModal } from '@/components/intervention/modals/modify-choice-modal'
+
+// Actions
+import { acceptTimeSlotAction } from '@/app/actions/intervention-actions'
 
 // Types
 import type { Database } from '@/lib/database.types'
@@ -99,6 +104,15 @@ export function PrestataireInterventionDetailClient({
   const [rejectionReason, setRejectionReason] = useState('')
   const [isRejecting, setIsRejecting] = useState(false)
 
+  // Reject slot modal state
+  const [rejectSlotModalOpen, setRejectSlotModalOpen] = useState(false)
+  const [slotToReject, setSlotToReject] = useState<TimeSlot | null>(null)
+
+  // Modify choice modal state
+  const [modifyChoiceModalOpen, setModifyChoiceModalOpen] = useState(false)
+  const [slotToModify, setSlotToModify] = useState<TimeSlot | null>(null)
+  const [currentChoice, setCurrentChoice] = useState<'accepted' | 'rejected'>('accepted')
+
   // Transform assignments into Contact arrays by role
   const { managers, providers, tenants } = useMemo(() => {
     const managers = assignments
@@ -144,6 +158,35 @@ export function PrestataireInterventionDetailClient({
     setRefreshing(true)
     router.refresh()
     setTimeout(() => setRefreshing(false), 1000)
+  }
+
+  // Handle reject slot - opens the reject modal
+  const handleRejectSlot = (slot: TimeSlot) => {
+    setSlotToReject(slot)
+    setRejectSlotModalOpen(true)
+  }
+
+  // Handle accept slot - calls the server action directly
+  const handleAcceptSlot = async (slot: TimeSlot) => {
+    try {
+      const result = await acceptTimeSlotAction(slot.id, intervention.id)
+      if (result.success) {
+        toast.success('Créneau accepté avec succès')
+        handleRefresh()
+      } else {
+        toast.error(result.error || 'Erreur lors de l\'acceptation du créneau')
+      }
+    } catch (error) {
+      console.error('Error accepting slot:', error)
+      toast.error('Erreur lors de l\'acceptation du créneau')
+    }
+  }
+
+  // Handle modify choice - opens the modify choice modal
+  const handleModifyChoice = (slot: TimeSlot, currentResponse: 'accepted' | 'rejected') => {
+    setSlotToModify(slot)
+    setCurrentChoice(currentResponse)
+    setModifyChoiceModalOpen(true)
   }
 
   // Handle opening availability modal (quote submission modal in availability-only mode)
@@ -424,7 +467,12 @@ export function PrestataireInterventionDetailClient({
                 intervention={intervention}
                 timeSlots={timeSlots}
                 currentUser={currentUser}
+                assignments={assignments}
+                quotes={quotes}
                 onRefresh={handleRefresh}
+                onRejectSlot={handleRejectSlot}
+                onAcceptSlot={handleAcceptSlot}
+                onModifyChoice={handleModifyChoice}
               />
             </TabsContent>
 
@@ -467,6 +515,7 @@ export function PrestataireInterventionDetailClient({
                 onOpenProgrammingModal={handleOpenAvailabilityModal}
                 currentUserId={currentUser?.id}
                 userRole="prestataire"
+                onRejectSlot={handleRejectSlot}
               />
             </TabsContent>
 
@@ -562,6 +611,33 @@ export function PrestataireInterventionDetailClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Reject Slot Modal */}
+      <RejectSlotModal
+        isOpen={rejectSlotModalOpen}
+        onClose={() => setRejectSlotModalOpen(false)}
+        slot={slotToReject}
+        interventionId={intervention.id}
+        onSuccess={() => {
+          setRejectSlotModalOpen(false)
+          setSlotToReject(null)
+          handleRefresh()
+        }}
+      />
+
+      {/* Modify Choice Modal */}
+      <ModifyChoiceModal
+        isOpen={modifyChoiceModalOpen}
+        onClose={() => setModifyChoiceModalOpen(false)}
+        slot={slotToModify}
+        currentResponse={currentChoice}
+        interventionId={intervention.id}
+        onSuccess={() => {
+          setModifyChoiceModalOpen(false)
+          setSlotToModify(null)
+          handleRefresh()
+        }}
+      />
     </div>
   )
 }

@@ -18,6 +18,7 @@ import {
   Calendar,
   Check,
   Edit,
+  Edit3,
   X,
   Shield,
   Wrench,
@@ -80,8 +81,14 @@ interface InterventionSchedulingPreviewProps {
   // Actions for slots
   onOpenProgrammingModal?: () => void
   onCancelSlot?: (slot: FullTimeSlot) => void
+  onApproveSlot?: (slot: FullTimeSlot) => void
+  onRejectSlot?: (slot: FullTimeSlot) => void
+  onEditSlot?: (slot: FullTimeSlot) => void
   canManageSlots?: boolean
   currentUserId?: string
+
+  // Current user role for role-specific UI
+  currentUserRole?: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire'
 
   // Actions for participants and quotes
   onEditParticipants?: () => void
@@ -89,6 +96,9 @@ interface InterventionSchedulingPreviewProps {
 
   // Quote actions
   onCancelQuoteRequest?: (quoteId: string) => void
+
+  // Modify choice action (when user has already responded)
+  onModifyChoice?: (slot: FullTimeSlot, currentResponse: 'accepted' | 'rejected') => void
 }
 
 export function InterventionSchedulingPreview({
@@ -103,12 +113,23 @@ export function InterventionSchedulingPreview({
   fullTimeSlots = null,
   onOpenProgrammingModal,
   onCancelSlot,
+  onApproveSlot,
+  onRejectSlot,
+  onEditSlot,
   canManageSlots = false,
   currentUserId,
+  currentUserRole,
   onEditParticipants,
   onEditQuotes,
-  onCancelQuoteRequest
+  onCancelQuoteRequest,
+  onModifyChoice
 }: InterventionSchedulingPreviewProps) {
+
+  // Helper to get the current user's response for a slot
+  const getUserResponse = (slot: FullTimeSlot) => {
+    if (!slot.responses || !currentUserId) return null
+    return slot.responses.find(r => r.user_id === currentUserId)
+  }
 
   // Format date and time
   const formatDateTime = (date: string) => {
@@ -218,6 +239,43 @@ export function InterventionSchedulingPreview({
     return acc
   }, {} as Record<string, FullTimeSlot[]>) || {}
 
+  // Get dynamic section title based on who proposed the slots and current user role
+  const getSlotsSectionTitle = () => {
+    if (!fullTimeSlots || fullTimeSlots.length === 0) return "Créneaux proposés"
+
+    // Use proposed_by_user.role (immutable) instead of status (changes after validation)
+    const hasGestionnaireSlots = fullTimeSlots.some(
+      s => s.proposed_by_user?.role === 'gestionnaire' || s.proposed_by_user?.role === 'admin'
+    )
+    const hasProviderSlots = fullTimeSlots.some(
+      s => s.proposed_by_user?.role === 'prestataire'
+    )
+
+    // Adapt title for prestataire viewing gestionnaire-proposed slots
+    if (currentUserRole === 'prestataire' && hasGestionnaireSlots) {
+      return "Créneaux proposés par le gestionnaire"
+    }
+
+    if (hasGestionnaireSlots && hasProviderSlots) {
+      return "Créneaux proposés (gestionnaire & prestataire)"
+    } else if (hasProviderSlots) {
+      return "Disponibilités proposées par le prestataire"
+    } else {
+      return "Créneaux proposés"
+    }
+  }
+
+  // Get subtitle based on current user role
+  const getSlotsSubtitle = (count: number) => {
+    if (currentUserRole === 'prestataire') {
+      return `Sélectionnez un créneau qui vous convient parmi ${count > 1 ? 'les ' + count + ' propositions' : 'la proposition'}`
+    }
+    if (currentUserRole === 'locataire') {
+      return `Sélectionnez un créneau parmi ${count} option${count > 1 ? 's' : ''}`
+    }
+    return `Les participants peuvent choisir parmi ${count} créneau${count > 1 ? 'x' : ''}`
+  }
+
   return (
     <div className="space-y-10">
       {/* 1. Participants Section */}
@@ -322,10 +380,10 @@ export function InterventionSchedulingPreview({
               </div>
               <div className="flex-1">
                 <h5 className="font-semibold text-sm text-purple-900 mb-1">
-                  Créneaux proposés
+                  {getSlotsSectionTitle()}
                 </h5>
                 <p className="text-xs text-purple-700 mb-3">
-                  Les participants peuvent choisir parmi {fullTimeSlots.length} créneau{fullTimeSlots.length > 1 ? 'x' : ''}
+                  {getSlotsSubtitle(fullTimeSlots.length)}
                 </p>
 
                 {/* Compact slot cards grouped by date - horizontal scroll */}
@@ -357,7 +415,7 @@ export function InterventionSchedulingPreview({
                                   <div className="flex items-center gap-1.5">
                                     <Clock className="w-3.5 h-3.5 text-muted-foreground" />
                                     <span className="text-sm font-medium">
-                                      {slot.start_time} - {slot.end_time}
+                                      {slot.start_time?.substring(0, 5)} - {slot.end_time?.substring(0, 5)}
                                     </span>
                                   </div>
                                   <Badge variant={getStatusVariant(slot.status)} className="text-xs h-5">
@@ -484,6 +542,114 @@ export function InterventionSchedulingPreview({
                                     </span>
                                   </div>
                                 )}
+
+                                {/* Action Buttons - only for active slots */}
+                                {canManageSlots && slot.status !== 'selected' && slot.status !== 'cancelled' && slot.status !== 'rejected' && (() => {
+                                  const userResponse = getUserResponse(slot)
+                                  const hasResponded = userResponse && userResponse.response !== 'pending'
+
+                                  return (
+                                  <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
+                                    {currentUserRole === 'prestataire' || currentUserRole === 'locataire' ? (
+                                      // Prestataire/Locataire viewing gestionnaire-proposed slots
+                                      slot.proposed_by_user?.role === 'gestionnaire' || slot.proposed_by_user?.role === 'admin' ? (
+                                        hasResponded ? (
+                                          // User has already responded → Show "Modifier le choix"
+                                          onModifyChoice && (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="flex-1 h-7 text-xs text-blue-700 border-blue-300 hover:bg-blue-50"
+                                              onClick={() => onModifyChoice(slot, userResponse.response as 'accepted' | 'rejected')}
+                                            >
+                                              <Edit3 className="w-3 h-3 mr-1" />
+                                              Modifier le choix
+                                            </Button>
+                                          )
+                                        ) : (
+                                          // User hasn't responded yet → Show Accepter/Rejeter
+                                          <>
+                                            {onApproveSlot && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="flex-1 h-7 text-xs text-green-700 border-green-300 hover:bg-green-50"
+                                                onClick={() => onApproveSlot(slot)}
+                                              >
+                                                <Check className="w-3 h-3 mr-1" />
+                                                Accepter
+                                              </Button>
+                                            )}
+                                            {onRejectSlot && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="flex-1 h-7 text-xs text-red-700 border-red-300 hover:bg-red-50"
+                                                onClick={() => onRejectSlot(slot)}
+                                              >
+                                                <X className="w-3 h-3 mr-1" />
+                                                Rejeter
+                                              </Button>
+                                            )}
+                                          </>
+                                        )
+                                      ) : null
+                                    ) : slot.proposed_by_user?.role === 'prestataire' ? (
+                                      // Gestionnaire viewing prestataire-proposed slots → Approuver/Rejeter
+                                      <>
+                                        {onApproveSlot && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="flex-1 h-7 text-xs text-green-700 border-green-300 hover:bg-green-50"
+                                            onClick={() => onApproveSlot(slot)}
+                                          >
+                                            <Check className="w-3 h-3 mr-1" />
+                                            Approuver
+                                          </Button>
+                                        )}
+                                        {onRejectSlot && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="flex-1 h-7 text-xs text-red-700 border-red-300 hover:bg-red-50"
+                                            onClick={() => onRejectSlot(slot)}
+                                          >
+                                            <X className="w-3 h-3 mr-1" />
+                                            Rejeter
+                                          </Button>
+                                        )}
+                                      </>
+                                    ) : (
+                                      // Gestionnaire viewing own slots → Modifier/Annuler
+                                      <>
+                                        {onEditSlot && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="flex-1 h-7 text-xs"
+                                            onClick={() => onEditSlot(slot)}
+                                          >
+                                            <Edit className="w-3 h-3 mr-1" />
+                                            Modifier
+                                          </Button>
+                                        )}
+                                        {onCancelSlot && (
+                                          <Button
+                                            size="sm"
+                                            variant="outline"
+                                            className="flex-1 h-7 text-xs text-red-700 border-red-300 hover:bg-red-50"
+                                            onClick={() => onCancelSlot(slot)}
+                                          >
+                                            <X className="w-3 h-3 mr-1" />
+                                            Annuler
+                                          </Button>
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                  )
+                                })()}
                               </div>
                             </div>
                           )

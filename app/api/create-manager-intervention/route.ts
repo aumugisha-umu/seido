@@ -609,8 +609,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Handle scheduling slots if provided (flexible = multiple slots)
-    if (schedulingType === 'flexible' && timeSlots && timeSlots.length > 0) {
+    // Handle scheduling slots if provided (flexible/slots = multiple slots)
+    if ((schedulingType === 'flexible' || schedulingType === 'slots') && timeSlots && timeSlots.length > 0) {
       logger.info({ count: timeSlots.length }, "📅 Creating time slots")
 
       const timeSlotsToInsert = timeSlots
@@ -620,7 +620,8 @@ export async function POST(request: NextRequest) {
           slot_date: slot.date,
           start_time: slot.startTime,
           end_time: slot.endTime,
-          is_selected: false
+          is_selected: false,
+          proposed_by: user.id // Track who proposed these slots
         }))
 
       if (timeSlotsToInsert.length > 0) {

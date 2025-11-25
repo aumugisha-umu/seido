@@ -90,6 +90,9 @@ interface OverviewTabProps {
   onRefresh: () => void
   onOpenProgrammingModal?: () => void
   onCancelSlot?: (slot: TimeSlot) => void
+  onApproveSlot?: (slot: TimeSlot) => void
+  onRejectSlot?: (slot: TimeSlot) => void
+  onEditSlot?: (slot: TimeSlot) => void
   onEditParticipants?: () => void
   onEditQuotes?: () => void
 }
@@ -105,6 +108,9 @@ export function OverviewTab({
   onRefresh,
   onOpenProgrammingModal,
   onCancelSlot,
+  onApproveSlot,
+  onRejectSlot,
+  onEditSlot,
   onEditParticipants,
   onEditQuotes
 }: OverviewTabProps) {
@@ -279,6 +285,9 @@ export function OverviewTab({
             fullTimeSlots={timeSlots}
             onOpenProgrammingModal={onOpenProgrammingModal}
             onCancelSlot={onCancelSlot}
+            onApproveSlot={onApproveSlot}
+            onRejectSlot={onRejectSlot}
+            onEditSlot={onEditSlot}
             canManageSlots={['approuvee', 'demande_de_devis', 'planification'].includes(intervention.status)}
             currentUserId={currentUserId}
             onEditParticipants={onEditParticipants}

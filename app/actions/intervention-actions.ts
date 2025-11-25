@@ -89,26 +89,20 @@ interface DashboardStats {
  */
 async function getAuthenticatedUser() {
   const supabase = await createServerActionSupabaseClient()
-  try {
-    // Auth check
-    const user = await getAuthenticatedUser()
-    if (!user) {
-      return { success: false, error: 'Authentication required' }
-    }
+  const { data: { session }, error } = await supabase.auth.getSession()
 
-    // Create service and execute
-    const interventionService = await createServerActionInterventionService()
-    const result = await interventionService.getById(id, user.id)
-
-    if (result.success && result.data) {
-      return { success: true, data: result.data }
-    }
-
-    return { success: false, error: result.error || 'Intervention not found' }
-  } catch (error) {
-    logger.error('❌ [SERVER-ACTION] Error fetching intervention:', error)
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' }
+  if (!session || error) {
+    return null
   }
+
+  // Get database user ID from auth user ID
+  const { data: userData } = await supabase
+    .from('users')
+    .select('id, role, team_id')
+    .eq('auth_user_id', session.user.id)
+    .single()
+
+  return userData
 }
 
 /**

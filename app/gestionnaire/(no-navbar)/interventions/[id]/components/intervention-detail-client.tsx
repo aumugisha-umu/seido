@@ -532,6 +532,44 @@ export function InterventionDetailClient({
     }
   }
 
+  // Handler pour approuver un slot proposé par le prestataire
+  const handleApproveSlot = async (slot: TimeSlot) => {
+    try {
+      // Construire les dates ISO pour l'API select-slot
+      const slotStart = `${slot.slot_date}T${slot.start_time}`
+      const slotEnd = `${slot.slot_date}T${slot.end_time}`
+
+      const response = await fetch(`/api/intervention/${intervention.id}/select-slot`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slotStart, slotEnd })
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        toast.success('Créneau approuvé et intervention planifiée')
+        handleRefresh()
+      } else {
+        toast.error(result.error || 'Erreur lors de l\'approbation du créneau')
+      }
+    } catch (error) {
+      console.error('Error approving slot:', error)
+      toast.error('Erreur lors de l\'approbation du créneau')
+    }
+  }
+
+  // Handler pour rejeter un slot proposé par le prestataire
+  const handleRejectSlot = (slot: TimeSlot) => {
+    planning.openRejectSlotModal(slot, intervention.id)
+  }
+
+  // Handler pour modifier un slot proposé par le gestionnaire
+  const handleEditSlot = (slot: TimeSlot) => {
+    // Ouvrir la modal de programmation avec les données existantes
+    handleOpenProgrammingModalWithData()
+  }
+
   // Prepare header data
   const getStatusBadge = (): DetailPageHeaderBadge => {
     const statusMap: Record<string, { label: string; color: string; dotColor: string }> = {
@@ -878,6 +916,9 @@ export function InterventionDetailClient({
                   onRefresh={handleRefresh}
                   onOpenProgrammingModal={handleOpenProgrammingModalWithData}
                   onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
+                  onApproveSlot={handleApproveSlot}
+                  onRejectSlot={handleRejectSlot}
+                  onEditSlot={handleEditSlot}
                   onEditParticipants={handleOpenProgrammingModalWithData}
                   onEditQuotes={handleOpenProgrammingModalWithData}
                 />

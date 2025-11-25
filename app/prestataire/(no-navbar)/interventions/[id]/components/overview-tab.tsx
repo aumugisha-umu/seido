@@ -3,14 +3,14 @@
 /**
  * Overview Tab Component for Prestataire
  * Displays intervention details and provider-specific actions
+ * Now includes Estimation and Planification sections like gestionnaire view
  */
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
 import { TimeSlotProposer } from '@/components/interventions/time-slot-proposer'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
   DialogContent,
@@ -22,20 +22,12 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import {
-  Clock,
-  Calendar,
-  Play,
-  CheckCircle,
-  AlertCircle
-} from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import {
   startInterventionAction,
   completeByProviderAction,
   proposeTimeSlotsAction
 } from '@/app/actions/intervention-actions'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
 import type { Database } from '@/lib/database.types'
 
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
@@ -43,29 +35,132 @@ type Intervention = Database['public']['Tables']['interventions']['Row'] & {
   lot?: Database['public']['Tables']['lots']['Row']
 }
 
+type TimeSlotResponse = Database['public']['Tables']['time_slot_responses']['Row'] & {
+  user?: Database['public']['Tables']['users']['Row']
+}
+
 type TimeSlot = Database['public']['Tables']['intervention_time_slots']['Row'] & {
   proposed_by_user?: Database['public']['Tables']['users']['Row']
+  responses?: TimeSlotResponse[]
 }
 
 type User = Database['public']['Tables']['users']['Row']
+
+type Quote = Database['public']['Tables']['intervention_quotes']['Row'] & {
+  provider?: Database['public']['Tables']['users']['Row']
+}
+
+type Assignment = Database['public']['Tables']['intervention_assignments']['Row'] & {
+  user?: Database['public']['Tables']['users']['Row']
+}
+
+interface Contact {
+  id: string
+  name: string
+  email: string
+  phone?: string | null
+  type?: "gestionnaire" | "prestataire" | "locataire"
+}
+
+interface TimeSlotForPreview {
+  date: string
+  startTime: string
+  endTime: string
+}
 
 interface OverviewTabProps {
   intervention: Intervention
   timeSlots: TimeSlot[]
   currentUser: User
+  assignments: Assignment[]
+  quotes: Quote[]
   onRefresh: () => void
+  // Slot action handlers
+  onRejectSlot?: (slot: TimeSlot) => void
+  onAcceptSlot?: (slot: TimeSlot) => void
+  onModifyChoice?: (slot: TimeSlot, currentResponse: 'accepted' | 'rejected') => void
 }
 
 export function OverviewTab({
   intervention,
   timeSlots,
   currentUser,
-  onRefresh
+  assignments,
+  quotes,
+  onRefresh,
+  onRejectSlot,
+  onAcceptSlot,
+  onModifyChoice
 }: OverviewTabProps) {
   const [timeSlotDialogOpen, setTimeSlotDialogOpen] = useState(false)
   const [completeWorkDialogOpen, setCompleteWorkDialogOpen] = useState(false)
   const [workReport, setWorkReport] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Transform assignments into contacts grouped by role (like gestionnaire)
+  const managers: Contact[] = useMemo(() =>
+    assignments
+      .filter(a => a.role === 'gestionnaire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name,
+        email: a.user!.email || '',
+        phone: a.user!.phone || null,
+        type: 'gestionnaire' as const
+      })),
+    [assignments]
+  )
+
+  const providers: Contact[] = useMemo(() =>
+    assignments
+      .filter(a => a.role === 'prestataire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name,
+        email: a.user!.email || '',
+        phone: a.user!.phone || null,
+        type: 'prestataire' as const
+      })),
+    [assignments]
+  )
+
+  const tenants: Contact[] = useMemo(() =>
+    assignments
+      .filter(a => a.role === 'locataire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name,
+        email: a.user!.email || '',
+        phone: a.user!.phone || null,
+        type: 'locataire' as const
+      })),
+    [assignments]
+  )
+
+  // Transform time slots for preview
+  const schedulingSlotsForPreview: TimeSlotForPreview[] = useMemo(() =>
+    timeSlots
+      .filter(ts => ts.slot_date && ts.start_time && ts.end_time)
+      .map(ts => ({
+        date: ts.slot_date!,
+        startTime: ts.start_time!,
+        endTime: ts.end_time!
+      })),
+    [timeSlots]
+  )
+
+  // Determine scheduling type based on intervention status and data
+  const schedulingType = intervention.scheduled_date
+    ? 'fixed' as const
+    : schedulingSlotsForPreview.length > 0
+    ? 'slots' as const
+    : intervention.scheduling_method === 'flexible'
+    ? 'flexible' as const
+    : null
+
+  // Check if quote is required (status or active quotes)
+  const requireQuote = intervention.status === 'demande_de_devis' ||
+    quotes.some(q => ['pending', 'sent', 'accepted'].includes(q.status))
 
   // Handle start work
   const handleStartWork = async () => {
@@ -136,19 +231,28 @@ export function OverviewTab({
     }
   }
 
-  // Determine which actions are available
-  const canProposeSlots = intervention.status === 'planification'
-  const canStartWork = intervention.status === 'planifiee'
-  const canCompleteWork = intervention.status === 'en_cours'
-
-  // Get provider's proposed time slots
-  const myTimeSlots = timeSlots.filter(slot => slot.proposed_by === currentUser.id)
-
   return (
     <>
       <div className="space-y-6">
-        {/* Intervention details */}
-        <InterventionOverviewCard intervention={intervention} />
+        {/* Intervention details with Estimation and Planification sections */}
+        <InterventionOverviewCard
+          intervention={intervention}
+          managers={managers}
+          providers={providers}
+          tenants={tenants}
+          requireQuote={requireQuote}
+          quotes={quotes}
+          schedulingType={schedulingType}
+          schedulingSlots={schedulingSlotsForPreview}
+          fullTimeSlots={timeSlots}
+          currentUserId={currentUser.id}
+          currentUserRole="prestataire"
+          onUpdate={onRefresh}
+          onRejectSlot={onRejectSlot}
+          onApproveSlot={onAcceptSlot}
+          canManageSlots={intervention.status === 'planification'}
+          onModifyChoice={onModifyChoice}
+        />
 
         {/* Urgency alert */}
         {intervention.urgency === 'urgente' && (
@@ -163,54 +267,6 @@ export function OverviewTab({
               <p className="text-sm text-orange-700">
                 Cette intervention est marquée comme urgente et nécessite une attention prioritaire.
               </p>
-            </CardContent>
-          </Card>
-        )}
-
-
-        {/* My proposed time slots */}
-        {myTimeSlots.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                Mes créneaux proposés
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {myTimeSlots.map((slot) => (
-                  <div
-                    key={slot.id}
-                    className="flex items-center justify-between p-3 rounded-lg border"
-                  >
-                    <div>
-                      <p className="font-medium">
-                        {format(new Date(slot.slot_date), 'EEEE d MMMM yyyy', { locale: fr })}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {slot.start_time} - {slot.end_time}
-                      </p>
-                      {slot.notes && (
-                        <p className="text-sm text-muted-foreground mt-1">{slot.notes}</p>
-                      )}
-                    </div>
-                    <Badge
-                      variant={
-                        slot.status === 'accepted'
-                          ? 'default'
-                          : slot.status === 'rejected'
-                            ? 'destructive'
-                            : 'secondary'
-                      }
-                    >
-                      {slot.status === 'accepted' && 'Accepté'}
-                      {slot.status === 'rejected' && 'Rejeté'}
-                      {slot.status === 'proposed' && 'En attente'}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
             </CardContent>
           </Card>
         )}

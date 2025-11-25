@@ -972,7 +972,7 @@ export default function NouvelleInterventionClient({
       await handleSuccess({
         successTitle: "Intervention créée avec succès",
         successDescription: `L'intervention "${result.intervention.title}" a été créée et assignée.`,
-        redirectPath: "/gestionnaire/interventions",
+        redirectPath: `/gestionnaire/interventions/${result.intervention.id}`,
         refreshData: async () => {
           // Vider le cache pour forcer le rechargement des interventions lors de la navigation
           // const { createServerStatsService } = await import("@/lib/services")

@@ -47,8 +47,16 @@ type Intervention = Database['public']['Tables']['interventions']['Row'] & {
 
 type Document = Database['public']['Tables']['intervention_documents']['Row']
 type Thread = Database['public']['Tables']['conversation_threads']['Row']
-type TimeSlot = Database['public']['Tables']['intervention_time_slots']['Row']
 type User = Database['public']['Tables']['users']['Row']
+
+type TimeSlotResponse = Database['public']['Tables']['time_slot_responses']['Row'] & {
+  user?: User
+}
+
+type TimeSlot = Database['public']['Tables']['intervention_time_slots']['Row'] & {
+  proposed_by_user?: User
+  responses?: TimeSlotResponse[]
+}
 
 interface LocataireInterventionDetailClientProps {
   intervention: Intervention
@@ -332,7 +340,32 @@ export function LocataireInterventionDetailClient({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Main content */}
             <div className="lg:col-span-2 space-y-6">
-              <InterventionOverviewCard intervention={intervention} />
+              <InterventionOverviewCard
+                intervention={intervention}
+                managers={managers}
+                providers={providers}
+                tenants={tenants}
+                requireQuote={false}
+                quotes={[]}
+                schedulingType={
+                  intervention.scheduled_date
+                    ? 'fixed'
+                    : timeSlots.length > 0
+                    ? 'slots'
+                    : null
+                }
+                schedulingSlots={timeSlots
+                  .filter(ts => ts.slot_date && ts.start_time && ts.end_time)
+                  .map(ts => ({
+                    date: ts.slot_date!,
+                    startTime: ts.start_time!,
+                    endTime: ts.end_time!
+                  }))}
+                fullTimeSlots={timeSlots}
+                currentUserId={currentUser.id}
+                currentUserRole="locataire"
+                onUpdate={() => router.refresh()}
+              />
             </div>
 
             {/* Sidebar */}

@@ -2223,8 +2223,8 @@ export async function chooseTimeSlotAsManagerAction(
 
     logger.info('✅ Intervention updated to planifiee')
 
-    // 10. Log activity
-    await supabase.from('activity_logs').insert({
+    // 10. Log activity (ignore errors, not critical)
+    const { error: activityLogError } = await supabase.from('activity_logs').insert({
       intervention_id: interventionId,
       user_id: user.id,
       action: 'time_slot_chosen_by_manager',
@@ -2237,7 +2237,11 @@ export async function chooseTimeSlotAsManagerAction(
       }
     })
 
-    logger.success('✅ Time slot chosen successfully by manager')
+    if (activityLogError) {
+      logger.warn('⚠️ Could not log activity (non-critical):', activityLogError)
+    }
+
+    logger.info('✅ Time slot chosen successfully by manager')
 
     // 11. Revalidate intervention pages
     revalidatePath(`/gestionnaire/interventions/${interventionId}`)

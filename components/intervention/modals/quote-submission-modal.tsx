@@ -127,7 +127,24 @@ export function QuoteSubmissionModal({
 
   // Déterminer le titre et le label du bouton selon le mode
   const getModalTitle = () => {
-    if (hideEstimationSection) return "Ajouter mes disponibilités"
+    if (hideEstimationSection) {
+      // Distinguer les 3 cas selon le status des time slots
+      const hasRequestedSlots = intervention.time_slots
+        && intervention.time_slots.some(slot => slot.status === 'requested')
+      const hasPendingSlots = intervention.time_slots
+        && intervention.time_slots.some(slot => slot.status === 'pending')
+
+      if (hasRequestedSlots) {
+        // Slots proposés par le gestionnaire → le prestataire doit confirmer
+        return "Confirmer mes disponibilités"
+      } else if (hasPendingSlots) {
+        // Slots créés par le prestataire → il peut les modifier
+        return "Modifier la planification"
+      } else {
+        // Aucun slot → création
+        return "Ajouter mes disponibilités"
+      }
+    }
     return isEditMode ? "Modifier le devis" : "Soumettre une estimation"
   }
 

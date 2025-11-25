@@ -145,21 +145,26 @@ export function QuoteSubmissionForm({
   const [rejectModalOpen, setRejectModalOpen] = useState(false)
   const [slotToReject, setSlotToReject] = useState<TimeSlot | null>(null)
 
-  // Check if intervention has proposed time slots
-  const hasProposedSlots = useMemo(() => {
+  // Check if intervention has MANAGER-proposed time slots (status = 'requested')
+  const hasManagerProposedSlots = useMemo(() => {
     return intervention.time_slots
       && intervention.time_slots.length > 0
-      && intervention.time_slots.some(slot =>
-        slot.status !== 'cancelled' && slot.status !== 'rejected'
-      )
+      && intervention.time_slots.some(slot => slot.status === 'requested')
   }, [intervention.time_slots])
 
-  // Group slots by date
+  // Check if intervention has PROVIDER-created time slots (status = 'pending')
+  const hasProviderPendingSlots = useMemo(() => {
+    return intervention.time_slots
+      && intervention.time_slots.length > 0
+      && intervention.time_slots.some(slot => slot.status === 'pending')
+  }, [intervention.time_slots])
+
+  // Group slots by date - ONLY for manager-proposed slots ('requested')
   const groupedSlots = useMemo(() => {
-    if (!hasProposedSlots || !intervention.time_slots) return []
+    if (!hasManagerProposedSlots || !intervention.time_slots) return []
 
     const groups = intervention.time_slots
-      .filter(slot => slot.status !== 'cancelled' && slot.status !== 'rejected')
+      .filter(slot => slot.status === 'requested')
       .reduce((acc, slot) => {
         const date = slot.slot_date
         const existing = acc.find(g => g.date === date)
@@ -175,7 +180,7 @@ export function QuoteSubmissionForm({
     groups.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
 
     return groups
-  }, [intervention.time_slots, hasProposedSlots])
+  }, [intervention.time_slots, hasManagerProposedSlots])
 
   const [formData, setFormData] = useState<FormData>({
     laborCost: existingQuote?.laborCost?.toString() || '',
@@ -216,6 +221,27 @@ export function QuoteSubmissionForm({
       })
     }
   }, [existingQuote])
+
+  // Pré-remplir formData avec les slots 'pending' créés par le prestataire
+  useEffect(() => {
+    if (hasProviderPendingSlots && intervention.time_slots && !existingQuote) {
+      const pendingSlots = intervention.time_slots
+        .filter(slot => slot.status === 'pending')
+        .map(slot => ({
+          date: slot.slot_date,
+          startTime: slot.start_time?.substring(0, 5) || '',
+          endTime: slot.end_time?.substring(0, 5) || ''
+        }))
+
+      if (pendingSlots.length > 0) {
+        logger.info('📝 [QuoteForm] Pré-remplissage avec slots pending du prestataire:', pendingSlots)
+        setFormData(prev => ({
+          ...prev,
+          providerAvailabilities: pendingSlots
+        }))
+      }
+    }
+  }, [hasProviderPendingSlots, intervention.time_slots, existingQuote])
 
   // Valider les champs au chargement initial
   useEffect(() => {
@@ -849,8 +875,8 @@ export function QuoteSubmissionForm({
           </Card>
         )}
 
-        {/* Section modulaire : Horaires proposés OU Disponibilités manuelles */}
-        {hasProposedSlots ? (
+        {/* Section modulaire : Horaires proposés (gestionnaire) OU Disponibilités manuelles (prestataire) */}
+        {hasManagerProposedSlots ? (
           <Card className="shadow-sm border-slate-200">
             <CardHeader className="pb-4">
               <CardTitle className="flex items-center gap-2 text-lg font-semibold text-slate-900">

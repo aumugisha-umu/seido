@@ -26,6 +26,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea"
 import { interventionActionsService } from "@/lib/intervention-actions-service"
 import { getValidAvailabilities } from "@/lib/availability-filtering-utils"
+import { analyzeTimeSlots, getProviderActionForTimeSlots, getProviderActionLabel } from "@/lib/time-slot-utils"
 import { WorkCompletionReport } from "./work-completion-report"
 import { SimpleWorkCompletionModal } from "./simple-work-completion-modal"
 import { TenantValidationForm } from "./tenant-validation-form"
@@ -288,25 +289,35 @@ export function InterventionActionButtons({
           })
         }
         if (userRole === 'prestataire') {
-          const hasPendingSlots = timeSlots?.some(slot =>
-            slot.status === 'pending' || slot.status === 'requested'
-          )
+          // Use helper function to analyze time slots and determine action
+          const analysis = analyzeTimeSlots(timeSlots, userId)
+          const actionKey = getProviderActionForTimeSlots(analysis)
+          const label = getProviderActionLabel(actionKey)
 
-          if (hasPendingSlots) {
-            actions.push({
-              key: 'confirm_availabilities',
-              label: 'Confirmer disponibilités',
+          // Map action keys to icons and descriptions
+          const actionConfig = {
+            confirm_availabilities: {
               icon: CheckCircle,
-              description: 'Valider ou rejeter les créneaux proposés'
-            })
-          } else {
-            actions.push({
-              key: 'add_availabilities',
-              label: 'Ajouter mes disponibilités',
+              description: 'Valider ou rejeter les créneaux proposés par le gestionnaire'
+            },
+            modify_availabilities: {
+              icon: Edit,
+              description: 'Modifier vos disponibilités existantes'
+            },
+            add_availabilities: {
               icon: Calendar,
               description: 'Saisir vos créneaux de disponibilité'
-            })
+            }
           }
+
+          const config = actionConfig[actionKey]
+
+          actions.push({
+            key: actionKey,
+            label,
+            icon: config.icon,
+            description: config.description
+          })
         }
         break
 
@@ -521,13 +532,14 @@ export function InterventionActionButtons({
           onActionComplete?.('execution')
           return
 
+        case 'modify_availabilities':
         case 'add_availabilities':
           // Open modal via callback (for prestataire)
           if (onProposeSlots) {
             onProposeSlots()
             return
           }
-          // Fallback redirection pour gestionnaire
+          // Fallback redirection for gestionnaire
           window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
           return
 

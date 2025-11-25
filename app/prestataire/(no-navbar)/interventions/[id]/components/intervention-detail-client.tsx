@@ -490,7 +490,8 @@ export function PrestataireInterventionDetailClient({
         intervention={{
           ...intervention,
           urgency: intervention.urgency || 'normale',
-          priority: intervention.urgency || 'normale'
+          priority: intervention.urgency || 'normale',
+          time_slots: timeSlots
         }}
         existingQuote={selectedQuote ? transformQuoteToExistingQuote(selectedQuote) : undefined}
         quoteRequest={selectedQuote ? {

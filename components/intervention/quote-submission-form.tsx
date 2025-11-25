@@ -63,6 +63,7 @@ interface Intervention {
 }
 
 interface ExistingQuote {
+  id?: string
   laborCost?: number
   materialsCost?: number
   workDetails?: string
@@ -228,8 +229,11 @@ export function QuoteSubmissionForm({
   }, []) // Seulement au mount
 
   // Marquer la quote_request comme consultée lors du chargement du formulaire
+  // Ne pas faire ça si on est en mode édition (existingQuote.id existe)
+  // car dans ce cas, quoteRequest.id est l'ID du devis, pas de la demande
   useEffect(() => {
-    if (quoteRequest && quoteRequest.status === 'sent') {
+    // Seulement pour les nouvelles demandes de devis (status 'pending'), pas pour l'édition
+    if (quoteRequest && quoteRequest.status === 'pending' && !existingQuote?.id) {
       logger.info('👁️ [QuoteForm] Marquage de la demande comme consultée:', quoteRequest.id)
 
       // Marquer comme vue via l'API
@@ -246,7 +250,7 @@ export function QuoteSubmissionForm({
         // Ne pas bloquer l'utilisateur si cette action échoue
       })
     }
-  }, [quoteRequest])
+  }, [quoteRequest, existingQuote?.id])
 
   // Expose submit handler to parent (for modal footer)
   // We create a wrapper that will be called by the parent
@@ -266,8 +270,17 @@ export function QuoteSubmissionForm({
       return
     }
 
+    // Détecter le mode édition
+    const isEditMode = !!existingQuote?.id
+
     setIsLoading(true)
     setError(null)
+
+    logger.info('📝 [QuoteForm] submitWrapper called', { 
+      isEditMode, 
+      quoteId: existingQuote?.id,
+      interventionId: intervention.id 
+    })
 
       // Call the async submit logic
       ; (async () => {
@@ -281,6 +294,7 @@ export function QuoteSubmissionForm({
             },
             body: JSON.stringify({
               interventionId: intervention.id,
+              quoteId: existingQuote?.id, // Passer l'ID du devis si en mode édition
               laborCost: parseFloat(currentFormData.laborCost),
               materialsCost: 0,
               estimatedDurationHours: parseFloat(currentFormData.estimatedDurationHours),
@@ -304,35 +318,35 @@ export function QuoteSubmissionForm({
             throw new Error(result.error || 'Erreur lors de la soumission du devis')
           }
 
-          quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
+          // Toast de succès adapté au mode
+          if (isEditMode) {
+            quoteToast.systemNotification('Devis modifié', `Votre devis de ${calculateTotal().toFixed(2)}€ a été mis à jour`, 'info')
+          } else {
+            quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
+          }
           onSuccess()
 
         } catch (error) {
           logger.error('Error submitting quote:', error)
           const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
           setError(errorMessage)
-          quoteToast.quoteError(errorMessage, 'la soumission du devis')
+          const errorAction = isEditMode ? 'la modification du devis' : 'la soumission du devis'
+          quoteToast.quoteError(errorMessage, errorAction)
         } finally {
           setIsLoading(false)
         }
       })()
-  }, [intervention.id, intervention.title, onSuccess])
+  }, [intervention.id, intervention.title, onSuccess, existingQuote?.id])
 
   // Use refs to track previous values and avoid calling callbacks during render
-  const prevSubmitReadyRef = useRef<typeof onSubmitReady>(null)
   const prevValidationChangeRef = useRef<typeof onValidationChange>(null)
   const prevLoadingChangeRef = useRef<typeof onLoadingChange>(null)
 
-  // Expose submit handler to parent (deferred to avoid render-time setState)
+  // Expose submit handler to parent
+  // Now that the modal uses useRef instead of useState, we can pass the function directly
   useEffect(() => {
-    // Only call if callback changed or on first mount
-    if (onSubmitReady && onSubmitReady !== prevSubmitReadyRef.current) {
-      prevSubmitReadyRef.current = onSubmitReady
-      // Defer to next tick to avoid setState during render
-      const timeoutId = setTimeout(() => {
-        onSubmitReady(submitWrapper)
-      }, 0)
-      return () => clearTimeout(timeoutId)
+    if (onSubmitReady) {
+      onSubmitReady(submitWrapper)
     }
   }, [onSubmitReady, submitWrapper])
 
@@ -633,6 +647,7 @@ export function QuoteSubmissionForm({
         },
         body: JSON.stringify({
           interventionId: intervention.id,
+          quoteId: existingQuote?.id, // Passer l'ID du devis si en mode édition
           laborCost: parseFloat(formData.laborCost),
           materialsCost: 0, // Pas de séparation matériaux, tout est dans laborCost
           estimatedDurationHours: parseFloat(formData.estimatedDurationHours),
@@ -657,7 +672,11 @@ export function QuoteSubmissionForm({
       }
 
       // Toast de succès selon Design System
-      quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
+      if (existingQuote?.id) {
+        quoteToast.systemNotification('Devis modifié', `Votre devis de ${calculateTotal().toFixed(2)}€ a été mis à jour`, 'info')
+      } else {
+        quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
+      }
 
       // Appel direct du callback de succès
       onSuccess()
@@ -668,7 +687,8 @@ export function QuoteSubmissionForm({
       setError(errorMessage)
 
       // Toast d'erreur selon Design System
-      quoteToast.quoteError(errorMessage, 'la soumission du devis')
+      const errorAction = existingQuote?.id ? 'la modification du devis' : 'la soumission du devis'
+      quoteToast.quoteError(errorMessage, errorAction)
     } finally {
       setIsLoading(false)
     }

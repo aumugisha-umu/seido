@@ -79,14 +79,13 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
 
-    // Check if intervention is in quote request status
-    if (intervention.status !== 'demande_de_devis') {
+    // Build line items
+    const lineItems: any[] = [{
       description: 'Main d\'œuvre',
-        quantity: estimatedDurationHours || 1,
-          unit_price: laborCostNum / (estimatedDurationHours || 1),
-            total: laborCostNum
-    }
-    ]
+      quantity: estimatedDurationHours || 1,
+      unit_price: laborCostNum / (estimatedDurationHours || 1),
+      total: laborCostNum
+    }]
 
     if (materialsCostNum > 0) {
       lineItems.push({
@@ -97,29 +96,117 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Update the existing quote
-    const { data: updatedQuote, error: updateError } = await supabase
-      .from('intervention_quotes')
-      .update({
-        amount: totalAmount,
-        description: description.trim(),
-        line_items: lineItems,
-        status: 'sent',
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', existingQuote.id)
-      .select('*')
-      .single()
+    // Determine if we're updating an existing quote or creating a new one
+    const quoteId = body.quoteId
+    let existingQuote: any = null
 
-    if (updateError) {
-      logger.error({ updateError }, "❌ Error updating quote")
-      return NextResponse.json({
-        success: false,
-        error: 'Erreur lors de la mise à jour du devis'
-      }, { status: 500 })
+    logger.info({ 
+      quoteId, 
+      hasQuoteId: !!quoteId,
+      interventionId 
+    }, "🔍 Checking for quote to update or create")
+
+    // If quoteId is provided, verify it exists and belongs to this provider
+    if (quoteId) {
+      const { data: quote, error: quoteError } = await supabase
+        .from('intervention_quotes')
+        .select('id, status, provider_id')
+        .eq('id', quoteId)
+        .eq('provider_id', user.id)
+        .is('deleted_at', null)
+        .single()
+
+      if (quoteError || !quote) {
+        logger.error({ quoteError, quoteId }, "❌ Quote not found or doesn't belong to provider")
+        return NextResponse.json({
+          success: false,
+          error: 'Devis non trouvé ou non autorisé'
+        }, { status: 404 })
+      }
+
+      existingQuote = quote
+      logger.info({ quoteId }, "📝 Updating existing quote")
+    } else {
+      // Check if there's an existing quote for this intervention and provider
+      const { data: existingQuoteData, error: existingQuoteError } = await supabase
+        .from('intervention_quotes')
+        .select('id, status')
+        .eq('intervention_id', interventionId)
+        .eq('provider_id', user.id)
+        .is('deleted_at', null)
+        .maybeSingle()
+
+      if (existingQuoteError && existingQuoteError.code !== 'PGRST116') {
+        logger.error({ existingQuoteError }, "❌ Error checking for existing quote")
+        return NextResponse.json({
+          success: false,
+          error: 'Erreur lors de la vérification du devis existant'
+        }, { status: 500 })
+      }
+
+      if (existingQuoteData) {
+        existingQuote = existingQuoteData
+        logger.info({ quoteId: existingQuote.id }, "📝 Found existing quote, will update")
+      }
     }
 
-    logger.info({ quoteId: updatedQuote.id }, "✅ Quote updated successfully")
+    let finalQuote: any
+
+    // Update existing quote or create new one
+    if (existingQuote) {
+      const { data: updatedQuote, error: updateError } = await supabase
+        .from('intervention_quotes')
+        .update({
+          amount: totalAmount,
+          description: description.trim(),
+          line_items: lineItems,
+          status: 'sent',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingQuote.id)
+        .select('*')
+        .single()
+
+      if (updateError) {
+        logger.error({ updateError }, "❌ Error updating quote")
+        return NextResponse.json({
+          success: false,
+          error: 'Erreur lors de la mise à jour du devis'
+        }, { status: 500 })
+      }
+
+      finalQuote = updatedQuote
+      logger.info({ quoteId: finalQuote.id }, "✅ Quote updated successfully")
+    } else {
+      // Create new quote
+      const { data: newQuote, error: createError } = await supabase
+        .from('intervention_quotes')
+        .insert({
+          intervention_id: interventionId,
+          provider_id: user.id,
+          amount: totalAmount,
+          description: description.trim(),
+          line_items: lineItems,
+          status: 'sent',
+          quote_type: 'estimation',
+          estimated_duration: estimatedDuration,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .select('*')
+        .single()
+
+      if (createError) {
+        logger.error({ createError }, "❌ Error creating quote")
+        return NextResponse.json({
+          success: false,
+          error: 'Erreur lors de la création du devis'
+        }, { status: 500 })
+      }
+
+      finalQuote = newQuote
+      logger.info({ quoteId: finalQuote.id }, "✅ Quote created successfully")
+    }
 
     // Create intervention_time_slots if provider provided availabilities
     if (providerAvailabilities && providerAvailabilities.length > 0) {
@@ -179,7 +266,7 @@ export async function POST(request: NextRequest) {
             metadata: {
               interventionId,
               interventionTitle: intervention.title,
-              quoteId: updatedQuote.id,
+              quoteId: finalQuote.id,
               quoteAmount: totalAmount,
               providerName: user.name,
               actionRequired: 'quote_review'
@@ -237,13 +324,13 @@ export async function POST(request: NextRequest) {
         }
 
         await emailService.sendQuoteSubmitted({
-          quote: updatedQuote,
+          quote: finalQuote,
           intervention: intervention as any,
           property: { address: propertyAddress },
           manager,
           provider: user,
         })
-        logger.info({ quoteId: updatedQuote.id }, '📧 Quote submitted email sent')
+        logger.info({ quoteId: finalQuote.id }, '📧 Quote submitted email sent')
       }
     } catch (emailError) {
       logger.warn({ emailError }, '⚠️ Could not send quote submission email')
@@ -252,15 +339,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       quote: {
-        id: updatedQuote.id,
-        intervention_id: updatedQuote.intervention_id,
-        amount: updatedQuote.amount,
-        description: updatedQuote.description,
-        line_items: updatedQuote.line_items,
-        status: updatedQuote.status,
-        updated_at: updatedQuote.updated_at
+        id: finalQuote.id,
+        intervention_id: finalQuote.intervention_id,
+        amount: finalQuote.amount,
+        description: finalQuote.description,
+        line_items: finalQuote.line_items,
+        status: finalQuote.status,
+        updated_at: finalQuote.updated_at
       },
-      message: 'Devis soumis avec succès'
+      message: existingQuote ? 'Devis modifié avec succès' : 'Devis soumis avec succès'
     })
 
   } catch (error) {

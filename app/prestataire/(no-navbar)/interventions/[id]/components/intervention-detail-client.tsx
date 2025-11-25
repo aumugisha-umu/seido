@@ -245,6 +245,7 @@ export function PrestataireInterventionDetailClient({
   // Handle editing existing quote
   const handleEditQuote = (quote: Quote) => {
     setSelectedQuote(quote)
+    setAvailabilityOnlyMode(false) // Ensure full form is shown when editing
     setQuoteModalOpen(true)
   }
 
@@ -256,6 +257,7 @@ export function PrestataireInterventionDetailClient({
     const materialsItem = lineItems.find((item: any) => item.description?.includes('Matériaux'))
 
     return {
+      id: quote.id, // Conserver l'ID du devis pour permettre la modification
       laborCost: laborItem?.total || quote.amount || 0,
       materialsCost: materialsItem?.total || 0,
       workDetails: quote.description || '',

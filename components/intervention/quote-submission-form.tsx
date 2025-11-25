@@ -41,6 +41,8 @@ import {
   rejectTimeSlotAction,
   withdrawResponseAction
 } from '@/app/actions/intervention-actions'
+import { TimePicker24h } from "@/components/ui/time-picker-24h"
+import { DatePicker } from "@/components/ui/date-picker"
 import type { Database } from '@/lib/database.types'
 
 type TimeSlotResponse = Database['public']['Tables']['time_slot_responses']['Row'] & {
@@ -260,14 +262,28 @@ export function QuoteSubmissionForm({
 
     // Trigger form validation and submission
     // We re-implement validation logic locally to be sure we check the latest data
-    if (!currentFormData.laborCost || parseFloat(currentFormData.laborCost) < 0) {
-      setError("Le coût total est requis et doit être positif")
-      return
-    }
 
-    if (!currentFormData.workDetails.trim()) {
-      setError("La description des travaux est requise")
-      return
+    // En mode "disponibilités uniquement", on vérifie seulement les disponibilités
+    if (hideEstimationSection) {
+      const hasValidAvailability = currentFormData.providerAvailabilities.some(avail =>
+        avail.date && avail.startTime && (currentFormData.globalIsFlexible ? true : avail.endTime || currentFormData.estimatedDurationHours)
+      )
+
+      if (!hasValidAvailability) {
+        setError("Veuillez renseigner au moins une disponibilité valide")
+        return
+      }
+    } else {
+      // En mode normal, on vérifie les champs d'estimation
+      if (!currentFormData.laborCost || parseFloat(currentFormData.laborCost) < 0) {
+        setError("Le coût total est requis et doit être positif")
+        return
+      }
+
+      if (!currentFormData.workDetails.trim()) {
+        setError("La description des travaux est requise")
+        return
+      }
     }
 
     // Détecter le mode édition
@@ -276,10 +292,11 @@ export function QuoteSubmissionForm({
     setIsLoading(true)
     setError(null)
 
-    logger.info('📝 [QuoteForm] submitWrapper called', { 
-      isEditMode, 
+    logger.info('📝 [QuoteForm] submitWrapper called', {
+      isEditMode,
       quoteId: existingQuote?.id,
-      interventionId: intervention.id 
+      interventionId: intervention.id,
+      hideEstimationSection
     })
 
       // Call the async submit logic
@@ -295,10 +312,10 @@ export function QuoteSubmissionForm({
             body: JSON.stringify({
               interventionId: intervention.id,
               quoteId: existingQuote?.id, // Passer l'ID du devis si en mode édition
-              laborCost: parseFloat(currentFormData.laborCost),
+              laborCost: hideEstimationSection ? 0 : parseFloat(currentFormData.laborCost),
               materialsCost: 0,
-              estimatedDurationHours: parseFloat(currentFormData.estimatedDurationHours),
-              description: currentFormData.workDetails.trim(),
+              estimatedDurationHours: hideEstimationSection ? 1 : parseFloat(currentFormData.estimatedDurationHours),
+              description: hideEstimationSection ? '' : currentFormData.workDetails.trim(),
               providerAvailabilities: currentFormData.providerAvailabilities
                 .filter(avail => avail.date && avail.startTime)
                 .map(avail => ({
@@ -319,10 +336,12 @@ export function QuoteSubmissionForm({
           }
 
           // Toast de succès adapté au mode
-          if (isEditMode) {
+          if (hideEstimationSection) {
+            quoteToast.systemNotification('Disponibilités enregistrées', 'Vos disponibilités ont été enregistrées avec succès', 'info')
+          } else if (isEditMode) {
             quoteToast.systemNotification('Devis modifié', `Votre devis de ${calculateTotal().toFixed(2)}€ a été mis à jour`, 'info')
           } else {
-          quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
+            quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
           }
           onSuccess()
 
@@ -330,13 +349,13 @@ export function QuoteSubmissionForm({
           logger.error('Error submitting quote:', error)
           const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue'
           setError(errorMessage)
-          const errorAction = isEditMode ? 'la modification du devis' : 'la soumission du devis'
+          const errorAction = hideEstimationSection ? 'l\'enregistrement des disponibilités' : (isEditMode ? 'la modification du devis' : 'la soumission du devis')
           quoteToast.quoteError(errorMessage, errorAction)
         } finally {
           setIsLoading(false)
         }
       })()
-  }, [intervention.id, intervention.title, onSuccess, existingQuote?.id])
+  }, [intervention.id, intervention.title, onSuccess, existingQuote?.id, hideEstimationSection])
 
   // Use refs to track previous values and avoid calling callbacks during render
   const prevValidationChangeRef = useRef<typeof onValidationChange>(null)
@@ -346,7 +365,7 @@ export function QuoteSubmissionForm({
   // Now that the modal uses useRef instead of useState, we can pass the function directly
   useEffect(() => {
     if (onSubmitReady) {
-        onSubmitReady(submitWrapper)
+      onSubmitReady(submitWrapper)
     }
   }, [onSubmitReady, submitWrapper])
 
@@ -539,6 +558,14 @@ export function QuoteSubmissionForm({
 
   // Validation globale pour état du bouton (Design System)
   const isFormValid = (): boolean => {
+    // En mode "disponibilités uniquement", on vérifie seulement qu'il y a au moins une disponibilité valide
+    if (hideEstimationSection) {
+      return formData.providerAvailabilities.some(avail =>
+        avail.date && avail.startTime && (formData.globalIsFlexible ? true : avail.endTime || formData.estimatedDurationHours)
+      )
+    }
+
+    // En mode normal, on vérifie les champs requis
     const requiredFields: (keyof FormData)[] = ['laborCost', 'workDetails']
 
     // Vérifier que tous les champs requis sont valides
@@ -675,7 +702,7 @@ export function QuoteSubmissionForm({
       if (existingQuote?.id) {
         quoteToast.systemNotification('Devis modifié', `Votre devis de ${calculateTotal().toFixed(2)}€ a été mis à jour`, 'info')
       } else {
-      quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
+        quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
       }
 
       // Appel direct du callback de succès
@@ -925,22 +952,20 @@ export function QuoteSubmissionForm({
                           {/* Date */}
                           <div>
                             <Label className="text-sm font-medium text-slate-700 mb-1 block">Date</Label>
-                            <Input
-                              type="date"
+                            <DatePicker
                               value={avail.date}
-                              onChange={(e) => updateAvailability(index, 'date', e.target.value)}
-                              min={new Date().toISOString().split('T')[0]}
-                              className="h-10"
+                              onChange={(value) => updateAvailability(index, 'date', value)}
+                              minDate={new Date().toISOString().split('T')[0]}
+                              className="w-full"
                             />
                           </div>
 
                           {/* Heure début */}
                           <div>
                             <Label className="text-sm font-medium text-slate-700 mb-1 block">Heure début</Label>
-                            <Input
-                              type="time"
+                            <TimePicker24h
                               value={avail.startTime}
-                              onChange={(e) => updateAvailability(index, 'startTime', e.target.value)}
+                              onChange={(value) => updateAvailability(index, 'startTime', value)}
                               className="h-10"
                             />
                           </div>
@@ -949,10 +974,9 @@ export function QuoteSubmissionForm({
                           {formData.globalIsFlexible ? (
                             <div>
                               <Label className="text-sm font-medium text-slate-700 mb-1 block">Heure fin</Label>
-                              <Input
-                                type="time"
+                              <TimePicker24h
                                 value={avail.endTime || ''}
-                                onChange={(e) => updateAvailability(index, 'endTime', e.target.value)}
+                                onChange={(value) => updateAvailability(index, 'endTime', value)}
                                 className="h-10"
                               />
                             </div>

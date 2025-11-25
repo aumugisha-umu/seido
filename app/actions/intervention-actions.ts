@@ -2053,6 +2053,211 @@ export async function programInterventionAction(
 }
 
 /**
+ * Choose a time slot as manager and schedule the intervention
+ * 
+ * This action:
+ * - Marks the chosen slot as 'selected'
+ * - Rejects all other pending/requested slots
+ * - Updates the intervention status to 'planifiee'
+ * 
+ * Permissions: Gestionnaire or admin only
+ */
+export async function chooseTimeSlotAsManagerAction(
+  slotId: string,
+  interventionId: string
+): Promise<ActionResult<{ hasActiveQuotes: boolean }>> {
+  try {
+    // Auth check
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    logger.info('🎯 [SERVER-ACTION] Manager choosing time slot:', {
+      slotId,
+      interventionId,
+      userId: user.id,
+      userRole: user.role
+    })
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // 1. Verify user is gestionnaire or admin
+    if (user.role !== 'gestionnaire' && user.role !== 'admin') {
+      logger.warn('⚠️ Permission denied: User is not a manager or admin')
+      return {
+        success: false,
+        error: 'Seuls les gestionnaires et administrateurs peuvent choisir un créneau'
+      }
+    }
+
+    // 2. Get the intervention
+    const { data: intervention, error: interventionError } = await supabase
+      .from('interventions')
+      .select('id, status, team_id')
+      .eq('id', interventionId)
+      .single()
+
+    if (interventionError || !intervention) {
+      logger.error('❌ Intervention not found:', interventionError)
+      return { success: false, error: 'Intervention introuvable' }
+    }
+
+    // 3. Get the time slot
+    const { data: slot, error: slotError } = await supabase
+      .from('intervention_time_slots')
+      .select('*')
+      .eq('id', slotId)
+      .eq('intervention_id', interventionId)
+      .single()
+
+    if (slotError || !slot) {
+      logger.error('❌ Time slot not found:', slotError)
+      return { success: false, error: 'Créneau introuvable' }
+    }
+
+    // 4. Verify slot is not already cancelled or selected
+    if (slot.status === 'cancelled') {
+      return {
+        success: false,
+        error: 'Ce créneau a été annulé et ne peut pas être sélectionné'
+      }
+    }
+
+    if (slot.status === 'selected') {
+      return {
+        success: false,
+        error: 'Ce créneau est déjà sélectionné'
+      }
+    }
+
+    // 5. Check for active quotes
+    const { data: quotes, error: quotesError } = await supabase
+      .from('intervention_quotes')
+      .select('id, status')
+      .eq('intervention_id', interventionId)
+      .in('status', ['pending', 'sent'])
+
+    const hasActiveQuotes = (quotes && quotes.length > 0) || false
+
+    logger.info('📊 Active quotes check:', {
+      hasActiveQuotes,
+      quotesCount: quotes?.length || 0
+    })
+
+    // 6. Update the chosen slot to 'selected'
+    const { error: updateSlotError } = await supabase
+      .from('intervention_time_slots')
+      .update({
+        status: 'selected',
+        is_selected: true
+      })
+      .eq('id', slotId)
+
+    if (updateSlotError) {
+      logger.error('❌ Error updating chosen slot:', updateSlotError)
+      return { success: false, error: 'Erreur lors de la sélection du créneau' }
+    }
+
+    logger.info('✅ Chosen slot updated to selected')
+
+    // 7. Reject all other slots (pending or requested)
+    const { error: rejectOthersError } = await supabase
+      .from('intervention_time_slots')
+      .update({
+        status: 'rejected'
+      })
+      .eq('intervention_id', interventionId)
+      .neq('id', slotId)
+      .in('status', ['pending', 'requested'])
+
+    if (rejectOthersError) {
+      logger.error('❌ Error rejecting other slots:', rejectOthersError)
+      // Don't fail the entire operation, just log the error
+    } else {
+      logger.info('✅ Other slots updated to rejected')
+    }
+
+    // 8. Calculate scheduled date-time (slot_date + start_time)
+    // Ensure start_time has proper format (HH:MM:SS)
+    let timeWithSeconds = slot.start_time
+    const timeParts = timeWithSeconds.split(':')
+    if (timeParts.length === 2) {
+      // If time is HH:MM, add :00 for seconds
+      timeWithSeconds = `${timeWithSeconds}:00`
+    }
+    // Format: YYYY-MM-DDTHH:MM:SS (ISO 8601 without timezone for PostgreSQL TIMESTAMPTZ)
+    const scheduledDateTime = `${slot.slot_date}T${timeWithSeconds}`
+
+    logger.info('📅 Scheduled date-time constructed:', {
+      slot_date: slot.slot_date,
+      start_time: slot.start_time,
+      timeWithSeconds,
+      scheduledDateTime
+    })
+
+    // 9. Update intervention status to 'planifiee'
+    const { error: updateInterventionError } = await supabase
+      .from('interventions')
+      .update({
+        status: 'planifiee',
+        scheduled_date: scheduledDateTime,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', interventionId)
+
+    if (updateInterventionError) {
+      logger.error('❌ Error updating intervention:', {
+        error: updateInterventionError,
+        code: updateInterventionError.code,
+        message: updateInterventionError.message,
+        details: updateInterventionError.details,
+        hint: updateInterventionError.hint,
+        scheduledDateTime
+      })
+      return { 
+        success: false, 
+        error: `Erreur lors de la mise à jour de l'intervention: ${updateInterventionError.message || 'erreur inconnue'}` 
+      }
+    }
+
+    logger.info('✅ Intervention updated to planifiee')
+
+    // 10. Log activity
+    await supabase.from('activity_logs').insert({
+      intervention_id: interventionId,
+      user_id: user.id,
+      action: 'time_slot_chosen_by_manager',
+      details: {
+        slot_id: slotId,
+        slot_date: slot.slot_date,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        scheduled_date: scheduledDateTime
+      }
+    })
+
+    logger.success('✅ Time slot chosen successfully by manager')
+
+    // 11. Revalidate intervention pages
+    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
+    revalidatePath(`/locataire/interventions/${interventionId}`)
+    revalidatePath(`/prestataire/interventions/${interventionId}`)
+
+    return { 
+      success: true, 
+      data: { hasActiveQuotes }
+    }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error choosing time slot as manager:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }
+  }
+}
+
+/**
  * Update Provider Guidelines Action
  * Allows gestionnaires to update the general instructions for providers
  */

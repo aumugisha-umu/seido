@@ -5,11 +5,18 @@
  * Displays planning information in read-only mode: participants, estimation, and scheduling method
  */
 
+import { useState } from 'react'
 import { ContactSection } from "@/components/ui/contact-section"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { QuoteRequestCard } from "@/components/quotes/quote-request-card"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@/components/ui/dropdown-menu'
 import {
   Users,
   Clock,
@@ -26,10 +33,12 @@ import {
   CheckCircle,
   XCircle,
   AlertCircle,
-  User
+  User,
+  MoreVertical
 } from "lucide-react"
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { ChooseTimeSlotModal } from '@/components/intervention/modals/choose-time-slot-modal'
 import type { Database } from '@/lib/database.types'
 
 type UserRow = Database['public']['Tables']['users']['Row']
@@ -124,6 +133,16 @@ export function InterventionSchedulingPreview({
   onCancelQuoteRequest,
   onModifyChoice
 }: InterventionSchedulingPreviewProps) {
+  // State for choose time slot modal
+  const [selectedSlotToChoose, setSelectedSlotToChoose] = useState<FullTimeSlot | null>(null)
+  const [hasActiveQuotes, setHasActiveQuotes] = useState(false)
+
+  // Handler to open choose time slot modal
+  const handleChooseSlot = (slot: FullTimeSlot) => {
+    const hasActive = quotes.some(q => ['pending', 'sent'].includes(q.status))
+    setHasActiveQuotes(hasActive)
+    setSelectedSlotToChoose(slot)
+  }
 
   // Helper to get the current user's response for a slot
   const getUserResponse = (slot: FullTimeSlot) => {
@@ -645,6 +664,23 @@ export function InterventionSchedulingPreview({
                                             Annuler
                                           </Button>
                                         )}
+
+                                        {/* Dot menu - Choose time slot */}
+                                        {canManageSlots && currentUserRole === 'gestionnaire' && slot.status !== 'cancelled' && slot.status !== 'selected' && slot.status !== 'rejected' && (
+                                          <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                                                <MoreVertical className="h-3.5 w-3.5" />
+                                              </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="end">
+                                              <DropdownMenuItem onClick={() => handleChooseSlot(slot)}>
+                                                <CheckCircle className="mr-2 h-4 w-4" />
+                                                Choisir cet horaire
+                                              </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                          </DropdownMenu>
+                                        )}
                                       </>
                                     )}
                                   </div>
@@ -720,6 +756,20 @@ export function InterventionSchedulingPreview({
           </div>
         )}
       </div>
+
+      {/* Choose Time Slot Modal */}
+      {selectedSlotToChoose && fullTimeSlots && fullTimeSlots.length > 0 && (
+        <ChooseTimeSlotModal
+          slot={selectedSlotToChoose}
+          interventionId={selectedSlotToChoose.intervention_id}
+          hasActiveQuotes={hasActiveQuotes}
+          open={!!selectedSlotToChoose}
+          onOpenChange={(open) => !open && setSelectedSlotToChoose(null)}
+          onSuccess={() => {
+            setSelectedSlotToChoose(null)
+          }}
+        />
+      )}
     </div>
   )
 }

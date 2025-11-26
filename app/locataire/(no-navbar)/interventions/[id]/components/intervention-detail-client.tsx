@@ -281,7 +281,7 @@ export function LocataireInterventionDetailClient({
   }
 
   return (
-    <div className="container max-w-6xl mx-auto space-y-6">
+    <>
       {/* Intervention Detail Header with Action Panel */}
       <DetailPageHeader
         onBack={() => router.push('/locataire/interventions')}
@@ -296,7 +296,8 @@ export function LocataireInterventionDetailClient({
               title: intervention.title,
               status: intervention.status,
               tenant_id: intervention.tenant_id || undefined,
-              scheduled_date: intervention.scheduled_date || undefined
+              scheduled_date: intervention.scheduled_date || undefined,
+              assignments: (intervention as any).assignments || []
             }}
             userRole="locataire"
             userId={currentUser.id}
@@ -306,8 +307,54 @@ export function LocataireInterventionDetailClient({
         hasGlobalNav={false}
       />
 
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
+        {/* Modals */}
+        <ProgrammingModal
+          isOpen={planning.programmingModal.isOpen}
+          onClose={planning.closeProgrammingModal}
+          intervention={planning.programmingModal.intervention}
+          programmingOption={planning.programmingOption}
+          onProgrammingOptionChange={planning.setProgrammingOption}
+          directSchedule={planning.programmingDirectSchedule}
+          onDirectScheduleChange={planning.setProgrammingDirectSchedule}
+          proposedSlots={planning.programmingProposedSlots}
+          onAddProposedSlot={planning.addProgrammingSlot}
+          onUpdateProposedSlot={planning.updateProgrammingSlot}
+          onRemoveProposedSlot={planning.removeProgrammingSlot}
+          managers={managers}
+          selectedManagers={managers.map(m => m.id)}
+          onManagerToggle={() => {}}
+          providers={providers}
+          selectedProviders={providers.map(p => p.id)}
+          onProviderToggle={() => {}}
+          tenants={tenants}
+          selectedTenants={tenants.map(t => t.id)}
+          onTenantToggle={() => {}}
+          onConfirm={planning.handleProgrammingConfirm}
+          isFormValid={planning.isProgrammingFormValid()}
+        />
+
+        {/* Cancel Slot Modal */}
+        <CancelSlotModal
+          isOpen={planning.cancelSlotModal.isOpen}
+          onClose={planning.closeCancelSlotModal}
+          slot={planning.cancelSlotModal.slot}
+          interventionId={intervention.id}
+          onSuccess={handleActionComplete}
+        />
+
+        {/* Reject Slot Modal */}
+        <RejectSlotModal
+          isOpen={planning.rejectSlotModal.isOpen}
+          onClose={planning.closeRejectSlotModal}
+          slot={planning.rejectSlotModal.slot}
+          interventionId={intervention.id}
+          onSuccess={handleActionComplete}
+        />
+
+        {/* Tabs Navigation */}
+        <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4 mb-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid grid-cols-4 w-full">
           <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
           <TabsTrigger value="execution">
@@ -431,51 +478,9 @@ export function LocataireInterventionDetailClient({
             canManage={false}
           />
         </TabsContent>
-      </Tabs>
-
-      {/* Programming Modal */}
-      <ProgrammingModal
-        isOpen={planning.programmingModal.isOpen}
-        onClose={planning.closeProgrammingModal}
-        intervention={planning.programmingModal.intervention}
-        programmingOption={planning.programmingOption}
-        onProgrammingOptionChange={planning.setProgrammingOption}
-        directSchedule={planning.programmingDirectSchedule}
-        onDirectScheduleChange={planning.setProgrammingDirectSchedule}
-        proposedSlots={planning.programmingProposedSlots}
-        onAddProposedSlot={planning.addProgrammingSlot}
-        onUpdateProposedSlot={planning.updateProgrammingSlot}
-        onRemoveProposedSlot={planning.removeProgrammingSlot}
-        managers={managers}
-        selectedManagers={managers.map(m => m.id)}
-        onManagerToggle={() => {}}
-        providers={providers}
-        selectedProviders={providers.map(p => p.id)}
-        onProviderToggle={() => {}}
-        tenants={tenants}
-        selectedTenants={tenants.map(t => t.id)}
-        onTenantToggle={() => {}}
-        onConfirm={planning.handleProgrammingConfirm}
-        isFormValid={planning.isProgrammingFormValid()}
-      />
-
-      {/* Cancel Slot Modal */}
-      <CancelSlotModal
-        isOpen={planning.cancelSlotModal.isOpen}
-        onClose={planning.closeCancelSlotModal}
-        slot={planning.cancelSlotModal.slot}
-        interventionId={intervention.id}
-        onSuccess={handleActionComplete}
-      />
-
-      {/* Reject Slot Modal */}
-      <RejectSlotModal
-        isOpen={planning.rejectSlotModal.isOpen}
-        onClose={planning.closeRejectSlotModal}
-        slot={planning.rejectSlotModal.slot}
-        interventionId={intervention.id}
-        onSuccess={handleActionComplete}
-      />
-    </div>
+        </Tabs>
+        </div>
+      </div>
+    </>
   )
 }

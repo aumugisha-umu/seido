@@ -141,7 +141,12 @@ export default async function LocataireInterventionDetailPage({ params }: PagePr
       name: firstAssignment.user.name,
       email: firstAssignment.user.email,
       role: firstAssignment.user.role
-    } : undefined
+    } : undefined,
+    // Assignments needed for action buttons (validate/contest work)
+    assignments: assignments?.map(a => ({
+      role: a.role,
+      user_id: a.user?.id || a.user_id
+    })) || []
   }
 
   return (

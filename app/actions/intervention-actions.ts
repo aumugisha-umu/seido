@@ -106,6 +106,50 @@ async function getAuthenticatedUser() {
 }
 
 /**
+ * Get a single intervention by ID
+ */
+export async function getInterventionAction(
+  id: string
+): Promise<ActionResult<Intervention>> {
+  try {
+    // Auth check
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Validate UUID format
+    if (!id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return { success: false, error: 'Invalid intervention ID format' }
+    }
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // Fetch intervention
+    const { data: intervention, error } = await supabase
+      .from('interventions')
+      .select('*')
+      .eq('id', id)
+      .single()
+
+    if (error || !intervention) {
+      logger.error('❌ [SERVER-ACTION] Error fetching intervention:', { error, id })
+      return { success: false, error: error?.message || 'Intervention not found' }
+    }
+
+    logger.info('✅ [SERVER-ACTION] Intervention fetched:', { id, status: intervention.status })
+
+    return { success: true, data: intervention }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error fetching intervention:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
+}
+
+/**
  * Get interventions with filters
  */
 export async function getInterventionsAction(

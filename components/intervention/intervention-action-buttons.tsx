@@ -29,7 +29,7 @@ import { getValidAvailabilities } from "@/lib/availability-filtering-utils"
 import { analyzeTimeSlots, getProviderActionForTimeSlots, getProviderActionLabel } from "@/lib/time-slot-utils"
 import { WorkCompletionReport } from "./work-completion-report"
 import { SimpleWorkCompletionModal } from "./simple-work-completion-modal"
-import { TenantValidationForm } from "./tenant-validation-form"
+import { TenantValidationSimple } from "./tenant-validation-simple"
 import { FinalizationModalLive } from "./finalization-modal-live"
 import { TenantSlotConfirmationModal } from "./tenant-slot-confirmation-modal"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
@@ -670,26 +670,71 @@ export function InterventionActionButtons({
     }
   }
 
-  const handleTenantValidation = async (data: TenantValidationData): Promise<boolean> => {
+  // Simple tenant validation handlers - Appelle la nouvelle route API
+  const handleApproveWork = async (data: { comments: string; photos: File[] }): Promise<boolean> => {
     try {
       setIsProcessing(true)
       setError(null)
 
-      const result = await interventionActionsService.validateIntervention(
-        { id: intervention.id, title: intervention.title, status: intervention.status },
-        data
-      )
+      const response = await fetch(`/api/intervention/${intervention.id}/tenant-validation-simple`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          validationType: 'approve',
+          comments: data.comments
+        })
+      })
 
-      if (result.success) {
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        logger.info({ interventionId: intervention.id }, '✅ Tenant validation successful')
         setShowTenantValidationModal(false)
         onActionComplete?.()
         return true
       } else {
+        logger.error({ error: result.error }, '❌ Tenant validation failed')
         setError(result.error || 'Erreur lors de la validation')
         return false
       }
     } catch (_error) {
+      logError('❌ Tenant validation error', _error)
       setError('Erreur lors de la validation')
+      return false
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleRejectWork = async (data: { comments: string; photos: File[] }): Promise<boolean> => {
+    try {
+      setIsProcessing(true)
+      setError(null)
+
+      const response = await fetch(`/api/intervention/${intervention.id}/tenant-validation-simple`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          validationType: 'contest',
+          comments: data.comments
+        })
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        logger.info({ interventionId: intervention.id, isContested: true }, '✅ Tenant contestation successful')
+        setShowTenantValidationModal(false)
+        onActionComplete?.()
+        return true
+      } else {
+        logger.error({ error: result.error }, '❌ Tenant contestation failed')
+        setError(result.error || 'Erreur lors de la contestation')
+        return false
+      }
+    } catch (_error) {
+      logError('❌ Tenant contestation error', _error)
+      setError('Erreur lors de la contestation')
       return false
     } finally {
       setIsProcessing(false)
@@ -861,11 +906,12 @@ export function InterventionActionButtons({
         isLoading={isProcessing}
       />
 
-      <TenantValidationForm
+      <TenantValidationSimple
         intervention={intervention}
         isOpen={showTenantValidationModal}
         onClose={() => setShowTenantValidationModal(false)}
-        onSubmit={handleTenantValidation}
+        onApprove={handleApproveWork}
+        onReject={handleRejectWork}
         isLoading={isProcessing}
       />
 

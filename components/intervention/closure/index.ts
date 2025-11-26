@@ -1,7 +1,6 @@
 // Composants de clôture d'intervention
 export { WorkCompletionReport } from '../work-completion-report'
-export { TenantValidationForm } from '../tenant-validation-form'
-export { ManagerFinalizationForm } from '../manager-finalization-form'
+export { TenantValidationSimple } from '../tenant-validation-simple'
 
 // Types pour les données de clôture
 export type {

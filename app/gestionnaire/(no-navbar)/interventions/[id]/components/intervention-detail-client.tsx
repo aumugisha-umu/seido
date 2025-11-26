@@ -16,7 +16,6 @@ import { Badge } from '@/components/ui/badge'
 import { OverviewTab } from './overview-tab'
 import { ChatTab } from './chat-tab'
 import { DocumentsTab } from './documents-tab'
-import { ActivityTab } from './activity-tab'
 
 // Intervention components
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata } from '@/components/ui/detail-page-header'
@@ -28,7 +27,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Building2, MapPin, User, Calendar, AlertCircle, Edit, XCircle, MoreVertical } from 'lucide-react'
+import { Building2, MapPin, User, Calendar, AlertCircle, Edit, XCircle, MoreVertical, UserCheck } from 'lucide-react'
 
 // Hooks
 import { useAuth } from '@/hooks/use-auth'
@@ -48,6 +47,7 @@ import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-mo
 import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
 import { CancelQuoteRequestModal } from '@/components/intervention/modals/cancel-quote-request-modal'
 import { CancelQuoteConfirmModal } from '@/components/intervention/modals/cancel-quote-confirm-modal'
+import { FinalizationModalLive } from '@/components/intervention/finalization-modal-live'
 
 import type { Database } from '@/lib/database.types'
 
@@ -79,10 +79,6 @@ type TimeSlot = Database['public']['Tables']['intervention_time_slots']['Row'] &
 
 type Thread = Database['public']['Tables']['conversation_threads']['Row']
 
-type ActivityLog = Database['public']['Tables']['activity_logs']['Row'] & {
-  user?: Database['public']['Tables']['users']['Row']
-}
-
 interface Comment {
   id: string
   content: string
@@ -99,7 +95,6 @@ interface InterventionDetailClientProps {
   threads: Thread[]
   initialMessagesByThread?: Record<string, any[]>
   initialParticipantsByThread?: Record<string, any[]>
-  activityLogs: ActivityLog[]
   comments: Comment[]
 }
 
@@ -112,7 +107,6 @@ export function InterventionDetailClient({
   threads,
   initialMessagesByThread,
   initialParticipantsByThread,
-  activityLogs,
   comments
 }: InterventionDetailClientProps) {
   const router = useRouter()
@@ -133,6 +127,11 @@ export function InterventionDetailClient({
   })
   const [isCancellingQuote, setIsCancellingQuote] = useState(false)
   const [requireQuote, setRequireQuote] = useState(intervention.status === 'demande_de_devis')
+  const [showFinalizationModal, setShowFinalizationModal] = useState(false)
+
+  // Helpers for button visibility based on intervention status
+  const canModifyOrCancel = !['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'].includes(intervention.status)
+  const canFinalize = ['en_cours', 'cloturee_par_prestataire', 'cloturee_par_locataire'].includes(intervention.status)
 
   // State for cancel quote confirmation modal (from toggle)
   const [cancelQuoteConfirmModal, setCancelQuoteConfirmModal] = useState<{
@@ -662,48 +661,74 @@ export function InterventionDetailClient({
                 </div>
               )}
 
-              {/* Bouton Modifier avec tooltip */}
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleOpenProgrammingModalWithData}
-                      className="gap-2 min-h-[36px]"
-                    >
-                      <Edit className="w-4 h-4" />
-                      <span>Modifier</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Proposer de nouveaux créneaux ou modifier le rendez-vous</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {/* Bouton Modifier avec tooltip - conditionnel */}
+              {canModifyOrCancel && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={handleOpenProgrammingModalWithData}
+                        className="gap-2 min-h-[36px]"
+                      >
+                        <Edit className="w-4 h-4" />
+                        <span>Modifier</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Proposer de nouveaux créneaux ou modifier le rendez-vous</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
 
-              {/* Bouton Annuler avec tooltip */}
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        // TODO: Open cancel modal
-                        console.log('Annuler intervention')
-                      }}
-                      className="gap-2 min-h-[36px]"
-                    >
-                      <XCircle className="w-4 h-4" />
-                      <span>Annuler</span>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Annuler cette intervention définitivement</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              {/* Bouton Finaliser avec tooltip - conditionnel */}
+              {canFinalize && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => setShowFinalizationModal(true)}
+                        className="gap-2 min-h-[36px] bg-green-600 hover:bg-green-700"
+                      >
+                        <UserCheck className="w-4 h-4" />
+                        <span>Finaliser</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Valider et clôturer définitivement l'intervention</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+
+              {/* Bouton Annuler avec tooltip - conditionnel */}
+              {canModifyOrCancel && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => {
+                          // TODO: Open cancel modal
+                          console.log('Annuler intervention')
+                        }}
+                        className="gap-2 min-h-[36px]"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        <span>Annuler</span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Annuler cette intervention définitivement</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
 
             {/* Tablet Layout (768-1023px) : Badge compact + Labels raccourcis */}
@@ -715,28 +740,47 @@ export function InterventionDetailClient({
                 </div>
               )}
 
-              <Button
-                variant="default"
-                size="sm"
-                onClick={handleOpenProgrammingModalWithData}
-                className="gap-1.5 min-h-[36px]"
-              >
-                <Edit className="w-4 h-4" />
-                <span>Modifier</span>
-              </Button>
+              {/* Bouton Modifier - conditionnel */}
+              {canModifyOrCancel && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleOpenProgrammingModalWithData}
+                  className="gap-1.5 min-h-[36px]"
+                >
+                  <Edit className="w-4 h-4" />
+                  <span>Modifier</span>
+                </Button>
+              )}
 
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  // TODO: Open cancel modal
-                  console.log('Annuler intervention')
-                }}
-                className="gap-1.5 min-h-[36px]"
-              >
-                <XCircle className="w-4 h-4" />
-                <span>Annuler</span>
-              </Button>
+              {/* Bouton Finaliser - conditionnel */}
+              {canFinalize && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => setShowFinalizationModal(true)}
+                  className="gap-1.5 min-h-[36px] bg-green-600 hover:bg-green-700"
+                >
+                  <UserCheck className="w-4 h-4" />
+                  <span>Finaliser</span>
+                </Button>
+              )}
+
+              {/* Bouton Annuler - conditionnel */}
+              {canModifyOrCancel && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    // TODO: Open cancel modal
+                    console.log('Annuler intervention')
+                  }}
+                  className="gap-1.5 min-h-[36px]"
+                >
+                  <XCircle className="w-4 h-4" />
+                  <span>Annuler</span>
+                </Button>
+              )}
             </div>
 
             {/* Mobile Layout (<768px) : Dropdown menu avec point indicateur */}
@@ -768,25 +812,37 @@ export function InterventionDetailClient({
                     </>
                   )}
 
-                  {/* Action Modifier */}
-                  <DropdownMenuItem onSelect={handleOpenProgrammingModalWithData}>
-                    <Edit className="w-4 h-4 mr-2" />
-                    Modifier
-                  </DropdownMenuItem>
+                  {/* Action Modifier - conditionnelle */}
+                  {canModifyOrCancel && (
+                    <DropdownMenuItem onSelect={handleOpenProgrammingModalWithData}>
+                      <Edit className="w-4 h-4 mr-2" />
+                      Modifier
+                    </DropdownMenuItem>
+                  )}
 
-                  <DropdownMenuSeparator />
+                  {/* Action Finaliser - conditionnelle */}
+                  {canFinalize && (
+                    <DropdownMenuItem onSelect={() => setShowFinalizationModal(true)}>
+                      <UserCheck className="w-4 h-4 mr-2 text-green-600" />
+                      Finaliser l'intervention
+                    </DropdownMenuItem>
+                  )}
 
-                  {/* Action Annuler */}
-                  <DropdownMenuItem
-                    className="text-red-600 focus:text-red-600"
-                    onSelect={() => {
-                      // TODO: Open cancel modal
-                      console.log('Annuler intervention')
-                    }}
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Annuler l'intervention
-                  </DropdownMenuItem>
+                  {canModifyOrCancel && <DropdownMenuSeparator />}
+
+                  {/* Action Annuler - conditionnelle */}
+                  {canModifyOrCancel && (
+                    <DropdownMenuItem
+                      className="text-red-600 focus:text-red-600"
+                      onSelect={() => {
+                        // TODO: Open cancel modal
+                        console.log('Annuler intervention')
+                      }}
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
+                      Annuler l'intervention
+                    </DropdownMenuItem>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -869,6 +925,14 @@ export function InterventionDetailClient({
         isLoading={isCancellingQuoteFromToggle}
       />
 
+      {/* Finalization Modal */}
+      <FinalizationModalLive
+        interventionId={intervention.id}
+        isOpen={showFinalizationModal}
+        onClose={() => setShowFinalizationModal(false)}
+        onComplete={handleRefresh}
+      />
+
       {/* Tabs Navigation */}
       <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4 mb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -891,9 +955,6 @@ export function InterventionDetailClient({
                   {getBadgeCount('documents')}
                 </span>
               )}
-            </TabsTrigger>
-            <TabsTrigger value="activity">
-              Activité
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -940,13 +1001,6 @@ export function InterventionDetailClient({
                   interventionId={intervention.id}
                   documents={documents}
                   canManage={true}
-                />
-              </TabsContent>
-
-              <TabsContent value="activity" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6">
-                <ActivityTab
-                  intervention={intervention}
-                  activityLogs={activityLogs}
                 />
               </TabsContent>
             </div>

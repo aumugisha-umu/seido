@@ -22,7 +22,6 @@ import { OverviewTab } from './overview-tab'
 import { ChatTab } from './chat-tab'
 import { QuotesTab } from './quotes-tab'
 import { DocumentsTab } from './documents-tab'
-import { ExecutionTab } from '@/components/intervention/tabs/execution-tab'
 
 // Intervention components
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
@@ -425,21 +424,13 @@ export function PrestataireInterventionDetailClient({
       {/* Tabs */}
       <div className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto">
             <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
             <TabsTrigger value="quotes">
               Devis
               {quotes.length > 0 && (
                 <Badge variant="secondary" className="ml-2">
                   {quotes.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="execution">
-              Exécution
-              {timeSlots.length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {timeSlots.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -492,30 +483,6 @@ export function PrestataireInterventionDetailClient({
                 currentUser={currentUser}
                 onRefresh={handleRefresh}
                 onEditQuote={handleEditQuote}
-              />
-            </TabsContent>
-
-            <TabsContent value="execution" className="space-y-6">
-              <ExecutionTab
-                interventionId={intervention.id}
-                timeSlots={timeSlots}
-                currentStatus={intervention.status}
-                intervention={{
-                  id: intervention.id,
-                  type: '',
-                  status: intervention.status || '',
-                  title: '',
-                  description: intervention.description,
-                  priority: intervention.priority,
-                  urgency: intervention.urgency,
-                  reference: intervention.reference || '',
-                  created_at: intervention.created_at,
-                  location: intervention.specific_location,
-                }}
-                onOpenProgrammingModal={handleOpenAvailabilityModal}
-                currentUserId={currentUser?.id}
-                userRole="prestataire"
-                onRejectSlot={handleRejectSlot}
               />
             </TabsContent>
 

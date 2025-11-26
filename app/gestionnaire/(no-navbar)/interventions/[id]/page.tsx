@@ -64,7 +64,6 @@ export default async function InterventionDetailPage({ params }: PageProps) {
       { data: quotes },
       { data: timeSlots },
       { data: threads, allMessages: threadMessages, allParticipants: threadParticipants },
-      { data: activityLogs },
       { data: comments }
     ] = await Promise.all([
       // Building
@@ -175,15 +174,6 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         }
       })(),
 
-      // Activity logs
-      supabase
-        .from('activity_logs')
-        .select('*, user:users!user_id(*)')
-        .eq('entity_type', 'intervention')
-        .eq('entity_id', id)
-        .order('created_at', { ascending: false })
-        .limit(50),
-
       // Comments
       supabase
         .from('intervention_comments')
@@ -201,7 +191,6 @@ export default async function InterventionDetailPage({ params }: PageProps) {
       quotesCount: quotes?.length || 0,
       timeSlotsCount: timeSlots?.length || 0,
       threadsCount: threads?.length || 0,
-      logsCount: activityLogs?.length || 0,
       elapsed: `${Date.now() - startTime}ms`
     })
 
@@ -257,7 +246,6 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         threads={threads || []}
         initialMessagesByThread={messagesByThread}
         initialParticipantsByThread={participantsByThread}
-        activityLogs={activityLogs || []}
         comments={comments || []}
       />
     )

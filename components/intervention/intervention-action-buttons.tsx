@@ -123,6 +123,7 @@ export function InterventionActionButtons({
   const [showWorkCompletionModal, setShowWorkCompletionModal] = useState(false)
   const [showSimpleWorkCompletionModal, setShowSimpleWorkCompletionModal] = useState(false)
   const [showTenantValidationModal, setShowTenantValidationModal] = useState(false)
+  const [tenantValidationInitialMode, setTenantValidationInitialMode] = useState<'approve' | 'reject'>('approve')
   const [showSimplifiedFinalizationModal, setShowSimplifiedFinalizationModal] = useState(false)
   const [showSlotConfirmationModal, setShowSlotConfirmationModal] = useState(false)
 
@@ -363,6 +364,8 @@ export function InterventionActionButtons({
 
       case 'cloturee_par_prestataire':
         if (userRole === 'locataire' && isInterventionTenant(intervention, userId)) {
+          // Les deux boutons ouvrent la même modale TenantValidationSimple
+          // qui permet de choisir entre valider et contester en interne
           actions.push(
             {
               key: 'validate_work',
@@ -374,9 +377,9 @@ export function InterventionActionButtons({
               key: 'contest_work',
               label: 'Contester',
               icon: AlertTriangle,
-              description: 'Signaler un problème avec les travaux',
-              requiresComment: true,
-              confirmationMessage: 'Signaler un problème nécessitera une révision.'
+              description: 'Signaler un problème avec les travaux'
+              // PAS de requiresComment ni confirmationMessage
+              // car TenantValidationSimple gère tout en interne
             }
           )
         }
@@ -572,7 +575,12 @@ export function InterventionActionButtons({
           return
 
         case 'validate_work':
+          setTenantValidationInitialMode('approve')
+          setShowTenantValidationModal(true)
+          return
+
         case 'contest_work':
+          setTenantValidationInitialMode('reject')
           setShowTenantValidationModal(true)
           return
 
@@ -913,6 +921,7 @@ export function InterventionActionButtons({
         onApprove={handleApproveWork}
         onReject={handleRejectWork}
         isLoading={isProcessing}
+        initialMode={tenantValidationInitialMode}
       />
 
       <FinalizationModalLive

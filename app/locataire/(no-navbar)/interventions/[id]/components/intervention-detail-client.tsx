@@ -12,7 +12,6 @@ import { InterventionOverviewCard } from '@/components/interventions/interventio
 import { StatusTimeline } from '@/components/interventions/status-timeline'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { DocumentsTab } from '@/app/gestionnaire/(no-navbar)/interventions/[id]/components/documents-tab'
-import { ExecutionTab } from '@/components/intervention/tabs/execution-tab'
 import { selectTimeSlotAction, validateByTenantAction } from '@/app/actions/intervention-actions'
 import { toast } from 'sonner'
 import { Activity, FileText, Building2, MapPin, Calendar } from 'lucide-react'
@@ -355,16 +354,8 @@ export function LocataireInterventionDetailClient({
         {/* Tabs Navigation */}
         <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4 mb-6">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-4 w-full">
+        <TabsList className="grid grid-cols-3 w-full">
           <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
-          <TabsTrigger value="execution">
-            Exécution
-            {timeSlots.length > 0 && (
-              <span className="ml-2 text-xs bg-primary text-primary-foreground rounded-full px-1.5">
-                {timeSlots.length}
-              </span>
-            )}
-          </TabsTrigger>
           <TabsTrigger value="chat">
             Discussion
             {threads.length > 0 && (
@@ -444,30 +435,6 @@ export function LocataireInterventionDetailClient({
             threads={threads}
             currentUserId={currentUser.id}
             userRole="locataire"
-          />
-        </TabsContent>
-
-        <TabsContent value="execution" className="space-y-6">
-          <ExecutionTab
-            interventionId={intervention.id}
-            timeSlots={timeSlots}
-            currentStatus={intervention.status}
-            intervention={{
-              id: intervention.id,
-              type: '',
-              status: intervention.status || '',
-              title: intervention.title || '',
-              description: intervention.description,
-              priority: intervention.priority,
-              urgency: intervention.urgency,
-              reference: intervention.reference || '',
-              created_at: intervention.created_at,
-              location: intervention.specific_location,
-            }}
-            onOpenProgrammingModal={handleOpenProgrammingModalWithData}
-            onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
-            onRejectSlot={(slot) => planning.openRejectSlotModal(slot, intervention.id)}
-            currentUserId={currentUser?.id}
           />
         </TabsContent>
 

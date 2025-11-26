@@ -575,6 +575,7 @@ export const selectSlotSchema = z.object({
 export const interventionFinalizeSchema = z.object({
   interventionId: uuidSchema,
   finalizationComment: z.string().max(5000).trim().optional(),
+  managerReport: z.string().max(5000).trim().optional(), // Rapport de clôture gestionnaire
   paymentStatus: z.enum(['pending', 'approved', 'paid', 'disputed'], {
     errorMap: () => ({ message: 'Invalid payment status' })
   }).optional(),

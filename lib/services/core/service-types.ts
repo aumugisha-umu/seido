@@ -102,8 +102,12 @@ export type DocumentVisibilityLevel = Database['public']['Enums']['document_visi
 export type TeamMemberRole = Database['public']['Enums']['team_member_role']
 
 /**
- * Intervention Status (11 states - French)
+ * Intervention Status (10 active states - French)
  * i18n will be added later when multiple languages are supported
+ *
+ * Note: 'en_cours' is DEPRECATED - kept in DB enum for backward compatibility
+ * but no longer used in the application workflow.
+ * Interventions now go directly from 'planifiee' to 'cloturee_par_*'
  */
 export type InterventionStatus =
   | 'demande'                        // Initial request from tenant
@@ -112,24 +116,24 @@ export type InterventionStatus =
   | 'demande_de_devis'               // Quote requested from provider
   | 'planification'                  // Finding available time slot
   | 'planifiee'                      // Time slot confirmed
-  | 'en_cours'                       // Work in progress
+  | 'en_cours'                       // DEPRECATED: kept for DB compatibility only
   | 'cloturee_par_prestataire'       // Provider finished work
   | 'cloturee_par_locataire'         // Tenant validated work
   | 'cloturee_par_gestionnaire'      // Manager finalized intervention
   | 'annulee'                        // Cancelled
 
 /**
- * Display labels for intervention status
- * Currently identical to status values, will be used for i18n later
+ * Display labels for intervention status (active statuses only)
+ * Note: 'en_cours' is excluded as it's deprecated
  */
-export const STATUS_LABELS_FR: Record<InterventionStatus, string> = {
+export const STATUS_LABELS_FR: Partial<Record<InterventionStatus, string>> = {
   demande: "Demande",
   rejetee: "Rejetée",
   approuvee: "Approuvée",
   demande_de_devis: "Devis demandé",
   planification: "Planification",
   planifiee: "Planifiée",
-  en_cours: "En cours",
+  // en_cours: DEPRECATED - not displayed
   cloturee_par_prestataire: "Clôturée par prestataire",
   cloturee_par_locataire: "Clôturée par locataire",
   cloturee_par_gestionnaire: "Terminée",
@@ -162,7 +166,7 @@ export interface Intervention {
   quote_notes?: string | null
   selected_quote_id?: string | null
   has_attachments?: boolean | null
-  scheduling_type?: string | null
+  scheduling_type?: 'fixed' | 'slots' | 'flexible' | null
   created_at?: string
   updated_at?: string
   // Legacy field names (for backward compatibility in business logic)

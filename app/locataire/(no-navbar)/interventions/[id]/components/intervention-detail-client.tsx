@@ -385,13 +385,7 @@ export function LocataireInterventionDetailClient({
                 tenants={tenants}
                 requireQuote={false}
                 quotes={[]}
-                schedulingType={
-                  intervention.scheduled_date
-                    ? 'fixed'
-                    : timeSlots.length > 0
-                    ? 'slots'
-                    : null
-                }
+                schedulingType={intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null}
                 schedulingSlots={timeSlots
                   .filter(ts => ts.slot_date && ts.start_time && ts.end_time)
                   .map(ts => ({

@@ -858,17 +858,6 @@ export default function NouvelleInterventionClient({
       const normalizedSelectedBuildingId = normalizeIdValue(selectedBuildingId)
       const normalizedSelectedLotId = normalizeIdValue(selectedLotId)
 
-      // 🔍 DEBUG: Log scheduling state before building payload
-      console.log('🔍 [CLIENT-DEBUG] Scheduling state before submission:', {
-        schedulingType,
-        fixedDateTime,
-        fixedDateTimeDate: fixedDateTime.date,
-        fixedDateTimeTime: fixedDateTime.time,
-        fixedDateTimeHasDate: !!fixedDateTime.date,
-        fixedDateTimeHasTime: !!fixedDateTime.time,
-        timeSlots,
-        timeSlotsLength: timeSlots.length
-      })
 
       const interventionData = {
         // Basic intervention data

@@ -39,9 +39,9 @@ export const getStatusColor = (status: string) => {
       return "bg-yellow-100 text-yellow-800 border-yellow-200"
     case "planifiee":
       return "bg-purple-100 text-purple-800 border-purple-200"
-    case "en_cours":
+    case "en_cours": // DEPRECATED - kept for backward compatibility
       return "bg-indigo-100 text-indigo-800 border-indigo-200"
-    
+
     // Phase 3: Clôture
     case "cloturee_par_prestataire":
       return "bg-orange-100 text-orange-800 border-orange-200"
@@ -76,9 +76,9 @@ export const getStatusLabel = (status: string) => {
       return "Planification"
     case "planifiee":
       return "Planifiée"
-    case "en_cours":
+    case "en_cours": // DEPRECATED - kept for backward compatibility
       return "En cours"
-    
+
     // Phase 3: Clôture
     case "cloturee_par_prestataire":
       return "Clôturée par prestataire"
@@ -166,7 +166,7 @@ export const getStatusIcon = (status: string): string => {
       return "Calendar" // Calendrier pour planification
     case "planifiee":
       return "CalendarCheck" // Calendrier validé pour intervention planifiée
-    case "en_cours":
+    case "en_cours": // DEPRECATED - kept for backward compatibility
       return "Play" // Play pour intervention en cours
 
     // Phase 3: Clôture
@@ -229,7 +229,7 @@ export const getStatusActionMessage = (status: string, userContext?: 'gestionnai
         return "Vous devez planifier l'intervention"
       case "planifiee":
         return "Intervention planifiée - Vous pouvez commencer"
-      case "en_cours":
+      case "en_cours": // DEPRECATED
         return "Intervention en cours - Terminez quand c'est fait"
 
       // Phase 3: Clôture - Statuts mappés côté prestataire
@@ -267,7 +267,7 @@ export const getStatusActionMessage = (status: string, userContext?: 'gestionnai
         return "Planification en cours avec le prestataire"
       case "planifiee":
         return "Intervention programmée"
-      case "en_cours":
+      case "en_cours": // DEPRECATED
         return "Intervention en cours"
 
       // Phase 3: Clôture
@@ -305,7 +305,7 @@ export const getStatusActionMessage = (status: string, userContext?: 'gestionnai
       return "En attente des disponibilités du locataire et prestataire"
     case "planifiee":
       return "Intervention planifiée"
-    case "en_cours":
+    case "en_cours": // DEPRECATED
       return "Intervention en cours d'exécution"
 
     // Phase 3: Clôture

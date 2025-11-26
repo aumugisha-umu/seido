@@ -123,12 +123,13 @@ export default function PrestataireDashboard() {
       // Actions en attente : interventions nécessitant une action du prestataire
       return getPendingActionsInterventions()
     } else if (tabId === "en_cours") {
-      // En cours : interventions assignées au prestataire nécessitant une action
+      // Traitement en cours : interventions assignées au prestataire nécessitant une action
+      // Note: 'en_cours' is DEPRECATED - kept for backward compatibility with existing DB data
       return interventions.filter((i) => [
         "demande_de_devis",          // Demandes de devis
         "planification",             // Phase de planification des dates
         "planifiee",                 // Dates planifiées, prêt à exécuter
-        "en_cours"                   // Intervention en cours d'exécution
+        "en_cours"                   // DEPRECATED: Kept for backward compatibility only
       ].includes(i.status))
     } else if (tabId === "cloturees") {
       // Clôturées : interventions terminées ou annulées
@@ -197,7 +198,7 @@ export default function PrestataireDashboard() {
     }] : []),
     {
       id: "en_cours",
-      label: "En cours",
+      label: "Traitement en cours",
       icon: Clock,
       count: loading ? "..." : getFilteredInterventions("en_cours").length,
       content: renderInterventionsList("en_cours")

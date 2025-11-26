@@ -464,6 +464,8 @@ export function PrestataireInterventionDetailClient({
                 onRejectSlot={handleRejectSlot}
                 onAcceptSlot={handleAcceptSlot}
                 onModifyChoice={handleModifyChoice}
+                onEditQuote={handleEditQuote}
+                onCancelQuote={handleCancelQuote}
               />
             </TabsContent>
 

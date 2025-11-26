@@ -60,7 +60,8 @@ const TimeSlotSchema = z.object({
 })
 
 const InterventionFiltersSchema = z.object({
-  status: z.enum(['demande', 'rejetee', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours', 'cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'] as const).optional(),
+  // Note: 'en_cours' is deprecated and no longer used in the workflow
+  status: z.enum(['demande', 'rejetee', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'] as const).optional(),
   urgency: z.enum(['basse', 'normale', 'haute', 'urgente'] as const).optional(),
   type: z.enum(['plomberie', 'electricite', 'menuiserie', 'peinture', 'chauffage', 'climatisation', 'serrurerie', 'vitrerie', 'nettoyage', 'jardinage', 'autre'] as const).optional(),
   building_id: z.string().uuid().optional(),
@@ -503,43 +504,16 @@ export async function confirmScheduleAction(
 
 /**
  * Start intervention
+ * @deprecated The 'en_cours' status is deprecated. Use completeByProviderAction() instead.
+ * Interventions now go directly from 'planifiee' to 'cloturee_par_prestataire'.
+ * This action now delegates to completeByProviderAction for backward compatibility.
  */
 export async function startInterventionAction(id: string): Promise<ActionResult<Intervention>> {
-  try {
-    // Auth check
-    const user = await getAuthenticatedUser()
-    if (!user) {
-      return { success: false, error: 'Authentication required' }
-    }
+  // DEPRECATED: Log warning and delegate to completeByProvider
+  logger.warn('⚠️ [DEPRECATED] startInterventionAction is deprecated. Use completeByProviderAction instead.')
 
-    // Only providers can start interventions
-    if (user.role !== 'prestataire') {
-      return { success: false, error: 'Only providers can start interventions' }
-    }
-
-    logger.info('▶️ [SERVER-ACTION] Starting intervention:', { id, userId: user.id })
-
-    // Create service and execute
-    const interventionService = await createServerActionInterventionService()
-    const result = await interventionService.startIntervention(id, user.id)
-
-    if (result.success && result.data) {
-      // Revalidate intervention pages
-      revalidatePath('/prestataire/interventions')
-      revalidatePath(`/prestataire/interventions/${id}`)
-      revalidatePath('/gestionnaire/interventions')
-      revalidatePath(`/gestionnaire/interventions/${id}`)
-      revalidatePath('/locataire/interventions')
-      revalidatePath(`/locataire/interventions/${id}`)
-
-      return { success: true, data: result.data }
-    }
-
-    return { success: false, error: result.error || 'Failed to start intervention' }
-  } catch (error) {
-    logger.error('❌ [SERVER-ACTION] Error starting intervention:', error)
-    return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' }
-  }
+  // Delegate to completeByProvider for backward compatibility
+  return completeByProviderAction(id)
 }
 
 /**
@@ -1905,18 +1879,17 @@ export async function programInterventionAction(
         // Autonomous organization - tenant and provider coordinate directly
         logger.info('📅 [SERVER-ACTION] Organization mode - autonomous coordination')
 
-        // Save scheduling method as 'flexible'
-        const { error: updateError } = await supabase
-          .from('interventions')
-          .update({ scheduling_method: 'flexible' })
-          .eq('id', interventionId)
+        // Delete any existing time slots (important: prevents display bug)
+        const { error: deleteError } = await supabase
+          .from('intervention_time_slots')
+          .delete()
+          .eq('intervention_id', interventionId)
 
-        if (updateError) {
-          logger.error('❌ [SERVER-ACTION] Error updating scheduling_method:', updateError)
-          throw updateError
+        if (deleteError) {
+          logger.warn('⚠️ [SERVER-ACTION] Error deleting old time slots:', deleteError)
+        } else {
+          logger.info('🗑️ [SERVER-ACTION] Old time slots deleted for flexible mode')
         }
-
-        logger.info('✅ [SERVER-ACTION] Scheduling method set to flexible')
         break
       }
 
@@ -1951,13 +1924,20 @@ export async function programInterventionAction(
       updated_at: new Date().toISOString()
     }
 
-    // Add scheduling_method based on option (for direct and propose modes)
-    // Note: 'organize' mode already set scheduling_method in its case block
+    // Set scheduling_type based on option (using DB enum values)
     if (option === 'direct') {
-      updateData.scheduling_method = 'direct'
+      updateData.scheduling_type = 'fixed'
     } else if (option === 'propose') {
-      updateData.scheduling_method = 'slots'
+      updateData.scheduling_type = 'slots'
+    } else if (option === 'organize') {
+      updateData.scheduling_type = 'flexible'
     }
+
+    logger.info('📅 [SERVER-ACTION] Update data prepared:', {
+      option,
+      scheduling_type: updateData.scheduling_type,
+      status: updateData.status
+    })
 
     const { data: updatedIntervention, error: updateError } = await supabase
       .from('interventions')

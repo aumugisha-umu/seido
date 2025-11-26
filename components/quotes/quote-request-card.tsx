@@ -15,7 +15,7 @@ interface QuoteRequest {
   // Nouveau format
   intervention_id?: string
   provider_id?: string
-  status?: 'sent' | 'viewed' | 'responded' | 'expired' | 'cancelled'
+  status?: 'sent' | 'viewed' | 'responded' | 'expired' | 'cancelled' | 'pending' | 'accepted' | 'rejected'
   sent_at?: string
   viewed_at?: string
   responded_at?: string
@@ -29,12 +29,20 @@ interface QuoteRequest {
   quote_id?: string
   quote_amount?: number
 
+  // Champs de intervention_quotes (fallback)
+  amount?: number         // Fallback pour quote_amount
+  created_at?: string     // Fallback pour sent_at
+  description?: string    // Description du devis
+  line_items?: any        // Détails des lignes
+
   // Ancien format (pour compatibilité)
   provider?: {
     id: string
     name: string
     email: string
     avatar?: string
+    phone?: string
+    provider_category?: string
   }
   assigned_at?: string
   has_quote?: boolean
@@ -51,6 +59,9 @@ interface QuoteRequestCardProps {
   onCancelRequest?: (_requestId: string) => void
   onNewRequest?: (_requestId: string) => void
   onViewProvider?: (_providerId: string) => void
+  onApproveQuote?: (_quoteId: string) => void
+  onRejectQuote?: (_quoteId: string) => void
+  showActions?: boolean
   className?: string
 }
 
@@ -60,6 +71,9 @@ export function QuoteRequestCard({
   onCancelRequest,
   onNewRequest,
   onViewProvider,
+  onApproveQuote,
+  onRejectQuote,
+  showActions = false,
   className = ""
 }: QuoteRequestCardProps) {
 
@@ -67,6 +81,14 @@ export function QuoteRequestCard({
   const getProviderName = () => request.provider_name || request.provider?.name || 'Prestataire inconnu'
   const getProviderEmail = () => request.provider_email || request.provider?.email || 'Email inconnu'
   const getProviderId = () => request.provider_id || request.provider?.id || ''
+
+  // Helper pour le montant (fallback: amount → quote_amount)
+  const getQuoteAmount = () => request.quote_amount || request.amount
+
+  // Helper pour la date d'envoi (fallback: created_at → sent_at)
+  const getSentDate = () => request.sent_at || request.created_at || (request as { assigned_at?: string }).assigned_at
+
+  // Helper pour le statut
   const getStatus = () => {
     // Mapper l'ancien format au nouveau
     if (request.status) return request.status
@@ -74,32 +96,59 @@ export function QuoteRequestCard({
     return 'sent'
   }
 
+  // Helper pour le statut du devis (avec mapping)
+  const getQuoteStatusMapped = () => {
+    if (request.quote_status) return request.quote_status
+    // Mapper le status de intervention_quotes
+    const amount = getQuoteAmount()
+    if (request.status === 'sent' && amount && amount > 0) return 'pending'
+    if (request.status === 'accepted') return 'approved'
+    if (request.status === 'rejected') return 'rejected'
+    return undefined
+  }
+
+  // Vérifie si c'est un devis reçu (avec montant)
+  const isReceivedQuote = () => {
+    const amount = getQuoteAmount()
+    return amount !== undefined && amount !== null && amount > 0
+  }
+
   const getStatusConfig = (request: QuoteRequest) => {
-    // If there's a quote, show quote status
-    if ((request.quote_id || request.has_quote) && request.quote_status) {
-      switch (request.quote_status) {
+    // Check if it's a received quote (with amount)
+    const quoteStatus = getQuoteStatusMapped()
+    if (isReceivedQuote() || (request.quote_id || request.has_quote)) {
+      switch (quoteStatus || request.quote_status) {
         case 'approved':
           return {
-            label: 'Estimation approuvée',
+            label: 'Devis approuvé',
             variant: 'default' as const,
             className: 'bg-green-100 text-green-800 border-green-200',
             icon: '✅'
           }
         case 'rejected':
           return {
-            label: 'Estimation rejetée',
+            label: 'Devis rejeté',
             variant: 'destructive' as const,
             className: 'bg-red-100 text-red-800 border-red-200',
             icon: '❌'
           }
         case 'pending':
           return {
-            label: 'Estimation reçue',
+            label: 'Devis reçu',
             variant: 'secondary' as const,
-            className: 'bg-blue-100 text-blue-800 border-blue-200',
-            icon: '📝'
+            className: 'bg-green-100 text-green-800 border-green-200',
+            icon: '💰'
           }
         default:
+          // Default for received quotes
+          if (isReceivedQuote()) {
+            return {
+              label: 'Devis envoyé',
+              variant: 'default' as const,
+              className: 'bg-green-100 text-green-800 border-green-200',
+              icon: '💰'
+            }
+          }
           return {
             label: 'Estimation reçue',
             variant: 'default' as const,
@@ -118,6 +167,13 @@ export function QuoteRequestCard({
           variant: 'outline' as const,
           className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
           icon: '📤'
+        }
+      case 'pending':
+        return {
+          label: 'En attente',
+          variant: 'outline' as const,
+          className: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+          icon: '⏳'
         }
       case 'viewed':
         return {
@@ -230,7 +286,7 @@ export function QuoteRequestCard({
                 <span>
                   Envoyé le {(() => {
                     try {
-                      const dateStr = request.sent_at || (request as { assigned_at?: string }).assigned_at
+                      const dateStr = getSentDate()
                       return dateStr ? format(new Date(dateStr), 'dd MMM yyyy à HH:mm', { locale: fr }) : 'Date inconnue'
                     } catch {
                       return 'Date invalide'
@@ -290,9 +346,16 @@ export function QuoteRequestCard({
               )}
 
               {/* Montant de l'estimation si disponible */}
-              {request.quote_amount && (
-                <div className="text-xs font-semibold text-green-600 mb-1">
-                  Estimation: {request.quote_amount.toFixed(2)} €
+              {isReceivedQuote() && (
+                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded">
+                  <div className="text-sm font-semibold text-green-800">
+                    💰 {getQuoteAmount()!.toFixed(2)} €
+                  </div>
+                  {request.description && (
+                    <div className="text-xs text-green-700 mt-1 line-clamp-2">
+                      {request.description}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -339,7 +402,7 @@ export function QuoteRequestCard({
                   </Button>
                 )}
 
-                {onCancelRequest && !request.quote_id && !request.has_quote && ['pending', 'sent', 'viewed'].includes(getStatus()) && (
+                {onCancelRequest && !request.quote_id && !request.has_quote && !isReceivedQuote() && ['pending', 'sent', 'viewed'].includes(getStatus()) && (
                   <Button
                     key={`cancel-${request.id}`}
                     variant="outline"
@@ -349,6 +412,34 @@ export function QuoteRequestCard({
                   >
                     Annuler
                   </Button>
+                )}
+
+                {/* Actions pour devis reçu (avec montant) */}
+                {showActions && isReceivedQuote() && getQuoteStatusMapped() !== 'approved' && getQuoteStatusMapped() !== 'rejected' && (
+                  <>
+                    {onApproveQuote && (
+                      <Button
+                        key={`approve-${request.id}`}
+                        variant="default"
+                        size="sm"
+                        onClick={() => onApproveQuote(request.id)}
+                        className="text-xs h-7 bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        Approuver
+                      </Button>
+                    )}
+                    {onRejectQuote && (
+                      <Button
+                        key={`reject-${request.id}`}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => onRejectQuote(request.id)}
+                        className="text-xs h-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        Rejeter
+                      </Button>
+                    )}
+                  </>
                 )}
               </React.Fragment>
             )}

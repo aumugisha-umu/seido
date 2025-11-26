@@ -164,25 +164,6 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
     hasCreator: !!intervention.creator
   })
 
-  console.log('🔍 [SERVER-DEBUG] Full intervention with relations:', {
-    id: intervention.id,
-    status: intervention.status,
-    building: intervention.building ? {
-      id: intervention.building.id,
-      name: intervention.building.name,
-      postal_code: intervention.building.postal_code,
-      city: intervention.building.city,
-      country: intervention.building.country
-    } : null,
-    lot: intervention.lot ? {
-      id: intervention.lot.id,
-      reference: intervention.lot.reference,
-      postal_code: intervention.lot.postal_code,
-      city: intervention.lot.city,
-      country: intervention.lot.country
-    } : null
-  })
-
   return (
     <PrestataireInterventionDetailClient
       intervention={intervention}

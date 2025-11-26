@@ -105,6 +105,8 @@ interface InterventionSchedulingPreviewProps {
 
   // Quote actions
   onCancelQuoteRequest?: (quoteId: string) => void
+  onApproveQuote?: (quoteId: string) => void
+  onRejectQuote?: (quoteId: string) => void
 
   // Modify choice action (when user has already responded)
   onModifyChoice?: (slot: FullTimeSlot, currentResponse: 'accepted' | 'rejected') => void
@@ -131,6 +133,8 @@ export function InterventionSchedulingPreview({
   onEditParticipants,
   onEditQuotes,
   onCancelQuoteRequest,
+  onApproveQuote,
+  onRejectQuote,
   onModifyChoice
 }: InterventionSchedulingPreviewProps) {
   // State for choose time slot modal
@@ -338,18 +342,50 @@ export function InterventionSchedulingPreview({
           <h4 className="text-sm font-medium">Estimation préalable</h4>
         </div>
 
-        {/* Estimations received */}
+        {/* Estimations received - Différencier devis reçus vs demandes en attente */}
         {requireQuote && quotes.length > 0 ? (
-          <div className="flex gap-3 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory items-stretch">
-            {quotes.map(quote => (
-              <div key={quote.id} className="min-w-[320px] max-w-[400px] flex-shrink-0 snap-start flex">
-                <QuoteRequestCard
-                  request={quote}
-                  onCancelRequest={onCancelQuoteRequest}
-                  className="flex-1"
-                />
+          <div className="space-y-4">
+            {/* Devis reçus (avec montant) - Affichés en premier */}
+            {quotes.filter(q => q.amount && q.amount > 0).length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-xs font-medium text-green-700 flex items-center gap-1">
+                  💰 Devis reçus ({quotes.filter(q => q.amount && q.amount > 0).length})
+                </h5>
+                <div className="flex gap-3 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory items-stretch">
+                  {quotes.filter(q => q.amount && q.amount > 0).map(quote => (
+                    <div key={quote.id} className="min-w-[320px] max-w-[400px] flex-shrink-0 snap-start flex">
+                      <QuoteRequestCard
+                        request={quote}
+                        onApproveQuote={onApproveQuote}
+                        onRejectQuote={onRejectQuote}
+                        showActions={currentUserRole === 'gestionnaire'}
+                        className="flex-1"
+                      />
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
+            )}
+
+            {/* Demandes en attente (sans montant) */}
+            {quotes.filter(q => !q.amount || q.amount === 0).length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-xs font-medium text-amber-700 flex items-center gap-1">
+                  📤 Demandes envoyées ({quotes.filter(q => !q.amount || q.amount === 0).length})
+                </h5>
+                <div className="flex gap-3 overflow-x-auto pb-2 scroll-smooth snap-x snap-mandatory items-stretch">
+                  {quotes.filter(q => !q.amount || q.amount === 0).map(quote => (
+                    <div key={quote.id} className="min-w-[320px] max-w-[400px] flex-shrink-0 snap-start flex">
+                      <QuoteRequestCard
+                        request={quote}
+                        onCancelRequest={onCancelQuoteRequest}
+                        className="flex-1"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : requireQuote ? (
           <div className="p-4 bg-amber-50/30 border border-amber-200 rounded-lg">
@@ -737,12 +773,35 @@ export function InterventionSchedulingPreview({
                 <Users className="h-5 w-5 text-emerald-600" />
               </div>
               <div className="flex-1">
-                <h5 className="font-semibold text-sm text-emerald-900 mb-1">
-                  Coordination autonome
-                </h5>
-                <p className="text-sm text-emerald-700 leading-relaxed">
-                  Les participants se coordonnent directement entre eux pour fixer le rendez-vous.
-                </p>
+                {/* Role-specific titles and messages for flexible scheduling */}
+                {currentUserRole === 'prestataire' ? (
+                  <>
+                    <h5 className="font-semibold text-sm text-emerald-900 mb-1">
+                      Organisation flexible
+                    </h5>
+                    <p className="text-sm text-emerald-700 leading-relaxed">
+                      Contactez directement le locataire pour convenir d&apos;un rendez-vous qui vous convient à tous les deux.
+                    </p>
+                  </>
+                ) : currentUserRole === 'locataire' ? (
+                  <>
+                    <h5 className="font-semibold text-sm text-emerald-900 mb-1">
+                      Organisation flexible
+                    </h5>
+                    <p className="text-sm text-emerald-700 leading-relaxed">
+                      Le prestataire vous contactera pour fixer un rendez-vous qui vous convient.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <h5 className="font-semibold text-sm text-emerald-900 mb-1">
+                      Coordination autonome
+                    </h5>
+                    <p className="text-sm text-emerald-700 leading-relaxed">
+                      Les participants se coordonnent directement entre eux pour fixer le rendez-vous.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>

@@ -72,6 +72,8 @@ interface InterventionOverviewCardProps {
   onUpdate?: () => void
   // Quote actions
   onCancelQuoteRequest?: (quoteId: string) => void
+  onApproveQuote?: (quoteId: string) => void
+  onRejectQuote?: (quoteId: string) => void
   // Modify choice action (when user has already responded)
   onModifyChoice?: (slot: FullTimeSlot, currentResponse: 'accepted' | 'rejected') => void
 }
@@ -98,9 +100,10 @@ export function InterventionOverviewCard({
   currentUserRole,
   onUpdate,
   onCancelQuoteRequest,
+  onApproveQuote,
+  onRejectQuote,
   onModifyChoice
 }: InterventionOverviewCardProps) {
-
   return (
     <Card>
       <CardContent className="space-y-6">
@@ -140,6 +143,8 @@ export function InterventionOverviewCard({
           onEditParticipants={onEditParticipants}
           onEditQuotes={onEditQuotes}
           onCancelQuoteRequest={onCancelQuoteRequest}
+          onApproveQuote={onApproveQuote}
+          onRejectQuote={onRejectQuote}
           onModifyChoice={onModifyChoice}
         />
       </CardContent>

@@ -76,9 +76,10 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
 
     if ('status' in data && data.status) {
       // ✅ FIX (Oct 23, 2025): Use French statuses matching database enum
+      // Note: 'en_cours' is DEPRECATED but kept for DB compatibility
       validateEnum(data.status, [
         'demande', 'rejetee', 'approuvee', 'demande_de_devis',
-        'planification', 'planifiee', 'en_cours',
+        'planification', 'planifiee', 'en_cours', // DEPRECATED
         'cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire',
         'annulee'
       ], 'status')
@@ -534,6 +535,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
 
     // Calculate statistics
     // ✅ FIX (Oct 23, 2025): Use French statuses matching database enum
+    // Note: 'en_cours' is DEPRECATED but kept for backward compatibility
     const stats = {
       total: statusStats?.length || 0,
       byStatus: {
@@ -543,7 +545,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         demande_de_devis: 0,
         planification: 0,
         planifiee: 0,
-        en_cours: 0,
+        en_cours: 0, // DEPRECATED - kept for backward compatibility
         cloturee_par_prestataire: 0,
         cloturee_par_locataire: 0,
         cloturee_par_gestionnaire: 0,
@@ -636,17 +638,16 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
    */
   private validateStatusTransition(currentStatus: Intervention['status'], newStatus: Intervention['status']) {
     // ✅ FIX (Oct 23, 2025): Use French statuses matching database enum
-    // Previously used English ('pending', 'approved', etc.) which never matched DB values
-    // This caused ALL status transition validations to fail, allowing workflow bypass
+    // ✅ UPDATE (Nov 2025): 'en_cours' is DEPRECATED - direct transition to cloturee_par_*
     const validTransitions: Record<Intervention['status'], Intervention['status'][]> = {
       'demande': ['rejetee', 'approuvee', 'annulee'],
       'rejetee': [], // Terminal state
       'approuvee': ['demande_de_devis', 'planification', 'annulee'],
       'demande_de_devis': ['planification', 'annulee'],
       'planification': ['planifiee', 'annulee'],
-      'planifiee': ['en_cours', 'annulee'],
-      'en_cours': ['cloturee_par_prestataire', 'annulee'],
-      'cloturee_par_prestataire': ['cloturee_par_locataire', 'en_cours'], // Can reopen if contested
+      'planifiee': ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'], // Direct to closure
+      'en_cours': ['cloturee_par_prestataire', 'annulee'], // DEPRECATED - kept for backward compatibility
+      'cloturee_par_prestataire': ['cloturee_par_locataire', 'cloturee_par_gestionnaire'], // Manager can finalize directly
       'cloturee_par_locataire': ['cloturee_par_gestionnaire'],
       'cloturee_par_gestionnaire': [], // Terminal state
       'annulee': [] // Terminal state

@@ -96,6 +96,9 @@ interface InterventionDetailClientProps {
   initialMessagesByThread?: Record<string, any[]>
   initialParticipantsByThread?: Record<string, any[]>
   comments: Comment[]
+  // Server-provided user info to prevent hydration mismatch
+  serverUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire'
+  serverUserId: string
 }
 
 export function InterventionDetailClient({
@@ -107,7 +110,9 @@ export function InterventionDetailClient({
   threads,
   initialMessagesByThread,
   initialParticipantsByThread,
-  comments
+  comments,
+  serverUserRole,
+  serverUserId
 }: InterventionDetailClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -131,7 +136,7 @@ export function InterventionDetailClient({
 
   // Helpers for button visibility based on intervention status
   const canModifyOrCancel = !['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'].includes(intervention.status)
-  const canFinalize = ['en_cours', 'cloturee_par_prestataire', 'cloturee_par_locataire'].includes(intervention.status)
+  const canFinalize = ['planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire'].includes(intervention.status)
 
   // State for cancel quote confirmation modal (from toggle)
   const [cancelQuoteConfirmModal, setCancelQuoteConfirmModal] = useState<{
@@ -569,6 +574,70 @@ export function InterventionDetailClient({
     handleOpenProgrammingModalWithData()
   }
 
+  // Handler pour approuver un devis
+  const handleApproveQuote = async (quoteId: string) => {
+    try {
+      const response = await fetch(`/api/intervention/${intervention.id}/quotes/${quoteId}/approve`, {
+        method: 'POST'
+      })
+
+      const result = await response.json()
+
+      if (result.success || response.ok) {
+        toast({
+          title: 'Devis approuvé',
+          description: 'Le devis a été approuvé avec succès'
+        })
+        handleRefresh()
+      } else {
+        toast({
+          title: 'Erreur',
+          description: result.error || 'Erreur lors de l\'approbation du devis',
+          variant: 'destructive'
+        })
+      }
+    } catch (error) {
+      console.error('Error approving quote:', error)
+      toast({
+        title: 'Erreur',
+        description: 'Erreur lors de l\'approbation du devis',
+        variant: 'destructive'
+      })
+    }
+  }
+
+  // Handler pour rejeter un devis
+  const handleRejectQuote = async (quoteId: string) => {
+    try {
+      const response = await fetch(`/api/intervention/${intervention.id}/quotes/${quoteId}/reject`, {
+        method: 'POST'
+      })
+
+      const result = await response.json()
+
+      if (result.success || response.ok) {
+        toast({
+          title: 'Devis rejeté',
+          description: 'Le devis a été rejeté'
+        })
+        handleRefresh()
+      } else {
+        toast({
+          title: 'Erreur',
+          description: result.error || 'Erreur lors du rejet du devis',
+          variant: 'destructive'
+        })
+      }
+    } catch (error) {
+      console.error('Error rejecting quote:', error)
+      toast({
+        title: 'Erreur',
+        description: 'Erreur lors du rejet du devis',
+        variant: 'destructive'
+      })
+    }
+  }
+
   // Prepare header data
   const getStatusBadge = (): DetailPageHeaderBadge => {
     const statusMap: Record<string, { label: string; color: string; dotColor: string }> = {
@@ -972,8 +1041,8 @@ export function InterventionDetailClient({
                   quotes={quotes}
                   timeSlots={timeSlots}
                   comments={comments}
-                  currentUserId={user?.id || ''}
-                  currentUserRole={(user?.role as 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire') || 'locataire'}
+                  currentUserId={serverUserId}
+                  currentUserRole={serverUserRole}
                   onRefresh={handleRefresh}
                   onOpenProgrammingModal={handleOpenProgrammingModalWithData}
                   onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
@@ -982,6 +1051,8 @@ export function InterventionDetailClient({
                   onEditSlot={handleEditSlot}
                   onEditParticipants={handleOpenProgrammingModalWithData}
                   onEditQuotes={handleOpenProgrammingModalWithData}
+                  onApproveQuote={handleApproveQuote}
+                  onRejectQuote={handleRejectQuote}
                 />
               </TabsContent>
 
@@ -991,8 +1062,8 @@ export function InterventionDetailClient({
                   threads={threads}
                   initialMessagesByThread={initialMessagesByThread}
                   initialParticipantsByThread={initialParticipantsByThread}
-                  currentUserId={user?.id || ''}
-                  userRole={user?.role || 'gestionnaire'}
+                  currentUserId={serverUserId}
+                  userRole={serverUserRole}
                 />
               </TabsContent>
 

@@ -118,16 +118,6 @@ export async function POST(request: NextRequest) {
       expectsQuote,
     } = validation.data
 
-    // 🔍 DEBUG: Log validated scheduling data
-    logger.info({
-      schedulingType,
-      fixedDateTime,
-      fixedDateTimeKeys: fixedDateTime ? Object.keys(fixedDateTime) : null,
-      fixedDateTimeValues: fixedDateTime,
-      timeSlots,
-      timeSlotsLength: timeSlots?.length
-    }, "🔍 [DEBUG] Validated scheduling data after Zod")
-
     // Fields not in schema validation (passed through from body)
     const {
       managerAvailabilities,

@@ -323,6 +323,15 @@ export function InterventionActionButtons({
         break
 
       case 'planifiee':
+        if (userRole === 'gestionnaire') {
+          actions.push({
+            key: 'finalize',
+            label: 'Finaliser',
+            icon: UserCheck,
+            description: 'Clôturer définitivement l\'intervention',
+            requiresComment: false
+          })
+        }
         if (userRole === 'prestataire') {
           actions.push({
             key: 'complete_work',
@@ -351,16 +360,7 @@ export function InterventionActionButtons({
         }
         break
 
-      case 'en_cours':
-        if (userRole === 'prestataire') {
-          actions.push({
-            key: 'complete_work',
-            label: 'Marquer comme terminé',
-            icon: CheckCircle,
-            description: 'Signaler la fin des travaux'
-          })
-        }
-        break
+      // Note: 'en_cours' status is deprecated - interventions go directly from 'planifiee' to 'cloturee_par_*'
 
       case 'cloturee_par_prestataire':
         if (userRole === 'locataire' && isInterventionTenant(intervention, userId)) {
@@ -408,7 +408,7 @@ export function InterventionActionButtons({
     }
 
     // Actions communes disponibles selon le contexte
-    if (['approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours'].includes(intervention.status)) {
+    if (['approuvee', 'demande_de_devis', 'planification', 'planifiee'].includes(intervention.status)) {
       if (userRole === 'gestionnaire') {
         actions.push({
           key: 'cancel',

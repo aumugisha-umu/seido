@@ -21,7 +21,7 @@ export default async function InterventionDetailPage({ params }: PageProps) {
   const { id } = await params
 
   // ✅ AUTH centralisée (comme Lots/Immeubles)
-  const { supabase } = await getServerAuthContext('gestionnaire')
+  const { supabase, profile } = await getServerAuthContext('gestionnaire')
 
   logger.info('🔧 [INTERVENTION-PAGE] Loading intervention', {
     interventionId: id,
@@ -247,6 +247,8 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         initialMessagesByThread={messagesByThread}
         initialParticipantsByThread={participantsByThread}
         comments={comments || []}
+        serverUserRole={profile.role as 'gestionnaire'}
+        serverUserId={profile.id}
       />
     )
   } catch (error) {

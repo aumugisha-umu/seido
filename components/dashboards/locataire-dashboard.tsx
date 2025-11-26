@@ -135,14 +135,15 @@ export default function LocataireDashboard() {
       // Actions en attente : interventions nécessitant une action du locataire
       return getPendingActionsInterventions()
     } else if (tabId === "en_cours") {
-      // En cours : interventions actives nécessitant une action ou en traitement
+      // Traitement en cours : interventions actives nécessitant une action ou en traitement
+      // Note: 'en_cours' is DEPRECATED - kept for backward compatibility with existing DB data
       return transformedInterventions.filter((i) => [
         "demande",
         "approuvee",
         "demande_de_devis",
         "planification",
         "planifiee",
-        "en_cours"
+        "en_cours"                   // DEPRECATED: Kept for backward compatibility only
       ].includes(i.status))
     } else if (tabId === "terminees") {
       // Terminées : interventions clôturées ou annulées
@@ -209,7 +210,7 @@ export default function LocataireDashboard() {
     }] : []),
     {
       id: "en_cours",
-      label: "En cours",
+      label: "Traitement en cours",
       icon: Clock,
       count: loading ? "..." : getFilteredInterventions("en_cours").length,
       content: renderInterventionsList("en_cours")

@@ -80,8 +80,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if intervention can be completed
-    // Allow completion from 'en_cours' OR 'planifiee' (direct completion without starting)
-    if (!['en_cours', 'planifiee'].includes(intervention.status)) {
+    // Note: 'en_cours' is DEPRECATED - completion now from 'planifiee' directly
+    if (!['planifiee', 'en_cours'].includes(intervention.status)) { // en_cours kept for backward compatibility
       return NextResponse.json({
         success: false,
         error: `L'intervention ne peut pas être terminée (statut actuel: ${intervention.status})`

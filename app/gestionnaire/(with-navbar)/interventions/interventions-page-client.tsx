@@ -7,6 +7,7 @@ import {
   AlertTriangle,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useNavigationPending } from "@/hooks/use-navigation-pending"
 
 import { Button } from "@/components/ui/button"
 import { useInterventionApproval } from "@/hooks/use-intervention-approval"
@@ -47,6 +48,7 @@ export function InterventionsPageClient({
   userId
 }: InterventionsPageClientProps) {
   const router = useRouter()
+  const { isPending: isNavigating, navigate } = useNavigationPending()
 
   // ✅ État local initialisé avec les props (pas de hook de fetch)
   const [interventions, setInterventions] = useState(initialInterventions)
@@ -94,12 +96,13 @@ export function InterventionsPageClient({
     fetchQuoteRequests()
   }, [planningHook.programmingModal.isOpen, planningHook.programmingModal.intervention?.id])
 
-  // ✅ Refetch via router.refresh()
+  // ✅ Refetch via router.refresh() - OPTIMISÉ: suppression du délai artificiel
   const refetch = () => {
     setLoading(true)
     router.refresh()
-    // Reset loading after a short delay (Next.js will re-render with new data)
-    setTimeout(() => setLoading(false), 500)
+    // Le loading sera automatiquement reset par React quand les nouvelles props arrivent
+    // Note: Si nécessaire, utiliser startTransition pour un meilleur feedback
+    setLoading(false)
   }
 
   // Handle cancel quote request - open confirmation modal
@@ -160,9 +163,14 @@ export function InterventionsPageClient({
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   className="flex items-center space-x-2"
-                  onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
+                  onClick={() => navigate("/gestionnaire/interventions/nouvelle-intervention")}
+                  disabled={isNavigating}
                 >
-                  <Plus className="h-4 w-4" />
+                  {isNavigating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
                   <span>Créer une intervention</span>
                 </Button>
               </div>
@@ -182,7 +190,7 @@ export function InterventionsPageClient({
                     description: "Créez votre première intervention pour commencer",
                     showCreateButton: true,
                     createButtonText: "Créer une intervention",
-                    createButtonAction: () => router.push("/gestionnaire/interventions/nouvelle-intervention")
+                    createButtonAction: () => navigate("/gestionnaire/interventions/nouvelle-intervention")
                   }}
                   showStatusActions={true}
                   searchPlaceholder="Rechercher par titre, description, ou lot..."
@@ -282,7 +290,7 @@ export function InterventionsPageClient({
           onSubmit={planningHook.handleSubmit}
           isLoading={planningHook.isSubmitting}
           quoteRequests={quoteRequests}
-          onViewProvider={(providerId) => router.push(`/gestionnaire/contacts?highlight=${providerId}`)}
+          onViewProvider={(providerId) => navigate(`/gestionnaire/contacts?highlight=${providerId}`)}
           onCancelQuoteRequest={handleCancelQuoteRequest}
         />
 

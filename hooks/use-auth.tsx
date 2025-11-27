@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, useRef } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, useMemo, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { authService, type AuthUser } from '@/lib/auth-service'
 import { createClient } from '@/utils/supabase/client'
@@ -278,7 +278,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signIn = async (email: string, password: string) => {
+  // ✅ OPTIMISATION: Mémoïser les fonctions avec useCallback pour éviter les re-renders
+  const signIn = useCallback(async (email: string, password: string) => {
     logger.info('🚀 [AUTH-PROVIDER-REFACTORED] SignIn called for:', email)
 
     const result = await authService.signIn({ email, password })
@@ -292,27 +293,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     return result
-  }
+  }, [])
 
-  const signUp = async (data: { email: string; password: string; name: string; phone?: string }) => {
+  const signUp = useCallback(async (data: { email: string; password: string; name: string; phone?: string }) => {
     const result = await authService.signUp(data)
     if (result.user) {
       setUser(result.user)
       updateCoordinationState('loaded')
     }
     return result
-  }
+  }, [])
 
-  const completeProfile = async (data: { firstName: string; lastName: string; phone?: string }) => {
+  const completeProfile = useCallback(async (data: { firstName: string; lastName: string; phone?: string }) => {
     const result = await authService.completeProfile(data)
     if (result.user) {
       setUser(result.user)
       updateCoordinationState('loaded')
     }
     return result
-  }
+  }, [])
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     try {
       logger.info('🚪 [AUTH-PROVIDER-REFACTORED] Starting simple sign out...')
 
@@ -328,21 +329,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null)
       updateCoordinationState('error')
     }
-  }
+  }, [])
 
-  const resetPassword = async (_email: string) => {
+  const resetPassword = useCallback(async (_email: string) => {
     return await authService.resetPassword(_email)
-  }
+  }, [])
 
-  const updateProfile = async (updates: Partial<AuthUser>) => {
+  const updateProfile = useCallback(async (updates: Partial<AuthUser>) => {
     const result = await authService.updateProfile(updates)
     if (result.user) {
       setUser(result.user)
     }
     return result
-  }
+  }, [])
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     // ✅ CRITIQUE: Forcer refresh de la session Supabase avant de charger le profil
     // Cela garantit que getCurrentUser() verra la session la plus récente
     try {
@@ -365,17 +366,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Maintenant charger le profil utilisateur
     await getCurrentUser()
-  }
+  }, [])
 
-  const resendConfirmation = async (_email: string) => {
+  const resendConfirmation = useCallback(async (_email: string) => {
     return await authService.resendConfirmation(_email)
-  }
+  }, [])
 
-  const getCurrentAuthSession = async () => {
+  const getCurrentAuthSession = useCallback(async () => {
     return await authService.getCurrentAuthSession()
-  }
+  }, [])
 
-  const value = {
+  // ✅ OPTIMISATION: Mémoïser le value pour éviter les re-renders des consommateurs
+  const value = useMemo(() => ({
     user,
     loading,
     signIn,
@@ -387,7 +389,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     refreshUser,
     resendConfirmation,
     getCurrentAuthSession,
-  }
+  }), [user, loading, signIn, signUp, completeProfile, signOut, resetPassword, updateProfile, refreshUser, resendConfirmation, getCurrentAuthSession])
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }

@@ -24,7 +24,9 @@
     "migrate:logger-format": "tsx scripts/migrate-logger-to-pino-format.ts",
     "migrate:logger-format:write": "tsx scripts/migrate-logger-to-pino-format.ts --write",
     "analyze:bundle": "ANALYZE=true npm run build",
-    "lighthouse": "lighthouse http://localhost:3000 --output=json --output-path=./lighthouse-report.json",
+    "lighthouse": "lhci autorun",
+    "lighthouse:collect": "lhci collect",
+    "lighthouse:assert": "lhci assert",
     "generate:icons": "tsx scripts/generate-pwa-icons.ts",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -122,6 +124,7 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@lhci/cli": "^0.15.1",
     "@next/bundle-analyzer": "^15.5.4",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/ioredis": "^4.28.10",

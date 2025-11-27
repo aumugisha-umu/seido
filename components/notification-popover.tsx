@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useNavigationPending } from "@/hooks/use-navigation-pending"
 import {
   Bell,
   Mail,
@@ -48,7 +48,7 @@ export default function NotificationPopover({
   role,
   onClose
 }: NotificationPopoverProps) {
-  const router = useRouter()
+  const { isPending, navigate } = useNavigationPending()
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set())
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
 
@@ -56,6 +56,11 @@ export default function NotificationPopover({
     // Ne pas déclencher la navigation si on clique sur les boutons d'action
     const target = e.target as HTMLElement
     if (target.closest('button')) {
+      return
+    }
+
+    // Protection contre le double-clic pendant la navigation
+    if (isPending) {
       return
     }
 
@@ -75,8 +80,8 @@ export default function NotificationPopover({
       // Fermer le popover
       onClose?.()
 
-      // Naviguer vers la page de détail
-      router.push(navigationUrl)
+      // Naviguer vers la page de détail (avec protection useTransition)
+      navigate(navigationUrl)
     }
   }
 

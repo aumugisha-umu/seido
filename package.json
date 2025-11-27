@@ -141,6 +141,7 @@
     "postcss": "^8.5",
     "puppeteer": "^24.22.3",
     "sharp": "^0.34.4",
+    "sharp-cli": "^5.2.0",
     "tailwindcss": "^4.1.9",
     "tsx": "^4.20.6",
     "tw-animate-css": "1.3.3",

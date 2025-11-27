@@ -208,34 +208,61 @@ export const usePrestataireData = (userId: string) => {
       const interventions = interventionsResult.success ? (interventionsResult.data || []) : []
       logger.info("📋 Found interventions:", interventions?.length || 0)
 
-      // ⚡ ENRICHISSEMENT: Ajouter quotes, slots et assignments aux interventions pour le badge interactif
-      logger.info('🔄 [PRESTATAIRE-DATA] Enriching interventions with quotes, slots and assignments...')
-      const interventionsWithDetails = await Promise.all(
-        (interventions || []).map(async (intervention: Intervention) => {
-          const [{ data: quotes }, { data: timeSlots }, { data: assignments }] = await Promise.all([
-            supabase
-              .from('intervention_quotes')
-              .select('id, status, provider_id, created_by, amount')
-              .eq('intervention_id', intervention.id)
-              .is('deleted_at', null),
-            supabase
-              .from('intervention_time_slots')
-              .select('id, slot_date, start_time, status, proposed_by')
-              .eq('intervention_id', intervention.id),
-            supabase
-              .from('intervention_assignments')
-              .select('role, user_id, is_primary')
-              .eq('intervention_id', intervention.id)
-          ])
-          return {
-            ...intervention,
-            quotes: quotes || [],
-            timeSlots: timeSlots || [],
-            assignments: assignments || []
-          }
-        })
-      )
-      logger.info('✅ [PRESTATAIRE-DATA] Interventions enriched with quotes, slots and assignments')
+      // ⚡ ENRICHISSEMENT OPTIMISÉ: Batch queries au lieu de N+1
+      // AVANT: 3 requêtes par intervention (N+1 pattern) = 30 requêtes pour 10 interventions
+      // APRÈS: 3 requêtes batch total = 3 requêtes peu importe le nombre d'interventions
+      logger.info('🔄 [PRESTATAIRE-DATA] Enriching interventions with quotes, slots and assignments (BATCH)...')
+
+      const interventionIds = (interventions || []).map((i: Intervention) => i.id)
+
+      // 3 requêtes batch au lieu de 3*N requêtes
+      const [
+        { data: allQuotes },
+        { data: allTimeSlots },
+        { data: allAssignments }
+      ] = await Promise.all([
+        supabase
+          .from('intervention_quotes')
+          .select('id, status, provider_id, created_by, amount, intervention_id')
+          .in('intervention_id', interventionIds)
+          .is('deleted_at', null),
+        supabase
+          .from('intervention_time_slots')
+          .select('id, slot_date, start_time, status, proposed_by, intervention_id')
+          .in('intervention_id', interventionIds),
+        supabase
+          .from('intervention_assignments')
+          .select('role, user_id, is_primary, intervention_id')
+          .in('intervention_id', interventionIds)
+      ])
+
+      // Mapper les résultats par intervention_id pour accès O(1)
+      const quotesMap = new Map<string, typeof allQuotes>()
+      const slotsMap = new Map<string, typeof allTimeSlots>()
+      const assignmentsMap = new Map<string, typeof allAssignments>()
+
+      allQuotes?.forEach(q => {
+        const existing = quotesMap.get(q.intervention_id) || []
+        quotesMap.set(q.intervention_id, [...existing, q])
+      })
+      allTimeSlots?.forEach(s => {
+        const existing = slotsMap.get(s.intervention_id) || []
+        slotsMap.set(s.intervention_id, [...existing, s])
+      })
+      allAssignments?.forEach(a => {
+        const existing = assignmentsMap.get(a.intervention_id) || []
+        assignmentsMap.set(a.intervention_id, [...existing, a])
+      })
+
+      // Enrichir les interventions avec les données mappées
+      const interventionsWithDetails = (interventions || []).map((intervention: Intervention) => ({
+        ...intervention,
+        quotes: quotesMap.get(intervention.id) || [],
+        timeSlots: slotsMap.get(intervention.id) || [],
+        assignments: assignmentsMap.get(intervention.id) || []
+      }))
+
+      logger.info(`✅ [PRESTATAIRE-DATA] Interventions enriched (${interventionIds.length} interventions, 3 batch queries)`)
 
       // 3. Transform interventions to frontend format
       const transformedInterventions: PrestataireIntervention[] = interventionsWithDetails.map((intervention: Intervention & { lot?: unknown; tenant?: unknown; manager?: unknown; assigned_contact?: unknown; quotes?: any[]; timeSlots?: any[]; assignments?: any[] }) => {

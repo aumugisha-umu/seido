@@ -58,9 +58,14 @@ export async function GET(request: NextRequest) {
 
     logger.info({ count: result.data?.length || 0 }, '✅ [BUILDINGS-API] Buildings fetched successfully')
 
+    // ⚡ CACHE: 5 minutes pour la liste des bâtiments (données relativement stables)
     return NextResponse.json({
       success: true,
       buildings: result.data || []
+    }, {
+      headers: {
+        'Cache-Control': 'public, max-age=300, stale-while-revalidate=600'
+      }
     })
 
   } catch (error) {

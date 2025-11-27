@@ -65,26 +65,47 @@ export async function GET(
       }, { status: 403 })
     }
 
-    // Get all availabilities for this intervention
-    const { data: allAvailabilities, error: availError } = await supabase
-      .from('user_availabilities')
-      .select(`
-        id,
-        user_id,
-        date,
-        start_time,
-        end_time,
-        created_at,
-        updated_at,
-        user:user_id(
+    // ⚡ OPTIMISATION: 3 requêtes en parallèle au lieu de séquentielles
+    const [availabilitiesResult, timeSlotsResult, matchesResult] = await Promise.all([
+      // 1. Get all availabilities for this intervention
+      supabase
+        .from('user_availabilities')
+        .select(`
           id,
-          name,
-          role,
-          provider_category
-        )
-      `)
-      .eq('intervention_id', interventionId)
-      .order('date', { ascending: true })
+          user_id,
+          date,
+          start_time,
+          end_time,
+          created_at,
+          updated_at,
+          user:user_id(
+            id,
+            name,
+            role,
+            provider_category
+          )
+        `)
+        .eq('intervention_id', interventionId)
+        .order('date', { ascending: true }),
+
+      // 2. Get existing time slots (créneaux proposés par gestionnaire)
+      supabase
+        .from('intervention_time_slots')
+        .select('*')
+        .eq('intervention_id', interventionId)
+        .order('slot_date', { ascending: true }),
+
+      // 3. Get existing matches (résultats du matching automatique)
+      supabase
+        .from('availability_matches')
+        .select('*')
+        .eq('intervention_id', interventionId)
+        .order('match_score', { ascending: false })
+    ])
+
+    const { data: allAvailabilities, error: availError } = availabilitiesResult
+    const { data: timeSlots, error: timeSlotsError } = timeSlotsResult
+    const { data: matches, error: matchesError } = matchesResult
 
     if (availError) {
       logger.error({ error: availError }, "❌ Error fetching availabilities:")
@@ -94,23 +115,9 @@ export async function GET(
       }, { status: 500 })
     }
 
-    // Get existing time slots (créneaux proposés par gestionnaire)
-    const { data: timeSlots, error: timeSlotsError } = await supabase
-      .from('intervention_time_slots')
-      .select('*')
-      .eq('intervention_id', interventionId)
-      .order('slot_date', { ascending: true })
-
     if (timeSlotsError) {
       logger.warn({ error: timeSlotsError }, "⚠️ Error fetching time slots:")
     }
-
-    // Get existing matches (résultats du matching automatique)
-    const { data: matches, error: matchesError } = await supabase
-      .from('availability_matches')
-      .select('*')
-      .eq('intervention_id', interventionId)
-      .order('match_score', { ascending: false })
 
     if (matchesError) {
       logger.warn({ error: matchesError }, "⚠️ Error fetching matches:")

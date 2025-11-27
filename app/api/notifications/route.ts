@@ -123,10 +123,15 @@ export async function GET(request: NextRequest) {
       }, '📊 [NOTIFICATIONS-API] Query result:'))
     })
 
+    // ⚡ CACHE: 1 minute avec stale-while-revalidate pour notifications (données dynamiques)
     return NextResponse.json({
       success: true,
       data: notifications,
       count: notifications?.length || 0
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=60, stale-while-revalidate=300'
+      }
     })
 
   } catch (error) {

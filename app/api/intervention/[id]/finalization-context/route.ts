@@ -65,26 +65,54 @@ export async function GET(
       }, { status: 400 })
     }
 
-    // 2. Fetch assignments (to get tenant/provider contacts)
-    const { data: assignments, error: assignmentsError } = await supabase
-      .from('intervention_assignments')
-      .select(`
-        id,
-        role,
-        is_primary,
-        user:user_id(
+    // ⚡ OPTIMISATION: Fetch assignments et reports en parallèle
+    // (intervention déjà validée, ces deux requêtes sont indépendantes)
+    const [assignmentsResult, reportsResult] = await Promise.all([
+      // 2. Fetch assignments (to get tenant/provider contacts)
+      supabase
+        .from('intervention_assignments')
+        .select(`
           id,
-          name,
-          email,
-          phone,
           role,
-          provider_category
-        )
-      `)
-      .eq('intervention_id', interventionId)
+          is_primary,
+          user:user_id(
+            id,
+            name,
+            email,
+            phone,
+            role,
+            provider_category
+          )
+        `)
+        .eq('intervention_id', interventionId),
+
+      // 3. Fetch intervention reports (provider_report, tenant_report)
+      supabase
+        .from('intervention_reports')
+        .select(`
+          id,
+          report_type,
+          title,
+          content,
+          metadata,
+          created_at,
+          created_by,
+          creator:created_by(id, name, role)
+        `)
+        .eq('intervention_id', interventionId)
+        .is('deleted_at', null)
+        .in('report_type', ['provider_report', 'tenant_report'])
+        .order('created_at', { ascending: true })
+    ])
+
+    const { data: assignments, error: assignmentsError } = assignmentsResult
+    const { data: reports, error: reportsError } = reportsResult
 
     if (assignmentsError) {
       logger.warn({ error: assignmentsError }, '⚠️ Error fetching assignments')
+    }
+    if (reportsError) {
+      logger.warn({ error: reportsError }, '⚠️ Error fetching reports')
     }
 
     // Extract tenant and provider from assignments
@@ -94,28 +122,6 @@ export async function GET(
 
     const tenant = tenantAssignment?.user || null
     const provider = providerAssignment?.user || null
-
-    // 3. Fetch intervention reports (provider_report, tenant_report)
-    const { data: reports, error: reportsError } = await supabase
-      .from('intervention_reports')
-      .select(`
-        id,
-        report_type,
-        title,
-        content,
-        metadata,
-        created_at,
-        created_by,
-        creator:created_by(id, name, role)
-      `)
-      .eq('intervention_id', interventionId)
-      .is('deleted_at', null)
-      .in('report_type', ['provider_report', 'tenant_report'])
-      .order('created_at', { ascending: true })
-
-    if (reportsError) {
-      logger.warn({ error: reportsError }, '⚠️ Error fetching reports')
-    }
 
     // Build simplified response
     const responseData = {

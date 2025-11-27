@@ -114,11 +114,12 @@ export function LandingPageV1() {
         <div className="max-w-5xl mx-auto">
           <div className="relative rounded-xl overflow-hidden shadow-2xl border border-border">
             <Image
-              src="/images/mockup_desktop.png"
+              src="/images/mockup_desktop.webp"
               alt="Dashboard SEIDO - Interface de gestion des interventions"
               width={1200}
               height={800}
               priority
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
               className="w-full h-auto"
             />
           </div>

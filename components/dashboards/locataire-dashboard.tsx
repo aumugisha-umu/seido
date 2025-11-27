@@ -44,12 +44,8 @@ export default function LocataireDashboard() {
     syncWithUrl: false
   })
 
-  // Afficher la vérification d'équipe en cours ou échoué
-  if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
-    return <TeamCheckModal onTeamResolved={() => {}} />
-  }
-
-  // 🎯 FIX: Afficher skeleton si pas encore monté OU si loading
+  // 🎯 FIX HYDRATION: Vérifier mounted EN PREMIER pour garantir le même rendu serveur/client
+  // Le skeleton doit être affiché tant que le composant n'est pas monté côté client
   if (!mounted || loading) {
     return (
       <div className="space-y-8">
@@ -74,6 +70,11 @@ export default function LocataireDashboard() {
         </div>
       </div>
     )
+  }
+
+  // Afficher la vérification d'équipe en cours ou échoué (après mounted pour éviter hydration mismatch)
+  if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
+    return <TeamCheckModal onTeamResolved={() => { }} />
   }
 
   if (error) {
@@ -179,13 +180,13 @@ export default function LocataireDashboard() {
         loading={loading}
         emptyStateConfig={{
           title: tabId === "actions_en_attente" ? "Aucune action en attente"
-                : tabId === "en_cours" ? "Aucune intervention en cours"
-                : "Aucune intervention terminée",
+            : tabId === "en_cours" ? "Aucune intervention en cours"
+              : "Aucune intervention terminée",
           description: tabId === "actions_en_attente"
             ? "Toutes vos interventions sont à jour"
             : tabId === "en_cours"
-            ? "Vos demandes d'intervention apparaîtront ici"
-            : "Vos interventions terminées apparaîtront ici",
+              ? "Vos demandes d'intervention apparaîtront ici"
+              : "Vos interventions terminées apparaîtront ici",
           showCreateButton: false
         }}
         showStatusActions={true}
@@ -276,7 +277,7 @@ export default function LocataireDashboard() {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="layout-container flex flex-col h-full min-h-0">
       {/* 📱 PWA Installation Prompt - Triggered automatically on dashboard */}
       <PWADashboardPrompt />
 
@@ -306,7 +307,7 @@ export default function LocataireDashboard() {
               <h2 className="text-xs sm:text-sm font-semibold text-gray-900 leading-tight">Mes interventions</h2>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
-              <Button 
+              <Button
                 className="bg-blue-600 hover:bg-blue-700 text-white h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
                 onClick={() => router.push("/locataire/interventions/nouvelle-demande")}
               >

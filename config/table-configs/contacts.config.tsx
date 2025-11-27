@@ -1,0 +1,556 @@
+import { Users, Mail, Phone, MapPin, Building2, Send, Edit, Eye, Archive, Trash2, RefreshCw, XCircle, CheckCircle } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { ContactCardCompact } from '@/components/contacts/contact-card-compact'
+import type { DataTableConfig } from '@/components/data-navigator/types'
+
+// Contact type
+export interface ContactData {
+    id: string
+    name: string
+    email: string
+    phone?: string
+    companyLegacy?: string
+    address?: string
+    notes?: string
+    role?: string
+    provider_category?: string
+    speciality?: string
+    is_company?: boolean
+    company_id?: string | null
+    company?: {
+        id: string
+        name: string
+        vat_number?: string | null
+        street?: string | null
+        street_number?: string | null
+        postal_code?: string | null
+        city?: string | null
+        country?: string | null
+    } | null
+}
+
+// Invitation type
+export interface InvitationData {
+    id: string
+    email: string
+    name?: string
+    company?: string
+    speciality?: string
+    provider_category?: string
+    role?: string
+    status?: string
+    created_at: string
+}
+
+// Company type
+export interface CompanyData {
+    id: string
+    name: string
+    legal_name?: string | null
+    vat_number?: string | null
+    email?: string | null
+    phone?: string | null
+    street?: string | null
+    street_number?: string | null
+    postal_code?: string | null
+    city?: string | null
+    country?: string | null
+    notes?: string | null
+    website?: string | null
+    is_active: boolean
+    created_at?: string
+    updated_at?: string
+}
+
+// Helper functions
+const getContactTypeLabel = (role?: string) => {
+    const types: Record<string, string> = {
+        'tenant': 'Locataire',
+        'owner': 'Propriétaire',
+        'provider': 'Prestataire',
+        'manager': 'Gestionnaire',
+        'other': 'Autre'
+    }
+    return types[role || 'other'] || 'Non défini'
+}
+
+const getContactTypeBadgeStyle = (role?: string) => {
+    const styles: Record<string, string> = {
+        'tenant': 'bg-blue-100 text-blue-800',
+        'owner': 'bg-emerald-100 text-emerald-800',
+        'provider': 'bg-green-100 text-green-800',
+        'manager': 'bg-purple-100 text-purple-800',
+        'other': 'bg-gray-100 text-gray-600'
+    }
+    return styles[role || 'other'] || 'bg-gray-100 text-gray-600'
+}
+
+const getSpecialityLabel = (speciality?: string) => {
+    if (!speciality) return null
+    const specialities: Record<string, string> = {
+        'plomberie': 'Plomberie',
+        'electricite': 'Électricité',
+        'chauffage': 'Chauffage',
+        'serrurerie': 'Serrurerie',
+        'peinture': 'Peinture',
+        'menage': 'Ménage',
+        'jardinage': 'Jardinage',
+        'autre': 'Autre'
+    }
+    return specialities[speciality] || speciality
+}
+
+/**
+ * Configuration for Contacts table
+ */
+export const contactsTableConfig: DataTableConfig<ContactData> = {
+    id: 'contacts',
+    name: 'Contacts',
+
+    columns: [
+        {
+            id: 'name',
+            header: 'Nom',
+            accessorKey: 'name',
+            sortable: true,
+            cell: (contact) => (
+                <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-blue-600 font-semibold text-xs">
+                            {contact.name?.charAt(0)?.toUpperCase() || '?'}
+                        </span>
+                    </div>
+                    <div>
+                        <div className="font-medium text-slate-900">{contact.name}</div>
+                        <div className="text-xs text-slate-500">{contact.email}</div>
+                    </div>
+                </div>
+            )
+        },
+        {
+            id: 'role',
+            header: 'Rôle',
+            accessorKey: 'role',
+            sortable: true,
+            cell: (contact) => (
+                <Badge
+                    variant="secondary"
+                    className={`${getContactTypeBadgeStyle(contact.role)} text-xs font-medium`}
+                >
+                    {getContactTypeLabel(contact.role)}
+                </Badge>
+            )
+        },
+        {
+            id: 'company',
+            header: 'Société',
+            cell: (contact) => {
+                if (contact.is_company && contact.company) {
+                    return (
+                        <div className="flex items-center gap-1 text-sm text-slate-600">
+                            <Building2 className="h-3 w-3" />
+                            <span>{contact.company.name}</span>
+                        </div>
+                    )
+                }
+                if (!contact.is_company && contact.companyLegacy) {
+                    return <span className="text-sm text-slate-600">{contact.companyLegacy}</span>
+                }
+                return <span className="text-sm text-slate-400">-</span>
+            }
+        },
+        {
+            id: 'speciality',
+            header: 'Spécialité',
+            accessorKey: 'speciality',
+            cell: (contact) => {
+                const label = getSpecialityLabel(contact.speciality)
+                if (!label) return <span className="text-sm text-slate-400">-</span>
+                return (
+                    <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200 text-xs">
+                        {label}
+                    </Badge>
+                )
+            }
+        },
+        {
+            id: 'phone',
+            header: 'Téléphone',
+            accessorKey: 'phone',
+            cell: (contact) => {
+                if (!contact.phone) return <span className="text-sm text-slate-400">-</span>
+                return (
+                    <div className="flex items-center gap-1 text-sm text-slate-600">
+                        <Phone className="h-3 w-3" />
+                        <span>{contact.phone}</span>
+                    </div>
+                )
+            }
+        }
+    ],
+
+    searchConfig: {
+        placeholder: 'Rechercher par nom, email, société...',
+        searchableFields: ['name', 'email', 'companyLegacy', 'speciality']
+    },
+
+    filters: [
+        {
+            id: 'role',
+            label: 'Rôle',
+            options: [
+                { value: 'all', label: 'Tous' },
+                { value: 'tenant', label: 'Locataire' },
+                { value: 'owner', label: 'Propriétaire' },
+                { value: 'provider', label: 'Prestataire' },
+                { value: 'manager', label: 'Gestionnaire' }
+            ],
+            defaultValue: 'all'
+        },
+        {
+            id: 'speciality',
+            label: 'Spécialité',
+            options: [
+                { value: 'all', label: 'Toutes' },
+                { value: 'plomberie', label: 'Plomberie' },
+                { value: 'electricite', label: 'Électricité' },
+                { value: 'chauffage', label: 'Chauffage' },
+                { value: 'serrurerie', label: 'Serrurerie' },
+                { value: 'peinture', label: 'Peinture' },
+                { value: 'menage', label: 'Ménage' },
+                { value: 'jardinage', label: 'Jardinage' },
+                { value: 'autre', label: 'Autre' }
+            ],
+            defaultValue: 'all'
+        }
+    ],
+
+    views: {
+        card: {
+            enabled: true,
+            component: ({ item }) => <ContactCardCompact contact={item} />,
+            compact: true
+        },
+        list: {
+            enabled: true,
+            defaultSort: {
+                field: 'name',
+                direction: 'asc'
+            }
+        }
+    },
+
+    defaultView: 'cards',
+
+    actions: [
+        {
+            id: 'edit',
+            label: 'Modifier',
+            icon: Edit,
+            onClick: (contact) => {
+                window.location.href = `/gestionnaire/contacts/modifier/${contact.id}`
+            }
+        },
+        {
+            id: 'view',
+            label: 'Voir détails',
+            icon: Eye,
+            onClick: (contact) => {
+                window.location.href = `/gestionnaire/contacts/details/${contact.id}`
+            }
+        },
+        {
+            id: 'email',
+            label: 'Envoyer un email',
+            icon: Mail,
+            onClick: (contact) => {
+                window.open(`mailto:${contact.email}`, '_blank')
+            }
+        }
+    ],
+
+    emptyState: {
+        title: 'Aucun contact trouvé',
+        description: 'Ajoutez votre premier contact pour commencer',
+        icon: Users,
+        showCreateButton: true,
+        createButtonText: 'Ajouter un contact',
+        createButtonAction: () => {
+            window.location.href = '/gestionnaire/contacts/nouveau'
+        }
+    }
+}
+
+/**
+ * Configuration for Invitations table
+ */
+export const invitationsTableConfig: DataTableConfig<InvitationData> = {
+    id: 'invitations',
+    name: 'Invitations',
+
+    columns: [
+        {
+            id: 'email',
+            header: 'Email',
+            accessorKey: 'email',
+            sortable: true,
+            cell: (invitation) => (
+                <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4 text-slate-400" />
+                    <span className="font-medium text-slate-900">{invitation.email}</span>
+                </div>
+            )
+        },
+        {
+            id: 'name',
+            header: 'Nom',
+            accessorKey: 'name',
+            cell: (invitation) => invitation.name || <span className="text-slate-400">-</span>
+        },
+        {
+            id: 'role',
+            header: 'Rôle',
+            accessorKey: 'role',
+            cell: (invitation) => (
+                <Badge
+                    variant="secondary"
+                    className={`${getContactTypeBadgeStyle(invitation.role)} text-xs font-medium`}
+                >
+                    {getContactTypeLabel(invitation.role)}
+                </Badge>
+            )
+        },
+        {
+            id: 'status',
+            header: 'Statut',
+            accessorKey: 'status',
+            cell: (invitation) => {
+                const configs: Record<string, { label: string; class: string }> = {
+                    pending: { label: 'En attente', class: 'bg-orange-100 text-orange-800' },
+                    accepted: { label: 'Acceptée', class: 'bg-green-100 text-green-800' },
+                    expired: { label: 'Expirée', class: 'bg-gray-100 text-gray-800' },
+                    cancelled: { label: 'Annulée', class: 'bg-red-100 text-red-800' }
+                }
+                const config = configs[invitation.status || 'pending'] || configs.pending
+                return (
+                    <Badge variant="secondary" className={`${config.class} text-xs`}>
+                        {config.label}
+                    </Badge>
+                )
+            }
+        },
+        {
+            id: 'created_at',
+            header: 'Envoyée le',
+            accessorKey: 'created_at',
+            sortable: true,
+            cell: (invitation) => new Date(invitation.created_at).toLocaleDateString('fr-FR')
+        }
+    ],
+
+    searchConfig: {
+        placeholder: 'Rechercher une invitation...',
+        searchableFields: ['email', 'name', 'company']
+    },
+
+    filters: [
+        {
+            id: 'status',
+            label: 'Statut',
+            options: [
+                { value: 'all', label: 'Tous' },
+                { value: 'pending', label: 'En attente' },
+                { value: 'accepted', label: 'Acceptée' },
+                { value: 'expired', label: 'Expirée' }
+            ],
+            defaultValue: 'all'
+        }
+    ],
+
+    views: {
+        card: {
+            enabled: true,
+            component: ({ item }) => (
+                <div className="p-4 border rounded-lg bg-white shadow-sm">
+                    <div className="flex justify-between items-start mb-2">
+                        <div className="font-medium">{item.email}</div>
+                        <Badge variant="secondary" className="text-xs">
+                            {item.status === 'pending' ? 'En attente' : item.status}
+                        </Badge>
+                    </div>
+                    <div className="text-sm text-slate-500 mb-2">
+                        {item.name || 'Sans nom'} • {getContactTypeLabel(item.role)}
+                    </div>
+                    <div className="text-xs text-slate-400">
+                        Envoyée le {new Date(item.created_at).toLocaleDateString('fr-FR')}
+                    </div>
+                </div>
+            ),
+            compact: true
+        },
+        list: {
+            enabled: true,
+            defaultSort: {
+                field: 'created_at',
+                direction: 'desc'
+            }
+        }
+    },
+
+    defaultView: 'list',
+
+    actions: [
+        {
+            id: 'resend',
+            label: 'Renvoyer',
+            icon: RefreshCw,
+            onClick: (invitation) => {
+                console.log('Resend invitation:', invitation.id)
+            }
+        },
+        {
+            id: 'cancel',
+            label: 'Annuler',
+            icon: XCircle,
+            variant: 'destructive',
+            onClick: (invitation) => {
+                console.log('Cancel invitation:', invitation.id)
+            }
+        }
+    ],
+
+    emptyState: {
+        title: 'Aucune invitation',
+        description: 'Les invitations envoyées apparaîtront ici',
+        icon: Send,
+        showCreateButton: false
+    }
+}
+
+/**
+ * Configuration for Companies table
+ */
+export const companiesTableConfig: DataTableConfig<CompanyData> = {
+    id: 'companies',
+    name: 'Sociétés',
+
+    columns: [
+        {
+            id: 'name',
+            header: 'Nom',
+            accessorKey: 'name',
+            sortable: true,
+            cell: (company) => (
+                <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <Building2 className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <div>
+                        <div className="font-medium text-slate-900">{company.name}</div>
+                        {company.legal_name && <div className="text-xs text-slate-500">{company.legal_name}</div>}
+                    </div>
+                </div>
+            )
+        },
+        {
+            id: 'vat',
+            header: 'TVA',
+            accessorKey: 'vat_number',
+            cell: (company) => company.vat_number || <span className="text-slate-400">-</span>
+        },
+        {
+            id: 'email',
+            header: 'Email',
+            accessorKey: 'email',
+            cell: (company) => (
+                company.email ? (
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <Mail className="h-3 w-3" />
+                        <span>{company.email}</span>
+                    </div>
+                ) : <span className="text-slate-400">-</span>
+            )
+        },
+        {
+            id: 'city',
+            header: 'Ville',
+            accessorKey: 'city',
+            cell: (company) => (
+                company.city ? (
+                    <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <MapPin className="h-3 w-3" />
+                        <span>{company.city}</span>
+                    </div>
+                ) : <span className="text-slate-400">-</span>
+            )
+        }
+    ],
+
+    searchConfig: {
+        placeholder: 'Rechercher une société...',
+        searchableFields: ['name', 'legal_name', 'vat_number', 'email', 'city']
+    },
+
+    filters: [],
+
+    views: {
+        card: {
+            enabled: true,
+            component: ({ item }) => (
+                <div className="p-4 border rounded-lg bg-white shadow-sm">
+                    <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <Building2 className="h-5 w-5 text-purple-600" />
+                        </div>
+                        <div>
+                            <div className="font-medium">{item.name}</div>
+                            <div className="text-xs text-slate-500">{item.vat_number}</div>
+                        </div>
+                    </div>
+                    <div className="space-y-1 text-sm text-slate-600">
+                        {item.email && (
+                            <div className="flex items-center gap-2">
+                                <Mail className="h-3 w-3" />
+                                {item.email}
+                            </div>
+                        )}
+                        {item.city && (
+                            <div className="flex items-center gap-2">
+                                <MapPin className="h-3 w-3" />
+                                {item.city}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ),
+            compact: true
+        },
+        list: {
+            enabled: true,
+            defaultSort: {
+                field: 'name',
+                direction: 'asc'
+            }
+        }
+    },
+
+    defaultView: 'cards',
+
+    actions: [
+        {
+            id: 'edit',
+            label: 'Modifier',
+            icon: Edit,
+            onClick: (company) => {
+                console.log('Edit company:', company.id)
+            }
+        }
+    ],
+
+    emptyState: {
+        title: 'Aucune société',
+        description: 'Les sociétés enregistrées apparaîtront ici',
+        icon: Building2,
+        showCreateButton: false
+    }
+}

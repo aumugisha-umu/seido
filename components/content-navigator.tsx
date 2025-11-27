@@ -116,12 +116,12 @@ export default function ContentNavigator({
       if (filter.id === 'category') {
         return filterValues.role === 'prestataire'
       }
-      
+
       // Le filtre "speciality" n'est visible que si category = "prestataire" (prestataire général)
       if (filter.id === 'speciality') {
         return filterValues.category === 'prestataire'
       }
-      
+
       // Tous les autres filtres sont toujours visibles
       return true
     })
@@ -129,20 +129,19 @@ export default function ContentNavigator({
 
   // Détecter si c'est un usage compact (dashboard) via className
   const isCompact = className.includes('flex-1') || className.includes('min-h-0')
-  
+
   // Détecter si c'est le contexte dashboard (embedded sans bordure)
   const isDashboardEmbedded = className.includes('bg-transparent') || className.includes('border-0')
 
   return (
-    <div className={`flex-1 min-h-0 flex flex-col ${!isDashboardEmbedded ? 'border border-slate-200 rounded-lg shadow-sm bg-white' : ''} ${className}`}>
+    <div className={`flex-1 min-h-0 flex flex-col overflow-hidden ${!isDashboardEmbedded ? 'border border-slate-200 rounded-lg shadow-sm bg-white' : ''} ${className}`}>
       {/* Padding container - pas de padding sur dashboard embedded */}
-      <div className={`${
-        isDashboardEmbedded 
+      <div className={`${isDashboardEmbedded
           ? 'space-y-1 flex-1 flex flex-col min-h-0'
-          : isCompact 
-            ? 'p-4 space-y-1 flex-1 flex flex-col min-h-0' 
+          : isCompact
+            ? 'p-4 space-y-1 flex-1 flex flex-col min-h-0'
             : 'p-6 space-y-2 flex-1 flex flex-col min-h-0'
-      }`}>
+        }`}>
         {/* Navigation Controls */}
         <div className={`${isCompact ? 'space-y-1 flex-shrink-0' : 'space-y-2 flex-shrink-0'}`}>
           {/* Mobile Layout - Single Row */}
@@ -165,11 +164,10 @@ export default function ContentNavigator({
                                   <IconComponent className={`h-4 w-4 mr-2 ${isAlertTab ? 'text-orange-600' : ''}`} />
                                   <span className={`mr-2 ${isAlertTab ? 'text-orange-700' : ''}`}>{activeTabData.label}</span>
                                   {activeTabData.count !== undefined && (
-                                    <Badge variant="secondary" className={`text-xs ${
-                                      isAlertTab 
-                                        ? 'bg-orange-100 text-orange-800 border-orange-200' 
+                                    <Badge variant="secondary" className={`text-xs ${isAlertTab
+                                        ? 'bg-orange-100 text-orange-800 border-orange-200'
                                         : 'bg-slate-200 text-slate-700'
-                                    }`}>
+                                      }`}>
                                       {activeTabData.count}
                                     </Badge>
                                   )}
@@ -191,11 +189,10 @@ export default function ContentNavigator({
                             <IconComponent className={`h-4 w-4 mr-2 ${isAlertTab ? 'text-orange-600' : ''}`} />
                             <span className={`mr-2 ${isAlertTab ? 'text-orange-700' : ''}`}>{tab.label}</span>
                             {tab.count !== undefined && (
-                              <Badge variant="secondary" className={`ml-auto text-xs ${
-                                isAlertTab 
-                                  ? 'bg-orange-100 text-orange-800 border-orange-200' 
+                              <Badge variant="secondary" className={`ml-auto text-xs ${isAlertTab
+                                  ? 'bg-orange-100 text-orange-800 border-orange-200'
                                   : 'bg-slate-200 text-slate-700'
-                              }`}>
+                                }`}>
                                 {tab.count}
                               </Badge>
                             )}
@@ -248,11 +245,11 @@ export default function ContentNavigator({
                   {showFilters && (
                     <>
                       {/* Backdrop */}
-                      <div 
+                      <div
                         className="fixed inset-0 z-10 bg-black/20"
                         onClick={() => setShowFilters(false)}
                       />
-                      
+
                       {/* Dropdown Panel */}
                       <div className="absolute top-full right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-xl z-20 p-4 animate-in fade-in-0 slide-in-from-top-2 duration-200">
                         <div className="space-y-4">
@@ -261,7 +258,7 @@ export default function ContentNavigator({
                               <label className="text-sm font-medium text-slate-700 mb-2 block">
                                 {filter.label}
                               </label>
-                              <Select 
+                              <Select
                                 value={filterValues[filter.id] || filter.defaultValue || filter.options[0]?.value}
                                 onValueChange={(value) => handleFilterChange(filter.id, value)}
                               >
@@ -282,8 +279,8 @@ export default function ContentNavigator({
 
                         {/* Actions */}
                         <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100">
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             className="text-slate-500 hover:text-slate-700"
                             onClick={() => {
@@ -299,8 +296,8 @@ export default function ContentNavigator({
                           >
                             Réinitialiser
                           </Button>
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             onClick={() => setShowFilters(false)}
                             className="text-slate-500 hover:text-slate-700"
@@ -331,31 +328,30 @@ export default function ContentNavigator({
                       onClick={() => handleTabChange(tab.id)}
                       className={`
                         inline-flex items-center justify-center whitespace-nowrap rounded-sm px-2 md:px-3 py-1.5 text-xs md:text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50
-                        ${isActive 
+                        ${isActive
                           ? isAlertTab
                             ? 'bg-orange-50 text-orange-700 shadow-sm border border-orange-200'
-                            : 'bg-white text-sky-600 shadow-sm' 
+                            : 'bg-white text-sky-600 shadow-sm'
                           : isAlertTab
                             ? 'text-orange-600 hover:bg-orange-50'
                             : 'text-slate-600 hover:bg-slate-200/60'
                         }
                       `}
                     >
-                      <IconComponent className={`h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 ${isActive 
+                      <IconComponent className={`h-3 w-3 md:h-4 md:w-4 mr-1 md:mr-2 ${isActive
                         ? isAlertTab ? 'text-orange-700' : 'text-sky-600'
                         : isAlertTab ? 'text-orange-600' : 'text-slate-600'
-                      }`} />
+                        }`} />
                       {tab.label}
                       {tab.count !== undefined && (
-                        <Badge variant="secondary" className={`ml-1 md:ml-2 text-xs ${
-                          isActive 
+                        <Badge variant="secondary" className={`ml-1 md:ml-2 text-xs ${isActive
                             ? isAlertTab
                               ? 'bg-orange-100 text-orange-800 border-orange-200'
-                              : 'bg-sky-100 text-sky-800' 
+                              : 'bg-sky-100 text-sky-800'
                             : isAlertTab
                               ? 'bg-orange-50 text-orange-700 border-orange-200'
                               : 'bg-slate-200 text-slate-700'
-                        }`}>
+                          }`}>
                           {tab.count}
                         </Badge>
                       )}
@@ -382,11 +378,11 @@ export default function ContentNavigator({
                 {showFilters && (
                   <>
                     {/* Backdrop */}
-                    <div 
+                    <div
                       className="fixed inset-0 z-10 bg-black/20 lg:bg-transparent"
                       onClick={() => setShowFilters(false)}
                     />
-                    
+
                     {/* Dropdown Panel */}
                     <div className="absolute top-full right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-xl z-20 p-4 animate-in fade-in-0 slide-in-from-top-2 duration-200">
                       <div className="space-y-4">
@@ -395,7 +391,7 @@ export default function ContentNavigator({
                             <label className="text-sm font-medium text-slate-700 mb-2 block">
                               {filter.label}
                             </label>
-                            <Select 
+                            <Select
                               value={filterValues[filter.id] || filter.defaultValue || filter.options[0]?.value}
                               onValueChange={(value) => handleFilterChange(filter.id, value)}
                             >
@@ -416,8 +412,8 @@ export default function ContentNavigator({
 
                       {/* Actions */}
                       <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100">
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           className="text-slate-500 hover:text-slate-700"
                           onClick={() => {
@@ -433,8 +429,8 @@ export default function ContentNavigator({
                         >
                           Réinitialiser
                         </Button>
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="sm"
                           onClick={() => setShowFilters(false)}
                           className="text-slate-500 hover:text-slate-700"

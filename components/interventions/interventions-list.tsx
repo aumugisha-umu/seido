@@ -4,9 +4,12 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Wrench, Plus } from "lucide-react"
 import { InterventionCard } from "@/components/intervention/intervention-card"
+import { InterventionCardCompact } from "@/components/interventions/intervention-card-compact"
 import { InterventionsEmptyState } from "./interventions-empty-state"
 import type { InterventionWithRelations } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
+import { useAuth } from "@/hooks/use-auth"
+
 interface EmptyStateConfig {
   title: string
   description: string
@@ -22,11 +25,21 @@ interface ContactContext {
 }
 
 interface ActionHooks {
-  approvalHook?: () => void
-  quotingHook?: () => void
-  planningHook?: () => void
-  executionHook?: () => void
-  finalizationHook?: () => void
+  approvalHook?: {
+    handleApprovalAction?: (intervention: unknown, action: string) => void
+  }
+  quotingHook?: {
+    handleQuoteRequest?: (intervention: unknown) => void
+  }
+  planningHook?: {
+    handleProgrammingModal?: (intervention: unknown) => void
+  }
+  executionHook?: {
+    handleExecutionModal?: (intervention: unknown, type: string) => void
+  }
+  finalizationHook?: {
+    handleFinalizeModal?: (intervention: unknown) => void
+  }
 }
 
 interface InterventionsListProps {
@@ -57,6 +70,7 @@ export function InterventionsList({
   horizontal = false
 }: InterventionsListProps) {
   const router = useRouter()
+  const { user } = useAuth()
 
   // Limit interventions if maxItems is specified
   const displayedInterventions = maxItems ? interventions.slice(0, maxItems) : interventions
@@ -67,7 +81,7 @@ export function InterventionsList({
     logger.info('[InterventionsList] Action completed, list may need refresh')
   }
 
-  // Compact rendering for dashboard
+  // Compact rendering for dashboard (list view)
   if (compact) {
     if (loading) {
       return (
@@ -112,7 +126,7 @@ export function InterventionsList({
             compact={true}
             showStatusActions={showStatusActions}
             contactContext={contactContext}
-            actionHooks={actionHooks}
+            actionHooks={actionHooks as any}
             onActionComplete={handleActionComplete}
           />
         ))}
@@ -214,7 +228,7 @@ export function InterventionsList({
                 compact={false}
                 showStatusActions={showStatusActions}
                 contactContext={contactContext}
-                actionHooks={actionHooks}
+                actionHooks={actionHooks as any}
                 onActionComplete={handleActionComplete}
               />
             </div>
@@ -228,13 +242,11 @@ export function InterventionsList({
   return (
     <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ${className}`}>
       {displayedInterventions.map((intervention) => (
-        <InterventionCard
+        <InterventionCardCompact
           key={intervention.id}
           intervention={intervention}
           userContext={userContext}
-          compact={false}
-          showStatusActions={showStatusActions}
-          contactContext={contactContext}
+          userId={user?.id}
           actionHooks={actionHooks}
           onActionComplete={handleActionComplete}
         />
@@ -242,4 +254,3 @@ export function InterventionsList({
     </div>
   )
 }
-

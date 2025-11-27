@@ -31,7 +31,7 @@ export const getStatusColor = (status: string) => {
       return "bg-red-100 text-red-800 border-red-200"
     case "approuvee":
       return "bg-green-100 text-green-800 border-green-200"
-    
+
     // Phase 2: Planification & Exécution
     case "demande_de_devis":
       return "bg-blue-100 text-blue-800 border-blue-200"
@@ -49,11 +49,11 @@ export const getStatusColor = (status: string) => {
       return "bg-emerald-100 text-emerald-800 border-emerald-200"
     case "cloturee_par_gestionnaire":
       return "bg-green-100 text-green-800 border-green-200"
-    
+
     // Transversal
     case "annulee":
       return "bg-gray-100 text-gray-800 border-gray-200"
-    
+
     default:
       return "bg-gray-100 text-gray-800 border-gray-200"
   }
@@ -68,7 +68,7 @@ export const getStatusLabel = (status: string) => {
       return "Rejetée"
     case "approuvee":
       return "Approuvée"
-    
+
     // Phase 2: Planification & Exécution
     case "demande_de_devis":
       return "Demande de devis"
@@ -86,11 +86,11 @@ export const getStatusLabel = (status: string) => {
       return "Clôturée par locataire"
     case "cloturee_par_gestionnaire":
       return "Clôturée par gestionnaire"
-    
+
     // Transversal
     case "annulee":
       return "Annulée"
-    
+
     default:
       return status
   }
@@ -207,6 +207,32 @@ export const getTypeIcon = (type: string): string => {
     default:
       return "Wrench" // Clé à molette par défaut
   }
+}
+
+export const getTypeLabel = (_type: string) => {
+  const labels: Record<string, string> = {
+    plomberie: 'Plomberie',
+    electricite: 'Électricité',
+    chauffage: 'Chauffage',
+    serrurerie: 'Serrurerie',
+    peinture: 'Peinture',
+    maintenance: 'Maintenance',
+    autre: 'Autre'
+  }
+  return labels[_type?.toLowerCase()] || 'Autre'
+}
+
+export const getTypeBadgeColor = (_type: string) => {
+  const colors: Record<string, string> = {
+    plomberie: 'bg-blue-100 text-blue-800 border-blue-200',
+    electricite: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    chauffage: 'bg-red-100 text-red-800 border-red-200',
+    serrurerie: 'bg-gray-100 text-gray-800 border-gray-200',
+    peinture: 'bg-purple-100 text-purple-800 border-purple-200',
+    maintenance: 'bg-orange-100 text-orange-800 border-orange-200',
+    autre: 'bg-slate-100 text-slate-800 border-slate-200'
+  }
+  return colors[_type?.toLowerCase()] || 'bg-slate-100 text-slate-800 border-slate-200'
 }
 
 export const getStatusActionMessage = (status: string, userContext?: 'gestionnaire' | 'prestataire' | 'locataire'): string => {

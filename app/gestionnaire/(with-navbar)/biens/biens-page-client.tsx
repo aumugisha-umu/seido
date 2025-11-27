@@ -118,43 +118,51 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
   }, [handleRefresh])
 
   return (
-    <div className="layout-container flex flex-col flex-1 min-h-0 overflow-hidden">
-      {/* Page Header */}
-      <div className="mb-6 lg:mb-8 flex-shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
-              Patrimoine
-            </h1>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              variant="outline"
-              className="flex items-center space-x-2"
-              onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}
-            >
-              <Plus className="h-4 w-4" />
-              <span>Lot</span>
-            </Button>
-            <Button
-              className="flex items-center space-x-2"
-              onClick={() => router.push('/gestionnaire/biens/immeubles/nouveau')}
-            >
-              <Plus className="h-4 w-4" />
-              <span>Immeuble</span>
-            </Button>
+    <div className="h-full flex flex-col overflow-hidden layout-container">
+      <div className="content-max-width flex flex-col flex-1 min-h-0 overflow-hidden">
+        {/* Page Header */}
+        <div className="mb-4 lg:mb-6 flex-shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
+                Patrimoine
+              </h1>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                className="flex items-center space-x-2"
+                onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}
+              >
+                <Plus className="h-4 w-4" />
+                <span>Lot</span>
+              </Button>
+              <Button
+                className="flex items-center space-x-2"
+                onClick={() => router.push('/gestionnaire/biens/immeubles/nouveau')}
+              >
+                <Plus className="h-4 w-4" />
+                <span>Immeuble</span>
+              </Button>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* ✅ PatrimoineNavigator with buildings and lots */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <PatrimoineNavigator
-          buildings={buildings}
-          lots={lots}
-          loading={isRefreshing}
-          onRefresh={handleRefresh}
-        />
+        {/* Card wrapper - Structure exacte du dashboard */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+            {/* Content wrapper avec padding */}
+            <div className="flex-1 flex flex-col min-h-0 p-4">
+              <PatrimoineNavigator
+                buildings={buildings}
+                lots={lots}
+                loading={isRefreshing}
+                onRefresh={handleRefresh}
+                className="bg-transparent border-0 shadow-none flex-1 flex flex-col min-h-0"
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )

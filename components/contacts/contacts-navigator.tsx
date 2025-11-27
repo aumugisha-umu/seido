@@ -15,7 +15,7 @@ import {
 import { useViewMode } from '@/hooks/use-view-mode'
 import { DataTable } from '@/components/ui/data-table/data-table'
 import { DataCards } from '@/components/ui/data-table/data-cards'
-import { Users, Send, Building2, Search, Filter, LayoutGrid, List, UserPlus, Trash2, X } from 'lucide-react'
+import { Users, Send, Building2, Search, Filter, LayoutGrid, List, UserPlus, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
     Popover,
@@ -30,7 +30,16 @@ import {
     SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
+import { cn } from '@/lib/utils'
+
+// ============================================================================
+// CONTACTS NAVIGATOR - Composant BEM Unifié
+// ============================================================================
+// Block:    contacts-section
+// Elements: contacts-section__content, __tabs, __tab, __controls, __search,
+//           __filter-btn, __view-switcher, __view-btn, __add-btn, __data
+// Modifiers: contacts-section__tab--active, __view-btn--active, __filter-btn--active
+// ============================================================================
 
 interface ContactsNavigatorProps {
     contacts: ContactData[]
@@ -41,6 +50,7 @@ interface ContactsNavigatorProps {
     onResendInvitation?: (id: string) => void
     onCancelInvitation?: (id: string) => void
     onDeleteContact?: (id: string) => void
+    className?: string
 }
 
 export function ContactsNavigator({
@@ -51,7 +61,8 @@ export function ContactsNavigator({
     onRefresh,
     onResendInvitation,
     onCancelInvitation,
-    onDeleteContact
+    onDeleteContact,
+    className
 }: ContactsNavigatorProps) {
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<'contacts' | 'invitations' | 'companies'>('contacts')
@@ -207,60 +218,131 @@ export function ContactsNavigator({
         setActiveFilters({}) // Reset filters when switching tabs
     }
 
+    // ========================================
+    // BEM Classes
+    // ========================================
+    const blockClass = cn(
+        "contacts-section",
+        "flex-1 min-h-0 flex flex-col overflow-hidden",
+        "border border-slate-200 rounded-lg shadow-sm bg-white",
+        className
+    )
+
+    const contentClass = cn(
+        "contacts-section__content",
+        "p-4 space-y-4 flex-1 flex flex-col min-h-0 overflow-hidden"
+    )
+
+    const headerClass = cn(
+        "contacts-section__header",
+        "flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+    )
+
+    const tabsContainerClass = cn(
+        "contacts-section__tabs",
+        "flex-shrink-0 inline-flex h-10 bg-slate-100 rounded-md p-1"
+    )
+
+    const getTabClass = (isActive: boolean) => cn(
+        "contacts-section__tab",
+        "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all",
+        isActive
+            ? "contacts-section__tab--active bg-white text-blue-600 shadow-sm"
+            : "text-slate-600 hover:bg-slate-200/60"
+    )
+
+    const getTabIconClass = (isActive: boolean) => cn(
+        "contacts-section__tab-icon",
+        "h-4 w-4 mr-2",
+        isActive ? "text-blue-600" : "text-slate-600"
+    )
+
+    const getTabBadgeClass = (isActive: boolean) => cn(
+        "contacts-section__tab-badge",
+        "ml-2 text-xs px-2 py-0.5 rounded",
+        isActive ? "bg-blue-100 text-blue-800" : "bg-slate-200 text-slate-700"
+    )
+
+    const controlsClass = cn(
+        "contacts-section__controls",
+        "flex items-center gap-2 flex-1"
+    )
+
+    const getFilterBtnClass = (hasFilters: boolean) => cn(
+        "contacts-section__filter-btn",
+        "h-10 w-10 p-0 border-slate-200 flex-shrink-0 relative",
+        hasFilters
+            ? "contacts-section__filter-btn--active text-blue-600 border-blue-200 bg-blue-50"
+            : "text-slate-600 hover:text-slate-900"
+    )
+
+    const searchClass = cn(
+        "contacts-section__search",
+        "relative flex-1"
+    )
+
+    const viewSwitcherClass = cn(
+        "contacts-section__view-switcher",
+        "flex-shrink-0 inline-flex h-10 bg-slate-100 rounded-md p-1"
+    )
+
+    const getViewBtnClass = (isActive: boolean) => cn(
+        "contacts-section__view-btn",
+        "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all",
+        isActive
+            ? "contacts-section__view-btn--active bg-white text-slate-900 shadow-sm"
+            : "text-slate-600 hover:bg-slate-200/60"
+    )
+
+    const addBtnClass = cn(
+        "contacts-section__add-btn",
+        "ml-2"
+    )
+
+    const dataClass = cn(
+        "contacts-section__data",
+        "flex-1 mt-4 overflow-y-auto"
+    )
+
+    // ========================================
+    // Render
+    // ========================================
     return (
-        <div className="flex-1 min-h-0 flex flex-col overflow-hidden border border-slate-200 rounded-lg shadow-sm bg-white">
-            <div className="p-4 space-y-4 flex-1 flex flex-col min-h-0 overflow-hidden">
+        <div className={blockClass}>
+            <div className={contentClass}>
                 <Tabs value={activeTab} onValueChange={handleTabChange} className="flex-1 flex flex-col overflow-hidden">
                     {/* Header with tabs and search */}
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className={headerClass}>
                         {/* Tabs */}
                         <div className="flex-shrink-0">
-                            <div className="inline-flex h-10 bg-slate-100 rounded-md p-1">
+                            <div className={tabsContainerClass}>
                                 <button
                                     onClick={() => handleTabChange('contacts')}
-                                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${activeTab === 'contacts'
-                                        ? 'bg-white text-blue-600 shadow-sm'
-                                        : 'text-slate-600 hover:bg-slate-200/60'
-                                        }`}
+                                    className={getTabClass(activeTab === 'contacts')}
                                 >
-                                    <Users className={`h-4 w-4 mr-2 ${activeTab === 'contacts' ? 'text-blue-600' : 'text-slate-600'}`} />
+                                    <Users className={getTabIconClass(activeTab === 'contacts')} />
                                     Contacts
-                                    <span className={`ml-2 text-xs px-2 py-0.5 rounded ${activeTab === 'contacts'
-                                        ? 'bg-blue-100 text-blue-800'
-                                        : 'bg-slate-200 text-slate-700'
-                                        }`}>
+                                    <span className={getTabBadgeClass(activeTab === 'contacts')}>
                                         {contacts.length}
                                     </span>
                                 </button>
                                 <button
                                     onClick={() => handleTabChange('invitations')}
-                                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${activeTab === 'invitations'
-                                        ? 'bg-white text-blue-600 shadow-sm'
-                                        : 'text-slate-600 hover:bg-slate-200/60'
-                                        }`}
+                                    className={getTabClass(activeTab === 'invitations')}
                                 >
-                                    <Send className={`h-4 w-4 mr-2 ${activeTab === 'invitations' ? 'text-blue-600' : 'text-slate-600'}`} />
+                                    <Send className={getTabIconClass(activeTab === 'invitations')} />
                                     Invitations
-                                    <span className={`ml-2 text-xs px-2 py-0.5 rounded ${activeTab === 'invitations'
-                                        ? 'bg-blue-100 text-blue-800'
-                                        : 'bg-slate-200 text-slate-700'
-                                        }`}>
+                                    <span className={getTabBadgeClass(activeTab === 'invitations')}>
                                         {invitations.length}
                                     </span>
                                 </button>
                                 <button
                                     onClick={() => handleTabChange('companies')}
-                                    className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${activeTab === 'companies'
-                                        ? 'bg-white text-blue-600 shadow-sm'
-                                        : 'text-slate-600 hover:bg-slate-200/60'
-                                        }`}
+                                    className={getTabClass(activeTab === 'companies')}
                                 >
-                                    <Building2 className={`h-4 w-4 mr-2 ${activeTab === 'companies' ? 'text-blue-600' : 'text-slate-600'}`} />
+                                    <Building2 className={getTabIconClass(activeTab === 'companies')} />
                                     Sociétés
-                                    <span className={`ml-2 text-xs px-2 py-0.5 rounded ${activeTab === 'companies'
-                                        ? 'bg-blue-100 text-blue-800'
-                                        : 'bg-slate-200 text-slate-700'
-                                        }`}>
+                                    <span className={getTabBadgeClass(activeTab === 'companies')}>
                                         {companies.length}
                                     </span>
                                 </button>
@@ -268,19 +350,19 @@ export function ContactsNavigator({
                         </div>
 
                         {/* Search, Filter and View Toggle */}
-                        <div className="flex items-center gap-2 flex-1">
+                        <div className={controlsClass}>
                             {/* Filter Icon */}
                             <Popover>
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className={`h-10 w-10 p-0 border-slate-200 flex-shrink-0 relative ${activeFilterCount > 0 ? 'text-blue-600 border-blue-200 bg-blue-50' : 'text-slate-600 hover:text-slate-900'}`}
+                                        className={getFilterBtnClass(activeFilterCount > 0)}
                                         title="Filtres"
                                     >
                                         <Filter className="h-4 w-4" />
                                         {activeFilterCount > 0 && (
-                                            <span className="absolute -top-1 -right-1 h-3 w-3 bg-blue-600 rounded-full border-2 border-white" />
+                                            <span className="contacts-section__filter-indicator absolute -top-1 -right-1 h-3 w-3 bg-blue-600 rounded-full border-2 border-white" />
                                         )}
                                     </Button>
                                 </PopoverTrigger>
@@ -333,7 +415,7 @@ export function ContactsNavigator({
                             </Popover>
 
                             {/* Search - Takes all available space */}
-                            <div className="relative flex-1">
+                            <div className={searchClass}>
                                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                                 <Input
                                     type="text"
@@ -346,23 +428,17 @@ export function ContactsNavigator({
 
                             {/* View Mode Toggle (Cards/List only) */}
                             {mounted && (
-                                <div className="flex-shrink-0 inline-flex h-10 bg-slate-100 rounded-md p-1">
+                                <div className={viewSwitcherClass}>
                                     <button
                                         onClick={() => setViewMode('cards')}
-                                        className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${viewMode === 'cards'
-                                            ? 'bg-white text-slate-900 shadow-sm'
-                                            : 'text-slate-600 hover:bg-slate-200/60'
-                                            }`}
+                                        className={getViewBtnClass(viewMode === 'cards')}
                                         title="Vue cartes"
                                     >
                                         <LayoutGrid className="h-4 w-4" />
                                     </button>
                                     <button
                                         onClick={() => setViewMode('list')}
-                                        className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${viewMode === 'list'
-                                            ? 'bg-white text-slate-900 shadow-sm'
-                                            : 'text-slate-600 hover:bg-slate-200/60'
-                                            }`}
+                                        className={getViewBtnClass(viewMode === 'list')}
                                         title="Vue liste"
                                     >
                                         <List className="h-4 w-4" />
@@ -373,7 +449,7 @@ export function ContactsNavigator({
                             {/* Add Button */}
                             <Button
                                 onClick={() => router.push('/gestionnaire/contacts/nouveau')}
-                                className="ml-2"
+                                className={addBtnClass}
                             >
                                 <UserPlus className="h-4 w-4 mr-2" />
                                 Ajouter
@@ -382,15 +458,15 @@ export function ContactsNavigator({
                     </div>
 
                     {/* Tab Contents */}
-                    <TabsContent value="contacts" className="flex-1 mt-4 overflow-y-auto">
+                    <TabsContent value="contacts" className={dataClass}>
                         {renderContent(filteredData as any, currentConfig)}
                     </TabsContent>
 
-                    <TabsContent value="invitations" className="flex-1 mt-4 overflow-y-auto">
+                    <TabsContent value="invitations" className={dataClass}>
                         {renderContent(filteredData as any, currentConfig)}
                     </TabsContent>
 
-                    <TabsContent value="companies" className="flex-1 mt-4 overflow-y-auto">
+                    <TabsContent value="companies" className={dataClass}>
                         {renderContent(filteredData as any, currentConfig)}
                     </TabsContent>
                 </Tabs>

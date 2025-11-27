@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, Building2 } from "lucide-react"
+import { AlertCircle } from "lucide-react"
 import { ContactsNavigator } from "@/components/contacts/contacts-navigator"
 import { useRouter } from "next/navigation"
 import { createContactService, createContactInvitationService } from '@/lib/services'
@@ -195,13 +195,14 @@ export function ContactsPageClient({
   }
 
   return (
-    <div className="layout-container flex flex-col flex-1 min-h-0 overflow-hidden">
-      {/* Page Header */}
-      <div className="mb-6 lg:mb-8 flex-shrink-0">
+    <div className="h-full flex flex-col overflow-hidden layout-container">
+      <div className="content-max-width flex flex-col flex-1 min-h-0 overflow-hidden">
+        {/* Page Header */}
+        <div className="mb-4 lg:mb-6 flex-shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
-                 Contacts
+                Contacts
               </h1>
             </div>
           </div>
@@ -209,24 +210,32 @@ export function ContactsPageClient({
 
         {/* Error Alert */}
         {error && (
-          <Alert variant="destructive" className="mb-6">
+          <Alert variant="destructive" className="mb-4 flex-shrink-0">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
 
-        <div className="flex-1 min-h-0 overflow-hidden">
-          <ContactsNavigator
-            contacts={contacts as any}
-            invitations={pendingInvitations as any}
-            companies={companies as any}
-            loading={loading}
-            onRefresh={refetchContacts}
-            onResendInvitation={handleResendInvitation}
-            onCancelInvitation={handleCancelInvitation}
-            onDeleteContact={handleDeleteContact}
-          />
+        {/* Card wrapper - Structure exacte du dashboard */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+            {/* Content wrapper avec padding */}
+            <div className="flex-1 flex flex-col min-h-0 p-4">
+              <ContactsNavigator
+                contacts={contacts as any}
+                invitations={pendingInvitations as any}
+                companies={companies as any}
+                loading={loading}
+                onRefresh={refetchContacts}
+                onResendInvitation={handleResendInvitation}
+                onCancelInvitation={handleCancelInvitation}
+                onDeleteContact={handleDeleteContact}
+                className="bg-transparent border-0 shadow-none flex-1 flex flex-col min-h-0"
+              />
+            </div>
+          </div>
         </div>
+      </div>
     </div>
   )
 }

@@ -113,7 +113,7 @@ export default async function DashboardGestionnaire() {
           const [{ data: quotes }, { data: timeSlots }] = await Promise.all([
             supabase
               .from('intervention_quotes')
-              .select('id, status, provider_id, submitted_by, amount')
+              .select('id, status, provider_id, created_by, amount')
               .eq('intervention_id', intervention.id)
               .is('deleted_at', null),
             supabase

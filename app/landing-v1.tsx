@@ -140,10 +140,11 @@ export default function LandingV1() {
             <div className="relative">
               <div className="relative rounded-xl shadow-2xl overflow-hidden border border-gray-200">
                 <Image
-                  src="/images/mockup_desktop.png"
+                  src="/images/mockup_desktop.webp"
                   alt="Dashboard SEIDO - Interface de gestion des interventions"
                   width={1200}
                   height={800}
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1200px"
                   className="w-full h-auto"
                   priority
                 />
@@ -597,10 +598,11 @@ export default function LandingV1() {
             {/* Main Screenshot */}
             <div className="relative rounded-xl shadow-2xl overflow-hidden border border-gray-200">
               <Image
-                src="/images/mockup_desktop.png"
+                src="/images/mockup_desktop.webp"
                 alt="Interface SEIDO - Dashboard de gestion des interventions"
                 width={1400}
                 height={900}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 90vw, 1400px"
                 className="w-full h-auto"
               />
             </div>

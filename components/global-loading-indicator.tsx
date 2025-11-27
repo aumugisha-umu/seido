@@ -12,9 +12,6 @@ export function GlobalLoadingIndicator() {
   const [loadingText, setLoadingText] = useState('Chargement...')
 
   useEffect(() => {
-    // Déclencher l'indicateur de chargement lors du changement de route
-    setIsLoading(true)
-    
     // Personnaliser le texte selon la section
     if (pathname.includes('/dashboard')) {
       setLoadingText('Chargement du tableau de bord...')
@@ -28,12 +25,32 @@ export function GlobalLoadingIndicator() {
       setLoadingText('Chargement de la page...')
     }
 
-    // Simulation de délai pour éviter les clignotements sur des changements rapides
-    const timer = setTimeout(() => {
-      setIsLoading(false)
-    }, 800) // 800ms devrait être suffisant pour que les données se chargent
+    // OPTIMISATION: N'afficher le spinner qu'après 500ms (si la navigation est lente)
+    // Évite le clignotement sur les navigations rapides
+    let isMounted = true
 
-    return () => clearTimeout(timer)
+    const showTimer = setTimeout(() => {
+      // Ne montrer le spinner que si le composant est toujours monté après 500ms
+      if (isMounted) {
+        setIsLoading(true)
+      }
+    }, 500)
+
+    // AUTO-HIDE: Cacher le spinner après 2.5s max (la page devrait être chargée)
+    // Cela évite que le spinner reste bloqué indéfiniment
+    const hideTimer = setTimeout(() => {
+      if (isMounted) {
+        setIsLoading(false)
+      }
+    }, 2500)
+
+    // Cleanup quand le pathname change (nouvelle navigation)
+    return () => {
+      isMounted = false
+      clearTimeout(showTimer)
+      clearTimeout(hideTimer)
+      setIsLoading(false)
+    }
   }, [pathname])
 
   if (!isLoading) return null

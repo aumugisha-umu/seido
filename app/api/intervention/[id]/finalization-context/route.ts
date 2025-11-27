@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Database } from '@/lib/database.types'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 
+/**
+ * GET /api/intervention/[id]/finalization-context
+ *
+ * Fetches context data for manager finalization modal.
+ * Uses only existing tables: interventions, intervention_assignments, intervention_reports
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -10,22 +15,15 @@ export async function GET(
   try {
     const { id: interventionId } = await params
 
-    // ✅ AUTH + ROLE CHECK: 73 lignes → 3 lignes! (gestionnaire required)
+    // Auth + role check (gestionnaire required)
     const authResult = await getApiAuthContext({ requiredRole: 'gestionnaire' })
     if (!authResult.success) return authResult.error
 
     const { supabase, userProfile: user } = authResult.data
 
-    logger.info({
-      userId: user.id,
-      userRole: user.role,
-      userEmail: user.email,
-      teamId: user.team_id
-    }, '✅ User retrieved successfully')
+    logger.info({ interventionId, userId: user.id }, '📊 Fetching finalization context')
 
-    logger.info(`📊 Fetching finalization context for intervention:`, interventionId)
-
-    // Fetch intervention with basic info
+    // 1. Fetch intervention with lot/building
     const { data: intervention, error: interventionError } = await supabase
       .from('interventions')
       .select(`
@@ -44,13 +42,14 @@ export async function GET(
       .single()
 
     if (interventionError || !intervention) {
+      logger.warn({ error: interventionError }, '❌ Intervention not found')
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
       }, { status: 404 })
     }
 
-    // Check if user belongs to intervention team
+    // Check team membership
     if (intervention.team_id && user.team_id !== intervention.team_id) {
       return NextResponse.json({
         success: false,
@@ -58,7 +57,7 @@ export async function GET(
       }, { status: 403 })
     }
 
-    // Check if intervention is in finalizable status
+    // Check finalizable status
     if (!['cloturee_par_prestataire', 'cloturee_par_locataire', 'contestee'].includes(intervention.status)) {
       return NextResponse.json({
         success: false,
@@ -66,170 +65,88 @@ export async function GET(
       }, { status: 400 })
     }
 
-    // Fetch work completion report
-    const { data: workCompletion, error: workError } = await supabase
-      .from('intervention_work_completions')
-      .select(`
-        *,
-        provider:provider_id(
+    // ⚡ OPTIMISATION: Fetch assignments et reports en parallèle
+    // (intervention déjà validée, ces deux requêtes sont indépendantes)
+    const [assignmentsResult, reportsResult] = await Promise.all([
+      // 2. Fetch assignments (to get tenant/provider contacts)
+      supabase
+        .from('intervention_assignments')
+        .select(`
           id,
-          name,
-          email,
-          phone,
-          provider_category
-        )
-      `)
-      .eq('intervention_id', interventionId)
-      .order('submitted_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (workError) {
-      logger.warn({ error: workError }, '⚠️ Error fetching work completion:')
-    }
-
-    // Fetch tenant validation if exists
-    const { data: tenantValidation, error: validationError } = await supabase
-      .from('intervention_tenant_validations')
-      .select('*')
-      .eq('intervention_id', interventionId)
-      .order('submitted_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (validationError) {
-      logger.warn({ error: validationError }, '⚠️ Error fetching tenant validation:')
-    }
-
-    // Fetch selected quote if exists
-    const { data: quotes, error: quotesError } = await supabase
-      .from('intervention_quotes')
-      .select(`
-        *,
-        provider:provider_id(
-          id,
-          name,
-          email,
-          provider_category
-        )
-      `)
-      .eq('intervention_id', interventionId)
-      .eq('status', 'accepted')
-      .order('created_at', { ascending: false })
-      .limit(1)
-
-    if (quotesError) {
-      logger.warn({ error: quotesError }, '⚠️ Error fetching quotes:')
-    }
-
-    const selectedQuote = quotes && quotes.length > 0 ? quotes[0] : null
-
-    // Fetch all intervention contacts for context
-    const { data: contacts, error: contactsError } = await supabase
-      .from('intervention_contacts')
-      .select(`
-        *,
-        user:user_id(
-          id,
-          name,
-          email,
-          phone,
           role,
-          provider_category
-        )
-      `)
-      .eq('intervention_id', interventionId)
+          is_primary,
+          user:user_id(
+            id,
+            name,
+            email,
+            phone,
+            role,
+            provider_category
+          )
+        `)
+        .eq('intervention_id', interventionId),
 
-    if (contactsError) {
-      logger.warn({ error: contactsError }, '⚠️ Error fetching contacts:')
+      // 3. Fetch intervention reports (provider_report, tenant_report)
+      supabase
+        .from('intervention_reports')
+        .select(`
+          id,
+          report_type,
+          title,
+          content,
+          metadata,
+          created_at,
+          created_by,
+          creator:created_by(id, name, role)
+        `)
+        .eq('intervention_id', interventionId)
+        .is('deleted_at', null)
+        .in('report_type', ['provider_report', 'tenant_report'])
+        .order('created_at', { ascending: true })
+    ])
+
+    const { data: assignments, error: assignmentsError } = assignmentsResult
+    const { data: reports, error: reportsError } = reportsResult
+
+    if (assignmentsError) {
+      logger.warn({ error: assignmentsError }, '⚠️ Error fetching assignments')
+    }
+    if (reportsError) {
+      logger.warn({ error: reportsError }, '⚠️ Error fetching reports')
     }
 
-    // Check if there's already a finalization record
-    const { data: existingFinalization, error: finalizationError } = await supabase
-      .from('intervention_manager_finalizations')
-      .select('*')
-      .eq('intervention_id', interventionId)
-      .order('finalized_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
+    // Extract tenant and provider from assignments
+    const tenantAssignment = assignments?.find(a => a.role === 'locataire')
+    const providerAssignment = assignments?.find(a => a.role === 'prestataire' && a.is_primary)
+      || assignments?.find(a => a.role === 'prestataire')
 
-    if (finalizationError) {
-      logger.warn({ error: finalizationError }, '⚠️ Error checking existing finalization:')
-    }
+    const tenant = tenantAssignment?.user || null
+    const provider = providerAssignment?.user || null
 
-    // Build response data
+    // Build simplified response
     const responseData = {
       intervention: {
-        ...intervention,
+        id: intervention.id,
+        reference: intervention.reference,
+        title: intervention.title,
+        type: intervention.type,
+        urgency: intervention.urgency,
+        description: intervention.description,
+        status: intervention.status,
+        is_contested: intervention.is_contested,
         lot: intervention.lot
       },
-      workCompletion: workCompletion ? {
-        id: workCompletion.id,
-        workSummary: workCompletion.work_summary,
-        workDetails: workCompletion.work_details,
-        materialsUsed: workCompletion.materials_used,
-        actualDurationHours: workCompletion.actual_duration_hours,
-        actualCost: workCompletion.actual_cost,
-        issuesEncountered: workCompletion.issues_encountered,
-        recommendations: workCompletion.recommendations,
-        qualityAssurance: workCompletion.quality_assurance ?
-          (typeof workCompletion.quality_assurance === 'string' ?
-            JSON.parse(workCompletion.quality_assurance) : workCompletion.quality_assurance) : null,
-        beforePhotos: workCompletion.before_photos ?
-          (typeof workCompletion.before_photos === 'string' ?
-            JSON.parse(workCompletion.before_photos) : workCompletion.before_photos) : [],
-        afterPhotos: workCompletion.after_photos ?
-          (typeof workCompletion.after_photos === 'string' ?
-            JSON.parse(workCompletion.after_photos) : workCompletion.after_photos) : [],
-        documents: workCompletion.documents ?
-          (typeof workCompletion.documents === 'string' ?
-            JSON.parse(workCompletion.documents) : workCompletion.documents) : [],
-        submittedAt: workCompletion.submitted_at,
-        provider: workCompletion.provider
-      } : null,
-      tenantValidation: tenantValidation ? {
-        id: tenantValidation.id,
-        validationType: tenantValidation.validation_type,
-        satisfaction: tenantValidation.satisfaction ?
-          (typeof tenantValidation.satisfaction === 'string' ?
-            JSON.parse(tenantValidation.satisfaction) : tenantValidation.satisfaction) : null,
-        workApproval: tenantValidation.work_approval ?
-          (typeof tenantValidation.work_approval === 'string' ?
-            JSON.parse(tenantValidation.work_approval) : tenantValidation.work_approval) : null,
-        comments: tenantValidation.comments,
-        issues: tenantValidation.issues ?
-          (typeof tenantValidation.issues === 'string' ?
-            JSON.parse(tenantValidation.issues) : tenantValidation.issues) : null,
-        recommendProvider: tenantValidation.recommend_provider,
-        additionalComments: tenantValidation.additional_comments,
-        submittedAt: tenantValidation.submitted_at
-      } : null,
-      selectedQuote: selectedQuote ? {
-        id: selectedQuote.id,
-        amount: selectedQuote.amount,
-        description: selectedQuote.description,
-        details: selectedQuote.details ?
-          (typeof selectedQuote.details === 'string' ?
-            JSON.parse(selectedQuote.details) : selectedQuote.details) : null,
-        provider: selectedQuote.provider,
-        createdAt: selectedQuote.created_at
-      } : null,
-      contacts: contacts || [],
-      existingFinalization: existingFinalization ? {
-        id: existingFinalization.id,
-        finalStatus: existingFinalization.final_status,
-        adminComments: existingFinalization.admin_comments,
-        finalizedAt: existingFinalization.finalized_at
-      } : null
+      tenant,
+      provider,
+      reports: reports || []
     }
 
-    logger.info({}, "✅ Finalization context fetched successfully")
     logger.info({
-      hasIntervention: !!responseData.intervention,
-      hasWorkCompletion: !!responseData.workCompletion,
-      hasTenantValidation: !!responseData.tenantValidation,
-      hasSelectedQuote: !!responseData.selectedQuote
-    }, "📋 Context includes intervention, workCompletion, tenantValidation, quote")
+      hasIntervention: true,
+      hasTenant: !!tenant,
+      hasProvider: !!provider,
+      reportsCount: responseData.reports.length
+    }, '✅ Finalization context fetched successfully')
 
     return NextResponse.json({
       success: true,
@@ -237,7 +154,7 @@ export async function GET(
     })
 
   } catch (error) {
-    logger.error({ error }, "❌ Error in finalization context API:")
+    logger.error({ error }, '❌ Error in finalization context API')
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

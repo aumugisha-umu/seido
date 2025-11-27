@@ -5,8 +5,8 @@ import { Calendar, Clock, Plus, Trash2, Loader2, AlertCircle, CheckCircle } from
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { DateTimePicker } from "@/components/ui/date-time-picker"
-import { TimePicker } from "@/components/ui/time-picker"
+import { DatePicker } from "@/components/ui/date-picker"
+import { TimePicker24h } from "@/components/ui/time-picker-24h"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 
@@ -257,18 +257,18 @@ export function ProviderAvailabilityModal({
                         {/* Date */}
                         <div className="flex flex-col gap-2 flex-1">
                           <Label className="text-sm font-medium">Date</Label>
-                          <DateTimePicker
-                            mode="date"
-                            dateValue={avail.date}
-                            onDateChange={(date) => handleUpdateAvailability(index, 'date', date)}
+                          <DatePicker
+                            value={avail.date}
+                            onChange={(date) => handleUpdateAvailability(index, 'date', date)}
                             minDate={new Date().toISOString().split('T')[0]}
+                            className="w-full"
                           />
                         </div>
 
                         {/* Début */}
                         <div className="flex flex-col gap-2 flex-1">
                           <Label className="text-sm font-medium">Début</Label>
-                          <TimePicker
+                          <TimePicker24h
                             value={avail.startTime}
                             onChange={(time) => handleUpdateAvailability(index, 'startTime', time)}
                             className="w-full"
@@ -278,7 +278,7 @@ export function ProviderAvailabilityModal({
                         {/* Fin */}
                         <div className="flex flex-col gap-2 flex-1">
                           <Label className="text-sm font-medium">Fin</Label>
-                          <TimePicker
+                          <TimePicker24h
                             value={avail.endTime}
                             onChange={(time) => handleUpdateAvailability(index, 'endTime', time)}
                             className="w-full"

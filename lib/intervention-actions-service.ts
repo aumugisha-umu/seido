@@ -620,6 +620,57 @@ export class InterventionActionsService {
   }
 
   /**
+   * Simple work completion (rapport de travaux rapide)
+   */
+  async simpleCompleteIntervention(
+    interventionId: string,
+    data: { workReport: string; mediaFiles: File[] }
+  ): Promise<APIResponse> {
+    logger.info(`✅ Simple work completion for intervention ${interventionId}`)
+    logger.info(`📝 Work report length: ${data.workReport.length} chars`)
+
+    try {
+      const response = await fetch(`/api/intervention/${interventionId}/simple-work-completion`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          workReport: data.workReport,
+          mediaFiles: data.mediaFiles.map(file => ({
+            name: file.name,
+            size: file.size,
+            type: file.type
+          }))
+        })
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        logger.error('❌ Simple work completion failed:', result.error)
+        return {
+          success: false,
+          error: result.error || `Erreur lors de la soumission: ${response.status}`
+        }
+      }
+
+      logger.info('✅ Simple work completion successful')
+      return {
+        success: true,
+        message: result.message || 'Rapport soumis avec succès',
+        data: result.report
+      }
+    } catch (error) {
+      logger.error('❌ Error in simpleCompleteIntervention:', error)
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Erreur lors de la soumission du rapport'
+      }
+    }
+  }
+
+  /**
    * Action de validation par locataire
    */
   async validateByTenantOld(intervention: InterventionAction, data: {

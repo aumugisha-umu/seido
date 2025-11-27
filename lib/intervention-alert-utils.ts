@@ -7,7 +7,7 @@ interface InterventionQuote {
   id: string
   status: string
   provider_id?: string
-  submitted_by?: string
+  created_by?: string
   amount?: number
 }
 
@@ -80,7 +80,7 @@ export const shouldShowAlertBadge = (
       // Demande de devis - alerte si quote liée à ce prestataire en attente
       if (status === 'demande_de_devis' && userId) {
         return quotes.some(q => 
-          (q.provider_id === userId || q.submitted_by === userId) && 
+          (q.provider_id === userId || q.created_by === userId) && 
           (q.status === 'pending' || q.status === 'draft')
         )
       }

@@ -25,6 +25,7 @@ interface InterventionActionPanelHeaderProps {
   userId: string
   onActionComplete?: (navigateToTab?: string) => void
   onOpenQuoteModal?: () => void
+  onEditQuote?: (_quote: Quote) => void
   onCancelQuote?: (_quoteId: string) => void
   onCancelIntervention?: () => void
   onRejectQuoteRequest?: (_quote: Quote) => void
@@ -74,6 +75,7 @@ export function InterventionActionPanelHeader({
   userId,
   onActionComplete,
   onOpenQuoteModal,
+  onEditQuote,
   onCancelQuote,
   onCancelIntervention,
   onRejectQuoteRequest,
@@ -92,7 +94,7 @@ export function InterventionActionPanelHeader({
             </span>
           </div>
         )}
-        
+
         {/* Boutons d'action réutilisables */}
         <InterventionActionButtons
           intervention={intervention}
@@ -101,6 +103,7 @@ export function InterventionActionPanelHeader({
           compact={false}
           onActionComplete={onActionComplete}
           onOpenQuoteModal={onOpenQuoteModal}
+          onEditQuote={onEditQuote}
           onCancelQuote={onCancelQuote}
           onCancelIntervention={onCancelIntervention}
           onRejectQuoteRequest={onRejectQuoteRequest}

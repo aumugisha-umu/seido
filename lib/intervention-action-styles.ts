@@ -29,19 +29,19 @@ export const MD3_VARIANTS = {
 
 export const ROLE_COLORS = {
   gestionnaire: {
-    primary: 'bg-sky-600 hover:bg-sky-700 text-white focus:ring-sky-500',
-    primaryOutline: 'border-sky-600 text-sky-600 hover:bg-sky-50 focus:ring-sky-500',
-    tonal: 'bg-sky-100 hover:bg-sky-200 text-sky-700 dark:bg-sky-900/30 dark:hover:bg-sky-900/50 dark:text-sky-300'
+    primary: 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500',
+    primaryOutline: 'border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500',
+    tonal: 'bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-300'
   },
   locataire: {
-    primary: 'bg-emerald-600 hover:bg-emerald-700 text-white focus:ring-emerald-500',
-    primaryOutline: 'border-emerald-600 text-emerald-600 hover:bg-emerald-50 focus:ring-emerald-500',
-    tonal: 'bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/30 dark:hover:bg-emerald-900/50 dark:text-emerald-300'
+    primary: 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500',
+    primaryOutline: 'border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500',
+    tonal: 'bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-300'
   },
   prestataire: {
-    primary: 'bg-amber-600 hover:bg-amber-700 text-white focus:ring-amber-500',
-    primaryOutline: 'border-amber-600 text-amber-600 hover:bg-amber-50 focus:ring-amber-500',
-    tonal: 'bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/30 dark:hover:bg-amber-900/50 dark:text-amber-300'
+    primary: 'bg-blue-600 hover:bg-blue-700 text-white focus:ring-blue-500',
+    primaryOutline: 'border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500',
+    tonal: 'bg-blue-100 hover:bg-blue-200 text-blue-700 dark:bg-blue-900/30 dark:hover:bg-blue-900/50 dark:text-blue-300'
   }
 }
 
@@ -62,13 +62,13 @@ export const ACTION_STYLES = {
     'finalize',             // Gestionnaire finalizes intervention
     'confirm_slot',         // Locataire confirms a time slot
     'request_quotes',       // Gestionnaire requests quotes from providers
-    'start_planning'        // Gestionnaire starts planning process (same level as request_quotes)
+    'start_planning',       // Gestionnaire starts planning process (same level as request_quotes)
+    'add_availabilities'    // Prestataire/Locataire adds availability slots
   ],
 
   // === TONAL (Secondary) ===
   // Important secondary actions, less prominent than primary but still significant
   tonal: [
-    'add_availabilities',   // Prestataire/Locataire adds availability slots
     'reschedule',           // Any role reschedules intervention
     'modify_schedule',      // Locataire modifies schedule
     'edit_quote'            // Prestataire edits their quote

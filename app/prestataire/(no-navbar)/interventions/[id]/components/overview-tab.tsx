@@ -3,13 +3,14 @@
 /**
  * Overview Tab Component for Prestataire
  * Displays intervention details and provider-specific actions
+ * Now includes Estimation and Planification sections like gestionnaire view
  */
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
 import { TimeSlotProposer } from '@/components/interventions/time-slot-proposer'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
@@ -22,20 +23,14 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import {
-  Clock,
-  Calendar,
-  Play,
-  CheckCircle,
-  AlertCircle
-} from 'lucide-react'
+import { FileText, Edit, XCircle, Clock, CheckCircle2, AlertCircle } from 'lucide-react'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
 import {
   startInterventionAction,
   completeByProviderAction,
   proposeTimeSlotsAction
 } from '@/app/actions/intervention-actions'
-import { format } from 'date-fns'
-import { fr } from 'date-fns/locale'
 import type { Database } from '@/lib/database.types'
 
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
@@ -43,29 +38,150 @@ type Intervention = Database['public']['Tables']['interventions']['Row'] & {
   lot?: Database['public']['Tables']['lots']['Row']
 }
 
+type TimeSlotResponse = Database['public']['Tables']['time_slot_responses']['Row'] & {
+  user?: Database['public']['Tables']['users']['Row']
+}
+
 type TimeSlot = Database['public']['Tables']['intervention_time_slots']['Row'] & {
   proposed_by_user?: Database['public']['Tables']['users']['Row']
+  responses?: TimeSlotResponse[]
 }
 
 type User = Database['public']['Tables']['users']['Row']
+
+type Quote = Database['public']['Tables']['intervention_quotes']['Row'] & {
+  provider?: Database['public']['Tables']['users']['Row']
+}
+
+type Assignment = Database['public']['Tables']['intervention_assignments']['Row'] & {
+  user?: Database['public']['Tables']['users']['Row']
+}
+
+interface Contact {
+  id: string
+  name: string
+  email: string
+  phone?: string | null
+  type?: "gestionnaire" | "prestataire" | "locataire"
+}
+
+interface TimeSlotForPreview {
+  date: string
+  startTime: string
+  endTime: string
+}
 
 interface OverviewTabProps {
   intervention: Intervention
   timeSlots: TimeSlot[]
   currentUser: User
+  assignments: Assignment[]
+  quotes: Quote[]
   onRefresh: () => void
+  // Slot action handlers
+  onRejectSlot?: (slot: TimeSlot) => void
+  onAcceptSlot?: (slot: TimeSlot) => void
+  onModifyChoice?: (slot: TimeSlot, currentResponse: 'accepted' | 'rejected') => void
+  // Quote action handlers (for prestataire)
+  onEditQuote?: (quote: Quote) => void
+  onCancelQuote?: (quoteId: string) => void
 }
 
 export function OverviewTab({
   intervention,
   timeSlots,
   currentUser,
-  onRefresh
+  assignments,
+  quotes,
+  onRefresh,
+  onRejectSlot,
+  onAcceptSlot,
+  onModifyChoice,
+  onEditQuote,
+  onCancelQuote
 }: OverviewTabProps) {
   const [timeSlotDialogOpen, setTimeSlotDialogOpen] = useState(false)
   const [completeWorkDialogOpen, setCompleteWorkDialogOpen] = useState(false)
   const [workReport, setWorkReport] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Transform assignments into contacts grouped by role (like gestionnaire)
+  const managers: Contact[] = useMemo(() =>
+    assignments
+      .filter(a => a.role === 'gestionnaire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name,
+        email: a.user!.email || '',
+        phone: a.user!.phone || null,
+        type: 'gestionnaire' as const
+      })),
+    [assignments]
+  )
+
+  const providers: Contact[] = useMemo(() =>
+    assignments
+      .filter(a => a.role === 'prestataire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name,
+        email: a.user!.email || '',
+        phone: a.user!.phone || null,
+        type: 'prestataire' as const
+      })),
+    [assignments]
+  )
+
+  const tenants: Contact[] = useMemo(() =>
+    assignments
+      .filter(a => a.role === 'locataire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name,
+        email: a.user!.email || '',
+        phone: a.user!.phone || null,
+        type: 'locataire' as const
+      })),
+    [assignments]
+  )
+
+  // Transform time slots for preview
+  const schedulingSlotsForPreview: TimeSlotForPreview[] = useMemo(() =>
+    timeSlots
+      .filter(ts => ts.slot_date && ts.start_time && ts.end_time)
+      .map(ts => ({
+        date: ts.slot_date!,
+        startTime: ts.start_time!,
+        endTime: ts.end_time!
+      })),
+    [timeSlots]
+  )
+
+  // Scheduling type is determined ONLY from the DB field (no fallback inference)
+  // This decouples TYPE display from DATA display (slots/dates are shown separately)
+  const schedulingType = intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null
+
+  // Check if quote is required (status or active quotes)
+  const requireQuote = intervention.status === 'demande_de_devis' ||
+    quotes.some(q => ['pending', 'sent', 'accepted'].includes(q.status))
+
+  // Filter quotes by current provider
+  const myQuotes = useMemo(() =>
+    quotes.filter(q => q.provider_id === currentUser.id),
+    [quotes, currentUser.id]
+  )
+
+  // Helper to get quote status display
+  const getQuoteStatusConfig = (status: string) => {
+    const statusMap: Record<string, { label: string; color: string; icon: typeof CheckCircle2 }> = {
+      pending: { label: 'En attente', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', icon: Clock },
+      sent: { label: 'Envoyé', color: 'bg-blue-100 text-blue-800 border-blue-200', icon: FileText },
+      accepted: { label: 'Approuvé', color: 'bg-green-100 text-green-800 border-green-200', icon: CheckCircle2 },
+      rejected: { label: 'Rejeté', color: 'bg-red-100 text-red-800 border-red-200', icon: XCircle },
+      cancelled: { label: 'Annulé', color: 'bg-gray-100 text-gray-800 border-gray-200', icon: XCircle },
+    }
+    return statusMap[status] || { label: status, color: 'bg-gray-100 text-gray-800', icon: AlertCircle }
+  }
 
   // Handle start work
   const handleStartWork = async () => {
@@ -136,80 +252,137 @@ export function OverviewTab({
     }
   }
 
-  // Determine which actions are available
-  const canProposeSlots = intervention.status === 'planification'
-  const canStartWork = intervention.status === 'planifiee'
-  const canCompleteWork = intervention.status === 'en_cours'
-
-  // Get provider's proposed time slots
-  const myTimeSlots = timeSlots.filter(slot => slot.proposed_by === currentUser.id)
-
   return (
     <>
       <div className="space-y-6">
-        {/* Intervention details */}
-        <InterventionOverviewCard intervention={intervention} />
+        {/* Intervention details with Estimation and Planification sections */}
+        <InterventionOverviewCard
+          intervention={intervention}
+          managers={managers}
+          providers={providers}
+          tenants={tenants}
+          requireQuote={requireQuote}
+          quotes={quotes}
+          schedulingType={schedulingType}
+          schedulingSlots={schedulingSlotsForPreview}
+          fullTimeSlots={timeSlots}
+          currentUserId={currentUser.id}
+          currentUserRole="prestataire"
+          onUpdate={onRefresh}
+          onRejectSlot={onRejectSlot}
+          onApproveSlot={onAcceptSlot}
+          canManageSlots={intervention.status === 'planification'}
+          onModifyChoice={onModifyChoice}
+        />
 
-        {/* Urgency alert */}
-        {intervention.urgency === 'urgente' && (
-          <Card className="border-orange-200 bg-orange-50">
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2 text-orange-800">
-                <AlertCircle className="w-5 h-5" />
-                Intervention urgente
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-orange-700">
-                Cette intervention est marquée comme urgente et nécessite une attention prioritaire.
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-
-        {/* My proposed time slots */}
-        {myTimeSlots.length > 0 && (
+        {/* Section Mes Devis - Visible uniquement si le prestataire a des devis */}
+        {myQuotes.length > 0 && (
           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                Mes créneaux proposés
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                Mes devis ({myQuotes.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {myTimeSlots.map((slot) => (
-                  <div
-                    key={slot.id}
-                    className="flex items-center justify-between p-3 rounded-lg border"
-                  >
-                    <div>
-                      <p className="font-medium">
-                        {format(new Date(slot.slot_date), 'EEEE d MMMM yyyy', { locale: fr })}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {slot.start_time} - {slot.end_time}
-                      </p>
-                      {slot.notes && (
-                        <p className="text-sm text-muted-foreground mt-1">{slot.notes}</p>
+              <div className="space-y-4">
+                {myQuotes.map(quote => {
+                  const statusConfig = getQuoteStatusConfig(quote.status)
+                  const StatusIcon = statusConfig.icon
+                  const canModify = ['pending', 'sent'].includes(quote.status)
+
+                  return (
+                    <div
+                      key={quote.id}
+                      className="p-4 border rounded-lg bg-white hover:shadow-sm transition-shadow"
+                    >
+                      {/* En-tête avec montant et statut */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-3">
+                          {quote.amount && quote.amount > 0 ? (
+                            <span className="text-xl font-bold text-green-700">
+                              {quote.amount.toFixed(2)} €
+                            </span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground italic">
+                              Montant non défini
+                            </span>
+                          )}
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={`${statusConfig.color} flex items-center gap-1`}
+                        >
+                          <StatusIcon className="w-3 h-3" />
+                          {statusConfig.label}
+                        </Badge>
+                      </div>
+
+                      {/* Description du devis */}
+                      {quote.description && (
+                        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                          {quote.description}
+                        </p>
+                      )}
+
+                      {/* Dates */}
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          Créé le {format(new Date(quote.created_at), 'dd MMM yyyy', { locale: fr })}
+                        </span>
+                        {quote.valid_until && (
+                          <span className="flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" />
+                            Valide jusqu'au {format(new Date(quote.valid_until), 'dd MMM yyyy', { locale: fr })}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Actions */}
+                      {canModify && (
+                        <div className="flex gap-2 pt-3 border-t border-gray-100">
+                          {onEditQuote && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => onEditQuote(quote)}
+                              className="flex items-center gap-1"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                              Modifier
+                            </Button>
+                          )}
+                          {onCancelQuote && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => onCancelQuote(quote.id)}
+                              className="flex items-center gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              Annuler
+                            </Button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Message si le devis ne peut plus être modifié */}
+                      {!canModify && quote.status === 'accepted' && (
+                        <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700 flex items-center gap-2">
+                          <CheckCircle2 className="w-4 h-4" />
+                          Ce devis a été approuvé par le gestionnaire
+                        </div>
+                      )}
+                      {!canModify && quote.status === 'rejected' && (
+                        <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-center gap-2">
+                          <XCircle className="w-4 h-4" />
+                          Ce devis a été rejeté
+                        </div>
                       )}
                     </div>
-                    <Badge
-                      variant={
-                        slot.status === 'accepted'
-                          ? 'default'
-                          : slot.status === 'rejected'
-                            ? 'destructive'
-                            : 'secondary'
-                      }
-                    >
-                      {slot.status === 'accepted' && 'Accepté'}
-                      {slot.status === 'rejected' && 'Rejeté'}
-                      {slot.status === 'proposed' && 'En attente'}
-                    </Badge>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </CardContent>
           </Card>

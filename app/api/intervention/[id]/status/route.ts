@@ -47,6 +47,7 @@ export async function PATCH(
     }
 
     // Validate status value
+    // Note: 'en_cours' is DEPRECATED but kept for backward compatibility
     const validStatuses = [
       'demande',
       'rejetee',
@@ -54,7 +55,7 @@ export async function PATCH(
       'demande_de_devis',
       'planification',
       'planifiee',
-      'en_cours',
+      'en_cours', // DEPRECATED
       'cloturee_par_prestataire',
       'cloturee_par_locataire',
       'cloturee_par_gestionnaire',
@@ -85,14 +86,15 @@ export async function PATCH(
     }
 
     // Validate status transition (basic rules)
+    // Note: 'en_cours' is DEPRECATED - interventions go directly from 'planifiee' to 'cloturee_par_*'
     const currentStatus = intervention.status
     const allowedTransitions: Record<string, string[]> = {
       'demande': ['rejetee', 'approuvee', 'annulee'],
       'approuvee': ['demande_de_devis', 'planification', 'annulee'],
       'demande_de_devis': ['planification', 'annulee'],
       'planification': ['planifiee', 'demande_de_devis', 'annulee'],
-      'planifiee': ['en_cours', 'annulee'],
-      'en_cours': ['cloturee_par_prestataire', 'annulee']
+      'planifiee': ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'], // Direct to closure
+      'en_cours': ['cloturee_par_prestataire', 'annulee'] // DEPRECATED - kept for backward compatibility
     }
 
     const allowed = allowedTransitions[currentStatus]

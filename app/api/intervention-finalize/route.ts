@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { interventionFinalizeSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
@@ -36,6 +36,7 @@ export async function POST(request: NextRequest) {
     const {
       interventionId,
       finalizationComment,
+      managerReport, // Rapport de clôture gestionnaire (optionnel)
       paymentStatus, // 'pending' | 'approved' | 'paid' | 'disputed'
       finalAmount, // Montant final validé (peut différer du coût initial)
       paymentMethod, // Mode de paiement (optionnel)
@@ -69,7 +70,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if intervention can be finalized
-    if (intervention.status !== 'cloturee_par_locataire') {
+    const finalizableStatuses = ['cloturee_par_prestataire', 'cloturee_par_locataire', 'contestee']
+    if (!finalizableStatuses.includes(intervention.status)) {
       return NextResponse.json({
         success: false,
         error: `L'intervention ne peut pas être finalisée (statut actuel: ${intervention.status})`
@@ -121,99 +123,55 @@ export async function POST(request: NextRequest) {
     // Note: Comments (finalization notes, admin notes) are now stored in intervention_comments table
 
     // Update intervention to final status
-    const updateData = {
+    // Note: Using existing columns only (completed_date, final_cost)
+    // payment_status, payment_method don't exist in the schema
+    const updateData: Record<string, any> = {
       status: 'cloturee_par_gestionnaire' as Database['public']['Enums']['intervention_status'],
-      finalized_date: new Date().toISOString(),
+      completed_date: new Date().toISOString(),
       updated_at: new Date().toISOString()
     }
 
-    // Set payment information
-    if (paymentStatus) {
-      updateData.payment_status = paymentStatus
-    }
-
+    // Set final cost if provided
     if (finalAmount !== undefined && finalAmount !== null && !isNaN(parseFloat(finalAmount.toString()))) {
-      updateData.final_amount = parseFloat(finalAmount.toString())
-    }
-
-    if (paymentMethod) {
-      updateData.payment_method = paymentMethod
+      updateData.final_cost = parseFloat(finalAmount.toString())
     }
 
     const updatedIntervention = await interventionService.update(interventionId, updateData)
 
     logger.info({}, "🏁 Intervention finalized successfully")
 
-    // Create notifications for all stakeholders
-    const notificationTitle = 'Intervention finalisée'
-    const baseMessage = `L'intervention "${intervention.title}" a été finalisée administrativement par ${user.name}.`
-
-    // Notify tenant
-    if (intervention.tenant_id && intervention.team_id) {
+    // Create manager report if provided
+    if (managerReport?.trim()) {
       try {
-        await notificationService.createNotification({
-          userId: intervention.tenant_id,
-          teamId: intervention.team_id,
-          createdBy: user.id,
-          type: 'intervention',
-          title: notificationTitle,
-          message: `${baseMessage} L'intervention est maintenant complètement clôturée.`,
-          isPersonal: true, // Locataire toujours personnel
-          metadata: {
-            interventionId: intervention.id,
-            interventionTitle: intervention.title,
-            finalizedBy: user.name,
-            finalAmount: updateData.final_amount || null,
-            paymentStatus: paymentStatus || null,
-            finalizationDate: updateData.finalized_date,
-            lotReference: intervention.lot?.reference,
-            buildingName: intervention.lot?.building?.name
-          },
-          relatedEntityType: 'intervention',
-          relatedEntityId: intervention.id
-        })
-        logger.info({}, "📧 Finalization notification sent to tenant")
-      } catch (notifError) {
-        logger.warn({ notifError: notifError }, "⚠️ Could not send notification to tenant:")
-      }
-    }
-
-    // Notify prestataires from intervention_assignments
-    try {
-      const { data: assignedProviders } = await supabase
-        .from('intervention_assignments')
-        .select('user:users!user_id(id, name), is_primary')
-        .eq('intervention_id', intervention.id)
-        .eq('role', 'prestataire')
-
-      for (const assignment of assignedProviders || []) {
-        if (!assignment.user) continue
-
-        try {
-          await notificationService.createNotification({
-            userId: assignment.user.id,
-            teamId: intervention.team_id!,
-            createdBy: user.id,
-            type: 'intervention',
-            title: notificationTitle,
-            message: `${baseMessage} ${paymentStatus === 'paid' || paymentStatus === 'approved' ? 'Le paiement a été traité.' : 'Le statut du paiement sera mis à jour prochainement.'}`,
-            isPersonal: true, // Prestataire assigné toujours personnel
+        const { error: reportError } = await supabase
+          .from('intervention_reports')
+          .insert({
+            intervention_id: interventionId,
+            team_id: intervention.team_id,
+            report_type: 'manager_report',
+            title: 'Rapport de clôture - Gestionnaire',
+            content: managerReport.trim(),
             metadata: {
-              interventionId: intervention.id,
-              interventionTitle: intervention.title,
-              finalAmount: updateData.final_amount || null,
-              paymentStatus: paymentStatus || null
+              finalization: true,
+              finalized_at: new Date().toISOString(),
+              finalized_by: user.name
             },
-            relatedEntityType: 'intervention',
-            relatedEntityId: intervention.id
+            is_internal: false,
+            created_by: user.id
           })
-        } catch (notifError) {
-          logger.warn({ provider: assignment.user.name, notifError }, "⚠️ Could not send notification to provider:")
+
+        if (reportError) {
+          logger.warn({ reportError }, '⚠️ Could not create manager report:')
+        } else {
+          logger.info({}, '📝 Manager report created successfully')
         }
+      } catch (reportErr) {
+        logger.warn({ error: reportErr }, '⚠️ Error creating manager report:')
       }
-    } catch (queryError) {
-      logger.warn({ queryError }, "⚠️ Could not fetch assigned providers")
     }
+
+    // TODO: Add notifications later via Server Actions pattern
+    // See: app/actions/notification-actions.ts
 
     // Create activity log entry for closure
     try {
@@ -222,18 +180,15 @@ export async function POST(request: NextRequest) {
         .insert({
           team_id: intervention.team_id,
           user_id: user.id,
-          entity_type: 'intervention',
+          entity_type: 'intervention' as Database['public']['Enums']['activity_entity_type'],
           entity_id: intervention.id,
-          action: 'finalized',
-          details: {
-            interventionTitle: intervention.title,
-            finalAmount: updateData.final_amount || intervention.final_cost,
-            paymentStatus: paymentStatus,
-            duration: intervention.completed_date && intervention.created_at ? 
-              Math.ceil((new Date(intervention.completed_date).getTime() - new Date(intervention.created_at).getTime()) / (1000 * 60 * 60 * 24)) : 
-              null
-          },
+          intervention_id: intervention.id,
+          action_type: 'update' as Database['public']['Enums']['activity_action_type'],
+          description: `Intervention "${intervention.title}" finalisée par ${user.name}`,
+          status: 'success' as Database['public']['Enums']['activity_status'],
           metadata: {
+            interventionTitle: intervention.title,
+            finalCost: updateData.final_cost || intervention.final_cost,
             lotReference: intervention.lot?.reference,
             buildingName: intervention.lot?.building?.name
           }
@@ -252,17 +207,14 @@ export async function POST(request: NextRequest) {
         id: updatedIntervention.id,
         status: updatedIntervention.status,
         title: updatedIntervention.title,
-        finalized_date: updatedIntervention.finalized_date,
-        final_amount: updatedIntervention.final_amount,
-        payment_status: updatedIntervention.payment_status,
-        payment_method: updatedIntervention.payment_method,
+        completed_date: updatedIntervention.completed_date,
+        final_cost: updatedIntervention.final_cost,
         updated_at: updatedIntervention.updated_at
       },
       finalizedBy: {
         name: user.name,
         role: user.role
       },
-      paymentStatus,
       message: 'Intervention finalisée avec succès'
     })
 

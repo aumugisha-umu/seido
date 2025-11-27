@@ -77,6 +77,9 @@ const statusFlow: Record<InterventionStatus, TimelineStep> = {
     icon: Clock,
     description: "L'intervention est planifiée à une date précise"
   },
+  // DEPRECATED: 'en_cours' status is no longer used in the workflow
+  // Interventions now go directly from 'planifiee' to 'cloturee_par_*'
+  // Kept for backward compatibility with existing DB data
   'en_cours': {
     status: 'en_cours',
     label: 'En cours',
@@ -110,12 +113,14 @@ const statusFlow: Record<InterventionStatus, TimelineStep> = {
 }
 
 // Main workflow path (excludes rejected/cancelled)
+// Note: 'en_cours' is DEPRECATED - kept for backward compatibility with existing data
+// New workflow: planifiee → cloturee_par_prestataire (skip en_cours)
 const mainWorkflow: InterventionStatus[] = [
   'demande',
   'approuvee',
   'planification',
   'planifiee',
-  'en_cours',
+  'en_cours', // DEPRECATED: kept for existing interventions in DB
   'cloturee_par_prestataire',
   'cloturee_par_locataire',
   'cloturee_par_gestionnaire'

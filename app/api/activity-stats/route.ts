@@ -43,19 +43,42 @@ export async function GET(request: NextRequest) {
         startDate.setDate(startDate.getDate() - 7)
     }
 
-    // Requête principale pour les logs
-    // Note: activity_logs table not yet in database types - this is demo code
-    let query = supabase
+    // ⚡ OPTIMISATION: Parallélisation des requêtes current + previous period
+    // AVANT: 2 requêtes séquentielles
+    // APRÈS: 2 requêtes parallèles avec Promise.all
+
+    // Calcul de la période précédente (pour comparaison)
+    const previousStartDate = new Date(startDate)
+    const periodDuration = now.getTime() - startDate.getTime()
+    previousStartDate.setTime(startDate.getTime() - periodDuration)
+
+    // Construire les deux requêtes
+    let currentQuery = supabase
       .from('activity_logs')
       .select('action_type, entity_type, status, created_at, user_id')
       .eq('team_id', teamId)
       .gte('created_at', startDate.toISOString())
 
+    let previousQuery = supabase
+      .from('activity_logs')
+      .select('id', { count: 'exact' })
+      .eq('team_id', teamId)
+      .gte('created_at', previousStartDate.toISOString())
+      .lt('created_at', startDate.toISOString())
+
     if (userId) {
-      query = query.eq('user_id', userId)
+      currentQuery = currentQuery.eq('user_id', userId)
+      previousQuery = previousQuery.eq('user_id', userId)
     }
 
-    const { data, error } = await query
+    // Exécution parallèle des deux requêtes
+    const [currentResult, previousResult] = await Promise.all([
+      currentQuery,
+      previousQuery
+    ])
+
+    const { data, error } = currentResult
+    const { count: previousCount } = previousResult
 
     if (error) {
       logger.error({ error: error }, 'Error fetching activity stats:')
@@ -142,24 +165,7 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => b.count - a.count)
       .slice(0, 10)
 
-    // Comparaison avec la période précédente
-    const previousStartDate = new Date(startDate)
-    const periodDuration = now.getTime() - startDate.getTime()
-    previousStartDate.setTime(startDate.getTime() - periodDuration)
-
-    let previousQuery = supabase
-      .from('activity_logs')
-      .select('id', { count: 'exact' })
-      .eq('team_id', teamId)
-      .gte('created_at', previousStartDate.toISOString())
-      .lt('created_at', startDate.toISOString())
-
-    if (userId) {
-      previousQuery = previousQuery.eq('user_id', userId)
-    }
-
-    const { count: previousCount } = await previousQuery
-
+    // Comparaison avec la période précédente (previousCount déjà récupéré en parallèle plus haut)
     const evolution = {
       current: stats.total,
       previous: previousCount || 0,
@@ -168,6 +174,7 @@ export async function GET(request: NextRequest) {
              stats.total < (previousCount || 0) ? 'down' : 'stable'
     }
 
+    // ⚡ CACHE: 10 minutes pour les stats d'activité (agrégations coûteuses)
     return NextResponse.json({
       stats,
       evolution,
@@ -176,6 +183,10 @@ export async function GET(request: NextRequest) {
         teamId,
         userId: userId || null,
         period
+      }
+    }, {
+      headers: {
+        'Cache-Control': 'public, max-age=600, stale-while-revalidate=1200'
       }
     })
 

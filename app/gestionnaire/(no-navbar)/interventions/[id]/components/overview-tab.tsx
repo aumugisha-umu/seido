@@ -90,8 +90,14 @@ interface OverviewTabProps {
   onRefresh: () => void
   onOpenProgrammingModal?: () => void
   onCancelSlot?: (slot: TimeSlot) => void
+  onApproveSlot?: (slot: TimeSlot) => void
+  onRejectSlot?: (slot: TimeSlot) => void
+  onEditSlot?: (slot: TimeSlot) => void
   onEditParticipants?: () => void
   onEditQuotes?: () => void
+  // Quote approval/rejection handlers
+  onApproveQuote?: (quoteId: string) => void
+  onRejectQuote?: (quoteId: string) => void
 }
 
 export function OverviewTab({
@@ -105,8 +111,13 @@ export function OverviewTab({
   onRefresh,
   onOpenProgrammingModal,
   onCancelSlot,
+  onApproveSlot,
+  onRejectSlot,
+  onEditSlot,
   onEditParticipants,
-  onEditQuotes
+  onEditQuotes,
+  onApproveQuote,
+  onRejectQuote
 }: OverviewTabProps) {
   // Transform assignments into contacts grouped by role
   const managers: Contact[] = assignments
@@ -148,14 +159,9 @@ export function OverviewTab({
       endTime: ts.end_time!
     }))
 
-  // Determine scheduling type based on intervention status and data
-  const schedulingType = intervention.scheduled_date
-    ? 'fixed' as const
-    : schedulingSlotsForPreview.length > 0
-    ? 'slots' as const
-    : intervention.scheduling_method === 'flexible'
-    ? 'flexible' as const
-    : null
+  // Scheduling type is determined ONLY from the DB field (no fallback inference)
+  // This decouples TYPE display from DATA display (slots/dates are shown separately)
+  const schedulingType = intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null
 
   // Check if quote is required (status or active quotes)
   const requireQuote = intervention.status === 'demande_de_devis' ||
@@ -279,6 +285,9 @@ export function OverviewTab({
             fullTimeSlots={timeSlots}
             onOpenProgrammingModal={onOpenProgrammingModal}
             onCancelSlot={onCancelSlot}
+            onApproveSlot={onApproveSlot}
+            onRejectSlot={onRejectSlot}
+            onEditSlot={onEditSlot}
             canManageSlots={['approuvee', 'demande_de_devis', 'planification'].includes(intervention.status)}
             currentUserId={currentUserId}
             onEditParticipants={onEditParticipants}
@@ -286,6 +295,8 @@ export function OverviewTab({
             currentUserRole={currentUserRole}
             onUpdate={onRefresh}
             onCancelQuoteRequest={handleCancelQuoteRequest}
+            onApproveQuote={onApproveQuote}
+            onRejectQuote={onRejectQuote}
           />
 
           {/* Alert for urgent intervention */}

@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
+import { DatePicker } from "@/components/ui/date-picker"
+import { TimePicker24h } from "@/components/ui/time-picker-24h"
 import { logger, logError } from '@/lib/logger'
 interface TenantAvailability {
   date: string
@@ -262,36 +264,32 @@ export function TenantAvailabilityInput({
               const isValid = avail.date && avail.startTime && avail.endTime && !validateAvailability(avail)
 
               return (
-                <div key={index} className={`border rounded-lg p-4 ${
-                  hasConflict ? 'bg-green-50 border-green-200' :
-                  isValid ? 'bg-slate-50 border-slate-200' : 'bg-white border-gray-200'
-                }`}>
+                <div key={index} className={`border rounded-lg p-4 ${hasConflict ? 'bg-green-50 border-green-200' :
+                    isValid ? 'bg-slate-50 border-slate-200' : 'bg-white border-gray-200'
+                  }`}>
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                     <div>
                       <Label className="text-sm font-medium text-slate-700">Date</Label>
-                      <Input
-                        type="date"
+                      <DatePicker
                         value={avail.date}
-                        onChange={(e) => updateAvailability(index, 'date', e.target.value)}
-                        className="mt-1"
-                        min={new Date().toISOString().split('T')[0]}
+                        onChange={(value) => updateAvailability(index, 'date', value)}
+                        minDate={new Date().toISOString().split('T')[0]}
+                        className="mt-1 w-full"
                       />
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-slate-700">Heure début</Label>
-                      <Input
-                        type="time"
+                      <TimePicker24h
                         value={avail.startTime}
-                        onChange={(e) => updateAvailability(index, 'startTime', e.target.value)}
+                        onChange={(value) => updateAvailability(index, 'startTime', value)}
                         className="mt-1"
                       />
                     </div>
                     <div>
                       <Label className="text-sm font-medium text-slate-700">Heure fin</Label>
-                      <Input
-                        type="time"
+                      <TimePicker24h
                         value={avail.endTime}
-                        onChange={(e) => updateAvailability(index, 'endTime', e.target.value)}
+                        onChange={(value) => updateAvailability(index, 'endTime', value)}
                         className="mt-1"
                       />
                     </div>

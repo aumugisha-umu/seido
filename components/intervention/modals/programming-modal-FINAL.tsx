@@ -19,7 +19,8 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { DateTimePicker } from "@/components/ui/date-time-picker"
+import { DatePicker } from "@/components/ui/date-picker"
+import { TimePicker24h } from "@/components/ui/time-picker-24h"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -522,27 +523,32 @@ export const ProgrammingModalFinal = ({
 
           {/* 5. Conditional Content Based on Selected Method */}
           {programmingOption === "direct" && (
-            <div className="space-y-3 p-4 bg-blue-50/30 border border-blue-200 rounded-lg">
-              <DateTimePicker
-                mode="datetime"
-                dateValue={directSchedule.date}
-                timeValue={directSchedule.startTime}
-                onDateChange={(date) => onDirectScheduleChange({ ...directSchedule, date })}
-                onTimeChange={(time) => onDirectScheduleChange({ ...directSchedule, startTime: time })}
-                dateLabel="Date du rendez-vous"
-                timeLabel="Heure de début"
-                required
-                minDate={new Date().toISOString().split('T')[0]}
-              />
-              <div className="pt-2">
-                <Label htmlFor="end-time" className="text-sm font-medium text-slate-900 mb-2 block">
-                  Heure de fin (optionnelle)
-                </Label>
-                <DateTimePicker
-                  mode="time"
-                  timeValue={directSchedule.endTime}
-                  onTimeChange={(time) => onDirectScheduleChange({ ...directSchedule, endTime: time })}
-                  timeLabel="Heure de fin"
+            <div className="space-y-4 p-4 bg-blue-50/30 border border-blue-200 rounded-lg">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm font-medium">Date du rendez-vous *</Label>
+                  <DatePicker
+                    value={directSchedule.date}
+                    onChange={(date) => onDirectScheduleChange({ ...directSchedule, date })}
+                    minDate={new Date().toISOString().split('T')[0]}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm font-medium">Heure de début *</Label>
+                  <TimePicker24h
+                    value={directSchedule.startTime}
+                    onChange={(time) => onDirectScheduleChange({ ...directSchedule, startTime: time })}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label className="text-sm font-medium text-slate-700">Heure de fin (optionnelle)</Label>
+                <TimePicker24h
+                  value={directSchedule.endTime}
+                  onChange={(time) => onDirectScheduleChange({ ...directSchedule, endTime: time })}
+                  className="w-full max-w-[200px]"
                 />
               </div>
             </div>
@@ -573,8 +579,8 @@ export const ProgrammingModalFinal = ({
               ) : (
                 <div className="space-y-3">
                   {proposedSlots.map((slot, index) => (
-                    <div key={index} className="p-3 bg-white border border-purple-200 rounded-lg space-y-2">
-                      <div className="flex items-center justify-between mb-2">
+                    <div key={index} className="p-3 bg-white border border-purple-200 rounded-lg space-y-3">
+                      <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-slate-700">Créneau {index + 1}</span>
                         <Button
                           type="button"
@@ -586,20 +592,33 @@ export const ProgrammingModalFinal = ({
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
-                      <DateTimePicker
-                        mode="timerange"
-                        dateValue={slot.date}
-                        timeValue={slot.startTime}
-                        endTimeValue={slot.endTime}
-                        onDateChange={(date) => onUpdateProposedSlot(index, 'date', date)}
-                        onTimeChange={(time) => onUpdateProposedSlot(index, 'startTime', time)}
-                        onEndTimeChange={(time) => onUpdateProposedSlot(index, 'endTime', time)}
-                        dateLabel="Date"
-                        timeLabel="Début"
-                        endTimeLabel="Fin"
-                        required
-                        minDate={new Date().toISOString().split('T')[0]}
-                      />
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="flex flex-col gap-2">
+                          <Label className="text-sm font-medium">Date *</Label>
+                          <DatePicker
+                            value={slot.date}
+                            onChange={(date) => onUpdateProposedSlot(index, 'date', date)}
+                            minDate={new Date().toISOString().split('T')[0]}
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Label className="text-sm font-medium">Début *</Label>
+                          <TimePicker24h
+                            value={slot.startTime}
+                            onChange={(time) => onUpdateProposedSlot(index, 'startTime', time)}
+                            className="w-full"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <Label className="text-sm font-medium">Fin *</Label>
+                          <TimePicker24h
+                            value={slot.endTime}
+                            onChange={(time) => onUpdateProposedSlot(index, 'endTime', time)}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>

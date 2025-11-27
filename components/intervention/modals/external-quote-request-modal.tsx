@@ -9,11 +9,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { DatePicker } from "@/components/ui/date-picker"
 
 interface ExternalQuoteRequestModalProps {
   isOpen: boolean
   onClose: () => void
-  intervention: { id: string; title: string; description: string; [key: string]: unknown } | null
+  intervention: { id: string; title: string; description: string;[key: string]: unknown } | null
   onSubmit: (data: {
     providerEmails: string[]
     deadline: string
@@ -181,12 +182,11 @@ export const ExternalQuoteRequestModal = ({
               <Label htmlFor="deadline" className="text-sm font-medium text-slate-900">
                 Date limite pour le devis
               </Label>
-              <Input
-                id="deadline"
-                type="date"
+              <DatePicker
                 value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                onChange={(value) => setDeadline(value)}
+                minDate={new Date().toISOString().split('T')[0]}
+                className="w-full"
               />
             </div>
 

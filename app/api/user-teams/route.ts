@@ -58,9 +58,14 @@ export async function GET(request: NextRequest) {
 
     logger.info({ count: teams.length }, '✅ [USER-TEAMS] Teams fetched successfully')
 
+    // ⚡ CACHE: 1 heure pour les équipes utilisateur (données stables, privées par utilisateur)
     return NextResponse.json({
       success: true,
       data: teams
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=3600, stale-while-revalidate=7200'
+      }
     })
 
   } catch (error) {

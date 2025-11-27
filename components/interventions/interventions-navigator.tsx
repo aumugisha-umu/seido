@@ -1,18 +1,22 @@
-﻿"use client"
+"use client"
 
-import { useState } from "react"
-import {
-  AlertTriangle,
-  ListTodo,
-  Settings,
-  Archive,
-} from "lucide-react"
-
+import { useState, useMemo, useEffect } from "react"
+import { ListTodo, AlertTriangle, Settings, Archive, Clock, LucideIcon } from "lucide-react"
+import { cn } from "@/lib/utils"
 import ContentNavigator from "@/components/content-navigator"
 import { InterventionsViewContainer } from "@/components/interventions/interventions-view-container"
 import { ViewModeSwitcherV1 } from "@/components/interventions/view-mode-switcher-v1"
 import { useViewMode } from "@/hooks/use-view-mode"
+import { filterPendingActions } from "@/lib/intervention-alert-utils"
 import type { InterventionWithRelations } from "@/lib/services"
+
+// ============================================================================
+// INTERVENTIONS NAVIGATOR - Composant BEM Unifié
+// ============================================================================
+// Block:    interventions-section
+// Elements: interventions-section__header, __title, __actions, __content
+// Modifiers: interventions-section--compact, interventions-section--embedded
+// ============================================================================
 
 interface EmptyStateConfig {
   title: string
@@ -22,51 +26,88 @@ interface EmptyStateConfig {
   createButtonAction?: () => void
 }
 
-interface ContactContext {
-  contactId: string
-  contactName: string
-  contactRole?: 'gestionnaire' | 'prestataire' | 'locataire'
-}
-
-interface ActionHooks {
-  approvalHook?: () => void
-  planningHook?: () => void
-  executionHook?: () => void
-  finalizationHook?: () => void
+interface HeaderConfig {
+  title: string
+  icon?: LucideIcon
+  actions?: React.ReactNode
 }
 
 interface InterventionsNavigatorProps {
   interventions: InterventionWithRelations[]
   loading?: boolean
-  emptyStateConfig?: EmptyStateConfig
-  showStatusActions?: boolean
-  contactContext?: ContactContext
-  className?: string
-  searchPlaceholder?: string
-  showFilters?: boolean
-  actionHooks?: ActionHooks
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
-  isEmbeddedInCard?: boolean
+  className?: string
+
+  // Header configuration (dashboard mode)
+  showHeader?: boolean
+  headerConfig?: HeaderConfig
+
+  // Tabs preset: 'full' for page, 'dashboard' for dashboard widget
+  tabsPreset?: 'full' | 'dashboard'
+
+  // Compact mode (smaller padding, for dashboard)
+  compact?: boolean
+
+  // Empty state
+  emptyStateConfig?: EmptyStateConfig
+
+  // Callbacks
+  onActiveTabChange?: (tabId: string) => void
+  initialActiveTab?: string
+
+  // Action hooks (for status actions)
+  actionHooks?: {
+    approvalHook?: any
+    quotingHook?: any
+    planningHook?: any
+    executionHook?: any
+    finalizationHook?: any
+  }
 }
 
+/**
+ * InterventionsNavigator - Composant unifié pour afficher les interventions
+ *
+ * Utilisable sur :
+ * - Dashboard : avec showHeader=true, tabsPreset="dashboard", compact=true
+ * - Page Interventions : avec showHeader=false, tabsPreset="full"
+ *
+ * @example Dashboard
+ * ```tsx
+ * <InterventionsNavigator
+ *   interventions={interventions}
+ *   showHeader={true}
+ *   headerConfig={{ title: "Interventions", icon: Wrench, actions: <Button>...</Button> }}
+ *   tabsPreset="dashboard"
+ *   compact={true}
+ * />
+ * ```
+ *
+ * @example Page Interventions
+ * ```tsx
+ * <InterventionsNavigator
+ *   interventions={interventions}
+ *   tabsPreset="full"
+ *   className="bg-transparent border-0 shadow-none"
+ * />
+ * ```
+ */
 export function InterventionsNavigator({
   interventions = [],
   loading = false,
-  emptyStateConfig,
-  showStatusActions = true,
-  contactContext,
-  className = "",
-  searchPlaceholder = "Rechercher par titre, description, ou lot...",
-  showFilters = true,
-  actionHooks,
   userContext = 'gestionnaire',
-  isEmbeddedInCard = false
+  className = "",
+  showHeader = false,
+  headerConfig,
+  tabsPreset = 'full',
+  compact = false,
+  emptyStateConfig,
+  onActiveTabChange,
+  initialActiveTab,
+  actionHooks
 }: InterventionsNavigatorProps) {
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filters, setFilters] = useState({
-    type: "all",
-    urgency: "all-urgency"
-  })
+  const [searchTerm, setSearchTerm] = useState('')
+  const [activeTab, setActiveTab] = useState<string | undefined>(initialActiveTab)
 
   // View mode state (cards, list, calendar)
   const { viewMode, setViewMode, mounted } = useViewMode({
@@ -74,114 +115,103 @@ export function InterventionsNavigator({
     syncWithUrl: false
   })
 
-  // Filter function for interventions based on tab (NOUVEAU WORKFLOW)
-  const getFilteredInterventions = (tabId: string) => {
-    let baseInterventions = interventions
-
-    if (tabId === "toutes") {
-      baseInterventions = interventions
-    } else if (tabId === "demandes_group") {
-      // Demandes : Demande, Approuvée
-      baseInterventions = interventions.filter((i) => ["demande", "approuvee"].includes(i.status))
-    } else if (tabId === "en_cours_group") {
-      // En cours : Demande de devis, Planification, Planifiée, En cours, Clôturée par prestataire
-      baseInterventions = interventions.filter((i) => ["demande_de_devis", "planification", "planifiee", "en_cours", "cloturee_par_prestataire"].includes(i.status))
-    } else if (tabId === "cloturees_group") {
-      // Clôturées : Clôturée par locataire, Clôturée par gestionnaire, Annulée, Rejetée
-      baseInterventions = interventions.filter((i) => ["cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee", "rejetee"].includes(i.status))
-    } else {
-      baseInterventions = interventions.filter((i) => i.status === tabId)
+  // Sync with initialActiveTab changes
+  useEffect(() => {
+    if (initialActiveTab !== undefined) {
+      setActiveTab(initialActiveTab)
     }
+  }, [initialActiveTab])
 
-    // Apply search and filters
-    return applySearchAndFilters(baseInterventions)
+  // Handle tab change
+  const handleTabChange = (tabId: string) => {
+    setActiveTab(tabId)
+    onActiveTabChange?.(tabId)
   }
 
-  // Apply search and filters to interventions
-  const applySearchAndFilters = (baseInterventions: InterventionWithRelations[]) => {
-    let result = baseInterventions
-
-    // Search filter
-    if (searchTerm.trim()) {
-      result = result.filter(intervention => 
-        intervention.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        intervention.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        intervention.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        intervention.lot?.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        intervention.lot?.building?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+  // Expose handleTabChange for external calls (e.g., from badge in header)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && tabsPreset === 'dashboard') {
+      (window as any).__handleInterventionsTabChange = handleTabChange
     }
-
-    // Type filter
-    if (filters.type !== "all") {
-      result = result.filter(intervention => 
-        intervention.type?.toLowerCase() === filters.type
-      )
-    }
-
-    // Urgency filter
-    if (filters.urgency !== "all-urgency") {
-      result = result.filter(intervention => 
-        intervention.urgency === filters.urgency
-      )
-    }
-
-    return result
-  }
-
-  // Function to render interventions list
-  const renderInterventionsList = (tabId: string) => {
-    const filteredData = getFilteredInterventions(tabId)
-
-    // Contextualized empty state messages per tab
-    const getEmptyStateConfig = () => {
-      // Tab-specific messages (priority)
-      switch (tabId) {
-        case "toutes":
-          // Only use external config if truly 0 interventions total
-          if (interventions.length === 0 && emptyStateConfig) {
-            return emptyStateConfig
-          }
-          // Otherwise, differentiate between no data vs filtered results
-          return {
-            title: interventions.length === 0 ? "Aucune intervention" : "Aucun résultat",
-            description: interventions.length === 0
-              ? "Les interventions créées apparaîtront ici."
-              : "Aucune intervention ne correspond à vos critères de recherche ou filtres.",
-            showCreateButton: interventions.length === 0 && (emptyStateConfig?.showCreateButton || false),
-            createButtonText: emptyStateConfig?.createButtonText || "Créer une intervention",
-            createButtonAction: emptyStateConfig?.createButtonAction || (() => {})
-          }
-        case "demandes_group":
-          return {
-            title: "Aucune demande",
-            description: "Les nouvelles demandes d'intervention et celles approuvées apparaîtront ici.",
-            showCreateButton: false
-          }
-        case "en_cours_group":
-          return {
-            title: "Aucune intervention en cours",
-            description: "Les interventions en planification, planifiées, en cours d'exécution ou en attente de validation apparaîtront ici.",
-            showCreateButton: false
-          }
-        case "cloturees_group":
-          return {
-            title: "Aucune intervention clôturée",
-            description: "Les interventions terminées, annulées ou rejetées apparaîtront ici.",
-            showCreateButton: false
-          }
-        default:
-          return {
-            title: "Aucune intervention",
-            description: "Les interventions de ce statut apparaîtront ici.",
-            showCreateButton: false
-          }
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete (window as any).__handleInterventionsTabChange
       }
     }
+  }, [handleTabChange, tabsPreset])
 
-    const defaultEmptyConfig = getEmptyStateConfig()
+  // Transform interventions
+  const transformedInterventions = useMemo(() => {
+    return interventions.map((intervention) => ({
+      ...intervention,
+      reference: intervention.reference || `INT-${intervention.id.slice(0, 8)}`,
+      urgency: intervention.urgency || (intervention as any).priority || 'normale',
+      type: intervention.type || (intervention as any).intervention_type || 'autre'
+    }))
+  }, [interventions])
 
-    // Don't render until mounted (prevent hydration mismatch)
+  // Filter by search term
+  const filteredInterventions = useMemo(() => {
+    if (!searchTerm.trim()) return transformedInterventions
+
+    const term = searchTerm.toLowerCase()
+    return transformedInterventions.filter(i =>
+      i.title?.toLowerCase().includes(term) ||
+      i.description?.toLowerCase().includes(term) ||
+      i.reference?.toLowerCase().includes(term) ||
+      i.lot?.reference?.toLowerCase().includes(term) ||
+      i.lot?.building?.name?.toLowerCase().includes(term)
+    )
+  }, [transformedInterventions, searchTerm])
+
+  // Filter functions
+  const filterFunctions = {
+    // Full preset filters
+    toutes: () => filteredInterventions,
+    demandes_group: () => filteredInterventions.filter(i => ["demande", "approuvee"].includes(i.status)),
+    en_cours_group: () => filteredInterventions.filter(i => [
+      "demande_de_devis", "planification", "planifiee", "en_cours", "cloturee_par_prestataire"
+    ].includes(i.status)),
+    cloturees_group: () => filteredInterventions.filter(i => [
+      "cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee", "rejetee"
+    ].includes(i.status)),
+
+    // Dashboard preset filters
+    actions_en_attente: () => filterPendingActions(filteredInterventions, userContext),
+    en_cours: () => filteredInterventions.filter(i => [
+      "demande", "approuvee", "demande_de_devis", "planification", "planifiee", "en_cours"
+    ].includes(i.status)),
+    terminees: () => filteredInterventions.filter(i => [
+      "cloturee_par_prestataire", "cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee"
+    ].includes(i.status))
+  }
+
+  // Get filtered data for a tab
+  const getFilteredByTab = (tabId: string) => {
+    const filterFn = filterFunctions[tabId as keyof typeof filterFunctions]
+    return filterFn ? filterFn() : filteredInterventions
+  }
+
+  // Get empty state config for a tab
+  const getEmptyStateForTab = (tabId: string) => {
+    if (emptyStateConfig) return emptyStateConfig
+
+    const configs: Record<string, EmptyStateConfig> = {
+      toutes: { title: "Aucune intervention", description: "Les interventions apparaîtront ici" },
+      demandes_group: { title: "Aucune demande", description: "Les demandes en attente apparaîtront ici" },
+      en_cours_group: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici" },
+      cloturees_group: { title: "Aucune intervention clôturée", description: "Les interventions terminées apparaîtront ici" },
+      actions_en_attente: { title: "Aucune action en attente", description: "Toutes vos interventions sont à jour" },
+      en_cours: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici" },
+      terminees: { title: "Aucune intervention terminée", description: "Les interventions terminées apparaîtront ici" }
+    }
+    return configs[tabId] || { title: "Aucune donnée", description: "" }
+  }
+
+  // Render content for each tab
+  const renderTabContent = (tabId: string) => {
+    const tabData = getFilteredByTab(tabId)
+
     if (!mounted) {
       return (
         <div className="animate-pulse space-y-2">
@@ -194,11 +224,11 @@ export function InterventionsNavigator({
 
     return (
       <InterventionsViewContainer
-        interventions={filteredData}
+        interventions={tabData}
         userContext={userContext}
         loading={loading}
-        emptyStateConfig={defaultEmptyConfig}
-        showStatusActions={showStatusActions}
+        emptyStateConfig={getEmptyStateForTab(tabId)}
+        showStatusActions={true}
         viewMode={viewMode}
         setViewMode={setViewMode}
         hideViewSwitcher={true}
@@ -206,94 +236,77 @@ export function InterventionsNavigator({
     )
   }
 
-  // Tabs configuration for ContentNavigator (NOUVEAU WORKFLOW)
-  const interventionsTabsConfig = [
-    {
-      id: "toutes",
-      label: "Toutes",
-      icon: ListTodo,
-      count: loading ? "..." : interventions.length,
-      content: renderInterventionsList("toutes")
-    },
-    {
-      id: "demandes_group", 
-      label: "Demandes",
-      icon: AlertTriangle,
-      count: loading ? "..." : interventions.filter((i) => 
-        ["demande", "approuvee"].includes(i.status)
-      ).length,
-      content: renderInterventionsList("demandes_group")
-    },
-    {
-      id: "en_cours_group",
-      label: "En cours", 
-      icon: Settings,
-      count: loading ? "..." : interventions.filter((i) => 
-        ["demande_de_devis", "planification", "planifiee", "en_cours", "cloturee_par_prestataire"].includes(i.status)
-      ).length,
-      content: renderInterventionsList("en_cours_group")
-    },
-    {
-      id: "cloturees_group",
-      label: "Clôturées",
-      icon: Archive, 
-      count: loading ? "..." : interventions.filter((i) => 
-        ["cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee", "rejetee"].includes(i.status)
-      ).length,
-      content: renderInterventionsList("cloturees_group")
+  // Pending actions count (for dashboard conditional tab)
+  const pendingActionsCount = filterFunctions.actions_en_attente().length
+
+  // Build tabs based on preset
+  const tabs = useMemo(() => {
+    if (tabsPreset === 'dashboard') {
+      // Dashboard tabs: conditionally show "Actions en attente" first
+      return [
+        ...(pendingActionsCount > 0 ? [{
+          id: "actions_en_attente",
+          label: "En attente",
+          icon: AlertTriangle,
+          count: pendingActionsCount,
+          content: renderTabContent("actions_en_attente")
+        }] : []),
+        {
+          id: "en_cours",
+          label: "En cours",
+          icon: Clock,
+          count: getFilteredByTab("en_cours").length,
+          content: renderTabContent("en_cours")
+        },
+        {
+          id: "terminees",
+          label: "Terminées",
+          icon: Archive,
+          count: getFilteredByTab("terminees").length,
+          content: renderTabContent("terminees")
+        }
+      ]
     }
-  ]
 
-  // Configuration des filtres pour les interventions
-  const interventionsFiltersConfig = showFilters ? [
-    {
-      id: "type",
-      label: "Type d'intervention",
-      options: [
-        { value: "all", label: "Tous les types" },
-        { value: "plomberie", label: "Plomberie" },
-        { value: "electricite", label: "Électricité" },
-        { value: "chauffage", label: "Chauffage" },
-        { value: "serrurerie", label: "Serrurerie" },
-        { value: "maintenance", label: "Maintenance générale" },
-        { value: "peinture", label: "Peinture" }
-      ],
-      defaultValue: "all"
-    },
-    {
-      id: "urgency",
-      label: "Niveau d'urgence",
-      options: [
-        { value: "all-urgency", label: "Tous les niveaux" },
-        { value: "basse", label: "Basse" },
-        { value: "normale", label: "Normale" },
-        { value: "haute", label: "Haute" },
-        { value: "urgente", label: "Urgente" }
-      ],
-      defaultValue: "all-urgency"
-    }
-  ] : []
+    // Full tabs (page interventions)
+    return [
+      {
+        id: "toutes",
+        label: "Toutes",
+        icon: ListTodo,
+        count: filteredInterventions.length,
+        content: renderTabContent("toutes")
+      },
+      {
+        id: "demandes_group",
+        label: "Demandes",
+        icon: AlertTriangle,
+        count: getFilteredByTab("demandes_group").length,
+        content: renderTabContent("demandes_group")
+      },
+      {
+        id: "en_cours_group",
+        label: "En cours",
+        icon: Settings,
+        count: getFilteredByTab("en_cours_group").length,
+        content: renderTabContent("en_cours_group")
+      },
+      {
+        id: "cloturees_group",
+        label: "Clôturées",
+        icon: Archive,
+        count: getFilteredByTab("cloturees_group").length,
+        content: renderTabContent("cloturees_group")
+      }
+    ]
+  }, [tabsPreset, filteredInterventions, pendingActionsCount, mounted, viewMode])
 
-  const handleSearch = (value: string) => {
-    setSearchTerm(value)
-  }
+  // Default tab
+  const defaultTab = tabsPreset === 'dashboard'
+    ? (pendingActionsCount > 0 ? "actions_en_attente" : "en_cours")
+    : "toutes"
 
-  const handleFilterChange = (filterId: string, value: string) => {
-    setFilters(prev => ({
-      ...prev,
-      [filterId]: value
-    }))
-  }
-
-  const handleResetFilters = () => {
-    setFilters({
-      type: "all",
-      urgency: "all-urgency"
-    })
-    setSearchTerm("")
-  }
-
-  // View switcher to pass as right controls
+  // View switcher
   const viewSwitcher = mounted ? (
     <ViewModeSwitcherV1
       value={viewMode}
@@ -301,22 +314,98 @@ export function InterventionsNavigator({
     />
   ) : null
 
-  const contentNavigatorClasses = isEmbeddedInCard
-    ? `${className} bg-transparent border-0 shadow-none`
-    : className
+  // ========================================
+  // BEM Classes
+  // ========================================
+  const blockClass = cn(
+    "interventions-section",
+    "flex-1 flex flex-col min-h-0",
+    compact && "interventions-section--compact"
+  )
 
+  const headerClass = cn(
+    "interventions-section__header",
+    "flex items-center justify-between gap-2 flex-shrink-0",
+    compact ? "px-2 py-1.5 sm:px-3 sm:py-2" : "px-4 py-3"
+  )
+
+  const titleClass = cn(
+    "interventions-section__title",
+    "flex items-center gap-1.5"
+  )
+
+  const actionsClass = cn(
+    "interventions-section__actions",
+    "flex items-center gap-1 flex-shrink-0"
+  )
+
+  const contentClass = cn(
+    "interventions-section__content",
+    "flex-1 flex flex-col min-h-0",
+    compact ? "px-2 pb-1.5 sm:px-3 sm:pb-2" : ""
+  )
+
+  // ========================================
+  // Render
+  // ========================================
+
+  // Without header (page mode)
+  if (!showHeader) {
+    return (
+      <ContentNavigator
+        tabs={tabs}
+        defaultTab={defaultTab}
+        activeTab={activeTab}
+        searchPlaceholder="Rechercher par titre, description, ou lot..."
+        onSearch={setSearchTerm}
+        rightControls={viewSwitcher}
+        className={className}
+      />
+    )
+  }
+
+  // With header (dashboard mode)
+  const HeaderIcon = headerConfig?.icon
   return (
-    <ContentNavigator
-      tabs={interventionsTabsConfig}
-      defaultTab="toutes"
-      searchPlaceholder={searchPlaceholder}
-      filters={interventionsFiltersConfig}
-      onSearch={handleSearch}
-      onFilterChange={handleFilterChange}
-      onResetFilters={handleResetFilters}
-      filterValues={filters}
-      rightControls={viewSwitcher}
-      className={contentNavigatorClasses}
-    />
+    <div className={blockClass}>
+      {/* Card wrapper for dashboard mode */}
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* Header */}
+        <div className={headerClass}>
+          <div className={titleClass}>
+            {HeaderIcon && (
+              <HeaderIcon className={cn(
+                "text-gray-600",
+                compact ? "h-3.5 w-3.5 sm:h-4 sm:w-4" : "h-5 w-5"
+              )} />
+            )}
+            <h2 className={cn(
+              "font-semibold text-gray-900 leading-tight",
+              compact ? "text-xs sm:text-sm" : "text-base"
+            )}>
+              {headerConfig?.title}
+            </h2>
+          </div>
+          {headerConfig?.actions && (
+            <div className={actionsClass}>
+              {headerConfig.actions}
+            </div>
+          )}
+        </div>
+
+        {/* Content */}
+        <div className={contentClass}>
+          <ContentNavigator
+            tabs={tabs}
+            defaultTab={defaultTab}
+            activeTab={activeTab}
+            searchPlaceholder="Rechercher par titre, description, ou référence..."
+            onSearch={setSearchTerm}
+            rightControls={viewSwitcher}
+            className="shadow-none border-0 bg-transparent flex-1 flex flex-col min-h-0"
+          />
+        </div>
+      </div>
+    </div>
   )
 }

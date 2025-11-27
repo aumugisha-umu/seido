@@ -44,12 +44,8 @@ export default function LocataireDashboard() {
     syncWithUrl: false
   })
 
-  // Afficher la vérification d'équipe en cours ou échoué
-  if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
-    return <TeamCheckModal onTeamResolved={() => {}} />
-  }
-
-  // 🎯 FIX: Afficher skeleton si pas encore monté OU si loading
+  // 🎯 FIX HYDRATION: Vérifier mounted EN PREMIER pour garantir le même rendu serveur/client
+  // Le skeleton doit être affiché tant que le composant n'est pas monté côté client
   if (!mounted || loading) {
     return (
       <div className="space-y-8">
@@ -74,6 +70,11 @@ export default function LocataireDashboard() {
         </div>
       </div>
     )
+  }
+
+  // Afficher la vérification d'équipe en cours ou échoué (après mounted pour éviter hydration mismatch)
+  if (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam)) {
+    return <TeamCheckModal onTeamResolved={() => { }} />
   }
 
   if (error) {
@@ -135,14 +136,15 @@ export default function LocataireDashboard() {
       // Actions en attente : interventions nécessitant une action du locataire
       return getPendingActionsInterventions()
     } else if (tabId === "en_cours") {
-      // En cours : interventions actives nécessitant une action ou en traitement
+      // Traitement en cours : interventions actives nécessitant une action ou en traitement
+      // Note: 'en_cours' is DEPRECATED - kept for backward compatibility with existing DB data
       return transformedInterventions.filter((i) => [
         "demande",
         "approuvee",
         "demande_de_devis",
         "planification",
         "planifiee",
-        "en_cours"
+        "en_cours"                   // DEPRECATED: Kept for backward compatibility only
       ].includes(i.status))
     } else if (tabId === "terminees") {
       // Terminées : interventions clôturées ou annulées
@@ -178,13 +180,13 @@ export default function LocataireDashboard() {
         loading={loading}
         emptyStateConfig={{
           title: tabId === "actions_en_attente" ? "Aucune action en attente"
-                : tabId === "en_cours" ? "Aucune intervention en cours"
-                : "Aucune intervention terminée",
+            : tabId === "en_cours" ? "Aucune intervention en cours"
+              : "Aucune intervention terminée",
           description: tabId === "actions_en_attente"
             ? "Toutes vos interventions sont à jour"
             : tabId === "en_cours"
-            ? "Vos demandes d'intervention apparaîtront ici"
-            : "Vos interventions terminées apparaîtront ici",
+              ? "Vos demandes d'intervention apparaîtront ici"
+              : "Vos interventions terminées apparaîtront ici",
           showCreateButton: false
         }}
         showStatusActions={true}
@@ -209,7 +211,7 @@ export default function LocataireDashboard() {
     }] : []),
     {
       id: "en_cours",
-      label: "En cours",
+      label: "Traitement en cours",
       icon: Clock,
       count: loading ? "..." : getFilteredInterventions("en_cours").length,
       content: renderInterventionsList("en_cours")
@@ -275,7 +277,7 @@ export default function LocataireDashboard() {
   }
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="layout-container flex flex-col h-full min-h-0">
       {/* 📱 PWA Installation Prompt - Triggered automatically on dashboard */}
       <PWADashboardPrompt />
 
@@ -305,11 +307,11 @@ export default function LocataireDashboard() {
               <h2 className="text-xs sm:text-sm font-semibold text-gray-900 leading-tight">Mes interventions</h2>
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700 text-white h-6 sm:h-7 px-1.5 sm:px-2 text-xs"
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 text-white h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm"
                 onClick={() => router.push("/locataire/interventions/nouvelle-demande")}
               >
-                <Plus className="h-3 w-3 sm:h-3.5 sm:w-3.5 sm:mr-1" />
+                <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
                 <span className="hidden sm:inline">Créer une demande</span>
               </Button>
             </div>

@@ -59,6 +59,9 @@ interface InterventionOverviewCardProps {
   // Actions for slots
   onOpenProgrammingModal?: () => void
   onCancelSlot?: (slot: FullTimeSlot) => void
+  onApproveSlot?: (slot: FullTimeSlot) => void
+  onRejectSlot?: (slot: FullTimeSlot) => void
+  onEditSlot?: (slot: FullTimeSlot) => void
   canManageSlots?: boolean
   currentUserId?: string
   // Actions for participants and quotes
@@ -69,6 +72,10 @@ interface InterventionOverviewCardProps {
   onUpdate?: () => void
   // Quote actions
   onCancelQuoteRequest?: (quoteId: string) => void
+  onApproveQuote?: (quoteId: string) => void
+  onRejectQuote?: (quoteId: string) => void
+  // Modify choice action (when user has already responded)
+  onModifyChoice?: (slot: FullTimeSlot, currentResponse: 'accepted' | 'rejected') => void
 }
 
 export function InterventionOverviewCard({
@@ -83,15 +90,20 @@ export function InterventionOverviewCard({
   fullTimeSlots = null,
   onOpenProgrammingModal,
   onCancelSlot,
+  onApproveSlot,
+  onRejectSlot,
+  onEditSlot,
   canManageSlots = false,
   currentUserId,
   onEditParticipants,
   onEditQuotes,
   currentUserRole,
   onUpdate,
-  onCancelQuoteRequest
+  onCancelQuoteRequest,
+  onApproveQuote,
+  onRejectQuote,
+  onModifyChoice
 }: InterventionOverviewCardProps) {
-
   return (
     <Card>
       <CardContent className="space-y-6">
@@ -122,11 +134,18 @@ export function InterventionOverviewCard({
           fullTimeSlots={fullTimeSlots}
           onOpenProgrammingModal={onOpenProgrammingModal}
           onCancelSlot={onCancelSlot}
+          onApproveSlot={onApproveSlot}
+          onRejectSlot={onRejectSlot}
+          onEditSlot={onEditSlot}
           canManageSlots={canManageSlots}
           currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
           onEditParticipants={onEditParticipants}
           onEditQuotes={onEditQuotes}
           onCancelQuoteRequest={onCancelQuoteRequest}
+          onApproveQuote={onApproveQuote}
+          onRejectQuote={onRejectQuote}
+          onModifyChoice={onModifyChoice}
         />
       </CardContent>
     </Card>

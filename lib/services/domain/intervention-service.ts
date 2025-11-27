@@ -121,6 +121,7 @@ interface DashboardStats {
 
 /**
  * Valid status transitions mapping
+ * Note: 'en_cours' is DEPRECATED - interventions go directly from 'planifiee' to 'cloturee_par_*'
  */
 const VALID_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> = {
   'demande': ['rejetee', 'approuvee'],
@@ -128,9 +129,9 @@ const VALID_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> = {
   'approuvee': ['demande_de_devis', 'planification', 'annulee'],
   'demande_de_devis': ['planification', 'annulee'],
   'planification': ['planifiee', 'annulee'],
-  'planifiee': ['en_cours', 'annulee'],
-  'en_cours': ['cloturee_par_prestataire', 'annulee'],
-  'cloturee_par_prestataire': ['cloturee_par_locataire', 'en_cours'], // Can reopen if contested
+  'planifiee': ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'], // Direct to closure
+  'en_cours': ['cloturee_par_prestataire', 'annulee'], // DEPRECATED - kept for backward compatibility
+  'cloturee_par_prestataire': ['cloturee_par_locataire', 'cloturee_par_gestionnaire'], // Manager can finalize directly
   'cloturee_par_locataire': ['cloturee_par_gestionnaire'],
   'cloturee_par_gestionnaire': [], // Terminal state
   'annulee': [] // Terminal state
@@ -440,8 +441,8 @@ export class InterventionService {
         }
       }
 
-      // Cannot delete certain statuses
-      if (['en_cours', 'cloturee_par_gestionnaire'].includes(current.data.status)) {
+      // Cannot delete finalized interventions
+      if (['cloturee_par_gestionnaire'].includes(current.data.status)) {
         throw new ValidationException(
           `Cannot delete intervention with status: ${current.data.status}`,
           'interventions',
@@ -858,28 +859,14 @@ export class InterventionService {
 
   /**
    * Start intervention
+   * @deprecated This method is no longer used in the workflow.
+   * Interventions now go directly from 'planifiee' to 'cloturee_par_prestataire'.
+   * Kept for backward compatibility with any existing calls.
    */
   async startIntervention(id: string, providerId: string) {
-    try {
-      const result = await this.validateAndUpdateStatus(
-        id,
-        'en_cours',
-        providerId,
-        { started_at: new Date().toISOString() }
-      )
-
-      if (result.success && result.data) {
-        // Send notifications
-        await this.notifyStatusChange(result.data, 'en_cours', providerId)
-
-        // Log activity
-        await this.logActivity('intervention_started', id, providerId)
-      }
-
-      return result
-    } catch (error) {
-      return createErrorResponse(handleError(error, 'interventions:startIntervention'))
-    }
+    // DEPRECATED: Skip 'en_cours' and go directly to provider completion
+    // This maintains backward compatibility if called from old code
+    return this.completeByProvider(id, providerId)
   }
 
   /**
@@ -1360,14 +1347,15 @@ export class InterventionService {
     const user = userResult.data
 
     // Define which roles can perform which transitions
+    // Note: 'en_cours' is DEPRECATED but kept for backward compatibility
     const transitionPermissions: Record<InterventionStatus, User['role'][]> = {
       'approuvee': ['gestionnaire', 'admin'],
       'rejetee': ['gestionnaire', 'admin'],
       'demande_de_devis': ['gestionnaire', 'admin'],
       'planification': ['gestionnaire', 'admin'],
       'planifiee': ['gestionnaire', 'admin', 'prestataire'],
-      'en_cours': ['prestataire'],
-      'cloturee_par_prestataire': ['prestataire'],
+      'en_cours': ['prestataire'], // DEPRECATED - kept for backward compatibility
+      'cloturee_par_prestataire': ['prestataire', 'gestionnaire', 'admin'], // Gestionnaire can finalize directly
       'cloturee_par_locataire': ['locataire'],
       'cloturee_par_gestionnaire': ['gestionnaire', 'admin'],
       'annulee': ['gestionnaire', 'admin', 'prestataire', 'locataire'],

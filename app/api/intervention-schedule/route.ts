@@ -102,11 +102,16 @@ export async function POST(request: NextRequest) {
         newStatus = 'planification'
 
         // Create ONE time slot for the fixed appointment
+        // Calculate end_time as 1 hour after start_time to satisfy CHECK constraint (end_time > start_time)
+        const [hours, minutes] = directSchedule.startTime.split(':').map(Number)
+        const endHours = (hours + 1) % 24
+        const endTime = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+
         const directTimeSlot = {
           intervention_id: interventionId,
           slot_date: directSchedule.date,
           start_time: directSchedule.startTime,
-          end_time: directSchedule.startTime, // No end time for appointments
+          end_time: endTime, // Set to 1 hour after start_time to satisfy CHECK constraint
           is_selected: false, // Not yet confirmed by tenant/provider
           proposed_by: user.id, // Gestionnaire who proposed it
           notes: 'Rendez-vous fixé par le gestionnaire'

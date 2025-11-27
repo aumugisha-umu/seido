@@ -18,6 +18,7 @@ import {
   getPriorityColor,
   getPriorityLabel
 } from "@/lib/intervention-utils"
+import { DatePicker } from "@/components/ui/date-picker"
 
 interface Provider {
   id: string
@@ -243,12 +244,10 @@ export const QuoteRequestModal = ({
               <Label htmlFor="deadline" className="text-sm font-medium text-slate-900">
                 Date limite pour le devis
               </Label>
-              <Input
-                id="deadline"
-                type="date"
+              <DatePicker
                 value={deadline}
-                onChange={(e) => onDeadlineChange(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
+                onChange={(value) => onDeadlineChange(value)}
+                minDate={new Date().toISOString().split('T')[0]}
                 className="w-full"
               />
               <p className="text-xs text-slate-500">

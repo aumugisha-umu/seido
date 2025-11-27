@@ -22,20 +22,20 @@ import { OverviewTab } from './overview-tab'
 import { ChatTab } from './chat-tab'
 import { QuotesTab } from './quotes-tab'
 import { DocumentsTab } from './documents-tab'
-import { ExecutionTab } from '@/components/intervention/tabs/execution-tab'
 
 // Intervention components
-import { InterventionDetailHeader } from '@/components/intervention/intervention-detail-header'
+import { DetailPageHeader } from '@/components/ui/detail-page-header'
+import type { DetailPageHeaderBadge, DetailPageHeaderMetadata } from '@/components/ui/detail-page-header'
 import { InterventionActionPanelHeader } from '@/components/intervention/intervention-action-panel-header'
+import { Building2, MapPin, User as UserIcon, Calendar } from 'lucide-react'
 
 // Modals
 import { QuoteSubmissionModal } from '@/components/intervention/modals/quote-submission-modal'
-import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
-import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
 import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
+import { ModifyChoiceModal } from '@/components/intervention/modals/modify-choice-modal'
 
-// Hooks
-import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
+// Actions
+import { acceptTimeSlotAction } from '@/app/actions/intervention-actions'
 
 // Types
 import type { Database } from '@/lib/database.types'
@@ -93,15 +93,24 @@ export function PrestataireInterventionDetailClient({
   currentUser
 }: PrestataireInterventionDetailClientProps) {
   const router = useRouter()
-  const planning = useInterventionPlanning()
   const [activeTab, setActiveTab] = useState('overview')
   const [refreshing, setRefreshing] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
+  const [availabilityOnlyMode, setAvailabilityOnlyMode] = useState(false) // Hide estimation section
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
   const [rejectQuoteModalOpen, setRejectQuoteModalOpen] = useState(false)
   const [quoteToReject, setQuoteToReject] = useState<Quote | null>(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [isRejecting, setIsRejecting] = useState(false)
+
+  // Reject slot modal state
+  const [rejectSlotModalOpen, setRejectSlotModalOpen] = useState(false)
+  const [slotToReject, setSlotToReject] = useState<TimeSlot | null>(null)
+
+  // Modify choice modal state
+  const [modifyChoiceModalOpen, setModifyChoiceModalOpen] = useState(false)
+  const [slotToModify, setSlotToModify] = useState<TimeSlot | null>(null)
+  const [currentChoice, setCurrentChoice] = useState<'accepted' | 'rejected'>('accepted')
 
   // Transform assignments into Contact arrays by role
   const { managers, providers, tenants } = useMemo(() => {
@@ -150,54 +159,39 @@ export function PrestataireInterventionDetailClient({
     setTimeout(() => setRefreshing(false), 1000)
   }
 
-  // Handle opening programming modal with existing data pre-filled
-  const handleOpenProgrammingModalWithData = () => {
-    const interventionAction = {
-      id: intervention.id,
-      type: intervention.type || '',
-      status: intervention.status || '',
-      title: intervention.title || '',
-      description: intervention.description,
-      priority: intervention.priority,
-      urgency: intervention.urgency,
-      reference: intervention.reference || '',
-      created_at: intervention.created_at,
-      created_by: intervention.creator?.name || 'Utilisateur',
-      location: intervention.specific_location,
-      lot: intervention.lot ? {
-        reference: intervention.lot.reference || ''
-      } : undefined,
-      building: intervention.building ? {
-        name: intervention.building.name || ''
-      } : undefined
-    }
+  // Handle reject slot - opens the reject modal
+  const handleRejectSlot = (slot: TimeSlot) => {
+    setSlotToReject(slot)
+    setRejectSlotModalOpen(true)
+  }
 
-    // Determine planning mode based on existing time slots
-    if (timeSlots.length === 0) {
-      // No slots yet - open with default mode
-      planning.openProgrammingModal(interventionAction)
-    } else if (timeSlots.length === 1) {
-      // Single slot - likely "direct" mode
-      const slot = timeSlots[0]
-      planning.setProgrammingOption('direct')
-      planning.setProgrammingDirectSchedule({
-        date: slot.slot_date,
-        startTime: slot.start_time,
-        endTime: slot.end_time
-      })
-      planning.openProgrammingModal(interventionAction)
-    } else {
-      // Multiple slots - "propose" mode
-      planning.setProgrammingOption('propose')
-      planning.setProgrammingProposedSlots(
-        timeSlots.map(slot => ({
-          date: slot.slot_date,
-          startTime: slot.start_time,
-          endTime: slot.end_time
-        }))
-      )
-      planning.openProgrammingModal(interventionAction)
+  // Handle accept slot - calls the server action directly
+  const handleAcceptSlot = async (slot: TimeSlot) => {
+    try {
+      const result = await acceptTimeSlotAction(slot.id, intervention.id)
+      if (result.success) {
+        toast.success('Créneau accepté avec succès')
+        handleRefresh()
+      } else {
+        toast.error(result.error || 'Erreur lors de l\'acceptation du créneau')
+      }
+    } catch (error) {
+      console.error('Error accepting slot:', error)
+      toast.error('Erreur lors de l\'acceptation du créneau')
     }
+  }
+
+  // Handle modify choice - opens the modify choice modal
+  const handleModifyChoice = (slot: TimeSlot, currentResponse: 'accepted' | 'rejected') => {
+    setSlotToModify(slot)
+    setCurrentChoice(currentResponse)
+    setModifyChoiceModalOpen(true)
+  }
+
+  // Handle opening availability modal (quote submission modal in availability-only mode)
+  const handleOpenAvailabilityModal = () => {
+    setAvailabilityOnlyMode(true)
+    setQuoteModalOpen(true)
   }
 
   // Handle opening reject quote modal from action panel
@@ -283,15 +277,17 @@ export function PrestataireInterventionDetailClient({
     handleRefresh()
   }
 
-  // Handle opening quote submission modal
+  // Handle opening quote submission modal (full quote with estimation)
   const handleOpenQuoteModal = () => {
     setSelectedQuote(null)
+    setAvailabilityOnlyMode(false) // Show full form with estimation
     setQuoteModalOpen(true)
   }
 
   // Handle editing existing quote
   const handleEditQuote = (quote: Quote) => {
     setSelectedQuote(quote)
+    setAvailabilityOnlyMode(false) // Ensure full form is shown when editing
     setQuoteModalOpen(true)
   }
 
@@ -303,6 +299,7 @@ export function PrestataireInterventionDetailClient({
     const materialsItem = lineItems.find((item: any) => item.description?.includes('Matériaux'))
 
     return {
+      id: quote.id, // Conserver l'ID du devis pour permettre la modification
       laborCost: laborItem?.total || quote.amount || 0,
       materialsCost: materialsItem?.total || 0,
       workDetails: quote.description || '',
@@ -314,39 +311,85 @@ export function PrestataireInterventionDetailClient({
 
   const statusInfo = statusLabels[intervention.status] || statusLabels['demande']
 
+  // Helper functions for DetailPageHeader
+  const getStatusBadge = (): DetailPageHeaderBadge => {
+    const statusConfig: Record<string, { label: string; color: string; dotColor: string; icon?: any }> = {
+      'demande': { label: 'Demande', color: 'bg-blue-50 border-blue-200 text-blue-900', dotColor: 'bg-blue-500', icon: null },
+      'approuvee': { label: 'Approuvée', color: 'bg-green-50 border-green-200 text-green-900', dotColor: 'bg-green-500', icon: null },
+      'demande_de_devis': { label: 'Demande de devis', color: 'bg-amber-50 border-amber-200 text-amber-900', dotColor: 'bg-amber-500', icon: null },
+      'planification': { label: 'Planification', color: 'bg-purple-50 border-purple-200 text-purple-900', dotColor: 'bg-purple-500', icon: null },
+      'planifiee': { label: 'Planifiée', color: 'bg-indigo-50 border-indigo-200 text-indigo-900', dotColor: 'bg-indigo-500', icon: null },
+      'en_cours': { label: 'En cours', color: 'bg-cyan-50 border-cyan-200 text-cyan-900', dotColor: 'bg-cyan-500', icon: null },
+      'cloturee_par_prestataire': { label: 'Clôturée (Prestataire)', color: 'bg-emerald-50 border-emerald-200 text-emerald-900', dotColor: 'bg-emerald-500', icon: null },
+      'cloturee_par_gestionnaire': { label: 'Clôturée', color: 'bg-slate-50 border-slate-200 text-slate-900', dotColor: 'bg-slate-500', icon: null },
+      'annulee': { label: 'Annulée', color: 'bg-red-50 border-red-200 text-red-900', dotColor: 'bg-red-500', icon: null },
+      'rejetee': { label: 'Rejetée', color: 'bg-red-50 border-red-200 text-red-900', dotColor: 'bg-red-500', icon: null }
+    }
+    const config = statusConfig[intervention.status] || statusConfig['demande']
+    return {
+      label: config.label,
+      color: config.color,
+      dotColor: config.dotColor,
+      icon: config.icon
+    }
+  }
+
+  const getUrgencyBadge = (): DetailPageHeaderBadge | null => {
+    const urgency = intervention.urgency || 'normale'
+    if (urgency === 'normale') return null
+
+    const urgencyConfig: Record<string, { label: string; color: string; dotColor: string }> = {
+      'haute': { label: 'Urgent', color: 'bg-red-50 border-red-200 text-red-900', dotColor: 'bg-red-500' },
+      'moyenne': { label: 'Prioritaire', color: 'bg-yellow-50 border-yellow-200 text-yellow-900', dotColor: 'bg-yellow-500' }
+    }
+    const config = urgencyConfig[urgency]
+    return config ? {
+      label: config.label,
+      color: config.color,
+      dotColor: config.dotColor
+    } : null
+  }
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString('fr-FR', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    })
+  }
+
+  const getMetadata = (): DetailPageHeaderMetadata[] => {
+    const metadata: DetailPageHeaderMetadata[] = []
+
+    if (intervention.building?.name) {
+      metadata.push({ icon: Building2, text: intervention.building.name })
+    }
+
+    if (intervention.lot?.reference) {
+      metadata.push({ icon: MapPin, text: `Lot ${intervention.lot.reference}` })
+    }
+
+    if (intervention.creator?.name) {
+      metadata.push({ icon: UserIcon, text: `Par ${intervention.creator.name}` })
+    }
+
+    if (intervention.created_at) {
+      metadata.push({ icon: Calendar, text: formatDate(intervention.created_at) })
+    }
+
+    return metadata
+  }
+
   return (
     <div className="min-h-screen bg-background">
       {/* Intervention Detail Header with Action Panel */}
-      <InterventionDetailHeader
-        intervention={{
-          id: intervention.id,
-          title: intervention.title,
-          reference: intervention.reference || '',
-          status: intervention.status,
-          urgency: intervention.urgency || 'normale',
-          createdAt: intervention.created_at || '',
-          createdBy: intervention.creator?.name || 'Utilisateur',
-          lot: intervention.lot ? {
-            reference: intervention.lot.reference || '',
-            building: intervention.lot.building ? {
-              name: intervention.lot.building.name || ''
-            } : undefined
-          } : undefined,
-          building: intervention.building ? {
-            name: intervention.building.name || ''
-          } : undefined
-        }}
+      <DetailPageHeader
         onBack={() => router.back()}
-        onArchive={() => {
-          // TODO: Implement archive logic for provider
-          console.log('Archive intervention')
-        }}
-        onStatusAction={(action) => {
-          console.log('Status action:', action)
-          // Actions are handled by InterventionActionPanelHeader
-        }}
-        displayMode="custom"
-        actionPanel={
+        backButtonText="Retour"
+        title={intervention.title}
+        badges={[getStatusBadge(), getUrgencyBadge()].filter((badge): badge is DetailPageHeaderBadge => badge !== null)}
+        metadata={getMetadata()}
+        actionButtons={
           <InterventionActionPanelHeader
             intervention={{
               id: intervention.id,
@@ -359,7 +402,9 @@ export function PrestataireInterventionDetailClient({
                 status: q.status,
                 providerId: q.provider_id,
                 isCurrentUserQuote: q.provider_id === currentUser.id,
-                amount: q.amount
+                amount: q.amount,
+                description: q.description,
+                line_items: q.line_items
               }))
             }}
             userRole="prestataire"
@@ -367,30 +412,25 @@ export function PrestataireInterventionDetailClient({
             timeSlots={timeSlots}
             onActionComplete={handleActionComplete}
             onOpenQuoteModal={handleOpenQuoteModal}
+            onEditQuote={handleEditQuote}
             onRejectQuoteRequest={handleRejectQuoteRequest}
             onCancelQuote={handleCancelQuote}
+            onProposeSlots={handleOpenAvailabilityModal}
           />
         }
+        hasGlobalNav={false}
       />
 
       {/* Tabs */}
       <div className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5 lg:w-auto">
+          <TabsList className="grid w-full grid-cols-4 lg:w-auto">
             <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
             <TabsTrigger value="quotes">
               Devis
               {quotes.length > 0 && (
                 <Badge variant="secondary" className="ml-2">
                   {quotes.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="execution">
-              Exécution
-              {timeSlots.length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {timeSlots.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -418,7 +458,14 @@ export function PrestataireInterventionDetailClient({
                 intervention={intervention}
                 timeSlots={timeSlots}
                 currentUser={currentUser}
+                assignments={assignments}
+                quotes={quotes}
                 onRefresh={handleRefresh}
+                onRejectSlot={handleRejectSlot}
+                onAcceptSlot={handleAcceptSlot}
+                onModifyChoice={handleModifyChoice}
+                onEditQuote={handleEditQuote}
+                onCancelQuote={handleCancelQuote}
               />
             </TabsContent>
 
@@ -441,31 +488,6 @@ export function PrestataireInterventionDetailClient({
               />
             </TabsContent>
 
-            <TabsContent value="execution" className="space-y-6">
-              <ExecutionTab
-                interventionId={intervention.id}
-                timeSlots={timeSlots}
-                currentStatus={intervention.status}
-                intervention={{
-                  id: intervention.id,
-                  type: '',
-                  status: intervention.status || '',
-                  title: '',
-                  description: intervention.description,
-                  priority: intervention.priority,
-                  urgency: intervention.urgency,
-                  reference: intervention.reference || '',
-                  created_at: intervention.created_at,
-                  location: intervention.specific_location,
-                }}
-                onOpenProgrammingModal={handleOpenProgrammingModalWithData}
-                onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
-                onRejectSlot={(slot) => planning.openRejectSlotModal(slot, intervention.id)}
-                currentUserId={currentUser?.id}
-                userRole="prestataire"
-              />
-            </TabsContent>
-
             <TabsContent value="documents" className="space-y-6">
               <DocumentsTab
                 interventionId={intervention.id}
@@ -478,49 +500,6 @@ export function PrestataireInterventionDetailClient({
         </Tabs>
       </div>
 
-      {/* Programming Modal */}
-      <ProgrammingModal
-        isOpen={planning.programmingModal.isOpen}
-        onClose={planning.closeProgrammingModal}
-        intervention={planning.programmingModal.intervention}
-        programmingOption={planning.programmingOption}
-        onProgrammingOptionChange={planning.setProgrammingOption}
-        directSchedule={planning.programmingDirectSchedule}
-        onDirectScheduleChange={planning.setProgrammingDirectSchedule}
-        proposedSlots={planning.programmingProposedSlots}
-        onAddProposedSlot={planning.addProgrammingSlot}
-        onUpdateProposedSlot={planning.updateProgrammingSlot}
-        onRemoveProposedSlot={planning.removeProgrammingSlot}
-        managers={managers}
-        selectedManagers={managers.map(m => m.id)}
-        onManagerToggle={() => {}}
-        providers={providers}
-        selectedProviders={providers.map(p => p.id)}
-        onProviderToggle={() => {}}
-        tenants={tenants}
-        selectedTenants={tenants.map(t => t.id)}
-        onTenantToggle={() => {}}
-        onConfirm={planning.handleProgrammingConfirm}
-        isFormValid={planning.isProgrammingFormValid()}
-      />
-
-      {/* Cancel Slot Modal */}
-      <CancelSlotModal
-        isOpen={planning.cancelSlotModal.isOpen}
-        onClose={planning.closeCancelSlotModal}
-        slot={planning.cancelSlotModal.slot}
-        interventionId={intervention.id}
-        onSuccess={handleRefresh}
-      />
-
-      {/* Reject Slot Modal */}
-      <RejectSlotModal
-        isOpen={planning.rejectSlotModal.isOpen}
-        onClose={planning.closeRejectSlotModal}
-        slot={planning.rejectSlotModal.slot}
-        interventionId={intervention.id}
-        onSuccess={handleRefresh}
-      />
 
       {/* Quote Submission Modal */}
       <QuoteSubmissionModal
@@ -529,7 +508,8 @@ export function PrestataireInterventionDetailClient({
         intervention={{
           ...intervention,
           urgency: intervention.urgency || 'normale',
-          priority: intervention.urgency || 'normale'
+          priority: intervention.urgency || 'normale',
+          time_slots: timeSlots
         }}
         existingQuote={selectedQuote ? transformQuoteToExistingQuote(selectedQuote) : undefined}
         quoteRequest={selectedQuote ? {
@@ -542,8 +522,10 @@ export function PrestataireInterventionDetailClient({
         onSuccess={() => {
           setQuoteModalOpen(false)
           setSelectedQuote(null)
+          setAvailabilityOnlyMode(false) // Reset mode
           handleRefresh()
         }}
+        hideEstimationSection={availabilityOnlyMode}
       />
 
       {/* Reject Quote Request Modal */}
@@ -598,6 +580,33 @@ export function PrestataireInterventionDetailClient({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Reject Slot Modal */}
+      <RejectSlotModal
+        isOpen={rejectSlotModalOpen}
+        onClose={() => setRejectSlotModalOpen(false)}
+        slot={slotToReject}
+        interventionId={intervention.id}
+        onSuccess={() => {
+          setRejectSlotModalOpen(false)
+          setSlotToReject(null)
+          handleRefresh()
+        }}
+      />
+
+      {/* Modify Choice Modal */}
+      <ModifyChoiceModal
+        isOpen={modifyChoiceModalOpen}
+        onClose={() => setModifyChoiceModalOpen(false)}
+        slot={slotToModify}
+        currentResponse={currentChoice}
+        interventionId={intervention.id}
+        onSuccess={() => {
+          setModifyChoiceModalOpen(false)
+          setSlotToModify(null)
+          handleRefresh()
+        }}
+      />
     </div>
   )
 }

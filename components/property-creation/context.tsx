@@ -8,7 +8,7 @@
  */
 
 
-import React, { createContext, useContext, ReactNode } from "react"
+import React, { createContext, useContext, ReactNode, useMemo, useCallback } from "react"
 import { usePropertyCreation } from "@/hooks/use-property-creation"
 import type {
   PropertyCreationContextValue,
@@ -33,22 +33,23 @@ interface PropertyCreationProviderProps {
 export function PropertyCreationProvider({ children, config }: PropertyCreationProviderProps) {
   const hookReturn = usePropertyCreation(config)
 
-  // Additional context-specific utilities
-  const registerStepValidation = (step: number, validation: ValidationState) => {
+  // Additional context-specific utilities - mémoïsés pour éviter les re-renders
+  const registerStepValidation = useCallback((step: number, validation: ValidationState) => {
     // This could be used by individual step components to register their validation
     // Currently handled by the main hook, but available for future extension
-  }
+  }, [])
 
-  const updateFormData = (updates: Partial<PropertyFormData>) => {
+  const updateFormData = useCallback((updates: Partial<PropertyFormData>) => {
     // Utility to partially update form data from child components
     // Implementation would depend on specific use cases
-  }
+  }, [])
 
-  const contextValue: PropertyCreationContextValue = {
+  // ✅ OPTIMISATION: Mémoïser le contextValue pour éviter les re-renders des consommateurs
+  const contextValue = useMemo<PropertyCreationContextValue>(() => ({
     ...hookReturn,
     registerStepValidation,
     updateFormData,
-  }
+  }), [hookReturn, registerStepValidation, updateFormData])
 
   return (
     <PropertyCreationContext.Provider value={contextValue}>

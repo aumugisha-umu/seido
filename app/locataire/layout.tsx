@@ -25,7 +25,7 @@ export default async function LocataireLayout({
   return (
     <div className="h-screen flex flex-col bg-gray-50">
       {/* Contenu principal - DashboardHeader délégué aux Route Group layouts */}
-      <main className="flex-1 flex flex-col min-h-0 layout-container">
+      <main className="flex-1 flex flex-col min-h-0 overflow-y-auto">
         {children}
       </main>
 

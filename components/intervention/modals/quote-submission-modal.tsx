@@ -7,7 +7,7 @@
  * Uses the base intervention modal components for consistent UI
  */
 
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { Wrench, Send } from 'lucide-react'
 import {
   InterventionModalBase,
@@ -32,10 +32,14 @@ interface QuoteSubmissionModalProps {
 
   // Callbacks
   onSuccess: () => void
+
+  // Display options
+  hideEstimationSection?: boolean // Hide estimation fields (for availability-only mode)
 }
 
 // Types from QuoteSubmissionForm
 interface ExistingQuote {
+  id?: string
   laborCost?: number
   materialsCost?: number
   workDetails?: string
@@ -63,16 +67,24 @@ export function QuoteSubmissionModal({
   intervention,
   existingQuote,
   quoteRequest,
-  onSuccess
+  onSuccess,
+  hideEstimationSection = false
 }: QuoteSubmissionModalProps) {
 
   // Get current user ID for time slot responses
   const { profile } = useAuth()
 
-  // State for form submission control
-  const [submitHandler, setSubmitHandler] = useState<(() => void) | null>(null)
+  // Ref for form submission handler (using ref instead of state to avoid updater function issues)
+  const submitHandlerRef = useRef<(() => void) | null>(null)
+  
+  // State for form validation and loading
   const [isFormValid, setIsFormValid] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+
+  // Callback to set the submit handler (avoids setState updater function issues)
+  const handleSetSubmitHandler = useCallback((fn: () => void) => {
+    submitHandlerRef.current = fn
+  }, [])
 
   const handleClose = () => {
     onOpenChange(false)
@@ -84,8 +96,8 @@ export function QuoteSubmissionModal({
   }
 
   const handleSubmit = () => {
-    if (submitHandler) {
-      submitHandler()
+    if (submitHandlerRef.current) {
+      submitHandlerRef.current()
     }
   }
 
@@ -110,15 +122,48 @@ export function QuoteSubmissionModal({
     </div>
   ) : undefined
 
+  // Détecter le mode édition
+  const isEditMode = !!existingQuote?.id
+
+  // Déterminer le titre et le label du bouton selon le mode
+  const getModalTitle = () => {
+    if (hideEstimationSection) {
+      // Distinguer les 3 cas selon le status des time slots
+      const hasRequestedSlots = intervention.time_slots
+        && intervention.time_slots.some(slot => slot.status === 'requested')
+      const hasPendingSlots = intervention.time_slots
+        && intervention.time_slots.some(slot => slot.status === 'pending')
+
+      if (hasRequestedSlots) {
+        // Slots proposés par le gestionnaire → le prestataire doit confirmer
+        return "Confirmer mes disponibilités"
+      } else if (hasPendingSlots) {
+        // Slots créés par le prestataire → il peut les modifier
+        return "Modifier la planification"
+      } else {
+        // Aucun slot → création
+        return "Ajouter mes disponibilités"
+      }
+    }
+    return isEditMode ? "Modifier le devis" : "Soumettre une estimation"
+  }
+
+  const getButtonLabel = () => {
+    return isEditMode ? "Modifier le devis" : "Soumettre le devis"
+  }
+
+  const getLoadingText = () => {
+    return isEditMode ? "Modification en cours..." : "Envoi en cours..."
+  }
+
   return (
     <InterventionModalBase
       open={open}
       onOpenChange={onOpenChange}
-      customWidth="900px"
-      customHeight="90vh"
+      size="xl"
     >
       <InterventionModalHeader
-        title="Soumettre une estimation"
+        title={getModalTitle()}
         icon={Wrench}
         intervention={intervention}
         summaryAdditionalContent={managerMessageContent}
@@ -128,7 +173,6 @@ export function QuoteSubmissionModal({
       <InterventionModalContent
         backgroundColor="slate"
         padding="lg"
-        withCard
       >
         <QuoteSubmissionForm
           intervention={{
@@ -144,20 +188,21 @@ export function QuoteSubmissionModal({
           existingQuote={existingQuote}
           quoteRequest={quoteRequest}
           onSuccess={handleSuccess}
-          onSubmitReady={setSubmitHandler}
+          onSubmitReady={handleSetSubmitHandler}
           onValidationChange={setIsFormValid}
           onLoadingChange={setIsLoading}
+          hideEstimationSection={hideEstimationSection}
         />
       </InterventionModalContent>
 
       <InterventionModalFooter
         onCancel={handleClose}
         onConfirm={handleSubmit}
-        confirmLabel="Soumettre le devis"
+        confirmLabel={getButtonLabel()}
         confirmIcon={Send}
         confirmDisabled={!isFormValid}
         isLoading={isLoading}
-        loadingText="Envoi en cours..."
+        loadingText={getLoadingText()}
       />
     </InterventionModalBase>
   )

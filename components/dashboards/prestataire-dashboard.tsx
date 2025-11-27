@@ -123,12 +123,13 @@ export default function PrestataireDashboard() {
       // Actions en attente : interventions nécessitant une action du prestataire
       return getPendingActionsInterventions()
     } else if (tabId === "en_cours") {
-      // En cours : interventions assignées au prestataire nécessitant une action
+      // Traitement en cours : interventions assignées au prestataire nécessitant une action
+      // Note: 'en_cours' is DEPRECATED - kept for backward compatibility with existing DB data
       return interventions.filter((i) => [
         "demande_de_devis",          // Demandes de devis
         "planification",             // Phase de planification des dates
         "planifiee",                 // Dates planifiées, prêt à exécuter
-        "en_cours"                   // Intervention en cours d'exécution
+        "en_cours"                   // DEPRECATED: Kept for backward compatibility only
       ].includes(i.status))
     } else if (tabId === "cloturees") {
       // Clôturées : interventions terminées ou annulées
@@ -197,7 +198,7 @@ export default function PrestataireDashboard() {
     }] : []),
     {
       id: "en_cours",
-      label: "En cours",
+      label: "Traitement en cours",
       icon: Clock,
       count: loading ? "..." : getFilteredInterventions("en_cours").length,
       content: renderInterventionsList("en_cours")
@@ -261,52 +262,33 @@ export default function PrestataireDashboard() {
       {/* 📱 PWA Installation Prompt - Triggered automatically on dashboard */}
       <PWADashboardPrompt />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col h-full min-h-0">
+      <div className="layout-container flex flex-col h-full min-h-0">
         {/* Page Header - Simple et centré */}
         <div className="flex-shrink-0 text-center lg:text-left mb-8">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-semibold text-slate-900 mb-2">Bonjour {user?.first_name} 👋</h1>
             </div>
-            <div className="flex justify-center lg:justify-end">
-              <Button
-                variant="outline"
-                onClick={() => router.push('/prestataire/interventions')}
-              >
-                <Wrench className="w-4 h-4 mr-2" />
-                Voir toutes les interventions
-              </Button>
-            </div>
+            {/* Actions en attente - Compact Card */}
+            {pendingActions.length > 0 && (
+              <div className="flex justify-center lg:justify-end">
+                <Card className={`py-0 gap-0 ${hasAnyAlertAction(pendingActions, 'prestataire') ? 'border-orange-300 bg-orange-50/50' : ''}`}>
+                  <CardContent className="pt-2 pb-2 px-4">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-orange-500" />
+                      <span className="text-sm font-medium text-foreground">Actions en attente</span>
+                      <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 text-xs">
+                        {pendingActions.length}
+                      </Badge>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
           </div>
         </div>
 
-         {/* Section 1: Actions en attente - Nouveau composant réutilisable */}
-         {pendingActions.length > 0 && (
-           <section className="flex-shrink-0 mb-8">
-             <Card className={`py-0 gap-0 ${hasAnyAlertAction(pendingActions, 'prestataire') ? 'border-orange-300 bg-orange-50/50' : ''}`}>
-              <CardContent className="pt-2 pb-2">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-4 h-4 text-orange-500" />
-                    <span className="text-sm font-medium text-foreground">Actions en attente</span>
-                    <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 text-xs">
-                      {pendingActions.length}
-                    </Badge>
-                  </div>
-                  <Button
-                    size="sm"
-                    className="h-7 px-3 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
-                    onClick={() => setInterventionsActiveTab("actions_en_attente")}
-                  >
-                    Voir
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-        )}
-
-        {/* Section 2: Interventions avec ContentNavigator */}
+        {/* Section: Interventions avec ContentNavigator */}
         <section className="flex-1 flex flex-col min-h-0">
           {/* ContentNavigator avec header personnalisé via wrapper - Material Design compact */}
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">

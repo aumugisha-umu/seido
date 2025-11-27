@@ -7,6 +7,7 @@ import {
   AlertTriangle,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useNavigationPending } from "@/hooks/use-navigation-pending"
 
 import { Button } from "@/components/ui/button"
 import { useInterventionApproval } from "@/hooks/use-intervention-approval"
@@ -47,6 +48,7 @@ export function InterventionsPageClient({
   userId
 }: InterventionsPageClientProps) {
   const router = useRouter()
+  const { isPending: isNavigating, navigate } = useNavigationPending()
 
   // ✅ État local initialisé avec les props (pas de hook de fetch)
   const [interventions, setInterventions] = useState(initialInterventions)
@@ -94,12 +96,13 @@ export function InterventionsPageClient({
     fetchQuoteRequests()
   }, [planningHook.programmingModal.isOpen, planningHook.programmingModal.intervention?.id])
 
-  // ✅ Refetch via router.refresh()
+  // ✅ Refetch via router.refresh() - OPTIMISÉ: suppression du délai artificiel
   const refetch = () => {
     setLoading(true)
     router.refresh()
-    // Reset loading after a short delay (Next.js will re-render with new data)
-    setTimeout(() => setLoading(false), 500)
+    // Le loading sera automatiquement reset par React quand les nouvelles props arrivent
+    // Note: Si nécessaire, utiliser startTransition pour un meilleur feedback
+    setLoading(false)
   }
 
   // Handle cancel quote request - open confirmation modal
@@ -146,147 +149,160 @@ export function InterventionsPageClient({
   }
 
   return (
-    <div className="layout-container flex flex-col flex-1 min-h-0">
+    <div className="h-full flex flex-col overflow-hidden layout-container">
       <InterventionCancellationProvider>
-        <div className="content-max-width flex flex-col h-full min-h-0">
-        {/* Page Header */}
-        <div className="mb-4 lg:mb-6 flex-shrink-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
-                Interventions
-              </h1>
+        <div className="content-max-width flex flex-col flex-1 min-h-0 overflow-hidden">
+          {/* Page Header */}
+          <div className="mb-4 lg:mb-6 flex-shrink-0">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
+                  Interventions
+                </h1>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  className="flex items-center space-x-2"
+                  onClick={() => navigate("/gestionnaire/interventions/nouvelle-intervention")}
+                  disabled={isNavigating}
+                >
+                  {isNavigating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                  <span>Créer une intervention</span>
+                </Button>
+              </div>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                className="flex items-center space-x-2"
-                onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
-              >
-                <Plus className="h-4 w-4" />
-                <span>Créer une intervention</span>
-              </Button>
+          </div>
+
+          {/* Interventions Card - Structure exacte du dashboard */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+              {/* Content wrapper avec padding */}
+              <div className="flex-1 flex flex-col min-h-0 p-4">
+                <InterventionsNavigator
+                  interventions={interventions}
+                  loading={loading}
+                  emptyStateConfig={{
+                    title: "Aucune intervention",
+                    description: "Créez votre première intervention pour commencer",
+                    showCreateButton: true,
+                    createButtonText: "Créer une intervention",
+                    createButtonAction: () => navigate("/gestionnaire/interventions/nouvelle-intervention")
+                  }}
+                  showStatusActions={true}
+                  searchPlaceholder="Rechercher par titre, description, ou lot..."
+                  showFilters={true}
+                  actionHooks={{
+                    approvalHook,
+                    quotingHook,
+                    planningHook,
+                    executionHook,
+                    finalizationHook
+                  }}
+                  className="bg-transparent border-0 shadow-none flex-1 flex flex-col min-h-0"
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Interventions Navigator */}
-        <InterventionsNavigator
-          interventions={interventions}
-          loading={loading}
-          emptyStateConfig={{
-            title: "Aucune intervention",
-            description: "Créez votre première intervention pour commencer",
-            showCreateButton: true,
-            createButtonText: "Créer une intervention",
-            createButtonAction: () => router.push("/gestionnaire/interventions/nouvelle-intervention")
-          }}
-          showStatusActions={true}
-          searchPlaceholder="Rechercher par titre, description, ou lot..."
-          showFilters={true}
-          actionHooks={{
-            approvalHook,
-            quotingHook,
-            planningHook,
-            executionHook,
-            finalizationHook
-          }}
+        {/* Modals */}
+        <ApprovalModal
+          isOpen={approvalHook.approvalModal.isOpen}
+          onClose={approvalHook.closeApprovalModal}
+          intervention={approvalHook.approvalModal.intervention}
+          action={approvalHook.approvalModal.action}
+          rejectionReason={approvalHook.rejectionReason}
+          internalComment={approvalHook.internalComment}
+          onRejectionReasonChange={approvalHook.setRejectionReason}
+          onInternalCommentChange={approvalHook.setInternalComment}
+          onActionChange={approvalHook.handleActionChange}
+          onConfirm={approvalHook.handleConfirmAction}
         />
-      </div>
 
-      {/* Modals */}
-      <ApprovalModal
-        isOpen={approvalHook.approvalModal.isOpen}
-        onClose={approvalHook.closeApprovalModal}
-        intervention={approvalHook.approvalModal.intervention}
-        action={approvalHook.approvalModal.action}
-        rejectionReason={approvalHook.rejectionReason}
-        internalComment={approvalHook.internalComment}
-        onRejectionReasonChange={approvalHook.setRejectionReason}
-        onInternalCommentChange={approvalHook.setInternalComment}
-        onActionChange={approvalHook.handleActionChange}
-        onConfirm={approvalHook.handleConfirmAction}
-      />
+        <ApproveConfirmationModal
+          isOpen={approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "approve"}
+          onClose={approvalHook.closeConfirmationModal}
+          onConfirm={approvalHook.handleFinalConfirmation}
+          intervention={approvalHook.confirmationModal.intervention}
+          internalComment={approvalHook.internalComment}
+          onInternalCommentChange={approvalHook.setInternalComment}
+          isLoading={approvalHook.isLoading}
+        />
 
-      <ApproveConfirmationModal
-        isOpen={approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "approve"}
-        onClose={approvalHook.closeConfirmationModal}
-        onConfirm={approvalHook.handleFinalConfirmation}
-        intervention={approvalHook.confirmationModal.intervention}
-        internalComment={approvalHook.internalComment}
-        onInternalCommentChange={approvalHook.setInternalComment}
-        isLoading={approvalHook.isLoading}
-      />
+        <RejectConfirmationModal
+          isOpen={approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "reject"}
+          onClose={approvalHook.closeConfirmationModal}
+          onConfirm={approvalHook.handleFinalConfirmation}
+          intervention={approvalHook.confirmationModal.intervention}
+          rejectionReason={approvalHook.rejectionReason}
+          onRejectionReasonChange={approvalHook.setRejectionReason}
+          internalComment={approvalHook.internalComment}
+          onInternalCommentChange={approvalHook.setInternalComment}
+          isLoading={approvalHook.isLoading}
+        />
 
-      <RejectConfirmationModal
-        isOpen={approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "reject"}
-        onClose={approvalHook.closeConfirmationModal}
-        onConfirm={approvalHook.handleFinalConfirmation}
-        intervention={approvalHook.confirmationModal.intervention}
-        rejectionReason={approvalHook.rejectionReason}
-        onRejectionReasonChange={approvalHook.setRejectionReason}
-        internalComment={approvalHook.internalComment}
-        onInternalCommentChange={approvalHook.setInternalComment}
-        isLoading={approvalHook.isLoading}
-      />
+        <SuccessModal
+          isOpen={approvalHook.successModal.isOpen}
+          onClose={approvalHook.closeSuccessModal}
+          action={approvalHook.successModal.action}
+          interventionTitle={approvalHook.successModal.interventionTitle}
+        />
 
-      <SuccessModal
-        isOpen={approvalHook.successModal.isOpen}
-        onClose={approvalHook.closeSuccessModal}
-        action={approvalHook.successModal.action}
-        interventionTitle={approvalHook.successModal.interventionTitle}
-      />
+        <QuoteRequestModal
+          isOpen={quotingHook.quoteRequestModal.isOpen}
+          onClose={quotingHook.closeQuoteRequestModal}
+          intervention={quotingHook.quoteRequestModal.intervention}
+          deadline={quotingHook.formData.deadline}
+          additionalNotes={quotingHook.formData.additionalNotes}
+          selectedProviderId={quotingHook.formData.providerId}
+          providers={quotingHook.providers}
+          onDeadlineChange={(deadline) => quotingHook.updateFormData('deadline', deadline)}
+          onNotesChange={(notes) => quotingHook.updateFormData('additionalNotes', notes)}
+          onProviderSelect={quotingHook.selectProvider}
+          onSubmit={quotingHook.submitQuoteRequest}
+          isLoading={quotingHook.isLoading}
+          error={quotingHook.error}
+        />
 
-      <QuoteRequestModal
-        isOpen={quotingHook.quoteRequestModal.isOpen}
-        onClose={quotingHook.closeQuoteRequestModal}
-        intervention={quotingHook.quoteRequestModal.intervention}
-        deadline={quotingHook.formData.deadline}
-        additionalNotes={quotingHook.formData.additionalNotes}
-        selectedProviderId={quotingHook.formData.providerId}
-        providers={quotingHook.providers}
-        onDeadlineChange={(deadline) => quotingHook.updateFormData('deadline', deadline)}
-        onNotesChange={(notes) => quotingHook.updateFormData('additionalNotes', notes)}
-        onProviderSelect={quotingHook.selectProvider}
-        onSubmit={quotingHook.submitQuoteRequest}
-        isLoading={quotingHook.isLoading}
-        error={quotingHook.error}
-      />
+        <QuoteRequestSuccessModal
+          isOpen={quotingHook.successModal.isOpen}
+          onClose={quotingHook.closeSuccessModal}
+          providerName={quotingHook.successModal.providerName}
+          interventionTitle={quotingHook.successModal.interventionTitle}
+        />
 
-      <QuoteRequestSuccessModal
-        isOpen={quotingHook.successModal.isOpen}
-        onClose={quotingHook.closeSuccessModal}
-        providerName={quotingHook.successModal.providerName}
-        interventionTitle={quotingHook.successModal.interventionTitle}
-      />
+        <ProgrammingModal
+          isOpen={planningHook.programmingModal.isOpen}
+          onClose={planningHook.closeProgrammingModal}
+          intervention={planningHook.programmingModal.intervention}
+          programmingOption={planningHook.planningOption}
+          onProgrammingOptionChange={planningHook.setPlanningOption}
+          directSchedule={planningHook.directSchedule}
+          onDirectScheduleChange={planningHook.setDirectSchedule}
+          proposedSlots={planningHook.proposedSlots}
+          onAddProposedSlot={planningHook.addProposedSlot}
+          onUpdateProposedSlot={planningHook.updateProposedSlot}
+          onRemoveProposedSlot={planningHook.removeProposedSlot}
+          onSubmit={planningHook.handleSubmit}
+          isLoading={planningHook.isSubmitting}
+          quoteRequests={quoteRequests}
+          onViewProvider={(providerId) => navigate(`/gestionnaire/contacts?highlight=${providerId}`)}
+          onCancelQuoteRequest={handleCancelQuoteRequest}
+        />
 
-      <ProgrammingModal
-        isOpen={planningHook.programmingModal.isOpen}
-        onClose={planningHook.closeProgrammingModal}
-        intervention={planningHook.programmingModal.intervention}
-        programmingOption={planningHook.planningOption}
-        onProgrammingOptionChange={planningHook.setPlanningOption}
-        directSchedule={planningHook.directSchedule}
-        onDirectScheduleChange={planningHook.setDirectSchedule}
-        proposedSlots={planningHook.proposedSlots}
-        onAddProposedSlot={planningHook.addProposedSlot}
-        onUpdateProposedSlot={planningHook.updateProposedSlot}
-        onRemoveProposedSlot={planningHook.removeProposedSlot}
-        onSubmit={planningHook.handleSubmit}
-        isLoading={planningHook.isSubmitting}
-        quoteRequests={quoteRequests}
-        onViewProvider={(providerId) => router.push(`/gestionnaire/contacts?highlight=${providerId}`)}
-        onCancelQuoteRequest={handleCancelQuoteRequest}
-      />
+        <CancelQuoteRequestModal
+          isOpen={cancelQuoteModal.isOpen}
+          onClose={() => setCancelQuoteModal({ isOpen: false, quoteId: null, providerName: '' })}
+          onConfirm={handleConfirmCancelQuote}
+          providerName={cancelQuoteModal.providerName}
+          isLoading={isCancellingQuote}
+        />
 
-      <CancelQuoteRequestModal
-        isOpen={cancelQuoteModal.isOpen}
-        onClose={() => setCancelQuoteModal({ isOpen: false, quoteId: null, providerName: '' })}
-        onConfirm={handleConfirmCancelQuote}
-        providerName={cancelQuoteModal.providerName}
-        isLoading={isCancellingQuote}
-      />
-
-      <InterventionCancellationManager />
+        <InterventionCancellationManager />
       </InterventionCancellationProvider>
     </div>
   )

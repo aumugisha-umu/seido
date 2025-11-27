@@ -26,9 +26,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Textarea } from "@/components/ui/textarea"
 import { interventionActionsService } from "@/lib/intervention-actions-service"
 import { getValidAvailabilities } from "@/lib/availability-filtering-utils"
+import { analyzeTimeSlots, getProviderActionForTimeSlots, getProviderActionLabel } from "@/lib/time-slot-utils"
 import { WorkCompletionReport } from "./work-completion-report"
 import { SimpleWorkCompletionModal } from "./simple-work-completion-modal"
-import { TenantValidationForm } from "./tenant-validation-form"
+import { TenantValidationSimple } from "./tenant-validation-simple"
 import { FinalizationModalLive } from "./finalization-modal-live"
 import { TenantSlotConfirmationModal } from "./tenant-slot-confirmation-modal"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
@@ -83,6 +84,7 @@ interface InterventionActionButtonsProps {
   compact?: boolean
   onActionComplete?: (navigateToTab?: string) => void
   onOpenQuoteModal?: () => void
+  onEditQuote?: (_quote: Quote) => void
   onCancelQuote?: (_quoteId: string) => void
   onCancelIntervention?: () => void
   onRejectQuoteRequest?: (_quote: Quote) => void
@@ -104,6 +106,7 @@ export function InterventionActionButtons({
   compact = false,
   onActionComplete,
   onOpenQuoteModal,
+  onEditQuote,
   onCancelQuote,
   onCancelIntervention,
   onRejectQuoteRequest,
@@ -120,6 +123,7 @@ export function InterventionActionButtons({
   const [showWorkCompletionModal, setShowWorkCompletionModal] = useState(false)
   const [showSimpleWorkCompletionModal, setShowSimpleWorkCompletionModal] = useState(false)
   const [showTenantValidationModal, setShowTenantValidationModal] = useState(false)
+  const [tenantValidationInitialMode, setTenantValidationInitialMode] = useState<'approve' | 'reject'>('approve')
   const [showSimplifiedFinalizationModal, setShowSimplifiedFinalizationModal] = useState(false)
   const [showSlotConfirmationModal, setShowSlotConfirmationModal] = useState(false)
 
@@ -129,8 +133,8 @@ export function InterventionActionButtons({
   // Fonction pour détecter le devis existant du prestataire connecté
   const getCurrentUserQuote = () => {
     if (userRole !== 'prestataire' || !intervention.quotes) return null
-    return intervention.quotes.find(quote => 
-      quote.provider_id === userId || quote.submitted_by === userId
+    return intervention.quotes.find(quote =>
+      quote.providerId === userId || (quote as any).created_by === userId
     )
   }
 
@@ -286,29 +290,48 @@ export function InterventionActionButtons({
           })
         }
         if (userRole === 'prestataire') {
-          const hasPendingSlots = timeSlots?.some(slot =>
-            slot.status === 'pending' || slot.status === 'requested'
-          )
+          // Use helper function to analyze time slots and determine action
+          const analysis = analyzeTimeSlots(timeSlots, userId)
+          const actionKey = getProviderActionForTimeSlots(analysis)
+          const label = getProviderActionLabel(actionKey)
 
-          if (hasPendingSlots) {
-            actions.push({
-              key: 'confirm_availabilities',
-              label: 'Confirmer disponibilités',
+          // Map action keys to icons and descriptions
+          const actionConfig = {
+            confirm_availabilities: {
               icon: CheckCircle,
-              description: 'Valider ou rejeter les créneaux proposés'
-            })
-          } else {
-            actions.push({
-              key: 'add_availabilities',
-              label: 'Ajouter mes disponibilités',
+              description: 'Valider ou rejeter les créneaux proposés par le gestionnaire'
+            },
+            modify_availabilities: {
+              icon: Edit,
+              description: 'Modifier vos disponibilités existantes'
+            },
+            add_availabilities: {
               icon: Calendar,
               description: 'Saisir vos créneaux de disponibilité'
-            })
+            }
           }
+
+          const config = actionConfig[actionKey]
+
+          actions.push({
+            key: actionKey,
+            label,
+            icon: config.icon,
+            description: config.description
+          })
         }
         break
 
       case 'planifiee':
+        if (userRole === 'gestionnaire') {
+          actions.push({
+            key: 'finalize',
+            label: 'Finaliser',
+            icon: UserCheck,
+            description: 'Clôturer définitivement l\'intervention',
+            requiresComment: false
+          })
+        }
         if (userRole === 'prestataire') {
           actions.push({
             key: 'complete_work',
@@ -337,19 +360,12 @@ export function InterventionActionButtons({
         }
         break
 
-      case 'en_cours':
-        if (userRole === 'prestataire') {
-          actions.push({
-            key: 'complete_work',
-            label: 'Marquer comme terminé',
-            icon: CheckCircle,
-            description: 'Signaler la fin des travaux'
-          })
-        }
-        break
+      // Note: 'en_cours' status is deprecated - interventions go directly from 'planifiee' to 'cloturee_par_*'
 
       case 'cloturee_par_prestataire':
         if (userRole === 'locataire' && isInterventionTenant(intervention, userId)) {
+          // Les deux boutons ouvrent la même modale TenantValidationSimple
+          // qui permet de choisir entre valider et contester en interne
           actions.push(
             {
               key: 'validate_work',
@@ -361,9 +377,9 @@ export function InterventionActionButtons({
               key: 'contest_work',
               label: 'Contester',
               icon: AlertTriangle,
-              description: 'Signaler un problème avec les travaux',
-              requiresComment: true,
-              confirmationMessage: 'Signaler un problème nécessitera une révision.'
+              description: 'Signaler un problème avec les travaux'
+              // PAS de requiresComment ni confirmationMessage
+              // car TenantValidationSimple gère tout en interne
             }
           )
         }
@@ -392,7 +408,7 @@ export function InterventionActionButtons({
     }
 
     // Actions communes disponibles selon le contexte
-    if (['approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours'].includes(intervention.status)) {
+    if (['approuvee', 'demande_de_devis', 'planification', 'planifiee'].includes(intervention.status)) {
       if (userRole === 'gestionnaire') {
         actions.push({
           key: 'cancel',
@@ -473,8 +489,17 @@ export function InterventionActionButtons({
           return
 
         case 'submit_quote':
-        case 'edit_quote':
           if (onOpenQuoteModal) {
+            onOpenQuoteModal()
+          } else {
+            window.location.href = `/prestataire/interventions/${intervention.id}?action=quote`
+          }
+          return
+
+        case 'edit_quote':
+          if (currentUserQuote && onEditQuote) {
+            onEditQuote(currentUserQuote)
+          } else if (onOpenQuoteModal) {
             onOpenQuoteModal()
           } else {
             window.location.href = `/prestataire/interventions/${intervention.id}?action=quote`
@@ -510,7 +535,17 @@ export function InterventionActionButtons({
           onActionComplete?.('execution')
           return
 
+        case 'modify_availabilities':
         case 'add_availabilities':
+          // Open modal via callback (for prestataire)
+          if (onProposeSlots) {
+            onProposeSlots()
+            return
+          }
+          // Fallback redirection for gestionnaire
+          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
+          return
+
         case 'reschedule':
           window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
           return
@@ -540,7 +575,12 @@ export function InterventionActionButtons({
           return
 
         case 'validate_work':
+          setTenantValidationInitialMode('approve')
+          setShowTenantValidationModal(true)
+          return
+
         case 'contest_work':
+          setTenantValidationInitialMode('reject')
           setShowTenantValidationModal(true)
           return
 
@@ -638,26 +678,71 @@ export function InterventionActionButtons({
     }
   }
 
-  const handleTenantValidation = async (data: TenantValidationData): Promise<boolean> => {
+  // Simple tenant validation handlers - Appelle la nouvelle route API
+  const handleApproveWork = async (data: { comments: string; photos: File[] }): Promise<boolean> => {
     try {
       setIsProcessing(true)
       setError(null)
 
-      const result = await interventionActionsService.validateIntervention(
-        { id: intervention.id, title: intervention.title, status: intervention.status },
-        data
-      )
+      const response = await fetch(`/api/intervention/${intervention.id}/tenant-validation-simple`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          validationType: 'approve',
+          comments: data.comments
+        })
+      })
 
-      if (result.success) {
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        logger.info({ interventionId: intervention.id }, '✅ Tenant validation successful')
         setShowTenantValidationModal(false)
         onActionComplete?.()
         return true
       } else {
+        logger.error({ error: result.error }, '❌ Tenant validation failed')
         setError(result.error || 'Erreur lors de la validation')
         return false
       }
     } catch (_error) {
+      logError('❌ Tenant validation error', _error)
       setError('Erreur lors de la validation')
+      return false
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handleRejectWork = async (data: { comments: string; photos: File[] }): Promise<boolean> => {
+    try {
+      setIsProcessing(true)
+      setError(null)
+
+      const response = await fetch(`/api/intervention/${intervention.id}/tenant-validation-simple`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          validationType: 'contest',
+          comments: data.comments
+        })
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        logger.info({ interventionId: intervention.id, isContested: true }, '✅ Tenant contestation successful')
+        setShowTenantValidationModal(false)
+        onActionComplete?.()
+        return true
+      } else {
+        logger.error({ error: result.error }, '❌ Tenant contestation failed')
+        setError(result.error || 'Erreur lors de la contestation')
+        return false
+      }
+    } catch (_error) {
+      logError('❌ Tenant contestation error', _error)
+      setError('Erreur lors de la contestation')
       return false
     } finally {
       setIsProcessing(false)
@@ -714,13 +799,12 @@ export function InterventionActionButtons({
               {action.badge?.show && (
                 <Badge
                   variant={action.badge.variant === 'default' ? 'secondary' :
-                           action.badge.variant === 'warning' ? 'outline' :
-                           action.badge.variant}
-                  className={`ml-1 text-xs ${
-                    action.badge.variant === 'warning' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
+                    action.badge.variant === 'warning' ? 'outline' :
+                      action.badge.variant}
+                  className={`ml-1 text-xs ${action.badge.variant === 'warning' ? 'bg-yellow-100 text-yellow-800 border-yellow-300' :
                     action.badge.variant === 'success' ? 'bg-green-100 text-green-800' :
-                    'bg-slate-200 text-slate-700'
-                  }`}
+                      'bg-slate-200 text-slate-700'
+                    }`}
                 >
                   {action.badge.value}
                 </Badge>
@@ -767,18 +851,18 @@ export function InterventionActionButtons({
               <div>
                 <label className="block text-sm font-medium mb-2">
                   {selectedAction.key === 'reject' ? 'Motif du rejet *' :
-                   selectedAction.key === 'contest_work' ? 'Description du problème *' :
-                   selectedAction.key === 'complete_work' ? 'Rapport de fin de travaux *' :
-                   'Commentaire *'}
+                    selectedAction.key === 'contest_work' ? 'Description du problème *' :
+                      selectedAction.key === 'complete_work' ? 'Rapport de fin de travaux *' :
+                        'Commentaire *'}
                 </label>
                 <Textarea
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   placeholder={
                     selectedAction.key === 'reject' ? 'Expliquez pourquoi cette intervention est rejetée...' :
-                    selectedAction.key === 'contest_work' ? 'Décrivez le problème constaté...' :
-                    selectedAction.key === 'complete_work' ? 'Résumé des travaux effectués...' :
-                    'Ajoutez un commentaire...'
+                      selectedAction.key === 'contest_work' ? 'Décrivez le problème constaté...' :
+                        selectedAction.key === 'complete_work' ? 'Résumé des travaux effectués...' :
+                          'Ajoutez un commentaire...'
                   }
                   rows={4}
                 />
@@ -830,12 +914,14 @@ export function InterventionActionButtons({
         isLoading={isProcessing}
       />
 
-      <TenantValidationForm
+      <TenantValidationSimple
         intervention={intervention}
         isOpen={showTenantValidationModal}
         onClose={() => setShowTenantValidationModal(false)}
-        onSubmit={handleTenantValidation}
+        onApprove={handleApproveWork}
+        onReject={handleRejectWork}
         isLoading={isProcessing}
+        initialMode={tenantValidationInitialMode}
       />
 
       <FinalizationModalLive

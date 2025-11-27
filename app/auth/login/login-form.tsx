@@ -41,22 +41,18 @@ export function LoginForm() {
   // ✅ 2025: useActionState pour gestion état Server Action
   const [state, formAction] = useActionState(loginAction, { success: false })
 
-  // ✅ WORKAROUND NEXT.JS 15 BUG #72842 - PISTE 1: window.location.href
-  // Issue: redirect() dans Server Action ne fonctionne pas avec useActionState
-  // Solution: Utiliser window.location.href pour forcer un vrai refresh de page
-  // Rationale: Force les composants à se monter avec les cookies déjà présents
-  // Refs: https://github.com/vercel/next.js/issues/72842
+  // ✅ NAVIGATION POST-LOGIN (Bug Next.js #72842 corrigé dans 15.0.3+)
+  // Le bug est corrigé, mais on garde le pattern return redirectTo pour consistance
+  // Délai réduit de 1000ms → 100ms (juste assez pour que les cookies s'écrivent)
   useEffect(() => {
     if (state.success && state.data?.redirectTo) {
-      logger.info('🚀 [LOGIN-FORM] Login successful, navigating in 1000ms to:', state.data.redirectTo)
+      logger.info('🚀 [LOGIN-FORM] Login successful, navigating to:', state.data.redirectTo)
 
-      // ✅ DÉLAI RÉDUIT: 1000ms (1s) car window.location.href force un vrai refresh
-      // Pas besoin d'attendre que AuthProvider charge le profil
-      // Le refresh complet garantit que les composants se montent avec les cookies
+      // ✅ OPTIMISÉ: Délai minimal de 100ms pour laisser les cookies s'écrire
       const timer = setTimeout(() => {
-        logger.info('🔄 [LOGIN-FORM] Executing full page navigation with window.location.href...')
+        logger.info('🔄 [LOGIN-FORM] Executing navigation...')
         window.location.href = state.data.redirectTo
-      }, 1000)
+      }, 100)
 
       return () => clearTimeout(timer)
     }

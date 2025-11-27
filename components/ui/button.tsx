@@ -1,6 +1,7 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, type VariantProps } from "class-variance-authority"
+import { Loader2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -39,24 +40,80 @@ const buttonVariants = cva(
   }
 )
 
+/**
+ * Button component avec support loading state intégré.
+ *
+ * @example
+ * // Usage basique avec loading
+ * <Button isLoading={isPending}>Sauvegarder</Button>
+ *
+ * @example
+ * // Avec texte de chargement personnalisé
+ * <Button isLoading={isPending} loadingText="Connexion en cours...">
+ *   Se connecter
+ * </Button>
+ *
+ * @example
+ * // Avec icône (l'icône est remplacée par le spinner pendant le loading)
+ * <Button isLoading={isSubmitting}>
+ *   <Plus className="h-4 w-4" />
+ *   Ajouter
+ * </Button>
+ *
+ * TODO FUTUR: Migrer progressivement tous les boutons existants vers ce pattern
+ * pour garantir une protection anti-double-clic uniforme sur toute l'application.
+ */
 function Button({
   className,
   variant,
   size,
   asChild = false,
+  isLoading = false,
+  loadingText,
+  disabled,
+  children,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
+    /** Affiche un spinner et désactive le bouton pendant le chargement */
+    isLoading?: boolean
+    /** Texte alternatif à afficher pendant le chargement (optionnel) */
+    loadingText?: string
   }) {
   const Comp = asChild ? Slot : "button"
+
+  // Si asChild est true et isLoading, on ne peut pas modifier le contenu
+  // donc on désactive juste le bouton
+  if (asChild) {
+    return (
+      <Comp
+        data-slot="button"
+        className={cn(buttonVariants({ variant, size, className }))}
+        disabled={disabled || isLoading}
+        aria-disabled={disabled || isLoading}
+        {...props}
+      />
+    )
+  }
 
   return (
     <Comp
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      disabled={disabled || isLoading}
+      aria-busy={isLoading}
       {...props}
-    />
+    >
+      {isLoading ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          <span>{loadingText || children}</span>
+        </>
+      ) : (
+        children
+      )}
+    </Comp>
   )
 }
 

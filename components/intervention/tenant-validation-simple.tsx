@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { CheckCircle, X, Upload, FileIcon } from "lucide-react"
+import { useState, useEffect } from "react"
+import { CheckCircle, X, Upload, FileIcon, ThumbsUp, AlertTriangle } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -17,7 +17,7 @@ interface TenantValidationSimpleProps {
   onApprove: (data: { comments: string; photos: File[] }) => Promise<boolean>
   onReject: (data: { comments: string; photos: File[] }) => Promise<boolean>
   isLoading?: boolean
-  mode: 'approve' | 'reject'
+  initialMode?: 'approve' | 'reject'
 }
 
 export function TenantValidationSimple({
@@ -27,11 +27,19 @@ export function TenantValidationSimple({
   onApprove,
   onReject,
   isLoading = false,
-  mode
+  initialMode = 'approve'
 }: TenantValidationSimpleProps) {
+  const [mode, setMode] = useState<'approve' | 'reject'>(initialMode)
   const [comments, setComments] = useState('')
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [error, setError] = useState<string | null>(null)
+
+  // Synchroniser le mode quand initialMode change (ex: clic sur Valider vs Contester)
+  useEffect(() => {
+    if (isOpen) {
+      setMode(initialMode)
+    }
+  }, [isOpen, initialMode])
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -76,32 +84,95 @@ export function TenantValidationSimple({
       setComments('')
       setSelectedFiles([])
       setError(null)
+      setMode(initialMode)
       onClose()
     }
   }
 
   const isApproveMode = mode === 'approve'
-  const title = isApproveMode ? 'Valider les travaux' : 'Contester les travaux'
-  const buttonLabel = isApproveMode ? 'Valider' : 'Contester'
+  const buttonLabel = isApproveMode ? 'Valider les travaux' : 'Signaler le problème'
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
-            {isApproveMode ? (
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            ) : (
-              <X className="h-5 w-5 text-red-600" />
-            )}
-            <span>{title}</span>
+            <CheckCircle className="h-5 w-5 text-green-600" />
+            <span>Validation des travaux</span>
           </DialogTitle>
           <p className="text-sm text-gray-600 mt-2">
-            Intervention : <span className="font-medium">{intervention.title}</span>
+            {intervention.title}
           </p>
         </DialogHeader>
 
         <div className="space-y-6 py-4">
+          {/* Sélecteur de mode */}
+          <div className="space-y-3">
+            <Label>Après vérification des travaux, êtes-vous satisfait du résultat ?</Label>
+
+            <div className="space-y-2">
+              {/* Option Valider */}
+              <label
+                className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  mode === 'approve'
+                    ? 'border-green-500 bg-green-50'
+                    : 'border-gray-200 hover:border-green-200 hover:bg-green-50/50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="validationMode"
+                  value="approve"
+                  checked={mode === 'approve'}
+                  onChange={() => setMode('approve')}
+                  className="sr-only"
+                />
+                <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  mode === 'approve' ? 'border-green-500 bg-green-500' : 'border-gray-300'
+                }`}>
+                  {mode === 'approve' && <div className="w-2 h-2 bg-white rounded-full" />}
+                </div>
+                <ThumbsUp className={`h-5 w-5 ${mode === 'approve' ? 'text-green-600' : 'text-gray-400'}`} />
+                <div className="flex-1">
+                  <span className={`font-medium ${mode === 'approve' ? 'text-green-900' : 'text-gray-900'}`}>
+                    Valider les travaux
+                  </span>
+                  <p className="text-sm text-gray-500">Les travaux sont satisfaisants et conformes</p>
+                </div>
+              </label>
+
+              {/* Option Contester */}
+              <label
+                className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                  mode === 'reject'
+                    ? 'border-red-500 bg-red-50'
+                    : 'border-gray-200 hover:border-red-200 hover:bg-red-50/50'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="validationMode"
+                  value="reject"
+                  checked={mode === 'reject'}
+                  onChange={() => setMode('reject')}
+                  className="sr-only"
+                />
+                <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                  mode === 'reject' ? 'border-red-500 bg-red-500' : 'border-gray-300'
+                }`}>
+                  {mode === 'reject' && <div className="w-2 h-2 bg-white rounded-full" />}
+                </div>
+                <AlertTriangle className={`h-5 w-5 ${mode === 'reject' ? 'text-red-600' : 'text-gray-400'}`} />
+                <div className="flex-1">
+                  <span className={`font-medium ${mode === 'reject' ? 'text-red-900' : 'text-gray-900'}`}>
+                    Signaler un problème
+                  </span>
+                  <p className="text-sm text-gray-500">Les travaux présentent des défauts ou ne sont pas conformes</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
           {/* Commentaire */}
           <div className="space-y-2">
             <Label htmlFor="comments">
@@ -210,9 +281,9 @@ export function TenantValidationSimple({
             ) : (
               <>
                 {isApproveMode ? (
-                  <CheckCircle className="h-4 w-4 mr-2" />
+                  <ThumbsUp className="h-4 w-4 mr-2" />
                 ) : (
-                  <X className="h-4 w-4 mr-2" />
+                  <AlertTriangle className="h-4 w-4 mr-2" />
                 )}
                 {buttonLabel}
               </>

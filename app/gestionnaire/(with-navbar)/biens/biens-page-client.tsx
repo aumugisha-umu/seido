@@ -1,9 +1,9 @@
 "use client"
 
-import { Plus, RefreshCw } from "lucide-react"
+import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import PropertySelector from "@/components/property-selector"
+import { PatrimoineNavigator } from "@/components/patrimoine/patrimoine-navigator"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { logger } from '@/lib/logger'
 
@@ -14,9 +14,7 @@ interface BiensPageClientProps {
 }
 
 // ✅ Helper function to create a simple hash of data for change detection
-// Defined outside component to avoid hook dependency issues
 function createDataHash(buildings: any[], lots: any[], teamId: string | null): string {
-  // Create a lightweight signature based on counts and IDs
   const buildingIds = buildings.map(b => b.id).sort().join(',')
   const lotIds = lots.map(l => l.id).sort().join(',')
   const buildingCount = buildings.length
@@ -29,13 +27,9 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
   const [isRefreshing, setIsRefreshing] = useState(false)
   const previousDataHashRef = useRef<string>('')
 
-  // ✅ Créer un data object compatible avec le format attendu par PropertySelector
-  // Ensure arrays are always arrays (never undefined/null)
-  const [buildingsData, setBuildingsData] = useState({
-    buildings: Array.isArray(initialBuildings) ? initialBuildings : [],
-    lots: Array.isArray(initialLots) ? initialLots : [],
-    teamId: teamId
-  })
+  // ✅ State for buildings and lots
+  const [buildings, setBuildings] = useState(Array.isArray(initialBuildings) ? initialBuildings : [])
+  const [lots, setLots] = useState(Array.isArray(initialLots) ? initialLots : [])
 
   // ✅ Debug: Log initial data structure
   useEffect(() => {
@@ -44,12 +38,7 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
       lotsCount: Array.isArray(initialLots) ? initialLots.length : 0,
       teamId: teamId,
       buildingsIsArray: Array.isArray(initialBuildings),
-      lotsIsArray: Array.isArray(initialLots),
-      buildingsDataStructure: {
-        buildings: buildingsData.buildings.length,
-        lots: buildingsData.lots.length,
-        teamId: buildingsData.teamId
-      }
+      lotsIsArray: Array.isArray(initialLots)
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only log on mount
@@ -58,15 +47,10 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
   const handleRefresh = useCallback(async () => {
     logger.info("🔄 [BIENS-PAGE-CLIENT] Manual refresh triggered")
     setIsRefreshing(true)
-    
+
     try {
-      // Trigger router refresh to re-fetch server component data
       router.refresh()
-      
-      // Reset hash to force update when new data arrives
       previousDataHashRef.current = ''
-      
-      // Note: setIsRefreshing(false) will be called when new data arrives via useEffect
     } catch (error) {
       logger.error("❌ [BIENS-PAGE-CLIENT] Error during refresh:", error)
       setIsRefreshing(false)
@@ -78,14 +62,13 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
     const initialHash = createDataHash(initialBuildings, initialLots, teamId)
     previousDataHashRef.current = initialHash
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []) // Only run on mount
+  }, [])
 
   // ✅ Improved change detection using hash comparison
   useEffect(() => {
     const currentHash = createDataHash(initialBuildings, initialLots, teamId)
     const previousHash = previousDataHashRef.current
 
-    // Only update if data actually changed
     if (currentHash !== previousHash) {
       logger.info("🔄 [BIENS-PAGE-CLIENT] Data changed, updating state", {
         previousHash: previousHash.substring(0, 20),
@@ -94,23 +77,19 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
         lotsCount: initialLots.length
       })
 
-      // Ensure arrays are always arrays
       const safeBuildings = Array.isArray(initialBuildings) ? initialBuildings : []
       const safeLots = Array.isArray(initialLots) ? initialLots : []
-      
-      setBuildingsData({
-        buildings: safeBuildings,
-        lots: safeLots,
-        teamId: teamId
-      })
-      
+
+      setBuildings(safeBuildings)
+      setLots(safeLots)
+
       logger.info("✅ [BIENS-PAGE-CLIENT] Data updated in state:", {
         buildingsCount: safeBuildings.length,
         lotsCount: safeLots.length,
         teamId: teamId
       })
       previousDataHashRef.current = currentHash
-      setIsRefreshing(false) // Clear refreshing state when new data arrives
+      setIsRefreshing(false)
     }
   }, [initialBuildings, initialLots, teamId])
 
@@ -119,12 +98,11 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
     if (!isRefreshing && previousDataHashRef.current) {
       sessionStorage.setItem('biens-last-refresh', Date.now().toString())
     }
-  }, [buildingsData, isRefreshing])
+  }, [buildings, lots, isRefreshing])
 
-  // ✅ Stale-while-revalidate: Refresh on window focus (optional)
+  // ✅ Stale-while-revalidate: Refresh on window focus
   useEffect(() => {
     const handleFocus = () => {
-      // Only refresh if page has been inactive for more than 30 seconds
       const lastRefresh = sessionStorage.getItem('biens-last-refresh')
       if (lastRefresh) {
         const timeSinceRefresh = Date.now() - parseInt(lastRefresh, 10)
@@ -140,9 +118,10 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
   }, [handleRefresh])
 
   return (
-    <div className="layout-container flex flex-col flex-1 min-h-0">
-      {/* Page Header */}
-      <div className="mb-6 lg:mb-8 flex-shrink-0">
+    <div className="h-full flex flex-col overflow-hidden layout-container">
+      <div className="content-max-width flex flex-col flex-1 min-h-0 overflow-hidden">
+        {/* Page Header */}
+        <div className="mb-4 lg:mb-6 flex-shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
@@ -169,13 +148,22 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
           </div>
         </div>
 
-        {/* ✅ PropertySelector with server data injected */}
-        <PropertySelector
-          mode="view"
-          showActions={true}
-          // Pass server data via a custom prop (we'll modify PropertySelector to support this)
-          initialData={buildingsData}
-        />
+        {/* Card wrapper - Structure exacte du dashboard */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+            {/* Content wrapper avec padding */}
+            <div className="flex-1 flex flex-col min-h-0 p-4">
+              <PatrimoineNavigator
+                buildings={buildings}
+                lots={lots}
+                loading={isRefreshing}
+                onRefresh={handleRefresh}
+                className="bg-transparent border-0 shadow-none flex-1 flex flex-col min-h-0"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

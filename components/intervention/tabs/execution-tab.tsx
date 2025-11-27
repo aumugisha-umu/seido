@@ -349,6 +349,10 @@ export function ExecutionTab({
                         const isFixedSlotCreator = !slot.proposed_by && slot.is_selected &&
                           intervention.assignments?.some((a: any) => a.user_id === currentUserId && a.role === 'gestionnaire')
                         const isCreator = isProposer || isFixedSlotCreator
+                        // Check proposer role to determine if user can respond (Accept/Reject)
+                        const isProposedByGestionnaire = slot.proposed_by_user?.role === 'gestionnaire'
+                        // Can only respond to slots proposed by gestionnaire (not own slots)
+                        const canRespondToSlot = !isCreator && isProposedByGestionnaire && slot.status !== 'selected' && slot.status !== 'cancelled'
                         const canSelect = canSelectSlot && !isCreator && slot.status !== 'selected' && slot.status !== 'cancelled'
 
                         return (
@@ -370,7 +374,7 @@ export function ExecutionTab({
                                 <div className="flex items-center gap-2 flex-1">
                                   <Clock className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                                   <span className="font-medium">
-                                    {slot.start_time} - {slot.end_time}
+                                    {slot.start_time?.substring(0, 5)} - {slot.end_time?.substring(0, 5)}
                                   </span>
                                 </div>
                                 <Badge variant={getStatusVariant(slot.status)} className="text-xs">
@@ -557,7 +561,8 @@ export function ExecutionTab({
                                   // If user has responded
                                   if (userResponse) {
                                     // PENDING: User hasn't decided yet - show Accept/Reject buttons
-                                    if (userResponse.response === 'pending') {
+                                    // Only show for slots proposed by gestionnaire (use proposed_by_user.role, not status)
+                                    if (userResponse.response === 'pending' && canRespondToSlot) {
                                       return (
                                         <div className="flex gap-2">
                                           <Button

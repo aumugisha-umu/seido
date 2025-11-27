@@ -49,10 +49,10 @@ export default function AuthCallback() {
         logger.error('❌ [AUTH-CALLBACK] Missing tokens in URL')
         setStatus('error')
         setMessage('❌ Tokens manquants dans l\'URL')
-        // Redirect to login after short delay
+        // Redirect to login after short delay (réduit de 2000ms à 1500ms)
         setTimeout(() => {
           window.location.href = '/auth/login?error=missing_tokens'
-        }, 2000)
+        }, 1500)
         return
       }
 
@@ -120,10 +120,10 @@ export default function AuthCallback() {
           // Nettoyer le listener avant redirection
           subscription.unsubscribe()
 
-          // Rediriger après un court délai pour que l'UI se mette à jour
+          // Rediriger après un court délai pour que l'UI se mette à jour (réduit de 1000ms à 300ms)
           setTimeout(() => {
             window.location.href = destination
-          }, 1000)
+          }, 300)
         } else if (event === 'SIGNED_OUT') {
           logger.warn('⚠️ [AUTH-CALLBACK] User signed out unexpectedly')
           subscription.unsubscribe()
@@ -131,7 +131,7 @@ export default function AuthCallback() {
           setMessage('❌ Session expirée ou invalide')
           setTimeout(() => {
             window.location.href = '/auth/login?error=session_expired'
-          }, 2000)
+          }, 1500)
         }
       })
 
@@ -151,7 +151,7 @@ export default function AuthCallback() {
           setMessage(`❌ Erreur d'authentification : ${sessionError.message}`)
           setTimeout(() => {
             window.location.href = '/auth/login?error=callback_failed'
-          }, 3000)
+          }, 1500)
           return
         }
 
@@ -163,7 +163,7 @@ export default function AuthCallback() {
         setMessage(`❌ Erreur d'authentification`)
         setTimeout(() => {
           window.location.href = '/auth/login?error=callback_failed'
-        }, 3000)
+        }, 1500)
       }
 
       // Cleanup function

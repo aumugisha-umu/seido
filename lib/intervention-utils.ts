@@ -31,7 +31,7 @@ export const getStatusColor = (status: string) => {
       return "bg-red-100 text-red-800 border-red-200"
     case "approuvee":
       return "bg-green-100 text-green-800 border-green-200"
-    
+
     // Phase 2: Planification & Exécution
     case "demande_de_devis":
       return "bg-blue-100 text-blue-800 border-blue-200"
@@ -39,9 +39,9 @@ export const getStatusColor = (status: string) => {
       return "bg-yellow-100 text-yellow-800 border-yellow-200"
     case "planifiee":
       return "bg-purple-100 text-purple-800 border-purple-200"
-    case "en_cours":
+    case "en_cours": // DEPRECATED - kept for backward compatibility
       return "bg-indigo-100 text-indigo-800 border-indigo-200"
-    
+
     // Phase 3: Clôture
     case "cloturee_par_prestataire":
       return "bg-orange-100 text-orange-800 border-orange-200"
@@ -49,11 +49,11 @@ export const getStatusColor = (status: string) => {
       return "bg-emerald-100 text-emerald-800 border-emerald-200"
     case "cloturee_par_gestionnaire":
       return "bg-green-100 text-green-800 border-green-200"
-    
+
     // Transversal
     case "annulee":
       return "bg-gray-100 text-gray-800 border-gray-200"
-    
+
     default:
       return "bg-gray-100 text-gray-800 border-gray-200"
   }
@@ -68,7 +68,7 @@ export const getStatusLabel = (status: string) => {
       return "Rejetée"
     case "approuvee":
       return "Approuvée"
-    
+
     // Phase 2: Planification & Exécution
     case "demande_de_devis":
       return "Demande de devis"
@@ -76,9 +76,9 @@ export const getStatusLabel = (status: string) => {
       return "Planification"
     case "planifiee":
       return "Planifiée"
-    case "en_cours":
+    case "en_cours": // DEPRECATED - kept for backward compatibility
       return "En cours"
-    
+
     // Phase 3: Clôture
     case "cloturee_par_prestataire":
       return "Clôturée par prestataire"
@@ -86,11 +86,11 @@ export const getStatusLabel = (status: string) => {
       return "Clôturée par locataire"
     case "cloturee_par_gestionnaire":
       return "Clôturée par gestionnaire"
-    
+
     // Transversal
     case "annulee":
       return "Annulée"
-    
+
     default:
       return status
   }
@@ -166,7 +166,7 @@ export const getStatusIcon = (status: string): string => {
       return "Calendar" // Calendrier pour planification
     case "planifiee":
       return "CalendarCheck" // Calendrier validé pour intervention planifiée
-    case "en_cours":
+    case "en_cours": // DEPRECATED - kept for backward compatibility
       return "Play" // Play pour intervention en cours
 
     // Phase 3: Clôture
@@ -209,6 +209,32 @@ export const getTypeIcon = (type: string): string => {
   }
 }
 
+export const getTypeLabel = (_type: string) => {
+  const labels: Record<string, string> = {
+    plomberie: 'Plomberie',
+    electricite: 'Électricité',
+    chauffage: 'Chauffage',
+    serrurerie: 'Serrurerie',
+    peinture: 'Peinture',
+    maintenance: 'Maintenance',
+    autre: 'Autre'
+  }
+  return labels[_type?.toLowerCase()] || 'Autre'
+}
+
+export const getTypeBadgeColor = (_type: string) => {
+  const colors: Record<string, string> = {
+    plomberie: 'bg-blue-100 text-blue-800 border-blue-200',
+    electricite: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+    chauffage: 'bg-red-100 text-red-800 border-red-200',
+    serrurerie: 'bg-gray-100 text-gray-800 border-gray-200',
+    peinture: 'bg-purple-100 text-purple-800 border-purple-200',
+    maintenance: 'bg-orange-100 text-orange-800 border-orange-200',
+    autre: 'bg-slate-100 text-slate-800 border-slate-200'
+  }
+  return colors[_type?.toLowerCase()] || 'bg-slate-100 text-slate-800 border-slate-200'
+}
+
 export const getStatusActionMessage = (status: string, userContext?: 'gestionnaire' | 'prestataire' | 'locataire'): string => {
   // Messages adaptés selon le contexte utilisateur
   if (userContext === 'prestataire') {
@@ -229,7 +255,7 @@ export const getStatusActionMessage = (status: string, userContext?: 'gestionnai
         return "Vous devez planifier l'intervention"
       case "planifiee":
         return "Intervention planifiée - Vous pouvez commencer"
-      case "en_cours":
+      case "en_cours": // DEPRECATED
         return "Intervention en cours - Terminez quand c'est fait"
 
       // Phase 3: Clôture - Statuts mappés côté prestataire
@@ -267,7 +293,7 @@ export const getStatusActionMessage = (status: string, userContext?: 'gestionnai
         return "Planification en cours avec le prestataire"
       case "planifiee":
         return "Intervention programmée"
-      case "en_cours":
+      case "en_cours": // DEPRECATED
         return "Intervention en cours"
 
       // Phase 3: Clôture
@@ -305,7 +331,7 @@ export const getStatusActionMessage = (status: string, userContext?: 'gestionnai
       return "En attente des disponibilités du locataire et prestataire"
     case "planifiee":
       return "Intervention planifiée"
-    case "en_cours":
+    case "en_cours": // DEPRECATED
       return "Intervention en cours d'exécution"
 
     // Phase 3: Clôture

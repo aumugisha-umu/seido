@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { Wrench, Plus, ArrowRight } from "lucide-react"
+import Link from "next/link"
+import { Button } from "@/components/ui/button"
 import { useInterventionApproval } from "@/hooks/use-intervention-approval"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useInterventionPlanning } from "@/hooks/use-intervention-planning"
@@ -19,7 +22,7 @@ import { CancelQuoteRequestModal } from "@/components/intervention/modals/cancel
 import { InterventionCancellationManager } from "@/components/intervention/intervention-cancellation-manager"
 import { InterventionCancellationProvider } from "@/contexts/intervention-cancellation-context"
 
-import { InterventionsSectionClient } from "./interventions-section-client"
+import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { createBrowserSupabaseClient } from "@/lib/services"
 import type { Database } from '@/lib/database.types'
 import { toast } from 'sonner'
@@ -125,11 +128,36 @@ export function InterventionsSectionWithModals({
     }
   }
 
+  // Header actions for dashboard mode
+  const headerActions = (
+    <>
+      <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm">
+        <Link href="/gestionnaire/interventions/nouvelle-intervention" className="flex items-center">
+          <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-1" />
+          <span className="hidden sm:inline">Ajouter</span>
+        </Link>
+      </Button>
+      <Button asChild variant="outline" size="sm" className="flex-shrink-0 h-7 sm:h-8 px-2 sm:px-3 text-xs sm:text-sm">
+        <Link href="/gestionnaire/interventions" className="flex items-center">
+          <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 sm:mr-0.5" />
+          <span className="hidden sm:inline text-xs">Toutes</span>
+        </Link>
+      </Button>
+    </>
+  )
+
   return (
     <InterventionCancellationProvider>
-      <InterventionsSectionClient
+      <InterventionsNavigator
         interventions={interventions}
-        totalCount={totalCount}
+        showHeader={true}
+        headerConfig={{
+          title: "Interventions",
+          icon: Wrench,
+          actions: headerActions
+        }}
+        tabsPreset="dashboard"
+        compact={true}
         actionHooks={{
           approvalHook,
           quotingHook,

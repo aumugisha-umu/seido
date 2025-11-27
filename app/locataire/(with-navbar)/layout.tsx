@@ -17,14 +17,16 @@ export default async function WithNavbarLayout({
   const userInitial = userName.charAt(0).toUpperCase()
 
   return (
-    <>
+    <div className="flex flex-col h-screen">
       <DashboardHeader
         role="locataire"
         userName={userName}
         userInitial={userInitial}
         userEmail={user.email || ''}
       />
-      {children}
-    </>
+      <main className="flex-1 overflow-y-auto">
+        {children}
+      </main>
+    </div>
   )
 }

@@ -3,6 +3,9 @@ import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { workCompletionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { NotificationService } from '@/lib/services/domain/notification.service'
+import { NotificationRepository } from '@/lib/services/repositories/notification-repository'
+import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 
 
 export async function POST(
@@ -73,10 +76,11 @@ export async function POST(
     }
 
     // Check if intervention is in correct status
-    if (intervention.status !== 'en_cours') {
+    // Note: 'en_cours' is DEPRECATED - completion now directly from 'planifiee'
+    if (!['planifiee', 'en_cours'].includes(intervention.status)) { // en_cours kept for backward compatibility
       return NextResponse.json({
         success: false,
-        error: `Le rapport ne peut être soumis que pour les interventions en cours (statut actuel: ${intervention.status})`
+        error: `Le rapport ne peut être soumis que pour les interventions planifiées (statut actuel: ${intervention.status})`
       }, { status: 400 })
     }
 
@@ -84,7 +88,7 @@ export async function POST(
     // For gestionnaires, we check if they are assigned to the intervention in any capacity
     // For prestataires, we check specifically for prestataire role assignment
     let assignmentQuery = supabase
-      .from('intervention_contacts')
+      .from('intervention_assignments')
       .select('*')
       .eq('intervention_id', interventionId)
       .eq('user_id', user.id)
@@ -93,9 +97,10 @@ export async function POST(
       assignmentQuery = assignmentQuery.eq('role', 'prestataire')
     }
 
-    const { data: assignment, error: assignmentError } = await assignmentQuery.single()
+    const { data: assignment, error: assignmentError } = await assignmentQuery.maybeSingle()
 
     if (assignmentError || !assignment) {
+      logger.warn({ userId: user.id, interventionId, error: assignmentError }, '⚠️ User not assigned to intervention')
       return NextResponse.json({
         success: false,
         error: 'Vous n\'êtes pas assigné à cette intervention'
@@ -107,40 +112,39 @@ export async function POST(
     // Process media files (simplified - just store references)
     const processedMediaFiles = mediaFiles || []
 
-    // Create simplified work completion record
-    const workCompletionData = {
+    // Create report record in intervention_reports
+    const reportData = {
       intervention_id: interventionId,
-      provider_id: user.id,
-      work_summary: workReport.trim(),
-      work_details: workReport.trim(), // Use same content for both fields in simplified version
-      materials_used: null,
-      actual_duration_hours: 1, // Default duration of 1 hour for simplified workflow
-      actual_cost: null,
-      issues_encountered: null,
-      recommendations: null,
-      before_photos: JSON.stringify([]), // Empty for simplified version
-      after_photos: JSON.stringify(processedMediaFiles), // Put all media files in after_photos
-      documents: JSON.stringify([]),
-      quality_assurance: JSON.stringify({
-        workCompleted: true, // Automatically set to true for simplified version
-        areaClean: true,
-        clientInformed: true,
-        warrantyGiven: true
-      }),
-      submitted_at: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      team_id: intervention.team_id,
+      report_type: 'provider_report',
+      title: 'Rapport de fin de travaux',
+      content: workReport.trim(),
+      metadata: {
+        mediaFiles: processedMediaFiles.map(f => ({
+          name: f.name,
+          size: f.size,
+          type: f.type
+        })),
+        submitted_at: new Date().toISOString(),
+        report_version: 'simple' // Distinguish from detailed reports
+      },
+      is_internal: false, // Visible to all parties (tenant, manager, provider)
+      created_by: user.id
     }
 
-    // Insert work completion record
-    const { data: workCompletion, error: insertError } = await supabase
-      .from('intervention_work_completions')
-      .insert(workCompletionData)
+    // Use service role client for inserting and updating (bypasses RLS)
+    // This is safe because we've already validated permissions above
+    const serviceRoleClient = createServiceRoleSupabaseClient()
+
+    // Insert report record
+    const { data: report, error: insertError } = await serviceRoleClient
+      .from('intervention_reports')
+      .insert(reportData)
       .select()
       .single()
 
     if (insertError) {
-      logger.error({ error: insertError }, "❌ Error creating simple work completion record:")
+      logger.error({ error: insertError }, "❌ Error creating simple work completion report:")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la sauvegarde du rapport'
@@ -148,7 +152,7 @@ export async function POST(
     }
 
     // Update intervention status
-    const { error: updateError } = await supabase
+    const { error: updateError } = await serviceRoleClient
       .from('interventions')
       .update({
         status: 'cloturee_par_prestataire',
@@ -168,18 +172,21 @@ export async function POST(
 
     // Send notifications (same as complex version)
     try {
-      // Notify tenant and gestionnaires
-      const { data: contacts } = await supabase
-        .from('intervention_contacts')
-        .select(`
-          user:user_id(id, name, email, role)
-        `)
-        .eq('intervention_id', interventionId)
-        .in('role', ['gestionnaire'])
+      // Notification service already uses the service role client
+      const notificationRepository = new NotificationRepository(serviceRoleClient)
+      const notificationService = new NotificationService(notificationRepository)
 
-      const tenantNotificationPromise = intervention.tenant_id ?
+      // Get tenant from intervention_assignments (tenant_id column was removed)
+      const { data: tenantAssignments } = await supabase
+        .from('intervention_assignments')
+        .select('user:users!user_id(id, name, email, role)')
+        .eq('intervention_id', interventionId)
+        .eq('role', 'locataire')
+        .limit(1)
+
+      const tenantNotificationPromises = tenantAssignments?.map(assignment =>
         notificationService.createNotification({
-          userId: intervention.tenant_id,
+          userId: assignment.user.id,
           teamId: intervention.team_id,
           createdBy: user.id,
           type: 'intervention',
@@ -194,7 +201,8 @@ export async function POST(
           },
           relatedEntityType: 'intervention',
           relatedEntityId: interventionId
-        }) : Promise.resolve()
+        })
+      ) || []
 
       // Get managers from intervention_assignments instead of intervention_contacts
       const { data: managerAssignments } = await supabase
@@ -222,7 +230,7 @@ export async function POST(
         })
       ) || []
 
-      await Promise.all([tenantNotificationPromise, ...managerNotificationPromises])
+      await Promise.all([...tenantNotificationPromises, ...managerNotificationPromises])
       logger.info({}, "📧 Simple work completion notifications sent")
     } catch (notifError) {
       logger.warn({ notifError: notifError }, "⚠️ Could not send work completion notifications:")
@@ -230,10 +238,10 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      workCompletion: {
-        id: workCompletion.id,
-        intervention_id: workCompletion.intervention_id,
-        submitted_at: workCompletion.submitted_at
+      report: {
+        id: report.id,
+        intervention_id: report.intervention_id,
+        created_at: report.created_at
       },
       message: 'Rapport de fin de travaux soumis avec succès'
     })

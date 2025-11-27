@@ -24,8 +24,8 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
-import { DateTimePicker } from "@/components/ui/date-time-picker"
-import { TimePicker } from "@/components/ui/time-picker"
+import { DatePicker } from "@/components/ui/date-picker"
+import { TimePicker24h } from "@/components/ui/time-picker-24h"
 import { Label } from "@/components/ui/label"
 import { ContactSection } from "@/components/ui/contact-section"
 import type { ContactSelectorRef } from "@/components/contact-selector"
@@ -272,15 +272,25 @@ export function AssignmentSectionV2({
               {/* Conditional content based on selection */}
               {schedulingType === "fixed" && (
                 <div className="p-3 bg-slate-50 rounded-lg">
-                  <DateTimePicker
-                    mode="datetime"
-                    dateValue={fixedDateTime.date}
-                    timeValue={fixedDateTime.time}
-                    onDateChange={(date) => onFixedDateTimeChange({ ...fixedDateTime, date })}
-                    onTimeChange={(time) => onFixedDateTimeChange({ ...fixedDateTime, time })}
-                    dateLabel="Date"
-                    timeLabel="Heure"
-                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-2">
+                      <Label className="text-sm font-medium">Date</Label>
+                      <DatePicker
+                        value={fixedDateTime.date}
+                        onChange={(date) => onFixedDateTimeChange({ ...fixedDateTime, date })}
+                        minDate={new Date().toISOString().split('T')[0]}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label className="text-sm font-medium">Heure</Label>
+                      <TimePicker24h
+                        value={fixedDateTime.time}
+                        onChange={(time) => onFixedDateTimeChange({ ...fixedDateTime, time })}
+                        className="w-full"
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -304,17 +314,16 @@ export function AssignmentSectionV2({
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
                         <div className="flex flex-col gap-3">
                           <Label className="text-sm font-medium px-1">Date</Label>
-                          <DateTimePicker
-                            mode="date"
-                            dateValue={slot.date}
-                            onDateChange={(date) => onUpdateTimeSlot(index, "date", date)}
-                            dateLabel=""
+                          <DatePicker
+                            value={slot.date}
+                            onChange={(date) => onUpdateTimeSlot(index, "date", date)}
+                            minDate={new Date().toISOString().split('T')[0]}
                             className="w-full"
                           />
                         </div>
                         <div className="flex flex-col gap-3">
                           <Label className="text-sm font-medium px-1">Début</Label>
-                          <TimePicker
+                          <TimePicker24h
                             value={slot.startTime}
                             onChange={(time) => onUpdateTimeSlot(index, "startTime", time)}
                             className="w-full"
@@ -322,7 +331,7 @@ export function AssignmentSectionV2({
                         </div>
                         <div className="flex flex-col gap-3">
                           <Label className="text-sm font-medium px-1">Fin</Label>
-                          <TimePicker
+                          <TimePicker24h
                             value={slot.endTime}
                             onChange={(time) => onUpdateTimeSlot(index, "endTime", time)}
                             className="w-full"

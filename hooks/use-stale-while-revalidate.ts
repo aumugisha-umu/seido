@@ -50,10 +50,33 @@ interface SWRReturn<T> {
 interface CacheEntry<T> {
   data: T
   timestamp: number
+  lastAccessed: number // ⚡ Pour LRU cleanup
 }
+
+// ⚡ MEMORY LEAK FIX: Limiter la taille du cache global
+const MAX_CACHE_SIZE = 100
 
 // Cache global partagé entre toutes les instances du hook
 const globalCache = new Map<string, CacheEntry<unknown>>()
+
+/**
+ * ⚡ LRU Cleanup - Supprime les entrées les moins récemment utilisées
+ * Appelée automatiquement quand le cache dépasse MAX_CACHE_SIZE
+ */
+function cleanupCache() {
+  if (globalCache.size <= MAX_CACHE_SIZE) return
+
+  // Trier par lastAccessed (LRU = Least Recently Used)
+  const entries = [...globalCache.entries()]
+    .sort((a, b) => a[1].lastAccessed - b[1].lastAccessed)
+
+  // Supprimer les 20% les plus anciens
+  const toDelete = Math.ceil(globalCache.size * 0.2)
+  for (let i = 0; i < toDelete && i < entries.length; i++) {
+    globalCache.delete(entries[i][0])
+    logger.info(`🧹 [SWR] LRU cleanup: removed ${entries[i][0]}`)
+  }
+}
 
 export function useSWR<T>(
   key: string,
@@ -90,10 +113,14 @@ export function useSWR<T>(
     const age = (Date.now() - cached.timestamp) / 1000 // Age en secondes
 
     if (age < freshTime) {
+      // ⚡ LRU: Mettre à jour lastAccessed lors de l'accès
+      cached.lastAccessed = Date.now()
       return { data: cached.data, status: 'fresh' }
     } else if (age < staleTime) {
+      cached.lastAccessed = Date.now()
       return { data: cached.data, status: 'stale' }
     } else if (age < maxAge) {
+      cached.lastAccessed = Date.now()
       return { data: cached.data, status: 'stale' }
     } else {
       // Cache expiré, le supprimer
@@ -124,10 +151,14 @@ export function useSWR<T>(
 
       if (mountedRef.current) {
         // Sauvegarder dans le cache
+        const now = Date.now()
         globalCache.set(key, {
           data: result,
-          timestamp: Date.now()
+          timestamp: now,
+          lastAccessed: now
         })
+        // ⚡ LRU Cleanup après ajout
+        cleanupCache()
 
         setData(result)
         setIsStale(false)
@@ -229,10 +260,14 @@ export function useSWR<T>(
     setData(updatedData)
 
     // Mettre à jour le cache
+    const now = Date.now()
     globalCache.set(key, {
       data: updatedData,
-      timestamp: Date.now()
+      timestamp: now,
+      lastAccessed: now
     })
+    // ⚡ LRU Cleanup après mutation
+    cleanupCache()
 
     logger.info(`✏️ [SWR:${key}] Data mutated`)
   }, [data, key])
@@ -278,9 +313,21 @@ export function invalidateSWRCache(keyPattern: string | RegExp) {
  * Fonction utilitaire pour précharger des données dans le cache
  */
 export function prefetchSWR<T>(key: string, data: T) {
+  const now = Date.now()
   globalCache.set(key, {
     data,
-    timestamp: Date.now()
+    timestamp: now,
+    lastAccessed: now
   })
+  // ⚡ LRU Cleanup après prefetch
+  cleanupCache()
   logger.info(`📥 [SWR] Prefetched data for: ${key}`)
+}
+
+/**
+ * ⚡ Fonction utilitaire pour obtenir la taille actuelle du cache
+ * Utile pour le debugging/monitoring
+ */
+export function getSWRCacheSize(): number {
+  return globalCache.size
 }

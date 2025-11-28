@@ -80,9 +80,14 @@ export async function GET(request: NextRequest) {
       team_id: teamId
     })))
 
+    // ⚡ CACHE: 5 minutes pour les contacts d'équipe (données stables)
     return NextResponse.json({
       success: true,
       contacts: contacts || []
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=300, stale-while-revalidate=600'
+      }
     })
 
   } catch (error) {

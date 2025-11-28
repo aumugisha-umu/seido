@@ -426,6 +426,7 @@ export async function POST(request: NextRequest) {
 
     logger.info({}, "🎉 Intervention creation completed successfully")
 
+    // ⚡ NO-CACHE: Mutations ne doivent pas être cachées
     return NextResponse.json({
       success: true,
       intervention: {
@@ -435,6 +436,10 @@ export async function POST(request: NextRequest) {
         created_at: intervention.created_at
       },
       message: 'Intervention créée avec succès'
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate'
+      }
     })
 
   } catch (error) {

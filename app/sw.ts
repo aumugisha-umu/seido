@@ -16,13 +16,41 @@ const serwist = new Serwist({
   clientsClaim: true,
   navigationPreload: false,
   runtimeCaching: [
+    // ⚡ OPTIMISATION: NetworkFirst pour les API stables (meilleure UX offline)
+    {
+      matcher: ({ url }: { url: URL }) => {
+        const stableEndpoints = ['/api/user-teams', '/api/buildings', '/api/notifications', '/api/team-contacts', '/api/lots']
+        return stableEndpoints.some(endpoint => url.pathname.startsWith(endpoint))
+      },
+      handler: new NetworkFirst({
+        cacheName: 'api-stable-cache',
+        plugins: [
+          new ExpirationPlugin({
+            maxEntries: 50,
+            maxAgeSeconds: 24 * 60 * 60, // 24 hours
+          }),
+        ],
+        networkTimeoutSeconds: 5, // Fallback au cache si réseau lent
+      }),
+    },
+    // NetworkOnly pour les mutations (create, update, delete)
+    {
+      matcher: ({ url }: { url: URL }) => {
+        const mutationPatterns = ['/api/create-', '/api/update-', '/api/invite-', '/api/push/']
+        return mutationPatterns.some(pattern => url.pathname.includes(pattern))
+      },
+      handler: new NetworkOnly({
+        networkTimeoutSeconds: 30,
+      }),
+    },
+    // Fallback NetworkOnly pour autres API
     {
       matcher: ({ url }: { url: URL }) => url.pathname.startsWith('/api/'),
       handler: new NetworkOnly({
         plugins: [
           new ExpirationPlugin({
             maxEntries: 16,
-            maxAgeSeconds: 24 * 60 * 60, // 24 hours
+            maxAgeSeconds: 24 * 60 * 60,
           }),
         ],
         networkTimeoutSeconds: 10,

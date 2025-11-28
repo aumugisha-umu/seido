@@ -10,7 +10,7 @@ import {
   createServerActionInterventionService,
   createServerActionSupabaseClient
 } from '@/lib/services'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
@@ -27,6 +27,29 @@ type Intervention = Database['public']['Tables']['interventions']['Row']
 export type ActionResult<T> =
   | { success: true; data: T }
   | { success: false; error: string }
+
+/**
+ * ⚡ CACHE INVALIDATION HELPER
+ * Centralise l'invalidation du cache pour les interventions
+ * Utilise à la fois revalidateTag (pour unstable_cache) et revalidatePath (pour Full Route Cache)
+ */
+function revalidateInterventionCaches(interventionId: string, teamId?: string) {
+  // Tags pour unstable_cache
+  revalidateTag('interventions')
+  revalidateTag('stats')
+  if (teamId) {
+    revalidateTag(`team-${teamId}-interventions`)
+    revalidateTag(`team-${teamId}-stats`)
+  }
+
+  // Paths pour Full Route Cache
+  revalidatePath('/gestionnaire/interventions')
+  revalidatePath(`/gestionnaire/interventions/${interventionId}`)
+  revalidatePath('/locataire/interventions')
+  revalidatePath(`/locataire/interventions/${interventionId}`)
+  revalidatePath('/prestataire/interventions')
+  revalidatePath(`/prestataire/interventions/${interventionId}`)
+}
 
 // Validation schemas
 const InterventionCreateSchema = z.object({

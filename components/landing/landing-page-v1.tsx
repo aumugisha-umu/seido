@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import Image from 'next/image'
+import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,9 +11,23 @@ import {
   CheckCircle2, Clock, MessageSquare, TrendingUp,
   Zap, Shield, BarChart3, Mail
 } from 'lucide-react'
-import { StatsSection } from './sections/stats-section'
-import { TestimonialsSection } from './sections/testimonials-section'
-import { FAQSection } from './sections/faq-section'
+
+// ⚡ Dynamic imports for below-the-fold sections (Phase 3.2 Optimization)
+// These sections use intersection observers and animations, so ssr: false is appropriate
+const StatsSection = dynamic(() => import('./sections/stats-section').then(mod => ({ default: mod.StatsSection })), {
+  ssr: false,
+  loading: () => <div className="py-16 md:py-20 bg-muted/30 animate-pulse"><div className="container mx-auto px-4 h-64" /></div>
+})
+
+const TestimonialsSection = dynamic(() => import('./sections/testimonials-section').then(mod => ({ default: mod.TestimonialsSection })), {
+  ssr: false,
+  loading: () => <div className="py-16 md:py-20 animate-pulse"><div className="container mx-auto px-4 h-64" /></div>
+})
+
+const FAQSection = dynamic(() => import('./sections/faq-section').then(mod => ({ default: mod.FAQSection })), {
+  ssr: false,
+  loading: () => <div className="py-16 md:py-20 bg-muted/30 animate-pulse"><div className="container mx-auto px-4 h-64" /></div>
+})
 
 /**
  * VERSION 1 - RECOMMENDED

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { useAuth } from "./use-auth"
-import { createBrowserSupabaseClient, createStatsService } from "@/lib/services"
+import { createStatsService } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
 export interface ManagerStats {
   buildingsCount: number
@@ -86,19 +86,9 @@ export function useManagerStats() {
       setError(null)
       logger.info(`🔄 [MANAGER-STATS] Fetching manager stats for: ${userId} ${bypassCache ? '(bypassing cache)' : ''}`)
 
-      // ✅ Initialiser le client Supabase et s'assurer que la session est prête
-      const supabase = createBrowserSupabaseClient()
-      try {
-        const { data: sessionRes, error: sessionErr } = await supabase.auth.getSession()
-        if (sessionErr || !sessionRes?.session) {
-          logger.warn('⚠️ [MANAGER-STATS] Session issue, attempting refresh...')
-          await supabase.auth.refreshSession()
-        }
-      } catch (sessionError) {
-        logger.warn(`⚠️ [MANAGER-STATS] Session check failed: ${sessionError}`)
-        // Continue anyway - let the service handle it
-      }
-
+      // ⚡ OPTIMISATION: Session check supprimé (Supabase gère automatiquement)
+      // Les clients Supabase rafraîchissent la session en background
+      // Économie: ~100-200ms par fetch
       const statsService = createStatsService()
       const result = await statsService.getManagerStats(userId)
 

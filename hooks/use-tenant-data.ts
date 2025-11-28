@@ -5,7 +5,7 @@ import { createBrowserSupabaseClient, createTenantService } from '@/lib/services
 import { useAuth } from './use-auth'
 import { useResolvedUserId } from './use-resolved-user-id'
 import { logger, logError } from '@/lib/logger'
-interface TenantData {
+export interface TenantData {
   id: string
   reference: string
   floor?: number
@@ -22,9 +22,10 @@ interface TenantData {
     postal_code: string
     description?: string
   } | null
+  is_primary?: boolean
 }
 
-interface TenantStats {
+export interface TenantStats {
   openRequests: number
   inProgress: number
   thisMonthInterventions: number
@@ -32,7 +33,38 @@ interface TenantStats {
   nextPaymentDate: number
 }
 
-interface TenantIntervention {
+// ✅ Type pour les interventions brutes du service
+export interface RawIntervention {
+  id: string
+  title: string
+  description?: string
+  status: string
+  created_at: string
+  completed_date?: string
+  urgency?: string
+  intervention_type?: string
+  type?: string
+  lot?: {
+    reference: string
+    building?: {
+      name: string
+    }
+  }
+  assigned_contact?: {
+    name: string
+    phone: string
+    email: string
+  }
+}
+
+// ✅ Type enrichi avec quotes/slots/assignments
+export interface EnrichedIntervention extends RawIntervention {
+  quotes: Array<{ id: string; status: string; provider_id?: string; created_by?: string; amount?: number }>
+  timeSlots: Array<{ id: string; slot_date: string; start_time: string; status?: string; proposed_by?: string }>
+  assignments: Array<{ role: string; user_id: string; is_primary: boolean }>
+}
+
+export interface TenantIntervention {
   id: string
   title: string
   description: string
@@ -78,6 +110,7 @@ export const useTenantData = () => {
   const { user } = useAuth()
   const resolvedUserId = useResolvedUserId(user?.id)
   const [tenantData, setTenantData] = useState<TenantData | null>(null)
+  const [tenantProperties, setTenantProperties] = useState<TenantData[]>([])
   const [tenantStats, setTenantStats] = useState<TenantStats | null>(null)
   const [tenantInterventions, setTenantInterventions] = useState<TenantIntervention[]>([])
   const [loading, setLoading] = useState(true)
@@ -143,29 +176,35 @@ export const useTenantData = () => {
       const primaryLot = data.lots.find(l => l.is_primary)?.lot || data.lots[0]?.lot
 
       // Transform data to match hook interfaces
-      const transformedTenantData: TenantData | null = primaryLot ? {
-        id: primaryLot.id,
-        reference: primaryLot.reference,
-        floor: primaryLot.floor,
-        apartment_number: primaryLot.apartment_number,
-        surface_area: primaryLot.surface_area,
-        rooms: primaryLot.rooms,
-        charges_amount: primaryLot.charges_amount,
-        category: primaryLot.category,
-        building: primaryLot.building || null
-      } : null
+      const transformedTenantProperties: TenantData[] = data.lots.map((item: any) => ({
+        id: item.lot.id,
+        reference: item.lot.reference,
+        floor: item.lot.floor,
+        apartment_number: item.lot.apartment_number,
+        surface_area: item.lot.surface_area,
+        rooms: item.lot.rooms,
+        charges_amount: item.lot.charges_amount,
+        category: item.lot.category,
+        building: item.lot.building || null,
+        is_primary: item.is_primary // Keep track of primary status if needed
+      }))
+
+      const transformedTenantData = transformedTenantProperties.find((p: any) => p.is_primary) || transformedTenantProperties[0] || null
 
       // Calculate stats from interventions
       const now = new Date()
       const thisMonth = now.getMonth()
       const thisYear = now.getFullYear()
 
+      // ✅ Cast interventions to typed array
+      const rawInterventions = data.interventions as RawIntervention[]
+
       const transformedStats: TenantStats = {
-        openRequests: data.interventions.filter((i: any) => i.status === 'demande').length,
-        inProgress: data.interventions.filter((i: any) =>
+        openRequests: rawInterventions.filter((i: RawIntervention) => i.status === 'demande').length,
+        inProgress: rawInterventions.filter((i: RawIntervention) =>
           ['en_cours', 'planifiee', 'approuvee'].includes(i.status)
         ).length,
-        thisMonthInterventions: data.interventions.filter((i: any) => {
+        thisMonthInterventions: rawInterventions.filter((i: RawIntervention) => {
           const createdDate = new Date(i.created_at)
           return createdDate.getMonth() === thisMonth && createdDate.getFullYear() === thisYear
         }).length,
@@ -175,8 +214,8 @@ export const useTenantData = () => {
 
       // ⚡ ENRICHISSEMENT: Ajouter quotes, slots et assignments aux interventions pour le badge interactif
       logger.info('🔄 [TENANT-DATA] Enriching interventions with quotes, slots and assignments...')
-      const interventionsWithDetails = await Promise.all(
-        data.interventions.map(async (i: any) => {
+      const interventionsWithDetails: EnrichedIntervention[] = await Promise.all(
+        rawInterventions.map(async (i: RawIntervention) => {
           const [{ data: quotes }, { data: timeSlots }, { data: assignments }] = await Promise.all([
             supabase
               .from('intervention_quotes')
@@ -203,7 +242,7 @@ export const useTenantData = () => {
       logger.info('✅ [TENANT-DATA] Interventions enriched with quotes, slots and assignments')
 
       // Transform interventions
-      const transformedInterventions: TenantIntervention[] = interventionsWithDetails.map((i: any) => ({
+      const transformedInterventions: TenantIntervention[] = interventionsWithDetails.map((i: EnrichedIntervention) => ({
         id: i.id,
         title: i.title,
         description: i.description || '',
@@ -221,6 +260,8 @@ export const useTenantData = () => {
 
       if (mountedRef.current) {
         setTenantData(transformedTenantData)
+        setTenantProperties(transformedTenantProperties)
+        setTenantStats(transformedStats)
         setTenantStats(transformedStats)
         setTenantInterventions(transformedInterventions)
         lastResolvedIdRef.current = resolvedUserId
@@ -259,6 +300,7 @@ export const useTenantData = () => {
 
   return {
     tenantData,
+    tenantProperties,
     tenantStats,
     tenantInterventions,
     loading,

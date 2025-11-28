@@ -20,6 +20,7 @@ import { useTeamStatus } from "@/hooks/use-team-status"
 import UserMenu from "@/components/user-menu"
 import NotificationPopover from "@/components/notification-popover"
 import { InstallPWAHeaderButton } from "@/components/install-pwa-header-button"
+import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
 
 interface LocataireDashboardHybridProps {
   tenantData: TenantData | null
@@ -271,93 +272,20 @@ export default function LocataireDashboardHybrid({
           </div>
         </div>
 
-        {/* --- STATS CARDS (V2 Style + Dynamic Logic) --- */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {(() => {
-            const pendingCount = filteredInterventions.filter(i => ['demande', 'planification'].includes(i.status)).length
-            const activeCount = filteredInterventions.filter(i => ['en_cours', 'planifiee'].includes(i.status)).length
-            const completedCount = filteredInterventions.filter(i => ['cloturee_par_prestataire'].includes(i.status)).length
+        {/* --- STATS CARDS (Reusable Component) --- */}
+        {(() => {
+          const pendingCount = filteredInterventions.filter(i => ['demande', 'planification'].includes(i.status)).length
+          const activeCount = filteredInterventions.filter(i => ['en_cours', 'planifiee'].includes(i.status)).length
+          const completedCount = filteredInterventions.filter(i => ['cloturee_par_prestataire'].includes(i.status)).length
 
-            return (
-              <>
-                {/* Card 1: En attente (Dynamic Alert) */}
-                <Card className={cn(
-                  "border-none shadow-md transition-all duration-300 hover:transform hover:-translate-y-1",
-                  pendingCount > 0 ? "bg-orange-50 ring-1 ring-orange-200" : "bg-green-50 ring-1 ring-green-200"
-                )}>
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className={cn(
-                          "text-sm font-medium uppercase tracking-wider",
-                          pendingCount > 0 ? "text-orange-800" : "text-green-800"
-                        )}>
-                          Actions requises
-                        </p>
-                        <div className="flex items-baseline gap-2 mt-2">
-                          <span className={cn(
-                            "text-4xl font-bold",
-                            pendingCount > 0 ? "text-orange-600" : "text-green-600"
-                          )}>
-                            {pendingCount}
-                          </span>
-                          <span className={cn(
-                            "text-sm font-medium",
-                            pendingCount > 0 ? "text-orange-700" : "text-green-700"
-                          )}>
-                            alerte(s)
-                          </span>
-                        </div>
-                      </div>
-                      <div className={cn(
-                        "h-10 w-10 rounded-full flex items-center justify-center",
-                        pendingCount > 0 ? "bg-orange-100 text-orange-600" : "bg-green-100 text-green-600"
-                      )}>
-                        {pendingCount > 0 ? <AlertTriangle className="h-5 w-5" /> : <CheckCircle2 className="h-5 w-5" />}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Card 2: En cours */}
-                <Card className="border-none shadow-md bg-white hover:transform hover:-translate-y-1 transition-all duration-300">
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">En cours</p>
-                        <div className="flex items-baseline gap-2 mt-2">
-                          <span className="text-4xl font-bold text-blue-600">{activeCount}</span>
-                          <span className="text-sm text-slate-400">interventions</span>
-                        </div>
-                      </div>
-                      <div className="h-10 w-10 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center">
-                        <Wrench className="h-5 w-5" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Card 3: Terminées */}
-                <Card className="border-none shadow-md bg-white hover:transform hover:-translate-y-1 transition-all duration-300">
-                  <CardContent className="p-6">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-sm font-medium text-slate-500 uppercase tracking-wider">Terminées</p>
-                        <div className="flex items-baseline gap-2 mt-2">
-                          <span className="text-4xl font-bold text-green-600">{completedCount}</span>
-                          <span className="text-sm text-slate-400">interventions</span>
-                        </div>
-                      </div>
-                      <div className="h-10 w-10 rounded-full bg-green-50 text-green-600 flex items-center justify-center">
-                        <CheckCircle2 className="h-5 w-5" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </>
-            )
-          })()}
-        </div>
+          return (
+            <DashboardStatsCards
+              pendingCount={pendingCount}
+              activeCount={activeCount}
+              completedCount={completedCount}
+            />
+          )
+        })()}
 
         {/* --- INTERVENTIONS LIST (V2 Style) --- */}
         <div>

@@ -1,30 +1,20 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
-    Building2,
-    Users,
-    Wrench,
     ArrowUpRight,
-    MapPin,
-    Calendar,
-    AlertTriangle,
-    CheckCircle,
-    Clock,
-    TrendingUp,
-    Home,
     Droplets,
     Flame,
     Zap,
     Key,
     Hammer,
-    Plus
+    Plus,
+    Wrench,
+    Home
 } from "lucide-react"
-import { cn } from "@/lib/utils"
 import { ManagerInterventionCard } from "./manager-intervention-card"
+import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
 
 interface ManagerDashboardProps {
     stats: any
@@ -93,92 +83,13 @@ export function ManagerDashboardV2({ stats, contactStats, interventions, pending
             </div>
 
             {/* Colorful Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-                <Card className="bg-white border-none shadow-sm hover:shadow-md transition-all duration-200 rounded-2xl overflow-hidden group">
-                    <CardContent className="p-6 relative">
-                        <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <Building2 className="h-24 w-24 text-indigo-600" />
-                        </div>
-                        <div className="relative z-10">
-                            <div className="h-10 w-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
-                                <Building2 className="h-5 w-5" />
-                            </div>
-                            <p className="text-sm font-medium text-slate-500">Patrimoine</p>
-                            <h3 className="text-2xl font-bold text-slate-900 mt-1">{stats.buildingsCount}</h3>
-                            <div className="flex items-center gap-1 text-xs text-indigo-600 font-medium mt-2 bg-indigo-50 w-fit px-2 py-1 rounded-full">
-                                <Home className="h-3 w-3" /> {stats.lotsCount} lots
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-white border-none shadow-sm hover:shadow-md transition-all duration-200 rounded-2xl overflow-hidden group">
-                    <CardContent className="p-6 relative">
-                        <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <Users className="h-24 w-24 text-emerald-600" />
-                        </div>
-                        <div className="relative z-10">
-                            <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
-                                <Users className="h-5 w-5" />
-                            </div>
-                            <p className="text-sm font-medium text-slate-500">Occupation</p>
-                            <h3 className="text-2xl font-bold text-slate-900 mt-1">{stats.occupancyRate}%</h3>
-                            <div className="flex items-center gap-1 text-xs text-emerald-600 font-medium mt-2 bg-emerald-50 w-fit px-2 py-1 rounded-full">
-                                <TrendingUp className="h-3 w-3" /> Stable
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="bg-white border-none shadow-sm hover:shadow-md transition-all duration-200 rounded-2xl overflow-hidden group">
-                    <CardContent className="p-6 relative">
-                        <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <Wrench className="h-24 w-24 text-blue-600" />
-                        </div>
-                        <div className="relative z-10">
-                            <div className="h-10 w-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-                                <Wrench className="h-5 w-5" />
-                            </div>
-                            <p className="text-sm font-medium text-slate-500">Interventions</p>
-                            <h3 className="text-2xl font-bold text-slate-900 mt-1">{stats.interventionsCount}</h3>
-                            <div className="flex items-center gap-1 text-xs text-blue-600 font-medium mt-2 bg-blue-50 w-fit px-2 py-1 rounded-full">
-                                <Clock className="h-3 w-3" /> En cours
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className={cn(
-                    "border-none shadow-sm hover:shadow-md transition-all duration-200 rounded-2xl overflow-hidden group",
-                    pendingCount > 0 ? "bg-orange-500 text-white" : "bg-white"
-                )}>
-                    <CardContent className="p-6 relative">
-                        <div className="absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <AlertTriangle className={cn("h-24 w-24", pendingCount > 0 ? "text-white" : "text-orange-500")} />
-                        </div>
-                        <div className="relative z-10">
-                            <div className={cn(
-                                "h-10 w-10 rounded-xl flex items-center justify-center mb-4",
-                                pendingCount > 0 ? "bg-white/20 text-white" : "bg-orange-50 text-orange-600"
-                            )}>
-                                <AlertTriangle className="h-5 w-5" />
-                            </div>
-                            <p className={cn("text-sm font-medium", pendingCount > 0 ? "text-orange-100" : "text-slate-500")}>
-                                Actions requises
-                            </p>
-                            <h3 className={cn("text-2xl font-bold mt-1", pendingCount > 0 ? "text-white" : "text-slate-900")}>
-                                {pendingCount}
-                            </h3>
-                            <div className={cn(
-                                "flex items-center gap-1 text-xs font-medium mt-2 w-fit px-2 py-1 rounded-full",
-                                pendingCount > 0 ? "bg-white/20 text-white" : "bg-orange-50 text-orange-600"
-                            )}>
-                                {pendingCount > 0 ? "Urgent" : "Tout est calme"}
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+            <DashboardStatsCards
+                pendingCount={pendingCount}
+                activeCount={stats.interventionsCount}
+                buildingsCount={stats.buildingsCount}
+                lotsCount={stats.lotsCount}
+                occupancyRate={stats.occupancyRate}
+            />
 
             {/* Visual Interventions Grid */}
             <div>

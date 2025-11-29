@@ -2,6 +2,7 @@ import type React from "react"
 import { getServerAuthContext } from "@/lib/server-context"
 import { GestionnaireLayoutClient } from "./layout-client"
 import { FrillWidget } from "@/components/frill-widget"
+import { RealtimeWrapper } from "@/components/realtime-wrapper"
 
 /**
  * 🔐 GESTIONNAIRE LAYOUT - ROOT LAYOUT (Architecture Next.js 15 + Route Groups)
@@ -16,6 +17,7 @@ import { FrillWidget } from "@/components/frill-widget"
  * ✅ Key insight: Route Groups permettent des layouts différents pour différentes sections
  * ✅ URLs inchangées (parenthèses ignorées par Next.js)
  * ✅ React.cache() ensures getServerAuthContext() is called once per request
+ * ✅ RealtimeWrapper fournit le contexte Realtime centralisé à toute l'application
  */
 
 export default async function GestionnaireLayout({
@@ -25,13 +27,16 @@ export default async function GestionnaireLayout({
 }) {
   // ✅ Authentification commune à toutes les pages
   // (cached via React.cache() - partagé avec layouts enfants et pages)
-  await getServerAuthContext('gestionnaire')
+  const { profile, team } = await getServerAuthContext('gestionnaire')
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Contenu principal - DashboardHeader délégué aux Route Group layouts */}
       <main className="flex-1 flex flex-col min-h-0 overflow-y-auto">
-        {children}
+        {/* 🔄 RealtimeWrapper centralise les subscriptions Supabase Realtime */}
+        <RealtimeWrapper userId={profile.id} teamId={team?.id}>
+          {children}
+        </RealtimeWrapper>
       </main>
 
       {/* Client components pour interactivité */}

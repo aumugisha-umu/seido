@@ -1,3 +1,16 @@
+/**
+ * @deprecated DEPRECATED: Use `useRealtimeNotificationsV2` from `./use-realtime-notifications-v2` instead.
+ *
+ * This hook creates individual Supabase channels per component, causing:
+ * - Connection pool exhaustion (4-10+ channels instead of 1)
+ * - RLS overhead per channel
+ * - No centralized event management
+ *
+ * Migration: Replace with useRealtimeNotificationsV2 which uses the centralized RealtimeProvider.
+ * See: contexts/realtime-context.tsx
+ *
+ * @see useRealtimeNotificationsV2
+ */
 import { useEffect, useRef, useCallback } from 'react'
 import { RealtimeChannel } from '@supabase/supabase-js'
 import { createBrowserSupabaseClient } from '@/lib/services'

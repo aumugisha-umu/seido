@@ -1,6 +1,22 @@
 'use client'
 
 /**
+ * @deprecated DEPRECATED: Use `useRealtimeNotificationsV2` from `./use-realtime-notifications-v2` instead.
+ *
+ * This hook creates individual Supabase channels per component, causing:
+ * - Connection pool exhaustion (multiple channels instead of 1)
+ * - RLS overhead per channel
+ * - No centralized event management
+ *
+ * Migration: Replace with useRealtimeNotificationsV2 and useNotificationsState which use
+ * the centralized RealtimeProvider for optimized realtime subscriptions.
+ * See: contexts/realtime-context.tsx
+ *
+ * @see useRealtimeNotificationsV2
+ * @see useNotificationsState
+ *
+ * ---
+ * Original description:
  * useNotificationSubscription Hook
  * Custom hook for real-time notification management with Supabase
  * Handles notifications, unread counts, and real-time updates

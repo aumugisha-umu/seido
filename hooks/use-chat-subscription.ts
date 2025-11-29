@@ -1,6 +1,20 @@
 'use client'
 
 /**
+ * @deprecated DEPRECATED: Use `useRealtimeChatV2` from `./use-realtime-chat-v2` instead.
+ *
+ * This hook creates individual Supabase channels per chat thread, causing:
+ * - Connection pool exhaustion
+ * - No centralized event management
+ * - Duplicate subscriptions across components
+ *
+ * Migration: Replace with useRealtimeChatV2 which uses the centralized RealtimeProvider.
+ * See: contexts/realtime-context.tsx
+ *
+ * @see useRealtimeChatV2
+ *
+ * ---
+ * Original description:
  * useChatSubscription Hook
  * Custom hook for real-time chat functionality with Supabase subscriptions
  * Handles messages, optimistic updates, and connection management

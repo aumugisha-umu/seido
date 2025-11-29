@@ -84,30 +84,6 @@ export default function LocataireDashboardHybrid({
   if (error) return <div className="p-4 text-red-500">{error}</div>
   if (!tenantData) return null
 
-  // Helper functions from V2
-  const getTypeIcon = (type: string) => {
-    switch (type?.toLowerCase()) {
-      case "plomberie": return Droplets
-      case "electricite": return Zap
-      case "chauffage": return Flame
-      case "serrurerie": return Key
-      case "peinture": return Paintbrush
-      case "maintenance": return Hammer
-      default: return Wrench
-    }
-  }
-
-  const getTypeColor = (type: string) => {
-    switch (type?.toLowerCase()) {
-      case "plomberie": return "bg-blue-500"
-      case "electricite": return "bg-yellow-500"
-      case "chauffage": return "bg-orange-500"
-      case "serrurerie": return "bg-slate-500"
-      case "peinture": return "bg-purple-500"
-      default: return "bg-indigo-500"
-    }
-  }
-
   // Filter interventions based on selected property
   const filteredInterventions = selectedPropertyId === 'all'
     ? tenantInterventions
@@ -129,38 +105,35 @@ export default function LocataireDashboardHybrid({
   return (
     <div className="min-h-screen bg-gray-50/50 pb-20">
       {/* --- HEADER --- */}
-      <header className="sticky top-0 z-40 border-b bg-white shadow-sm">
-        <div className="content-max-width px-5 sm:px-6 lg:px-10">
-          <nav className="flex items-center justify-between h-16">
+      <header className="header">
+        <div className="header__container">
+          <nav className="header__nav">
             {/* Left: Logo + Download Button + Property Selector */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-1 min-w-0">
               {/* Logo */}
-              <div className="flex-shrink-0">
+              <div className="header__logo">
                 <Link href="/locataire/dashboard" className="block">
                   <Image
                     src="/images/Logo/Logo_Seido_Color.png"
                     alt="SEIDO"
                     width={140}
                     height={38}
-                    className="h-10 w-auto hover:opacity-80 transition-opacity duration-200"
+                    className="header__logo-image"
                   />
                 </Link>
               </div>
 
-              {/* Download Button */}
-              <InstallPWAHeaderButton />
-
               {/* Property Selector */}
-              <div>
+              <div className="min-w-0 flex-1">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-auto p-0 hover:bg-transparent flex items-center gap-2">
-                      <div className="text-left">
-                        <h1 className="font-bold text-sm leading-tight flex items-center gap-1">
-                          {selectedPropertyId === 'all' ? 'Vue d\'ensemble' : 'Mon Logement'}
-                          <ChevronDown className="h-4 w-4 text-gray-500" />
+                    <Button variant="ghost" className="h-auto p-0 hover:bg-transparent flex items-center gap-2 max-w-full">
+                      <div className="text-left min-w-0">
+                        <h1 className="header__title flex items-center gap-1 truncate">
+                          <span className="truncate">{selectedPropertyId === 'all' ? 'Vue d\'ensemble' : 'Mon Logement'}</span>
+                          <ChevronDown className="h-5 w-5 text-gray-500 flex-shrink-0" />
                         </h1>
-                        <p className="text-xs text-gray-500">
+                        <p className="header__subtitle truncate">
                           {selectedPropertyId === 'all'
                             ? `${tenantProperties.length} logement${tenantProperties.length > 1 ? 's' : ''}`
                             : currentProperty.building?.address}
@@ -201,20 +174,21 @@ export default function LocataireDashboardHybrid({
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
+
+              {/* Download Button - Moved to right of selector */}
+              <InstallPWAHeaderButton />
             </div>
 
             {/* Right: Notifications + User Menu */}
-            <div className="flex items-center space-x-2">
+            <div className="header__actions">
               {/* Notifications Popover */}
               <Popover open={isNotificationPopoverOpen} onOpenChange={setIsNotificationPopoverOpen}>
                 <PopoverTrigger asChild>
                   <button
-                    className={cn(
-                      "relative p-2 rounded-lg transition-all duration-200 border min-w-[44px] min-h-[44px] flex items-center justify-center",
-                      isNotificationPopoverOpen
-                        ? "bg-primary/10 text-primary border-primary/20 shadow-sm"
-                        : "text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300"
-                    )}
+                    className={`header__button ${isNotificationPopoverOpen
+                      ? 'header__button--active'
+                      : 'header__button--inactive'
+                      }`}
                     aria-label="Notifications"
                   >
                     <Bell className="h-5 w-5" />

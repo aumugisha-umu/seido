@@ -77,12 +77,11 @@ export function InstallPWAHeaderButton() {
   return (
     <Button
       onClick={handleInstallClick}
-      variant="outline"
+      className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm font-medium transition-all hover:scale-105"
       size="sm"
-      className="gap-2"
     >
       <Download className="h-4 w-4" />
-      <span className="hidden sm:inline">Installer</span>
+      <span className="hidden sm:inline">Installer l'app</span>
     </Button>
   )
 }

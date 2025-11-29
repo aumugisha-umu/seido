@@ -193,21 +193,21 @@ export default function DashboardHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b bg-white shadow-sm">
-        <div className="content-max-width px-5 sm:px-6 lg:px-10">
-          <nav className="flex items-center justify-between h-16">
+      <header className="header">
+        <div className="header__container">
+          <nav className="header__nav">
             {/* Logo à gauche */}
             <div className="flex items-center gap-4">
               <div className="flex items-center">
                 {/* Logo SEIDO - Cliquable vers dashboard */}
-                <div className="flex-shrink-0">
+                <div className="header__logo">
                   <Link href={`/${role}/dashboard`} className="block">
                     <Image
                       src="/images/Logo/Logo_Seido_Color.png"
                       alt="SEIDO"
                       width={140}
                       height={38}
-                      className="h-10 w-auto hover:opacity-80 transition-opacity duration-200"
+                      className="header__logo-image"
                     />
                   </Link>
                 </div>
@@ -245,19 +245,16 @@ export default function DashboardHeader({
             )}
 
             {/* Éléments droite */}
-            <div className="flex items-center space-x-2">
+            <div className="header__actions">
               {/* Notifications Popover - toujours visible */}
               {config.showUserElements && (
                 <Popover open={isNotificationPopoverOpen} onOpenChange={setIsNotificationPopoverOpen}>
                   <PopoverTrigger asChild>
                     <button
-                      className={`
-                        relative p-2 rounded-lg transition-all duration-200 border min-w-[44px] min-h-[44px] flex items-center justify-center
-                        ${isNotificationPopoverOpen || pathname.includes('/notifications')
-                          ? 'bg-primary/10 text-primary border-primary/20 shadow-sm'
-                          : 'text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300'
-                        }
-                      `}
+                      className={`header__button ${isNotificationPopoverOpen || pathname.includes('/notifications')
+                          ? 'header__button--active'
+                          : 'header__button--inactive'
+                        }`}
                       aria-label="Notifications"
                     >
                       <Bell className="h-5 w-5" />
@@ -298,7 +295,7 @@ export default function DashboardHeader({
               {/* Bouton hamburger - mobile et tablet uniquement */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-transparent hover:border-slate-300 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                className="lg:hidden header__button header__button--inactive"
                 aria-label="Menu de navigation"
                 aria-expanded={isMobileMenuOpen}
               >

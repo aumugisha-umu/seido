@@ -254,6 +254,89 @@
   /* 32px - 8 en Tailwind */
   --dashboard-header-gap: 1rem;
   /* 16px - 4 en Tailwind */
+
+  /* Header Typography System - Material Design 3 compliant */
+  --header-title-size: 1.25rem;
+  /* 20px - H1 minimum */
+  --header-subtitle-size: 0.875rem;
+  /* 14px - Caption */
+  --header-nav-text-size: 1rem;
+  /* 16px - Navigation */
+
+  /* Header Layout */
+  --header-height-mobile: 3.5rem;
+  /* 56px - 14 en Tailwind */
+  --header-height-desktop: 4rem;
+  /* 64px - 16 en Tailwind */
+  --header-logo-height: 2.5rem;
+  /* 40px - 10 en Tailwind */
+
+  /* Header Touch Targets */
+  --header-touch-target: 2.75rem;
+  /* 44px minimum */
+}
+
+/* ============================================
+   HEADER BEM COMPONENT
+   ============================================ */
+
+.header {
+  @apply sticky top-0 z-40 border-b bg-white shadow-sm;
+}
+
+.header__container {
+  @apply mx-auto px-4 sm:px-6 lg:px-8;
+  max-width: var(--content-max-width);
+}
+
+.header__nav {
+  @apply flex items-center justify-between;
+  height: var(--header-height-desktop);
+}
+
+.header__logo {
+  @apply flex-shrink-0;
+  height: var(--header-logo-height);
+  display: flex;
+  align-items: center;
+}
+
+.header__logo-image {
+  @apply h-10 w-auto hover:opacity-80 transition-opacity duration-200;
+}
+
+.header__title {
+  font-size: var(--header-title-size);
+  @apply font-bold leading-tight text-slate-900;
+}
+
+.header__subtitle {
+  font-size: var(--header-subtitle-size);
+  @apply text-gray-500;
+}
+
+.header__actions {
+  @apply flex items-center gap-2;
+}
+
+.header__button {
+  @apply relative p-2 rounded-lg transition-all duration-200 border flex items-center justify-center;
+  min-width: var(--header-touch-target);
+  min-height: var(--header-touch-target);
+}
+
+.header__button--active {
+  @apply bg-primary/10 text-primary border-primary/20 shadow-sm;
+}
+
+.header__button--inactive {
+  @apply text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300;
+}
+
+@media (max-width: 640px) {
+  .header__nav {
+    height: var(--header-height-mobile);
+  }
 }
 
 .dark {

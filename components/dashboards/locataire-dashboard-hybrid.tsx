@@ -21,6 +21,7 @@ import UserMenu from "@/components/user-menu"
 import NotificationPopover from "@/components/notification-popover"
 import { InstallPWAHeaderButton } from "@/components/install-pwa-header-button"
 import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
+import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
 
 interface LocataireDashboardHybridProps {
   tenantData: TenantData | null
@@ -252,7 +253,7 @@ export default function LocataireDashboardHybrid({
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-8">
+      <div className="dashboard__container space-y-8">
 
         {/* --- ACTION ZONE (V3 Style) --- */}
         <div className="bg-gray-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
@@ -287,73 +288,12 @@ export default function LocataireDashboardHybrid({
           )
         })()}
 
-        {/* --- INTERVENTIONS LIST (V2 Style) --- */}
-        <div>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-slate-800">Vos Interventions</h2>
-            <Button variant="link" className="text-indigo-600 font-medium">
-              Voir l'historique <ArrowUpRight className="h-4 w-4 ml-1" />
-            </Button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {sortedInterventions.map((intervention) => {
-              const TypeIcon = getTypeIcon(intervention.type)
-              const typeColor = getTypeColor(intervention.type)
-
-              return (
-                <div
-                  key={intervention.id}
-                  onClick={() => router.push(`/locataire/interventions/${intervention.id}`)}
-                  className="group relative bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer border border-slate-100"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-md", typeColor)}>
-                      <TypeIcon className="h-6 w-6" />
-                    </div>
-                    <Badge variant="secondary" className="bg-slate-100 text-slate-600 font-medium">
-                      {getStatusLabel(intervention.status)}
-                    </Badge>
-                  </div>
-
-                  <h3 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-indigo-600 transition-colors line-clamp-1">
-                    {intervention.title}
-                  </h3>
-
-                  <p className="text-slate-500 text-sm mb-4 line-clamp-2 h-10">
-                    {intervention.description || "Aucune description fournie."}
-                  </p>
-
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-50 text-sm text-slate-400">
-                    {selectedPropertyId === 'all' ? (
-                      <>
-                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                          <Building2 className="h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">{intervention.lot?.reference}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                          <MapPin className="h-4 w-4 flex-shrink-0" />
-                          <span className="truncate">{intervention.lot?.building?.name}</span>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="flex items-center gap-1.5">
-                          <Calendar className="h-4 w-4" />
-                          {new Date(intervention.created_at).toLocaleDateString('fr-FR')}
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <MapPin className="h-4 w-4" />
-                          {intervention.lot?.reference}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+        {/* --- INTERVENTIONS SECTION (Reusable Component) --- */}
+        <DashboardInterventionsSection
+          interventions={sortedInterventions}
+          userContext="locataire"
+          title="Vos Interventions"
+        />
       </div>
     </div>
   )

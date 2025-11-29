@@ -141,13 +141,52 @@ hooks/use-global-notifications.ts      # Migré vers v2
 hooks/use-notification-popover.ts      # Migré vers v2
 ```
 
-### Fichiers Marqués @deprecated
+### Fichiers Supprimés (Cleanup 2025-11-29)
 
 ```
-hooks/use-realtime-notifications.ts    # @deprecated → use v2
-hooks/use-chat-subscription.ts         # @deprecated → use v2
-hooks/use-notification-subscription.ts # @deprecated → use v2
+hooks/use-realtime-notifications.ts    # SUPPRIMÉ - remplacé par v2
+hooks/use-chat-subscription.ts         # SUPPRIMÉ - remplacé par v2
+hooks/use-notification-subscription.ts # SUPPRIMÉ - remplacé par v2
 ```
+
+### Migration Emails Complétée (2025-11-29)
+
+```
+hooks/use-realtime-emails.ts           # SUPPRIMÉ - remplacé par v2
+hooks/use-realtime-emails-v2.ts        # CRÉÉ - consumer hook via RealtimeProvider
+app/gestionnaire/(with-navbar)/mail/page.tsx  # MIGRÉ vers useRealtimeEmailsV2
+```
+
+---
+
+## Phase 2: Stratégie de Caching - VÉRIFIÉE (2025-11-29)
+
+### État des Composants
+
+| Composant | Status | Détails |
+|-----------|--------|---------|
+| **unstable_cache** | ✅ Complet | `lib/cache/cached-queries.ts` - 3 fonctions cachées |
+| **revalidateTag** | ✅ Complet | 100+ usages dans Server Actions |
+| **revalidatePath** | ✅ Complet | Invalidation granulaire par role/page |
+| **SWR Hook** | ✅ Complet | LRU cleanup, MAX_CACHE_SIZE=100 |
+| **Service Worker** | ✅ Configuré | `app/sw.ts` |
+| **Cache-Control headers** | ⚠️ Partiel | 4 routes API avec headers |
+
+### Fonctions Cachées Disponibles
+
+```typescript
+// lib/cache/cached-queries.ts
+getCachedManagerStats(teamId)     // TTL: 5min, tags: ['stats', 'manager-stats']
+getCachedBuildingsForTeam(teamId) // TTL: 5min, tags: ['buildings', 'team-X-buildings']
+getCachedTeamMembers(teamId)      // TTL: 10min, tags: ['team-members', 'team-X-members']
+```
+
+### Conformité Next.js 15
+
+- ✅ Request Memoization: Automatique via fetch()
+- ✅ Data Cache: unstable_cache avec tags
+- ✅ Full Route Cache: revalidatePath après mutations
+- ✅ Router Cache: Géré par Next.js
 
 ### Pattern Technique
 
@@ -177,6 +216,43 @@ hooks/use-notification-subscription.ts # @deprecated → use v2
 - **Bug Next.js #72842**: Corrigé dans PR #73063, disponible depuis Next.js 15.0.3+
 - Version actuelle: Next.js 15.2.4 (✅ fix inclus)
 - Les délais dans les flux auth peuvent être davantage réduits si les tests sont concluants
+
+---
+
+## 🎉 Résumé Final - Toutes Optimisations Complètes
+
+### Phases Terminées
+
+| Phase | Description | Impact |
+|-------|-------------|--------|
+| **Phase 1** | Quick Wins - Délais artificiels | Navigation fluide |
+| **Phase 2** | Protection double-clic | 100% single-click |
+| **Phase 3** | Optimisation React rendering | Moins de re-renders |
+| **Phase 4** | Infrastructure tests | Lighthouse CI ready |
+| **Phase 5** | Supabase Realtime centralisé | -90% connexions WS |
+| **Phase 2 Caching** | unstable_cache + revalidateTag | Données fraîches + performantes |
+
+### Architecture Finale
+
+```
+REALTIME (RealtimeProvider)
+├── 1 channel WebSocket par utilisateur
+├── 6 tables écoutées (notifications, messages, interventions, quotes, time_slots, emails)
+├── 4 consumer hooks v2
+└── Conformité 100% Supabase best practices
+
+CACHING (Next.js 15)
+├── unstable_cache pour requêtes lourdes (3 fonctions)
+├── revalidateTag/revalidatePath (100+ usages)
+├── SWR client cache avec LRU cleanup
+└── Service Worker configuré
+```
+
+### Fichiers Clés
+
+- `contexts/realtime-context.tsx` - RealtimeProvider central
+- `lib/cache/cached-queries.ts` - Fonctions cachées
+- `hooks/use-stale-while-revalidate.ts` - SWR client cache
 
 ---
 *Dernière mise à jour: 2025-11-29*

@@ -61,6 +61,7 @@ type TableName =
   | 'interventions'
   | 'intervention_quotes'
   | 'intervention_time_slots'
+  | 'emails'
 
 /** État de connexion du channel */
 type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error'
@@ -231,6 +232,17 @@ export function RealtimeProvider({ userId, teamId, children }: RealtimeProviderP
           table: 'intervention_time_slots'
         }, (payload) => {
           dispatchEvent('intervention_time_slots', payload.eventType as RealtimeEvent, payload)
+        })
+
+        // ──────────────────────────────────────────────────────────────────
+        // 📧 EMAILS - Emails reçus/envoyés (filtré par team côté consumer)
+        // ──────────────────────────────────────────────────────────────────
+        .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'emails'
+        }, (payload) => {
+          dispatchEvent('emails', 'INSERT', payload)
         })
 
         // ──────────────────────────────────────────────────────────────────

@@ -10,7 +10,7 @@ import { Plus, RefreshCw } from 'lucide-react'
 import { EmailClientService } from '@/lib/services/client/email-client.service'
 import { Email } from '@/lib/types/email-integration'
 import { MailboxEmail, Building } from './components/types'
-import { useRealtimeEmails } from '@/hooks/use-realtime-emails'
+import { useRealtimeEmailsV2 } from '@/hooks/use-realtime-emails-v2'
 
 // Adapter to convert real Email to MailboxEmail (for UI compatibility)
 const adaptEmail = (email: Email, buildings: Building[]): MailboxEmail => {
@@ -94,9 +94,10 @@ export default function EmailPage() {
     fetchTeamId()
   }, [])
 
-  // Real-time subscription
-  useRealtimeEmails({
+  // Real-time subscription (v2 - uses centralized RealtimeProvider)
+  useRealtimeEmailsV2({
     teamId,
+    showToast: true, // Toast handled by the hook
     onNewEmail: (newEmail) => {
       // Add new email to the top of the list if it belongs to the current folder
       if (currentFolder === 'inbox' && newEmail.direction === 'received') {

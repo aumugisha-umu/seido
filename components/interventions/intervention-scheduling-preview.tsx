@@ -69,7 +69,7 @@ interface SimpleTimeSlot {
   endTime: string
 }
 
-interface InterventionSchedulingPreviewProps {
+export interface InterventionSchedulingPreviewProps {
   // Participants
   managers?: Contact[]
   providers?: Contact[]

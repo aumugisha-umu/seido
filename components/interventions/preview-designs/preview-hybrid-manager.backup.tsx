@@ -428,63 +428,6 @@ export function PreviewHybridManager({
 
                         {/* TAB: PLANNING */}
                         <TabsContent value="planning" className="mt-0 space-y-6">
-                            {/* Quotes Card */}
-                            {requireQuote && (
-                                <Card className="border-slate-200 shadow-sm">
-                                    <CardHeader className="pb-3 border-b border-slate-100">
-                                        <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <FileText className="w-4 h-4 text-primary" />
-                                                <CardTitle className="text-base font-semibold text-slate-800">Devis</CardTitle>
-                                            </div>
-                                            <Button variant="default" size="sm" className="bg-purple-600 hover:bg-purple-700">
-                                                + Nouveau devis
-                                            </Button>
-                                        </div>
-                                    </CardHeader>
-                                    <CardContent className="pt-6">
-                                        {quotes.length > 0 ? (
-                                            <div className="space-y-3">
-                                                {quotes.map((quote: any) => (
-                                                    <div key={quote.id} className="flex items-center justify-between p-4 border border-slate-200 rounded-lg bg-white hover:border-blue-300 transition-colors">
-                                                        <div className="flex-1">
-                                                            <div className="flex items-center gap-3">
-                                                                <div>
-                                                                    <p className="font-semibold text-slate-800">{quote.provider_name || 'Devis #' + quote.id}</p>
-                                                                    <p className="text-sm text-slate-500">
-                                                                        Créé le {quote.created_at ? format(new Date(quote.created_at), 'dd MMM yyyy', { locale: fr }) : 'N/A'}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex items-center gap-4">
-                                                            <div className="text-right">
-                                                                <p className="text-lg font-bold text-slate-800">{quote.amount} €</p>
-                                                                <Badge
-                                                                    variant="secondary"
-                                                                    className={`text-[10px] ${quote.status === 'sent' ? 'bg-blue-100 text-blue-700' :
-                                                                            quote.status === 'pending' ? 'bg-amber-100 text-amber-700' :
-                                                                                quote.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                                                                    'bg-slate-100 text-slate-600'
-                                                                        }`}
-                                                                >
-                                                                    {quote.status}
-                                                                </Badge>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="flex flex-col items-center justify-center py-8 text-slate-400">
-                                                <FileText className="w-12 h-12 mb-3 opacity-20" />
-                                                <p className="text-sm">Aucun devis pour le moment</p>
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            )}
-
                             {/* Planning Card */}
                             <Card className="border-slate-200 shadow-sm">
                                 <CardHeader className="pb-3 border-b border-slate-100">

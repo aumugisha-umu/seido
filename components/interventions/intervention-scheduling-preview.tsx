@@ -84,6 +84,12 @@ interface InterventionSchedulingPreviewProps {
   scheduledDate?: string | null
   schedulingSlots?: SimpleTimeSlot[] | null
 
+  // Content
+  description?: string
+  instructions?: string
+  comments?: { id: string, author: string, content: string, date: string, role: string }[]
+  timelineEvents?: { id: string, title: string, date: string, status: 'completed' | 'current' | 'pending', description?: string }[]
+
   // Full time slots for compact card display
   fullTimeSlots?: FullTimeSlot[] | null
 
@@ -459,8 +465,8 @@ export function InterventionSchedulingPreview({
                                 ${slot.status === 'selected'
                                   ? 'bg-green-50 border-green-300'
                                   : slot.status === 'cancelled'
-                                  ? 'bg-gray-50 border-gray-200 opacity-60'
-                                  : 'bg-white border-purple-200'
+                                    ? 'bg-gray-50 border-gray-200 opacity-60'
+                                    : 'bg-white border-purple-200'
                                 }
                               `}
                             >
@@ -604,122 +610,122 @@ export function InterventionSchedulingPreview({
                                   const hasResponded = userResponse && userResponse.response !== 'pending'
 
                                   return (
-                                  <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
-                                    {currentUserRole === 'prestataire' || currentUserRole === 'locataire' ? (
-                                      // Prestataire/Locataire viewing gestionnaire-proposed slots
-                                      slot.proposed_by_user?.role === 'gestionnaire' || slot.proposed_by_user?.role === 'admin' ? (
-                                        hasResponded ? (
-                                          // User has already responded → Show "Modifier le choix"
-                                          onModifyChoice && (
+                                    <div className="flex gap-2 mt-2 pt-2 border-t border-gray-100">
+                                      {currentUserRole === 'prestataire' || currentUserRole === 'locataire' ? (
+                                        // Prestataire/Locataire viewing gestionnaire-proposed slots
+                                        slot.proposed_by_user?.role === 'gestionnaire' || slot.proposed_by_user?.role === 'admin' ? (
+                                          hasResponded ? (
+                                            // User has already responded → Show "Modifier le choix"
+                                            onModifyChoice && (
+                                              <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="flex-1 h-7 text-xs text-blue-700 border-blue-300 hover:bg-blue-50"
+                                                onClick={() => onModifyChoice(slot, userResponse.response as 'accepted' | 'rejected')}
+                                              >
+                                                <Edit3 className="w-3 h-3 mr-1" />
+                                                Modifier le choix
+                                              </Button>
+                                            )
+                                          ) : (
+                                            // User hasn't responded yet → Show Accepter/Rejeter
+                                            <>
+                                              {onApproveSlot && (
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  className="flex-1 h-7 text-xs text-green-700 border-green-300 hover:bg-green-50"
+                                                  onClick={() => onApproveSlot(slot)}
+                                                >
+                                                  <Check className="w-3 h-3 mr-1" />
+                                                  Accepter
+                                                </Button>
+                                              )}
+                                              {onRejectSlot && (
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  className="flex-1 h-7 text-xs text-red-700 border-red-300 hover:bg-red-50"
+                                                  onClick={() => onRejectSlot(slot)}
+                                                >
+                                                  <X className="w-3 h-3 mr-1" />
+                                                  Rejeter
+                                                </Button>
+                                              )}
+                                            </>
+                                          )
+                                        ) : null
+                                      ) : slot.proposed_by_user?.role === 'prestataire' ? (
+                                        // Gestionnaire viewing prestataire-proposed slots → Approuver/Rejeter
+                                        <>
+                                          {onApproveSlot && (
                                             <Button
                                               size="sm"
                                               variant="outline"
-                                              className="flex-1 h-7 text-xs text-blue-700 border-blue-300 hover:bg-blue-50"
-                                              onClick={() => onModifyChoice(slot, userResponse.response as 'accepted' | 'rejected')}
+                                              className="flex-1 h-7 text-xs text-green-700 border-green-300 hover:bg-green-50"
+                                              onClick={() => onApproveSlot(slot)}
                                             >
-                                              <Edit3 className="w-3 h-3 mr-1" />
-                                              Modifier le choix
+                                              <Check className="w-3 h-3 mr-1" />
+                                              Approuver
                                             </Button>
-                                          )
-                                        ) : (
-                                          // User hasn't responded yet → Show Accepter/Rejeter
-                                          <>
-                                            {onApproveSlot && (
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="flex-1 h-7 text-xs text-green-700 border-green-300 hover:bg-green-50"
-                                                onClick={() => onApproveSlot(slot)}
-                                              >
-                                                <Check className="w-3 h-3 mr-1" />
-                                                Accepter
-                                              </Button>
-                                            )}
-                                            {onRejectSlot && (
-                                              <Button
-                                                size="sm"
-                                                variant="outline"
-                                                className="flex-1 h-7 text-xs text-red-700 border-red-300 hover:bg-red-50"
-                                                onClick={() => onRejectSlot(slot)}
-                                              >
-                                                <X className="w-3 h-3 mr-1" />
-                                                Rejeter
-                                              </Button>
-                                            )}
-                                          </>
-                                        )
-                                      ) : null
-                                    ) : slot.proposed_by_user?.role === 'prestataire' ? (
-                                      // Gestionnaire viewing prestataire-proposed slots → Approuver/Rejeter
-                                      <>
-                                        {onApproveSlot && (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="flex-1 h-7 text-xs text-green-700 border-green-300 hover:bg-green-50"
-                                            onClick={() => onApproveSlot(slot)}
-                                          >
-                                            <Check className="w-3 h-3 mr-1" />
-                                            Approuver
-                                          </Button>
-                                        )}
-                                        {onRejectSlot && (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="flex-1 h-7 text-xs text-red-700 border-red-300 hover:bg-red-50"
-                                            onClick={() => onRejectSlot(slot)}
-                                          >
-                                            <X className="w-3 h-3 mr-1" />
-                                            Rejeter
-                                          </Button>
-                                        )}
-                                      </>
-                                    ) : (
-                                      // Gestionnaire viewing own slots → Modifier/Annuler
-                                      <>
-                                        {onEditSlot && (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="flex-1 h-7 text-xs"
-                                            onClick={() => onEditSlot(slot)}
-                                          >
-                                            <Edit className="w-3 h-3 mr-1" />
-                                            Modifier
-                                          </Button>
-                                        )}
-                                        {onCancelSlot && (
-                                          <Button
-                                            size="sm"
-                                            variant="outline"
-                                            className="flex-1 h-7 text-xs text-red-700 border-red-300 hover:bg-red-50"
-                                            onClick={() => onCancelSlot(slot)}
-                                          >
-                                            <X className="w-3 h-3 mr-1" />
-                                            Annuler
-                                          </Button>
-                                        )}
+                                          )}
+                                          {onRejectSlot && (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="flex-1 h-7 text-xs text-red-700 border-red-300 hover:bg-red-50"
+                                              onClick={() => onRejectSlot(slot)}
+                                            >
+                                              <X className="w-3 h-3 mr-1" />
+                                              Rejeter
+                                            </Button>
+                                          )}
+                                        </>
+                                      ) : (
+                                        // Gestionnaire viewing own slots → Modifier/Annuler
+                                        <>
+                                          {onEditSlot && (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="flex-1 h-7 text-xs"
+                                              onClick={() => onEditSlot(slot)}
+                                            >
+                                              <Edit className="w-3 h-3 mr-1" />
+                                              Modifier
+                                            </Button>
+                                          )}
+                                          {onCancelSlot && (
+                                            <Button
+                                              size="sm"
+                                              variant="outline"
+                                              className="flex-1 h-7 text-xs text-red-700 border-red-300 hover:bg-red-50"
+                                              onClick={() => onCancelSlot(slot)}
+                                            >
+                                              <X className="w-3 h-3 mr-1" />
+                                              Annuler
+                                            </Button>
+                                          )}
 
-                                        {/* Dot menu - Choose time slot */}
-                                        {canManageSlots && currentUserRole === 'gestionnaire' && slot.status !== 'cancelled' && slot.status !== 'selected' && slot.status !== 'rejected' && (
-                                          <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                              <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
-                                                <MoreVertical className="h-3.5 w-3.5" />
-                                              </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                              <DropdownMenuItem onClick={() => handleChooseSlot(slot)}>
-                                                <CheckCircle className="mr-2 h-4 w-4" />
-                                                Choisir cet horaire
-                                              </DropdownMenuItem>
-                                            </DropdownMenuContent>
-                                          </DropdownMenu>
-                                        )}
-                                      </>
-                                    )}
-                                  </div>
+                                          {/* Dot menu - Choose time slot */}
+                                          {canManageSlots && currentUserRole === 'gestionnaire' && slot.status !== 'cancelled' && slot.status !== 'selected' && slot.status !== 'rejected' && (
+                                            <DropdownMenu>
+                                              <DropdownMenuTrigger asChild>
+                                                <Button size="sm" variant="ghost" className="h-7 w-7 p-0">
+                                                  <MoreVertical className="h-3.5 w-3.5" />
+                                                </Button>
+                                              </DropdownMenuTrigger>
+                                              <DropdownMenuContent align="end">
+                                                <DropdownMenuItem onClick={() => handleChooseSlot(slot)}>
+                                                  <CheckCircle className="mr-2 h-4 w-4" />
+                                                  Choisir cet horaire
+                                                </DropdownMenuItem>
+                                              </DropdownMenuContent>
+                                            </DropdownMenu>
+                                          )}
+                                        </>
+                                      )}
+                                    </div>
                                   )
                                 })()}
                               </div>

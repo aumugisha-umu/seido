@@ -1,0 +1,221 @@
+'use client'
+
+/**
+ * PreviewHybridProvider - Vue Prestataire de la prévisualisation d'intervention (Refactorisée)
+ *
+ * Version simplifiée pour les prestataires:
+ * - Pas de commentaires internes (visible manager seulement)
+ * - Pas de gestion des documents
+ * - Peut soumettre des devis
+ * - Peut proposer des créneaux
+ *
+ * @example
+ * <PreviewHybridProvider
+ *   managers={managers}
+ *   tenants={tenants}
+ *   quotes={quotes}
+ *   description="Description de l'intervention"
+ * />
+ */
+
+import { useState, useMemo } from 'react'
+import { TabsContent } from '@/components/ui/tabs'
+import { MapPin } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
+// Types et composants partagés
+import {
+  // Types
+  Participant,
+  Quote,
+  TimeSlot,
+  Message,
+  // Layout
+  PreviewHybridLayout,
+  ContentWrapper,
+  InterventionTabs,
+  // Sidebar
+  InterventionSidebar,
+  // Cards
+  InterventionDetailsCard,
+  QuotesCard,
+  PlanningCard,
+  ConversationCard
+} from '../shared'
+
+// Import de l'ancienne interface pour compatibilité
+import { InterventionSchedulingPreviewProps } from '../intervention-scheduling-preview'
+
+/**
+ * Transforme les contacts de l'ancien format vers le nouveau format Participant
+ */
+const transformToParticipant = (contact: any, role: 'manager' | 'provider' | 'tenant'): Participant => ({
+  id: contact.id,
+  name: contact.name,
+  email: contact.email,
+  phone: contact.phone,
+  role
+})
+
+/**
+ * Composant principal refactorisé - Vue Prestataire
+ */
+export function PreviewHybridProviderRefactored({
+  managers = [],
+  providers = [],
+  tenants = [],
+  requireQuote = false,
+  quotes = [],
+  schedulingType = null,
+  scheduledDate = null,
+  fullTimeSlots = null,
+  onOpenProgrammingModal,
+  onCancelSlot,
+  onApproveSlot,
+  onRejectSlot,
+  onEditSlot,
+  canManageSlots,
+  currentUserId,
+  description,
+  instructions,
+  onCancelQuoteRequest,
+  onApproveQuote,
+  onRejectQuote
+}: InterventionSchedulingPreviewProps) {
+  // State
+  const [activeTab, setActiveTab] = useState('general')
+
+  // Transformation des données
+  // Note: Le prestataire voit managers et tenants, pas les autres prestataires
+  const participants = useMemo(() => ({
+    managers: managers.map((m: any) => transformToParticipant(m, 'manager')),
+    providers: [], // Les prestataires ne voient pas les autres prestataires
+    tenants: tenants.map((t: any) => transformToParticipant(t, 'tenant'))
+  }), [managers, tenants])
+
+  // Transformation des quotes (prestataire voit ses propres devis)
+  const transformedQuotes: Quote[] = useMemo(() =>
+    quotes
+      .filter((q: any) => q.provider_id === currentUserId) // Filtre ses propres devis
+      .map((q: any) => ({
+        id: q.id,
+        amount: q.amount,
+        status: q.status as Quote['status'],
+        provider_name: q.provider_name || q.provider?.name,
+        provider_id: q.provider_id,
+        created_at: q.created_at,
+        description: q.description
+      }))
+  , [quotes, currentUserId])
+
+  // Transformation des time slots
+  const transformedTimeSlots: TimeSlot[] = useMemo(() =>
+    (fullTimeSlots || []).map((slot: any) => ({
+      id: slot.id,
+      slot_date: slot.slot_date,
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      status: slot.status,
+      proposed_by: slot.proposed_by,
+      proposed_by_user: slot.proposed_by_user,
+      responses: slot.responses
+    }))
+  , [fullTimeSlots])
+
+  // Mock messages (à remplacer par de vraies données)
+  const mockMessages: Message[] = useMemo(() => [
+    { id: '1', content: 'Bonjour, voici les détails de l\'intervention.', author: 'Jean Dupont', role: 'manager', date: new Date().toISOString() },
+    { id: '2', content: 'Merci, je suis disponible la semaine prochaine.', author: 'Vous', role: 'provider', date: new Date().toISOString(), isMe: true }
+  ], [])
+
+  // Statut de l'intervention
+  const currentStatus = scheduledDate ? 'planifiee' : requireQuote ? 'demande_de_devis' : 'approuvee'
+
+  // Location (à récupérer des vraies données)
+  const location = "15 rue de la Paix, 75002 Paris"
+
+  return (
+    <PreviewHybridLayout
+      sidebar={
+        <InterventionSidebar
+          participants={participants}
+          currentUserRole="provider"
+          currentStatus={currentStatus}
+          onConversationClick={() => setActiveTab('conversations')}
+        />
+      }
+      content={
+        <InterventionTabs
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+          userRole="provider"
+        >
+          {/* TAB: GENERAL */}
+          <TabsContent value="general" className="mt-0 flex-1 overflow-y-auto">
+            <ContentWrapper>
+              {/* Description & Instructions */}
+              <InterventionDetailsCard
+                title="Détails de la mission"
+                description={description}
+                instructions={instructions}
+              />
+
+              {/* Localisation */}
+              <Card className="mt-6">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    Lieu d'intervention
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm">{location}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Le locataire vous communiquera les instructions d'accès
+                  </p>
+                </CardContent>
+              </Card>
+            </ContentWrapper>
+          </TabsContent>
+
+          {/* TAB: CONVERSATIONS (Messagerie) */}
+          <TabsContent value="conversations" className="mt-0 flex-1 overflow-hidden">
+            <ContentWrapper className="h-full">
+              <ConversationCard
+                messages={mockMessages}
+                currentUserId={currentUserId || 'current-user'}
+                currentUserRole="provider"
+                conversationType="group"
+                onSendMessage={(content) => console.log('Send message:', content)}
+                className="h-[600px]"
+              />
+            </ContentWrapper>
+          </TabsContent>
+
+          {/* TAB: PLANNING (Planification) */}
+          <TabsContent value="planning" className="mt-0 flex-1 overflow-y-auto">
+            <ContentWrapper>
+              {/* Devis - Le prestataire peut soumettre */}
+              <QuotesCard
+                quotes={transformedQuotes}
+                userRole="provider"
+                onAddQuote={() => console.log('Add quote')}
+                onViewQuote={(id) => console.log('View quote:', id)}
+                className="mb-6"
+              />
+
+              {/* Planning - Le prestataire peut proposer des créneaux */}
+              <PlanningCard
+                timeSlots={transformedTimeSlots}
+                scheduledDate={scheduledDate}
+                userRole="provider"
+                currentUserId={currentUserId || 'current-user'}
+                onAddSlot={onOpenProgrammingModal}
+              />
+            </ContentWrapper>
+          </TabsContent>
+        </InterventionTabs>
+      }
+    />
+  )
+}

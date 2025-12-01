@@ -3,16 +3,25 @@
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { PreviewModern } from '@/components/interventions/preview-designs/preview-modern'
 import { PreviewDashboard } from '@/components/interventions/preview-designs/preview-dashboard'
 import { PreviewTimeline } from '@/components/interventions/preview-designs/preview-timeline'
+// Legacy hybrid components
 import { PreviewHybridManager } from '@/components/interventions/preview-designs/preview-hybrid-manager'
 import { PreviewHybridTenant } from '@/components/interventions/preview-designs/preview-hybrid-tenant'
 import { PreviewHybridProvider } from '@/components/interventions/preview-designs/preview-hybrid-provider'
+// Refactored hybrid components (modular)
+import { PreviewHybridManagerRefactored } from '@/components/interventions/preview-designs/preview-hybrid-manager-refactored'
+import { PreviewHybridTenantRefactored } from '@/components/interventions/preview-designs/preview-hybrid-tenant-refactored'
+import { PreviewHybridProviderRefactored } from '@/components/interventions/preview-designs/preview-hybrid-provider-refactored'
 import { mockManagers, mockProviders, mockTenants, mockQuotes, mockTimeSlots, mockDescription, mockInstructions, mockComments, mockTimelineEvents } from '@/components/interventions/preview-designs/mock-data'
 
 export default function TestPreviewPage() {
     const [activeDesign, setActiveDesign] = useState<'modern' | 'dashboard' | 'timeline' | 'hybrid-manager' | 'hybrid-tenant' | 'hybrid-provider'>('modern')
+    const [useRefactored, setUseRefactored] = useState(true) // Toggle for refactored components
 
     const commonProps = {
         managers: mockManagers,
@@ -80,6 +89,22 @@ export default function TestPreviewPage() {
                     >
                         Provider View
                     </Button>
+
+                    {/* Toggle for refactored vs legacy components */}
+                    <div className="flex items-center gap-2 ml-4 pl-4 border-l border-slate-200">
+                        <Switch
+                            id="use-refactored"
+                            checked={useRefactored}
+                            onCheckedChange={setUseRefactored}
+                        />
+                        <Label htmlFor="use-refactored" className="text-sm cursor-pointer">
+                            {useRefactored ? (
+                                <Badge variant="default" className="bg-green-500">Refactored (Modular)</Badge>
+                            ) : (
+                                <Badge variant="outline" className="text-slate-500">Legacy</Badge>
+                            )}
+                        </Label>
+                    </div>
                 </div>
             </div>
 
@@ -103,20 +128,41 @@ export default function TestPreviewPage() {
                 )}
                 {activeDesign === 'hybrid-manager' && (
                     <div className="p-6">
-                        <h2 className="text-lg font-semibold mb-6 text-slate-500">Hybrid Design: Manager View</h2>
-                        <PreviewHybridManager {...commonProps} />
+                        <h2 className="text-lg font-semibold mb-6 text-slate-500">
+                            Hybrid Design: Manager View
+                            {useRefactored && <Badge className="ml-2 bg-green-500">Refactored</Badge>}
+                        </h2>
+                        {useRefactored ? (
+                            <PreviewHybridManagerRefactored {...commonProps} />
+                        ) : (
+                            <PreviewHybridManager {...commonProps} />
+                        )}
                     </div>
                 )}
                 {activeDesign === 'hybrid-tenant' && (
                     <div className="p-6">
-                        <h2 className="text-lg font-semibold mb-6 text-slate-500">Hybrid Design: Tenant View</h2>
-                        <PreviewHybridTenant {...commonProps} />
+                        <h2 className="text-lg font-semibold mb-6 text-slate-500">
+                            Hybrid Design: Tenant View
+                            {useRefactored && <Badge className="ml-2 bg-green-500">Refactored</Badge>}
+                        </h2>
+                        {useRefactored ? (
+                            <PreviewHybridTenantRefactored {...commonProps} />
+                        ) : (
+                            <PreviewHybridTenant {...commonProps} />
+                        )}
                     </div>
                 )}
                 {activeDesign === 'hybrid-provider' && (
                     <div className="p-6">
-                        <h2 className="text-lg font-semibold mb-6 text-slate-500">Hybrid Design: Provider View</h2>
-                        <PreviewHybridProvider {...commonProps} />
+                        <h2 className="text-lg font-semibold mb-6 text-slate-500">
+                            Hybrid Design: Provider View
+                            {useRefactored && <Badge className="ml-2 bg-green-500">Refactored</Badge>}
+                        </h2>
+                        {useRefactored ? (
+                            <PreviewHybridProviderRefactored {...commonProps} />
+                        ) : (
+                            <PreviewHybridProvider {...commonProps} />
+                        )}
                     </div>
                 )}
             </div>

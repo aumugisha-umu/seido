@@ -53,3 +53,6 @@ dashboard.html
 test-*.html
 # Test environment variables
 .env.test
+
+*storybook.log
+storybook-static

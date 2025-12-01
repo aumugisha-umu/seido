@@ -99,7 +99,7 @@ export function ManagerDashboardV2({ stats, contactStats, interventions, pending
                     <DashboardInterventionsSection
                         interventions={interventions}
                         userContext="gestionnaire"
-                        title="Activités récentes"
+                        title="Interventions"
                     />
                 </div>
             </div>

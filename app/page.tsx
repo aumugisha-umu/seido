@@ -1,4 +1,4 @@
-import { LandingPageV1 } from '@/components/landing'
+import { LandingPage } from '@/components/landing'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -20,5 +20,5 @@ export const metadata: Metadata = {
 }
 
 export default function HomePage() {
-  return <LandingPageV1 />
+  return <LandingPage />
 }

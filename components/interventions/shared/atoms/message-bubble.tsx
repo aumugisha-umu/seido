@@ -100,7 +100,7 @@ export const MessageBubble = ({
 
         {/* Horodatage */}
         {showTimestamp && (
-          <span className="text-[10px] text-muted-foreground mt-1">
+          <span className="text-xs text-muted-foreground mt-1">
             {formatRelativeDate(message.date)}
           </span>
         )}

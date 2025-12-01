@@ -89,11 +89,11 @@ export const CommentsCard = ({
       <CardHeader className="pb-3 flex-shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
-            <MessageSquareText className="h-4 w-4 text-muted-foreground" />
+            <MessageSquareText className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             Commentaires 
           </CardTitle>
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Lock className="h-3 w-3" />
+            <Lock className="h-3 w-3" aria-hidden="true" />
             <span>Gestionnaires uniquement</span>
           </div>
         </div>
@@ -123,17 +123,19 @@ export const CommentsCard = ({
               onKeyDown={handleKeyDown}
               className="min-h-[60px] resize-none"
               disabled={isLoading || isSubmitting}
+              aria-describedby="comment-help"
             />
             <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">
+              <span id="comment-help" className="text-xs text-muted-foreground">
                 Ctrl + Entrée pour envoyer
               </span>
               <Button
                 size="sm"
                 onClick={handleSubmit}
                 disabled={!newComment.trim() || isLoading || isSubmitting}
+                aria-label="Envoyer le commentaire"
               >
-                <Send className="h-3.5 w-3.5 mr-1.5" />
+                <Send className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
                 Envoyer
               </Button>
             </div>

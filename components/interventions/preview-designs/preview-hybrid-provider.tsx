@@ -87,7 +87,7 @@ export function PreviewHybridProvider({
                             {/* Tenants */}
                             {tenants.length > 0 && (
                                 <div>
-                                    <p className="text-xs font-semibold text-slate-400 uppercase mb-3">Locataire (Sur place)</p>
+                                    <p className="text-xs font-semibold text-slate-400 uppercase mb-3">Locataire</p>
                                     <div className="space-y-3">
                                         {tenants.map((t: any) => (
                                             <div key={t.id} className="flex items-center gap-3">

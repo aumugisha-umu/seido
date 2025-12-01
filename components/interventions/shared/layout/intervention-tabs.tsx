@@ -116,7 +116,7 @@ export const InterventionTabs = ({
               value={tab.value}
               className="flex items-center gap-2"
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-4 w-4" aria-hidden="true" />
               <span className="hidden sm:inline">{tab.label}</span>
             </TabsTrigger>
           )

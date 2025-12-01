@@ -41,7 +41,7 @@ export const DocumentsCard = ({
       <CardHeader className="pb-3 flex-shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="h-4 w-4 text-muted-foreground" />
+            <FileText className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             Rapports & Documents
           </CardTitle>
 
@@ -51,8 +51,9 @@ export const DocumentsCard = ({
               size="sm"
               onClick={onUpload}
               disabled={isLoading}
+              aria-label="Ajouter un document"
             >
-              <Upload className="h-3.5 w-3.5 mr-1.5" />
+              <Upload className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
               Ajouter
             </Button>
           )}
@@ -77,7 +78,7 @@ export const DocumentsCard = ({
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-            <FolderOpen className="h-10 w-10 mb-2 text-slate-300" />
+            <FolderOpen className="h-10 w-10 mb-2 text-slate-300" aria-hidden="true" />
             <p className="text-sm">Aucun document</p>
             {canUpload && onUpload && (
               <Button
@@ -85,6 +86,7 @@ export const DocumentsCard = ({
                 size="sm"
                 onClick={onUpload}
                 className="mt-2"
+                aria-label="Ajouter un document"
               >
                 Ajouter un document
               </Button>

@@ -144,7 +144,7 @@ export function InterventionDetailClient({
   const { user } = useAuth()
   const { currentUserTeam } = useTeamStatus()
   const { toast } = useToast()
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState('general')
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [cancelQuoteModal, setCancelQuoteModal] = useState<{
     isOpen: boolean
@@ -943,7 +943,7 @@ export function InterventionDetailClient({
   }
 
   return (
-    <>
+    <div className="h-screen flex flex-col overflow-hidden">
       {/* Unified Detail Page Header */}
       <DetailPageHeader
         onBack={() => router.push('/gestionnaire/interventions')}
@@ -1153,7 +1153,7 @@ export function InterventionDetailClient({
         }
       />
 
-      <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
+      <div className="layout-padding flex-1 min-h-0 bg-slate-50 flex flex-col overflow-hidden">
 
       {/* Programming Modal */}
       <ProgrammingModal
@@ -1238,6 +1238,7 @@ export function InterventionDetailClient({
 
       {/* Nouveau design PreviewHybrid */}
       <PreviewHybridLayout
+        className="flex-1"
         sidebar={
           <InterventionSidebar
             participants={participants}
@@ -1389,6 +1390,6 @@ export function InterventionDetailClient({
           onRequestContactCreation={handleRequestContactCreation}
         />
       </div>
-    </>
+    </div>
   )
 }

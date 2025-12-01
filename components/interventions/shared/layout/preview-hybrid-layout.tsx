@@ -18,7 +18,7 @@ export interface PreviewHybridLayoutProps {
   sidebar: React.ReactNode
   /** Contenu principal */
   content: React.ReactNode
-  /** Hauteur du layout (défaut: 800px) */
+  /** Hauteur du layout (optionnel - utiliser className="flex-1" pour remplir le conteneur) */
   height?: string | number
   /** Afficher la sidebar sur mobile */
   showSidebarOnMobile?: boolean
@@ -32,11 +32,14 @@ export interface PreviewHybridLayoutProps {
 export const PreviewHybridLayout = ({
   sidebar,
   content,
-  height = 800,
+  height,
   showSidebarOnMobile = false,
   className
 }: PreviewHybridLayoutProps) => {
-  const heightStyle = typeof height === 'number' ? `${height}px` : height
+  // Only apply height style if explicitly provided (not when using flex-1)
+  const heightStyle = height
+    ? (typeof height === 'number' ? `${height}px` : height)
+    : undefined
 
   return (
     <div
@@ -44,7 +47,7 @@ export const PreviewHybridLayout = ({
         'flex rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm',
         className
       )}
-      style={{ height: heightStyle }}
+      style={heightStyle ? { height: heightStyle } : undefined}
     >
       {/* Sidebar */}
       <div

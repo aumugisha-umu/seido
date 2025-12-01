@@ -91,11 +91,11 @@ export const DocumentItem = ({
       >
         {/* Icône */}
         <div className="flex items-center justify-center h-12 mb-2">
-          <FileIcon className="h-10 w-10 text-slate-400" />
+          <FileIcon className="h-10 w-10 text-slate-400" aria-hidden="true" />
         </div>
 
         {/* Nom du fichier */}
-        <p className="text-sm font-medium truncate text-center" title={document.name}>
+        <p className="text-sm font-medium truncate text-center">
           {document.name}
         </p>
 
@@ -112,20 +112,20 @@ export const DocumentItem = ({
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                <MoreHorizontal className="h-4 w-4" />
+              <Button variant="ghost" size="sm" className="h-7 w-7 p-0" aria-label="Plus d'actions pour le document">
+                <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {onView && (
                 <DropdownMenuItem onClick={() => onView(document.id)}>
-                  <Eye className="h-4 w-4 mr-2" />
+                  <Eye className="h-4 w-4 mr-2" aria-hidden="true" />
                   Voir
                 </DropdownMenuItem>
               )}
               {onDownload && (
                 <DropdownMenuItem onClick={() => onDownload(document.id)}>
-                  <Download className="h-4 w-4 mr-2" />
+                  <Download className="h-4 w-4 mr-2" aria-hidden="true" />
                   Télécharger
                 </DropdownMenuItem>
               )}
@@ -134,7 +134,7 @@ export const DocumentItem = ({
                   onClick={() => onDelete(document.id)}
                   className="text-red-600"
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
+                  <Trash2 className="h-4 w-4 mr-2" aria-hidden="true" />
                   Supprimer
                 </DropdownMenuItem>
               )}
@@ -154,7 +154,7 @@ export const DocumentItem = ({
         )}
         onClick={() => onView?.(document.id)}
       >
-        <FileIcon className="h-4 w-4 text-slate-400 flex-shrink-0" />
+        <FileIcon className="h-4 w-4 text-slate-400 flex-shrink-0" aria-hidden="true" />
         <span className="text-sm truncate flex-1">{document.name}</span>
         {onDownload && (
           <Button
@@ -165,8 +165,9 @@ export const DocumentItem = ({
               e.stopPropagation()
               onDownload(document.id)
             }}
+            aria-label={`Télécharger ${document.name}`}
           >
-            <Download className="h-3.5 w-3.5" />
+            <Download className="h-3.5 w-3.5" aria-hidden="true" />
           </Button>
         )}
       </div>
@@ -183,7 +184,7 @@ export const DocumentItem = ({
     >
       {/* Icône */}
       <div className="flex items-center justify-center h-10 w-10 rounded-lg bg-slate-100">
-        <FileIcon className="h-5 w-5 text-slate-500" />
+        <FileIcon className="h-5 w-5 text-slate-500" aria-hidden="true" />
       </div>
 
       {/* Informations */}
@@ -206,8 +207,9 @@ export const DocumentItem = ({
             size="sm"
             className="h-8 w-8 p-0"
             onClick={() => onView(document.id)}
+            aria-label={`Voir ${document.name}`}
           >
-            <Eye className="h-4 w-4" />
+            <Eye className="h-4 w-4" aria-hidden="true" />
           </Button>
         )}
         {onDownload && (
@@ -216,8 +218,9 @@ export const DocumentItem = ({
             size="sm"
             className="h-8 w-8 p-0"
             onClick={() => onDownload(document.id)}
+            aria-label={`Télécharger ${document.name}`}
           >
-            <Download className="h-4 w-4" />
+            <Download className="h-4 w-4" aria-hidden="true" />
           </Button>
         )}
         {canDelete && onDelete && (
@@ -226,8 +229,9 @@ export const DocumentItem = ({
             size="sm"
             className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
             onClick={() => onDelete(document.id)}
+            aria-label={`Supprimer ${document.name}`}
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
           </Button>
         )}
       </div>

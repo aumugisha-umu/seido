@@ -41,7 +41,7 @@ const AVATAR_COLORS: Record<UserRole, { bg: string; text: string }> = {
 const GROUP_LABELS: Record<UserRole, string> = {
   manager: 'Gestionnaire',
   provider: 'Prestataire',
-  tenant: 'Locataire (Sur place)'
+  tenant: 'Locataire'
 }
 
 /**
@@ -114,8 +114,10 @@ const ParticipantGroup = ({
                   activeConversation === participant.id && 'bg-blue-100 text-blue-600'
                 )}
                 onClick={() => onConversationClick(participant.id)}
+                aria-label={`Ouvrir la conversation avec ${participant.name}`}
+                aria-pressed={activeConversation === participant.id}
               >
-                <MessageSquare className="w-3.5 h-3.5" />
+                <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
               </Button>
             )}
           </div>
@@ -143,13 +145,15 @@ const GroupConversationButton = ({ isActive, onClick }: GroupConversationButtonP
           ? 'bg-blue-50 text-blue-700'
           : 'hover:bg-slate-50 text-slate-700'
       )}
+      aria-label="Ouvrir la discussion générale"
+      aria-pressed={isActive}
     >
       <div className="flex items-center gap-3">
         <div className={cn(
           'p-2 rounded-full',
           isActive ? 'bg-blue-100' : 'bg-slate-100'
         )}>
-          <Users className="w-4 h-4" />
+          <Users className="w-4 h-4" aria-hidden="true" />
         </div>
         <span className="text-sm font-medium">Discussion générale</span>
       </div>
@@ -157,7 +161,7 @@ const GroupConversationButton = ({ isActive, onClick }: GroupConversationButtonP
         'p-1.5 rounded-full',
         isActive ? 'text-blue-600' : 'text-slate-400'
       )}>
-        <ChevronRight className="w-4 h-4" />
+        <ChevronRight className="w-4 h-4" aria-hidden="true" />
       </div>
     </button>
   )
@@ -203,7 +207,7 @@ export const ParticipantsList = ({
     <div className={cn('space-y-6', className)}>
       {/* En-tête */}
       <h3 className="font-bold text-slate-800 flex items-center gap-2">
-        <Users className="w-5 h-5 text-primary" />
+        <Users className="w-5 h-5 text-primary" aria-hidden="true" />
         Participants
       </h3>
 

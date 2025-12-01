@@ -73,12 +73,12 @@ export const ConversationCard = ({
         <CardTitle className="text-base flex items-center gap-2">
           {isGroup ? (
             <>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <Users className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               Conversation de groupe
             </>
           ) : (
             <>
-              <User className="h-4 w-4 text-muted-foreground" />
+              <User className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
               {participantName || 'Conversation'}
             </>
           )}
@@ -103,7 +103,7 @@ export const ConversationCard = ({
             </>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground py-8">
-              <MessageSquare className="h-10 w-10 mb-2 text-slate-300" />
+              <MessageSquare className="h-10 w-10 mb-2 text-slate-300" aria-hidden="true" />
               <p className="text-sm">Aucun message</p>
               <p className="text-xs">Démarrez la conversation !</p>
             </div>
@@ -129,8 +129,9 @@ export const ConversationCard = ({
               size="sm"
               disabled={!newMessage.trim() || isLoading || isSending}
               className={cn(getRoleButtonClasses(currentUserRole))}
+              aria-label="Envoyer le message"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-4 w-4" aria-hidden="true" />
             </Button>
           </form>
         )}

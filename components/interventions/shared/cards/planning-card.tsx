@@ -62,7 +62,7 @@ export const PlanningCard = ({
       <CardHeader className="pb-3 flex-shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             Planning
           </CardTitle>
 
@@ -72,8 +72,9 @@ export const PlanningCard = ({
               size="sm"
               onClick={onAddSlot}
               disabled={isLoading}
+              aria-label="Proposer un créneau horaire"
             >
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              <Plus className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
               Proposer un créneau
             </Button>
           )}
@@ -86,7 +87,7 @@ export const PlanningCard = ({
           <div className="p-4 rounded-lg bg-green-50 border border-green-200">
             <div className="flex items-center gap-3">
               <div className="flex items-center justify-center h-10 w-10 rounded-full bg-green-100">
-                <CalendarCheck className="h-5 w-5 text-green-600" />
+                <CalendarCheck className="h-5 w-5 text-green-600" aria-hidden="true" />
               </div>
               <div>
                 <p className="text-sm font-medium text-green-700">

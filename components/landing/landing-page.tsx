@@ -30,7 +30,7 @@ export function LandingPage() {
     const [showDemoModal, setShowDemoModal] = useState(false)
 
     return (
-        <div className="min-h-screen bg-[#0f172a] text-white overflow-hidden selection:bg-purple-500 selection:text-white">
+        <div className="min-h-screen bg-[#0f172a] text-white selection:bg-purple-500 selection:text-white">
             {/* Background Gradients */}
             <div className="fixed inset-0 z-0 pointer-events-none">
                 <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600/30 rounded-full blur-[120px]" />
@@ -80,64 +80,68 @@ export function LandingPage() {
                 </div>
             </header>
 
-            {/* Hero Section - Background Image with Overlay */}
-            <section className="relative z-10 min-h-[80vh] flex items-center justify-center overflow-hidden">
-                {/* Background Image */}
-                <div className="absolute inset-0 z-0">
-                    <Image
-                        src="/images/hero-bg-example.png"
-                        alt="Seido Dashboard"
-                        fill
-                        className="object-cover"
-                        priority
-                    />
-                    {/* Gradient Overlay for Readability */}
-                    <div className="absolute inset-0 bg-[#0f172a]/80 backdrop-blur-[2px]" />
-                    <div className="absolute inset-0 bg-gradient-to-b from-[#0f172a]/50 via-transparent to-[#0f172a]" />
+            {/* Hero Section - Background Video with Overlay */}
+            <section className="relative z-10 min-h-[calc(100vh-73px)] flex items-center justify-start overflow-hidden">
+                {/* Background Video */}
+                <div className="absolute inset-0 z-0 bg-[#131426]">
+                    <video
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="w-full h-full object-contain object-right"
+                    >
+                        <source src="/videos/Image-to-Image-9b0ddc9b.webm" type="video/webm" />
+                    </video>
+                    {/* Gradient Overlay - Darker on left for text readability, transparent on right to show video */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-[#131426]/95 via-[#131426]/60 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-[#131426]/40 via-transparent to-[#131426]/60" />
                 </div>
 
-                <div className="container mx-auto px-4 relative z-10 text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 backdrop-blur-md mb-8 animate-fade-in-up">
-                        <span className="relative flex h-2 w-2">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                        </span>
-                        <span className="text-sm font-medium text-white/90">La référence des gestionnaires modernes</span>
-                    </div>
-
-                    <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.1] mb-8 max-w-4xl mx-auto drop-shadow-2xl">
-                        <span className="block text-white">
-                            Le futur de la
-                        </span>
-                        <span className="block text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
-                            gestion immobilière
-                        </span>
-                    </h1>
-
-                    <p className="text-xl md:text-2xl text-white/80 max-w-2xl mx-auto leading-relaxed mb-10 drop-shadow-lg">
-                        Une plateforme intelligente qui connecte gestionnaires, prestataires et locataires.
-                        <span className="text-white font-semibold"> Automatisez 80% de vos tâches.</span>
-                    </p>
-
-                    <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                        <Link href="/auth/signup">
-                            <Button size="lg" className="h-14 px-10 text-lg bg-white text-black hover:bg-white/90 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all hover:scale-105">
-                                Essai gratuit 14 jours
-                            </Button>
-                        </Link>
-                        <Button size="lg" variant="outline" className="h-14 px-10 text-lg border-white/30 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md" onClick={() => setShowDemoModal(true)}>
-                            <Mail className="w-5 h-5 mr-3" />
-                            Demander une démo
-                        </Button>
-                    </div>
-
-                    <div className="pt-12 flex items-center justify-center gap-6 text-sm text-white/60">
-                        <div className="flex -space-x-3">
-                            {[1, 2, 3, 4].map((i) => (
-                                <div key={i} className="w-10 h-10 rounded-full border-2 border-[#0f172a] bg-gradient-to-br from-gray-600 to-gray-500" />
-                            ))}
+                <div className="container mx-auto px-4 relative z-10">
+                    <div className="max-w-2xl">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 backdrop-blur-md mb-8 animate-fade-in-up">
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                            </span>
+                            <span className="text-sm font-medium text-white/90">La référence des gestionnaires modernes</span>
                         </div>
-                        <p className="font-medium">Rejoint par 500+ gestionnaires</p>
+
+                        <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.1] mb-8 drop-shadow-2xl">
+                            <span className="block text-white">
+                                Le futur de la
+                            </span>
+                            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
+                                gestion immobilière
+                            </span>
+                        </h1>
+
+                        <p className="text-xl md:text-2xl text-white/90 leading-relaxed mb-10 drop-shadow-lg">
+                            Une plateforme intelligente qui connecte gestionnaires, prestataires et locataires.
+                            <span className="text-white font-semibold"> Automatisez 80% de vos tâches.</span>
+                        </p>
+
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <Link href="/auth/signup">
+                                <Button size="lg" className="h-14 px-10 text-lg bg-white text-black hover:bg-white/90 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all hover:scale-105">
+                                    Essai gratuit 14 jours
+                                </Button>
+                            </Link>
+                            <Button size="lg" variant="outline" className="h-14 px-10 text-lg border-white/30 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md" onClick={() => setShowDemoModal(true)}>
+                                <Mail className="w-5 h-5 mr-3" />
+                                Demander une démo
+                            </Button>
+                        </div>
+
+                        <div className="pt-12 flex items-center gap-6 text-sm text-white/80">
+                            <div className="flex -space-x-3">
+                                {[1, 2, 3, 4].map((i) => (
+                                    <div key={i} className="w-10 h-10 rounded-full border-2 border-[#0f172a] bg-gradient-to-br from-gray-600 to-gray-500" />
+                                ))}
+                            </div>
+                            <p className="font-medium">Rejoint par 500+ gestionnaires</p>
+                        </div>
                     </div>
                 </div>
             </section>

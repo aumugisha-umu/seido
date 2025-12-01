@@ -236,15 +236,15 @@ const DetailedTimeline = ({
   }, [currentStatus])
 
   return (
-    <div className={cn('space-y-3', className)}>
-      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+    <div className={cn('flex flex-col h-full', className)}>
+      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex-shrink-0 mb-3">
         Progression
       </span>
 
-      {/* Zone scrollable avec hauteur maximale */}
+      {/* Zone scrollable avec hauteur disponible */}
       <div
         ref={scrollContainerRef}
-        className="relative max-h-[250px] overflow-y-auto pr-2 pb-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent"
+        className="relative flex-1 overflow-y-auto pr-2 pb-2 scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent min-h-0"
       >
         {visibleSteps.map((step, index) => {
           const stepIndex = TIMELINE_STEPS.findIndex(s => s.status === step.status)
@@ -262,11 +262,22 @@ const DetailedTimeline = ({
               key={step.status}
               ref={isCurrent ? currentStepRef : undefined}
               className="flex gap-3"
+              aria-current={isCurrent ? 'step' : undefined}
             >
               {/* Colonne de l'indicateur */}
               <div className="flex flex-col items-center">
                 {/* Icône/Point */}
                 <div
+                  role="img"
+                  aria-label={
+                    isCurrent && isError
+                      ? 'Statut d\'erreur'
+                      : isCurrent
+                        ? `Étape actuelle : ${step.label}`
+                        : isPast
+                          ? `Étape terminée : ${step.label}`
+                          : `Étape à venir : ${step.label}`
+                  }
                   className={cn(
                     'flex items-center justify-center h-6 w-6 rounded-full transition-colors',
                     isPast && 'bg-green-100 text-green-600',
@@ -275,9 +286,9 @@ const DetailedTimeline = ({
                   )}
                 >
                   {isCurrent && isError ? (
-                    <XCircle className="h-4 w-4" />
+                    <XCircle className="h-4 w-4" aria-hidden="true" />
                   ) : (
-                    <Icon className="h-4 w-4" />
+                    <Icon className="h-4 w-4" aria-hidden="true" />
                   )}
                 </div>
 
@@ -288,6 +299,7 @@ const DetailedTimeline = ({
                       'w-0.5 flex-1 mt-1 min-h-[24px]',
                       isPast ? 'bg-green-300' : 'bg-slate-200'
                     )}
+                    aria-hidden="true"
                   />
                 )}
               </div>
@@ -306,27 +318,20 @@ const DetailedTimeline = ({
                   {step.label}
                 </p>
 
-                {/* Date et auteur (uniquement pour les étapes passées ou courantes avec événement) */}
+                {/* Date (uniquement pour les étapes passées ou courantes avec événement) */}
                 {(isPast || isCurrent) && event && (
-                  <div className="mt-1 space-y-0.5">
+                  <div className="mt-1">
                     {/* Date et heure */}
-                    <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
+                    <p className="text-xs text-slate-500 flex items-center gap-1">
+                      <Clock className="h-3 w-3" aria-hidden="true" />
                       {formatEventDate(event.date)}
                     </p>
-
-                    {/* Auteur */}
-                    {event.author && (
-                      <p className="text-[11px] text-slate-500">
-                        par <span className="font-medium text-slate-600">{event.author}</span>
-                      </p>
-                    )}
                   </div>
                 )}
 
                 {/* Placeholder pour les étapes futures */}
                 {isFuture && (
-                  <p className="text-[11px] text-slate-400 mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     En attente
                   </p>
                 )}
@@ -338,26 +343,23 @@ const DetailedTimeline = ({
         {/* Indication si intervention annulée ou rejetée */}
         {isError && (
           <div className="flex gap-3 mt-2">
-            <div className="flex items-center justify-center h-6 w-6 rounded-full bg-red-100">
-              <XCircle className="h-4 w-4 text-red-600" />
+            <div 
+              className="flex items-center justify-center h-6 w-6 rounded-full bg-red-100"
+              role="img"
+              aria-label="Intervention annulée ou rejetée"
+            >
+              <XCircle className="h-4 w-4 text-red-600" aria-hidden="true" />
             </div>
             <div className="pt-0.5">
               <p className="text-sm text-red-700 font-medium">
                 {currentStatus === 'annulee' ? 'Annulée' : 'Rejetée'}
               </p>
               {eventsByStatus.get(currentStatus) && (
-                <div className="mt-1 space-y-0.5">
-                  <p className="text-[11px] text-slate-500 flex items-center gap-1">
-                    <Clock className="h-3 w-3" />
+                <div className="mt-1">
+                  <p className="text-xs text-slate-500 flex items-center gap-1">
+                    <Clock className="h-3 w-3" aria-hidden="true" />
                     {formatEventDate(eventsByStatus.get(currentStatus)!.date)}
                   </p>
-                  {eventsByStatus.get(currentStatus)?.author && (
-                    <p className="text-[11px] text-slate-500">
-                      par <span className="font-medium text-slate-600">
-                        {eventsByStatus.get(currentStatus)!.author}
-                      </span>
-                    </p>
-                  )}
                 </div>
               )}
             </div>

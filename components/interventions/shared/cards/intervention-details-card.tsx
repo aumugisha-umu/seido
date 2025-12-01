@@ -123,7 +123,7 @@ const PlanningStatusSection = ({ planning }: PlanningStatusSectionProps) => {
               planningConfig.bgColor
             )}
           >
-            <PlanningIcon className={cn('h-4 w-4', planningConfig.color)} />
+            <PlanningIcon className={cn('h-4 w-4', planningConfig.color)} aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium">Planning</p>
@@ -139,6 +139,7 @@ const PlanningStatusSection = ({ planning }: PlanningStatusSectionProps) => {
               planningConfig.color,
               'border-transparent'
             )}
+            aria-label={`Statut planning: ${planningConfig.label}`}
           >
             {planningConfig.label}
           </Badge>
@@ -152,7 +153,7 @@ const PlanningStatusSection = ({ planning }: PlanningStatusSectionProps) => {
               quotesConfig.bgColor
             )}
           >
-            <QuotesIcon className={cn('h-4 w-4', quotesConfig.color)} />
+            <QuotesIcon className={cn('h-4 w-4', quotesConfig.color)} aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium">Devis</p>
@@ -166,6 +167,7 @@ const PlanningStatusSection = ({ planning }: PlanningStatusSectionProps) => {
             <Badge
               variant="outline"
               className="text-xs bg-green-50 text-green-600 border-transparent shrink-0"
+              aria-label="Devis validé"
             >
               Validé
             </Badge>
@@ -173,6 +175,7 @@ const PlanningStatusSection = ({ planning }: PlanningStatusSectionProps) => {
             <Badge
               variant="outline"
               className="text-xs bg-blue-50 text-blue-600 border-transparent shrink-0"
+              aria-label={`${planning.quotesCount} devis reçu${planning.quotesCount > 1 ? 's' : ''}`}
             >
               {planning.quotesCount} reçu{planning.quotesCount > 1 ? 's' : ''}
             </Badge>
@@ -180,6 +183,7 @@ const PlanningStatusSection = ({ planning }: PlanningStatusSectionProps) => {
             <Badge
               variant="outline"
               className="text-xs bg-amber-50 text-amber-600 border-transparent shrink-0"
+              aria-label="Devis en attente"
             >
               En attente
             </Badge>
@@ -223,7 +227,7 @@ export const InterventionDetailsCard = ({
     <Card className={cn('w-full', className)}>
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
-          <FileText className="h-4 w-4 text-muted-foreground" />
+          <FileText className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
           {title || "Détails de l'intervention"}
         </CardTitle>
       </CardHeader>
@@ -245,7 +249,7 @@ export const InterventionDetailsCard = ({
             {description && <Separator />}
             <div className="space-y-1.5">
               <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                <ListChecks className="h-3.5 w-3.5" />
+                <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
                 Instructions
               </h4>
               <p className="text-sm leading-relaxed">{instructions}</p>
@@ -259,7 +263,7 @@ export const InterventionDetailsCard = ({
             {(description || instructions) && <Separator />}
             <div className="space-y-1.5">
               <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5" />
+                <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
                 Localisation
               </h4>
               <p className="text-sm">{location}</p>
@@ -304,7 +308,7 @@ export const CompactDetailsCard = ({
 
       {location && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <MapPin className="h-3.5 w-3.5" />
+          <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
           <span>{location}</span>
         </div>
       )}

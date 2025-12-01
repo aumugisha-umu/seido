@@ -125,7 +125,7 @@ export const SummaryCard = ({
                 planningConfig.bgColor
               )}
             >
-              <PlanningIcon className={cn('h-4 w-4', planningConfig.color)} />
+              <PlanningIcon className={cn('h-4 w-4', planningConfig.color)} aria-hidden="true" />
             </div>
             <div>
               <p className="text-sm font-medium">Planning</p>
@@ -143,6 +143,7 @@ export const SummaryCard = ({
               planningConfig.color,
               'border-transparent'
             )}
+            aria-label={`Statut planning: ${planningConfig.label}`}
           >
             {planningConfig.label}
           </Badge>
@@ -157,7 +158,7 @@ export const SummaryCard = ({
                 quotesConfig.bgColor
               )}
             >
-              <QuotesIcon className={cn('h-4 w-4', quotesConfig.color)} />
+              <QuotesIcon className={cn('h-4 w-4', quotesConfig.color)} aria-hidden="true" />
             </div>
             <div>
               <p className="text-sm font-medium">Devis</p>
@@ -173,6 +174,7 @@ export const SummaryCard = ({
             <Badge
               variant="outline"
               className="text-xs bg-green-50 text-green-600 border-transparent"
+              aria-label="Devis validé"
             >
               Validé
             </Badge>
@@ -180,6 +182,7 @@ export const SummaryCard = ({
             <Badge
               variant="outline"
               className="text-xs bg-blue-50 text-blue-600 border-transparent"
+              aria-label={`${quotesCount} devis reçu${quotesCount > 1 ? 's' : ''}`}
             >
               {quotesCount} reçu{quotesCount > 1 ? 's' : ''}
             </Badge>
@@ -187,6 +190,7 @@ export const SummaryCard = ({
             <Badge
               variant="outline"
               className="text-xs bg-amber-50 text-amber-600 border-transparent"
+              aria-label="Devis en attente"
             >
               En attente
             </Badge>

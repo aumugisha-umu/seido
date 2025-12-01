@@ -122,13 +122,14 @@ const QuoteItem = ({
           <Badge
             variant="outline"
             className={cn(
-              'text-[10px] mt-1',
+              'text-xs mt-1',
               statusConfig.bg,
               statusConfig.text,
               statusConfig.border
             )}
+            aria-label={`Statut du devis: ${statusConfig.label}`}
           >
-            <StatusIcon className="h-3 w-3 mr-1" />
+            <StatusIcon className="h-3 w-3 mr-1" aria-hidden="true" />
             {statusConfig.label}
           </Badge>
         </div>
@@ -149,8 +150,9 @@ const QuoteItem = ({
             size="sm"
             onClick={onApprove}
             className="text-green-600 border-green-200 hover:bg-green-50"
+            aria-label={`Valider le devis de ${quote.provider_name || 'prestataire'}`}
           >
-            <Check className="h-3.5 w-3.5 mr-1" />
+            <Check className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
             Valider
           </Button>
           <Button
@@ -158,8 +160,9 @@ const QuoteItem = ({
             size="sm"
             onClick={onReject}
             className="text-red-600 border-red-200 hover:bg-red-50"
+            aria-label={`Refuser le devis de ${quote.provider_name || 'prestataire'}`}
           >
-            <X className="h-3.5 w-3.5 mr-1" />
+            <X className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
             Refuser
           </Button>
         </div>
@@ -201,10 +204,10 @@ export const QuotesCard = ({
       <CardHeader className="pb-3 flex-shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
-            <Euro className="h-4 w-4 text-muted-foreground" />
+            <Euro className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             Estimation
             {quotes.length > 0 && (
-              <Badge variant="secondary" className="text-xs">
+              <Badge variant="secondary" className="text-xs" aria-label={`${quotes.length} devis`}>
                 {quotes.length}
               </Badge>
             )}
@@ -216,8 +219,9 @@ export const QuotesCard = ({
               size="sm"
               onClick={onAddQuote}
               disabled={isLoading}
+              aria-label="Créer un nouveau devis"
             >
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
+              <Plus className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
               Nouveau devis
             </Button>
           )}
@@ -228,7 +232,7 @@ export const QuotesCard = ({
         {/* Message si aucun devis */}
         {quotes.length === 0 && (
           <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-            <FileText className="h-10 w-10 mb-2 text-slate-300" />
+            <FileText className="h-10 w-10 mb-2 text-slate-300" aria-hidden="true" />
             <p className="text-sm">Aucun devis pour le moment</p>
             {canSubmit && onAddQuote && (
               <Button
@@ -236,6 +240,7 @@ export const QuotesCard = ({
                 size="sm"
                 onClick={onAddQuote}
                 className="mt-2"
+                aria-label="Créer un devis"
               >
                 Créer un devis
               </Button>

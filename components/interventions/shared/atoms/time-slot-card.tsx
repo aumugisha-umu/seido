@@ -126,11 +126,11 @@ export const TimeSlotCard = ({
         )}
       >
         <div className="flex items-center gap-2">
-          <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+          <Calendar className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
           <span className="text-sm font-medium">
             {formatDateShort(slot.slot_date)}
           </span>
-          <Clock className="h-3.5 w-3.5 text-muted-foreground ml-2" />
+          <Clock className="h-3.5 w-3.5 text-muted-foreground ml-2" aria-hidden="true" />
           <span className="text-sm">
             {formatTimeRange(slot.start_time, slot.end_time)}
           </span>
@@ -138,7 +138,7 @@ export const TimeSlotCard = ({
 
         {/* Badge de statut */}
         {slot.status === 'confirmed' && (
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-[10px]">
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs" aria-label="Créneau confirmé">
             Confirmé
           </Badge>
         )}
@@ -158,11 +158,11 @@ export const TimeSlotCard = ({
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <span className="font-medium">{formatDateShort(slot.slot_date)}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <Clock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             <span className="text-sm text-muted-foreground">
               {formatTimeRange(slot.start_time, slot.end_time)}
             </span>
@@ -172,13 +172,13 @@ export const TimeSlotCard = ({
         {/* Badge de statut */}
         {slot.status === 'confirmed' && (
           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-            <CheckCircle2 className="h-3 w-3 mr-1" />
+            <CheckCircle2 className="h-3 w-3 mr-1" aria-hidden="true" />
             Confirmé
           </Badge>
         )}
         {slot.status === 'cancelled' && (
           <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
-            <XCircle className="h-3 w-3 mr-1" />
+            <XCircle className="h-3 w-3 mr-1" aria-hidden="true" />
             Annulé
           </Badge>
         )}
@@ -187,7 +187,7 @@ export const TimeSlotCard = ({
       {/* Proposé par */}
       {slot.proposed_by_user && (
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-          <User className="h-3 w-3" />
+          <User className="h-3 w-3" aria-hidden="true" />
           <span>Proposé par {slot.proposed_by_user.name}</span>
         </div>
       )}
@@ -197,19 +197,19 @@ export const TimeSlotCard = ({
         <div className="flex items-center gap-3 text-xs mb-3">
           {responseCounts.accepted > 0 && (
             <div className="flex items-center gap-1 text-green-600">
-              <CheckCircle2 className="h-3.5 w-3.5" />
+              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
               <span>{responseCounts.accepted}</span>
             </div>
           )}
           {responseCounts.rejected > 0 && (
             <div className="flex items-center gap-1 text-red-600">
-              <XCircle className="h-3.5 w-3.5" />
+              <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
               <span>{responseCounts.rejected}</span>
             </div>
           )}
           {responseCounts.pending > 0 && (
             <div className="flex items-center gap-1 text-amber-600">
-              <HelpCircle className="h-3.5 w-3.5" />
+              <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
               <span>{responseCounts.pending}</span>
             </div>
           )}
@@ -225,8 +225,9 @@ export const TimeSlotCard = ({
             size="sm"
             onClick={() => onSelect(slot.id)}
             className="flex-1"
+            aria-label="Sélectionner ce créneau"
           >
-            <Check className="h-3.5 w-3.5 mr-1" />
+            <Check className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
             Sélectionner
           </Button>
         )}
@@ -240,8 +241,9 @@ export const TimeSlotCard = ({
                 size="sm"
                 onClick={() => onApprove(slot.id)}
                 className="text-green-700 border-green-300 hover:bg-green-50"
+                aria-label="Approuver ce créneau"
               >
-                <Check className="h-3.5 w-3.5" />
+                <Check className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
             )}
             {onReject && (
@@ -250,8 +252,9 @@ export const TimeSlotCard = ({
                 size="sm"
                 onClick={() => onReject(slot.id)}
                 className="text-red-700 border-red-300 hover:bg-red-50"
+                aria-label="Rejeter ce créneau"
               >
-                <X className="h-3.5 w-3.5" />
+                <X className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
             )}
           </>
@@ -266,8 +269,9 @@ export const TimeSlotCard = ({
                 size="sm"
                 onClick={() => onApprove(slot.id)}
                 className="text-green-700 border-green-300 hover:bg-green-50"
+                aria-label="Accepter ce créneau"
               >
-                <Check className="h-3.5 w-3.5 mr-1" />
+                <Check className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
                 Accepter
               </Button>
             )}
@@ -277,8 +281,9 @@ export const TimeSlotCard = ({
                 size="sm"
                 onClick={() => onReject(slot.id)}
                 className="text-red-700 border-red-300 hover:bg-red-50"
+                aria-label="Refuser ce créneau"
               >
-                <X className="h-3.5 w-3.5 mr-1" />
+                <X className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
                 Refuser
               </Button>
             )}
@@ -294,8 +299,9 @@ export const TimeSlotCard = ({
                 size="sm"
                 onClick={() => onEdit(slot.id)}
                 className="text-blue-700 border-blue-300 hover:bg-blue-50"
+                aria-label="Modifier ce créneau"
               >
-                <Edit className="h-3.5 w-3.5 mr-1" />
+                <Edit className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
                 Modifier
               </Button>
             )}
@@ -305,8 +311,9 @@ export const TimeSlotCard = ({
                 size="sm"
                 onClick={() => onCancel(slot.id)}
                 className="text-red-700 border-red-300 hover:bg-red-50"
+                aria-label="Annuler ce créneau"
               >
-                <X className="h-3.5 w-3.5 mr-1" />
+                <X className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
                 Annuler
               </Button>
             )}
@@ -336,13 +343,13 @@ export const TimeSlotCard = ({
         {userRole === 'manager' && onChoose && isActiveSlot && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                <MoreVertical className="h-4 w-4" />
+              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Plus d'actions pour ce créneau">
+                <MoreVertical className="h-4 w-4" aria-hidden="true" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem onClick={() => onChoose(slot.id)}>
-                <CalendarCheck className="h-4 w-4 mr-2" />
+                <CalendarCheck className="h-4 w-4 mr-2" aria-hidden="true" />
                 Choisir cet horaire
               </DropdownMenuItem>
             </DropdownMenuContent>

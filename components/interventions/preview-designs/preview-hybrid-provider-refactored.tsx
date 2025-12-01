@@ -84,6 +84,7 @@ export function PreviewHybridProviderRefactored({
 }: InterventionSchedulingPreviewProps) {
   // State
   const [activeTab, setActiveTab] = useState('general')
+  const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
 
   // Transformation des données
   // Note: Le prestataire voit managers et tenants, pas les autres prestataires
@@ -134,6 +135,65 @@ export function PreviewHybridProviderRefactored({
   // Location (à récupérer des vraies données)
   const location = "15 rue de la Paix, 75002 Paris"
 
+  // Déterminer le statut du planning
+  const planningStatus = scheduledDate ? 'scheduled' : 'pending'
+
+  // Statut des devis pour le prestataire
+  const quotesStatus = transformedQuotes.some(q => q.status === 'approved')
+    ? 'approved'
+    : transformedQuotes.length > 0
+      ? 'received'
+      : 'pending'
+
+  // Événements de timeline avec dates et auteurs (mock data)
+  const mockTimelineEvents = useMemo(() => {
+    const events = [
+      {
+        status: 'demande',
+        date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+        author: tenants[0]?.name || 'Sophie Martin',
+        authorRole: 'tenant' as const
+      },
+      {
+        status: 'approuvee',
+        date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+        author: managers[0]?.name || 'Jean Dupont',
+        authorRole: 'manager' as const
+      }
+    ]
+
+    if (requireQuote) {
+      events.push({
+        status: 'demande_de_devis',
+        date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+        author: managers[0]?.name || 'Jean Dupont',
+        authorRole: 'manager' as const
+      })
+    }
+
+    if (scheduledDate) {
+      events.push({
+        status: 'planifiee',
+        date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        author: 'Vous',
+        authorRole: 'provider' as const
+      })
+    }
+
+    return events
+  }, [managers, tenants, requireQuote, scheduledDate])
+
+  // Callbacks pour les conversations
+  const handleIndividualConversationClick = (participantId: string) => {
+    setActiveConversation(participantId)
+    setActiveTab('conversations')
+  }
+
+  const handleGroupConversationClick = () => {
+    setActiveConversation('group')
+    setActiveTab('conversations')
+  }
+
   return (
     <PreviewHybridLayout
       sidebar={
@@ -141,7 +201,11 @@ export function PreviewHybridProviderRefactored({
           participants={participants}
           currentUserRole="provider"
           currentStatus={currentStatus}
-          onConversationClick={() => setActiveTab('conversations')}
+          timelineEvents={mockTimelineEvents}
+          activeConversation={activeConversation}
+          showConversationButtons={true}
+          onConversationClick={handleIndividualConversationClick}
+          onGroupConversationClick={handleGroupConversationClick}
         />
       }
       content={
@@ -151,13 +215,19 @@ export function PreviewHybridProviderRefactored({
           userRole="provider"
         >
           {/* TAB: GENERAL */}
-          <TabsContent value="general" className="mt-0 flex-1 overflow-y-auto">
+          <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
             <ContentWrapper>
-              {/* Description & Instructions */}
+              {/* Description & Instructions avec aperçu planning */}
               <InterventionDetailsCard
                 title="Détails de la mission"
                 description={description}
                 instructions={instructions}
+                planning={{
+                  scheduledDate,
+                  status: planningStatus,
+                  quotesCount: transformedQuotes.length,
+                  quotesStatus
+                }}
               />
 
               {/* Localisation */}
@@ -179,21 +249,25 @@ export function PreviewHybridProviderRefactored({
           </TabsContent>
 
           {/* TAB: CONVERSATIONS (Messagerie) */}
-          <TabsContent value="conversations" className="mt-0 flex-1 overflow-hidden">
-            <ContentWrapper className="h-full">
-              <ConversationCard
-                messages={mockMessages}
-                currentUserId={currentUserId || 'current-user'}
-                currentUserRole="provider"
-                conversationType="group"
-                onSendMessage={(content) => console.log('Send message:', content)}
-                className="h-[600px]"
-              />
-            </ContentWrapper>
+          <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
+            <ConversationCard
+              messages={mockMessages}
+              currentUserId={currentUserId || 'current-user'}
+              currentUserRole="provider"
+              conversationType={activeConversation === 'group' ? 'group' : 'individual'}
+              participantName={
+                activeConversation !== 'group'
+                  ? [...participants.managers, ...participants.tenants]
+                      .find(p => p.id === activeConversation)?.name
+                  : undefined
+              }
+              onSendMessage={(content) => console.log('Send message:', content)}
+              className="flex-1 mx-4"
+            />
           </TabsContent>
 
           {/* TAB: PLANNING (Planification) */}
-          <TabsContent value="planning" className="mt-0 flex-1 overflow-y-auto">
+          <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
             <ContentWrapper>
               {/* Devis - Le prestataire peut soumettre */}
               <QuotesCard

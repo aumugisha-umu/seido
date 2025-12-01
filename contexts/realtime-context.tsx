@@ -125,6 +125,8 @@ export function RealtimeProvider({ userId, teamId, children }: RealtimeProviderP
   const handlersRef = useRef<Map<string, RealtimeHandler>>(new Map())
   const supabaseRef = useRef(createBrowserSupabaseClient())
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const reconnectAttemptsRef = useRef(0)
+  const MAX_RECONNECT_ATTEMPTS = 5
 
   // ──────────────────────────────────────────────────────────────────────────
   // Event Dispatcher - Route les événements vers les handlers enregistrés
@@ -249,25 +251,48 @@ export function RealtimeProvider({ userId, teamId, children }: RealtimeProviderP
         // Subscribe avec gestion des états
         // ──────────────────────────────────────────────────────────────────
         .subscribe((status, err) => {
-          logger.info(`[REALTIME] Channel status: ${status}`, { error: err })
-
+          // Ne log que si c'est un changement significatif ou une erreur
           if (status === 'SUBSCRIBED') {
             setIsConnected(true)
             setConnectionStatus('connected')
+            reconnectAttemptsRef.current = 0 // Reset counter on successful connection
             logger.info(`[REALTIME] ✅ Connected to channel seido:${userId}`)
           } else if (status === 'CHANNEL_ERROR') {
             setIsConnected(false)
             setConnectionStatus('error')
-            logger.error('[REALTIME] ❌ Channel error', { error: err })
+            reconnectAttemptsRef.current++
 
-            // Retry avec backoff exponentiel (max 30s)
+            // Log détaillé de l'erreur pour diagnostic
+            const errorDetails = {
+              message: err?.message || 'Unknown error',
+              code: (err as any)?.code,
+              reason: (err as any)?.reason,
+              attempt: reconnectAttemptsRef.current,
+              maxAttempts: MAX_RECONNECT_ATTEMPTS
+            }
+
+            // Ne pas spammer la console avec des erreurs vides répétées
+            if (err && Object.keys(err).length > 0) {
+              logger.error('[REALTIME] ❌ Channel error:', errorDetails)
+            } else {
+              // Erreur vide = probablement Realtime non activé ou problème réseau
+              logger.warn(`[REALTIME] ⚠️ Connection issue (attempt ${reconnectAttemptsRef.current}/${MAX_RECONNECT_ATTEMPTS})`)
+            }
+
+            // Retry avec backoff exponentiel (max 30s) si on n'a pas atteint la limite
             if (reconnectTimeoutRef.current) {
               clearTimeout(reconnectTimeoutRef.current)
             }
-            reconnectTimeoutRef.current = setTimeout(() => {
-              logger.info('[REALTIME] 🔄 Attempting reconnection...')
-              setupChannel()
-            }, 5000)
+
+            if (reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
+              // Backoff exponentiel: 2s, 4s, 8s, 16s, 30s (max)
+              const delay = Math.min(2000 * Math.pow(2, reconnectAttemptsRef.current - 1), 30000)
+              logger.info(`[REALTIME] 🔄 Reconnection scheduled in ${delay/1000}s...`)
+              reconnectTimeoutRef.current = setTimeout(setupChannel, delay)
+            } else {
+              logger.error('[REALTIME] 🛑 Max reconnection attempts reached. Realtime disabled.')
+              logger.info('[REALTIME] 💡 Check Supabase Dashboard → Database → Replication to enable Realtime on tables')
+            }
           } else if (status === 'CLOSED') {
             setIsConnected(false)
             setConnectionStatus('disconnected')
@@ -275,9 +300,10 @@ export function RealtimeProvider({ userId, teamId, children }: RealtimeProviderP
           } else if (status === 'TIMED_OUT') {
             setIsConnected(false)
             setConnectionStatus('error')
-            logger.warn('[REALTIME] Channel timed out, attempting reconnection...')
+            logger.warn('[REALTIME] ⏱ Channel timed out, attempting reconnection...')
             reconnectTimeoutRef.current = setTimeout(setupChannel, 3000)
           }
+          // Ignorer les autres statuts (SUBSCRIBING, etc.) pour réduire le bruit
         })
 
       channelRef.current = channel

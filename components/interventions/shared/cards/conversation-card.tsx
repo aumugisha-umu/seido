@@ -85,9 +85,9 @@ export const ConversationCard = ({
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="flex-1 flex flex-col min-h-0">
-        {/* Zone des messages */}
-        <div className="flex-1 overflow-y-auto space-y-3 mb-4 min-h-[200px] max-h-[400px]">
+      <CardContent className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* Zone des messages - prend toute la hauteur disponible */}
+        <div className="flex-1 overflow-y-auto space-y-3 mb-4">
           {messages.length > 0 ? (
             <>
               {messages.map((message) => (

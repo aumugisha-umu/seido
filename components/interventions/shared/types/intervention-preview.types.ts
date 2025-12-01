@@ -243,7 +243,10 @@ export interface InterventionPreviewProps {
 export interface ParticipantsListProps {
   participants: ParticipantsGroup
   currentUserRole: UserRole
+  /** Callback pour conversation individuelle avec un participant */
   onConversationClick?: (participantId: string) => void
+  /** Callback pour conversation de groupe */
+  onGroupConversationClick?: () => void
   activeConversation?: string | 'group'
   showConversationButtons?: boolean
   className?: string
@@ -255,6 +258,8 @@ export interface ParticipantsListProps {
 export interface QuotesCardProps {
   quotes: Quote[]
   userRole: UserRole
+  /** Afficher les boutons d'action (Valider/Refuser) - par défaut true pour les managers */
+  showActions?: boolean
   onAddQuote?: () => void
   onViewQuote?: (quoteId: string) => void
   onApproveQuote?: (quoteId: string) => void
@@ -276,6 +281,8 @@ export interface PlanningCardProps {
   onApproveSlot?: (slotId: string) => void
   onRejectSlot?: (slotId: string) => void
   onEditSlot?: (slotId: string) => void
+  onCancelSlot?: (slotId: string) => void
+  onChooseSlot?: (slotId: string) => void
   isLoading?: boolean
   className?: string
 }
@@ -326,7 +333,34 @@ export interface InterventionDetailsCardProps {
   description?: string
   instructions?: string
   location?: string
+  /** Infos de planification (optionnel) */
+  planning?: {
+    /** Date planifiée */
+    scheduledDate?: string | null
+    /** Statut du planning */
+    status: 'pending' | 'scheduled' | 'completed'
+    /** Nombre de devis reçus */
+    quotesCount?: number
+    /** Statut des devis */
+    quotesStatus: 'pending' | 'received' | 'approved'
+    /** Montant du devis validé */
+    selectedQuoteAmount?: number | null
+  }
   className?: string
+}
+
+/**
+ * Événement de timeline (pour afficher date/heure et auteur)
+ */
+export interface TimelineEventData {
+  /** Statut de l'intervention à ce moment */
+  status: string
+  /** Date et heure de l'action (ISO string) */
+  date: string
+  /** Nom de la personne qui a effectué l'action */
+  author?: string
+  /** Rôle de la personne (optionnel) */
+  authorRole?: 'manager' | 'provider' | 'tenant'
 }
 
 /**
@@ -336,7 +370,14 @@ export interface InterventionSidebarProps {
   participants: ParticipantsGroup
   currentUserRole: UserRole
   currentStatus: string
+  /** Historique des événements de la timeline (date, heure, auteur) */
+  timelineEvents?: TimelineEventData[]
   activeConversation?: string | 'group'
-  onConversationClick?: (participantId: string | 'group') => void
+  /** Callback pour conversation individuelle */
+  onConversationClick?: (participantId: string) => void
+  /** Callback pour conversation de groupe */
+  onGroupConversationClick?: () => void
+  /** Afficher les boutons de conversation */
+  showConversationButtons?: boolean
   className?: string
 }

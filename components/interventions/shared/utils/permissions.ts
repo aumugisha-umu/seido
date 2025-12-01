@@ -106,15 +106,15 @@ export const permissions = {
 
   /**
    * Peut démarrer une conversation individuelle avec un participant
-   * @returns true pour les gestionnaires uniquement
+   * @returns true pour tous les rôles (chacun peut contacter les autres participants visibles)
    */
-  canStartIndividualConversation: (role: UserRole): boolean => role === 'manager',
+  canStartIndividualConversation: (_role: UserRole): boolean => true,
 
   /**
    * Peut voir la conversation de groupe
    * @returns true pour tous les rôles
    */
-  canViewGroupConversation: (role: UserRole): boolean => true,
+  canViewGroupConversation: (_role: UserRole): boolean => true,
 
   // ============================================================================
   // Participants

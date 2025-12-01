@@ -105,8 +105,9 @@ export const InterventionTabs = ({
       onValueChange={onTabChange}
       className={cn('flex flex-col h-full', className)}
     >
-      {/* Navigation des onglets */}
-      <TabsList className="grid w-full grid-cols-3 mb-4">
+      {/* Navigation des onglets - avec padding pour espacement du bord */}
+      <div className="px-4 sm:px-6 pt-4 sm:pt-6 flex-shrink-0">
+        <TabsList className="grid w-full grid-cols-3 mb-4">
         {tabsConfig.map((tab) => {
           const Icon = tab.icon
           return (
@@ -120,10 +121,11 @@ export const InterventionTabs = ({
             </TabsTrigger>
           )
         })}
-      </TabsList>
+        </TabsList>
+      </div>
 
       {/* Contenu des onglets */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden flex flex-col">
         {children}
       </div>
     </Tabs>

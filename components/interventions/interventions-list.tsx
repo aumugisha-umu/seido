@@ -2,9 +2,8 @@
 
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Wrench, Plus } from "lucide-react"
 import { InterventionCard } from "@/components/intervention/intervention-card"
-import { InterventionCardCompact } from "@/components/interventions/intervention-card-compact"
+import { ManagerInterventionCard } from "@/components/dashboards/manager/manager-intervention-card"
 import { InterventionsEmptyState } from "./interventions-empty-state"
 import type { InterventionWithRelations } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
@@ -238,17 +237,14 @@ export function InterventionsList({
     )
   }
 
-  // Default grid layout
+  // Default grid layout - utilise ManagerInterventionCard (unification avec dashboard)
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 ${className}`}>
+    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${className}`}>
       {displayedInterventions.map((intervention) => (
-        <InterventionCardCompact
+        <ManagerInterventionCard
           key={intervention.id}
           intervention={intervention}
           userContext={userContext}
-          userId={user?.id}
-          actionHooks={actionHooks}
-          onActionComplete={handleActionComplete}
         />
       ))}
     </div>

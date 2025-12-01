@@ -85,12 +85,12 @@ export const CommentsCard = ({
   }
 
   return (
-    <Card className={cn('', className)}>
-      <CardHeader className="pb-3">
+    <Card className={cn('flex flex-col h-full', className)}>
+      <CardHeader className="pb-3 flex-shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
             <MessageSquareText className="h-4 w-4 text-muted-foreground" />
-            Commentaires internes
+            Commentaires 
           </CardTitle>
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Lock className="h-3 w-3" />
@@ -99,29 +99,29 @@ export const CommentsCard = ({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
-        {/* Liste des commentaires */}
+      <CardContent className="flex flex-col flex-1 overflow-hidden gap-3">
+        {/* Liste des commentaires avec scroll */}
         {comments.length > 0 ? (
-          <div className="space-y-4 max-h-[300px] overflow-y-auto">
+          <div className="space-y-4 flex-1 overflow-y-auto pr-1">
             {comments.map((comment) => (
               <CommentItem key={comment.id} comment={comment} />
             ))}
           </div>
         ) : (
-          <div className="text-center py-6 text-sm text-muted-foreground">
+          <div className="text-center py-4 text-sm text-muted-foreground flex-1">
             Aucun commentaire pour le moment
           </div>
         )}
 
-        {/* Zone de saisie */}
+        {/* Zone de saisie - toujours visible en bas */}
         {onAddComment && (
-          <div className="pt-3 border-t space-y-2">
+          <div className="pt-3 border-t space-y-2 flex-shrink-0">
             <Textarea
               placeholder="Ajouter un commentaire interne..."
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               onKeyDown={handleKeyDown}
-              className="min-h-[80px] resize-none"
+              className="min-h-[60px] resize-none"
               disabled={isLoading || isSubmitting}
             />
             <div className="flex items-center justify-between">

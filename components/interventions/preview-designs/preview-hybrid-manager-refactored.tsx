@@ -18,6 +18,7 @@
 
 import { useState, useMemo } from 'react'
 import { TabsContent } from '@/components/ui/tabs'
+import { ChooseTimeSlotModal } from '@/components/intervention/modals/choose-time-slot-modal'
 
 // Types et composants partagés
 import {
@@ -28,6 +29,7 @@ import {
   Message,
   Comment,
   InterventionDocument,
+  UserRole,
   // Layout
   PreviewHybridLayout,
   ContentWrapper,
@@ -36,7 +38,6 @@ import {
   InterventionSidebar,
   // Cards
   InterventionDetailsCard,
-  SummaryCard,
   CommentsCard,
   DocumentsCard,
   QuotesCard,
@@ -89,6 +90,16 @@ export function PreviewHybridManagerRefactored({
   const [activeTab, setActiveTab] = useState('general')
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
 
+  // State pour la modale de choix de créneau
+  // On stocke l'ID plutôt que l'objet transformé pour garder accès à intervention_id
+  const [selectedSlotIdForChoice, setSelectedSlotIdForChoice] = useState<string | null>(null)
+  const [isChooseModalOpen, setIsChooseModalOpen] = useState(false)
+
+  // Récupérer le slot complet depuis fullTimeSlots (avec intervention_id)
+  const selectedFullSlotForChoice = selectedSlotIdForChoice
+    ? fullTimeSlots?.find((s: any) => s.id === selectedSlotIdForChoice)
+    : null
+
   // Transformation des données pour les nouveaux composants
   const participants = useMemo(() => ({
     managers: managers.map((m: any) => transformToParticipant(m, 'manager')),
@@ -107,7 +118,7 @@ export function PreviewHybridManagerRefactored({
       created_at: q.created_at,
       description: q.description
     }))
-  , [quotes])
+    , [quotes])
 
   // Transformation des time slots
   const transformedTimeSlots: TimeSlot[] = useMemo(() =>
@@ -121,7 +132,7 @@ export function PreviewHybridManagerRefactored({
       proposed_by_user: slot.proposed_by_user,
       responses: slot.responses
     }))
-  , [fullTimeSlots])
+    , [fullTimeSlots])
 
   // Transformation des comments
   const transformedComments: Comment[] = useMemo(() =>
@@ -132,7 +143,7 @@ export function PreviewHybridManagerRefactored({
       date: c.date,
       role: c.role
     }))
-  , [comments])
+    , [comments])
 
   // Mock messages (à remplacer par de vraies données)
   const mockMessages: Message[] = useMemo(() => [
@@ -147,12 +158,32 @@ export function PreviewHybridManagerRefactored({
     { id: '2', name: 'Photos.jpg', type: 'image', size: '4.1 MB', date: '2025-01-25', author: 'Paul Durand' }
   ], [])
 
-  // Callbacks pour la sidebar
-  const handleConversationClick = (id: string | 'group') => {
-    setActiveConversation(id)
-    if (id !== 'group') {
-      setActiveTab('conversations')
+  // Callbacks pour les conversations
+  const handleIndividualConversationClick = (participantId: string) => {
+    setActiveConversation(participantId)
+    setActiveTab('conversations')
+  }
+
+  const handleGroupConversationClick = () => {
+    setActiveConversation('group')
+    setActiveTab('conversations')
+  }
+
+  // Handler pour ouvrir la modale de choix de créneau
+  const handleChooseSlot = (slotId: string) => {
+    // Vérifie que le slot existe dans fullTimeSlots (avec intervention_id)
+    const slotExists = fullTimeSlots?.some((s: any) => s.id === slotId)
+    if (slotExists) {
+      setSelectedSlotIdForChoice(slotId)
+      setIsChooseModalOpen(true)
     }
+  }
+
+  // Handler pour fermer la modale et rafraîchir
+  const handleChooseModalSuccess = () => {
+    setIsChooseModalOpen(false)
+    setSelectedSlotIdForChoice(null)
+    // Le rafraîchissement sera géré par le composant parent
   }
 
   // Déterminer le statut du planning
@@ -171,15 +202,57 @@ export function PreviewHybridManagerRefactored({
   // Statut de l'intervention pour la timeline (simulé)
   const currentStatus = scheduledDate ? 'planifiee' : requireQuote ? 'demande_de_devis' : 'approuvee'
 
+  // Événements de timeline avec dates et auteurs (mock data)
+  const mockTimelineEvents = useMemo(() => {
+    const events = [
+      {
+        status: 'demande',
+        date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 jours ago
+        author: tenants[0]?.name || 'Sophie Martin',
+        authorRole: 'tenant' as const
+      },
+      {
+        status: 'approuvee',
+        date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(), // 4 jours ago
+        author: managers[0]?.name || 'Jean Dupont',
+        authorRole: 'manager' as const
+      }
+    ]
+
+    if (requireQuote) {
+      events.push({
+        status: 'demande_de_devis',
+        date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 jours ago
+        author: managers[0]?.name || 'Jean Dupont',
+        authorRole: 'manager' as const
+      })
+    }
+
+    if (scheduledDate) {
+      events.push({
+        status: 'planifiee',
+        date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // 1 jour ago
+        author: providers[0]?.name || 'Pierre Martin',
+        authorRole: 'provider' as UserRole
+      })
+    }
+
+    return events
+  }, [managers, providers, tenants, requireQuote, scheduledDate])
+
   return (
+    <>
     <PreviewHybridLayout
       sidebar={
         <InterventionSidebar
           participants={participants}
           currentUserRole="manager"
           currentStatus={currentStatus}
+          timelineEvents={mockTimelineEvents}
           activeConversation={activeConversation}
-          onConversationClick={handleConversationClick}
+          showConversationButtons={true}
+          onConversationClick={handleIndividualConversationClick}
+          onGroupConversationClick={handleGroupConversationClick}
         />
       }
       content={
@@ -189,92 +262,121 @@ export function PreviewHybridManagerRefactored({
           userRole="manager"
         >
           {/* TAB: GENERAL */}
-          <TabsContent value="general" className="mt-0 flex-1 overflow-y-auto">
+          <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
             <ContentWrapper>
-              {/* Description & Instructions */}
-              <InterventionDetailsCard
-                title="Détails de l'intervention"
-                description={description}
-                instructions={instructions}
-              />
-
-              {/* Grid: Synthèse, Commentaires, Documents */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
-                <SummaryCard
-                  scheduledDate={scheduledDate}
-                  quotesCount={transformedQuotes.length}
-                  selectedQuoteAmount={selectedQuoteAmount}
-                  planningStatus={planningStatus}
-                  quotesStatus={quotesStatus}
+              {/* Détails de l'intervention avec planification intégrée */}
+              <div className="flex-shrink-0">
+                <InterventionDetailsCard
+                  title="Détails de l'intervention"
+                  description={description}
+                  instructions={instructions}
+                  planning={{
+                    scheduledDate,
+                    status: planningStatus,
+                    quotesCount: transformedQuotes.length,
+                    quotesStatus,
+                    selectedQuoteAmount
+                  }}
                 />
+              </div>
 
-                <CommentsCard
-                  comments={transformedComments}
-                  onAddComment={(content) => console.log('Add comment:', content)}
-                />
-
+              {/* Ligne 2: Documents (gauche) + Commentaires (droite) */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 flex-1 min-h-0 overflow-hidden">
                 <DocumentsCard
                   documents={mockDocuments}
                   userRole="manager"
                   onUpload={() => console.log('Upload document')}
                   onView={(id) => console.log('View document:', id)}
                   onDownload={(id) => console.log('Download document:', id)}
+                  className="overflow-hidden"
+                />
+
+                <CommentsCard
+                  comments={transformedComments}
+                  onAddComment={(content) => console.log('Add comment:', content)}
+                  className="overflow-hidden"
                 />
               </div>
             </ContentWrapper>
           </TabsContent>
 
           {/* TAB: CONVERSATIONS */}
-          <TabsContent value="conversations" className="mt-0 flex-1 overflow-hidden">
-            <ContentWrapper className="h-full">
-              <ConversationCard
-                messages={mockMessages}
-                currentUserId={currentUserId || 'current-user'}
-                currentUserRole="manager"
-                conversationType={activeConversation === 'group' ? 'group' : 'individual'}
-                participantName={
-                  activeConversation !== 'group'
-                    ? [...participants.managers, ...participants.providers, ...participants.tenants]
-                        .find(p => p.id === activeConversation)?.name
-                    : undefined
-                }
-                onSendMessage={(content) => console.log('Send message:', content)}
-                className="h-[600px]"
-              />
-            </ContentWrapper>
+          <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
+            <ConversationCard
+              messages={mockMessages}
+              currentUserId={currentUserId || 'current-user'}
+              currentUserRole="manager"
+              conversationType={activeConversation === 'group' ? 'group' : 'individual'}
+              participantName={
+                activeConversation !== 'group'
+                  ? [...participants.managers, ...participants.providers, ...participants.tenants]
+                    .find(p => p.id === activeConversation)?.name
+                  : undefined
+              }
+              onSendMessage={(content) => console.log('Send message:', content)}
+              className="flex-1 mx-4"
+            />
           </TabsContent>
 
           {/* TAB: PLANNING */}
-          <TabsContent value="planning" className="mt-0 flex-1 overflow-y-auto">
-            <ContentWrapper>
+          <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 flex flex-col gap-4 p-4 sm:p-6">
               {/* Devis */}
               {requireQuote && (
                 <QuotesCard
                   quotes={transformedQuotes}
                   userRole="manager"
+                  showActions={true}
                   onAddQuote={() => console.log('Add quote')}
-                  onViewQuote={(id) => console.log('View quote:', id)}
                   onApproveQuote={onApproveQuote}
                   onRejectQuote={onRejectQuote}
-                  className="mb-6"
+                  className="flex-1 min-h-0"
                 />
               )}
 
               {/* Planning */}
               <PlanningCard
                 timeSlots={transformedTimeSlots}
-                scheduledDate={scheduledDate}
+                scheduledDate={scheduledDate || undefined}
                 userRole="manager"
                 currentUserId={currentUserId || 'current-user'}
                 onAddSlot={onOpenProgrammingModal}
-                onApproveSlot={onApproveSlot}
-                onRejectSlot={onRejectSlot}
-                onEditSlot={onEditSlot}
+                onApproveSlot={(slotId) => {
+                  const slot = fullTimeSlots?.find((s: any) => s.id === slotId)
+                  if (slot && onApproveSlot) onApproveSlot(slot)
+                }}
+                onRejectSlot={(slotId) => {
+                  const slot = fullTimeSlots?.find((s: any) => s.id === slotId)
+                  if (slot && onRejectSlot) onRejectSlot(slot)
+                }}
+                onEditSlot={(slotId) => {
+                  const slot = fullTimeSlots?.find((s: any) => s.id === slotId)
+                  if (slot && onEditSlot) onEditSlot(slot)
+                }}
+                onCancelSlot={(slotId) => {
+                  const slot = fullTimeSlots?.find((s: any) => s.id === slotId)
+                  if (slot && onCancelSlot) onCancelSlot(slot)
+                }}
+                onChooseSlot={handleChooseSlot}
+                className="flex-1 min-h-0"
               />
-            </ContentWrapper>
+            </div>
           </TabsContent>
         </InterventionTabs>
       }
     />
+
+    {/* Modale de choix de créneau */}
+    {selectedFullSlotForChoice && (
+      <ChooseTimeSlotModal
+        slot={selectedFullSlotForChoice}
+        interventionId={selectedFullSlotForChoice.intervention_id}
+        hasActiveQuotes={transformedQuotes.some(q => q.status === 'pending' || q.status === 'sent')}
+        open={isChooseModalOpen}
+        onOpenChange={setIsChooseModalOpen}
+        onSuccess={handleChooseModalSuccess}
+      />
+    )}
+  </>
   )
 }

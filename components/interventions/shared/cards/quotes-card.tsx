@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * QuotesCard - Card de gestion des devis
+ * QuotesCard - Card de gestion des estimations/devis
  *
  * @example
  * <QuotesCard
@@ -19,7 +19,6 @@ import { Badge } from '@/components/ui/badge'
 import {
   FileText,
   Plus,
-  Eye,
   Check,
   X,
   Euro,
@@ -38,7 +37,8 @@ import { permissions } from '../utils'
 interface QuoteItemProps {
   quote: Quote
   userRole: QuotesCardProps['userRole']
-  onView?: () => void
+  /** Afficher les boutons d'action */
+  showActions?: boolean
   onApprove?: () => void
   onReject?: () => void
 }
@@ -46,11 +46,12 @@ interface QuoteItemProps {
 const QuoteItem = ({
   quote,
   userRole,
-  onView,
+  showActions = true,
   onApprove,
   onReject
 }: QuoteItemProps) => {
   const canManage = permissions.canManageQuotes(userRole)
+  const canShowActions = showActions && canManage && (quote.status === 'pending' || quote.status === 'sent')
 
   const getStatusConfig = () => {
     switch (quote.status) {
@@ -60,7 +61,8 @@ const QuoteItem = ({
           label: 'Validé',
           bg: 'bg-green-50',
           text: 'text-green-700',
-          border: 'border-green-200'
+          border: 'border-green-200',
+          leftBorder: 'border-l-green-500'
         }
       case 'rejected':
         return {
@@ -68,7 +70,8 @@ const QuoteItem = ({
           label: 'Refusé',
           bg: 'bg-red-50',
           text: 'text-red-700',
-          border: 'border-red-200'
+          border: 'border-red-200',
+          leftBorder: 'border-l-red-500'
         }
       case 'sent':
         return {
@@ -76,7 +79,8 @@ const QuoteItem = ({
           label: 'Envoyé',
           bg: 'bg-blue-50',
           text: 'text-blue-700',
-          border: 'border-blue-200'
+          border: 'border-blue-200',
+          leftBorder: 'border-l-blue-500'
         }
       default:
         return {
@@ -84,7 +88,8 @@ const QuoteItem = ({
           label: 'En attente',
           bg: 'bg-amber-50',
           text: 'text-amber-700',
-          border: 'border-amber-200'
+          border: 'border-amber-200',
+          leftBorder: 'border-l-amber-500'
         }
     }
   }
@@ -95,31 +100,29 @@ const QuoteItem = ({
   return (
     <div
       className={cn(
-        'p-3 rounded-lg border transition-colors',
-        quote.status === 'approved'
-          ? 'bg-green-50 border-green-200'
-          : 'bg-white border-slate-200 hover:border-slate-300'
+        'p-4 rounded-lg border-l-4 border border-slate-200 bg-white transition-colors',
+        statusConfig.leftBorder
       )}
     >
       {/* En-tête: Prestataire et montant */}
-      <div className="flex items-start justify-between mb-2">
+      <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm font-medium">
+          <p className="font-medium text-slate-900">
             {quote.provider_name || 'Prestataire'}
           </p>
           {quote.created_at && (
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-0.5">
               {formatDateShort(quote.created_at)}
             </p>
           )}
         </div>
 
         <div className="text-right">
-          <p className="text-lg font-semibold">{formatAmount(quote.amount)}</p>
+          <p className="text-lg font-semibold text-slate-900">{formatAmount(quote.amount)}</p>
           <Badge
             variant="outline"
             className={cn(
-              'text-[10px]',
+              'text-[10px] mt-1',
               statusConfig.bg,
               statusConfig.text,
               statusConfig.border
@@ -133,59 +136,49 @@ const QuoteItem = ({
 
       {/* Description si présente */}
       {quote.description && (
-        <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+        <p className="text-sm text-muted-foreground mt-3 line-clamp-2">
           {quote.description}
         </p>
       )}
 
-      {/* Actions */}
-      <div className="flex items-center gap-2 pt-2 border-t border-dashed">
-        {onView && (
-          <Button variant="ghost" size="sm" onClick={onView}>
-            <Eye className="h-3.5 w-3.5 mr-1" />
-            Voir
+      {/* Actions - affiché seulement si showActions=true et statut pending/sent */}
+      {canShowActions && (
+        <div className="flex items-center gap-2 mt-3 pt-3 border-t border-dashed border-slate-200">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onApprove}
+            className="text-green-600 border-green-200 hover:bg-green-50"
+          >
+            <Check className="h-3.5 w-3.5 mr-1" />
+            Valider
           </Button>
-        )}
-
-        {canManage && quote.status === 'pending' && (
-          <>
-            {onApprove && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onApprove}
-                className="text-green-600 border-green-200 hover:bg-green-50"
-              >
-                <Check className="h-3.5 w-3.5 mr-1" />
-                Valider
-              </Button>
-            )}
-            {onReject && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onReject}
-                className="text-red-600 border-red-200 hover:bg-red-50"
-              >
-                <X className="h-3.5 w-3.5 mr-1" />
-                Refuser
-              </Button>
-            )}
-          </>
-        )}
-      </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onReject}
+            className="text-red-600 border-red-200 hover:bg-red-50"
+          >
+            <X className="h-3.5 w-3.5 mr-1" />
+            Refuser
+          </Button>
+        </div>
+      )}
     </div>
   )
 }
 
 /**
  * Card de gestion des devis
+ *
+ * @param showActions - Contrôle l'affichage des boutons Valider/Refuser.
+ *                      Par défaut true, permet de masquer les actions pour un affichage lecture seule.
  */
 export const QuotesCard = ({
   quotes = [],
   userRole,
+  showActions = true,
   onAddQuote,
-  onViewQuote,
   onApproveQuote,
   onRejectQuote,
   isLoading = false,
@@ -195,21 +188,21 @@ export const QuotesCard = ({
   const canView = permissions.canViewQuotes(userRole)
 
   // Sépare les devis par statut
-  const pendingQuotes = quotes.filter(q => q.status === 'pending')
+  const pendingQuotes = quotes.filter(q => q.status === 'pending' || q.status === 'sent')
   const approvedQuotes = quotes.filter(q => q.status === 'approved')
-  const otherQuotes = quotes.filter(q => !['pending', 'approved'].includes(q.status))
+  const otherQuotes = quotes.filter(q => !['pending', 'sent', 'approved'].includes(q.status))
 
   if (!canView) {
     return null
   }
 
   return (
-    <Card className={cn('', className)}>
-      <CardHeader className="pb-3">
+    <Card className={cn('flex flex-col', className)}>
+      <CardHeader className="pb-3 flex-shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
             <Euro className="h-4 w-4 text-muted-foreground" />
-            Devis
+            Estimation
             {quotes.length > 0 && (
               <Badge variant="secondary" className="text-xs">
                 {quotes.length}
@@ -231,7 +224,7 @@ export const QuotesCard = ({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-6 flex-1 overflow-y-auto">
         {/* Message si aucun devis */}
         {quotes.length === 0 && (
           <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -252,54 +245,60 @@ export const QuotesCard = ({
 
         {/* Devis validés */}
         {approvedQuotes.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-green-600 uppercase tracking-wider">
               Devis validé
             </p>
-            {approvedQuotes.map((quote) => (
-              <QuoteItem
-                key={quote.id}
-                quote={quote}
-                userRole={userRole}
-                onView={onViewQuote ? () => onViewQuote(quote.id) : undefined}
-              />
-            ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {approvedQuotes.map((quote) => (
+                <QuoteItem
+                  key={quote.id}
+                  quote={quote}
+                  userRole={userRole}
+                  showActions={false}
+                />
+              ))}
+            </div>
           </div>
         )}
 
         {/* Devis en attente */}
         {pendingQuotes.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               En attente ({pendingQuotes.length})
             </p>
-            {pendingQuotes.map((quote) => (
-              <QuoteItem
-                key={quote.id}
-                quote={quote}
-                userRole={userRole}
-                onView={onViewQuote ? () => onViewQuote(quote.id) : undefined}
-                onApprove={onApproveQuote ? () => onApproveQuote(quote.id) : undefined}
-                onReject={onRejectQuote ? () => onRejectQuote(quote.id) : undefined}
-              />
-            ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {pendingQuotes.map((quote) => (
+                <QuoteItem
+                  key={quote.id}
+                  quote={quote}
+                  userRole={userRole}
+                  showActions={showActions}
+                  onApprove={onApproveQuote ? () => onApproveQuote(quote.id) : undefined}
+                  onReject={onRejectQuote ? () => onRejectQuote(quote.id) : undefined}
+                />
+              ))}
+            </div>
           </div>
         )}
 
         {/* Autres devis (refusés, etc.) */}
         {otherQuotes.length > 0 && (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Autres
             </p>
-            {otherQuotes.map((quote) => (
-              <QuoteItem
-                key={quote.id}
-                quote={quote}
-                userRole={userRole}
-                onView={onViewQuote ? () => onViewQuote(quote.id) : undefined}
-              />
-            ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {otherQuotes.map((quote) => (
+                <QuoteItem
+                  key={quote.id}
+                  quote={quote}
+                  userRole={userRole}
+                  showActions={false}
+                />
+              ))}
+            </div>
           </div>
         )}
       </CardContent>

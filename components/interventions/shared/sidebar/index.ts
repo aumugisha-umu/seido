@@ -3,7 +3,11 @@
  */
 
 export { ParticipantsList } from './participants-list'
-export { ProgressionTimeline, type ProgressionTimelineProps } from './progression-timeline'
+export {
+  ProgressionTimeline,
+  type ProgressionTimelineProps,
+  type TimelineEvent
+} from './progression-timeline'
 export {
   ConversationButton,
   ConversationButtonsGroup,

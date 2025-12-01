@@ -70,6 +70,7 @@ export function PreviewHybridTenantRefactored({
 }: InterventionSchedulingPreviewProps) {
   // State
   const [activeTab, setActiveTab] = useState('general')
+  const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
 
   // Transformation des données
   // Note: Le locataire voit managers et prestataires, pas les autres locataires
@@ -103,10 +104,53 @@ export function PreviewHybridTenantRefactored({
   // Statut de l'intervention
   const currentStatus = scheduledDate ? 'planifiee' : 'approuvee'
 
+  // Déterminer le statut du planning pour l'aperçu
+  const planningStatus = scheduledDate ? 'scheduled' : 'pending'
+
+  // Événements de timeline avec dates et auteurs (mock data)
+  const mockTimelineEvents = useMemo(() => {
+    const events = [
+      {
+        status: 'demande',
+        date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+        author: 'Vous',
+        authorRole: 'tenant' as const
+      },
+      {
+        status: 'approuvee',
+        date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+        author: managers[0]?.name || 'Jean Dupont',
+        authorRole: 'manager' as const
+      }
+    ]
+
+    if (scheduledDate) {
+      events.push({
+        status: 'planifiee',
+        date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+        author: providers[0]?.name || 'Pierre Martin',
+        authorRole: 'provider' as const
+      })
+    }
+
+    return events
+  }, [managers, providers, scheduledDate])
+
   // Callback pour sélectionner un créneau
   const handleSelectSlot = (slotId: string) => {
     console.log('Créneau sélectionné:', slotId)
     // Ici on appellerait l'API pour enregistrer le choix du locataire
+  }
+
+  // Callbacks pour les conversations
+  const handleIndividualConversationClick = (participantId: string) => {
+    setActiveConversation(participantId)
+    setActiveTab('conversations')
+  }
+
+  const handleGroupConversationClick = () => {
+    setActiveConversation('group')
+    setActiveTab('conversations')
   }
 
   return (
@@ -116,7 +160,11 @@ export function PreviewHybridTenantRefactored({
           participants={participants}
           currentUserRole="tenant"
           currentStatus={currentStatus}
-          onConversationClick={() => setActiveTab('conversations')}
+          timelineEvents={mockTimelineEvents}
+          activeConversation={activeConversation}
+          showConversationButtons={true}
+          onConversationClick={handleIndividualConversationClick}
+          onGroupConversationClick={handleGroupConversationClick}
         />
       }
       content={
@@ -126,13 +174,18 @@ export function PreviewHybridTenantRefactored({
           userRole="tenant"
         >
           {/* TAB: GENERAL */}
-          <TabsContent value="general" className="mt-0 flex-1 overflow-y-auto">
+          <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
             <ContentWrapper>
-              {/* Description */}
+              {/* Description avec aperçu planning */}
               <InterventionDetailsCard
                 title="Détails de l'intervention"
                 description={description}
                 instructions={instructions}
+                planning={{
+                  scheduledDate,
+                  status: planningStatus,
+                  quotesStatus: 'pending' // Les locataires ne voient pas les devis
+                }}
               />
 
               {/* Localisation simplifiée pour le locataire */}
@@ -157,21 +210,25 @@ export function PreviewHybridTenantRefactored({
           </TabsContent>
 
           {/* TAB: CONVERSATIONS (Messagerie) */}
-          <TabsContent value="conversations" className="mt-0 flex-1 overflow-hidden">
-            <ContentWrapper className="h-full">
-              <ConversationCard
-                messages={mockMessages}
-                currentUserId={currentUserId || 'current-user'}
-                currentUserRole="tenant"
-                conversationType="group"
-                onSendMessage={(content) => console.log('Send message:', content)}
-                className="h-[600px]"
-              />
-            </ContentWrapper>
+          <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
+            <ConversationCard
+              messages={mockMessages}
+              currentUserId={currentUserId || 'current-user'}
+              currentUserRole="tenant"
+              conversationType={activeConversation === 'group' ? 'group' : 'individual'}
+              participantName={
+                activeConversation !== 'group'
+                  ? [...participants.managers, ...participants.providers]
+                      .find(p => p.id === activeConversation)?.name
+                  : undefined
+              }
+              onSendMessage={(content) => console.log('Send message:', content)}
+              className="flex-1 mx-4"
+            />
           </TabsContent>
 
           {/* TAB: PLANNING (Rendez-vous) */}
-          <TabsContent value="planning" className="mt-0 flex-1 overflow-y-auto">
+          <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
             <ContentWrapper>
               {/* Planning - Le locataire peut sélectionner un créneau */}
               <PlanningCard

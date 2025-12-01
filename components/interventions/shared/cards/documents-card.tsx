@@ -37,8 +37,8 @@ export const DocumentsCard = ({
   const canDelete = permissions.canDeleteDocuments(userRole)
 
   return (
-    <Card className={cn('', className)}>
-      <CardHeader className="pb-3">
+    <Card className={cn('flex flex-col h-full', className)}>
+      <CardHeader className="pb-3 flex-shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
@@ -59,10 +59,10 @@ export const DocumentsCard = ({
         </div>
       </CardHeader>
 
-      <CardContent>
-        {/* Liste des documents */}
+      <CardContent className="flex-1 overflow-hidden">
+        {/* Liste des documents avec scroll */}
         {documents.length > 0 ? (
-          <div className="space-y-2">
+          <div className="space-y-2 max-h-full overflow-y-auto pr-1">
             {documents.map((doc) => (
               <DocumentItem
                 key={doc.id}

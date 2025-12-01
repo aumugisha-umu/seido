@@ -6,9 +6,14 @@ import type { Quote } from '../types'
  * `QuotesCard` affiche la liste des devis associés à une intervention.
  *
  * Ce composant adapte ses actions selon le rôle de l'utilisateur :
- * - **Manager** : Peut approuver/rejeter les devis
+ * - **Manager** : Peut approuver/rejeter les devis (si `showActions=true`)
  * - **Provider** : Peut soumettre et voir ses propres devis
  * - **Tenant** : Peut uniquement consulter les devis validés
+ *
+ * **Design:**
+ * - Bordure colorée à gauche selon le statut (vert validé, orange attente, rouge refusé)
+ * - Sections groupées: "DEVIS VALIDÉ", "EN ATTENTE", "AUTRES"
+ * - Boutons d'action conditionnels via `showActions` prop
  */
 const meta = {
   title: 'Interventions/Cards/QuotesCard',
@@ -17,7 +22,7 @@ const meta = {
     layout: 'padded',
     docs: {
       description: {
-        component: 'Carte affichant les devis avec actions contextuelles selon le rôle.'
+        component: 'Carte affichant les devis avec actions contextuelles selon le rôle et le statut.'
       }
     }
   },
@@ -27,6 +32,10 @@ const meta = {
       control: 'select',
       options: ['manager', 'provider', 'tenant'],
       description: 'Rôle de l\'utilisateur courant'
+    },
+    showActions: {
+      control: 'boolean',
+      description: 'Afficher les boutons Valider/Refuser pour les devis en attente'
     }
   }
 } satisfies Meta<typeof QuotesCard>
@@ -65,15 +74,26 @@ const mockQuotes: Quote[] = [
 ]
 
 /**
- * Vue gestionnaire avec tous les devis
+ * Vue gestionnaire avec tous les devis et actions
  */
-export const ManagerView: Story = {
+export const ManagerViewWithActions: Story = {
   args: {
     quotes: mockQuotes,
     userRole: 'manager',
-    currentUserId: 'manager-1',
-    onApprove: (quoteId) => console.log('Approve:', quoteId),
-    onReject: (quoteId) => console.log('Reject:', quoteId)
+    showActions: true,
+    onApproveQuote: (quoteId) => console.log('Approve:', quoteId),
+    onRejectQuote: (quoteId) => console.log('Reject:', quoteId)
+  }
+}
+
+/**
+ * Vue gestionnaire lecture seule (showActions=false)
+ */
+export const ManagerViewReadOnly: Story = {
+  args: {
+    quotes: mockQuotes,
+    userRole: 'manager',
+    showActions: false
   }
 }
 
@@ -84,8 +104,7 @@ export const ProviderView: Story = {
   args: {
     quotes: mockQuotes.filter(q => q.provider_id === 'provider-1'),
     userRole: 'provider',
-    currentUserId: 'provider-1',
-    onSubmitQuote: () => console.log('Submit quote')
+    onAddQuote: () => console.log('Add quote')
   }
 }
 
@@ -95,8 +114,7 @@ export const ProviderView: Story = {
 export const TenantView: Story = {
   args: {
     quotes: mockQuotes.filter(q => q.status === 'approved'),
-    userRole: 'tenant',
-    currentUserId: 'tenant-1'
+    userRole: 'tenant'
   }
 }
 
@@ -107,20 +125,19 @@ export const NoQuotes: Story = {
   args: {
     quotes: [],
     userRole: 'manager',
-    currentUserId: 'manager-1',
-    onSubmitQuote: () => console.log('Submit quote')
+    onAddQuote: () => console.log('Add quote')
   }
 }
 
 /**
  * Devis en attente avec actions
  */
-export const PendingQuotes: Story = {
+export const PendingQuotesWithActions: Story = {
   args: {
     quotes: mockQuotes.filter(q => q.status === 'pending'),
     userRole: 'manager',
-    currentUserId: 'manager-1',
-    onApprove: (quoteId) => alert(`Devis ${quoteId} approuvé !`),
-    onReject: (quoteId) => alert(`Devis ${quoteId} rejeté !`)
+    showActions: true,
+    onApproveQuote: (quoteId) => alert(`Devis ${quoteId} approuvé !`),
+    onRejectQuote: (quoteId) => alert(`Devis ${quoteId} rejeté !`)
   }
 }

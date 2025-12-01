@@ -2,14 +2,16 @@
 
 /**
  * InterventionSidebar - Sidebar complète pour la prévisualisation d'intervention
- * Compose: ParticipantsList + ProgressionTimeline + ConversationButtons
+ * Compose: ParticipantsList (avec conversations) + ProgressionTimeline
  *
  * @example
  * <InterventionSidebar
  *   participants={{ managers: [...], providers: [...], tenants: [...] }}
  *   currentUserRole="manager"
  *   currentStatus="planifiee"
- *   onConversationClick={handleConversationClick}
+ *   onConversationClick={handleIndividualClick}
+ *   onGroupConversationClick={handleGroupClick}
+ *   showConversationButtons={true}
  * />
  */
 
@@ -18,8 +20,6 @@ import { Separator } from '@/components/ui/separator'
 import { InterventionSidebarProps } from '../types'
 import { ParticipantsList } from './participants-list'
 import { ProgressionTimeline } from './progression-timeline'
-import { ConversationButton, ConversationButtonsGroup } from './conversation-button'
-import { permissions } from '../utils'
 
 /**
  * Sidebar complète pour la prévisualisation d'intervention
@@ -28,87 +28,42 @@ export const InterventionSidebar = ({
   participants,
   currentUserRole,
   currentStatus,
-  activeConversation = 'group',
+  timelineEvents,
+  activeConversation,
   onConversationClick,
+  onGroupConversationClick,
+  showConversationButtons = false,
   className
 }: InterventionSidebarProps) => {
-  // Détermine si les conversations individuelles sont disponibles
-  const canStartIndividualConversations =
-    permissions.canStartIndividualConversation(currentUserRole)
-
-  // Génère la liste des conversations individuelles possibles (pour manager)
-  const individualConversations = canStartIndividualConversations
-    ? [
-        ...participants.providers.map((p) => ({
-          id: p.id,
-          participantName: p.name,
-          unreadCount: 0 // À connecter avec les vraies données
-        })),
-        ...participants.tenants.map((p) => ({
-          id: p.id,
-          participantName: p.name,
-          unreadCount: 0
-        }))
-      ]
-    : []
-
-  const handleGroupClick = () => {
-    onConversationClick?.('group')
-  }
-
-  const handleIndividualClick = (conversationId: string) => {
-    onConversationClick?.(conversationId)
-  }
-
   return (
     <aside
       className={cn(
-        'w-80 border-r border-slate-200 bg-white flex flex-col',
+        'w-80 border-r border-slate-200 bg-white flex flex-col h-full',
         className
       )}
     >
-      {/* Contenu scrollable */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* Section Participants */}
+      {/* Section Participants - hauteur fixe */}
+      <div className="flex-shrink-0 p-6 pb-0">
         <ParticipantsList
           participants={participants}
           currentUserRole={currentUserRole}
-          showConversationButtons={canStartIndividualConversations}
+          showConversationButtons={showConversationButtons}
           activeConversation={activeConversation}
-          onConversationClick={handleIndividualClick}
+          onConversationClick={onConversationClick}
+          onGroupConversationClick={onGroupConversationClick}
         />
+      </div>
 
-        <Separator />
-
-        {/* Section Progression */}
-        <ProgressionTimeline
-          currentStatus={currentStatus}
-          variant="default"
-        />
-
-        <Separator />
-
-        {/* Section Conversations */}
-        {onConversationClick && (
-          <>
-            {canStartIndividualConversations ? (
-              <ConversationButtonsGroup
-                activeConversation={activeConversation}
-                onGroupClick={handleGroupClick}
-                individualConversations={individualConversations}
-                onIndividualClick={handleIndividualClick}
-              />
-            ) : (
-              <div className="space-y-2">
-                <ConversationButton
-                  type="group"
-                  isActive={activeConversation === 'group'}
-                  onClick={handleGroupClick}
-                />
-              </div>
-            )}
-          </>
-        )}
+      {/* Section Progression - prend l'espace restant avec scroll */}
+      <div className="flex-1 flex flex-col min-h-0 p-6 pt-4">
+        <Separator className="mb-4 flex-shrink-0" />
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <ProgressionTimeline
+            currentStatus={currentStatus}
+            events={timelineEvents}
+            variant="default"
+          />
+        </div>
       </div>
     </aside>
   )

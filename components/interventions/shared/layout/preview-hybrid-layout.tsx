@@ -49,7 +49,7 @@ export const PreviewHybridLayout = ({
       {/* Sidebar */}
       <div
         className={cn(
-          'w-80 flex-shrink-0 border-r border-slate-200',
+          'w-80 flex-shrink-0 border-r border-slate-200 h-full overflow-hidden',
           !showSidebarOnMobile && 'hidden lg:block'
         )}
       >
@@ -86,7 +86,7 @@ export const ContentWrapper = ({
   }
 
   return (
-    <div className={cn('flex-1 overflow-y-auto', paddingClasses[padding], className)}>
+    <div className={cn('flex-1 flex flex-col min-h-0', paddingClasses[padding], className)}>
       {children}
     </div>
   )

@@ -7,15 +7,40 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent } from '@/components/ui/card'
+import { TabsContent } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 
-// Tab components
-import { OverviewTab } from './overview-tab'
+// Tab components (ChatTab kept for potential reuse)
 import { ChatTab } from './chat-tab'
 import { DocumentsTab } from './documents-tab'
+
+// Composants partagés pour le nouveau design
+import {
+  // Types
+  Participant,
+  Quote as SharedQuote,
+  TimeSlot as SharedTimeSlot,
+  Message,
+  Comment as SharedComment,
+  InterventionDocument,
+  TimelineEventData,
+  // Layout
+  PreviewHybridLayout,
+  ContentWrapper,
+  InterventionTabs,
+  // Sidebar
+  InterventionSidebar,
+  // Cards
+  InterventionDetailsCard,
+  CommentsCard,
+  DocumentsCard,
+  QuotesCard,
+  PlanningCard,
+  ConversationCard
+} from '@/components/interventions/shared'
+
+// Modal pour choisir un créneau
+import { ChooseTimeSlotModal } from '@/components/intervention/modals/choose-time-slot-modal'
 
 // Intervention components
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata } from '@/components/ui/detail-page-header'
@@ -134,6 +159,11 @@ export function InterventionDetailClient({
   const [requireQuote, setRequireQuote] = useState(intervention.status === 'demande_de_devis')
   const [showFinalizationModal, setShowFinalizationModal] = useState(false)
 
+  // États pour le nouveau design PreviewHybrid
+  const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
+  const [selectedSlotIdForChoice, setSelectedSlotIdForChoice] = useState<string | null>(null)
+  const [isChooseModalOpen, setIsChooseModalOpen] = useState(false)
+
   // Helpers for button visibility based on intervention status
   const canModifyOrCancel = !['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'].includes(intervention.status)
   const canFinalize = ['planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire'].includes(intervention.status)
@@ -170,7 +200,7 @@ export function InterventionDetailClient({
     setRequireQuote(activeQuote !== undefined)
   }, [quotes])
 
-  // Transform assignments into Contact arrays by role
+  // Transform assignments into Contact arrays by role (legacy format for modals)
   const { managers, providers, tenants } = useMemo(() => {
     const managers = assignments
       .filter(a => a.role === 'gestionnaire')
@@ -210,6 +240,168 @@ export function InterventionDetailClient({
 
     return { managers, providers, tenants }
   }, [assignments])
+
+  // ============================================================================
+  // Transformations pour les composants shared (nouveau design PreviewHybrid)
+  // ============================================================================
+
+  // Participants pour InterventionSidebar (format Participant)
+  const participants = useMemo(() => ({
+    managers: assignments
+      .filter(a => a.role === 'gestionnaire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name || '',
+        email: a.user!.email || undefined,
+        phone: a.user!.phone || undefined,
+        role: 'manager' as const
+      })),
+    providers: assignments
+      .filter(a => a.role === 'prestataire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name || '',
+        email: a.user!.email || undefined,
+        phone: a.user!.phone || undefined,
+        role: 'provider' as const
+      })),
+    tenants: assignments
+      .filter(a => a.role === 'locataire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name || '',
+        email: a.user!.email || undefined,
+        phone: a.user!.phone || undefined,
+        role: 'tenant' as const
+      }))
+  }), [assignments])
+
+  // Quotes transformés pour QuotesCard
+  const transformedQuotes: SharedQuote[] = useMemo(() =>
+    quotes.map(q => ({
+      id: q.id,
+      amount: q.amount || 0,
+      status: q.status as SharedQuote['status'],
+      provider_name: q.provider?.name,
+      provider_id: q.provider_id || undefined,
+      created_at: q.created_at || undefined,
+      description: q.description || undefined
+    }))
+  , [quotes])
+
+  // TimeSlots transformés pour PlanningCard
+  const transformedTimeSlots: SharedTimeSlot[] = useMemo(() =>
+    timeSlots.map(slot => ({
+      id: slot.id,
+      slot_date: slot.slot_date || '',
+      start_time: slot.start_time || '',
+      end_time: slot.end_time || '',
+      status: slot.status || 'pending',
+      proposed_by: slot.proposed_by || undefined,
+      proposed_by_user: slot.proposed_by_user ? { name: slot.proposed_by_user.name } : undefined,
+      responses: (slot as any).responses?.map((r: any) => ({
+        id: r.id,
+        user_id: r.user_id,
+        response: r.response as 'accepted' | 'rejected' | 'pending',
+        user: r.user ? { name: r.user.name, role: r.user.role || '' } : undefined
+      }))
+    }))
+  , [timeSlots])
+
+  // Comments transformés pour CommentsCard
+  const transformedComments: SharedComment[] = useMemo(() =>
+    comments.map(c => ({
+      id: c.id,
+      author: c.user?.name || 'Utilisateur',
+      content: c.content,
+      date: c.created_at,
+      role: c.user?.role || undefined
+    }))
+  , [comments])
+
+  // Documents transformés pour DocumentsCard
+  const transformedDocuments: InterventionDocument[] = useMemo(() =>
+    documents.map(d => ({
+      id: d.id,
+      name: (d as any).original_filename || d.filename || 'Document',
+      type: d.document_type || 'file',
+      size: d.file_size ? `${Math.round(d.file_size / 1024)} KB` : undefined,
+      date: d.uploaded_at ? new Date(d.uploaded_at).toLocaleDateString('fr-FR') : undefined,
+      url: d.storage_path || undefined
+    }))
+  , [documents])
+
+  // Timeline events pour la progression
+  const timelineEvents: TimelineEventData[] = useMemo(() => {
+    const events: TimelineEventData[] = []
+
+    // Toujours ajouter la création
+    events.push({
+      status: 'demande',
+      date: intervention.created_at || new Date().toISOString(),
+      author: 'Système',
+      authorRole: 'manager'
+    })
+
+    // Ajouter les étapes selon le statut actuel
+    const statusOrder = [
+      'demande', 'approuvee', 'demande_de_devis', 'planification',
+      'planifiee', 'en_cours', 'cloturee_par_prestataire',
+      'cloturee_par_locataire', 'cloturee_par_gestionnaire'
+    ]
+
+    const currentIndex = statusOrder.indexOf(intervention.status)
+
+    if (currentIndex > 0) {
+      events.push({
+        status: 'approuvee',
+        date: intervention.updated_at || new Date().toISOString(),
+        authorRole: 'manager'
+      })
+    }
+
+    if (requireQuote && currentIndex >= statusOrder.indexOf('demande_de_devis')) {
+      events.push({
+        status: 'demande_de_devis',
+        date: intervention.updated_at || new Date().toISOString(),
+        authorRole: 'manager'
+      })
+    }
+
+    if (currentIndex >= statusOrder.indexOf('planifiee')) {
+      events.push({
+        status: 'planifiee',
+        date: intervention.updated_at || new Date().toISOString(),
+        authorRole: 'provider'
+      })
+    }
+
+    return events
+  }, [intervention, requireQuote])
+
+  // Récupérer le slot complet pour la modale de choix
+  const selectedFullSlotForChoice = selectedSlotIdForChoice
+    ? timeSlots.find(s => s.id === selectedSlotIdForChoice)
+    : null
+
+  // Date planifiée (si un créneau est sélectionné)
+  const scheduledDate = timeSlots.find(s => s.status === 'selected')?.slot_date || null
+
+  // Statut du planning
+  const planningStatus = scheduledDate ? 'scheduled' : 'pending'
+
+  // Statut des devis
+  const quotesStatus = transformedQuotes.some(q => q.status === 'approved')
+    ? 'approved'
+    : transformedQuotes.length > 0
+      ? 'received'
+      : 'pending'
+
+  // Montant du devis validé
+  const selectedQuoteAmount = transformedQuotes.find(q => q.status === 'approved')?.amount
+
+  // Messages mock (à remplacer par de vraies données si disponibles)
+  const mockMessages: Message[] = useMemo(() => [], [])
 
   // Initialize planning hook with quote request data
   const planning = useInterventionPlanning(
@@ -552,14 +744,25 @@ export function InterventionDetailClient({
       const result = await response.json()
 
       if (result.success) {
-        toast.success('Créneau approuvé et intervention planifiée')
+        toast({
+          title: 'Créneau approuvé',
+          description: 'L\'intervention a été planifiée avec succès'
+        })
         handleRefresh()
       } else {
-        toast.error(result.error || 'Erreur lors de l\'approbation du créneau')
+        toast({
+          title: 'Erreur',
+          description: result.error || 'Erreur lors de l\'approbation du créneau',
+          variant: 'destructive'
+        })
       }
     } catch (error) {
       console.error('Error approving slot:', error)
-      toast.error('Erreur lors de l\'approbation du créneau')
+      toast({
+        title: 'Erreur',
+        description: 'Erreur lors de l\'approbation du créneau',
+        variant: 'destructive'
+      })
     }
   }
 
@@ -636,6 +839,37 @@ export function InterventionDetailClient({
         variant: 'destructive'
       })
     }
+  }
+
+  // ============================================================================
+  // Callbacks pour le nouveau design PreviewHybrid
+  // ============================================================================
+
+  // Callbacks pour les conversations
+  const handleConversationClick = (participantId: string) => {
+    setActiveConversation(participantId)
+    setActiveTab('conversations')
+  }
+
+  const handleGroupConversationClick = () => {
+    setActiveConversation('group')
+    setActiveTab('conversations')
+  }
+
+  // Handler pour ouvrir la modale de choix de créneau
+  const handleChooseSlot = (slotId: string) => {
+    const slotExists = timeSlots.some(s => s.id === slotId)
+    if (slotExists) {
+      setSelectedSlotIdForChoice(slotId)
+      setIsChooseModalOpen(true)
+    }
+  }
+
+  // Handler pour fermer la modale et rafraîchir
+  const handleChooseModalSuccess = () => {
+    setIsChooseModalOpen(false)
+    setSelectedSlotIdForChoice(null)
+    handleRefresh()
   }
 
   // Prepare header data
@@ -1002,82 +1236,142 @@ export function InterventionDetailClient({
         onComplete={handleRefresh}
       />
 
-      {/* Tabs Navigation */}
-      <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4 mb-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid grid-cols-4 w-full">
-            <TabsTrigger value="overview">
-              Vue d'ensemble
-            </TabsTrigger>
-            <TabsTrigger value="chat" className="relative">
-              Discussion
-              {getBadgeCount('chat') && (
-                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
-                  {getBadgeCount('chat')}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="relative">
-              Documents
-              {getBadgeCount('documents') && (
-                <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full px-1.5 z-50">
-                  {getBadgeCount('documents')}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      {/* Nouveau design PreviewHybrid */}
+      <PreviewHybridLayout
+        sidebar={
+          <InterventionSidebar
+            participants={participants}
+            currentUserRole="manager"
+            currentStatus={intervention.status}
+            timelineEvents={timelineEvents}
+            activeConversation={activeConversation}
+            showConversationButtons={true}
+            onConversationClick={handleConversationClick}
+            onGroupConversationClick={handleGroupConversationClick}
+          />
+        }
+        content={
+          <InterventionTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            userRole="manager"
+          >
+            {/* TAB: GENERAL */}
+            <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
+              <ContentWrapper>
+                {/* Détails de l'intervention */}
+                <div className="flex-shrink-0">
+                  <InterventionDetailsCard
+                    title={intervention.title}
+                    description={intervention.description || undefined}
+                    instructions={intervention.instructions || undefined}
+                    planning={{
+                      scheduledDate,
+                      status: planningStatus,
+                      quotesCount: transformedQuotes.length,
+                      quotesStatus,
+                      selectedQuoteAmount
+                    }}
+                  />
+                </div>
 
-      {/* Tab Content Card */}
-      <Card className="flex-1 flex flex-col content-max-width mx-auto w-full p-6 min-h-0 overflow-hidden">
-        <CardContent className="p-0 flex-1 flex flex-col min-h-0 overflow-y-auto">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
-            <div className="flex-1 flex flex-col min-h-0 pb-6">
-              <TabsContent value="overview" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6">
-                <OverviewTab
-                  intervention={intervention}
-                  assignments={assignments}
-                  quotes={quotes}
-                  timeSlots={timeSlots}
-                  comments={comments}
+                {/* Documents + Commentaires */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 flex-1 min-h-0 overflow-hidden">
+                  <DocumentsCard
+                    documents={transformedDocuments}
+                    userRole="manager"
+                    onUpload={() => console.log('Upload document')}
+                    onView={(id) => console.log('View document:', id)}
+                    onDownload={(id) => console.log('Download document:', id)}
+                    className="overflow-hidden"
+                  />
+
+                  <CommentsCard
+                    comments={transformedComments}
+                    onAddComment={(content) => console.log('Add comment:', content)}
+                    className="overflow-hidden"
+                  />
+                </div>
+              </ContentWrapper>
+            </TabsContent>
+
+            {/* TAB: CONVERSATIONS */}
+            <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
+              <ConversationCard
+                messages={mockMessages}
+                currentUserId={serverUserId}
+                currentUserRole="manager"
+                conversationType={activeConversation === 'group' ? 'group' : 'individual'}
+                participantName={
+                  activeConversation !== 'group'
+                    ? [...participants.managers, ...participants.providers, ...participants.tenants]
+                        .find(p => p.id === activeConversation)?.name
+                    : undefined
+                }
+                onSendMessage={(content) => console.log('Send message:', content)}
+                className="flex-1 mx-4"
+              />
+            </TabsContent>
+
+            {/* TAB: PLANNING */}
+            <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 flex flex-col gap-4 p-4 sm:p-6">
+                {/* Devis */}
+                {requireQuote && (
+                  <QuotesCard
+                    quotes={transformedQuotes}
+                    userRole="manager"
+                    showActions={true}
+                    onAddQuote={() => console.log('Add quote')}
+                    onApproveQuote={handleApproveQuote}
+                    onRejectQuote={handleRejectQuote}
+                    className="flex-1 min-h-0"
+                  />
+                )}
+
+                {/* Planning */}
+                <PlanningCard
+                  timeSlots={transformedTimeSlots}
+                  scheduledDate={scheduledDate || undefined}
+                  userRole="manager"
                   currentUserId={serverUserId}
-                  currentUserRole={serverUserRole}
-                  onRefresh={handleRefresh}
-                  onOpenProgrammingModal={handleOpenProgrammingModalWithData}
-                  onCancelSlot={(slot) => planning.openCancelSlotModal(slot, intervention.id)}
-                  onApproveSlot={handleApproveSlot}
-                  onRejectSlot={handleRejectSlot}
-                  onEditSlot={handleEditSlot}
-                  onEditParticipants={handleOpenProgrammingModalWithData}
-                  onEditQuotes={handleOpenProgrammingModalWithData}
-                  onApproveQuote={handleApproveQuote}
-                  onRejectQuote={handleRejectQuote}
+                  onAddSlot={handleOpenProgrammingModalWithData}
+                  onApproveSlot={(slotId) => {
+                    const slot = timeSlots.find(s => s.id === slotId)
+                    if (slot) handleApproveSlot(slot)
+                  }}
+                  onRejectSlot={(slotId) => {
+                    const slot = timeSlots.find(s => s.id === slotId)
+                    if (slot) handleRejectSlot(slot)
+                  }}
+                  onEditSlot={(slotId) => {
+                    const slot = timeSlots.find(s => s.id === slotId)
+                    if (slot) handleEditSlot(slot)
+                  }}
+                  onCancelSlot={(slotId) => {
+                    const slot = timeSlots.find(s => s.id === slotId)
+                    if (slot) planning.openCancelSlotModal(slot, intervention.id)
+                  }}
+                  onChooseSlot={handleChooseSlot}
+                  className="flex-1 min-h-0"
                 />
-              </TabsContent>
+              </div>
+            </TabsContent>
+          </InterventionTabs>
+        }
+      />
 
-              <TabsContent value="chat" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6">
-                <ChatTab
-                  interventionId={intervention.id}
-                  threads={threads}
-                  initialMessagesByThread={initialMessagesByThread}
-                  initialParticipantsByThread={initialParticipantsByThread}
-                  currentUserId={serverUserId}
-                  userRole={serverUserRole}
-                />
-              </TabsContent>
-
-              <TabsContent value="documents" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6">
-                <DocumentsTab
-                  interventionId={intervention.id}
-                  documents={documents}
-                  canManage={true}
-                />
-              </TabsContent>
-            </div>
-          </Tabs>
-        </CardContent>
-      </Card>
+      {/* Modale de choix de créneau */}
+      {selectedFullSlotForChoice && (
+        <ChooseTimeSlotModal
+          slot={selectedFullSlotForChoice}
+          interventionId={selectedFullSlotForChoice.intervention_id}
+          hasActiveQuotes={transformedQuotes.some(q => q.status === 'pending' || q.status === 'sent')}
+          open={isChooseModalOpen}
+          onOpenChange={setIsChooseModalOpen}
+          onSuccess={handleChooseModalSuccess}
+        />
+      )}
 
         {/* Contact Selector Modal */}
         <ContactSelector

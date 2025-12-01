@@ -42,6 +42,8 @@ export const PlanningCard = ({
   onApproveSlot,
   onRejectSlot,
   onEditSlot,
+  onCancelSlot,
+  onChooseSlot,
   isLoading = false,
   className
 }: PlanningCardProps) => {
@@ -56,8 +58,8 @@ export const PlanningCard = ({
   )
 
   return (
-    <Card className={cn('', className)}>
-      <CardHeader className="pb-3">
+    <Card className={cn('flex flex-col', className)}>
+      <CardHeader className="pb-3 flex-shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -78,7 +80,7 @@ export const PlanningCard = ({
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 flex-1 overflow-y-auto">
         {/* Date planifiée confirmée */}
         {scheduledDate && (
           <div className="p-4 rounded-lg bg-green-50 border border-green-200">
@@ -100,26 +102,28 @@ export const PlanningCard = ({
 
         {/* Créneaux confirmés */}
         {confirmedSlots.length > 0 && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
               <p className="text-sm font-medium">Créneau confirmé</p>
             </div>
-            {confirmedSlots.map((slot) => (
-              <TimeSlotCard
-                key={slot.id}
-                slot={slot}
-                userRole={userRole}
-                currentUserId={currentUserId}
-                variant="default"
-              />
-            ))}
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {confirmedSlots.map((slot) => (
+                <TimeSlotCard
+                  key={slot.id}
+                  slot={slot}
+                  userRole={userRole}
+                  currentUserId={currentUserId}
+                  variant="default"
+                />
+              ))}
+            </div>
           </div>
         )}
 
         {/* Créneaux proposés / en attente */}
         {pendingSlots.length > 0 && (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-amber-600" />
@@ -130,7 +134,7 @@ export const PlanningCard = ({
               </Badge>
             </div>
 
-            <div className="space-y-2">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {pendingSlots.map((slot) => (
                 <TimeSlotCard
                   key={slot.id}
@@ -141,6 +145,8 @@ export const PlanningCard = ({
                   onApprove={onApproveSlot}
                   onReject={onRejectSlot}
                   onEdit={onEditSlot}
+                  onCancel={onCancelSlot}
+                  onChoose={onChooseSlot}
                   variant="default"
                 />
               ))}

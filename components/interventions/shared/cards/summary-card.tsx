@@ -24,6 +24,8 @@ import {
 import { formatDate, formatAmount } from '../utils/helpers'
 
 export interface SummaryCardProps {
+  /** Titre de la card (par défaut: "Synthèse") */
+  title?: string
   /** Date planifiée de l'intervention */
   scheduledDate?: string | null
   /** Nombre de devis reçus */
@@ -42,6 +44,7 @@ export interface SummaryCardProps {
  * Card de synthèse affichant les informations clés
  */
 export const SummaryCard = ({
+  title = 'Synthèse',
   scheduledDate,
   quotesCount = 0,
   selectedQuoteAmount,
@@ -107,9 +110,9 @@ export const SummaryCard = ({
   const QuotesIcon = quotesConfig.icon
 
   return (
-    <Card className={cn('', className)}>
+    <Card className={cn('h-full', className)}>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">Synthèse</CardTitle>
+        <CardTitle className="text-base">{title}</CardTitle>
       </CardHeader>
 
       <CardContent className="space-y-4">

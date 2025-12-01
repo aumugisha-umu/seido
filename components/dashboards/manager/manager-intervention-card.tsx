@@ -35,6 +35,14 @@ import {
     AlertTriangle
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import {
+    getStatusColor,
+    getStatusLabel,
+    getStatusActionMessage,
+    getPriorityColor,
+    getPriorityLabel
+} from "@/lib/intervention-utils"
+import { shouldShowAlertBadge } from "@/lib/intervention-alert-utils"
 
 interface ManagerInterventionCardProps {
     intervention: any
@@ -76,6 +84,10 @@ export function ManagerInterventionCard({
     const TypeIcon = getTypeIcon(intervention.type)
     const typeColor = getTypeColor(intervention.type)
     const isUrgent = intervention.priority === 'haute' || intervention.priority === 'urgente'
+
+    // Action banner logic
+    const isAlert = shouldShowAlertBadge(intervention, userContext)
+    const actionMessage = getStatusActionMessage(intervention.status, userContext)
 
     // Generate intervention URL based on user context
     const getInterventionUrl = (interventionId: string) => {
@@ -323,29 +335,50 @@ export function ManagerInterventionCard({
             className="group relative bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 h-full flex flex-col"
             onClick={() => handleActionClick('view_details')}
         >
-            {/* Header: Icon + Badges + Action Menu */}
-            <div className="flex justify-between items-start mb-4">
-                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-md", typeColor)}>
+            {/* Header: Icon + Action Banner + Badges + Menu */}
+            <div className="flex items-start mb-4 gap-3">
+                {/* Icône de type */}
+                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-md flex-shrink-0", typeColor)}>
                     <TypeIcon className="h-6 w-6" />
                 </div>
 
-                <div className="flex items-start gap-2">
+                {/* Banner d'action (au milieu, prend l'espace disponible) */}
+                <div className={cn(
+                    "flex-1 border rounded-lg px-3 py-2 min-w-0",
+                    isAlert ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-200',
+                )}>
+                    <div className="flex items-center gap-2">
+                        <div className={cn(
+                            "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
+                            isAlert ? 'bg-orange-100' : 'bg-blue-100'
+                        )}>
+                            <Clock className={cn("h-3 w-3", isAlert ? 'text-orange-600' : 'text-blue-600')} />
+                        </div>
+                        <p className={cn(
+                            "text-xs font-medium truncate",
+                            isAlert ? 'text-orange-800' : 'text-blue-800'
+                        )}>
+                            {actionMessage}
+                        </p>
+                    </div>
+                </div>
+
+                {/* Badges + Menu (à droite) */}
+                <div className="flex items-start gap-2 flex-shrink-0">
                     <div className="flex flex-col items-end gap-1">
+                        {/* Badge de priorité */}
                         {isUrgent && (
-                            <Badge variant="outline" className="border-orange-200 text-orange-700 bg-orange-50">
-                                Urgent
+                            <Badge className={cn(getPriorityColor(intervention.priority), "text-xs border")}>
+                                {getPriorityLabel(intervention.priority)}
                             </Badge>
                         )}
-                        <Badge variant="secondary" className={cn(
-                            "font-medium",
-                            intervention.status === 'nouveau' && "bg-blue-100 text-blue-700",
-                            intervention.status === 'en_cours' && "bg-amber-100 text-amber-700",
-                            intervention.status === 'terminee' && "bg-green-100 text-green-700"
-                        )}>
-                            {intervention.status.replace('_', ' ')}
+                        {/* Badge de statut coloré */}
+                        <Badge className={cn(getStatusColor(intervention.status), "text-xs border")}>
+                            {getStatusLabel(intervention.status)}
                         </Badge>
                     </div>
 
+                    {/* Menu d'actions */}
                     <div onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>

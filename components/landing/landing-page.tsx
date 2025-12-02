@@ -909,21 +909,16 @@ export function LandingPage() {
                             </p>
                         </div>
 
+                        
+                        <div> </div>
+
+
                         <div>
                             <h3 className="landing-body font-semibold text-white mb-3">Produit</h3>
                             <ul className="space-y-2 landing-caption text-white/60">
                                 <li><a href="#features" className="hover:text-white transition-colors">Fonctionnalités</a></li>
                                 <li><a href="#pricing" className="hover:text-white transition-colors">Tarifs</a></li>
                                 <li><a href="#" className="hover:text-white transition-colors">Sécurité</a></li>
-                            </ul>
-                        </div>
-
-                        <div>
-                            <h3 className="landing-body font-semibold text-white mb-3">Entreprise</h3>
-                            <ul className="space-y-2 landing-caption text-white/60">
-                                <li><a href="#" className="hover:text-white transition-colors">À propos</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Contact</a></li>
                             </ul>
                         </div>
 

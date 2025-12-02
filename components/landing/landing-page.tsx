@@ -273,7 +273,7 @@ export function LandingPage() {
                                     <ul className="space-y-3">
                                         <li className="flex items-start landing-body-sm text-white/80">
                                             <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
-                                            <span><strong>Centralisez tout</strong> : emails, interventions et documents en un seul endroit</span>
+                                            <span><strong>Centralisez tout</strong> : communications, interventions et documents en un seul endroit</span>
                                         </li>
                                         <li className="flex items-start landing-body-sm text-white/80">
                                             <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />

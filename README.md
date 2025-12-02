@@ -20,6 +20,8 @@
 ## 📑 Table des Matières
 
 - [🎯 Vue d'ensemble](#-vue-densemble)
+  - [✨ Caractéristiques principales](#-caractéristiques-principales)
+  - [🚀 Fonctionnalités Premium](#-fonctionnalités-premium)
 - [🏗️ Architecture Technique](#️-architecture-technique)
 - [👥 Système Multi-Rôles](#-système-multi-rôles)
 - [📖 User Stories](#-user-stories)
@@ -60,6 +62,28 @@
 - ✉️ **Email client IMAP/SMTP** - Sync emails et gestion communications
 - 🎨 **UI/UX** - 264 composants (50+ shadcn/ui + 19 shared + custom)
 - ⚡ **Performance** - Cache multi-niveaux (Redis + LRU)
+
+### 🚀 Fonctionnalités Premium
+
+#### 💬 Communication Intégrée
+- **Chat temps réel** - Conversations par intervention avec pièces jointes
+- **Client Email complet** - IMAP/SMTP avec sync, envoi, archives et brouillons
+- **Notifications instantanées** - 18 types d'événements, WebSocket optimisé (1 connexion/utilisateur)
+
+#### 📱 Mobilité & Accessibilité
+- **PWA (Progressive Web App)** - Installation native sans App Store
+- **Interface responsive** - Optimisée mobile, tablette et desktop
+- **Mode hors-ligne** - Service Worker pour fonctionnement déconnecté
+
+#### 📄 Gestion Documentaire
+- **Upload et prévisualisation** - Drag & drop, preview images et PDF
+- **Visibilité par rôle** - Documents équipe, locataire ou intervention
+- **Association automatique** - Documents liés aux propriétés ou interventions
+
+#### ✅ Conformité & Audit
+- **Logs d'activité** - Audit trail complet de toutes les actions
+- **RGPD compliant** - Données sécurisées, chiffrement, droit à l'oubli
+- **Multi-tenant** - Isolation RLS garantie entre équipes
 
 ### 📊 Métriques de l'Application
 

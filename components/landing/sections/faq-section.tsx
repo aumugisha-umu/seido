@@ -63,7 +63,7 @@ export function FAQSection() {
             Vous avez d'autres questions ?
           </p>
           <a
-            href="mailto:contact@seido.pm"
+            href="mailto:contact@seido-app.com"
             className="inline-flex items-center gap-2 text-brand-purple hover:text-brand-indigo font-medium transition-colors"
           >
             Contactez notre équipe

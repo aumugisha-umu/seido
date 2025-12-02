@@ -23,8 +23,13 @@ const BetaPasswordSchema = z.object({
 })
 
 const BetaInterestSchema = z.object({
+  firstName: z.string().min(2, 'Prénom requis (minimum 2 caractères)'),
+  lastName: z.string().min(2, 'Nom requis (minimum 2 caractères)'),
   email: z.string().email('Email invalide').min(1, 'Email requis'),
-  message: z.string().min(10, 'Message trop court (minimum 10 caractères)').max(500, 'Message trop long (maximum 500 caractères)')
+  phone: z.string().optional(),
+  company: z.string().min(2, 'Société requise (minimum 2 caractères)'),
+  lotsCount: z.enum(['1-10', '11-50', '51-200', '200+'], { errorMap: () => ({ message: 'Veuillez sélectionner le nombre de lots' }) }),
+  message: z.string().max(500, 'Message trop long (maximum 500 caractères)').optional()
 })
 
 // ✅ TYPES: Return types pour actions
@@ -152,12 +157,17 @@ export async function submitBetaInterest(
 
     // ✅ VALIDATION: Parser et valider les données
     const rawData = {
+      firstName: formData.get('firstName') as string,
+      lastName: formData.get('lastName') as string,
       email: formData.get('email') as string,
-      message: formData.get('message') as string
+      phone: formData.get('phone') as string || undefined,
+      company: formData.get('company') as string,
+      lotsCount: formData.get('lotsCount') as string,
+      message: formData.get('message') as string || undefined
     }
 
     const validatedData = BetaInterestSchema.parse(rawData)
-    logger.info(`📝 [BETA-INTEREST] Data validated for: ${validatedData.email}`)
+    logger.info(`📝 [FONDATEURS-2026] Candidature validée: ${validatedData.firstName} ${validatedData.lastName} (${validatedData.company})`)
 
     // ✅ VÉRIFIER: Service email disponible
     if (!isResendConfigured()) {
@@ -168,8 +178,15 @@ export async function submitBetaInterest(
       }
     }
 
-    // ✅ ENVOYER EMAIL: Notification d'intérêt à contact@seido.pm
-    logger.info('📧 [BETA-INTEREST] Sending interest notification email...')
+    // ✅ ENVOYER EMAIL: Notification de candidature Programme Fondateurs
+    logger.info('📧 [FONDATEURS-2026] Envoi notification candidature...')
+
+    const lotsLabel = {
+      '1-10': '1 à 10 lots',
+      '11-50': '11 à 50 lots',
+      '51-200': '51 à 200 lots',
+      '200+': 'Plus de 200 lots'
+    }[validatedData.lotsCount] || validatedData.lotsCount
 
     const emailHtml = `
       <!DOCTYPE html>
@@ -180,42 +197,62 @@ export async function submitBetaInterest(
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
             .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; }
+            .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-top: 10px; }
             .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
-            .info-row { margin: 15px 0; padding: 15px; background: white; border-radius: 8px; }
-            .label { font-weight: bold; color: #667eea; margin-bottom: 5px; }
-            .value { color: #333; }
+            .info-row { margin: 15px 0; padding: 15px; background: white; border-radius: 8px; border-left: 4px solid #667eea; }
+            .label { font-weight: bold; color: #667eea; margin-bottom: 5px; font-size: 12px; text-transform: uppercase; }
+            .value { color: #333; font-size: 16px; }
+            .highlight { background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border: 1px solid #667eea30; }
             .footer { text-align: center; margin-top: 30px; color: #666; font-size: 12px; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <h1 style="margin: 0;">📬 Nouvelle demande d'accès beta</h1>
-              <p style="margin: 10px 0 0 0; opacity: 0.9;">SEIDO - Gestion Immobilière</p>
+              <h1 style="margin: 0;">🚀 Nouvelle candidature Fondateurs 2026</h1>
+              <p style="margin: 10px 0 0 0; opacity: 0.9;">Programme Beta Privée SEIDO</p>
+              <span class="badge">${lotsLabel}</span>
             </div>
             <div class="content">
-              <div class="info-row">
-                <div class="label">Email:</div>
-                <div class="value">${validatedData.email}</div>
+              <div class="info-row highlight">
+                <div class="label">Candidat</div>
+                <div class="value">${validatedData.firstName} ${validatedData.lastName}</div>
               </div>
               <div class="info-row">
-                <div class="label">Message:</div>
+                <div class="label">Société</div>
+                <div class="value">${validatedData.company}</div>
+              </div>
+              <div class="info-row">
+                <div class="label">Email</div>
+                <div class="value"><a href="mailto:${validatedData.email}" style="color: #667eea;">${validatedData.email}</a></div>
+              </div>
+              ${validatedData.phone ? `
+              <div class="info-row">
+                <div class="label">Téléphone</div>
+                <div class="value"><a href="tel:${validatedData.phone}" style="color: #667eea;">${validatedData.phone}</a></div>
+              </div>
+              ` : ''}
+              <div class="info-row">
+                <div class="label">Patrimoine géré</div>
+                <div class="value">${lotsLabel}</div>
+              </div>
+              ${validatedData.message ? `
+              <div class="info-row">
+                <div class="label">Message</div>
                 <div class="value">${validatedData.message}</div>
               </div>
-              <div class="info-row">
-                <div class="label">Date:</div>
-                <div class="value">${new Date().toLocaleString('fr-FR', {
-                  dateStyle: 'full',
-                  timeStyle: 'short'
-                })}</div>
-              </div>
-              <div class="info-row">
-                <div class="label">IP:</div>
-                <div class="value">${ip}</div>
+              ` : ''}
+              <div class="info-row" style="border-left-color: #ccc;">
+                <div class="label">Infos techniques</div>
+                <div class="value" style="font-size: 12px; color: #666;">
+                  Date: ${new Date().toLocaleString('fr-FR', { dateStyle: 'full', timeStyle: 'short' })}<br>
+                  IP: ${ip}
+                </div>
               </div>
             </div>
             <div class="footer">
-              <p>Cet email a été généré automatiquement par SEIDO.</p>
+              <p><strong>Action requise:</strong> Recontacter sous 48h comme promis !</p>
+              <p style="margin-top: 10px;">Programme Fondateurs 2026 - SEIDO</p>
             </div>
           </div>
         </body>
@@ -225,23 +262,24 @@ export async function submitBetaInterest(
     const { data, error } = await resend.emails.send({
       from: EMAIL_CONFIG.from,
       to: 'contact@seido.pm',
-      subject: `[BETA] Nouvelle demande d'accès - ${validatedData.email}`,
+      subject: `[FONDATEURS 2026] ${validatedData.firstName} ${validatedData.lastName} - ${validatedData.company} (${lotsLabel})`,
       html: emailHtml,
       tags: [
-        { name: 'type', value: 'beta-interest' },
-        { name: 'email', value: validatedData.email }
+        { name: 'type', value: 'fondateurs-2026' },
+        { name: 'company', value: validatedData.company },
+        { name: 'lots', value: validatedData.lotsCount }
       ]
     })
 
     if (error) {
-      logger.error(`❌ [BETA-INTEREST] Email send failed: ${error.message}`)
+      logger.error(`❌ [FONDATEURS-2026] Échec envoi email: ${error.message}`)
       return {
         success: false,
-        error: 'Erreur lors de l\'envoi de votre demande. Veuillez réessayer.'
+        error: 'Erreur lors de l\'envoi de votre candidature. Veuillez réessayer.'
       }
     }
 
-    logger.info(`✅ [BETA-INTEREST] Email sent successfully: ${data?.id}`)
+    logger.info(`✅ [FONDATEURS-2026] Candidature enregistrée: ${validatedData.company} - ${data?.id}`)
 
     // ✅ REVALIDATE: Forcer refresh
     revalidatePath('/auth/signup')

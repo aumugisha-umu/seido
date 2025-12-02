@@ -7,9 +7,10 @@ interface CountUpProps {
     duration?: number
     suffix?: string
     prefix?: string
+    separator?: string
 }
 
-export function CountUp({ end, duration = 2000, suffix = '', prefix = '' }: CountUpProps) {
+export function CountUp({ end, duration = 2000, suffix = '', prefix = '', separator = '' }: CountUpProps) {
     const [count, setCount] = useState(0)
     const countRef = useRef<HTMLSpanElement>(null)
     const [isVisible, setIsVisible] = useState(false)
@@ -62,9 +63,14 @@ export function CountUp({ end, duration = 2000, suffix = '', prefix = '' }: Coun
         return () => cancelAnimationFrame(animationFrameId)
     }, [isVisible, end, duration])
 
+    const formatNumber = (num: number) => {
+        if (!separator) return num.toString()
+        return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, separator)
+    }
+
     return (
         <span ref={countRef}>
-            {prefix}{count}{suffix}
+            {prefix}{formatNumber(count)}{suffix}
         </span>
     )
 }

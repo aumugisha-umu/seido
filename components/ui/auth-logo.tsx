@@ -1,6 +1,7 @@
 "use client"
 
 import Image from "next/image"
+import Link from "next/link"
 
 interface AuthLogoProps {
   className?: string
@@ -10,7 +11,7 @@ interface AuthLogoProps {
 
 export default function AuthLogo({ className = "", width = 240, height = 72 }: AuthLogoProps) {
   return (
-    <div className={`flex items-center justify-center ${className}`}>
+    <Link href="/" className={`flex items-center justify-center hover:opacity-80 transition-opacity ${className}`}>
       <Image
         src="/images/Logo/Logo_Seido_Color.png"
         alt="SEIDO"
@@ -19,7 +20,7 @@ export default function AuthLogo({ className = "", width = 240, height = 72 }: A
         priority
         className="h-16 w-auto object-contain"
       />
-    </div>
+    </Link>
   )
 }
 

@@ -12,12 +12,12 @@ export default function AuthLogo({ className = "", width = 240, height = 72 }: A
   return (
     <div className={`flex items-center justify-center ${className}`}>
       <Image
-        src="/images/Seido_Main_Side_last.png"
+        src="/images/Logo/Logo_Seido_Color.png"
         alt="SEIDO"
         width={width}
         height={height}
         priority
-        className="h-14 md:h-16 w-auto object-contain"
+        className="h-16 w-auto object-contain"
       />
     </div>
   )

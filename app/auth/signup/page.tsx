@@ -31,37 +31,30 @@ export default async function SignupPage() {
   logger.info('✅ [SIGNUP-SERVER] Beta access granted - showing signup form')
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card className="border-border shadow-lg">
-          <CardHeader className="text-center space-y-4">
-            <div className="flex justify-center">
-              <AuthLogo />
-            </div>
-            <div>
-              <CardTitle className="text-2xl font-bold text-foreground">Inscription</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Créez votre compte pour accéder à votre espace de gestion
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {/* Formulaire d'inscription - composant client */}
-            <SignupForm />
+    <div className="w-full space-y-6">
+      <div className="flex flex-col items-center space-y-4 text-center">
+        <AuthLogo />
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight text-white">Inscription</h1>
+          <p className="text-white/60">
+            Créez votre compte pour accéder à votre espace de gestion
+          </p>
+        </div>
+      </div>
 
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Vous avez déjà un compte ?{" "}
-                <Link
-                  href="/auth/login"
-                  className="text-primary hover:text-secondary underline-offset-4 hover:underline font-medium"
-                >
-                  Se connecter
-                </Link>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Formulaire d'inscription - composant client */}
+      <SignupForm />
+
+      <div className="mt-6 text-center">
+        <p className="text-sm text-white/60">
+          Vous avez déjà un compte ?{" "}
+          <Link
+            href="/auth/login"
+            className="text-purple-400 hover:text-purple-300 underline-offset-4 hover:underline font-medium transition-colors"
+          >
+            Se connecter
+          </Link>
+        </p>
       </div>
     </div>
   )

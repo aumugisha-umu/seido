@@ -57,9 +57,14 @@ export async function GET(request: NextRequest) {
 
     logger.info({ count: result.data?.length || 0 }, '✅ [LOTS-API] Lots fetched successfully')
 
+    // ⚡ CACHE: 5 minutes pour la liste des lots (données relativement stables)
     return NextResponse.json({
       success: true,
       lots: result.data || []
+    }, {
+      headers: {
+        'Cache-Control': 'private, max-age=300, stale-while-revalidate=600'
+      }
     })
 
   } catch (error) {
@@ -157,10 +162,16 @@ export async function POST(request: NextRequest) {
       logger.error({ error: notifError, lotId: result.data?.id }, '⚠️ [LOTS-API] Failed to send lot creation notification')
     }
 
+    // ⚡ NO-CACHE: Mutations ne doivent pas être cachées
     return NextResponse.json({
       success: true,
       lot: result.data
-    }, { status: 201 })
+    }, {
+      status: 201,
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate'
+      }
+    })
 
   } catch (error) {
     logger.error({ error }, '❌ [LOTS-API] Unexpected error in POST')

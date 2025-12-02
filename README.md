@@ -20,6 +20,8 @@
 ## 📑 Table des Matières
 
 - [🎯 Vue d'ensemble](#-vue-densemble)
+  - [✨ Caractéristiques principales](#-caractéristiques-principales)
+  - [🚀 Fonctionnalités Premium](#-fonctionnalités-premium)
 - [🏗️ Architecture Technique](#️-architecture-technique)
 - [👥 Système Multi-Rôles](#-système-multi-rôles)
 - [📖 User Stories](#-user-stories)
@@ -58,15 +60,38 @@
 - 🔐 **Sécurité** - RLS (Row Level Security) au niveau base de données
 - 📧 **Notifications multi-canaux** - In-app, Push, Email (18 templates)
 - ✉️ **Email client IMAP/SMTP** - Sync emails et gestion communications
-- 🎨 **UI/UX** - 245 composants (50+ shadcn/ui + custom)
+- 🎨 **UI/UX** - 264 composants (50+ shadcn/ui + 19 shared + custom)
 - ⚡ **Performance** - Cache multi-niveaux (Redis + LRU)
+
+### 🚀 Fonctionnalités Premium
+
+#### 💬 Communication Intégrée
+- **Chat temps réel** - Conversations par intervention avec pièces jointes
+- **Client Email complet** - IMAP/SMTP avec sync, envoi, archives et brouillons
+- **Notifications instantanées** - 18 types d'événements, WebSocket optimisé (1 connexion/utilisateur)
+
+#### 📱 Mobilité & Accessibilité
+- **PWA (Progressive Web App)** - Installation native sans App Store
+- **Interface responsive** - Optimisée mobile, tablette et desktop
+- **Mode hors-ligne** - Service Worker pour fonctionnement déconnecté
+
+#### 📄 Gestion Documentaire
+- **Upload et prévisualisation** - Drag & drop, preview images et PDF
+- **Visibilité par rôle** - Documents équipe, locataire ou intervention
+- **Association automatique** - Documents liés aux propriétés ou interventions
+
+#### ✅ Conformité & Audit
+- **Logs d'activité** - Audit trail complet de toutes les actions
+- **RGPD compliant** - Données sécurisées, chiffrement, droit à l'oubli
+- **Multi-tenant** - Isolation RLS garantie entre équipes
 
 ### 📊 Métriques de l'Application
 
 | Métrique | Valeur | Détails |
 |----------|--------|---------|
 | **API Routes** | 86 routes | 100% authentifiées, 100% rate-limited |
-| **Composants UI** | 245 composants | 50+ shadcn/ui + 57 intervention workflow + dashboards |
+| **Composants UI** | 264 composants | 50+ shadcn/ui + 76 intervention workflow + 19 shared + dashboards |
+| **Storybook Stories** | 19 stories | Documentation interactive composants intervention |
 | **Services** | 24 services | Domain services (business logic) |
 | **Repositories** | 18 repositories | Data access layer avec caching |
 | **Custom Hooks** | 51 hooks | Auth, data fetching, UI state, real-time |
@@ -78,9 +103,40 @@
 
 ---
 
-## 🚀 Dernières Mises à Jour - Novembre 2025
+## 🚀 Dernières Mises à Jour - Décembre 2025
 
-### 🔔 Migration Architecture des Notifications (Nov 22, 2025)
+### 📚 Storybook & Architecture Composants (Dec 1, 2025)
+
+**Documentation interactive des composants** avec Storybook et nouvelle architecture modulaire.
+
+**Nouveautés** :
+- 📚 **Storybook** - 19 stories pour documenter les composants intervention
+- 🧩 **Architecture BEM** - Composants partagés organisés en atoms/cards/sidebar/layout
+- 🎨 **Preview Hybrid Layout** - Nouveau design pour les détails d'intervention
+- ⚡ **Realtime amélioré** - Reconnexion avec exponential backoff (max 5 tentatives)
+- 🔧 **Cards unifiées** - ManagerInterventionCard utilisé partout (dashboard + liste)
+- 🐛 **Layout Fix** - Correction hauteur sidebar avec flexbox
+
+**Nouvelle architecture composants** :
+```
+components/interventions/shared/
+├── atoms/          # Composants atomiques (6 fichiers + stories)
+├── cards/          # Cartes de contenu (7 fichiers + stories)
+├── sidebar/        # Composants sidebar (4 fichiers + stories)
+└── layout/         # Layouts (2 fichiers + stories)
+```
+
+**Commandes Storybook** :
+```bash
+npm run storybook       # Lancer Storybook (http://localhost:6006)
+npm run build-storybook # Build statique
+```
+
+---
+
+## 🔔 Mises à Jour - Novembre 2025
+
+### Migration Architecture des Notifications (Nov 22, 2025)
 
 **Architecture modernisée** : Passage de singleton à Server Actions + Domain Service + Repository
 
@@ -765,7 +821,18 @@ Server Actions → NotificationDispatcher → EmailNotificationService → Resen
 
 ## 🎨 Bibliothèque de Composants
 
-### 245 Composants UI
+### 264 Composants UI
+
+#### 📚 Storybook (Documentation Interactive)
+
+**19 stories** documentant les composants intervention preview. Lancer avec `npm run storybook`.
+
+| Catégorie | Stories | Composants |
+|-----------|---------|------------|
+| **Atoms** | 6 | role-badge, status-badge, participant-avatar, message-bubble, time-slot-card, document-item |
+| **Cards** | 7 | planning-card, intervention-details-card, summary-card, comments-card, documents-card, conversation-card, quotes-card |
+| **Sidebar** | 4 | participants-list, progression-timeline, conversation-button, intervention-sidebar |
+| **Layout** | 2 | intervention-tabs, preview-hybrid-layout |
 
 #### shadcn/ui Base (50+ composants)
 
@@ -786,9 +853,20 @@ Situés dans `components/ui/` :
 **Typography** :
 - Typographie Tailwind + `text` utilities
 
-#### Intervention Workflow (57 composants)
+#### Intervention Workflow (76 composants)
 
-Situés dans `components/intervention/` :
+Situés dans `components/intervention/` et `components/interventions/shared/` :
+
+**Shared Components - Preview Design** (19 composants) :
+
+Nouvelle architecture modulaire pour les previews d'intervention :
+```
+components/interventions/shared/
+├── atoms/          # Composants atomiques réutilisables
+├── cards/          # Cartes de contenu (devis, documents, commentaires)
+├── sidebar/        # Sidebar avec participants et progression
+└── layout/         # Layouts et tabs
+```
 
 **Planning & Scheduling** (12 composants) :
 - `availability-form.tsx`

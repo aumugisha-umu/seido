@@ -162,10 +162,16 @@ export async function POST(request: NextRequest) {
       logger.error({ error: notifError, buildingId: result.data?.id }, '⚠️ [BUILDINGS-API] Failed to send building creation notification')
     }
 
+    // ⚡ NO-CACHE: Mutations ne doivent pas être cachées
     return NextResponse.json({
       success: true,
       building: result.data
-    }, { status: 201 })
+    }, {
+      status: 201,
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate'
+      }
+    })
 
   } catch (error) {
     logger.error({ error }, '❌ [BUILDINGS-API] Unexpected error in POST')

@@ -522,6 +522,7 @@ export function InterventionCreateForm({
                 </FormItem>
               )}
             />
+            */}
           </CardContent>
         </Card>
 

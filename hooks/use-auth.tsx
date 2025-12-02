@@ -193,7 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // Bloquer jusqu'à ce que la session soit chargée, puis configurer les listeners
-    let subscription: any
+    let subscription: { unsubscribe: () => void } | undefined
     initializeAuth().then((sub) => {
       subscription = sub
     })

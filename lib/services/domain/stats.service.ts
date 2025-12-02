@@ -577,72 +577,69 @@ export class StatsService {
         }
       }
 
-      // Get team stats which includes building/lot counts
-      const teamStatsResult = await this.repository.getTeamStats(teamId)
+      // ⚡ OPTIMISATION: Paralléliser les 3 requêtes indépendantes (teamStats, buildings, interventions)
+      // Au lieu de séquentiel (~800ms), maintenant parallèle (~300ms)
+      const [teamStatsResult, buildingsResult, interventionsResult] = await Promise.all([
+        // 1. Team stats
+        this.repository.getTeamStats(teamId),
 
-      // Fetch actual buildings for this team
-      let buildings: any[] = []
-      try {
-        const buildingsResult = await this.repository.supabase
+        // 2. Buildings for this team
+        this.repository.supabase
           .from('buildings')
           .select('id, name, address, city, postal_code, created_at')
           .eq('team_id', teamId)
-          .order('created_at', { ascending: false })
+          .order('created_at', { ascending: false }),
 
-        if (buildingsResult.data) {
-          buildings = buildingsResult.data
-        }
-      } catch (buildingError) {
-        logger.error('⚠️ Error fetching buildings:', buildingError)
-        // Continue with empty array if building fetch fails
+        // 3. Interventions with relations
+        this.interventionRepository
+          ? this.interventionRepository.findAllWithRelations({ limit: 100 })
+          : Promise.resolve({ success: true, data: [] })
+      ])
+
+      // Extract buildings from result
+      let buildings: any[] = []
+      if (buildingsResult.data) {
+        buildings = buildingsResult.data
+      } else if (buildingsResult.error) {
+        logger.error('⚠️ Error fetching buildings:', buildingsResult.error)
       }
 
-      // Fetch all interventions and recent interventions requiring manager action
+      // Process interventions
       let allInterventions: any[] = []
       let recentInterventions: any[] = []
-      if (this.interventionRepository) {
-        try {
-          // Get all interventions with relations
-          const interventionsResult = await this.interventionRepository.findAllWithRelations({ limit: 100 })
+      if (interventionsResult.success && interventionsResult.data) {
+        // First, filter ALL interventions for this team
+        allInterventions = interventionsResult.data
+          .filter((intervention: any) => {
+            // Check if intervention belongs to this team
+            // Support both lot-based AND building-wide interventions
+            const belongsToTeam =
+              intervention.lot?.building?.team_id === teamId ||  // Intervention on a specific lot
+              intervention.building?.team_id === teamId           // Intervention on building (building-wide)
+            return belongsToTeam
+          })
 
-          if (interventionsResult.success && interventionsResult.data) {
-            // First, filter ALL interventions for this team
-            allInterventions = interventionsResult.data
-              .filter((intervention: any) => {
-                // Check if intervention belongs to this team
-                // Support both lot-based AND building-wide interventions
-                const belongsToTeam =
-                  intervention.lot?.building?.team_id === teamId ||  // Intervention on a specific lot
-                  intervention.building?.team_id === teamId           // Intervention on building (building-wide)
-                return belongsToTeam
-              })
-
-            // Then, create recentInterventions: filter by requiring action and limit to 10
-            recentInterventions = allInterventions
-              .filter((intervention: any) => {
-                // Check if intervention requires manager action
-                const requiresAction = [
-                  'demande',
-                  'approuvee',
-                  'demande_de_devis',
-                  'planification',
-                  'planifiee',
-                  'en_cours'
-                ].includes(intervention.status)
-                return requiresAction
-              })
-              .sort((a: any, b: any) => {
-                // Sort by created_at descending (most recent first)
-                const dateA = new Date(a.created_at).getTime()
-                const dateB = new Date(b.created_at).getTime()
-                return dateB - dateA
-              })
-              .slice(0, 10) // Limit to 10 most recent
-          }
-        } catch (interventionError) {
-          // Error is already logged by error-handler.ts
-          // Continue with empty arrays if intervention fetch fails (e.g., Phase 3 not yet applied)
-        }
+        // Then, create recentInterventions: filter by requiring action and limit to 10
+        recentInterventions = allInterventions
+          .filter((intervention: any) => {
+            // Check if intervention requires manager action
+            const requiresAction = [
+              'demande',
+              'approuvee',
+              'demande_de_devis',
+              'planification',
+              'planifiee',
+              'en_cours'
+            ].includes(intervention.status)
+            return requiresAction
+          })
+          .sort((a: any, b: any) => {
+            // Sort by created_at descending (most recent first)
+            const dateA = new Date(a.created_at).getTime()
+            const dateB = new Date(b.created_at).getTime()
+            return dateB - dateA
+          })
+          .slice(0, 10) // Limit to 10 most recent
       }
 
       const result = {

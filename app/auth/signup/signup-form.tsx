@@ -26,7 +26,7 @@ function SubmitButton({ isFormValid, isSubmitting }: { isFormValid: boolean; isS
   return (
     <Button
       type="submit"
-      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md hover:shadow-lg transition-all duration-200"
+      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
       disabled={isLoading || !isFormValid}
     >
       {isLoading ? (
@@ -71,7 +71,9 @@ export function SignupForm() {
       // ✅ DÉLAI: 500ms pour afficher le message de succès
       const timer = setTimeout(() => {
         logger.info('🔄 [SIGNUP-FORM] Executing navigation with window.location.href...')
-        window.location.href = state.data.redirectTo
+        if (state.data?.redirectTo) {
+          window.location.href = state.data.redirectTo
+        }
       }, 500)
 
       return () => clearTimeout(timer)
@@ -92,11 +94,11 @@ export function SignupForm() {
 
   const isPasswordValid = passwordRequirements.every(req => req.met)
   const isFormValid =
-    formData.firstName.trim() &&
-    formData.lastName.trim() &&
-    formData.email.trim() &&
-    formData.password.trim() &&
-    formData.confirmPassword.trim() &&
+    !!formData.firstName.trim() &&
+    !!formData.lastName.trim() &&
+    !!formData.email.trim() &&
+    !!formData.password.trim() &&
+    !!formData.confirmPassword.trim() &&
     formData.password === formData.confirmPassword &&
     isPasswordValid &&
     formData.acceptTerms
@@ -133,7 +135,7 @@ export function SignupForm() {
       {/* Prénom et Nom */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label htmlFor="firstName" className="text-foreground font-medium">
+          <Label htmlFor="firstName" className="text-white font-medium">
             Prénom
           </Label>
           <Input
@@ -143,13 +145,13 @@ export function SignupForm() {
             placeholder="Votre prénom"
             value={formData.firstName}
             onChange={(e) => handleInputChange("firstName", e.target.value)}
-            className="bg-input border-border h-11 transition-colors focus:border-primary"
+            className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 transition-colors focus:bg-white/20"
             required
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="lastName" className="text-foreground font-medium">
+          <Label htmlFor="lastName" className="text-white font-medium">
             Nom
           </Label>
           <Input
@@ -159,7 +161,7 @@ export function SignupForm() {
             placeholder="Votre nom de famille"
             value={formData.lastName}
             onChange={(e) => handleInputChange("lastName", e.target.value)}
-            className="bg-input border-border h-11 transition-colors focus:border-primary"
+            className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 transition-colors focus:bg-white/20"
             required
           />
         </div>
@@ -167,7 +169,7 @@ export function SignupForm() {
 
       {/* Email */}
       <div className="space-y-2">
-        <Label htmlFor="email" className="text-foreground font-medium">
+        <Label htmlFor="email" className="text-white font-medium">
           Adresse email
         </Label>
         <Input
@@ -177,14 +179,14 @@ export function SignupForm() {
           placeholder="votre@email.com"
           value={formData.email}
           onChange={(e) => handleInputChange("email", e.target.value)}
-          className="bg-input border-border h-11 transition-colors focus:border-primary"
+          className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 transition-colors focus:bg-white/20"
           required
         />
       </div>
 
       {/* Mot de passe */}
       <div className="space-y-2">
-        <Label htmlFor="password" className="text-foreground font-medium">
+        <Label htmlFor="password" className="text-white font-medium">
           Mot de passe
         </Label>
         <div className="relative">
@@ -195,14 +197,14 @@ export function SignupForm() {
             placeholder="Créez un mot de passe sécurisé"
             value={formData.password}
             onChange={(e) => handleInputChange("password", e.target.value)}
-            className="bg-input border-border h-11 pr-10 transition-colors focus:border-primary"
+            className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 pr-10 transition-colors focus:bg-white/20"
             required
           />
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-white/10 text-white/60 hover:text-white"
             onClick={() => setShowPassword(!showPassword)}
           >
             {showPassword ? (
@@ -215,10 +217,9 @@ export function SignupForm() {
         {formData.password && (
           <div className="bg-muted/20 border border-muted/50 rounded-md p-3 space-y-1.5">
             {passwordRequirements.map((req, index) => (
-              <div key={index} className="flex items-center gap-2.5 text-xs">
-                <div className={`h-4 w-4 rounded-full flex items-center justify-center ${
-                  req.met ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"
-                }`}>
+              <div key={index} className="flex items-center gap-2.5 text-sm">
+                <div className={`h-4 w-4 rounded-full flex items-center justify-center ${req.met ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"
+                  }`}>
                   <Check className="h-2.5 w-2.5" />
                 </div>
                 <span className={`${req.met ? "text-green-700 font-medium" : "text-muted-foreground"} transition-colors`}>
@@ -232,7 +233,7 @@ export function SignupForm() {
 
       {/* Confirmation mot de passe */}
       <div className="space-y-2">
-        <Label htmlFor="confirmPassword" className="text-foreground font-medium">
+        <Label htmlFor="confirmPassword" className="text-white font-medium">
           Confirmer le mot de passe
         </Label>
         <div className="relative">
@@ -243,14 +244,14 @@ export function SignupForm() {
             placeholder="Confirmez votre mot de passe"
             value={formData.confirmPassword}
             onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-            className="bg-input border-border h-11 pr-10 transition-colors focus:border-primary"
+            className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 pr-10 transition-colors focus:bg-white/20"
             required
           />
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-white/10 text-white/60 hover:text-white"
             onClick={() => setShowConfirmPassword(!showConfirmPassword)}
           >
             {showConfirmPassword ? (
@@ -275,12 +276,12 @@ export function SignupForm() {
           placeholder="Votre numéro de téléphone"
           value={formData.phone}
           onChange={(e) => handleInputChange("phone", e.target.value)}
-          className="bg-input border-border h-11 transition-colors focus:border-primary"
+          className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 transition-colors focus:bg-white/20"
         />
       </div>
 
       {/* Terms and Conditions Section */}
-      <div className="bg-muted/30 border border-muted rounded-lg p-4">
+      <div className="bg-white/5 border border-white/10 rounded-lg p-4">
         <div className="flex items-start space-x-3">
           <Checkbox
             id="terms"
@@ -292,7 +293,7 @@ export function SignupForm() {
           <input type="hidden" name="acceptTerms" value={formData.acceptTerms ? "true" : "false"} />
           <div className="flex-1">
             <div
-              className="text-sm text-foreground leading-relaxed cursor-pointer"
+              className="text-sm text-white/80 leading-relaxed cursor-pointer"
               onClick={(e) => {
                 // Ne pas déclencher si on clique sur un lien
                 if ((e.target as HTMLElement).tagName !== 'A') {
@@ -304,7 +305,7 @@ export function SignupForm() {
                 En créant mon compte, j'accepte les{" "}
                 <Link
                   href="/terms"
-                  className="text-primary hover:text-primary/80 underline decoration-primary/60 underline-offset-2 font-medium transition-colors"
+                  className="text-purple-400 hover:text-purple-300 underline decoration-purple-400/60 underline-offset-2 font-medium transition-colors"
                   onClick={(e) => e.stopPropagation()}
                 >
                   conditions d'utilisation
@@ -314,7 +315,7 @@ export function SignupForm() {
                 et la{" "}
                 <Link
                   href="/privacy"
-                  className="text-primary hover:text-primary/80 underline decoration-primary/60 underline-offset-2 font-medium transition-colors"
+                  className="text-purple-400 hover:text-purple-300 underline decoration-purple-400/60 underline-offset-2 font-medium transition-colors"
                   onClick={(e) => e.stopPropagation()}
                 >
                   politique de confidentialité

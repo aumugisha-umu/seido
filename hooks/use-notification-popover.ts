@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { createNotificationRepository } from '@/lib/services/repositories/notification-repository'
-import { useRealtimeNotifications } from './use-realtime-notifications'
+import { useRealtimeNotificationsV2 } from './use-realtime-notifications-v2'
 
 export interface Notification {
   id: string
@@ -125,30 +125,28 @@ export const useNotificationPopover = (
     fetchNotifications()
   }, [fetchNotifications])
 
-  // Realtime subscription for instant updates
-  useRealtimeNotifications({
-    userId: user?.id,
-    teamId,
+  // Realtime subscription for instant updates (v2 - uses RealtimeProvider context)
+  useRealtimeNotificationsV2({
     enabled: !!user?.id && !!teamId,
-    onInsert: (notification) => {
-      console.log('[NOTIFICATION-POPOVER] New notification received via Realtime')
+    onInsert: useCallback((notification) => {
+      console.log('[NOTIFICATION-POPOVER] New notification received via Realtime v2')
       // Add to top of list if it matches team filter
       if (!teamId || notification.team_id === teamId) {
         setNotifications(prev => [notification, ...prev].slice(0, limit))
       }
-    },
-    onUpdate: (notification) => {
-      console.log('[NOTIFICATION-POPOVER] Notification updated via Realtime')
+    }, [teamId, limit]),
+    onUpdate: useCallback((notification) => {
+      console.log('[NOTIFICATION-POPOVER] Notification updated via Realtime v2')
       // Update in list
       setNotifications(prev =>
         prev.map(n => n.id === notification.id ? notification : n)
       )
-    },
-    onDelete: (notification) => {
-      console.log('[NOTIFICATION-POPOVER] Notification deleted via Realtime')
+    }, []),
+    onDelete: useCallback((notification) => {
+      console.log('[NOTIFICATION-POPOVER] Notification deleted via Realtime v2')
       // Remove from list
       setNotifications(prev => prev.filter(n => n.id !== notification.id))
-    }
+    }, [])
   })
 
   // Auto-refresh if enabled

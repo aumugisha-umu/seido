@@ -76,102 +76,95 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
 
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card className="border-border shadow-lg">
-          <CardHeader className="text-center space-y-4">
-            <div className="flex justify-center">
-              <AuthLogo />
-            </div>
-            <div>
-              <CardTitle className="text-2xl font-bold text-foreground">Connexion</CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Accédez à votre espace de gestion immobilière
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {/* Messages de statut - rendu côté serveur */}
-            {showConfirmationSuccess && (
-              <Alert className="border-green-200 bg-green-50 mb-4">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800">
-                  {params.message === 'password-updated' ? (
-                    <>
-                      <strong>Mot de passe mis à jour avec succès !</strong><br />
-                      Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.
-                    </>
-                  ) : (
-                    <>
-                      <strong>Email confirmé avec succès !</strong><br />
-                      Vous pouvez maintenant vous connecter avec vos identifiants.
-                    </>
-                  )}
-                </AlertDescription>
-              </Alert>
+    <div className="w-full space-y-6">
+      <div className="flex flex-col items-center space-y-4 text-center">
+        <AuthLogo />
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight text-white">Connexion</h1>
+          <p className="text-white/60">
+            Accédez à votre espace de gestion immobilière
+          </p>
+        </div>
+      </div>
+
+      {/* Messages de statut - rendu côté serveur */}
+      {showConfirmationSuccess && (
+        <Alert className="border-green-500/30 bg-green-500/10 mb-4">
+          <CheckCircle className="h-4 w-4 text-green-400" />
+          <AlertDescription className="text-green-200">
+            {params.message === 'password-updated' ? (
+              <>
+                <strong>Mot de passe mis à jour avec succès !</strong><br />
+                Vous pouvez maintenant vous connecter avec votre nouveau mot de passe.
+              </>
+            ) : (
+              <>
+                <strong>Email confirmé avec succès !</strong><br />
+                Vous pouvez maintenant vous connecter avec vos identifiants.
+              </>
             )}
+          </AlertDescription>
+        </Alert>
+      )}
 
-            {showSessionRequired && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertDescription>
-                  Vous devez être connecté pour accéder à la configuration du mot de passe
-                </AlertDescription>
-              </Alert>
-            )}
+      {showSessionRequired && (
+        <Alert variant="destructive" className="mb-4 bg-red-500/10 border-red-500/30 text-red-200">
+          <AlertDescription>
+            Vous devez être connecté pour accéder à la configuration du mot de passe
+          </AlertDescription>
+        </Alert>
+      )}
 
-            {showEmailNotConfirmed && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertDescription>
-                  <strong>Email non confirmé</strong><br />
-                  Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.
-                </AlertDescription>
-              </Alert>
-            )}
+      {showEmailNotConfirmed && (
+        <Alert variant="destructive" className="mb-4 bg-red-500/10 border-red-500/30 text-red-200">
+          <AlertDescription>
+            <strong>Email non confirmé</strong><br />
+            Veuillez confirmer votre email avant de vous connecter. Vérifiez votre boîte de réception.
+          </AlertDescription>
+        </Alert>
+      )}
 
-            {showSessionExpired && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertDescription>
-                  <strong>Session expirée</strong><br />
-                  Votre session a expiré. Veuillez vous reconnecter.
-                </AlertDescription>
-              </Alert>
-            )}
+      {showSessionExpired && (
+        <Alert variant="destructive" className="mb-4 bg-red-500/10 border-red-500/30 text-red-200">
+          <AlertDescription>
+            <strong>Session expirée</strong><br />
+            Votre session a expiré. Veuillez vous reconnecter.
+          </AlertDescription>
+        </Alert>
+      )}
 
-            {showConfirmationError && (
-              <Alert variant="destructive" className="mb-4">
-                <AlertDescription>
-                  <strong>Erreur de confirmation</strong><br />
-                  {params.error === 'expired_token' && 'Le lien de confirmation a expiré. Veuillez vous inscrire à nouveau.'}
-                  {params.error === 'invalid_token' && 'Le lien de confirmation est invalide.'}
-                  {params.error === 'confirmation_failed' && 'Erreur lors de la confirmation. Veuillez réessayer.'}
-                </AlertDescription>
-              </Alert>
-            )}
+      {showConfirmationError && (
+        <Alert variant="destructive" className="mb-4 bg-red-500/10 border-red-500/30 text-red-200">
+          <AlertDescription>
+            <strong>Erreur de confirmation</strong><br />
+            {params.error === 'expired_token' && 'Le lien de confirmation a expiré. Veuillez vous inscrire à nouveau.'}
+            {params.error === 'invalid_token' && 'Le lien de confirmation est invalide.'}
+            {params.error === 'confirmation_failed' && 'Erreur lors de la confirmation. Veuillez réessayer.'}
+          </AlertDescription>
+        </Alert>
+      )}
 
-            {/* Formulaire de connexion - composant client */}
-            <LoginForm />
+      {/* Formulaire de connexion - composant client */}
+      <LoginForm />
 
-            <div className="flex items-center justify-between mt-4">
-              <Link
-                href="/auth/reset-password"
-                className="text-sm text-primary hover:text-secondary underline-offset-4 hover:underline"
-              >
-                Mot de passe oublié ?
-              </Link>
-            </div>
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Pas encore de compte ?{" "}
-                <Link
-                  href="/auth/signup"
-                  className="text-primary hover:text-secondary underline-offset-4 hover:underline font-medium"
-                >
-                  Créer un compte
-                </Link>
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex items-center justify-between mt-4">
+        <Link
+          href="/auth/reset-password"
+          className="text-sm text-purple-400 hover:text-purple-300 underline-offset-4 hover:underline transition-colors"
+        >
+          Mot de passe oublié ?
+        </Link>
+      </div>
+      <div className="mt-6 text-center">
+        <p className="text-sm text-white/60">
+          Pas encore de compte ?{" "}
+          <Link
+            href="/auth/signup"
+            className="text-purple-400 hover:text-purple-300 underline-offset-4 hover:underline font-medium transition-colors"
+          >
+            Créer un compte
+          </Link>
+        </p>
       </div>
     </div>
   )

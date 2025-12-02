@@ -3,22 +3,44 @@
 /**
  * Prestataire Intervention Detail Client
  * Main client component with tabs for provider view
+ * Utilise les composants partagés BEM pour le nouveau design
  */
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
+import { TabsContent } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogHeader, DialogFooter } from '@/components/ui/dialog'
-import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { createBrowserSupabaseClient } from '@/lib/services'
 
-// Tab components
-import { OverviewTab } from './overview-tab'
+// Composants partagés pour le nouveau design
+import {
+  // Types
+  Quote as SharedQuote,
+  TimeSlot as SharedTimeSlot,
+  Message,
+  Comment as SharedComment,
+  InterventionDocument,
+  TimelineEventData,
+  // Layout
+  PreviewHybridLayout,
+  ContentWrapper,
+  InterventionTabs,
+  // Sidebar
+  InterventionSidebar,
+  // Cards
+  InterventionDetailsCard,
+  CommentsCard,
+  DocumentsCard,
+  QuotesCard,
+  PlanningCard,
+  ConversationCard
+} from '@/components/interventions/shared'
+
+// Tab components (gardés pour compatibilité)
 import { ChatTab } from './chat-tab'
 import { QuotesTab } from './quotes-tab'
 import { DocumentsTab } from './documents-tab'
@@ -112,6 +134,9 @@ export function PrestataireInterventionDetailClient({
   const [slotToModify, setSlotToModify] = useState<TimeSlot | null>(null)
   const [currentChoice, setCurrentChoice] = useState<'accepted' | 'rejected'>('accepted')
 
+  // États pour le nouveau design PreviewHybrid
+  const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
+
   // Transform assignments into Contact arrays by role
   const { managers, providers, tenants } = useMemo(() => {
     const managers = assignments
@@ -152,6 +177,140 @@ export function PrestataireInterventionDetailClient({
 
     return { managers, providers, tenants }
   }, [assignments])
+
+  // ============================================================================
+  // Transformations pour les composants shared (nouveau design PreviewHybrid)
+  // ============================================================================
+
+  // Participants pour InterventionSidebar (format Participant)
+  const participants = useMemo(() => ({
+    managers: assignments
+      .filter(a => a.role === 'gestionnaire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name || '',
+        email: a.user!.email || undefined,
+        phone: a.user!.phone || undefined,
+        role: 'manager' as const
+      })),
+    providers: assignments
+      .filter(a => a.role === 'prestataire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name || '',
+        email: a.user!.email || undefined,
+        phone: a.user!.phone || undefined,
+        role: 'provider' as const
+      })),
+    tenants: assignments
+      .filter(a => a.role === 'locataire' && a.user)
+      .map(a => ({
+        id: a.user!.id,
+        name: a.user!.name || '',
+        email: a.user!.email || undefined,
+        phone: a.user!.phone || undefined,
+        role: 'tenant' as const
+      }))
+  }), [assignments])
+
+  // Quotes transformés pour QuotesCard
+  const transformedQuotes: SharedQuote[] = useMemo(() =>
+    quotes.map(q => ({
+      id: q.id,
+      amount: q.amount || 0,
+      status: q.status as SharedQuote['status'],
+      provider_name: q.provider?.name,
+      provider_id: q.provider_id || undefined,
+      created_at: q.created_at || undefined,
+      description: q.description || undefined
+    }))
+  , [quotes])
+
+  // TimeSlots transformés pour PlanningCard
+  const transformedTimeSlots: SharedTimeSlot[] = useMemo(() =>
+    timeSlots.map(slot => ({
+      id: slot.id,
+      slot_date: slot.slot_date || '',
+      start_time: slot.start_time || '',
+      end_time: slot.end_time || '',
+      status: slot.status || 'pending',
+      proposed_by: slot.proposed_by || undefined,
+      proposed_by_user: slot.proposed_by_user ? { name: slot.proposed_by_user.name } : undefined,
+      responses: (slot as any).responses?.map((r: any) => ({
+        id: r.id,
+        user_id: r.user_id,
+        response: r.response as 'accepted' | 'rejected' | 'pending',
+        user: r.user ? { name: r.user.name, role: r.user.role || '' } : undefined
+      }))
+    }))
+  , [timeSlots])
+
+  // Documents transformés pour DocumentsCard
+  const transformedDocuments: InterventionDocument[] = useMemo(() =>
+    documents.map(d => ({
+      id: d.id,
+      name: (d as any).original_filename || d.filename || 'Document',
+      type: d.document_type || 'file',
+      size: d.file_size ? `${Math.round(d.file_size / 1024)} KB` : undefined,
+      date: d.uploaded_at ? new Date(d.uploaded_at).toLocaleDateString('fr-FR') : undefined,
+      url: d.storage_path || undefined
+    }))
+  , [documents])
+
+  // Timeline events pour la progression
+  const timelineEvents: TimelineEventData[] = useMemo(() => {
+    const events: TimelineEventData[] = []
+
+    events.push({
+      status: 'demande',
+      date: intervention.created_at || new Date().toISOString(),
+      author: 'Système',
+      authorRole: 'tenant'
+    })
+
+    const statusOrder = [
+      'demande', 'approuvee', 'demande_de_devis', 'planification',
+      'planifiee', 'en_cours', 'cloturee_par_prestataire',
+      'cloturee_par_locataire', 'cloturee_par_gestionnaire'
+    ]
+
+    const currentIndex = statusOrder.indexOf(intervention.status)
+
+    if (currentIndex > 0) {
+      events.push({
+        status: 'approuvee',
+        date: intervention.updated_at || new Date().toISOString(),
+        authorRole: 'manager'
+      })
+    }
+
+    if (currentIndex >= statusOrder.indexOf('planifiee')) {
+      events.push({
+        status: 'planifiee',
+        date: intervention.updated_at || new Date().toISOString(),
+        authorRole: 'provider'
+      })
+    }
+
+    return events
+  }, [intervention])
+
+  // Date planifiée (si un créneau est sélectionné)
+  const scheduledDate = timeSlots.find(s => s.status === 'selected')?.slot_date || null
+
+  // Messages mock (à remplacer par de vraies données si disponibles)
+  const mockMessages: Message[] = useMemo(() => [], [])
+
+  // Callbacks pour les conversations
+  const handleConversationClick = (participantId: string) => {
+    setActiveConversation(participantId)
+    setActiveTab('conversations')
+  }
+
+  const handleGroupConversationClick = () => {
+    setActiveConversation('group')
+    setActiveTab('conversations')
+  }
 
   const handleRefresh = async () => {
     setRefreshing(true)
@@ -421,83 +580,116 @@ export function PrestataireInterventionDetailClient({
         hasGlobalNav={false}
       />
 
-      {/* Tabs */}
-      <div className="container mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto">
-            <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
-            <TabsTrigger value="quotes">
-              Devis
-              {quotes.length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {quotes.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="chat">
-              Chat
-              {threads.length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {threads.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="documents">
-              Documents
-              {documents.length > 0 && (
-                <Badge variant="secondary" className="ml-2">
-                  {documents.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
+      {/* Nouveau design PreviewHybrid */}
+      <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
+        <PreviewHybridLayout
+          sidebar={
+            <InterventionSidebar
+              participants={participants}
+              currentUserRole="provider"
+              currentStatus={intervention.status}
+              timelineEvents={timelineEvents}
+              activeConversation={activeConversation}
+              showConversationButtons={true}
+              onConversationClick={handleConversationClick}
+              onGroupConversationClick={handleGroupConversationClick}
+            />
+          }
+          content={
+            <InterventionTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              userRole="provider"
+            >
+              {/* TAB: GENERAL */}
+              <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <ContentWrapper>
+                  {/* Détails de l'intervention */}
+                  <div className="flex-shrink-0">
+                    <InterventionDetailsCard
+                      title={intervention.title}
+                      description={intervention.description || undefined}
+                      instructions={intervention.instructions || undefined}
+                      planning={{
+                        scheduledDate,
+                        status: scheduledDate ? 'scheduled' : 'pending',
+                        quotesCount: transformedQuotes.length,
+                        quotesStatus: transformedQuotes.some(q => q.status === 'approved')
+                          ? 'approved'
+                          : transformedQuotes.length > 0
+                            ? 'received'
+                            : 'pending',
+                        selectedQuoteAmount: transformedQuotes.find(q => q.status === 'approved')?.amount
+                      }}
+                    />
+                  </div>
 
-          <div className="mt-6">
-            <TabsContent value="overview" className="space-y-6">
-              <OverviewTab
-                intervention={intervention}
-                timeSlots={timeSlots}
-                currentUser={currentUser}
-                assignments={assignments}
-                quotes={quotes}
-                onRefresh={handleRefresh}
-                onRejectSlot={handleRejectSlot}
-                onAcceptSlot={handleAcceptSlot}
-                onModifyChoice={handleModifyChoice}
-                onEditQuote={handleEditQuote}
-                onCancelQuote={handleCancelQuote}
-              />
-            </TabsContent>
+                  {/* Documents */}
+                  <div className="mt-6 flex-1 min-h-0 overflow-hidden">
+                    <DocumentsCard
+                      documents={transformedDocuments}
+                      userRole="provider"
+                      onUpload={() => console.log('Upload document')}
+                      onView={(id) => console.log('View document:', id)}
+                      onDownload={(id) => console.log('Download document:', id)}
+                      className="overflow-hidden h-full"
+                    />
+                  </div>
+                </ContentWrapper>
+              </TabsContent>
 
-            <TabsContent value="chat" className="space-y-6">
-              <ChatTab
-                interventionId={intervention.id}
-                threads={threads}
-                currentUserId={currentUser.id}
-                userRole="prestataire"
-              />
-            </TabsContent>
+              {/* TAB: CONVERSATIONS */}
+              <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
+                <ConversationCard
+                  messages={mockMessages}
+                  currentUserId={currentUser.id}
+                  currentUserRole="provider"
+                  conversationType={activeConversation === 'group' ? 'group' : 'individual'}
+                  participantName={
+                    activeConversation !== 'group'
+                      ? [...participants.managers, ...participants.providers, ...participants.tenants]
+                          .find(p => p.id === activeConversation)?.name
+                      : undefined
+                  }
+                  onSendMessage={(content) => console.log('Send message:', content)}
+                  className="flex-1 mx-4"
+                />
+              </TabsContent>
 
-            <TabsContent value="quotes" className="space-y-6">
-              <QuotesTab
-                interventionId={intervention.id}
-                quotes={quotes}
-                currentUser={currentUser}
-                onRefresh={handleRefresh}
-                onEditQuote={handleEditQuote}
-              />
-            </TabsContent>
+              {/* TAB: PLANNING */}
+              <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 flex flex-col gap-4 p-4 sm:p-6">
+                  {/* Devis du prestataire */}
+                  <QuotesCard
+                    quotes={transformedQuotes.filter(q => q.provider_id === currentUser.id)}
+                    userRole="provider"
+                    showActions={false}
+                    onAddQuote={handleOpenQuoteModal}
+                    className="flex-1 min-h-0"
+                  />
 
-            <TabsContent value="documents" className="space-y-6">
-              <DocumentsTab
-                interventionId={intervention.id}
-                documents={documents}
-                canUpload={true}
-                onRefresh={handleRefresh}
-              />
-            </TabsContent>
-          </div>
-        </Tabs>
+                  {/* Planning */}
+                  <PlanningCard
+                    timeSlots={transformedTimeSlots}
+                    scheduledDate={scheduledDate || undefined}
+                    userRole="provider"
+                    currentUserId={currentUser.id}
+                    onAddSlot={handleOpenAvailabilityModal}
+                    onApproveSlot={(slotId) => {
+                      const slot = timeSlots.find(s => s.id === slotId)
+                      if (slot) handleAcceptSlot(slot)
+                    }}
+                    onRejectSlot={(slotId) => {
+                      const slot = timeSlots.find(s => s.id === slotId)
+                      if (slot) handleRejectSlot(slot)
+                    }}
+                    className="flex-1 min-h-0"
+                  />
+                </div>
+              </TabsContent>
+            </InterventionTabs>
+          }
+        />
       </div>
 
 

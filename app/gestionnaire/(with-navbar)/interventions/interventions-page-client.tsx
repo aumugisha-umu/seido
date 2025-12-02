@@ -1,6 +1,7 @@
 ﻿"use client"
 
 import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
 import {
   Plus,
   Loader2,
@@ -16,14 +17,17 @@ import { useInterventionPlanning } from "@/hooks/use-intervention-planning"
 import { useInterventionExecution } from "@/hooks/use-intervention-execution"
 import { useInterventionFinalization } from "@/hooks/use-intervention-finalization"
 
-import { ApprovalModal } from "@/components/intervention/modals/approval-modal"
-import { ApproveConfirmationModal } from "@/components/intervention/modals/approve-confirmation-modal"
-import { RejectConfirmationModal } from "@/components/intervention/modals/reject-confirmation-modal"
-import { SuccessModal } from "@/components/intervention/modals/success-modal"
-import { QuoteRequestModal } from "@/components/intervention/modals/quote-request-modal"
-import { QuoteRequestSuccessModal } from "@/components/intervention/modals/quote-request-success-modal"
-import { ProgrammingModal } from "@/components/intervention/modals/programming-modal"
-import { CancelQuoteRequestModal } from "@/components/intervention/modals/cancel-quote-request-modal"
+// ⚡ Dynamic imports for modals (Phase 3.2 Optimization)
+// Modals are only loaded when they are actually opened, reducing initial bundle by ~50KB
+const ApprovalModal = dynamic(() => import("@/components/intervention/modals/approval-modal").then(mod => ({ default: mod.ApprovalModal })), { ssr: false })
+const ApproveConfirmationModal = dynamic(() => import("@/components/intervention/modals/approve-confirmation-modal").then(mod => ({ default: mod.ApproveConfirmationModal })), { ssr: false })
+const RejectConfirmationModal = dynamic(() => import("@/components/intervention/modals/reject-confirmation-modal").then(mod => ({ default: mod.RejectConfirmationModal })), { ssr: false })
+const SuccessModal = dynamic(() => import("@/components/intervention/modals/success-modal").then(mod => ({ default: mod.SuccessModal })), { ssr: false })
+const QuoteRequestModal = dynamic(() => import("@/components/intervention/modals/quote-request-modal").then(mod => ({ default: mod.QuoteRequestModal })), { ssr: false })
+const QuoteRequestSuccessModal = dynamic(() => import("@/components/intervention/modals/quote-request-success-modal").then(mod => ({ default: mod.QuoteRequestSuccessModal })), { ssr: false })
+const ProgrammingModal = dynamic(() => import("@/components/intervention/modals/programming-modal").then(mod => ({ default: mod.ProgrammingModal })), { ssr: false })
+const CancelQuoteRequestModal = dynamic(() => import("@/components/intervention/modals/cancel-quote-request-modal").then(mod => ({ default: mod.CancelQuoteRequestModal })), { ssr: false })
+
 import { InterventionCancellationManager } from "@/components/intervention/intervention-cancellation-manager"
 import { InterventionCancellationProvider } from "@/contexts/intervention-cancellation-context"
 
@@ -209,99 +213,117 @@ export function InterventionsPageClient({
           </div>
         </div>
 
-        {/* Modals */}
-        <ApprovalModal
-          isOpen={approvalHook.approvalModal.isOpen}
-          onClose={approvalHook.closeApprovalModal}
-          intervention={approvalHook.approvalModal.intervention}
-          action={approvalHook.approvalModal.action}
-          rejectionReason={approvalHook.rejectionReason}
-          internalComment={approvalHook.internalComment}
-          onRejectionReasonChange={approvalHook.setRejectionReason}
-          onInternalCommentChange={approvalHook.setInternalComment}
-          onActionChange={approvalHook.handleActionChange}
-          onConfirm={approvalHook.handleConfirmAction}
-        />
+        {/* ⚡ Modals - Conditional Rendering (Phase 3.1 Optimization)
+            Only mount modals when they are open to reduce initial JS bundle ~50KB */}
+        {approvalHook.approvalModal.isOpen && (
+          <ApprovalModal
+            isOpen={approvalHook.approvalModal.isOpen}
+            onClose={approvalHook.closeApprovalModal}
+            intervention={approvalHook.approvalModal.intervention}
+            action={approvalHook.approvalModal.action}
+            rejectionReason={approvalHook.rejectionReason}
+            internalComment={approvalHook.internalComment}
+            onRejectionReasonChange={approvalHook.setRejectionReason}
+            onInternalCommentChange={approvalHook.setInternalComment}
+            onActionChange={approvalHook.handleActionChange}
+            onConfirm={approvalHook.handleConfirmAction}
+          />
+        )}
 
-        <ApproveConfirmationModal
-          isOpen={approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "approve"}
-          onClose={approvalHook.closeConfirmationModal}
-          onConfirm={approvalHook.handleFinalConfirmation}
-          intervention={approvalHook.confirmationModal.intervention}
-          internalComment={approvalHook.internalComment}
-          onInternalCommentChange={approvalHook.setInternalComment}
-          isLoading={approvalHook.isLoading}
-        />
+        {approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "approve" && (
+          <ApproveConfirmationModal
+            isOpen={true}
+            onClose={approvalHook.closeConfirmationModal}
+            onConfirm={approvalHook.handleFinalConfirmation}
+            intervention={approvalHook.confirmationModal.intervention}
+            internalComment={approvalHook.internalComment}
+            onInternalCommentChange={approvalHook.setInternalComment}
+            isLoading={approvalHook.isLoading}
+          />
+        )}
 
-        <RejectConfirmationModal
-          isOpen={approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "reject"}
-          onClose={approvalHook.closeConfirmationModal}
-          onConfirm={approvalHook.handleFinalConfirmation}
-          intervention={approvalHook.confirmationModal.intervention}
-          rejectionReason={approvalHook.rejectionReason}
-          onRejectionReasonChange={approvalHook.setRejectionReason}
-          internalComment={approvalHook.internalComment}
-          onInternalCommentChange={approvalHook.setInternalComment}
-          isLoading={approvalHook.isLoading}
-        />
+        {approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "reject" && (
+          <RejectConfirmationModal
+            isOpen={true}
+            onClose={approvalHook.closeConfirmationModal}
+            onConfirm={approvalHook.handleFinalConfirmation}
+            intervention={approvalHook.confirmationModal.intervention}
+            rejectionReason={approvalHook.rejectionReason}
+            onRejectionReasonChange={approvalHook.setRejectionReason}
+            internalComment={approvalHook.internalComment}
+            onInternalCommentChange={approvalHook.setInternalComment}
+            isLoading={approvalHook.isLoading}
+          />
+        )}
 
-        <SuccessModal
-          isOpen={approvalHook.successModal.isOpen}
-          onClose={approvalHook.closeSuccessModal}
-          action={approvalHook.successModal.action}
-          interventionTitle={approvalHook.successModal.interventionTitle}
-        />
+        {approvalHook.successModal.isOpen && (
+          <SuccessModal
+            isOpen={true}
+            onClose={approvalHook.closeSuccessModal}
+            action={approvalHook.successModal.action}
+            interventionTitle={approvalHook.successModal.interventionTitle}
+          />
+        )}
 
-        <QuoteRequestModal
-          isOpen={quotingHook.quoteRequestModal.isOpen}
-          onClose={quotingHook.closeQuoteRequestModal}
-          intervention={quotingHook.quoteRequestModal.intervention}
-          deadline={quotingHook.formData.deadline}
-          additionalNotes={quotingHook.formData.additionalNotes}
-          selectedProviderId={quotingHook.formData.providerId}
-          providers={quotingHook.providers}
-          onDeadlineChange={(deadline) => quotingHook.updateFormData('deadline', deadline)}
-          onNotesChange={(notes) => quotingHook.updateFormData('additionalNotes', notes)}
-          onProviderSelect={quotingHook.selectProvider}
-          onSubmit={quotingHook.submitQuoteRequest}
-          isLoading={quotingHook.isLoading}
-          error={quotingHook.error}
-        />
+        {quotingHook.quoteRequestModal.isOpen && (
+          <QuoteRequestModal
+            isOpen={true}
+            onClose={quotingHook.closeQuoteRequestModal}
+            intervention={quotingHook.quoteRequestModal.intervention}
+            deadline={quotingHook.formData.deadline}
+            additionalNotes={quotingHook.formData.additionalNotes}
+            selectedProviderId={quotingHook.formData.providerId}
+            providers={quotingHook.providers}
+            onDeadlineChange={(deadline) => quotingHook.updateFormData('deadline', deadline)}
+            onNotesChange={(notes) => quotingHook.updateFormData('additionalNotes', notes)}
+            onProviderSelect={quotingHook.selectProvider}
+            onSubmit={quotingHook.submitQuoteRequest}
+            isLoading={quotingHook.isLoading}
+            error={quotingHook.error}
+          />
+        )}
 
-        <QuoteRequestSuccessModal
-          isOpen={quotingHook.successModal.isOpen}
-          onClose={quotingHook.closeSuccessModal}
-          providerName={quotingHook.successModal.providerName}
-          interventionTitle={quotingHook.successModal.interventionTitle}
-        />
+        {quotingHook.successModal.isOpen && (
+          <QuoteRequestSuccessModal
+            isOpen={true}
+            onClose={quotingHook.closeSuccessModal}
+            providerName={quotingHook.successModal.providerName}
+            interventionTitle={quotingHook.successModal.interventionTitle}
+          />
+        )}
 
-        <ProgrammingModal
-          isOpen={planningHook.programmingModal.isOpen}
-          onClose={planningHook.closeProgrammingModal}
-          intervention={planningHook.programmingModal.intervention}
-          programmingOption={planningHook.planningOption}
-          onProgrammingOptionChange={planningHook.setPlanningOption}
-          directSchedule={planningHook.directSchedule}
-          onDirectScheduleChange={planningHook.setDirectSchedule}
-          proposedSlots={planningHook.proposedSlots}
-          onAddProposedSlot={planningHook.addProposedSlot}
-          onUpdateProposedSlot={planningHook.updateProposedSlot}
-          onRemoveProposedSlot={planningHook.removeProposedSlot}
-          onSubmit={planningHook.handleSubmit}
-          isLoading={planningHook.isSubmitting}
-          quoteRequests={quoteRequests}
-          onViewProvider={(providerId) => navigate(`/gestionnaire/contacts?highlight=${providerId}`)}
-          onCancelQuoteRequest={handleCancelQuoteRequest}
-        />
+        {planningHook.programmingModal.isOpen && (
+          <ProgrammingModal
+            isOpen={true}
+            onClose={planningHook.closeProgrammingModal}
+            intervention={planningHook.programmingModal.intervention}
+            programmingOption={planningHook.planningOption}
+            onProgrammingOptionChange={planningHook.setPlanningOption}
+            directSchedule={planningHook.directSchedule}
+            onDirectScheduleChange={planningHook.setDirectSchedule}
+            proposedSlots={planningHook.proposedSlots}
+            onAddProposedSlot={planningHook.addProposedSlot}
+            onUpdateProposedSlot={planningHook.updateProposedSlot}
+            onRemoveProposedSlot={planningHook.removeProposedSlot}
+            onSubmit={planningHook.handleSubmit}
+            isLoading={planningHook.isSubmitting}
+            quoteRequests={quoteRequests}
+            onViewProvider={(providerId) => navigate(`/gestionnaire/contacts?highlight=${providerId}`)}
+            onCancelQuoteRequest={handleCancelQuoteRequest}
+          />
+        )}
 
-        <CancelQuoteRequestModal
-          isOpen={cancelQuoteModal.isOpen}
-          onClose={() => setCancelQuoteModal({ isOpen: false, quoteId: null, providerName: '' })}
-          onConfirm={handleConfirmCancelQuote}
-          providerName={cancelQuoteModal.providerName}
-          isLoading={isCancellingQuote}
-        />
+        {cancelQuoteModal.isOpen && (
+          <CancelQuoteRequestModal
+            isOpen={true}
+            onClose={() => setCancelQuoteModal({ isOpen: false, quoteId: null, providerName: '' })}
+            onConfirm={handleConfirmCancelQuote}
+            providerName={cancelQuoteModal.providerName}
+            isLoading={isCancellingQuote}
+          />
+        )}
 
+        {/* InterventionCancellationManager is a context-dependent component, keep mounted */}
         <InterventionCancellationManager />
       </InterventionCancellationProvider>
     </div>

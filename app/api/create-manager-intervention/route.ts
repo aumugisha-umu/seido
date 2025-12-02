@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger'
 import { createQuoteRequestsForProviders } from './create-quote-requests'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { createManagerInterventionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { mapInterventionType, mapUrgencyLevel } from '@/lib/utils/intervention-mappers'
 import { createServerNotificationRepository } from '@/lib/services'
 import { NotificationService } from '@/lib/services/domain/notification.service'
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
@@ -253,46 +254,7 @@ export async function POST(request: NextRequest) {
       logger.info({}, "✅ Building-wide intervention - tenants via intervention_assignments")
     }
 
-    // Map frontend values to database enums
-    const mapInterventionType = (frontendType: string): Database['public']['Enums']['intervention_type'] => {
-      const typeMapping: Record<string, Database['public']['Enums']['intervention_type']> = {
-        'maintenance': 'autre',
-        'plumbing': 'plomberie',
-        'electrical': 'electricite',
-        'heating': 'chauffage',
-        'locksmith': 'serrurerie',
-        'painting': 'peinture',
-        'cleaning': 'menage',
-        'gardening': 'jardinage',
-        'other': 'autre',
-        // Already correct values
-        'plomberie': 'plomberie',
-        'electricite': 'electricite',
-        'chauffage': 'chauffage',
-        'serrurerie': 'serrurerie',
-        'peinture': 'peinture',
-        'menage': 'menage',
-        'jardinage': 'jardinage',
-        'autre': 'autre'
-      }
-      return typeMapping[frontendType] || 'autre'
-    }
-
-    const mapUrgencyLevel = (frontendUrgency: string): Database['public']['Enums']['intervention_urgency'] => {
-      const urgencyMapping: Record<string, Database['public']['Enums']['intervention_urgency']> = {
-        'low': 'basse',
-        'medium': 'normale',
-        'high': 'haute',
-        'urgent': 'urgente',
-        'critique': 'urgente',
-        // Already correct values
-        'basse': 'basse',
-        'normale': 'normale',
-        'haute': 'haute',
-        'urgente': 'urgente'
-      }
-      return urgencyMapping[frontendUrgency] || 'normale'
-    }
+    // ✅ Mapping functions centralisées dans lib/utils/intervention-mappers.ts
 
     // Generate unique reference for the intervention
     const generateReference = () => {
@@ -850,6 +812,7 @@ export async function POST(request: NextRequest) {
       logger.error(error, "⚠️ [API] Failed to create notifications")
     }
 
+    // ⚡ NO-CACHE: Mutations ne doivent pas être cachées
     return NextResponse.json({
       success: true,
       intervention: {
@@ -860,6 +823,10 @@ export async function POST(request: NextRequest) {
         created_at: intervention.created_at
       },
       message: 'Intervention créée avec succès'
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, must-revalidate'
+      }
     })
 
   } catch (error) {

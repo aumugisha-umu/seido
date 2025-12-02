@@ -70,7 +70,7 @@ This file provides guidance to Claude Code when working with this repository.
 - **Infrastructure**: 8 repositories, 10 services, 70+ API routes, 30+ hooks
 - **Testing**: Unit tests + E2E suite with auto-healing
 - **Database**: Phase 1 & 2 applied, Phase 3 planned (interventions)
-- **Current Focus**: Email integration (Resend) + performance optimization
+- **Current Focus**: Performance optimizations completed (Realtime + Caching)
 
 ## Development Commands
 
@@ -398,6 +398,88 @@ await notificationService.notifyInterventionCreated(...) // DON'T DO THIS
 - **Performant**: JOIN queries instead of N+1
 - **Type-safe**: Strict TypeScript throughout
 
+### Realtime Architecture (NEW: 2025-11-29)
+
+**✅ Centralized RealtimeProvider Pattern**
+
+Single Supabase channel per user instead of multiple channels per component.
+
+```typescript
+// ✅ CORRECT: Use v2 consumer hooks (via RealtimeProvider)
+import { useRealtimeNotificationsV2 } from '@/hooks/use-realtime-notifications-v2'
+
+useRealtimeNotificationsV2({
+  enabled: true,
+  onInsert: (notification) => { /* handle new notification */ },
+  onUpdate: (notification) => { /* handle update */ }
+})
+```
+
+**❌ Legacy Pattern** (Deprecated - DO NOT USE):
+```typescript
+// ❌ DEPRECATED: Creates individual channels per component
+import { useRealtimeNotifications } from '@/hooks/use-realtime-notifications'
+// These files have been DELETED
+```
+
+**Architecture Files**:
+- `contexts/realtime-context.tsx` - Central RealtimeProvider (355 lines)
+- `components/realtime-wrapper.tsx` - Server Component wrapper
+- `hooks/use-realtime-notifications-v2.ts` - Notifications consumer
+- `hooks/use-realtime-chat-v2.ts` - Chat consumer
+- `hooks/use-realtime-interventions.ts` - Interventions consumer
+- `hooks/use-realtime-emails-v2.ts` - Emails consumer
+
+**Tables Listened** (6 total via single channel):
+- `notifications` - Filtered by user_id (server-side)
+- `conversation_messages` - Filtered by thread_id (client-side)
+- `interventions` - UPDATE events only
+- `intervention_quotes` - All events
+- `intervention_time_slots` - All events
+- `emails` - INSERT events only
+
+**Performance Impact**:
+| Metric | Before | After |
+|--------|--------|-------|
+| WebSocket connections/user | 4-10+ | **1** |
+| RLS overhead/event | 4-10x | **1x** |
+| Code to maintain | ~1200 lines | ~500 lines |
+
+### Caching Architecture (Verified: 2025-11-29)
+
+**✅ Next.js 15 Caching Strategy Implemented**
+
+```typescript
+// unstable_cache for heavy queries
+import { getCachedManagerStats, getCachedBuildingsForTeam } from '@/lib/cache/cached-queries'
+
+const stats = await getCachedManagerStats(teamId)  // TTL: 5min
+const buildings = await getCachedBuildingsForTeam(teamId)  // TTL: 5min
+```
+
+**Cache Invalidation** (via Server Actions):
+```typescript
+// After mutations, invalidate relevant caches
+import { revalidateTag, revalidatePath } from 'next/cache'
+
+revalidateTag('buildings')  // Invalidate Data Cache
+revalidateTag(`team-${teamId}-buildings`)  // Granular by team
+revalidatePath('/gestionnaire/biens')  // Invalidate Full Route Cache
+```
+
+**Available Cache Tags** (`lib/cache/cached-queries.ts`):
+- `stats`, `manager-stats`, `team-{id}-stats`
+- `buildings`, `team-{id}-buildings`
+- `lots`, `team-{id}-lots`
+- `team-members`, `team-{id}-members`
+- `interventions`, `team-{id}-interventions`
+- `notifications`, `user-{id}-notifications`
+
+**SWR Client Cache** (`hooks/use-stale-while-revalidate.ts`):
+- LRU cleanup with `MAX_CACHE_SIZE=100`
+- `freshTime`, `staleTime`, `maxAge` configuration
+- Automatic background revalidation
+
 ### Testing
 
 **E2E Tests** (`docs/refacto/Tests/`):
@@ -589,6 +671,6 @@ npm test -- --coverage                 # Coverage
 
 ---
 
-**Last Updated**: 2025-10-11
+**Last Updated**: 2025-11-29
 **Status**: ✅ Production Ready
-**Current Focus**: Email Integration (Resend) + Performance Optimization
+**Current Focus**: Performance optimizations completed (Realtime + Caching)

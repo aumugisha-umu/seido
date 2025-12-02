@@ -17,37 +17,30 @@ export default function ResetPasswordPage() {
   logger.info('🔄 [RESET-PASSWORD-SERVER] Reset password page rendered server-side')
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card className="border-border shadow-lg">
-          <CardHeader className="text-center space-y-4">
-            <div className="flex justify-center">
-              <AuthLogo />
-            </div>
-            <div>
-              <CardTitle className="text-2xl font-bold text-foreground">
-                Mot de passe oublié
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                Saisissez votre email pour recevoir un lien de réinitialisation
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {/* Formulaire de réinitialisation - composant client */}
-            <ResetPasswordForm />
+    <div className="w-full space-y-6">
+      <div className="flex flex-col items-center space-y-4 text-center">
+        <AuthLogo />
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight text-white">
+            Mot de passe oublié
+          </h1>
+          <p className="text-white/60">
+            Saisissez votre email pour recevoir un lien de réinitialisation
+          </p>
+        </div>
+      </div>
 
-            <div className="mt-6 text-center">
-              <Link
-                href="/auth/login"
-                className="inline-flex items-center text-sm text-primary hover:text-secondary underline-offset-4 hover:underline"
-              >
-                <ArrowLeft className="w-4 h-4 mr-1" />
-                Retour à la connexion
-              </Link>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Formulaire de réinitialisation - composant client */}
+      <ResetPasswordForm />
+
+      <div className="mt-6 text-center">
+        <Link
+          href="/auth/login"
+          className="inline-flex items-center text-sm text-purple-400 hover:text-purple-300 underline-offset-4 hover:underline transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          Retour à la connexion
+        </Link>
       </div>
     </div>
   )

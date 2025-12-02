@@ -3,9 +3,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { createBrowserSupabaseClient, createInterventionService } from '@/lib/services'
 import { logger } from '@/lib/logger'
+import type { Intervention } from '@/lib/services/core/service-types'
 
 interface UseInterventionsReturn {
-  interventions: any[]
+  interventions: Intervention[]
   loading: boolean
   error: string | null
   refetch: () => void
@@ -25,7 +26,7 @@ interface UseInterventionsReturn {
  * - Uses the same approach as the dashboard for consistency
  */
 export function useInterventions(): UseInterventionsReturn {
-  const [interventions, setInterventions] = useState<any[]>([])
+  const [interventions, setInterventions] = useState<Intervention[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 

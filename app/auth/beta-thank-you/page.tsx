@@ -1,13 +1,13 @@
 /**
- * 🎉 PAGE BETA THANK YOU - SERVER COMPONENT
+ * 🎉 PAGE CONFIRMATION - PROGRAMME FONDATEURS 2026
  *
- * Page de remerciement affichée après soumission d'une demande d'accès beta
- * Design moderne et rassurant pour confirmer la réception de la demande
+ * Page de confirmation affichée après soumission d'une candidature
+ * Design moderne avec rappel des avantages et prochaines étapes
  */
 
 import Link from 'next/link'
 import Image from 'next/image'
-import { CheckCircle2, ArrowLeft, Mail } from 'lucide-react'
+import { CheckCircle2, ArrowLeft, Percent, Calendar, MessageSquare, Clock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 export default function BetaThankYouPage() {
@@ -16,16 +16,18 @@ export default function BetaThankYouPage() {
       <div className="w-full max-w-lg">
         {/* Logo SEIDO */}
         <div className="text-center mb-8">
-          <div className="inline-block p-4 bg-white/10 backdrop-blur-sm rounded-2xl mb-6">
-            <Image
-              src="/images/Logo/Logo_Seido_White.png"
-              alt="SEIDO"
-              width={120}
-              height={40}
-              className="h-10 w-auto"
-              priority
-            />
-          </div>
+          <Link href="/" className="inline-block cursor-pointer hover:opacity-80 transition-opacity">
+            <div className="p-4 bg-white/10 backdrop-blur-sm rounded-2xl mb-6">
+              <Image
+                src="/images/Logo/Logo_Seido_White.png"
+                alt="SEIDO"
+                width={120}
+                height={40}
+                className="h-10 w-auto"
+                priority
+              />
+            </div>
+          </Link>
         </div>
 
         {/* Carte principale */}
@@ -36,41 +38,62 @@ export default function BetaThankYouPage() {
           </div>
 
           {/* Titre */}
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
-            Merci de votre intérêt !
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-2">
+            Bienvenue dans le Programme Fondateurs !
           </h1>
 
-          {/* Message principal */}
-          <p className="text-lg text-gray-600 mb-6">
-            Votre demande d'accès a bien été enregistrée.
-          </p>
+          {/* Badge */}
+          <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium mb-6">
+            Candidature enregistrée
+          </span>
 
-          {/* Informations supplémentaires */}
+          {/* Rappel avantages */}
+          <div className="grid grid-cols-3 gap-3 mb-6">
+            <div className="p-3 bg-gray-50 rounded-xl text-center">
+              <Percent className="w-5 h-5 text-green-600 mx-auto mb-1" />
+              <p className="text-sm font-medium text-gray-700">-25%</p>
+              <p className="text-sm text-gray-500">3 ans</p>
+            </div>
+            <div className="p-3 bg-gray-50 rounded-xl text-center">
+              <Calendar className="w-5 h-5 text-purple-600 mx-auto mb-1" />
+              <p className="text-sm font-medium text-gray-700">Accès</p>
+              <p className="text-sm text-gray-500">Prioritaire</p>
+            </div>
+            <div className="p-3 bg-gray-50 rounded-xl text-center">
+              <MessageSquare className="w-5 h-5 text-orange-600 mx-auto mb-1" />
+              <p className="text-sm font-medium text-gray-700">Votre</p>
+              <p className="text-sm text-gray-500">Voix compte</p>
+            </div>
+          </div>
+
+          {/* Prochaine étape */}
           <div className="bg-purple-50 border border-purple-100 rounded-xl p-6 mb-8 text-left">
             <div className="flex items-start gap-3 mb-4">
-              <Mail className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+              <Clock className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
               <div>
                 <h3 className="font-semibold text-gray-900 mb-1">
-                  Que se passe-t-il ensuite ?
+                  Prochaine étape
                 </h3>
                 <p className="text-sm text-gray-600">
-                  Notre équipe va étudier votre demande et vous contacter rapidement à l'adresse email que vous avez fournie.
+                  <strong className="text-purple-700">Arthur</strong>, fondateur de SEIDO,
+                  vous contactera personnellement sous <strong>48h</strong> pour discuter de vos besoins
+                  et planifier votre onboarding.
                 </p>
               </div>
             </div>
 
-            <div className="text-sm text-gray-600 space-y-2">
+            <div className="text-sm text-gray-600 space-y-2 border-t border-purple-100 pt-4 mt-4">
               <p className="flex items-start">
                 <span className="text-purple-600 mr-2">•</span>
-                <span>Nous vous enverrons un email dès que l'accès sera disponible</span>
+                <span>Vérifiez vos emails (et vos spams) dans les prochaines heures</span>
               </p>
               <p className="flex items-start">
                 <span className="text-purple-600 mr-2">•</span>
-                <span>En attendant, pensez à vérifier vos spams</span>
+                <span>Préparez vos questions sur SEIDO - Arthur y répondra !</span>
               </p>
               <p className="flex items-start">
                 <span className="text-purple-600 mr-2">•</span>
-                <span>Des questions ? Contactez-nous à <a href="mailto:contact@seido.pm" className="text-purple-600 hover:underline">contact@seido.pm</a></span>
+                <span>Des questions urgentes ? <a href="mailto:contact@seido-app.com" className="text-purple-600 hover:underline">contact@seido-app.com</a></span>
               </p>
             </div>
           </div>
@@ -82,16 +105,22 @@ export default function BetaThankYouPage() {
               className="w-full border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Retour à l'accueil
+              Retour à l&apos;accueil
             </Button>
           </Link>
         </div>
 
         {/* Footer */}
         <div className="text-center mt-8">
-          <p className="text-purple-100 text-sm">
-            SEIDO - La gestion immobilière simplifiée
+          <p className="text-purple-100 text-sm mb-2">
+            Programme co-développement 2026 - SEIDO
           </p>
+          <Link
+            href="/auth/login"
+            className="text-purple-200 hover:text-white underline transition-colors text-sm"
+          >
+            Se connecter
+          </Link>
         </div>
       </div>
     </div>

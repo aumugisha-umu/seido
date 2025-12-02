@@ -11,7 +11,7 @@ import {
     Calendar
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
-import { InterventionCardCompact } from '@/components/interventions/intervention-card-compact'
+import { ManagerInterventionCard } from '@/components/dashboards/manager/manager-intervention-card'
 import type { DataTableConfig } from '@/components/data-navigator/types'
 import type { InterventionWithRelations } from '@/lib/services'
 import {
@@ -199,7 +199,7 @@ export const interventionsTableConfig: DataTableConfig<InterventionWithRelations
     views: {
         card: {
             enabled: true,
-            component: ({ item }) => <InterventionCardCompact intervention={item} />,
+            component: ({ item }) => <ManagerInterventionCard intervention={item} />,
             compact: true
         },
         list: {

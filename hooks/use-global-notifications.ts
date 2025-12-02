@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useTeamStatus } from '@/hooks/use-team-status'
 import { logger, logError } from '@/lib/logger'
-import { useRealtimeNotifications } from './use-realtime-notifications'
+import { useRealtimeNotificationsV2 } from './use-realtime-notifications-v2'
 interface UseGlobalNotificationsReturn {
   unreadCount: number
   loading: boolean
@@ -27,7 +27,7 @@ export const useGlobalNotifications = (options: UseGlobalNotificationsOptions = 
 
   // Removed: Client-side team fetching (now passed via props)
 
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = useCallback(async () => {
     logger.info('🔍 [GLOBAL-NOTIFICATIONS] fetchUnreadCount called with:', {
       userId: user?.id,
       teamStatus,
@@ -104,7 +104,7 @@ export const useGlobalNotifications = (options: UseGlobalNotificationsOptions = 
     } finally {
       setLoading(false)
     }
-  }
+  }, [user?.id, teamStatus, hasTeam, userTeamId])
 
 
 
@@ -115,28 +115,27 @@ export const useGlobalNotifications = (options: UseGlobalNotificationsOptions = 
     }
   }, [user?.id, teamStatus, hasTeam, userTeamId])
 
-  // Realtime subscription for instant updates
-  useRealtimeNotifications({
-    userId: user?.id,
-    teamId: userTeamId || undefined,
+  // Realtime subscription via centralized RealtimeProvider
+  // Note: userId/teamId are handled by RealtimeProvider in layout
+  useRealtimeNotificationsV2({
     enabled: teamStatus === 'verified' && hasTeam && !!userTeamId,
-    onInsert: (notification) => {
-      logger.info('[GLOBAL-NOTIFICATIONS] New notification received via Realtime')
+    onInsert: useCallback((notification) => {
+      logger.info('[GLOBAL-NOTIFICATIONS] New notification received via Realtime v2')
       // Increment unread count if notification is unread
       if (!notification.read) {
         setUnreadCount(prev => prev + 1)
       }
-    },
-    onUpdate: (notification) => {
-      logger.info('[GLOBAL-NOTIFICATIONS] Notification updated via Realtime')
+    }, []),
+    onUpdate: useCallback((notification) => {
+      logger.info('[GLOBAL-NOTIFICATIONS] Notification updated via Realtime v2')
       // Refetch to get accurate count
       fetchUnreadCount()
-    },
-    onDelete: () => {
-      logger.info('[GLOBAL-NOTIFICATIONS] Notification deleted via Realtime')
+    }, [fetchUnreadCount]),
+    onDelete: useCallback(() => {
+      logger.info('[GLOBAL-NOTIFICATIONS] Notification deleted via Realtime v2')
       // Refetch to get accurate count
       fetchUnreadCount()
-    }
+    }, [fetchUnreadCount])
   })
 
   // Auto-refresh disabled - use Supabase Realtime instead

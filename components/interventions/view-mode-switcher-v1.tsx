@@ -76,9 +76,8 @@ export function ViewModeSwitcherV1({
         value="cards"
         aria-label="Vue en cartes"
         className="h-8 w-8 p-0 data-[state=on]:bg-blue-100 data-[state=on]:text-blue-700 hover:bg-slate-100 transition-colors"
-        title="Vue en cartes"
       >
-        <LayoutGrid className="h-4 w-4" />
+        <LayoutGrid className="h-4 w-4" aria-hidden="true" />
       </ToggleGroupItem>
 
       {/* LIST VIEW */}
@@ -86,9 +85,8 @@ export function ViewModeSwitcherV1({
         value="list"
         aria-label="Vue en liste"
         className="h-8 w-8 p-0 data-[state=on]:bg-blue-100 data-[state=on]:text-blue-700 hover:bg-slate-100 transition-colors"
-        title="Vue en liste"
       >
-        <List className="h-4 w-4" />
+        <List className="h-4 w-4" aria-hidden="true" />
       </ToggleGroupItem>
 
       {/* CALENDAR VIEW */}
@@ -96,9 +94,8 @@ export function ViewModeSwitcherV1({
         value="calendar"
         aria-label="Vue calendrier"
         className="h-8 w-8 p-0 data-[state=on]:bg-blue-100 data-[state=on]:text-blue-700 hover:bg-slate-100 transition-colors"
-        title="Vue calendrier"
       >
-        <Calendar className="h-4 w-4" />
+        <Calendar className="h-4 w-4" aria-hidden="true" />
       </ToggleGroupItem>
     </ToggleGroup>
   )

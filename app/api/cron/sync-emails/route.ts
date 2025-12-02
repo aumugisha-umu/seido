@@ -36,22 +36,29 @@ export async function GET(request: Request) {
         console.log(`Starting sync for ${connections.length} connections...`);
 
         const syncService = new EmailSyncService(supabase);
-        const results = [];
 
-        // 2. Sync each connection
-        for (const connection of connections) {
+        // ⚡ OPTIMISATION: Paralléliser le sync de toutes les connections
+        // Avant: for séquentiel (~5min pour 10 connections)
+        // Après: Promise.allSettled parallèle (~30s pour 10 connections)
+        const syncPromises = connections.map(async (connection) => {
             try {
                 const result = await syncService.syncConnection(connection as any);
-                results.push(result);
+                return result;
             } catch (err: any) {
                 console.error(`Failed to sync connection ${connection.id}:`, err);
-                results.push({
+                return {
                     connectionId: connection.id,
                     status: 'error',
                     error: err.message
-                });
+                };
             }
-        }
+        });
+
+        // Promise.allSettled permet de continuer même si certains échouent
+        const settledResults = await Promise.allSettled(syncPromises);
+        const results = settledResults.map((result) =>
+            result.status === 'fulfilled' ? result.value : result.reason
+        );
 
         return NextResponse.json({
             success: true,

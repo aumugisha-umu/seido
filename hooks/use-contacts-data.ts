@@ -4,10 +4,29 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import { useAuth } from "./use-auth"
 import { createBrowserSupabaseClient, createTeamService } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
+import type { Database } from '@/lib/database.types'
+
+// ✅ Types pour les données de contacts
+type UserRow = Database['public']['Tables']['users']['Row']
+type TeamRow = Database['public']['Tables']['teams']['Row']
+
+interface TeamMemberWithUser {
+  user: UserRow | null
+}
+
+interface UserInvitation {
+  id: string
+  email: string
+  status: string
+  role?: string
+  invited_by?: string
+  expires_at?: string
+}
+
 export interface ContactsData {
-  contacts: unknown[]
-  pendingInvitations: unknown[]
-  userTeam: unknown | null
+  contacts: UserRow[]
+  pendingInvitations: UserInvitation[]
+  userTeam: TeamRow | null
   contactsInvitationStatus: { [key: string]: string }
 }
 
@@ -141,8 +160,8 @@ export function useContactsData() {
         }
 
         teamContacts = teamMembersData
-          ?.map((tm: any) => tm.user)
-          ?.filter((user: any) => user !== null) || []
+          ?.map((tm: TeamMemberWithUser) => tm.user)
+          ?.filter((user: UserRow | null): user is UserRow => user !== null) || []
         logger.info("✅ [CONTACTS-DATA] Team members loaded:", teamContacts.length)
       } else {
         logger.error("❌ [CONTACTS-DATA] Team members query failed:", membersResult.reason)
@@ -150,8 +169,8 @@ export function useContactsData() {
       }
 
       // Traiter résultat invitations (pour TOUS les statuts + mapping)
-      let invitations: unknown[] = []
-      let allInvitations: unknown[] = []
+      let invitations: UserInvitation[] = []
+      let allInvitations: UserInvitation[] = []
       let contactsInvitationStatus: { [key: string]: string } = {}
 
       if (invitationsResult.status === 'fulfilled') {
@@ -165,11 +184,11 @@ export function useContactsData() {
           allInvitations = invitationsData || []
 
           // Séparer les pending pour l'affichage
-          invitations = allInvitations.filter((inv: any) => inv.status === 'pending')
+          invitations = allInvitations.filter((inv: UserInvitation) => inv.status === 'pending')
           logger.info("✅ [CONTACTS-DATA] All invitations loaded:", allInvitations.length, "(pending:", invitations.length, ")")
 
           // Construire le mapping de statut à partir de TOUTES les invitations
-          allInvitations.forEach((invitation: any) => {
+          allInvitations.forEach((invitation: UserInvitation) => {
             if (invitation.email) {
               contactsInvitationStatus[invitation.email.toLowerCase()] = invitation.status || 'pending'
             }

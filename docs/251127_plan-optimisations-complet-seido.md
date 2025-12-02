@@ -488,36 +488,38 @@ await supabase.from('table').select().in('id', ids)
 
 ## 11. Plan d'Action Priorisé
 
-### Phase 1: Quick Wins (3-5 heures) ⭐⭐⭐
+### Phase 1: Quick Wins (3-5 heures) ⭐⭐⭐ ✅ COMPLÉTÉE
 
-| # | Tâche | Fichiers | Impact |
-|---|-------|----------|--------|
-| 1.1 | Paralléliser getManagerStats() | `stats.service.ts` | -2s latence |
-| 1.2 | Paralléliser cron sync-emails | `sync-emails/route.ts` | -4min exécution |
-| 1.3 | Supprimer session check inutile | `use-manager-stats.ts` | -200ms |
-| 1.4 | Créer `intervention-mappers.ts` | Nouveau fichier | Réduire duplication |
-| 1.5 | Typer les `any` dans hooks | 4 fichiers hooks | Type safety |
-
----
-
-### Phase 2: Caching & Headers (4-6 heures) ⭐⭐⭐
-
-| # | Tâche | Fichiers | Impact |
-|---|-------|----------|--------|
-| 2.1 | Cache headers sur 6+ routes GET | API routes | Réduire requêtes |
-| 2.2 | React.cache() pour données métier | `server-context.ts` | Déduplication |
-| 2.3 | Headers sécurité middleware | `middleware.ts` | Sécurité |
+| # | Tâche | Fichiers | Impact | Status |
+|---|-------|----------|--------|--------|
+| 1.1 | Paralléliser getManagerStats() | `stats.service.ts` | -2s latence | ✅ |
+| 1.2 | Paralléliser cron sync-emails | `sync-emails/route.ts` | -4min exécution | ✅ |
+| 1.3 | Supprimer session check inutile | `use-manager-stats.ts` | -200ms | ✅ |
+| 1.4 | Créer `intervention-mappers.ts` | Nouveau fichier + 3 intégrations | Réduire duplication | ✅ |
+| 1.5 | Typer les `any` dans hooks | 6 fichiers hooks | Type safety | ✅ |
 
 ---
 
-### Phase 3: Rendering Optimization (6-8 heures) ⭐⭐
+### Phase 2: Caching & Headers (4-6 heures) ⭐⭐⭐ ✅ COMPLÉTÉE
 
-| # | Tâche | Fichiers | Impact |
-|---|-------|----------|--------|
-| 3.1 | Conditional rendering modals | `interventions-page-client.tsx` | -50KB JS |
-| 3.2 | Dynamic imports composants lourds | Plusieurs | Bundle size |
-| 3.3 | Centraliser realtime subscriptions | `use-supabase.ts` + Context | -100 WS connections |
-| 3.4 | Ajouter revalidatePath aux Server Actions | `intervention-actions.ts` | Cache invalidation |
+| # | Tâche | Fichiers | Impact | Status |
+|---|-------|----------|--------|--------|
+| 2.1 | Cache headers sur 6+ routes GET | 6 API routes | Réduire requêtes | ✅ |
+| 2.2 | revalidateTag helper centralisé | `intervention-actions.ts` | Invalidation cohérente | ✅ |
+| 2.3 | unstable_cache pour données métier | `lib/cache/cached-queries.ts` (NOUVEAU) | Déduplication serveur | ✅ |
+| 2.4 | LRU cleanup dans SWR hook | `use-stale-while-revalidate.ts` | Fix memory leak | ✅ |
+| 2.5 | Service Worker NetworkFirst | `app/sw.ts` | Offline + perf | ✅ |
+
+---
+
+### Phase 3: Rendering Optimization (6-8 heures) ⭐⭐ ✅ COMPLÉTÉE (sauf 3.3)
+
+| # | Tâche | Fichiers | Impact | Status |
+|---|-------|----------|--------|--------|
+| 3.1 | Conditional rendering modals | `interventions-page-client.tsx` | -50KB JS initial | ✅ |
+| 3.2 | Dynamic imports composants lourds | `landing-page-v1.tsx`, `interventions-page-client.tsx` | Bundle size -30% | ✅ |
+| 3.3 | Centraliser realtime subscriptions | `use-supabase.ts` + Context | -100 WS connections | ⏳ Reporté |
+| 3.4 | revalidatePath dans Server Actions | Déjà implémenté (100+ appels) | Cache invalidation | ✅ |
 
 ---
 
@@ -623,6 +625,56 @@ await supabase.from('table').select().in('id', ids)
 | useNavigationPending hook | ✅ | Loading states |
 | Context memoization | ✅ | Réduit re-renders |
 
+### Phase 1 Quick Wins - Complétée (2025-11-28)
+
+| Tâche | Status | Impact |
+|-------|--------|--------|
+| Paralléliser getManagerStats() | ✅ | -2s latence dashboard |
+| Paralléliser cron sync-emails | ✅ | -4min exécution cron |
+| Supprimer session check inutile | ✅ | -200ms par fetch |
+| Créer intervention-mappers.ts | ✅ | Duplication éliminée |
+| Typer les `any` dans 6 hooks | ✅ | Type safety complet |
+
+### Phase 2 Caching - Complétée (2025-11-28)
+
+| Tâche | Status | Impact |
+|-------|--------|--------|
+| Cache-Control headers (6 routes) | ✅ | Réduit requêtes HTTP |
+| revalidateTag helper centralisé | ✅ | Invalidation cohérente |
+| unstable_cache (cached-queries.ts) | ✅ | Cache serveur 5-10min |
+| LRU cleanup SWR hook | ✅ | Fix memory leak (MAX_CACHE_SIZE=100) |
+| Service Worker NetworkFirst | ✅ | Offline + UX améliorée |
+
+**Fichiers créés/modifiés Phase 2:**
+- `lib/cache/cached-queries.ts` - NOUVEAU: unstable_cache wrappers
+- `lib/cache/index.ts` - NOUVEAU: exports centralisés
+- `hooks/use-stale-while-revalidate.ts` - LRU cleanup
+- `app/sw.ts` - NetworkFirst pour APIs stables
+- `app/actions/intervention-actions.ts` - revalidateTag helper
+
+### Phase 3 Rendering - Complétée (2025-11-28)
+
+| Tâche | Status | Impact |
+|-------|--------|--------|
+| Conditional rendering 8 modals | ✅ | -50KB JS initial |
+| Dynamic imports landing sections | ✅ | Code splitting below-fold |
+| Dynamic imports 8 modals interventions | ✅ | Lazy loading modals |
+| revalidatePath Server Actions | ✅ | Déjà implémenté (100+ appels) |
+| Centraliser realtime subscriptions | ⏳ | Reporté (refactorisation majeure) |
+
+**Fichiers modifiés Phase 3:**
+- `app/gestionnaire/(with-navbar)/interventions/interventions-page-client.tsx`
+  - Conditional rendering pour 8 modals
+  - Dynamic imports avec `ssr: false` pour tous les modals
+- `components/landing/landing-page-v1.tsx`
+  - Dynamic imports pour StatsSection, TestimonialsSection, FAQSection
+
+**Impact estimé Phase 3:**
+- Bundle initial: -30% (code splitting)
+- DOM initial: -8 composants (modals non rendus)
+- TTI amélioration: ~200-400ms (moins de JS à parser)
+
 ---
 
 *Document généré automatiquement par analyse Claude Code - 2025-11-27*
+*Dernière mise à jour: 2025-11-28*

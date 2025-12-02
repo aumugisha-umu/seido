@@ -29,6 +29,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import type { InterventionWithRelations } from '@/lib/services'
 import {
   getStatusColor,
@@ -357,7 +358,16 @@ export function InterventionsListViewV1({
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-2">
                       {isAlert && (
-                        <div className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" title="Action requise" />
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="w-2 h-2 rounded-full bg-orange-500 flex-shrink-0" aria-label="Action requise" role="img" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Action requise</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       )}
                       <span className="truncate">{intervention.title}</span>
                     </div>
@@ -388,9 +398,9 @@ export function InterventionsListViewV1({
                   <TableCell>
                     <div className="flex items-center gap-1.5 text-sm text-slate-600">
                       {locationIcon === 'building' ? (
-                        <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
+                        <Building2 className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
                       ) : (
-                        <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                        <MapPin className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
                       )}
                       <span className="truncate">{locationText}</span>
                     </div>
@@ -419,18 +429,27 @@ export function InterventionsListViewV1({
                   {/* Actions Cell */}
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          router.push(getInterventionUrl(intervention.id))
-                        }}
-                        title="Voir les détails"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                      </Button>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                router.push(getInterventionUrl(intervention.id))
+                              }}
+                              aria-label="Voir les détails"
+                            >
+                              <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Voir les détails</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
 
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -439,14 +458,14 @@ export function InterventionsListViewV1({
                             size="sm"
                             className="h-7 w-7 p-0"
                             onClick={(e) => e.stopPropagation()}
-                            title="Plus d'actions"
+                            aria-label="Plus d'actions"
                           >
-                            <MoreVertical className="h-3.5 w-3.5" />
+                            <MoreVertical className="h-3.5 w-3.5" aria-hidden="true" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           <DropdownMenuItem onClick={() => router.push(getInterventionUrl(intervention.id))}>
-                            <Eye className="h-4 w-4 mr-2" />
+                            <Eye className="h-4 w-4 mr-2" aria-hidden="true" />
                             Voir les détails
                           </DropdownMenuItem>
                           {/* Add more actions as needed */}

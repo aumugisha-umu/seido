@@ -171,8 +171,8 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
 
             <p className="text-sm text-muted-foreground text-center">
               Si le problème persiste, contactez le support à{' '}
-              <a href="mailto:support@seido.pm" className="underline">
-                support@seido.pm
+              <a href="mailto:support@seido-app.com" className="underline">
+                support@seido-app.com
               </a>
             </p>
           </div>

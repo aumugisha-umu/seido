@@ -24,7 +24,7 @@ function SubmitButton() {
   return (
     <Button
       type="submit"
-      className="w-full bg-primary hover:bg-secondary text-primary-foreground"
+      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
       disabled={pending}
     >
       {pending ? "Connexion..." : "Se connecter"}
@@ -51,7 +51,9 @@ export function LoginForm() {
       // ✅ OPTIMISÉ: Délai minimal de 100ms pour laisser les cookies s'écrire
       const timer = setTimeout(() => {
         logger.info('🔄 [LOGIN-FORM] Executing navigation...')
-        window.location.href = state.data.redirectTo
+        if (state.data?.redirectTo) {
+          window.location.href = state.data.redirectTo
+        }
       }, 100)
 
       return () => clearTimeout(timer)
@@ -123,7 +125,7 @@ export function LoginForm() {
       )}
 
       <div className="space-y-2">
-        <Label htmlFor="email" className="text-foreground">
+        <Label htmlFor="email" className="text-white">
           Adresse email
         </Label>
         <Input
@@ -133,13 +135,13 @@ export function LoginForm() {
           placeholder="votre@email.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="bg-input border-border"
+          className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/20 transition-colors"
           required
         />
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="password" className="text-foreground">
+        <Label htmlFor="password" className="text-white">
           Mot de passe
         </Label>
         <div className="relative">
@@ -148,14 +150,14 @@ export function LoginForm() {
             name="password"
             type={showPassword ? "text" : "password"}
             placeholder="Votre mot de passe"
-            className="bg-input border-border pr-10"
+            className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/20 transition-colors pr-10"
             required
           />
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-white/10 text-white/60 hover:text-white"
             onClick={() => setShowPassword(!showPassword)}
           >
             {showPassword ? (

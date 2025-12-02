@@ -9,6 +9,11 @@ import {
 } from "@/lib/services"
 import type { Intervention } from "@/lib/services/core/service-types"
 import { logger, logError } from '@/lib/logger'
+import {
+  mapStatusToFrontend,
+  mapTypeToFrontend,
+  mapUrgencyToPriority
+} from '@/lib/utils/intervention-mappers'
 export interface PrestataireDashboardStats {
   interventionsEnCours: number
   urgentesCount: number
@@ -60,6 +65,22 @@ export interface PrestataireIntervention {
   }>
 }
 
+// ✅ Types réutilisables pour les données enrichies
+type QuoteData = { id: string; status: string; provider_id?: string; submitted_by?: string; amount?: number }
+type TimeSlotData = { id: string; slot_date: string; start_time: string; status?: string; proposed_by?: string }
+type AssignmentData = { role: string; user_id: string; is_primary: boolean }
+
+// ✅ Type pour intervention enrichie (après batch queries)
+type EnrichedPrestataireIntervention = Intervention & {
+  lot?: unknown
+  tenant?: unknown
+  manager?: unknown
+  assigned_contact?: unknown
+  quotes?: QuoteData[]
+  timeSlots?: TimeSlotData[]
+  assignments?: AssignmentData[]
+}
+
 export interface UrgentIntervention {
   id: string
   title: string
@@ -68,49 +89,7 @@ export interface UrgentIntervention {
   reference: string
 }
 
-// Mapping des statuts database vers les statuts frontend attendus
-const mapStatusToFrontend = (dbStatus: string): string => {
-  const statusMap: Record<string, string> = {
-    'demande': 'nouvelle-demande',
-    'rejetee': 'rejetee',
-    'approuvee': 'approuvee',
-    'demande_de_devis': 'devis-a-fournir',
-    'planification': 'planification',
-    'planifiee': 'planifiee',
-    'en_cours': 'en_cours',
-    'cloturee_par_prestataire': 'terminee',
-    'cloturee_par_locataire': 'terminee',
-    'cloturee_par_gestionnaire': 'terminee',
-    'annulee': 'annulee'
-  }
-  return statusMap[dbStatus] || dbStatus
-}
-
-// Mapping des types database vers les types frontend
-const mapTypeToFrontend = (dbType: string): string => {
-  const typeMap: Record<string, string> = {
-    'plomberie': 'Plomberie',
-    'electricite': 'Électricité',
-    'chauffage': 'Chauffage',
-    'serrurerie': 'Serrurerie',
-    'peinture': 'Peinture',
-    'menage': 'Ménage',
-    'jardinage': 'Jardinage',
-    'autre': 'Autre'
-  }
-  return typeMap[dbType] || dbType
-}
-
-// Mapping des urgences database vers les priorités frontend
-const mapUrgencyToPriority = (dbUrgency: string): 'basse' | 'normale' | 'haute' | 'urgente' => {
-  const urgencyMap: Record<string, 'basse' | 'normale' | 'haute' | 'urgente'> = {
-    'basse': 'basse',
-    'normale': 'normale',
-    'haute': 'haute',
-    'urgente': 'urgente'
-  }
-  return urgencyMap[dbUrgency] || 'normale'
-}
+// ✅ Mapping functions centralisées dans lib/utils/intervention-mappers.ts
 
 export const usePrestataireData = (userId: string) => {
   const [data, setData] = useState<{
@@ -265,7 +244,7 @@ export const usePrestataireData = (userId: string) => {
       logger.info(`✅ [PRESTATAIRE-DATA] Interventions enriched (${interventionIds.length} interventions, 3 batch queries)`)
 
       // 3. Transform interventions to frontend format
-      const transformedInterventions: PrestataireIntervention[] = interventionsWithDetails.map((intervention: Intervention & { lot?: unknown; tenant?: unknown; manager?: unknown; assigned_contact?: unknown; quotes?: any[]; timeSlots?: any[]; assignments?: any[] }) => {
+      const transformedInterventions: PrestataireIntervention[] = interventionsWithDetails.map((intervention: EnrichedPrestataireIntervention) => {
         const dbStatus = intervention.status  // Garder le statut DB original pour la logique du badge
         const frontendStatus = mapStatusToFrontend(dbStatus)
         

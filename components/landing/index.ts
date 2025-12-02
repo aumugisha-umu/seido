@@ -1,7 +1,8 @@
 /**
- * Landing Page Components
- *
- * Export de la landing page en production (Version 1 - Minimalist)
+ * Landing Page Components - Barrel Export
  */
 
-export { LandingPageV1 } from './landing-page-v1'
+export { LandingPage } from './landing-page'
+export { DemoRequestForm } from './demo-request-form'
+export { LandingHeader } from './landing-header'
+export { LegalPageTemplate } from './legal-page-template'

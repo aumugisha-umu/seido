@@ -3,18 +3,36 @@
 /**
  * Locataire Intervention Detail Client Component
  * Simpler view for tenants with limited actions
+ * Utilise les composants partagés BEM pour le nouveau design
  */
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
-import { StatusTimeline } from '@/components/interventions/status-timeline'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { TabsContent } from '@/components/ui/tabs'
 import { DocumentsTab } from '@/app/gestionnaire/(no-navbar)/interventions/[id]/components/documents-tab'
 import { selectTimeSlotAction, validateByTenantAction } from '@/app/actions/intervention-actions'
 import { toast } from 'sonner'
-import { Activity, FileText, Building2, MapPin, Calendar } from 'lucide-react'
+import { Building2, MapPin, Calendar } from 'lucide-react'
+
+// Composants partagés pour le nouveau design
+import {
+  // Types
+  TimeSlot as SharedTimeSlot,
+  Message,
+  InterventionDocument,
+  TimelineEventData,
+  // Layout
+  PreviewHybridLayout,
+  ContentWrapper,
+  InterventionTabs,
+  // Sidebar
+  InterventionSidebar,
+  // Cards
+  InterventionDetailsCard,
+  DocumentsCard,
+  PlanningCard,
+  ConversationCard
+} from '@/components/interventions/shared'
 
 // Intervention components
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
@@ -74,7 +92,10 @@ export function LocataireInterventionDetailClient({
 }: LocataireInterventionDetailClientProps) {
   const router = useRouter()
   const planning = useInterventionPlanning()
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState('general')
+
+  // États pour le nouveau design PreviewHybrid
+  const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
 
   // Transform assignments into Contact arrays by role
   const { managers, providers, tenants } = useMemo(() => {
@@ -119,6 +140,130 @@ export function LocataireInterventionDetailClient({
 
     return { managers, providers, tenants }
   }, [intervention])
+
+  // ============================================================================
+  // Transformations pour les composants shared (nouveau design PreviewHybrid)
+  // ============================================================================
+
+  // Participants pour InterventionSidebar (format Participant)
+  const participants = useMemo(() => {
+    const assignmentList = (intervention as any).assignments || []
+    return {
+      managers: assignmentList
+        .filter((a: any) => a.role === 'gestionnaire' && a.user)
+        .map((a: any) => ({
+          id: a.user.id,
+          name: a.user.name || '',
+          email: a.user.email || undefined,
+          phone: a.user.phone || undefined,
+          role: 'manager' as const
+        })),
+      providers: assignmentList
+        .filter((a: any) => a.role === 'prestataire' && a.user)
+        .map((a: any) => ({
+          id: a.user.id,
+          name: a.user.name || '',
+          email: a.user.email || undefined,
+          phone: a.user.phone || undefined,
+          role: 'provider' as const
+        })),
+      tenants: assignmentList
+        .filter((a: any) => a.role === 'locataire' && a.user)
+        .map((a: any) => ({
+          id: a.user.id,
+          name: a.user.name || '',
+          email: a.user.email || undefined,
+          phone: a.user.phone || undefined,
+          role: 'tenant' as const
+        }))
+    }
+  }, [intervention])
+
+  // TimeSlots transformés pour PlanningCard
+  const transformedTimeSlots: SharedTimeSlot[] = useMemo(() =>
+    timeSlots.map(slot => ({
+      id: slot.id,
+      slot_date: slot.slot_date || '',
+      start_time: slot.start_time || '',
+      end_time: slot.end_time || '',
+      status: slot.status || 'pending',
+      proposed_by: slot.proposed_by || undefined,
+      proposed_by_user: slot.proposed_by_user ? { name: slot.proposed_by_user.name } : undefined,
+      responses: slot.responses?.map((r: any) => ({
+        id: r.id,
+        user_id: r.user_id,
+        response: r.response as 'accepted' | 'rejected' | 'pending',
+        user: r.user ? { name: r.user.name, role: r.user.role || '' } : undefined
+      }))
+    }))
+  , [timeSlots])
+
+  // Documents transformés pour DocumentsCard
+  const transformedDocuments: InterventionDocument[] = useMemo(() =>
+    documents.map(d => ({
+      id: d.id,
+      name: (d as any).original_filename || d.filename || 'Document',
+      type: d.document_type || 'file',
+      size: d.file_size ? `${Math.round(d.file_size / 1024)} KB` : undefined,
+      date: d.uploaded_at ? new Date(d.uploaded_at).toLocaleDateString('fr-FR') : undefined,
+      url: d.storage_path || undefined
+    }))
+  , [documents])
+
+  // Timeline events pour la progression
+  const timelineEvents: TimelineEventData[] = useMemo(() => {
+    const events: TimelineEventData[] = []
+
+    events.push({
+      status: 'demande',
+      date: intervention.created_at || new Date().toISOString(),
+      author: currentUser.name || 'Vous',
+      authorRole: 'tenant'
+    })
+
+    const statusOrder = [
+      'demande', 'approuvee', 'demande_de_devis', 'planification',
+      'planifiee', 'en_cours', 'cloturee_par_prestataire',
+      'cloturee_par_locataire', 'cloturee_par_gestionnaire'
+    ]
+
+    const currentIndex = statusOrder.indexOf(intervention.status)
+
+    if (currentIndex > 0) {
+      events.push({
+        status: 'approuvee',
+        date: intervention.updated_at || new Date().toISOString(),
+        authorRole: 'manager'
+      })
+    }
+
+    if (currentIndex >= statusOrder.indexOf('planifiee')) {
+      events.push({
+        status: 'planifiee',
+        date: intervention.updated_at || new Date().toISOString(),
+        authorRole: 'provider'
+      })
+    }
+
+    return events
+  }, [intervention, currentUser])
+
+  // Date planifiée (si un créneau est sélectionné)
+  const scheduledDate = timeSlots.find(s => s.status === 'selected')?.slot_date || null
+
+  // Messages mock (à remplacer par de vraies données si disponibles)
+  const mockMessages: Message[] = useMemo(() => [], [])
+
+  // Callbacks pour les conversations
+  const handleConversationClick = (participantId: string) => {
+    setActiveConversation(participantId)
+    setActiveTab('conversations')
+  }
+
+  const handleGroupConversationClick = () => {
+    setActiveConversation('group')
+    setActiveTab('conversations')
+  }
 
   // Handle time slot selection (tenants can select in planification status)
   const handleSelectSlot = async (slotId: string) => {
@@ -351,96 +496,92 @@ export function LocataireInterventionDetailClient({
           onSuccess={handleActionComplete}
         />
 
-        {/* Tabs Navigation */}
-        <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4 mb-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-3 w-full">
-          <TabsTrigger value="overview">Vue d'ensemble</TabsTrigger>
-          <TabsTrigger value="chat">
-            Discussion
-            {threads.length > 0 && (
-              <span className="ml-2 text-xs bg-primary text-primary-foreground rounded-full px-1.5">
-                {threads.length}
-              </span>
-            )}
-          </TabsTrigger>
-          <TabsTrigger value="documents">
-            Documents
-            {documents.length > 0 && (
-              <span className="ml-2 text-xs bg-primary text-primary-foreground rounded-full px-1.5">
-                {documents.length}
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
+        {/* Nouveau design PreviewHybrid */}
+        <PreviewHybridLayout
+          sidebar={
+            <InterventionSidebar
+              participants={participants}
+              currentUserRole="tenant"
+              currentStatus={intervention.status}
+              timelineEvents={timelineEvents}
+              activeConversation={activeConversation}
+              showConversationButtons={true}
+              onConversationClick={handleConversationClick}
+              onGroupConversationClick={handleGroupConversationClick}
+            />
+          }
+          content={
+            <InterventionTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              userRole="tenant"
+            >
+              {/* TAB: GENERAL */}
+              <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <ContentWrapper>
+                  {/* Détails de l'intervention */}
+                  <div className="flex-shrink-0">
+                    <InterventionDetailsCard
+                      title={intervention.title}
+                      description={intervention.description || undefined}
+                      instructions={intervention.instructions || undefined}
+                      planning={{
+                        scheduledDate,
+                        status: scheduledDate ? 'scheduled' : 'pending',
+                        quotesCount: 0,
+                        quotesStatus: 'pending'
+                      }}
+                    />
+                  </div>
 
-        <TabsContent value="overview" className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Main content */}
-            <div className="lg:col-span-2 space-y-6">
-              <InterventionOverviewCard
-                intervention={intervention}
-                managers={managers}
-                providers={providers}
-                tenants={tenants}
-                requireQuote={false}
-                quotes={[]}
-                schedulingType={intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null}
-                schedulingSlots={timeSlots
-                  .filter(ts => ts.slot_date && ts.start_time && ts.end_time)
-                  .map(ts => ({
-                    date: ts.slot_date!,
-                    startTime: ts.start_time!,
-                    endTime: ts.end_time!
-                  }))}
-                fullTimeSlots={timeSlots}
-                currentUserId={currentUser.id}
-                currentUserRole="locataire"
-                onUpdate={() => router.refresh()}
-              />
-            </div>
+                  {/* Documents */}
+                  <div className="mt-6 flex-1 min-h-0 overflow-hidden">
+                    <DocumentsCard
+                      documents={transformedDocuments}
+                      userRole="tenant"
+                      onView={(id) => console.log('View document:', id)}
+                      onDownload={(id) => console.log('Download document:', id)}
+                      className="overflow-hidden h-full"
+                    />
+                  </div>
+                </ContentWrapper>
+              </TabsContent>
 
-            {/* Sidebar */}
-            <div className="space-y-6">
-              {/* Status timeline */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Activity className="w-5 h-5" />
-                    Progression
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <StatusTimeline
-                    currentStatus={intervention.status}
-                    createdAt={intervention.created_at}
-                    scheduledDate={intervention.scheduled_date}
-                    completedDate={intervention.completed_date}
+              {/* TAB: CONVERSATIONS */}
+              <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
+                <ConversationCard
+                  messages={mockMessages}
+                  currentUserId={currentUser.id}
+                  currentUserRole="tenant"
+                  conversationType={activeConversation === 'group' ? 'group' : 'individual'}
+                  participantName={
+                    activeConversation !== 'group'
+                      ? [...participants.managers, ...participants.providers, ...participants.tenants]
+                          .find(p => p.id === activeConversation)?.name
+                      : undefined
+                  }
+                  onSendMessage={(content) => console.log('Send message:', content)}
+                  className="flex-1 mx-4"
+                />
+              </TabsContent>
+
+              {/* TAB: PLANNING */}
+              <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 flex flex-col gap-4 p-4 sm:p-6">
+                  {/* Planning - Le locataire peut voir et sélectionner les créneaux */}
+                  <PlanningCard
+                    timeSlots={transformedTimeSlots}
+                    scheduledDate={scheduledDate || undefined}
+                    userRole="tenant"
+                    currentUserId={currentUser.id}
+                    onSelectSlot={handleSelectSlot}
+                    className="flex-1 min-h-0"
                   />
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="chat" className="space-y-6">
-          <ChatTab
-            interventionId={intervention.id}
-            threads={threads}
-            currentUserId={currentUser.id}
-            userRole="locataire"
-          />
-        </TabsContent>
-
-        <TabsContent value="documents" className="space-y-6">
-          <DocumentsTab
-            interventionId={intervention.id}
-            documents={documents}
-            canManage={false}
-          />
-        </TabsContent>
-        </Tabs>
-        </div>
+                </div>
+              </TabsContent>
+            </InterventionTabs>
+          }
+        />
       </div>
     </>
   )

@@ -13,6 +13,7 @@
 
 import { useState, useActionState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import {
   Lock, Loader2, Send, CheckCircle2,
   Building2, Users, Briefcase, Shield,
@@ -36,7 +37,7 @@ const targetProfiles = [
   { icon: Building2, label: 'Gestionnaires en agence', color: 'text-purple-400' },
   { icon: Briefcase, label: 'Sociétés de gestion patrimoniale', color: 'text-blue-400' },
   { icon: Users, label: 'Administrateurs de biens', color: 'text-green-400' },
-  { icon: Shield, label: 'Syndics professionnels', color: 'text-orange-400' },
+  { icon: Shield, label: 'Multipropriétaires particuliers', color: 'text-orange-400' },
 ]
 
 // Avantages du programme Fondateurs
@@ -78,7 +79,7 @@ export function BetaAccessGate() {
   )
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0f172a] p-4 py-8">
+    <div className="fixed inset-0 z-20 bg-[#0f172a] overflow-y-auto">
       {/* Background Gradients */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600/30 rounded-full blur-[120px]" />
@@ -86,23 +87,26 @@ export function BetaAccessGate() {
         <div className="absolute top-[40%] left-[50%] -translate-x-1/2 w-[800px] h-[800px] bg-indigo-900/20 rounded-full blur-[100px]" />
       </div>
 
-      {/* Conteneur principal - plus large pour accommoder le nouveau design */}
-      <div className="w-full max-w-2xl relative z-10">
+      {/* Conteneur principal - large pour layout 2 colonnes sur desktop */}
+      <div className="min-h-full flex items-center justify-center p-4 py-8">
+        <div className="w-full max-w-7xl relative z-10 px-4">
         {/* Logo SEIDO */}
         <div className="text-center mb-6">
           <div className="flex justify-center mb-4">
-            <Image
-              src="/images/Logo/Logo_Seido_Color.png"
-              alt="SEIDO"
-              width={200}
-              height={60}
-              className="h-14 w-auto"
-              priority
-            />
+            <Link href="/" className="cursor-pointer hover:opacity-80 transition-opacity">
+              <Image
+                src="/images/Logo/Logo_Seido_Color.png"
+                alt="SEIDO"
+                width={200}
+                height={60}
+                className="h-14 w-auto"
+                priority
+              />
+            </Link>
           </div>
 
           <h1 className="landing-h2 text-white mb-2">
-            Programme Fondateurs 2026
+            Programme co-développement 2026
           </h1>
           <p className="landing-subtitle text-white/60 max-w-md mx-auto">
             Rejoignez les professionnels qui co-construisent l&apos;avenir de la gestion locative
@@ -110,10 +114,10 @@ export function BetaAccessGate() {
         </div>
 
         {/* Carte principale */}
-        <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden">
+        <div className="w-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden max-w-none">
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'interest' | 'password')}>
             {/* Onglets - Rejoindre en premier (par défaut) */}
-            <TabsList className="grid w-full grid-cols-2 bg-white/5 p-1 m-4 rounded-lg border border-white/10">
+            <TabsList className="grid grid-cols-2 bg-white/5 p-1 mx-4 mt-4 mb-2 rounded-lg border border-white/10">
               <TabsTrigger
                 value="interest"
                 className="rounded-md data-[state=active]:bg-gradient-to-r data-[state=active]:from-purple-600 data-[state=active]:to-blue-600 data-[state=active]:text-white text-white/60"
@@ -131,43 +135,53 @@ export function BetaAccessGate() {
             </TabsList>
 
             {/* MODE 1: Programme Fondateurs (défaut) */}
-            <TabsContent value="interest" className="p-6 pt-2">
-              {/* Section Avantages */}
-              <div className="grid grid-cols-3 gap-3 mb-6">
-                {founderBenefits.map((benefit, index) => (
-                  <div
-                    key={index}
-                    className="p-3 rounded-xl bg-white/5 border border-white/10 text-center hover:bg-white/10 transition-colors"
-                  >
-                    <div className={`w-10 h-10 mx-auto mb-2 rounded-lg bg-gradient-to-br ${benefit.color} flex items-center justify-center`}>
-                      <benefit.icon className="w-5 h-5 text-white" />
-                    </div>
-                    <h3 className="landing-caption font-semibold text-white mb-1">{benefit.title}</h3>
-                    <p className="text-xs text-white/50 leading-tight">{benefit.description}</p>
+            <TabsContent value="interest" className="p-6 pt-2 lg:p-8">
+              {/* Layout 2 colonnes sur desktop avec flex */}
+              <div className="flex flex-col lg:flex-row gap-6 lg:gap-10">
+
+                {/* COLONNE GAUCHE - Informations (desktop) */}
+                <div className="lg:w-[380px] lg:flex-shrink-0 space-y-4">
+                  {/* Section Avantages - 3 cols mobile, 1 col desktop */}
+                  <div className="grid grid-cols-3 lg:grid-cols-1 gap-3">
+                    {founderBenefits.map((benefit, index) => (
+                      <div
+                        key={index}
+                        className="p-3 rounded-xl bg-white/5 border border-white/10 text-center lg:text-left lg:flex lg:items-center lg:gap-4 hover:bg-white/10 transition-colors"
+                      >
+                        <div className={`w-10 h-10 mx-auto lg:mx-0 mb-2 lg:mb-0 rounded-lg bg-gradient-to-br ${benefit.color} flex items-center justify-center flex-shrink-0`}>
+                          <benefit.icon className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h3 className="landing-caption font-semibold text-white mb-1 lg:mb-0">{benefit.title}</h3>
+                          <p className="text-sm text-white/70 leading-relaxed hidden lg:block">{benefit.description}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
 
-              {/* Section Profils Recherchés */}
-              <div className="mb-6 p-4 rounded-xl bg-white/5 border border-white/10">
-                <p className="landing-caption text-white/60 mb-3 text-center">
-                  Nous recherchons des professionnels :
-                </p>
-                <div className="grid grid-cols-2 gap-2">
-                  {targetProfiles.map((profile, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center gap-2 p-2 rounded-lg bg-white/5"
-                    >
-                      <profile.icon className={`w-4 h-4 ${profile.color} flex-shrink-0`} />
-                      <span className="text-xs text-white/80">{profile.label}</span>
+                  {/* Section Profils Recherchés - 2 cols mobile, 1 col desktop */}
+                  <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                    <p className="landing-caption text-white/60 mb-3 text-center lg:text-left">
+                      Nous recherchons des professionnels :
+                    </p>
+                    <div className="grid grid-cols-2 lg:grid-cols-1 gap-2">
+                      {targetProfiles.map((profile, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 p-2 rounded-lg bg-white/5"
+                        >
+                          <profile.icon className={`w-4 h-4 ${profile.color} flex-shrink-0`} />
+                          <span className="text-sm text-white/80">{profile.label}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </div>
 
-              {/* Formulaire Fondateurs */}
-              <form action={interestAction} className="space-y-4">
+                {/* COLONNE DROITE - Formulaire */}
+                <div className="flex-1 min-w-0">
+                  {/* Formulaire Fondateurs */}
+                  <form action={interestAction} className="space-y-4">
                 {/* Ligne Prénom + Nom */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -259,7 +273,11 @@ export function BetaAccessGate() {
                         <SelectItem value="1-10" className="text-white hover:bg-white/10">1 - 10 lots</SelectItem>
                         <SelectItem value="11-50" className="text-white hover:bg-white/10">11 - 50 lots</SelectItem>
                         <SelectItem value="51-200" className="text-white hover:bg-white/10">51 - 200 lots</SelectItem>
-                        <SelectItem value="200+" className="text-white hover:bg-white/10">200+ lots</SelectItem>
+                        <SelectItem value="201-500" className="text-white hover:bg-white/10">201 - 500 lots</SelectItem>
+                        <SelectItem value="501-1000" className="text-white hover:bg-white/10">501 - 1 000 lots</SelectItem>
+                        <SelectItem value="1001-5000" className="text-white hover:bg-white/10">1 001 - 5 000 lots</SelectItem>
+                        <SelectItem value="5001-10000" className="text-white hover:bg-white/10">5 001 - 10 000 lots</SelectItem>
+                        <SelectItem value="10000+" className="text-white hover:bg-white/10">10 000+ lots</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -311,19 +329,21 @@ export function BetaAccessGate() {
                   ) : (
                     <>
                       <Send className="w-4 h-4 mr-2" />
-                      Candidater au Programme Fondateurs
+                      Parciciper au programme de co-développement
                     </>
                   )}
                 </Button>
 
-                {/* Signature Arthur */}
-                <div className="pt-4 border-t border-white/10 text-center">
-                  <p className="landing-caption text-white/60">
-                    <span className="text-purple-400 font-medium">Arthur</span>, fondateur de SEIDO,
-                    vous recontacte personnellement sous 48h
-                  </p>
+                    {/* Signature Arthur */}
+                    <div className="pt-4 border-t border-white/10 text-center lg:text-left">
+                      <p className="landing-caption text-white/60">
+                        <span className="text-purple-400 font-medium">Arthur</span>, fondateur de SEIDO,
+                        vous recontacte personnellement sous 48h
+                      </p>
+                    </div>
+                  </form>
                 </div>
-              </form>
+              </div>
             </TabsContent>
 
             {/* MODE 2: Code Beta (pour testeurs existants) */}
@@ -387,18 +407,28 @@ export function BetaAccessGate() {
 
         {/* Footer */}
         <div className="text-center mt-6">
-          <p className="text-white/40 text-xs">
+          <p className="text-white/60 text-sm">
             Beta privée 2026 - Sélection en cours
           </p>
-          <p className="text-white/60 text-sm mt-2">
-            Vous rencontrez un problème ?{' '}
-            <a
-              href="mailto:contact@seido-app.com"
-              className="text-purple-400 hover:text-purple-300 underline transition-colors"
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mt-2">
+            <p className="text-white/60 text-sm">
+              Vous rencontrez un problème ?{' '}
+              <a
+                href="mailto:contact@seido-app.com"
+                className="text-purple-400 hover:text-purple-300 underline transition-colors"
+              >
+                Contactez-nous
+              </a>
+            </p>
+            <span className="text-white/40 hidden sm:inline">•</span>
+            <Link
+              href="/auth/login"
+              className="text-purple-400 hover:text-purple-300 underline transition-colors text-sm"
             >
-              Contactez-nous
-            </a>
-          </p>
+              Se connecter
+            </Link>
+          </div>
+        </div>
         </div>
       </div>
     </div>

@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
 // ============================================================================
@@ -32,7 +33,7 @@ export interface DemoFormData {
   email: string
   phone?: string
   company?: string
-  lots?: number
+  lotsCount?: string
   message?: string
 }
 
@@ -106,7 +107,7 @@ export function DemoRequestForm({
         email: formData.get('email') as string,
         phone: (formData.get('phone') as string) || undefined,
         company: (formData.get('company') as string) || undefined,
-        lots: formData.get('lots') ? Number(formData.get('lots')) : undefined,
+        lotsCount: (formData.get('lotsCount') as string) || undefined,
         message: (formData.get('message') as string) || undefined,
       }
 
@@ -162,17 +163,24 @@ export function DemoRequestForm({
           />
         </div>
         <div className={cn(styles.field, styles.fieldHalf)}>
-          <Label htmlFor="demo-lots" className={styles.label}>
-            Nombre de biens gérés
+          <Label htmlFor="demo-lotsCount" className={styles.label}>
+            Lots gérés
           </Label>
-          <Input
-            id="demo-lots"
-            name="lots"
-            type="number"
-            placeholder="50"
-            min={0}
-            className={styles.input}
-          />
+          <Select name="lotsCount">
+            <SelectTrigger className={styles.input}>
+              <SelectValue placeholder="Sélectionner" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#1e293b] border-white/20">
+              <SelectItem value="1-10" className="text-white hover:bg-white/10">1 - 10 lots</SelectItem>
+              <SelectItem value="11-50" className="text-white hover:bg-white/10">11 - 50 lots</SelectItem>
+              <SelectItem value="51-200" className="text-white hover:bg-white/10">51 - 200 lots</SelectItem>
+              <SelectItem value="201-500" className="text-white hover:bg-white/10">201 - 500 lots</SelectItem>
+              <SelectItem value="501-1000" className="text-white hover:bg-white/10">501 - 1 000 lots</SelectItem>
+              <SelectItem value="1001-5000" className="text-white hover:bg-white/10">1 001 - 5 000 lots</SelectItem>
+              <SelectItem value="5001-10000" className="text-white hover:bg-white/10">5 001 - 10 000 lots</SelectItem>
+              <SelectItem value="10000+" className="text-white hover:bg-white/10">10 000+ lots</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

@@ -429,6 +429,74 @@ export function LandingPage() {
                 </div>
             </section>
 
+            {/* Upcoming Features - Roadmap */}
+            <section className="relative z-10 container mx-auto px-4 py-24 bg-[#1e293b]/30">
+                <FadeIn>
+                    <div className="text-center max-w-3xl mx-auto mb-16">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-medium mb-6">
+                            <Sparkles className="w-4 h-4" />
+                            <span>Bientôt disponible</span>
+                        </div>
+                        <h2 className="landing-h2 mb-6 text-white">
+                            Le futur de la gestion immobilière
+                        </h2>
+                        <p className="landing-subtitle text-white/60">
+                            Nous construisons l'outil ultime pour les gestionnaires ambitieux. Voici ce qui arrive.
+                        </p>
+                    </div>
+                </FadeIn>
+
+                <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                    {[
+                        {
+                            icon: Mail,
+                            title: "Email Collaboratif & Actionnable",
+                            desc: "Plus qu'une boîte mail : transformez chaque email en tâche, assignez-le à un collaborateur et discutez-en sans quitter l'interface. Fini les 'Re: Re: Re:' interminables.",
+                            tags: ["Productivité", "Collaboration"]
+                        },
+                        {
+                            icon: FileText,
+                            title: "Suivi Administratif Complet",
+                            desc: "Baux, états des lieux, inventaires... Tout est lié. Recevez des alertes pour les échéances, les indexations et les renouvellements. Ne ratez plus aucune date clé.",
+                            tags: ["Sérénité", "Juridique"]
+                        },
+                        {
+                            icon: BarChart3,
+                            title: "Pilotage Financier 360°",
+                            desc: "Connexion bancaire directe, réconciliation automatique des loyers, suivi des dépenses et régularisations de charges en un clic. Votre comptabilité en pilote automatique.",
+                            tags: ["Finance", "Automatisation"]
+                        }
+                    ].map((item, i) => (
+                        <FadeIn key={i} delay={i * 100} className="h-full">
+                            <div className="relative h-full p-8 rounded-3xl border border-white/10 bg-gradient-to-b from-white/5 to-transparent backdrop-blur-sm overflow-hidden group hover:border-purple-500/30 transition-colors duration-300">
+                                <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
+                                    <item.icon className="w-24 h-24 text-white rotate-12" />
+                                </div>
+
+                                <div className="relative z-10">
+                                    <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-6 ring-1 ring-white/20">
+                                        <item.icon className="w-6 h-6 text-white" />
+                                    </div>
+
+                                    <h3 className="landing-h4 text-white mb-4">{item.title}</h3>
+                                    <p className="landing-body-sm text-white/60 mb-6 leading-relaxed">
+                                        {item.desc}
+                                    </p>
+
+                                    <div className="flex flex-wrap gap-2 mt-auto">
+                                        {item.tags.map((tag, j) => (
+                                            <span key={j} className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-white/40">
+                                                {tag}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </FadeIn>
+                    ))}
+                </div>
+            </section>
+
             {/* How It Works */}
             <section className="relative z-10 container mx-auto px-4 py-24">
                 <FadeIn>
@@ -536,7 +604,7 @@ export function LandingPage() {
                                 <Home className="w-5 h-5 text-purple-400" />
                             </div>
                             <div className="text-left">
-                                <p className="landing-caption font-semibold text-white">Moins de 5 biens ?</p>
+                                <p className="landing-caption font-semibold text-white">5 biens ou moins ?</p>
                                 <p className="landing-caption text-white/60">Gratuit à vie <span className="text-purple-400">(hors IA et API externes)</span></p>
                             </div>
                         </div>
@@ -591,10 +659,10 @@ export function LandingPage() {
                         <div className="relative p-8 rounded-3xl bg-[#1e293b]/80 backdrop-blur-md border border-purple-500/50 shadow-[0_0_40px_rgba(168,85,247,0.15)] flex flex-col h-full hover:scale-[1.02] transition-transform duration-300 hover:shadow-[0_0_60px_rgba(168,85,247,0.25)]">
                             {/* Badges */}
                             <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex gap-2">
-                                <span className="px-3 py-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full landing-overline text-white">
+                                <span className="px-3 py-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full landing-overline text-white flex items-center justify-center text-center">
                                     Populaire
                                 </span>
-                                <span className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full landing-overline text-white animate-pulse">
+                                <span className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full landing-overline text-white animate-pulse flex items-center justify-center text-center whitespace-nowrap">
                                     Import Pro Offert
                                 </span>
                             </div>
@@ -705,8 +773,8 @@ export function LandingPage() {
 
                         <div className="grid md:grid-cols-2 gap-8">
                             {/* Contact Info */}
-                            <div className="space-y-6 h-full flex flex-col">
-                                <div className="p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm flex items-start gap-4 hover:bg-white/10 transition-colors">
+                            <div className="h-full flex flex-col gap-6">
+                                <div className="p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm flex items-start gap-4 hover:bg-white/10 transition-colors flex-1">
                                     <Mail className="w-8 h-8 text-purple-400 flex-shrink-0" />
                                     <div>
                                         <h3 className="landing-body font-semibold text-white mb-1">Email</h3>
@@ -716,7 +784,7 @@ export function LandingPage() {
                                     </div>
                                 </div>
 
-                                <div className="p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm flex items-start gap-4 hover:bg-white/10 transition-colors">
+                                <div className="p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm flex items-start gap-4 hover:bg-white/10 transition-colors flex-1">
                                     <Clock className="w-8 h-8 text-blue-400 flex-shrink-0" />
                                     <div>
                                         <h3 className="landing-body font-semibold text-white mb-1">Disponibilité</h3>
@@ -725,7 +793,7 @@ export function LandingPage() {
                                     </div>
                                 </div>
 
-                                <div className="p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm flex items-start gap-4 hover:bg-white/10 transition-colors">
+                                <div className="p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm flex items-start gap-4 hover:bg-white/10 transition-colors flex-1">
                                     <MessageSquare className="w-8 h-8 text-green-400 flex-shrink-0" />
                                     <div>
                                         <h3 className="landing-body font-semibold text-white mb-1">Support</h3>

@@ -28,7 +28,7 @@ const BetaInterestSchema = z.object({
   email: z.string().email('Email invalide').min(1, 'Email requis'),
   phone: z.string().optional(),
   company: z.string().min(2, 'Société requise (minimum 2 caractères)'),
-  lotsCount: z.enum(['1-10', '11-50', '51-200', '200+'], { errorMap: () => ({ message: 'Veuillez sélectionner le nombre de lots' }) }),
+  lotsCount: z.enum(['1-10', '11-50', '51-200', '201-500', '501-1000', '1001-5000', '5001-10000', '10000+'], { errorMap: () => ({ message: 'Veuillez sélectionner le nombre de lots' }) }),
   message: z.string().max(500, 'Message trop long (maximum 500 caractères)').optional()
 })
 

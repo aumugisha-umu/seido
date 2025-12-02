@@ -16,16 +16,18 @@ export default function BetaThankYouPage() {
       <div className="w-full max-w-lg">
         {/* Logo SEIDO */}
         <div className="text-center mb-8">
-          <div className="inline-block p-4 bg-white/10 backdrop-blur-sm rounded-2xl mb-6">
-            <Image
-              src="/images/Logo/Logo_Seido_White.png"
-              alt="SEIDO"
-              width={120}
-              height={40}
-              className="h-10 w-auto"
-              priority
-            />
-          </div>
+          <Link href="/" className="inline-block cursor-pointer hover:opacity-80 transition-opacity">
+            <div className="p-4 bg-white/10 backdrop-blur-sm rounded-2xl mb-6">
+              <Image
+                src="/images/Logo/Logo_Seido_White.png"
+                alt="SEIDO"
+                width={120}
+                height={40}
+                className="h-10 w-auto"
+                priority
+              />
+            </div>
+          </Link>
         </div>
 
         {/* Carte principale */}
@@ -49,18 +51,18 @@ export default function BetaThankYouPage() {
           <div className="grid grid-cols-3 gap-3 mb-6">
             <div className="p-3 bg-gray-50 rounded-xl text-center">
               <Percent className="w-5 h-5 text-green-600 mx-auto mb-1" />
-              <p className="text-xs font-medium text-gray-700">-25%</p>
-              <p className="text-xs text-gray-500">3 ans</p>
+              <p className="text-sm font-medium text-gray-700">-25%</p>
+              <p className="text-sm text-gray-500">3 ans</p>
             </div>
             <div className="p-3 bg-gray-50 rounded-xl text-center">
               <Calendar className="w-5 h-5 text-purple-600 mx-auto mb-1" />
-              <p className="text-xs font-medium text-gray-700">Accès</p>
-              <p className="text-xs text-gray-500">Prioritaire</p>
+              <p className="text-sm font-medium text-gray-700">Accès</p>
+              <p className="text-sm text-gray-500">Prioritaire</p>
             </div>
             <div className="p-3 bg-gray-50 rounded-xl text-center">
               <MessageSquare className="w-5 h-5 text-orange-600 mx-auto mb-1" />
-              <p className="text-xs font-medium text-gray-700">Votre</p>
-              <p className="text-xs text-gray-500">Voix compte</p>
+              <p className="text-sm font-medium text-gray-700">Votre</p>
+              <p className="text-sm text-gray-500">Voix compte</p>
             </div>
           </div>
 
@@ -110,9 +112,15 @@ export default function BetaThankYouPage() {
 
         {/* Footer */}
         <div className="text-center mt-8">
-          <p className="text-purple-100 text-sm">
-            Programme Fondateurs 2026 - SEIDO
+          <p className="text-purple-100 text-sm mb-2">
+            Programme co-développement 2026 - SEIDO
           </p>
+          <Link
+            href="/auth/login"
+            className="text-purple-200 hover:text-white underline transition-colors text-sm"
+          >
+            Se connecter
+          </Link>
         </div>
       </div>
     </div>

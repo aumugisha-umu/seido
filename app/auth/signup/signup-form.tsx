@@ -217,7 +217,7 @@ export function SignupForm() {
         {formData.password && (
           <div className="bg-muted/20 border border-muted/50 rounded-md p-3 space-y-1.5">
             {passwordRequirements.map((req, index) => (
-              <div key={index} className="flex items-center gap-2.5 text-xs">
+              <div key={index} className="flex items-center gap-2.5 text-sm">
                 <div className={`h-4 w-4 rounded-full flex items-center justify-center ${req.met ? "bg-green-100 text-green-600" : "bg-muted text-muted-foreground"
                   }`}>
                   <Check className="h-2.5 w-2.5" />

@@ -51,7 +51,7 @@ export function LandingHeader({
         {/* Logo */}
         <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
           <Image
-            src="/images/Logo/Logo_Seido_Color.png"
+            src="/images/Logo/Logo_Seido_White.png"
             alt="SEIDO"
             width={120}
             height={36}
@@ -70,16 +70,22 @@ export function LandingHeader({
               Fonctionnalités
             </a>
             <a
-              href="#roles"
-              className="text-sm font-medium text-white/70 hover:text-white transition-colors"
-            >
-              Pour qui ?
-            </a>
-            <a
               href="#pricing"
               className="text-sm font-medium text-white/70 hover:text-white transition-colors"
             >
               Tarifs
+            </a>
+            <a
+              href="#contact"
+              className="text-sm font-medium text-white/70 hover:text-white transition-colors"
+            >
+              Contact
+            </a>
+            <a
+              href="#faq"
+              className="text-sm font-medium text-white/70 hover:text-white transition-colors"
+            >
+              FAQ
             </a>
           </nav>
         )}

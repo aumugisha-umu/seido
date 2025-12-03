@@ -33,8 +33,8 @@ export interface DemoFormData {
   email: string
   phone?: string
   company?: string
-  lotsCount?: string
-  message?: string
+  lotsCount: string
+  message: string
 }
 
 export interface DemoRequestFormProps {
@@ -107,8 +107,8 @@ export function DemoRequestForm({
         email: formData.get('email') as string,
         phone: (formData.get('phone') as string) || undefined,
         company: (formData.get('company') as string) || undefined,
-        lotsCount: (formData.get('lotsCount') as string) || undefined,
-        message: (formData.get('message') as string) || undefined,
+        lotsCount: formData.get('lotsCount') as string,
+        message: formData.get('message') as string,
       }
 
       if (onSubmit) {
@@ -137,7 +137,7 @@ export function DemoRequestForm({
       <div className={styles.row}>
         <div className={cn(styles.field, styles.fieldFull)}>
           <Label htmlFor="demo-name" className={styles.label}>
-            Nom complet *
+            Nom *
           </Label>
           <Input
             id="demo-name"
@@ -153,7 +153,7 @@ export function DemoRequestForm({
       <div className={styles.row}>
         <div className={cn(styles.field, styles.fieldHalf)}>
           <Label htmlFor="demo-company" className={styles.label}>
-            Société
+            Société (optionnel)
           </Label>
           <Input
             id="demo-company"
@@ -164,9 +164,9 @@ export function DemoRequestForm({
         </div>
         <div className={cn(styles.field, styles.fieldHalf)}>
           <Label htmlFor="demo-lotsCount" className={styles.label}>
-            Lots gérés
+            Patrimoine en gestion *
           </Label>
-          <Select name="lotsCount">
+          <Select name="lotsCount" required>
             <SelectTrigger className={styles.input}>
               <SelectValue placeholder="Sélectionner" />
             </SelectTrigger>
@@ -217,13 +217,14 @@ export function DemoRequestForm({
       <div className={styles.row}>
         <div className={cn(styles.field, styles.fieldFull)}>
           <Label htmlFor="demo-message" className={styles.label}>
-            Message (optionnel)
+            Message *
           </Label>
           <Textarea
             id="demo-message"
             name="message"
             placeholder="Parlez-nous de vos besoins..."
             rows={variant === 'inline' ? 4 : 3}
+            required
             className={styles.textarea}
           />
         </div>

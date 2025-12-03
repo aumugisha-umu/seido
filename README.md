@@ -105,6 +105,39 @@
 
 ## 🚀 Dernières Mises à Jour - Décembre 2025
 
+### 🎨 Système de Thème Material Design 3 (Dec 3, 2025)
+
+**Dark/Light mode avec système de couleurs unifié** basé sur Material Design 3 et Tailwind v4.
+
+**Nouveautés** :
+- 🌙 **Dark/Light Mode** - Toggle accessible dans le header (navbar)
+- 🎨 **Palette MD3** - 5 couleurs clés (Primary, Secondary, Tertiary, Neutral, Neutral-Variant)
+- 📱 **System preference** - Détection automatique des préférences OS (`prefers-color-scheme`)
+- ✨ **Glassmorphism** - Effets visuels modernes en dark mode
+- 🖼️ **Hero Video adaptatif** - Vidéo différente selon le thème (`hero-light.webm` / `hero-dark.webm`)
+- ♿ **Accessibilité WCAG 2.1 AA** - Ratios de contraste vérifiés (4.5:1 minimum)
+
+**Architecture Tailwind v4** :
+```css
+/* globals.css - Configuration des couleurs via @theme */
+@theme {
+  --color-surface: var(--surface);
+  --color-on-surface: var(--on-surface);
+  --color-primary: var(--primary);
+  /* ... génère automatiquement bg-surface, text-on-surface, etc. */
+}
+```
+
+**Fichiers clés** :
+| Fichier | Rôle |
+|---------|------|
+| `app/globals.css` | Variables CSS (`:root`, `.dark`) + `@theme` block |
+| `app/providers.tsx` | ThemeProvider (next-themes) |
+| `components/ui/theme-toggle.tsx` | Toggle Sun/Moon animé |
+| `components/landing/hero-video.tsx` | Vidéo conditionnelle selon thème |
+
+---
+
 ### 📚 Storybook & Architecture Composants (Dec 1, 2025)
 
 **Documentation interactive des composants** avec Storybook et nouvelle architecture modulaire.

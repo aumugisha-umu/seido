@@ -2,20 +2,20 @@ import { LandingPage } from '@/components/landing'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'SEIDO - Plateforme de gestion immobilière',
-  description: 'Centralisez vos demandes, coordonnez vos prestataires, satisfaites vos locataires. SEIDO simplifie la gestion de vos interventions de A à Z. À partir de 3€/lot/mois.',
+  title: 'Seido, la gestion locative simplifiée',
+  description: 'Une plateforme intelligente qui connecte gestionnaires, prestataires et locataires. Gagnez jusqu\'à 2h par jour en optimisant la gestion opérationnelle de votre patrimoine.',
   keywords: ['gestion immobilière', 'interventions', 'maintenance', 'gestionnaire', 'prestataire', 'locataire', 'SaaS immobilier'],
   openGraph: {
-    title: 'SEIDO - Fini le calvaire de la coordination des interventions',
-    description: 'Centralisez vos demandes, coordonnez vos prestataires, satisfaites vos locataires.',
-    images: ['/images/mockup_desktop.png'],
+    title: 'Seido, la gestion locative simplifiée',
+    description: 'Une plateforme intelligente qui connecte gestionnaires, prestataires et locataires. Gagnez jusqu\'à 2h par jour en optimisant la gestion opérationnelle de votre patrimoine.',
+    images: ['/images/preview_image.webp'],
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'SEIDO - Plateforme de gestion immobilière',
-    description: 'Simplifiez la gestion de vos interventions immobilières',
-    images: ['/images/mockup_desktop.png'],
+    title: 'Seido, la gestion locative simplifiée',
+    description: 'Une plateforme intelligente qui connecte gestionnaires, prestataires et locataires. Gagnez jusqu\'à 2h par jour en optimisant la gestion opérationnelle de votre patrimoine.',
+    images: ['/images/preview_image.webp'],
   },
 }
 

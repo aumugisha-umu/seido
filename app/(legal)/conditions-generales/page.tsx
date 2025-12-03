@@ -38,7 +38,7 @@ export default function CGUPage() {
         </LegalText>
         <LegalText>
           Les CGU ont pour but de régir et de contrôler l&apos;utilisation du site web SEIDO dont le nom de domaine
-          est <LegalHighlight>seido.pm</LegalHighlight>, et l&apos;application mobile le complétant, regroupés sous le terme
+          est <LegalHighlight>seido-app.com</LegalHighlight>, et l&apos;application mobile le complétant, regroupés sous le terme
           (la « <LegalHighlight>Plateforme</LegalHighlight> »). Toute inscription à SEIDO conformément aux modalités
           décrites ci-après, emporte l&apos;acceptation expresse et sans réserve des CGU qui primeront sur tout autre document.
         </LegalText>
@@ -58,7 +58,7 @@ export default function CGUPage() {
         <LegalText>
           SEIDO est un service accessible via la Plateforme, offrant aux gestionnaires de biens immobiliers
           <LegalHighlight> une plateforme centralisée combinant la gestion locative traditionnelle et un système
-          pour orchestrer toutes les interventions et communications qui y sont relatives</LegalHighlight>.
+            pour orchestrer toutes les interventions et communications qui y sont relatives</LegalHighlight>.
         </LegalText>
         <LegalText>
           SEIDO ne se substitue aucunement à la gestion du Client. Les conseils éventuellement fournis par SEIDO
@@ -105,7 +105,7 @@ export default function CGUPage() {
         <LegalText>
           SEIDO fournira tous les outils de communication et d&apos;onboarding nécessaires pour faciliter l&apos;adoption
           de la Plateforme par toutes les parties concernées, mais <LegalHighlight>ne pourra être tenue responsable
-          du refus ou de la sous-utilisation de la Plateforme par une des parties</LegalHighlight>.
+            du refus ou de la sous-utilisation de la Plateforme par une des parties</LegalHighlight>.
         </LegalText>
       </LegalSection>
 
@@ -164,7 +164,7 @@ export default function CGUPage() {
           <LegalText>
             Le Client peut résilier son abonnement payant à tout moment avant la reconduction de celui-ci,
             directement depuis son espace client sur la Plateforme, ou en contactant le service client par
-            e-mail à l&apos;adresse <LegalHighlight>support@seido.pm</LegalHighlight>.
+            e-mail à l&apos;adresse <LegalHighlight>support@seido-app.com</LegalHighlight>.
           </LegalText>
           <LegalText>
             La résiliation prend effet à la fin de la période d&apos;abonnement en cours. Le Client conserve
@@ -286,7 +286,7 @@ export default function CGUPage() {
           </LegalText>
           <LegalList items={[
             <span key="chat"><LegalHighlight>Chat</LegalHighlight> : disponible sur la plateforme</span>,
-            <span key="email"><LegalHighlight>Email</LegalHighlight> : support@seido.pm</span>,
+            <span key="email"><LegalHighlight>Email</LegalHighlight> : support@seido-app.com</span>,
             <span key="tel"><LegalHighlight>Téléphone</LegalHighlight> : +32 474 02 88 38</span>
           ]} />
         </LegalCard>
@@ -295,7 +295,7 @@ export default function CGUPage() {
           <LegalText>
             SEIDO agit comme intermédiaire technologique pour la mise en relation entre les Clients et les
             prestataires. <LegalHighlight>SEIDO ne saurait être tenue responsable de la qualité des interventions
-            réalisées par les prestataires</LegalHighlight>, des dommages causés par ces derniers, ou de leurs défaillances.
+              réalisées par les prestataires</LegalHighlight>, des dommages causés par ces derniers, ou de leurs défaillances.
             Le Client reste entièrement responsable de la sélection et de la supervision des prestataires.
           </LegalText>
         </LegalSubsection>
@@ -349,7 +349,7 @@ export default function CGUPage() {
         <LegalText>
           A défaut d&apos;accord amiable entre le Client et SEIDO, tout différend ou litige relevant de l&apos;exécution ou
           de l&apos;interprétation des CGU sera de la compétence exclusive des <LegalHighlight>tribunaux de l&apos;arrondissement
-          de Bruxelles (Belgique)</LegalHighlight>.
+            de Bruxelles (Belgique)</LegalHighlight>.
         </LegalText>
       </LegalSection>
     </LegalPageTemplate>

@@ -140,7 +140,7 @@ export default function PrivacyPolicyPage() {
 
         <LegalCard title="Pour exercer ces droits, contacter :">
           <LegalList items={[
-            <span key="email"><LegalHighlight>Email</LegalHighlight> : rgpd@seido.pm</span>,
+            <span key="email"><LegalHighlight>Email</LegalHighlight> : rgpd@seido-app.com</span>,
             <span key="adresse"><LegalHighlight>Adresse postale</LegalHighlight> : UMUMENTUM SRL, Rue de Grand-Bigard 14, 1082 Berchem-Sainte-Agathe (Belgique)</span>
           ]} />
         </LegalCard>

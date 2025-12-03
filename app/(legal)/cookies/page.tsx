@@ -30,7 +30,7 @@ export default function CookiePolicyPage() {
         <LegalText>
           Cette Politique de Cookies (« <LegalHighlight>Politique</LegalHighlight> ») explique comment
           <LegalHighlight> SEIDO</LegalHighlight> utilise les cookies et technologies similaires pour vous
-          reconnaître lorsque vous visitez notre site web à l&apos;adresse <LegalHighlight>https://seido.pm</LegalHighlight> et
+          reconnaître lorsque vous visitez notre site web à l&apos;adresse <LegalHighlight>https://seido-app.com</LegalHighlight> et
           notre application mobile (« <LegalHighlight>Plateforme</LegalHighlight> »). Elle explique ce que sont ces
           technologies, pourquoi nous les utilisons et vos droits pour contrôler notre utilisation de celles-ci.
         </LegalText>
@@ -138,7 +138,7 @@ export default function CookiePolicyPage() {
         </LegalText>
         <LegalText>
           Les informations collectées dans le cadre de ce processus <LegalHighlight>ne nous permettent pas
-          d&apos;identifier votre nom, coordonnées ou autres informations personnellement identifiables</LegalHighlight> à
+            d&apos;identifier votre nom, coordonnées ou autres informations personnellement identifiables</LegalHighlight> à
           moins que vous ne choisissiez de les fournir.
         </LegalText>
       </LegalSection>
@@ -232,8 +232,8 @@ export default function CookiePolicyPage() {
             Belgique
           </LegalText>
           <LegalList items={[
-            <span key="email-rgpd"><LegalHighlight>Email RGPD</LegalHighlight> : rgpd@seido.pm</span>,
-            <span key="email-support"><LegalHighlight>Support</LegalHighlight> : support@seido.pm</span>
+            <span key="email-rgpd"><LegalHighlight>Email RGPD</LegalHighlight> : rgpd@seido-app.com</span>,
+            <span key="email-support"><LegalHighlight>Support</LegalHighlight> : support@seido-app.com</span>
           ]} />
         </LegalCard>
       </LegalSection>

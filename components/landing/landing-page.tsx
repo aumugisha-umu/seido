@@ -95,15 +95,6 @@ export function LandingPage() {
 
                 <div className="container mx-auto px-4 py-12 md:py-0 relative z-10">
                     <div className="max-w-2xl">
-                        <FadeIn delay={0}>
-                            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/20 backdrop-blur-md mb-6 md:mb-8">
-                                <span className="relative flex h-2 w-2">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                                </span>
-                                <span className="landing-caption font-medium text-white/90">La référence des gestionnaires modernes</span>
-                            </div>
-                        </FadeIn>
 
                         <FadeIn delay={100}>
                             <h1 className="landing-display mb-6 md:mb-8 drop-shadow-2xl">
@@ -134,17 +125,6 @@ export function LandingPage() {
                                     <Mail className="w-4 md:w-5 h-4 md:h-5 mr-2 md:mr-3" />
                                     Demander une démo
                                 </Button>
-                            </div>
-                        </FadeIn>
-
-                        <FadeIn delay={400}>
-                            <div className="pt-8 md:pt-12 flex items-center gap-4 md:gap-6 landing-caption text-white/80">
-                                <div className="flex -space-x-3">
-                                    {[1, 2, 3, 4].map((i) => (
-                                        <div key={i} className="w-8 h-8 md:w-10 md:h-10 rounded-full border-2 border-[#0f172a] bg-gradient-to-br from-gray-600 to-gray-500" />
-                                    ))}
-                                </div>
-                                <p className="font-medium">Rejoint par 500+ gestionnaires</p>
                             </div>
                         </FadeIn>
                     </div>
@@ -244,7 +224,7 @@ export function LandingPage() {
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <h2 className="landing-h2 mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/60">
-                            Votre centre de commande
+                            SEIDO, votre centre de commande
                         </h2>
                         <p className="landing-subtitle text-white/60">
                             Une plateforme conçue pour vous, le gestionnaire. Reprenez le contrôle de votre temps.
@@ -273,7 +253,7 @@ export function LandingPage() {
                                     <ul className="space-y-3">
                                         <li className="flex items-start landing-body-sm text-white/80">
                                             <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
-                                            <span><strong>Centralisez tout</strong> : emails, interventions et documents en un seul endroit</span>
+                                            <span><strong>Centralisez tout</strong> : communications, interventions et documents en un seul endroit</span>
                                         </li>
                                         <li className="flex items-start landing-body-sm text-white/80">
                                             <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
@@ -297,7 +277,7 @@ export function LandingPage() {
                                         </li>
                                         <li className="flex items-start landing-body-sm text-white/80">
                                             <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
-                                            <span><strong>Client email intégré</strong> : synchronisez vos boîtes IMAP/SMTP</span>
+                                            <span><strong>Client email intégré</strong> : Recevez et envoyez des emails directement depuis l'application</span>
                                         </li>
                                     </ul>
                                 </div>
@@ -395,7 +375,7 @@ export function LandingPage() {
                         {
                             icon: Zap,
                             title: "Vitesse Éclair",
-                            desc: "Interface optimisée pour la productivité. Zéro temps de chargement.",
+                            desc: "Interface optimisée pour la productivité et accès rapide à toutes les informations.",
                             color: "text-yellow-400",
                             bg: "bg-yellow-400/10"
                         },
@@ -450,30 +430,30 @@ export function LandingPage() {
                     {[
                         {
                             icon: Mail,
-                            title: "Email Collaboratif & Actionnable",
+                            title: "Emails collaboratifs & actionnables",
                             desc: "Plus qu'une boîte mail : transformez chaque email en tâche, assignez-le à un collaborateur et discutez-en sans quitter l'interface. Fini les 'Re: Re: Re:' interminables.",
                             tags: ["Productivité", "Collaboration"]
                         },
                         {
                             icon: FileText,
-                            title: "Suivi Administratif Complet",
+                            title: "Suivi administratif complet",
                             desc: "Baux, états des lieux, inventaires... Tout est lié. Recevez des alertes pour les échéances, les indexations et les renouvellements. Ne ratez plus aucune date clé.",
                             tags: ["Sérénité", "Juridique"]
                         },
                         {
                             icon: BarChart3,
-                            title: "Pilotage Financier 360°",
+                            title: "Pilotage financier 360°",
                             desc: "Connexion bancaire directe, réconciliation automatique des loyers, suivi des dépenses et régularisations de charges en un clic. Votre comptabilité en pilote automatique.",
                             tags: ["Finance", "Automatisation"]
                         }
                     ].map((item, i) => (
                         <FadeIn key={i} delay={i * 100} className="h-full">
-                            <div className="relative h-full p-8 rounded-3xl border border-white/10 bg-gradient-to-b from-white/5 to-transparent backdrop-blur-sm overflow-hidden group hover:border-purple-500/30 transition-colors duration-300">
+                            <div className="relative h-full p-8 rounded-3xl border border-white/10 bg-gradient-to-b from-white/5 to-transparent backdrop-blur-sm overflow-hidden group hover:border-purple-500/30 transition-colors duration-300 flex flex-col">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
                                     <item.icon className="w-24 h-24 text-white rotate-12" />
                                 </div>
 
-                                <div className="relative z-10">
+                                <div className="relative z-10 flex flex-col h-full">
                                     <div className="w-12 h-12 rounded-2xl bg-white/10 flex items-center justify-center mb-6 ring-1 ring-white/20">
                                         <item.icon className="w-6 h-6 text-white" />
                                     </div>
@@ -497,40 +477,7 @@ export function LandingPage() {
                 </div>
             </section>
 
-            {/* How It Works */}
-            <section className="relative z-10 container mx-auto px-4 py-24">
-                <FadeIn>
-                    <div className="max-w-4xl mx-auto text-center mb-12">
-                        <h2 className="landing-h2 text-white mb-4">
-                            Comment ça marche ?
-                        </h2>
-                        <p className="landing-subtitle text-white/60">
-                            Simple et rapide à mettre en place
-                        </p>
-                    </div>
-                </FadeIn>
 
-                <div className="grid md:grid-cols-4 gap-8 max-w-5xl mx-auto">
-                    {[
-                        { step: 1, title: "Créez votre compte", desc: "En 2 minutes, configurez votre espace et ajoutez vos biens." },
-                        { step: 2, title: "Invitez vos équipes", desc: "Locataires et prestataires reçoivent leurs accès par email." },
-                        { step: 3, title: "Gérez les demandes", desc: "Recevez, assignez et suivez toutes les interventions." },
-                        { step: 4, title: "Gagnez du temps", desc: "Automatisation et transparence = moins de stress." }
-                    ].map((item, i) => (
-                        <FadeIn key={i} delay={i * 150}>
-                            <div className="text-center space-y-3 group">
-                                <div className="w-12 h-12 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 text-white flex items-center justify-center text-xl font-bold mx-auto group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-purple-500/20">
-                                    {item.step}
-                                </div>
-                                <h3 className="landing-h4 text-white">{item.title}</h3>
-                                <p className="landing-body-sm text-white/60">
-                                    {item.desc}
-                                </p>
-                            </div>
-                        </FadeIn>
-                    ))}
-                </div>
-            </section>
 
             {/* Testimonials - Glass Cards */}
             <section className="relative z-10 container mx-auto px-4 py-24">
@@ -813,7 +760,7 @@ export function LandingPage() {
             </section>
 
             {/* FAQ Section */}
-            <section className="relative z-10 bg-[#1e293b]/30 py-24">
+            <section id="faq" className="relative z-10 bg-[#1e293b]/30 py-24">
                 <div className="container mx-auto px-4">
                     <FadeIn>
                         <div className="text-center mb-12">
@@ -905,11 +852,11 @@ export function LandingPage() {
                                 />
                             </div>
                             <p className="landing-caption text-white/40">
-                                Plateforme de gestion immobilière moderne
+                                La gestion immobilière simplifiée
                             </p>
                         </div>
 
-                        
+
                         <div> </div>
 
 
@@ -918,7 +865,8 @@ export function LandingPage() {
                             <ul className="space-y-2 landing-caption text-white/60">
                                 <li><a href="#features" className="hover:text-white transition-colors">Fonctionnalités</a></li>
                                 <li><a href="#pricing" className="hover:text-white transition-colors">Tarifs</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Sécurité</a></li>
+                                <li><a href="#contact" className="hover:text-white transition-colors">Contact</a></li>
+                                <li><a href="#faq" className="hover:text-white transition-colors">FAQ</a></li>
                             </ul>
                         </div>
 

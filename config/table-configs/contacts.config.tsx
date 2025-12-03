@@ -65,22 +65,36 @@ export interface CompanyData {
 // Helper functions
 const getContactTypeLabel = (role?: string) => {
     const types: Record<string, string> = {
+        // English values (expected)
         'tenant': 'Locataire',
         'owner': 'Propriétaire',
         'provider': 'Prestataire',
         'manager': 'Gestionnaire',
-        'other': 'Autre'
+        'other': 'Autre',
+        // French values (fallback for legacy data)
+        'locataire': 'Locataire',
+        'proprietaire': 'Propriétaire',
+        'prestataire': 'Prestataire',
+        'gestionnaire': 'Gestionnaire',
+        'autre': 'Autre'
     }
     return types[role || 'other'] || 'Non défini'
 }
 
 const getContactTypeBadgeStyle = (role?: string) => {
     const styles: Record<string, string> = {
+        // English values (expected)
         'tenant': 'bg-blue-100 text-blue-800',
         'owner': 'bg-emerald-100 text-emerald-800',
         'provider': 'bg-green-100 text-green-800',
         'manager': 'bg-purple-100 text-purple-800',
-        'other': 'bg-gray-100 text-gray-600'
+        'other': 'bg-gray-100 text-gray-600',
+        // French values (fallback for legacy data)
+        'locataire': 'bg-blue-100 text-blue-800',
+        'proprietaire': 'bg-emerald-100 text-emerald-800',
+        'prestataire': 'bg-green-100 text-green-800',
+        'gestionnaire': 'bg-purple-100 text-purple-800',
+        'autre': 'bg-gray-100 text-gray-600'
     }
     return styles[role || 'other'] || 'bg-gray-100 text-gray-600'
 }

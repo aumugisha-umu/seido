@@ -68,9 +68,33 @@ export function EditContactClient({
     const [currentStep, setCurrentStep] = useState(1)
     const [isSaving, setIsSaving] = useState(false)
 
+    // Helper pour mapper les types anglais vers français (pour l'affichage)
+    const mapContactTypeToFrench = (englishType: string): ContactFormData['contactType'] => {
+        const mapping: Record<string, ContactFormData['contactType']> = {
+            'tenant': 'locataire',
+            'provider': 'prestataire',
+            'manager': 'gestionnaire',
+            'owner': 'proprietaire',
+            'other': 'autre'
+        }
+        return mapping[englishType] || englishType as ContactFormData['contactType']
+    }
+
+    // Helper pour mapper les types français vers anglais (pour la BDD)
+    const mapContactTypeToEnglish = (frenchType: string): string => {
+        const mapping: Record<string, string> = {
+            'locataire': 'tenant',
+            'prestataire': 'provider',
+            'gestionnaire': 'manager',
+            'proprietaire': 'owner',
+            'autre': 'other'
+        }
+        return mapping[frenchType] || frenchType
+    }
+
     // Initialiser le formulaire avec les données existantes
     const [formData, setFormData] = useState<ContactFormData>({
-        contactType: initialData.role || 'locataire',
+        contactType: mapContactTypeToFrench(initialData.role || 'tenant'),
         personOrCompany: initialData.is_company ? 'company' : 'person',
         specialty: initialData.speciality || '',
 
@@ -193,7 +217,7 @@ export function EditContactClient({
                 last_name: formData.lastName || null,
                 email: formData.email,
                 phone: formData.phone || null,
-                role: formData.contactType,
+                role: mapContactTypeToEnglish(formData.contactType),
                 speciality: formData.specialty || null,
                 notes: formData.notes || null,
                 // Company fields if applicable

@@ -94,32 +94,25 @@ export function InviteRecoveryFlow({ tokenHash, type }: InviteRecoveryFlowProps)
   // État: Vérification en cours
   if (state === 'verifying') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <Card className="border-border shadow-lg">
-            <CardHeader className="text-center space-y-4">
-              <div className="flex justify-center">
-                <AuthLogo />
-              </div>
-              <div>
-                <CardTitle className="text-2xl font-bold text-foreground">
-                  {type === 'invite' ? 'Confirmation de l\'invitation' : 'Récupération de mot de passe'}
-                </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  {type === 'invite'
-                    ? 'Vérification de votre invitation en cours...'
-                    : 'Vérification du lien de récupération...'}
-                </CardDescription>
-              </div>
-            </CardHeader>
-
-            <CardContent className="flex flex-col items-center space-y-4">
-              <Loader2 className="w-12 h-12 animate-spin text-primary" />
-              <p className="text-sm text-muted-foreground">
-                Veuillez patienter quelques instants
-              </p>
-            </CardContent>
-          </Card>
+      <div className="w-full space-y-6">
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <AuthLogo />
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight text-white">
+              {type === 'invite' ? 'Confirmation de l\'invitation' : 'Récupération de mot de passe'}
+            </h1>
+            <p className="text-white/60">
+              {type === 'invite'
+                ? 'Vérification de votre invitation en cours...'
+                : 'Vérification du lien de récupération...'}
+            </p>
+          </div>
+          <div className="space-y-4">
+            <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto" />
+            <p className="text-sm text-white/50">
+              Veuillez patienter quelques instants
+            </p>
+          </div>
         </div>
       </div>
     )
@@ -128,45 +121,45 @@ export function InviteRecoveryFlow({ tokenHash, type }: InviteRecoveryFlowProps)
   // État: Succès
   if (state === 'success') {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <Card className="border-border shadow-lg">
-            <CardHeader className="text-center space-y-4">
-              <div className="flex justify-center">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-                  <CheckCircle className="w-10 h-10 text-green-600" />
-                </div>
-              </div>
-              <div>
-                <CardTitle className="text-2xl font-bold text-foreground">
-                  {type === 'invite' ? 'Invitation confirmée !' : 'Lien vérifié !'}
-                </CardTitle>
-                <CardDescription className="text-muted-foreground">
-                  {type === 'invite'
-                    ? 'Votre compte a été activé avec succès'
-                    : 'Vous pouvez maintenant définir votre nouveau mot de passe'}
-                </CardDescription>
-              </div>
-            </CardHeader>
+      <div className="w-full space-y-6">
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <AuthLogo />
 
-            <CardContent className="space-y-4">
-              <Alert className="border-green-200 bg-green-50">
-                <CheckCircle className="h-4 w-4 text-green-600" />
-                <AlertDescription className="text-green-800">
-                  <strong>Vérification réussie !</strong>
-                  <br />
-                  Redirection automatique en cours...
-                </AlertDescription>
-              </Alert>
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-full blur-xl" />
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
+              <CheckCircle className="h-8 w-8 text-green-400" />
+            </div>
+          </div>
 
-              <Button
-                onClick={() => router.push(redirectTo)}
-                className="w-full bg-primary hover:bg-secondary text-primary-foreground"
-              >
-                Continuer
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight text-white">
+              {type === 'invite' ? 'Invitation confirmée !' : 'Lien vérifié !'}
+            </h1>
+            <p className="text-white/60">
+              {type === 'invite'
+                ? 'Votre compte a été activé avec succès'
+                : 'Vous pouvez maintenant définir votre nouveau mot de passe'}
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <Alert className="border-green-500/30 bg-green-500/10">
+            <CheckCircle className="h-4 w-4 text-green-400" />
+            <AlertDescription className="text-green-200">
+              <strong>Vérification réussie !</strong>
+              <br />
+              Redirection automatique en cours...
+            </AlertDescription>
+          </Alert>
+
+          <Button
+            onClick={() => router.push(redirectTo)}
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+          >
+            Continuer
+          </Button>
         </div>
       </div>
     )
@@ -174,51 +167,51 @@ export function InviteRecoveryFlow({ tokenHash, type }: InviteRecoveryFlowProps)
 
   // État: Erreur
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card className="border-border shadow-lg">
-          <CardHeader className="text-center space-y-4">
-            <div className="flex justify-center">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
-                <AlertCircle className="w-10 h-10 text-red-600" />
-              </div>
-            </div>
-            <div>
-              <CardTitle className="text-2xl font-bold text-foreground">
-                {type === 'invite' ? 'Invitation invalide' : 'Lien invalide'}
-              </CardTitle>
-              <CardDescription className="text-muted-foreground">
-                {type === 'invite'
-                  ? 'Le lien d\'invitation est expiré ou invalide'
-                  : 'Le lien de récupération est expiré ou invalide'}
-              </CardDescription>
-            </div>
-          </CardHeader>
+    <div className="w-full space-y-6">
+      <div className="flex flex-col items-center space-y-4 text-center">
+        <AuthLogo />
 
-          <CardContent className="space-y-4">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {errorMessage || 'Une erreur est survenue lors de la vérification'}
-              </AlertDescription>
-            </Alert>
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-orange-500/20 rounded-full blur-xl" />
+          <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20">
+            <AlertCircle className="h-8 w-8 text-red-400" />
+          </div>
+        </div>
 
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                {type === 'invite'
-                  ? 'Veuillez contacter l\'administrateur pour obtenir un nouveau lien d\'invitation.'
-                  : 'Veuillez faire une nouvelle demande de réinitialisation de mot de passe.'}
-              </p>
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight text-white">
+            {type === 'invite' ? 'Invitation invalide' : 'Lien invalide'}
+          </h1>
+          <p className="text-white/60">
+            {type === 'invite'
+              ? 'Le lien d\'invitation est expiré ou invalide'
+              : 'Le lien de récupération est expiré ou invalide'}
+          </p>
+        </div>
+      </div>
 
-              <Button
-                onClick={() => router.push(type === 'invite' ? '/auth/login' : '/auth/reset-password')}
-                className="w-full bg-primary hover:bg-secondary text-primary-foreground"
-              >
-                {type === 'invite' ? 'Retour à la connexion' : 'Nouvelle demande'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="space-y-4">
+        <Alert variant="destructive" className="bg-red-500/10 border-red-500/30 text-red-200">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription>
+            {errorMessage || 'Une erreur est survenue lors de la vérification'}
+          </AlertDescription>
+        </Alert>
+
+        <div className="space-y-2">
+          <p className="text-sm text-white/60">
+            {type === 'invite'
+              ? 'Veuillez contacter l\'administrateur pour obtenir un nouveau lien d\'invitation.'
+              : 'Veuillez faire une nouvelle demande de réinitialisation de mot de passe.'}
+          </p>
+
+          <Button
+            onClick={() => router.push(type === 'invite' ? '/auth/login' : '/auth/reset-password')}
+            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+          >
+            {type === 'invite' ? 'Retour à la connexion' : 'Nouvelle demande'}
+          </Button>
+        </div>
       </div>
     </div>
   )

@@ -342,10 +342,22 @@ export function ContactCreationClient({
     try {
       logger.info("📤 [CREATE-CONTACT] Submitting contact creation", { formData })
 
+      // Helper pour mapper les types français vers anglais (pour la BDD)
+      const mapContactTypeToEnglish = (frenchType: string): string => {
+        const mapping: Record<string, string> = {
+          'locataire': 'tenant',
+          'prestataire': 'provider',
+          'gestionnaire': 'manager',
+          'proprietaire': 'owner',
+          'autre': 'other'
+        }
+        return mapping[frenchType] || frenchType
+      }
+
       // Préparer les données à envoyer
       const payload: any = {
         teamId,
-        role: formData.contactType,
+        role: mapContactTypeToEnglish(formData.contactType),
         contactType: formData.personOrCompany,
         speciality: formData.specialty,
         firstName: formData.firstName,

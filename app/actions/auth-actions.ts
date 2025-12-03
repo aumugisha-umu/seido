@@ -351,6 +351,14 @@ export async function signupAction(prevState: AuthActionResult, formData: FormDa
 
 /**
  * ✅ SERVER ACTION: Réinitialisation mot de passe
+ * 
+ * NOUVEAU FLUX (Resend emails) :
+ * 1. Validation des données
+ * 2. admin.generateLink() crée un lien de récupération SANS email automatique
+ * 3. emailService.sendPasswordResetEmail() via Resend
+ *    → Lien envoyé: `/auth/update-password?token_hash=...&type=recovery`
+ * 4. User clique → verifyOtp() dans route `/auth/update-password`
+ * 5. User définit nouveau mot de passe
  */
 export async function resetPasswordAction(prevState: AuthActionResult, formData: FormData): Promise<AuthActionResult> {
   logger.info('🚀 [RESET-PASSWORD-ACTION] Starting server-side reset...')
@@ -373,32 +381,105 @@ export async function resetPasswordAction(prevState: AuthActionResult, formData:
     const validatedData = ResetPasswordSchema.parse(rawData)
     logger.info(`📝 [RESET-PASSWORD-ACTION] Data validated for: ${validatedData.email}`)
 
-    // ✅ AUTHENTIFICATION: Utiliser client server Supabase
-    const supabase = await createServerSupabaseClient()
-    const { error } = await supabase.auth.resetPasswordForEmail(validatedData.email, {
-      redirectTo: `${EMAIL_CONFIG.appUrl}/auth/update-password`
-    })
-
-    if (error) {
-      logger.info(`❌ [RESET-PASSWORD-ACTION] Reset failed: ${error.message}`)
-
-      // ✅ GESTION ERREURS: Messages utilisateur-friendly
-      if (error.message.includes('User not found')) {
-        return { success: false, error: 'Aucun compte associé à cette adresse email' }
+    // ✅ VÉRIFIER: Service admin disponible
+    if (!isAdminConfigured()) {
+      logger.error('❌ [RESET-PASSWORD-ACTION] Admin service not configured - SERVICE_ROLE_KEY missing')
+      return {
+        success: false,
+        error: 'Service de réinitialisation non configuré. Veuillez contacter l\'administrateur.'
       }
-      if (error.message.includes('Email rate limit')) {
-        return { success: false, error: 'Trop de tentatives. Veuillez patienter avant de réessayer.' }
-      }
-      return { success: false, error: 'Erreur lors de l\'envoi de l\'email : ' + error.message }
     }
 
-    logger.info(`✅ [RESET-PASSWORD-ACTION] Reset email sent to: ${validatedData.email}`)
+    const supabaseAdmin = getSupabaseAdmin()!
+
+    // ✅ NOUVELLE APPROCHE: Utiliser admin.generateLink() pour créer un lien SANS email automatique
+    logger.info('🔧 [RESET-PASSWORD-ACTION] Using admin.generateLink() to create recovery link without automatic email')
+
+    const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'recovery',
+      email: validatedData.email,
+    })
+
+    if (linkError || !linkData) {
+      logger.error(`❌ [RESET-PASSWORD-ACTION] Failed to generate recovery link: ${linkError?.message || 'Unknown error'}`)
+
+      // ✅ GESTION ERREURS: Messages utilisateur-friendly
+      if (linkError?.message.includes('User not found')) {
+        // ⚠️ SÉCURITÉ: Ne pas révéler si l'email existe ou non
+        // Retourner succès même si l'utilisateur n'existe pas
+        logger.info('⚠️ [RESET-PASSWORD-ACTION] User not found, but returning success for security')
+        return {
+          success: true,
+          data: {
+            message: 'Si un compte existe avec cette adresse email, vous recevrez un lien de réinitialisation',
+            email: validatedData.email
+          }
+        }
+      }
+      if (linkError?.message.includes('rate limit')) {
+        return { success: false, error: 'Trop de tentatives. Veuillez patienter avant de réessayer.' }
+      }
+      return {
+        success: false,
+        error: 'Erreur lors de la génération du lien : ' + (linkError?.message || 'Unknown error')
+      }
+    }
+
+    logger.info({
+      userId: linkData.user.id,
+      email: linkData.user.email,
+      hasActionLink: !!linkData.properties.action_link,
+      properties: linkData.properties
+    }, '✅ [RESET-PASSWORD-ACTION] Recovery link generated')
+
+    // ✅ CONSTRUIRE L'URL DE RÉCUPÉRATION
+    const hashedToken = (linkData as any)?.properties?.hashed_token as string | undefined
+    const fallbackActionLink = (linkData as any)?.properties?.action_link as string | undefined
+
+    // Construire l'URL interne de récupération
+    const internalRecoveryUrl = hashedToken
+      ? `${EMAIL_CONFIG.appUrl}/auth/update-password?token_hash=${hashedToken}&type=recovery`
+      : undefined
+
+    const recoveryUrl = internalRecoveryUrl || fallbackActionLink
+
+    if (!recoveryUrl) {
+      logger.error('❌ [RESET-PASSWORD-ACTION] No recovery URL available')
+      return {
+        success: false,
+        error: 'Erreur lors de la génération du lien de récupération'
+      }
+    }
+
+    logger.info({
+      internalRecoveryUrl,
+      usingInternal: !!internalRecoveryUrl,
+      hasFallbackActionLink: !!fallbackActionLink
+    }, '🔗 [RESET-PASSWORD-ACTION] Built recovery URL')
+
+    // ✅ ENVOI D'EMAIL: Via Resend (fire-and-forget pour ne pas bloquer la réponse)
+    logger.info('📧 [RESET-PASSWORD-ACTION] Sending password reset email via Resend...')
+
+    emailService.sendPasswordResetEmail(validatedData.email, {
+      resetUrl: recoveryUrl,
+      expiresIn: 60, // 60 minutes
+    }).then(emailResult => {
+      if (!emailResult.success) {
+        logger.error(`❌ [RESET-PASSWORD-ACTION] Background email failed: ${emailResult.error}`)
+      } else {
+        logger.info(`✅ [RESET-PASSWORD-ACTION] Background email sent successfully via Resend: ${emailResult.emailId}`)
+      }
+    }).catch(err => {
+      logger.error('❌ [RESET-PASSWORD-ACTION] Email exception:', err)
+    })
+
+    logger.info('📨 [RESET-PASSWORD-ACTION] Password reset email queued for background sending')
 
     // ✅ SUCCÈS: Retourner succès sans redirection
     return {
       success: true,
       data: {
-        message: 'Email de réinitialisation envoyé avec succès',
+        message: 'Si un compte existe avec cette adresse email, vous recevrez un lien de réinitialisation',
         email: validatedData.email
       }
     }

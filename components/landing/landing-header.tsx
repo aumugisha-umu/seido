@@ -11,8 +11,11 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
+import { useTheme } from 'next-themes'
+import { useEffect, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { cn } from '@/lib/utils'
 
 // Navigation items for legal pages
@@ -37,21 +40,37 @@ export function LandingHeader({
   className
 }: LandingHeaderProps) {
   const pathname = usePathname()
+  const { resolvedTheme } = useTheme()
+  const [mounted, setMounted] = useState(false)
+
+  // Prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Logo adaptatif selon le thème
+  const logoSrc = mounted && resolvedTheme === 'dark'
+    ? '/images/Logo/Logo_Seido_White.png'
+    : '/images/Logo/Logo_Seido_Color.png'
 
   return (
     <header
       className={cn(
-        'sticky top-0 z-50 border-b border-white/10',
-        'bg-[#0f172a]/70 backdrop-blur-xl',
-        'supports-[backdrop-filter]:bg-[#0f172a]/40',
+        'sticky top-0 z-50 border-b',
+        // Light mode: frosted glass effect with lavender tint
+        'border-outline-variant/30 bg-surface/70 backdrop-blur-xl',
+        'supports-[backdrop-filter]:bg-surface/40',
+        // Dark mode: original glassmorphism
+        'dark:border-white/10 dark:bg-[#0f172a]/70',
+        'dark:supports-[backdrop-filter]:dark:bg-[#0f172a]/40',
         className
       )}
     >
       <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        {/* Logo */}
+        {/* Logo - adaptatif selon le thème */}
         <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
           <Image
-            src="/images/Logo/Logo_Seido_White.png"
+            src={logoSrc}
             alt="SEIDO"
             width={120}
             height={36}
@@ -65,25 +84,25 @@ export function LandingHeader({
           <nav className="hidden md:flex items-center gap-8">
             <a
               href="#features"
-              className="text-sm font-medium text-white/70 hover:text-white transition-colors"
+              className="text-sm font-medium text-on-surface-variant hover:text-on-surface dark:text-white/70 dark:hover:text-white transition-colors"
             >
               Fonctionnalités
             </a>
             <a
               href="#pricing"
-              className="text-sm font-medium text-white/70 hover:text-white transition-colors"
+              className="text-sm font-medium text-on-surface-variant hover:text-on-surface dark:text-white/70 dark:hover:text-white transition-colors"
             >
               Tarifs
             </a>
             <a
               href="#contact"
-              className="text-sm font-medium text-white/70 hover:text-white transition-colors"
+              className="text-sm font-medium text-on-surface-variant hover:text-on-surface dark:text-white/70 dark:hover:text-white transition-colors"
             >
               Contact
             </a>
             <a
               href="#faq"
-              className="text-sm font-medium text-white/70 hover:text-white transition-colors"
+              className="text-sm font-medium text-on-surface-variant hover:text-on-surface dark:text-white/70 dark:hover:text-white transition-colors"
             >
               FAQ
             </a>
@@ -102,8 +121,8 @@ export function LandingHeader({
                   className={cn(
                     'text-sm font-medium transition-colors',
                     isActive
-                      ? 'text-white border-b-2 border-purple-500 pb-1'
-                      : 'text-white/70 hover:text-white'
+                      ? 'text-on-surface border-b-2 border-primary pb-1 dark:text-white dark:border-purple-500'
+                      : 'text-on-surface-variant hover:text-on-surface dark:text-white/70 dark:hover:text-white'
                   )}
                 >
                   {item.label}
@@ -113,13 +132,19 @@ export function LandingHeader({
           </nav>
         )}
 
-        {/* Auth Buttons */}
-        <div className="flex gap-3">
+        {/* Theme Toggle + Auth Buttons */}
+        <div className="flex items-center gap-3">
+          {/* Theme Toggle */}
+          <ThemeToggle
+            variant="toggle"
+            className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container dark:text-white/70 dark:hover:text-white dark:hover:bg-white/10"
+          />
+
           <Link href="/auth/login">
             <Button
               variant="ghost"
               size="sm"
-              className="text-white hover:bg-white/10 hover:text-white"
+              className="text-on-surface-variant hover:text-on-surface hover:bg-surface-container dark:text-white dark:hover:bg-white/10 dark:hover:text-white"
             >
               Se connecter
             </Button>

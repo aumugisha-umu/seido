@@ -36,7 +36,36 @@ export default function UpdatePasswordPage() {
     try {
       logger.info("🔍 [UPDATE-PASSWORD] Checking URL for recovery tokens...")
 
-      // Les tokens de récupération sont dans le hash (#) de l'URL
+      // ✅ NOUVEAU FORMAT: Vérifier d'abord les query parameters (token_hash + type)
+      const urlParams = new URLSearchParams(window.location.search)
+      const tokenHash = urlParams.get('token_hash')
+      const tokenType = urlParams.get('type')
+
+      if (tokenHash && tokenType === 'recovery') {
+        logger.info("🔑 [UPDATE-PASSWORD] Found token_hash in query params, verifying OTP...")
+
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: 'recovery'
+        })
+
+        if (error) {
+          logger.error("❌ [UPDATE-PASSWORD] OTP verification failed:", error.message)
+          setError("Lien de récupération invalide ou expiré. Veuillez refaire une demande de réinitialisation.")
+          setIsValidSession(false)
+          return
+        }
+
+        if (data.session) {
+          logger.info("✅ [UPDATE-PASSWORD] Recovery session established via OTP:", data.user?.email)
+          setIsValidSession(true)
+          // Nettoyer l'URL après avoir traité les tokens
+          window.history.replaceState({}, document.title, window.location.pathname)
+          return
+        }
+      }
+
+      // ✅ ANCIEN FORMAT: Les tokens de récupération sont dans le hash (#) de l'URL
       const urlHash = window.location.hash
       logger.info("🔧 [UPDATE-PASSWORD] URL hash:", urlHash)
 

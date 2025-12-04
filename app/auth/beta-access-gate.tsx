@@ -79,7 +79,7 @@ export function BetaAccessGate() {
   )
 
   return (
-    <div className="fixed inset-0 z-20 bg-[#0f172a] overflow-y-auto">
+    <div className="fixed inset-0 z-20 bg-landing-bg overflow-y-auto">
       {/* Background Gradients */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600/30 rounded-full blur-[120px]" />
@@ -269,7 +269,7 @@ export function BetaAccessGate() {
                       <SelectTrigger className="mt-1 bg-white/10 border-white/20 text-white focus:bg-white/20">
                         <SelectValue placeholder="Sélectionner" />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#1e293b] border-white/20">
+                      <SelectContent className="bg-landing-card border-white/20">
                         <SelectItem value="1-10" className="text-white hover:bg-white/10">1 - 10 lots</SelectItem>
                         <SelectItem value="11-50" className="text-white hover:bg-white/10">11 - 50 lots</SelectItem>
                         <SelectItem value="51-200" className="text-white hover:bg-white/10">51 - 200 lots</SelectItem>

@@ -72,6 +72,67 @@ module.exports = {
           purple: 'oklch(0.5500 0.1800 300)', // #667eea
           indigo: 'oklch(0.4800 0.1500 285)', // #764ba2
         },
+        // Landing page dark theme colors (flat keys for bg-landing-* classes)
+        'landing-bg': '#0f172a',        // slate-900
+        'landing-card': '#1e293b',      // slate-800
+        'landing-overlay': '#131426',   // custom dark overlay
+        'landing-footer': '#020617',    // slate-950
+        // Intervention type colors (semantic)
+        'type-plomberie': {
+          DEFAULT: '#3b82f6',   // blue-500
+          light: '#dbeafe',     // blue-100
+          dark: '#1e3a8a',      // blue-900
+        },
+        'type-electricite': {
+          DEFAULT: '#eab308',   // yellow-500
+          light: '#fef9c3',     // yellow-100
+          dark: '#713f12',      // yellow-900
+        },
+        'type-chauffage': {
+          DEFAULT: '#f97316',   // orange-500
+          light: '#ffedd5',     // orange-100
+          dark: '#7c2d12',      // orange-900
+        },
+        'type-serrurerie': {
+          DEFAULT: '#64748b',   // slate-500
+          light: '#f1f5f9',     // slate-100
+          dark: '#1e293b',      // slate-800
+        },
+        'type-toiture': {
+          DEFAULT: '#f59e0b',   // amber-500
+          light: '#fef3c7',     // amber-100
+          dark: '#78350f',      // amber-900
+        },
+        'type-autre': {
+          DEFAULT: '#6366f1',   // indigo-500
+          light: '#e0e7ff',     // indigo-100
+          dark: '#3730a3',      // indigo-900
+        },
+        // Semantic status colors
+        success: {
+          DEFAULT: '#22c55e',   // green-500
+          light: '#dcfce7',     // green-100
+          dark: '#14532d',      // green-900
+          foreground: '#166534', // green-800
+        },
+        warning: {
+          DEFAULT: '#f59e0b',   // amber-500
+          light: '#fef3c7',     // amber-100
+          dark: '#78350f',      // amber-900
+          foreground: '#92400e', // amber-800
+        },
+        info: {
+          DEFAULT: '#3b82f6',   // blue-500
+          light: '#dbeafe',     // blue-100
+          dark: '#1e3a8a',      // blue-900
+          foreground: '#1e40af', // blue-800
+        },
+      },
+      // Custom heights for layout components
+      height: {
+        'chat-open': '400px',
+        'chat-closed': '56px',
+        'email-preview': '600px',
       },
       borderRadius: {
         lg: "var(--radius)",

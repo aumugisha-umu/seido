@@ -154,8 +154,7 @@ export function EmailPreviewClient({ templates, userEmail }: EmailPreviewClientP
 
                 <iframe
                   srcDoc={template.html}
-                  className="w-full border-0"
-                  style={{ height: '600px' }}
+                  className="w-full border-0 h-email-preview"
                   title={`Preview: ${template.name}`}
                   sandbox="allow-same-origin"
                 />

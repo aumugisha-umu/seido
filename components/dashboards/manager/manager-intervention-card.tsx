@@ -65,13 +65,13 @@ const getTypeIcon = (type: string) => {
 
 const getTypeColor = (type: string) => {
     switch (type?.toLowerCase()) {
-        case "plomberie": return "bg-blue-500"
-        case "electricite": return "bg-yellow-500"
-        case "chauffage": return "bg-orange-500"
-        case "serrurerie": return "bg-slate-500"
-        case "peinture": return "bg-purple-500"
-        case "toiture": return "bg-amber-500"
-        default: return "bg-indigo-500"
+        case "plomberie": return "bg-type-plomberie"
+        case "electricite": return "bg-type-electricite"
+        case "chauffage": return "bg-type-chauffage"
+        case "serrurerie": return "bg-type-serrurerie"
+        case "peinture": return "bg-brand-purple"
+        case "toiture": return "bg-type-toiture"
+        default: return "bg-type-autre"
     }
 }
 

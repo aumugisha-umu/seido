@@ -34,30 +34,30 @@ export function DashboardStatsCards({
                 "border-none shadow-sm hover:shadow-md transition-all duration-300 hover:transform hover:-translate-y-1 rounded-2xl overflow-hidden group",
                 "dark:backdrop-blur-sm dark:shadow-none",
                 pendingCount > 0
-                    ? "bg-orange-50 ring-1 ring-orange-200 dark:bg-orange-500/10 dark:ring-orange-500/30"
-                    : "bg-green-50 ring-1 ring-green-200 dark:bg-green-500/10 dark:ring-green-500/30"
+                    ? "bg-warning-light ring-1 ring-warning/30 dark:bg-warning/10 dark:ring-warning/30"
+                    : "bg-success-light ring-1 ring-success/30 dark:bg-success/10 dark:ring-success/30"
             )}>
                 <CardContent className="dashboard-stats-cards__content p-6 relative">
                     <div className="dashboard-stats-cards__icon-bg absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <AlertTriangle className={cn("h-24 w-24", pendingCount > 0 ? "text-orange-600" : "text-green-600")} />
+                        <AlertTriangle className={cn("h-24 w-24", pendingCount > 0 ? "text-warning" : "text-success")} />
                     </div>
                     <div className="dashboard-stats-cards__info relative z-10">
                         <p className={cn(
                             "dashboard-stats-cards__label text-sm font-medium uppercase tracking-wider",
-                            pendingCount > 0 ? "text-orange-800" : "text-green-800"
+                            pendingCount > 0 ? "text-warning-foreground" : "text-success-foreground"
                         )}>
                             Actions requises
                         </p>
                         <div className="dashboard-stats-cards__value-container flex items-baseline gap-2 mt-2">
                             <span className={cn(
                                 "dashboard-stats-cards__value text-4xl font-bold",
-                                pendingCount > 0 ? "text-orange-600" : "text-green-600"
+                                pendingCount > 0 ? "text-warning" : "text-success"
                             )}>
                                 {pendingCount}
                             </span>
                             <span className={cn(
                                 "dashboard-stats-cards__sublabel text-sm font-medium",
-                                pendingCount > 0 ? "text-orange-700" : "text-green-700"
+                                pendingCount > 0 ? "text-warning-foreground" : "text-success-foreground"
                             )}>
                                 {pendingCount > 0 ? "Urgent" : "Tout est calme"}
                             </span>
@@ -97,7 +97,7 @@ export function DashboardStatsCards({
                             <p className="dashboard-stats-cards__label text-sm font-medium text-muted-foreground uppercase tracking-wider">Occupation</p>
                             <div className="dashboard-stats-cards__value-container flex items-baseline gap-2 mt-2">
                                 <span className="dashboard-stats-cards__value text-4xl font-bold text-foreground">{occupancyRate}%</span>
-                                <span className="dashboard-stats-cards__sublabel text-sm text-emerald-600 font-medium flex items-center gap-1">
+                                <span className="dashboard-stats-cards__sublabel text-sm text-success font-medium flex items-center gap-1">
                                     <TrendingUp className="h-3 w-3" /> Stable
                                 </span>
                             </div>
@@ -127,12 +127,12 @@ export function DashboardStatsCards({
                 <Card className="dashboard-stats-cards__card dashboard-stats-cards__card--completed bg-card dark:bg-white/5 border-none dark:border dark:border-white/10 shadow-sm dark:shadow-none hover:shadow-md dark:hover:shadow-none transition-all duration-300 hover:transform hover:-translate-y-1 rounded-2xl overflow-hidden group dark:backdrop-blur-sm">
                     <CardContent className="dashboard-stats-cards__content p-6 relative">
                         <div className="dashboard-stats-cards__icon-bg absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <CheckCircle2 className="h-24 w-24 text-green-600" />
+                            <CheckCircle2 className="h-24 w-24 text-success" />
                         </div>
                         <div className="dashboard-stats-cards__info relative z-10">
                             <p className="dashboard-stats-cards__label text-sm font-medium text-muted-foreground uppercase tracking-wider">Terminées</p>
                             <div className="dashboard-stats-cards__value-container flex items-baseline gap-2 mt-2">
-                                <span className="dashboard-stats-cards__value text-4xl font-bold text-green-600">{completedCount}</span>
+                                <span className="dashboard-stats-cards__value text-4xl font-bold text-success">{completedCount}</span>
                                 <span className="dashboard-stats-cards__sublabel text-sm text-muted-foreground/70">interventions</span>
                             </div>
                         </div>

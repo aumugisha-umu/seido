@@ -232,11 +232,11 @@ export default function DashboardHeader({
                         flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium group border
                         ${isActive
                           ? 'bg-primary/10 text-primary border-primary/20 shadow-sm'
-                          : 'text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300 hover:scale-[1.02] hover:shadow-sm'
+                          : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-muted hover:border-border hover:scale-[1.02] hover:shadow-sm'
                         }
                       `}
                     >
-                      <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary' : 'group-hover:text-slate-900'}`} />
+                      <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary' : 'group-hover:text-foreground'}`} />
                       <span className="transition-all duration-200">{item.label}</span>
                     </Link>
                   )
@@ -259,7 +259,7 @@ export default function DashboardHeader({
                     >
                       <Bell className="h-5 w-5" />
                       {globalUnreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium shadow-sm">
+                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center font-medium shadow-sm">
                           {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
                         </span>
                       )}
@@ -315,12 +315,12 @@ export default function DashboardHeader({
         <div className="lg:hidden fixed inset-0 z-30">
           {/* Overlay backdrop */}
           <div
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm"
+            className="fixed inset-0 bg-foreground/50 backdrop-blur-sm"
             onClick={() => setIsMobileMenuOpen(false)}
           />
 
           {/* Menu panel */}
-          <div className="fixed top-16 inset-x-0 bottom-0 bg-white border-b border-slate-200 shadow-lg">
+          <div className="fixed top-16 inset-x-0 bottom-0 bg-background border-b border-border shadow-lg">
             <div className="flex flex-col h-full content-max-width px-5 sm:px-6 lg:px-10 py-4">
 
               {/* Navigation principale - affichée seulement si navigation existe */}
@@ -339,7 +339,7 @@ export default function DashboardHeader({
                             flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px]
                             ${isActive
                               ? 'bg-primary/10 text-primary border border-primary/20 shadow-sm'
-                              : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-300'
+                              : 'text-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border'
                             }
                           `}
                           onClick={() => setIsMobileMenuOpen(false)}
@@ -352,7 +352,7 @@ export default function DashboardHeader({
                   </nav>
 
                   {/* Séparation */}
-                  <div className="border-t border-slate-200 mb-4"></div>
+                  <div className="border-t border-border mb-4"></div>
                 </>
               )}
 
@@ -364,14 +364,14 @@ export default function DashboardHeader({
                       handleProfile()
                       setIsMobileMenuOpen(false)
                     }}
-                    className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px] text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-300"
+                    className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px] text-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border"
                   >
                     <User className="h-6 w-6" />
                     <span className="text-base">Mon profil</span>
                   </button>
 
                   <button
-                    className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px] text-slate-700 hover:text-slate-900 hover:bg-slate-100 border border-transparent hover:border-slate-300"
+                    className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px] text-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border"
                   >
                     <Settings className="h-6 w-6" />
                     <span className="text-base">Paramètres</span>
@@ -384,7 +384,7 @@ export default function DashboardHeader({
 
               {/* Profil utilisateur en bas avec logout sur la même ligne */}
               {config.showUserElements && (
-                <div className="border-t border-slate-200 pt-4">
+                <div className="border-t border-border pt-4">
                   <div className="flex items-center justify-between px-4 py-3">
                     {/* Informations utilisateur */}
                     <div className="flex items-center space-x-3 min-w-0 flex-1">
@@ -392,8 +392,8 @@ export default function DashboardHeader({
                         <span className="text-primary-foreground font-medium text-base">{displayInitial}</span>
                       </div>
                       <div className="flex flex-col min-w-0 flex-1">
-                        <span className="text-slate-900 font-semibold text-base leading-tight truncate">{displayName}</span>
-                        <span className="text-slate-600 text-sm leading-tight truncate">{getRoleDisplayName(role)}</span>
+                        <span className="text-foreground font-semibold text-base leading-tight truncate">{displayName}</span>
+                        <span className="text-muted-foreground text-sm leading-tight truncate">{getRoleDisplayName(role)}</span>
                       </div>
                     </div>
 
@@ -401,7 +401,7 @@ export default function DashboardHeader({
                     <button
                       onClick={handleLogout}
                       disabled={isLoggingOut}
-                      className="p-3 rounded-lg transition-all duration-200 text-red-600 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-200 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="p-3 rounded-lg transition-all duration-200 text-destructive hover:text-destructive hover:bg-destructive/10 border border-transparent hover:border-destructive/30 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                       aria-label={isLoggingOut ? "Déconnexion en cours..." : "Se déconnecter"}
                     >
                       {isLoggingOut ? (

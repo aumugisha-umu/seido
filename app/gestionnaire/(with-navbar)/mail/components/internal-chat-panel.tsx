@@ -33,11 +33,10 @@ export const InternalChatPanel = ({
       className={cn(
         'sticky bottom-0 z-20 bg-card border-t transition-all duration-300 ease-in-out',
         isOpen
-          ? 'shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.15)] dark:shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.3)]'
-          : 'shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.2)]',
+          ? 'h-chat-open shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.15)] dark:shadow-[0_-8px_16px_-4px_rgba(0,0,0,0.3)]'
+          : 'h-chat-closed shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] dark:shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.2)]',
         className
       )}
-      style={{ height: isOpen ? '400px' : '56px' }}
     >
       {/* Toggle Bar */}
       <button

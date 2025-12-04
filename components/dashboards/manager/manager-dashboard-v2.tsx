@@ -25,12 +25,12 @@ interface ManagerDashboardProps {
 
 const getTypeConfig = (type: string) => {
     switch (type?.toLowerCase()) {
-        case 'plomberie': return { icon: Droplets, color: 'bg-blue-100 text-blue-600' }
-        case 'chauffage': return { icon: Flame, color: 'bg-orange-100 text-orange-600' }
-        case 'electricite': return { icon: Zap, color: 'bg-yellow-100 text-yellow-600' }
-        case 'serrurerie': return { icon: Key, color: 'bg-slate-100 text-slate-600' }
-        case 'toiture': return { icon: Home, color: 'bg-amber-100 text-amber-600' }
-        default: return { icon: Wrench, color: 'bg-indigo-100 text-indigo-600' }
+        case 'plomberie': return { icon: Droplets, color: 'bg-type-plomberie-light text-type-plomberie' }
+        case 'chauffage': return { icon: Flame, color: 'bg-type-chauffage-light text-type-chauffage' }
+        case 'electricite': return { icon: Zap, color: 'bg-type-electricite-light text-type-electricite' }
+        case 'serrurerie': return { icon: Key, color: 'bg-type-serrurerie-light text-type-serrurerie' }
+        case 'toiture': return { icon: Home, color: 'bg-type-toiture-light text-type-toiture' }
+        default: return { icon: Wrench, color: 'bg-type-autre-light text-type-autre' }
     }
 }
 

@@ -345,7 +345,7 @@ export default function NotificationsPage() {
               <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline truncate">Personnel</span>
               {personalUnreadCount > 0 && (
-                <Badge variant="destructive" className="text-xs px-1.5 py-0 h-4 min-w-[1rem] flex items-center justify-center ml-1 bg-red-500">
+                <Badge variant="destructive" className="text-xs px-1.5 py-0 h-4 min-w-[1rem] flex items-center justify-center ml-1 bg-destructive">
                   {personalUnreadCount > 9 ? '9+' : personalUnreadCount}
                 </Badge>
               )}
@@ -358,7 +358,7 @@ export default function NotificationsPage() {
               <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline truncate">Équipe</span>
               {unreadCount > 0 && (
-                <Badge variant="destructive" className="text-xs px-1.5 py-0 h-4 min-w-[1rem] flex items-center justify-center ml-1 bg-red-500">
+                <Badge variant="destructive" className="text-xs px-1.5 py-0 h-4 min-w-[1rem] flex items-center justify-center ml-1 bg-destructive">
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </Badge>
               )}
@@ -637,12 +637,7 @@ function NotificationCard({
                         </div>
                 
                 {/* Message */}
-                <p className="text-sm text-muted-foreground mb-2 sm:mb-3 break-words overflow-hidden" 
-                   style={{
-                     display: '-webkit-box',
-                     WebkitLineClamp: 3,
-                     WebkitBoxOrient: 'vertical' as const
-                   }}>
+                <p className="text-sm text-muted-foreground mb-2 sm:mb-3 break-words line-clamp-3">
                   {notification.message}
                 </p>
 
@@ -682,7 +677,7 @@ function NotificationCard({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className={`h-7 w-7 sm:h-8 sm:w-8 p-0 ${notification.read ? 'hover:bg-blue-50' : 'hover:bg-red-50'}`}
+                          className={`h-7 w-7 sm:h-8 sm:w-8 p-0 ${notification.read ? 'hover:bg-info/10' : 'hover:bg-destructive/10'}`}
                           title={notification.read ? "Marquer comme non lu" : "Marquer comme lu"}
                           onClick={onMarkAsRead}
                           disabled={isUpdating}

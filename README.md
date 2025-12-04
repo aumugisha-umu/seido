@@ -83,6 +83,8 @@
 #### ✅ Conformité & Audit
 - **Logs d'activité** - Audit trail complet de toutes les actions
 - **RGPD compliant** - Données sécurisées, chiffrement, droit à l'oubli
+- **Bannière cookies RGPD** - Consentement opt-in avec préférences granulaires
+- **Microsoft Clarity** - Analytics comportemental avec respect du consentement
 - **Multi-tenant** - Isolation RLS garantie entre équipes
 
 ### 📊 Métriques de l'Application
@@ -104,6 +106,42 @@
 ---
 
 ## 🚀 Dernières Mises à Jour - Décembre 2025
+
+### 📊 Microsoft Clarity & Bannière Cookies RGPD (Dec 4, 2025)
+
+**Analytics comportemental et conformité RGPD** avec consentement granulaire.
+
+**Nouveautés** :
+- 📊 **Microsoft Clarity** - Heatmaps, session replays, insights utilisateur
+- 🍪 **Bannière cookies RGPD** - Consentement opt-in conforme EU/UK/CH
+- 🎛️ **Préférences granulaires** - Analytics / Publicité / Fonctionnel
+- 🔒 **Respect consentement** - Clarity n'enregistre qu'après acceptation
+- 💾 **Persistance localStorage** - 1 an avec versioning
+- 👤 **Identification utilisateurs** - Sessions liées aux profils (hashé)
+
+**Architecture** :
+```
+CookieConsentProvider
+└── ClarityProvider
+    ├── Attend le consentement avant init
+    ├── Clarity.consentV2() selon préférences
+    └── Identification users authentifiés
+```
+
+**Fichiers clés** :
+| Fichier | Rôle |
+|---------|------|
+| `hooks/use-cookie-consent.tsx` | Context + Provider + Hooks consentement |
+| `components/cookie-consent-banner.tsx` | Bannière UI + Modal préférences |
+| `components/clarity-provider.tsx` | Intégration Microsoft Clarity |
+
+**Configuration** :
+```env
+# .env.local
+NEXT_PUBLIC_CLARITY_PROJECT_ID=your_project_id
+```
+
+---
 
 ### 🎨 Système de Thème Material Design 3 (Dec 3, 2025)
 

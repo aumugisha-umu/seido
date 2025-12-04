@@ -15,8 +15,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card"
 // Loading skeleton while data is fetched
 function BuildingDetailsLoading() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
+    <div className="min-h-screen bg-background">
+      <header className="bg-card border-b border-border">
         <div className="content-max-width px-4 sm:px-6 lg:px-8 py-4">
           <Skeleton className="h-8 w-64" />
         </div>

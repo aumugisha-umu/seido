@@ -331,11 +331,11 @@ export default function EmailPage() {
   }
 
   return (
-    <div className="layout-padding flex flex-col flex-1 min-h-0 bg-slate-50">
+    <div className="layout-padding flex flex-col flex-1 min-h-0 bg-background">
       {/* Page Header */}
       <div className="mb-6 lg:mb-8 flex-shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl mb-2">
             Emails
           </h1>
           <div className="flex gap-2">
@@ -352,7 +352,7 @@ export default function EmailPage() {
       </div>
 
       {/* White Card with Email Interface */}
-      <div className="bg-white rounded-lg shadow-sm border border-slate-200 flex-1 min-h-0 overflow-hidden flex flex-col">
+      <div className="bg-card rounded-lg shadow-sm border border-border flex-1 min-h-0 overflow-hidden flex flex-col">
         <div className="flex flex-1 min-h-0 w-full">
           {/* Sidebar */}
           <MailboxSidebar
@@ -390,7 +390,7 @@ export default function EmailPage() {
               onMarkAsProcessed={handleMarkAsProcessed}
             />
           ) : (
-            <div className="flex-1 flex items-center justify-center text-muted-foreground bg-slate-50/50">
+            <div className="flex-1 flex items-center justify-center text-muted-foreground bg-muted/50">
               <div className="text-center">
                 <p className="text-lg font-semibold mb-2">No email selected</p>
                 <p className="text-sm">Select an email from the list to view it</p>

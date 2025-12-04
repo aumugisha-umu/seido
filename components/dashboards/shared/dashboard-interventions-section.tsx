@@ -34,19 +34,19 @@ export function DashboardInterventionsSection({
         <div className="space-y-6">
             {/* Controls */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h2 className="text-xl font-bold text-slate-900">{title}</h2>
+                <h2 className="text-xl font-bold text-foreground">{title}</h2>
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                     <div className="relative flex-1 sm:w-64">
-                        <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                        <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                         <Input
                             placeholder="Rechercher..."
-                            className="pl-10 h-10 bg-white border-slate-200 rounded-xl"
+                            className="pl-10 h-10 bg-card dark:bg-white/5 border-border dark:border-white/10 rounded-xl"
                         />
                     </div>
-                    <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl border-slate-200">
-                        <Filter className="h-4 w-4 text-slate-600" />
+                    <Button variant="outline" size="icon" className="h-10 w-10 rounded-xl border-border">
+                        <Filter className="h-4 w-4 text-muted-foreground" />
                     </Button>
-                    <div className="flex bg-white rounded-xl border border-slate-200 p-1">
+                    <div className="flex bg-card dark:bg-white/5 rounded-xl border border-border dark:border-white/10 p-1">
                         <Button
                             variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                             size="sm"
@@ -90,11 +90,11 @@ export function DashboardInterventionsSection({
             )}
 
             {viewMode === 'list' && (
-                <Card className="border-slate-200 shadow-sm overflow-hidden">
+                <Card className="border-border shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                         <Table>
                             <TableHeader>
-                                <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
+                                <TableRow className="bg-muted/50 hover:bg-muted/50">
                                     <TableHead className="w-[300px]">Intervention</TableHead>
                                     <TableHead>Lieu</TableHead>
                                     <TableHead>Statut</TableHead>
@@ -104,11 +104,11 @@ export function DashboardInterventionsSection({
                             </TableHeader>
                             <TableBody>
                                 {interventions.map((intervention) => (
-                                    <TableRow key={intervention.id} className="group hover:bg-slate-50/50">
+                                    <TableRow key={intervention.id} className="group hover:bg-muted/50">
                                         <TableCell>
                                             <div className="flex flex-col gap-1">
-                                                <span className="font-medium text-slate-900">{intervention.title}</span>
-                                                <div className="flex items-center gap-2 text-xs text-slate-500">
+                                                <span className="font-medium text-foreground">{intervention.title}</span>
+                                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                     <span className="capitalize">{intervention.type}</span>
                                                     {intervention.priority === 'urgente' && (
                                                         <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50 h-5 px-1.5">
@@ -120,8 +120,8 @@ export function DashboardInterventionsSection({
                                         </TableCell>
                                         <TableCell>
                                             <div className="flex flex-col text-sm">
-                                                <span className="text-slate-900">{intervention.lot?.building?.name}</span>
-                                                <span className="text-slate-500 text-xs">{intervention.lot?.building?.address}</span>
+                                                <span className="text-foreground">{intervention.lot?.building?.name}</span>
+                                                <span className="text-muted-foreground text-xs">{intervention.lot?.building?.address}</span>
                                             </div>
                                         </TableCell>
                                         <TableCell>
@@ -130,14 +130,14 @@ export function DashboardInterventionsSection({
                                             </Badge>
                                         </TableCell>
                                         <TableCell>
-                                            <div className="flex items-center gap-2 text-sm text-slate-600">
-                                                <Calendar className="h-4 w-4 text-slate-400" />
+                                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                <Calendar className="h-4 w-4 text-muted-foreground/70" />
                                                 {new Date(intervention.created_at).toLocaleDateString('fr-FR')}
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                                <MoreHorizontal className="h-4 w-4 text-slate-400 group-hover:text-slate-600" />
+                                                <MoreHorizontal className="h-4 w-4 text-muted-foreground/70 group-hover:text-muted-foreground" />
                                             </Button>
                                         </TableCell>
                                     </TableRow>
@@ -149,7 +149,7 @@ export function DashboardInterventionsSection({
             )}
 
             {viewMode === 'calendar' && (
-                <div className="h-[600px] bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                <div className="h-[600px] bg-card dark:bg-white/5 rounded-xl border border-border dark:border-white/10 shadow-sm dark:shadow-none dark:backdrop-blur-md p-4">
                     <InterventionsCalendarView
                         interventions={interventions}
                         userContext={userContext}

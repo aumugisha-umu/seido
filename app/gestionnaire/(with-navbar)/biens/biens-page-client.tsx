@@ -124,7 +124,7 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
         <div className="mb-4 lg:mb-6 flex-shrink-0">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 sm:text-3xl mb-2">
+              <h1 className="text-2xl font-bold text-foreground sm:text-3xl mb-2">
                 Patrimoine
               </h1>
             </div>
@@ -150,7 +150,7 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
 
         {/* Card wrapper - Structure exacte du dashboard */}
         <div className="flex-1 flex flex-col min-h-0">
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="bg-card rounded-lg border border-border shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
             {/* Content wrapper avec padding */}
             <div className="flex-1 flex flex-col min-h-0 p-4">
               <PatrimoineNavigator

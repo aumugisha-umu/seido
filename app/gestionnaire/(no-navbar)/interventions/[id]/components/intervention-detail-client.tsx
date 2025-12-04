@@ -1153,7 +1153,7 @@ export function InterventionDetailClient({
         }
       />
 
-      <div className="layout-padding flex-1 min-h-0 bg-slate-50 flex flex-col overflow-hidden">
+      <div className="layout-padding flex-1 min-h-0 bg-muted flex flex-col overflow-hidden">
 
       {/* Programming Modal */}
       <ProgrammingModal

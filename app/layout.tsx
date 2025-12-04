@@ -1,9 +1,9 @@
 import type React from "react"
 import type { Metadata, Viewport } from "next"
-import { Inter, JetBrains_Mono } from "next/font/google"
+import { GeistSans } from "geist/font/sans"
+import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
-import { Providers } from "./providers"
 import { AuthProvider } from "@/hooks/use-auth"
 import { TeamStatusProvider } from "@/hooks/use-team-status"
 import { ConnectionStatus } from "@/components/connection-status"
@@ -12,19 +12,6 @@ import EnvironmentLogger from "@/components/environment-logger"
 import LoggerInitializer from "@/components/logger-initializer"
 import { PWARegister } from "@/components/pwa-register"
 import "./globals.css"
-
-// Font configuration - Material Design 3 compliant
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-sans',
-  display: 'swap',
-})
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-mono',
-  display: 'swap',
-})
 
 export const metadata: Metadata = {
   title: "SEIDO - Gestion Immobilière",
@@ -64,22 +51,20 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body
-        className={`h-screen font-sans ${inter.variable} ${jetbrainsMono.variable} overflow-x-hidden antialiased`}
+        className={`h-screen font-sans ${GeistSans.variable} ${GeistMono.variable} overflow-x-hidden`}
         suppressHydrationWarning={true}
       >
-        <Providers>
-          <PWARegister />
-          <LoggerInitializer />
-          <EnvironmentLogger />
-          <AuthProvider>
-            <TeamStatusProvider>
-              <Suspense fallback={null}>{children}</Suspense>
-              <ConnectionStatus />
-              <Toaster />
-            </TeamStatusProvider>
-          </AuthProvider>
-          <Analytics />
-        </Providers>
+        <PWARegister />
+        <LoggerInitializer />
+        <EnvironmentLogger />
+        <AuthProvider>
+          <TeamStatusProvider>
+            <Suspense fallback={null}>{children}</Suspense>
+            <ConnectionStatus />
+            <Toaster />
+          </TeamStatusProvider>
+        </AuthProvider>
+        <Analytics />
       </body>
     </html>
   )

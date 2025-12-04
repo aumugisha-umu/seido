@@ -332,7 +332,7 @@ export function ManagerInterventionCard({
 
     return (
         <div
-            className="group relative bg-white rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 border border-slate-100 h-full flex flex-col"
+            className="group relative bg-card dark:bg-white/5 rounded-2xl p-6 shadow-sm dark:shadow-none hover:shadow-xl dark:hover:shadow-none transition-all duration-300 border border-border dark:border-white/10 h-full flex flex-col dark:backdrop-blur-sm"
             onClick={() => handleActionClick('view_details')}
         >
             {/* Header: Icon + Action Banner + Badges + Menu */}
@@ -345,12 +345,14 @@ export function ManagerInterventionCard({
                 {/* Banner d'action (au milieu, prend l'espace disponible) */}
                 <div className={cn(
                     "flex-1 border rounded-lg px-3 py-2 min-w-0",
-                    isAlert ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-200',
+                    isAlert
+                        ? 'bg-orange-50 border-orange-200 dark:bg-orange-500/10 dark:border-orange-500/30'
+                        : 'bg-blue-50 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/30',
                 )}>
                     <div className="flex items-center gap-2">
                         <div className={cn(
                             "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
-                            isAlert ? 'bg-orange-100' : 'bg-blue-100'
+                            isAlert ? 'bg-orange-100 dark:bg-orange-500/20' : 'bg-blue-100 dark:bg-blue-500/20'
                         )}>
                             <Clock className={cn("h-3 w-3", isAlert ? 'text-orange-600' : 'text-blue-600')} />
                         </div>
@@ -385,7 +387,7 @@ export function ManagerInterventionCard({
                                 <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 w-8 p-0 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full"
+                                    className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground hover:bg-muted rounded-full"
                                 >
                                     <MoreVertical className="h-4 w-4" />
                                 </Button>
@@ -413,17 +415,17 @@ export function ManagerInterventionCard({
             </div>
 
             {/* Title */}
-            <h3 className="text-lg font-bold text-slate-800 mb-2 group-hover:text-indigo-600 transition-colors line-clamp-1">
+            <h3 className="text-lg font-bold text-foreground mb-2 group-hover:text-primary transition-colors line-clamp-1">
                 {intervention.title}
             </h3>
 
             {/* Description */}
-            <p className="text-slate-500 text-sm mb-4 line-clamp-2 flex-1">
+            <p className="text-muted-foreground text-sm mb-4 line-clamp-2 flex-1">
                 {intervention.description || "Aucune description disponible."}
             </p>
 
             {/* Footer */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-50 text-sm text-slate-400 mt-auto">
+            <div className="flex items-center justify-between pt-4 border-t border-border text-sm text-muted-foreground mt-auto">
                 <div className="flex items-center gap-1.5">
                     <Calendar className="h-4 w-4" />
                     {new Date(intervention.created_at).toLocaleDateString('fr-FR')}

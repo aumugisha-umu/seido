@@ -186,7 +186,7 @@ export function EmailDetail({
   return (
     <div className="flex-1 flex flex-col h-full min-w-0 relative">
       {/* Zone 1: Email Header - Sticky */}
-      <div className="sticky top-0 z-10 bg-white p-4 border-b flex-shrink-0 min-w-0 group/header shadow-sm">
+      <div className="sticky top-0 z-10 bg-card p-4 border-b flex-shrink-0 min-w-0 group/header shadow-sm">
         {/* 1. Ligne 1: Sujet à gauche, Boutons à droite */}
         <div className="flex items-start justify-between gap-4 mb-3 min-w-0">
           <h1 className="text-xl font-semibold truncate flex-1 min-w-0">{email.subject}</h1>
@@ -314,7 +314,7 @@ export function EmailDetail({
       </div>
 
       {/* Zone 2: Contenu Central - Scrollable & Épuré */}
-      <div className="flex-1 overflow-y-auto bg-slate-50 min-h-0">
+      <div className="flex-1 overflow-y-auto bg-muted min-h-0">
         {isConversationParent && conversationEmails ? (
           // Display conversation thread
           <div className="max-w-4xl mx-auto px-8 py-6">
@@ -324,14 +324,14 @@ export function EmailDetail({
           // Display single email content
           <div className="email-content-wrapper">
             {/* Email Content */}
-            <div className="prose prose-slate max-w-none overflow-hidden">
+            <div className="prose prose-neutral dark:prose-invert max-w-none overflow-hidden">
               {hasHtmlContent ? (
                 <div
                   className="break-words [&_.mb-4.pb-4.border-b:first-child]:hidden [&>div.mb-4.pb-4.border-b]:hidden"
                   dangerouslySetInnerHTML={{ __html: sanitizedBody }}
                 />
               ) : (
-                <pre className="whitespace-pre-wrap font-sans text-sm text-slate-700 leading-relaxed">
+                <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">
                   {textContent}
                 </pre>
               )}
@@ -339,23 +339,23 @@ export function EmailDetail({
 
             {/* Attachments */}
             {email.has_attachments && email.attachments.length > 0 && (
-              <div className="mt-8 pt-6 border-t border-slate-300 px-4">
-                <h3 className="text-sm font-semibold text-slate-900 mb-4">
-                  📎 Pièces jointes ({email.attachments.length})
+              <div className="mt-8 pt-6 border-t border-border px-4">
+                <h3 className="text-sm font-semibold text-foreground mb-4">
+                  Pieces jointes ({email.attachments.length})
                 </h3>
                 <div className="space-y-3">
                   {email.attachments.map((attachment) => (
                     <div
                       key={attachment.id}
-                      className="flex items-center justify-between p-3 hover:bg-white/50 rounded-lg transition-colors"
+                      className="flex items-center justify-between p-3 hover:bg-card/50 rounded-lg transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <Paperclip className="h-4 w-4 text-slate-500 shrink-0" />
+                        <Paperclip className="h-4 w-4 text-muted-foreground shrink-0" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium text-slate-900 truncate">
+                          <p className="text-sm font-medium text-foreground truncate">
                             {attachment.filename}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-muted-foreground">
                             {(attachment.file_size / 1024).toFixed(1)} KB
                           </p>
                         </div>
@@ -377,17 +377,17 @@ export function EmailDetail({
             {/* Reply Box (si ouvert) */}
             {showReplyBox && (
               <div className="mt-6">
-                <div className="p-6 bg-white border border-slate-200 rounded-lg shadow-sm space-y-4">
+                <div className="p-6 bg-card border border-border rounded-lg shadow-sm space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-slate-900">Reply to {email.sender_name}</h3>
+                    <h3 className="font-semibold text-foreground">Reply to {email.sender_name}</h3>
                     <Badge variant="secondary">Draft</Badge>
                   </div>
 
                   <div className="space-y-2">
-                    <div className="text-sm text-slate-600">
+                    <div className="text-sm text-muted-foreground">
                       <strong>To:</strong> {email.sender_email}
                     </div>
-                    <div className="text-sm text-slate-600">
+                    <div className="text-sm text-muted-foreground">
                       <strong>Subject:</strong> Re: {email.subject}
                     </div>
                   </div>

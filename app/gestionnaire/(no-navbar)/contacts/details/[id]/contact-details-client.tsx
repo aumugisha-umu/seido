@@ -399,15 +399,15 @@ export function ContactDetailsClient({
     if (invitationLoading) {
       return (
         <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-gray-400 rounded-full animate-pulse"></div>
-          <span className="text-sm text-slate-500">Vérification...</span>
+          <div className="w-2 h-2 bg-muted-foreground/70 rounded-full animate-pulse"></div>
+          <span className="text-sm text-muted-foreground">Vérification...</span>
         </div>
       )
     }
 
     if (!invitationStatus) {
       return (
-        <Badge variant="secondary" className="bg-slate-100 text-slate-600">
+        <Badge variant="secondary" className="bg-muted text-muted-foreground">
           Pas de compte
         </Badge>
       )
@@ -556,7 +556,7 @@ export function ContactDetailsClient({
       pending: { label: 'Invitation envoyée', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', dotColor: 'bg-yellow-500' },
       accepted: { label: 'Accès actif', color: 'bg-green-100 text-green-800 border-green-200', dotColor: 'bg-green-500' },
       expired: { label: 'Invitation expirée', color: 'bg-red-100 text-red-800 border-red-200', dotColor: 'bg-red-500' },
-      revoked: { label: 'Accès révoqué', color: 'bg-gray-100 text-gray-800 border-gray-200', dotColor: 'bg-gray-500' }
+      revoked: { label: 'Accès révoqué', color: 'bg-muted text-foreground border-border', dotColor: 'bg-muted-foreground' }
     }
 
     return statusMap[invitationStatus] || null
@@ -636,24 +636,24 @@ export function ContactDetailsClient({
         dropdownActions={dropdownActions}
       />
 
-      <div className="layout-padding min-h-screen bg-slate-50">
+      <div className="layout-padding min-h-screen bg-background">
         {/* Tabs Navigation */}
       <div className="content-max-width px-4 sm:px-6 lg:px-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-slate-100">
+          <TabsList className="grid w-full grid-cols-3 bg-muted">
             {tabs.map((tab) => {
               const Icon = tab.icon
               return (
                 <TabsTrigger
                   key={tab.id}
                   value={tab.id}
-                  className="flex items-center space-x-2 text-slate-600 data-[state=active]:text-sky-600 data-[state=active]:bg-white"
+                  className="flex items-center space-x-2 text-muted-foreground data-[state=active]:text-primary data-[state=active]:bg-card"
                 >
                   <Icon className="h-4 w-4" />
                   <span className="hidden sm:inline">{tab.label}</span>
                   <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
                   {tab.count !== null && (
-                    <Badge variant="secondary" className="ml-1 text-xs bg-slate-200 text-slate-700 data-[state=active]:bg-sky-100 data-[state=active]:text-sky-800">
+                    <Badge variant="secondary" className="ml-1 text-xs bg-muted text-foreground data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
                       {tab.count}
                     </Badge>
                   )}
@@ -669,64 +669,64 @@ export function ContactDetailsClient({
                 {/* Informations Personnelles */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-slate-800">
-                      <User className="h-5 w-5 text-slate-500" />
+                    <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-foreground">
+                      <User className="h-5 w-5 text-muted-foreground" />
                       <span>Informations Personnelles</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex justify-between">
-                      <span className="text-slate-600 text-sm">Nom complet</span>
-                      <span className="font-medium text-slate-900">{contact.name}</span>
+                      <span className="text-muted-foreground text-sm">Nom complet</span>
+                      <span className="font-medium text-foreground">{contact.name}</span>
                     </div>
                     {contact.first_name && (
                       <div className="flex justify-between">
-                        <span className="text-slate-600 text-sm">Prénom</span>
-                        <span className="font-medium text-slate-900">{contact.first_name}</span>
+                        <span className="text-muted-foreground text-sm">Prénom</span>
+                        <span className="font-medium text-foreground">{contact.first_name}</span>
                       </div>
                     )}
                     {contact.last_name && (
                       <div className="flex justify-between">
-                        <span className="text-slate-600 text-sm">Nom de famille</span>
-                        <span className="font-medium text-slate-900">{contact.last_name}</span>
+                        <span className="text-muted-foreground text-sm">Nom de famille</span>
+                        <span className="font-medium text-foreground">{contact.last_name}</span>
                       </div>
                     )}
                     <div className="flex justify-between">
-                      <span className="text-slate-600 text-sm">Email</span>
-                      <span className="font-medium text-slate-900 text-sm">{contact.email}</span>
+                      <span className="text-muted-foreground text-sm">Email</span>
+                      <span className="font-medium text-foreground text-sm">{contact.email}</span>
                     </div>
                     {contact.phone && (
                       <div className="flex justify-between">
-                        <span className="text-slate-600 text-sm">Téléphone</span>
-                        <span className="font-medium text-slate-900">{contact.phone}</span>
+                        <span className="text-muted-foreground text-sm">Téléphone</span>
+                        <span className="font-medium text-foreground">{contact.phone}</span>
                       </div>
                     )}
                     <div className="flex justify-between">
-                      <span className="text-slate-600 text-sm">Rôle</span>
+                      <span className="text-muted-foreground text-sm">Rôle</span>
                       <Badge variant="secondary" className={getRoleConfig(contact.role).color}>
                         {getRoleConfig(contact.role).label}
                       </Badge>
                     </div>
                     {contact.provider_category && (
                       <div className="flex justify-between">
-                        <span className="text-slate-600 text-sm">Catégorie</span>
-                        <Badge variant="outline" className="text-xs bg-slate-50 text-slate-700 border-slate-200">
+                        <span className="text-muted-foreground text-sm">Catégorie</span>
+                        <Badge variant="outline" className="text-xs bg-muted text-foreground border-border">
                           {getProviderCategoryLabel(contact.provider_category)}
                         </Badge>
                       </div>
                     )}
                     {contact.speciality && (
                       <div className="flex justify-between">
-                        <span className="text-slate-600 text-sm">Spécialité</span>
-                        <Badge variant="outline" className="text-xs bg-sky-50 text-sky-700 border-sky-200">
+                        <span className="text-muted-foreground text-sm">Spécialité</span>
+                        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
                           {getSpecialityLabel(contact.speciality)}
                         </Badge>
                       </div>
                     )}
                     {contact.notes && (
-                      <div className="pt-2 border-t border-slate-200">
-                        <span className="text-slate-600 text-sm">Notes</span>
-                        <p className="text-sm font-medium mt-1 text-slate-900">{contact.notes}</p>
+                      <div className="pt-2 border-t border-border">
+                        <span className="text-muted-foreground text-sm">Notes</span>
+                        <p className="text-sm font-medium mt-1 text-foreground">{contact.notes}</p>
                       </div>
                     )}
                   </CardContent>
@@ -735,14 +735,14 @@ export function ContactDetailsClient({
                 {/* Statut d'Accès */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-slate-800">
-                      <AlertCircle className="h-5 w-5 text-slate-500" />
+                    <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-foreground">
+                      <AlertCircle className="h-5 w-5 text-muted-foreground" />
                       <span>Statut d'Accès</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex justify-between items-center">
-                      <span className="text-slate-600 text-sm">Statut d'invitation</span>
+                      <span className="text-muted-foreground text-sm">Statut d'invitation</span>
                       {getInvitationStatusBadge()}
                     </div>
 
@@ -779,8 +779,8 @@ export function ContactDetailsClient({
                     )}
 
                     {!invitationStatus && (
-                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                        <p className="text-sm text-slate-600">
+                      <div className="bg-muted border border-border rounded-lg p-3">
+                        <p className="text-sm text-muted-foreground">
                           👤 Ce contact existe dans votre base mais n'a pas accès à l'application
                         </p>
                       </div>
@@ -793,50 +793,50 @@ export function ContactDetailsClient({
                 {/* Activité */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-slate-800">
-                      <Wrench className="h-5 w-5 text-slate-500" />
+                    <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-foreground">
+                      <Wrench className="h-5 w-5 text-muted-foreground" />
                       <span>Activité</span>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex justify-between">
-                      <span className="text-slate-600 text-sm">Interventions totales</span>
-                      <span className="font-medium text-slate-900">{stats.interventionStats.total}</span>
+                      <span className="text-muted-foreground text-sm">Interventions totales</span>
+                      <span className="font-medium text-foreground">{stats.interventionStats.total}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-600 text-sm">En attente</span>
+                      <span className="text-muted-foreground text-sm">En attente</span>
                       <span className="font-medium text-amber-600">{stats.interventionStats.pending}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-600 text-sm">En cours</span>
-                      <span className="font-medium text-sky-600">{stats.interventionStats.inProgress}</span>
+                      <span className="text-muted-foreground text-sm">En cours</span>
+                      <span className="font-medium text-primary">{stats.interventionStats.inProgress}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-slate-600 text-sm">Terminées</span>
+                      <span className="text-muted-foreground text-sm">Terminées</span>
                       <span className="font-medium text-emerald-600">{stats.interventionStats.completed}</span>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-200">
+                    <div className="pt-2 border-t border-border">
                       <div className="flex justify-between">
-                        <span className="text-slate-600 text-sm">Biens liés</span>
-                        <span className="font-medium text-slate-900">{stats.totalProperties}</span>
+                        <span className="text-muted-foreground text-sm">Biens liés</span>
+                        <span className="font-medium text-foreground">{stats.totalProperties}</span>
                       </div>
                       {stats.totalLots > 0 && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">• Lots</span>
-                          <span className="text-slate-700">{stats.totalLots}</span>
+                          <span className="text-muted-foreground">• Lots</span>
+                          <span className="text-foreground">{stats.totalLots}</span>
                         </div>
                       )}
                       {stats.totalBuildings > 0 && (
                         <div className="flex justify-between text-sm">
-                          <span className="text-slate-500">• Immeubles</span>
-                          <span className="text-slate-700">{stats.totalBuildings}</span>
+                          <span className="text-muted-foreground">• Immeubles</span>
+                          <span className="text-foreground">{stats.totalBuildings}</span>
                         </div>
                       )}
                     </div>
 
                     {(stats.interventionStats.total > 0 || stats.totalProperties > 0) && (
-                      <div className="pt-2 border-t border-slate-200 space-y-2">
+                      <div className="pt-2 border-t border-border space-y-2">
                         {stats.interventionStats.total > 0 && (
                           <Button
                             variant="outline"
@@ -874,33 +874,33 @@ export function ContactDetailsClient({
                   <Card>
                     <CardContent className="p-6">
                       <div className="text-2xl font-bold text-blue-600">{stats.interventionStats.total}</div>
-                      <div className="text-sm text-gray-600">Total</div>
+                      <div className="text-sm text-muted-foreground">Total</div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-6">
                       <div className="text-2xl font-bold text-orange-600">{stats.interventionStats.pending}</div>
-                      <div className="text-sm text-gray-600">En attente</div>
+                      <div className="text-sm text-muted-foreground">En attente</div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-6">
                       <div className="text-2xl font-bold text-yellow-600">{stats.interventionStats.inProgress}</div>
-                      <div className="text-sm text-gray-600">En cours</div>
+                      <div className="text-sm text-muted-foreground">En cours</div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-6">
                       <div className="text-2xl font-bold text-green-600">{stats.interventionStats.completed}</div>
-                      <div className="text-sm text-gray-600">Terminées</div>
+                      <div className="text-sm text-muted-foreground">Terminées</div>
                     </CardContent>
                   </Card>
                 </div>
 
                 {/* Interventions Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <h2 className="text-xl font-semibold text-slate-800 leading-snug flex items-center">
-                    <Wrench className="h-5 w-5 mr-2 text-slate-500" />
+                  <h2 className="text-xl font-semibold text-foreground leading-snug flex items-center">
+                    <Wrench className="h-5 w-5 mr-2 text-muted-foreground" />
                     Interventions liées à {contact.name} ({interventions.length})
                   </h2>
                   <Button onClick={() => router.push('/gestionnaire/interventions/nouvelle-intervention')}>
@@ -943,27 +943,27 @@ export function ContactDetailsClient({
                   <Card>
                     <CardContent className="p-6">
                       <div className="text-2xl font-bold text-blue-600">{stats.totalProperties}</div>
-                      <div className="text-sm text-gray-600">Biens totaux</div>
+                      <div className="text-sm text-muted-foreground">Biens totaux</div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-6">
                       <div className="text-2xl font-bold text-green-600">{stats.totalLots}</div>
-                      <div className="text-sm text-gray-600">Lots</div>
+                      <div className="text-sm text-muted-foreground">Lots</div>
                     </CardContent>
                   </Card>
                   <Card>
                     <CardContent className="p-6">
                       <div className="text-2xl font-bold text-purple-600">{stats.totalBuildings}</div>
-                      <div className="text-sm text-gray-600">Immeubles</div>
+                      <div className="text-sm text-muted-foreground">Immeubles</div>
                     </CardContent>
                   </Card>
                 </div>
 
                 {/* Properties Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <h2 className="text-xl font-semibold text-slate-800 leading-snug flex items-center">
-                    <Home className="h-5 w-5 mr-2 text-slate-500" />
+                  <h2 className="text-xl font-semibold text-foreground leading-snug flex items-center">
+                    <Home className="h-5 w-5 mr-2 text-muted-foreground" />
                     Biens liés à {contact.name} ({properties.length})
                   </h2>
                   <div className="flex items-center space-x-2">

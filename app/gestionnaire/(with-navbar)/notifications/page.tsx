@@ -33,7 +33,7 @@ import { useToast } from "@/hooks/use-toast"
 
 
 function getNotificationIcon(type: string) {
-  const className = "h-5 w-5 text-blue-500"
+  const className = "h-5 w-5 text-primary"
 
   switch (type) {
     case "intervention":
@@ -280,8 +280,8 @@ export default function NotificationsPage() {
         <div className="content-max-width">
           <div className="flex items-center justify-center py-12">
             <div className="text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-slate-400" />
-              <p className="text-slate-600">Chargement...</p>
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+              <p className="text-muted-foreground">Chargement...</p>
             </div>
           </div>
         </div>
@@ -297,16 +297,16 @@ export default function NotificationsPage() {
           <div className="flex items-center space-x-3 sm:space-x-4 min-w-0">
             <Link 
               href="/gestionnaire/dashboard" 
-              className="flex-shrink-0 text-gray-600 hover:text-gray-900 transition-colors"
+              className="flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
             >
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <div className="min-w-0">
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
-                Notifications & Activité
+              <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">
+                Notifications & Activite
               </h1>
-              <p className="text-sm text-gray-600 sm:hidden">
-                Notifications et activité
+              <p className="text-sm text-muted-foreground sm:hidden">
+                Notifications et activite
               </p>
             </div>
           </div>
@@ -340,7 +340,7 @@ export default function NotificationsPage() {
           <TabsList className="grid w-full grid-cols-3 h-auto p-1">
             <TabsTrigger
               value="personal"
-              className="flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-1.5 sm:px-3 text-xs sm:text-sm min-h-[2.5rem] sm:min-h-[3rem] data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-1.5 sm:px-3 text-xs sm:text-sm min-h-[2.5rem] sm:min-h-[3rem] data-[state=active]:bg-card data-[state=active]:shadow-sm"
             >
               <User className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline truncate">Personnel</span>
@@ -353,7 +353,7 @@ export default function NotificationsPage() {
 
             <TabsTrigger
               value="team"
-              className="flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-1.5 sm:px-3 text-xs sm:text-sm min-h-[2.5rem] sm:min-h-[3rem] data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-1.5 sm:px-3 text-xs sm:text-sm min-h-[2.5rem] sm:min-h-[3rem] data-[state=active]:bg-card data-[state=active]:shadow-sm"
             >
               <Users className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline truncate">Équipe</span>
@@ -366,7 +366,7 @@ export default function NotificationsPage() {
 
             <TabsTrigger
               value="activity"
-              className="flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-1.5 sm:px-3 text-xs sm:text-sm min-h-[2.5rem] sm:min-h-[3rem] data-[state=active]:bg-white data-[state=active]:shadow-sm"
+              className="flex items-center justify-center gap-1 sm:gap-2 py-2 sm:py-2.5 px-1.5 sm:px-3 text-xs sm:text-sm min-h-[2.5rem] sm:min-h-[3rem] data-[state=active]:bg-card data-[state=active]:shadow-sm"
             >
               <Activity className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
               <span className="hidden sm:inline truncate">Activité</span>
@@ -377,11 +377,11 @@ export default function NotificationsPage() {
           <TabsContent value="team" className="space-y-3 sm:space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="min-w-0">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-                  Notifications de l'équipe
+                <h2 className="text-base sm:text-lg font-semibold text-foreground truncate">
+                  Notifications de l'equipe
                 </h2>
-                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">
-                  Toutes les notifications concernant votre équipe
+                <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
+                  Toutes les notifications concernant votre equipe
                 </p>
               </div>
             </div>
@@ -434,11 +434,11 @@ export default function NotificationsPage() {
           <TabsContent value="personal" className="space-y-3 sm:space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div className="min-w-0">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                <h2 className="text-base sm:text-lg font-semibold text-foreground truncate">
                   Notifications personnelles
                 </h2>
-                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">
-                  Notifications qui vous sont adressées personnellement
+                <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
+                  Notifications qui vous sont adressees personnellement
                 </p>
               </div>
             </div>
@@ -487,11 +487,11 @@ export default function NotificationsPage() {
           <TabsContent value="activity" className="space-y-3 sm:space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-4">
               <div className="min-w-0">
-                <h2 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-                  Journal d'activité
+                <h2 className="text-base sm:text-lg font-semibold text-foreground truncate">
+                  Journal d'activite
                 </h2>
-                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block">
-                  Historique complet des actions de votre équipe
+                <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">
+                  Historique complet des actions de votre equipe
                 </p>
               </div>
               <Button 
@@ -571,10 +571,10 @@ function NotificationsList({
       {unreadNotifications.length > 0 && readNotifications.length > 0 && (
         <div className="relative">
           <div className="absolute inset-0 flex items-center" aria-hidden="true">
-            <div className="w-full border-t border-slate-200" />
+            <div className="w-full border-t border-border" />
           </div>
           <div className="relative flex justify-center">
-            <span className="bg-white px-3 text-xs text-slate-500 font-medium">
+            <span className="bg-background px-3 text-xs text-muted-foreground font-medium">
               Notifications lues
             </span>
           </div>
@@ -613,7 +613,7 @@ function NotificationCard({
 }) {
   return (
     <Card
-      className={`transition-all hover:shadow-md ${!notification.read ? "border-l-4 border-l-blue-500 bg-blue-50/30" : ""}`}
+      className={`transition-all hover:shadow-md ${!notification.read ? "border-l-4 border-l-primary bg-primary/5" : ""}`}
     >
       <CardContent className="p-3 sm:p-4">
         <div className="flex items-start gap-2 sm:gap-3">
@@ -627,17 +627,17 @@ function NotificationCard({
                 {/* Titre et badges */}
                 <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
                   <div className="flex items-center gap-2 min-w-0">
-                    <h3 className={`text-sm font-medium truncate ${!notification.read ? "text-gray-900" : "text-gray-700"}`}>
+                    <h3 className={`text-sm font-medium truncate ${!notification.read ? "text-foreground" : "text-foreground"}`}>
                             {notification.title}
                           </h3>
                     {!notification.read && (
-                      <div className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0"></div>
+                      <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0"></div>
                     )}
                   </div>
                         </div>
                 
                 {/* Message */}
-                <p className="text-sm text-gray-600 mb-2 sm:mb-3 break-words overflow-hidden" 
+                <p className="text-sm text-muted-foreground mb-2 sm:mb-3 break-words overflow-hidden" 
                    style={{
                      display: '-webkit-box',
                      WebkitLineClamp: 3,
@@ -648,17 +648,17 @@ function NotificationCard({
 
                 {/* Métadonnées */}
                 <div className="flex flex-wrap gap-1 sm:gap-1.5">
-                  <div className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded-full">
-                    <Calendar className="h-3 w-3 text-gray-500 flex-shrink-0" />
-                    <span className="text-xs text-gray-600 whitespace-nowrap">
+                  <div className="flex items-center gap-1 bg-muted px-1.5 py-0.5 rounded-full">
+                    <Calendar className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
                       {formatDate(notification.created_at)}
                             </span>
                           </div>
 
                   {notification.created_by_user?.name && (
-                    <div className="flex items-center gap-1 bg-blue-100 px-1.5 py-0.5 rounded-full">
-                      <User className="h-3 w-3 text-blue-600 flex-shrink-0" />
-                      <span className="text-xs text-blue-700 truncate max-w-[80px] sm:max-w-none">
+                    <div className="flex items-center gap-1 bg-primary/10 px-1.5 py-0.5 rounded-full">
+                      <User className="h-3 w-3 text-primary flex-shrink-0" />
+                      <span className="text-xs text-primary truncate max-w-[80px] sm:max-w-none">
                         {notification.created_by_user.name}
                       </span>
                     </div>
@@ -666,9 +666,9 @@ function NotificationCard({
 
 
                   {notification.related_entity_type && notification.related_entity_id && (
-                    <div className="flex items-center gap-1 bg-purple-100 px-1.5 py-0.5 rounded-full">
-                      <Activity className="h-3 w-3 text-purple-600 flex-shrink-0" />
-                      <span className="text-xs text-purple-700 truncate max-w-[60px] sm:max-w-none">
+                    <div className="flex items-center gap-1 bg-secondary px-1.5 py-0.5 rounded-full">
+                      <Activity className="h-3 w-3 text-secondary-foreground flex-shrink-0" />
+                      <span className="text-xs text-secondary-foreground truncate max-w-[60px] sm:max-w-none">
                         {notification.related_entity_type}
                       </span>
                             </div>
@@ -688,11 +688,11 @@ function NotificationCard({
                           disabled={isUpdating}
                         >
                           {isUpdating ? (
-                            <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin text-gray-400" />
+                            <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 animate-spin text-muted-foreground" />
                           ) : notification.read ? (
-                            <MailOpen className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
+                            <MailOpen className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
                           ) : (
-                            <Mail className="h-3 w-3 sm:h-4 sm:w-4 text-red-500" />
+                            <Mail className="h-3 w-3 sm:h-4 sm:w-4 text-destructive" />
                           )}
                         </Button>
                 )}
@@ -729,9 +729,9 @@ function EmptyNotificationsState({
   return (
     <Card className="text-center py-8 sm:py-12">
       <CardContent className="px-4">
-        <Icon className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-3 sm:mb-4" />
-        <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2 px-2">{title}</h3>
-        <p className="text-sm sm:text-base text-gray-600 px-2 max-w-md mx-auto">{description}</p>
+        <Icon className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+        <h3 className="text-base sm:text-lg font-medium text-foreground mb-2 px-2">{title}</h3>
+        <p className="text-sm sm:text-base text-muted-foreground px-2 max-w-md mx-auto">{description}</p>
             </CardContent>
           </Card>
   )

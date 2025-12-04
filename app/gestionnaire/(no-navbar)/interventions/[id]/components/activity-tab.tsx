@@ -171,7 +171,7 @@ export function ActivityTab({ intervention, activityLogs }: ActivityTabProps) {
                 <div className="space-y-4">
                   {logs.map((log) => {
                     const Icon = activityIcons[log.action_type] || Activity
-                    const color = activityColors[log.action_type] || 'bg-gray-100 text-gray-800'
+                    const color = activityColors[log.action_type] || 'bg-muted text-foreground'
 
                     return (
                       <div

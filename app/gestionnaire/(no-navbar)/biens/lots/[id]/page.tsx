@@ -17,8 +17,8 @@ import { ArrowLeft } from "lucide-react"
 // Loading skeleton while data is fetched
 function LotDetailsLoading() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
+    <div className="min-h-screen bg-background">
+      <header className="bg-card border-b border-border">
         <div className="content-max-width px-4 sm:px-6 lg:px-8 py-4">
           <Button variant="ghost" disabled className="flex items-center space-x-2">
             <ArrowLeft className="h-4 w-4" />

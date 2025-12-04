@@ -52,8 +52,8 @@ export function ConversationGroupComponent({
         className={`
           p-3 px-4 cursor-pointer transition-colors
           hover:bg-muted/50
-          ${isParentSelected ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}
-          ${!group.parent.is_read || hasUnreadChildren ? 'bg-blue-50/30' : ''}
+          ${isParentSelected ? 'bg-primary/10 border-l-4 border-l-primary' : ''}
+          ${!group.parent.is_read || hasUnreadChildren ? 'bg-primary/5' : ''}
         `}
         onClick={handleParentClick}
         role="button"
@@ -111,13 +111,13 @@ export function ConversationGroupComponent({
       {isExpanded && group.children.length > 0 && (
         <div className="bg-muted/20 border-t">
           {group.children.map((child) => (
-            <div 
-              key={child.id} 
+            <div
+              key={child.id}
               className={`
                 pl-12 pr-4 py-2 cursor-pointer transition-colors
                 hover:bg-muted/50
-                ${selectedEmailId === child.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}
-                ${!child.is_read ? 'bg-blue-50/30' : ''}
+                ${selectedEmailId === child.id ? 'bg-primary/10 border-l-4 border-l-primary' : ''}
+                ${!child.is_read ? 'bg-primary/5' : ''}
               `}
               onClick={() => onEmailSelect(child.id)}
               role="button"

@@ -180,49 +180,49 @@ function RequestCard({ quote }: RequestCardProps) {
   }
 
   return (
-    <Card className="border-gray-200 hover:shadow-md transition-shadow">
+    <Card className="border-border hover:shadow-md transition-shadow">
       <CardContent className="p-0">
         <div className="space-y-3">
           {/* Header with provider name and status */}
           <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-gray-900">
+            <h4 className="text-sm font-semibold text-foreground">
               {quote.provider?.name || 'Prestataire'}
             </h4>
             <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-200 text-xs">
-              ⏳ En attente
+              En attente
             </Badge>
           </div>
 
           {/* Provider info */}
           <div className="flex items-start space-x-3">
             <div className="flex-shrink-0">
-              <div className="h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
-                <User className="h-4 w-4 text-gray-600" />
+              <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                <User className="h-4 w-4 text-muted-foreground" />
               </div>
             </div>
 
             <div className="flex-1 min-w-0">
               {quote.provider?.email && (
-                <div className="flex items-center space-x-1 text-xs text-gray-500 mb-1">
+                <div className="flex items-center space-x-1 text-xs text-muted-foreground mb-1">
                   <Mail className="h-3 w-3" />
                   <span className="truncate">{quote.provider.email}</span>
                 </div>
               )}
 
               {quote.provider?.provider_category && (
-                <div className="text-xs text-gray-600 mb-1">
+                <div className="text-xs text-muted-foreground mb-1">
                   Spécialité: {quote.provider.provider_category}
                 </div>
               )}
 
               {/* Request details */}
-              <div className="flex items-center space-x-1 text-xs text-gray-500 mb-1">
+              <div className="flex items-center space-x-1 text-xs text-muted-foreground mb-1">
                 <Clock className="h-3 w-3" />
                 <span>Envoyé le {formatDate(quote.created_at)}</span>
               </div>
 
               {quote.valid_until && (
-                <div className="flex items-center space-x-1 text-xs text-gray-500">
+                <div className="flex items-center space-x-1 text-xs text-muted-foreground">
                   <Calendar className="h-3 w-3" />
                   <span>Échéance: {formatDate(quote.valid_until)}</span>
                 </div>
@@ -232,13 +232,13 @@ function RequestCard({ quote }: RequestCardProps) {
 
           {/* Message if any */}
           {quote.description && (
-            <div className="bg-white rounded border border-gray-200 p-2 text-xs text-gray-700">
+            <div className="bg-card rounded border border-border p-2 text-xs text-foreground">
               {quote.description}
             </div>
           )}
 
           {/* Actions */}
-          <div className="flex space-x-2 pt-2 border-t border-gray-100">
+          <div className="flex space-x-2 pt-2 border-t border-border">
             <Button
               variant="outline"
               size="sm"

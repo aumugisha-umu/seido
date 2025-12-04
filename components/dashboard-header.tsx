@@ -14,7 +14,6 @@ import { useTeamStatus } from "@/hooks/use-team-status"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import NotificationPopover from "@/components/notification-popover"
 import { InstallPWAHeaderButton } from "@/components/install-pwa-header-button"
-import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { logger, logError } from '@/lib/logger'
 interface NavigationItem {
   href: string
@@ -247,9 +246,6 @@ export default function DashboardHeader({
 
             {/* Éléments droite */}
             <div className="header__actions">
-              {/* Theme Toggle */}
-              <ThemeToggle className="header__button header__button--inactive" />
-
               {/* Notifications Popover - toujours visible */}
               {config.showUserElements && (
                 <Popover open={isNotificationPopoverOpen} onOpenChange={setIsNotificationPopoverOpen}>

@@ -6,6 +6,9 @@ import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { AuthProvider } from "@/hooks/use-auth"
 import { TeamStatusProvider } from "@/hooks/use-team-status"
+import { CookieConsentProvider } from "@/hooks/use-cookie-consent"
+import { ClarityProvider } from "@/components/clarity-provider"
+import { CookieConsentBanner } from "@/components/cookie-consent-banner"
 import { ConnectionStatus } from "@/components/connection-status"
 import { Toaster } from "@/components/ui/toaster"
 import EnvironmentLogger from "@/components/environment-logger"
@@ -59,9 +62,14 @@ export default function RootLayout({
         <EnvironmentLogger />
         <AuthProvider>
           <TeamStatusProvider>
-            <Suspense fallback={null}>{children}</Suspense>
-            <ConnectionStatus />
-            <Toaster />
+            <CookieConsentProvider>
+              <ClarityProvider>
+                <Suspense fallback={null}>{children}</Suspense>
+                <ConnectionStatus />
+                <Toaster />
+                <CookieConsentBanner />
+              </ClarityProvider>
+            </CookieConsentProvider>
           </TeamStatusProvider>
         </AuthProvider>
         <Analytics />

@@ -321,7 +321,7 @@
 }
 
 .header__button {
-  @apply relative p-2 rounded-lg transition-all duration-200 border flex items-center justify-center;
+  @apply relative p-2 rounded-lg transition-all duration-200 border;
   min-width: var(--header-touch-target);
   min-height: var(--header-touch-target);
 }
@@ -338,6 +338,67 @@
   .header__nav {
     height: var(--header-height-mobile);
   }
+}
+
+/* ========================================
+   DASHBOARD STATS CARDS - Semantic Variants
+   ======================================== */
+
+.dashboard-stats-cards__card--success {
+  @apply bg-green-50 ring-1 ring-green-500/30;
+}
+
+.dashboard-stats-cards__card--success .dashboard-stats-cards__label,
+.dashboard-stats-cards__card--success .dashboard-stats-cards__sublabel {
+  @apply text-green-800;
+}
+
+.dashboard-stats-cards__card--success .dashboard-stats-cards__value,
+.dashboard-stats-cards__card--success .dashboard-stats-cards__icon {
+  @apply text-green-500;
+}
+
+.dashboard-stats-cards__card--warning {
+  @apply bg-amber-50 ring-1 ring-amber-500/30;
+}
+
+.dashboard-stats-cards__card--warning .dashboard-stats-cards__label,
+.dashboard-stats-cards__card--warning .dashboard-stats-cards__sublabel {
+  @apply text-amber-800;
+}
+
+.dashboard-stats-cards__card--warning .dashboard-stats-cards__value,
+.dashboard-stats-cards__card--warning .dashboard-stats-cards__icon {
+  @apply text-amber-500;
+}
+
+/* Dark mode variants for dashboard stats cards */
+.dark .dashboard-stats-cards__card--success {
+  @apply bg-green-500/10 ring-green-500/30;
+}
+
+.dark .dashboard-stats-cards__card--success .dashboard-stats-cards__label,
+.dark .dashboard-stats-cards__card--success .dashboard-stats-cards__sublabel {
+  @apply text-green-300;
+}
+
+.dark .dashboard-stats-cards__card--success .dashboard-stats-cards__value,
+.dark .dashboard-stats-cards__card--success .dashboard-stats-cards__icon {
+  @apply text-green-400;
+}
+
+.dark .dashboard-stats-cards__card--warning {
+  @apply bg-amber-500/10 ring-amber-500/30;
+}
+
+.dark .dashboard-stats-cards__card--warning .dashboard-stats-cards__label,
+.dark .dashboard-stats-cards__card--warning .dashboard-stats-cards__sublabel {
+  @apply text-amber-300;
+}
+
+.dark .dashboard-stats-cards__card--warning .dashboard-stats-cards__value,
+.dark .dashboard-stats-cards__card--warning .dashboard-stats-cards__icon {
+  @apply text-amber-400;
 }
 
 .dark {

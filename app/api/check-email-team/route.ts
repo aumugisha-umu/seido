@@ -1,26 +1,8 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
-import type { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { getServiceRoleClient, isServiceRoleAvailable } from '@/lib/api-service-role-helper'
 import { checkEmailTeamSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-
-// Client Supabase avec permissions admin
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-if (!supabaseServiceRoleKey) {
-  logger.warn({}, '⚠️ SUPABASE_SERVICE_ROLE_KEY not configured')
-}
-
-const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  supabaseServiceRoleKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-) : null
 
 /**
  * POST /api/check-email-team
@@ -50,13 +32,14 @@ export async function POST(request: Request) {
     if (!authResult.success) return authResult.error
 
     // Vérifier que le service admin est disponible
-    if (!supabaseAdmin) {
+    if (!isServiceRoleAvailable()) {
       return NextResponse.json(
         { error: 'Service de validation non configuré - SUPABASE_SERVICE_ROLE_KEY manquant' },
         { status: 503 }
       )
     }
 
+    const supabaseAdmin = getServiceRoleClient()
     const body = await request.json()
 
     // ✅ ZOD VALIDATION

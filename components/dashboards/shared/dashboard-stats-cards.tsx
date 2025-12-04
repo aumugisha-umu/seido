@@ -30,35 +30,24 @@ export function DashboardStatsCards({
         )}>
             {/* Card 1: Actions requises (Always First) */}
             <Card className={cn(
-                "dashboard-stats-cards__card dashboard-stats-cards__card--pending",
+                "dashboard-stats-cards__card",
                 "border-none shadow-sm hover:shadow-md transition-all duration-300 hover:transform hover:-translate-y-1 rounded-2xl overflow-hidden group",
                 "dark:backdrop-blur-sm dark:shadow-none",
-                pendingCount > 0
-                    ? "bg-warning-light ring-1 ring-warning/30 dark:bg-warning/10 dark:ring-warning/30"
-                    : "bg-success-light ring-1 ring-success/30 dark:bg-success/10 dark:ring-success/30"
+                pendingCount > 0 ? "dashboard-stats-cards__card--warning" : "dashboard-stats-cards__card--success"
             )}>
                 <CardContent className="dashboard-stats-cards__content p-6 relative">
                     <div className="dashboard-stats-cards__icon-bg absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <AlertTriangle className={cn("h-24 w-24", pendingCount > 0 ? "text-warning" : "text-success")} />
+                        <AlertTriangle className="dashboard-stats-cards__icon h-24 w-24" />
                     </div>
                     <div className="dashboard-stats-cards__info relative z-10">
-                        <p className={cn(
-                            "dashboard-stats-cards__label text-sm font-medium uppercase tracking-wider",
-                            pendingCount > 0 ? "text-warning-foreground" : "text-success-foreground"
-                        )}>
+                        <p className="dashboard-stats-cards__label text-sm font-medium uppercase tracking-wider">
                             Actions requises
                         </p>
                         <div className="dashboard-stats-cards__value-container flex items-baseline gap-2 mt-2">
-                            <span className={cn(
-                                "dashboard-stats-cards__value text-4xl font-bold",
-                                pendingCount > 0 ? "text-warning" : "text-success"
-                            )}>
+                            <span className="dashboard-stats-cards__value text-4xl font-bold">
                                 {pendingCount}
                             </span>
-                            <span className={cn(
-                                "dashboard-stats-cards__sublabel text-sm font-medium",
-                                pendingCount > 0 ? "text-warning-foreground" : "text-success-foreground"
-                            )}>
+                            <span className="dashboard-stats-cards__sublabel text-sm font-medium">
                                 {pendingCount > 0 ? "Urgent" : "Tout est calme"}
                             </span>
                         </div>

@@ -1,17 +1,10 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
 import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
-import type { Database } from '@/lib/database.types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { getServiceRoleClient } from '@/lib/api-service-role-helper'
 import { sendContactInvitationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-
-const supabaseAdmin = createClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-)
 
 export async function POST(request: Request) {
   try {
@@ -20,6 +13,7 @@ export async function POST(request: Request) {
     if (!authResult.success) return authResult.error
 
     const { userProfile: currentUser } = authResult.data
+    const supabaseAdmin = getServiceRoleClient()
 
     logger.info({ currentUser: currentUser.id }, '📧 [SEND-EXISTING-CONTACT-INVITATION] Starting process')
 

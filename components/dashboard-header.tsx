@@ -251,7 +251,7 @@ export default function DashboardHeader({
                 <Popover open={isNotificationPopoverOpen} onOpenChange={setIsNotificationPopoverOpen}>
                   <PopoverTrigger asChild>
                     <button
-                      className={`header__button ${isNotificationPopoverOpen || pathname.includes('/notifications')
+                      className={`flex items-center justify-center header__button ${isNotificationPopoverOpen || pathname.includes('/notifications')
                           ? 'header__button--active'
                           : 'header__button--inactive'
                         }`}
@@ -295,7 +295,7 @@ export default function DashboardHeader({
               {/* Bouton hamburger - mobile et tablet uniquement */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden header__button header__button--inactive"
+                className="lg:hidden flex items-center justify-center header__button header__button--inactive"
                 aria-label="Menu de navigation"
                 aria-expanded={isMobileMenuOpen}
               >

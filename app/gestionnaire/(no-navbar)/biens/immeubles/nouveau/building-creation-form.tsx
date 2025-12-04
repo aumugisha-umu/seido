@@ -724,43 +724,51 @@ export default function NewImmeubleePage({
       const contactsData = [
         // Contacts de l'immeuble (provider, owner, other)
         ...Object.entries(buildingContacts).flatMap(([contactType, contactArray]) =>
-          contactArray.map(contact => ({
-            id: contact.id,
-            type: contactType,
-            isPrimary: false
-          }))
+          contactArray
+            .filter(contact => contact.id) // ✅ Filtrer les contacts sans ID valide
+            .map(contact => ({
+              id: contact.id,
+              type: contactType,
+              isPrimary: false
+            }))
         ),
         // Gestionnaires de l'immeuble (toujours inclus)
-        ...buildingManagers.map((manager, index) => ({
-          id: manager.id, // ✅ Utiliser manager.id directement
-          type: 'gestionnaire',
-          isPrimary: index === 0 // Premier gestionnaire = principal
-        }))
+        ...buildingManagers
+          .filter(manager => manager.id) // ✅ Filtrer les managers sans ID valide
+          .map((manager, index) => ({
+            id: manager.id,
+            type: 'gestionnaire',
+            isPrimary: index === 0 // Premier gestionnaire = principal
+          }))
       ]
 
       // Preparer les assignations de contacts aux lots
       const lotContactAssignmentsData = Object.entries(lotContactAssignments).map(([lotId, assignments]) => {
         // Trouver l'index du lot dans le tableau lotsData base sur l'ID
         const lotIndex = lots.findIndex(lot => lot.id === lotId)
-        
+
         // Recuperer les contacts classiques assignes a ce lot
         const contactAssignments = Object.entries(assignments).flatMap(([contactType, contacts]) =>
-          contacts.map(contact => ({
-            contactId: contact.id,
-            contactType: contactType,
-            isPrimary: false // Peut etre etendu plus tard
-          }))
+          contacts
+            .filter(contact => contact.id) // ✅ Filtrer les contacts sans ID valide
+            .map(contact => ({
+              contactId: contact.id,
+              contactType: contactType,
+              isPrimary: false // Peut etre etendu plus tard
+            }))
         )
-        
+
         // Ajouter les gestionnaires assignes a ce lot
         const managersForThisLot = assignedManagers[lotId] || []
-        const managerAssignments = managersForThisLot.map((manager, index) => ({
-          contactId: manager.id, // ✅ Utiliser manager.id directement
-          contactType: 'gestionnaire',
-          isPrimary: index === 0, // Le premier gestionnaire est principal, les autres additionnels
-          isLotPrincipal: index === 0 // Marquer le gestionnaire principal pour lot_contacts.is_primary
-        }))
-        
+        const managerAssignments = managersForThisLot
+          .filter(manager => manager.id) // ✅ Filtrer les managers sans ID valide
+          .map((manager, index) => ({
+            contactId: manager.id,
+            contactType: 'gestionnaire',
+            isPrimary: index === 0, // Le premier gestionnaire est principal, les autres additionnels
+            isLotPrincipal: index === 0 // Marquer le gestionnaire principal pour lot_contacts.is_primary
+          }))
+
         return {
           lotId: lotId,
           lotIndex: lotIndex, // Index du lot dans le tableau lotsData

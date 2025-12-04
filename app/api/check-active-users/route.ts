@@ -1,27 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { getServiceRoleClient } from '@/lib/api-service-role-helper'
 import { checkActiveUsersSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-
-// Client admin pour les opérations privilégiées
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-)
 
 export async function POST(request: NextRequest) {
   try {
-    // ✅ AUTH: FAILLE SÉCURITÉ CORRIGÉE! (admin client utilisé sans auth check)
+    // ✅ AUTH: Centralized authentication
     const authResult = await getApiAuthContext()
     if (!authResult.success) return authResult.error
 
+    const supabaseAdmin = getServiceRoleClient()
     const body = await request.json()
 
     // ✅ ZOD VALIDATION

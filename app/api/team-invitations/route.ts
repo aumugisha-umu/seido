@@ -1,19 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
-
-// Client admin pour les opérations privilégiées
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-)
+import { getServiceRoleClient } from '@/lib/api-service-role-helper'
 
 export async function GET(request: NextRequest) {
   try {
@@ -22,6 +10,7 @@ export async function GET(request: NextRequest) {
     const authResult = await getApiAuthContext()
     if (!authResult.success) return authResult.error
 
+    const supabaseAdmin = getServiceRoleClient()
     const { searchParams } = new URL(request.url)
     const teamId = searchParams.get('teamId')
 

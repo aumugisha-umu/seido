@@ -1,4 +1,5 @@
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { User, Building2 } from "lucide-react"
@@ -7,18 +8,22 @@ interface Step1TypeProps {
   contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre'
   personOrCompany: 'person' | 'company'
   specialty?: string
+  customRoleDescription?: string
   onContactTypeChange: (value: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre') => void
   onPersonOrCompanyChange: (value: 'person' | 'company') => void
   onSpecialtyChange: (value: string) => void
+  onCustomRoleDescriptionChange: (value: string) => void
 }
 
 export function Step1Type({
   contactType,
   personOrCompany,
   specialty,
+  customRoleDescription,
   onContactTypeChange,
   onPersonOrCompanyChange,
-  onSpecialtyChange
+  onSpecialtyChange,
+  onCustomRoleDescriptionChange
 }: Step1TypeProps) {
   return (
     <div className="space-y-8">
@@ -72,6 +77,23 @@ export function Step1Type({
                 <SelectItem value="autre">Autre</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+        )}
+
+        {/* Description personnalisée (si Autre) */}
+        {contactType === 'autre' && (
+          <div className="space-y-3">
+            <Label htmlFor="customRoleDescription" className="text-base font-medium">
+              Précisez le type de contact <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="customRoleDescription"
+              placeholder="Ex: Architecte, Notaire, Assureur..."
+              value={customRoleDescription || ''}
+              onChange={(e) => onCustomRoleDescriptionChange(e.target.value)}
+              maxLength={100}
+              className="w-full"
+            />
           </div>
         )}
       </div>

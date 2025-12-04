@@ -25,6 +25,7 @@ interface ContactFormData {
   contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre'
   personOrCompany: 'person' | 'company'
   specialty?: string
+  customRoleDescription?: string // Description personnalisée pour le rôle "autre"
 
   // Step 2: Informations société (si company)
   companyMode: 'new' | 'existing'
@@ -111,6 +112,7 @@ export function ContactCreationClient({
         if (!formData.contactType) return false
         if (!formData.personOrCompany) return false
         if (formData.contactType === 'prestataire' && !formData.specialty) return false
+        if (formData.contactType === 'autre' && !formData.customRoleDescription?.trim()) return false
         return true
 
       case 2: // Informations société (seulement si company)
@@ -177,6 +179,9 @@ export function ContactCreationClient({
         if (!formData.personOrCompany) errors.push("Sélectionnez Personne ou Société")
         if (formData.contactType === 'prestataire' && !formData.specialty) {
           errors.push("Sélectionnez une spécialité pour le prestataire")
+        }
+        if (formData.contactType === 'autre' && !formData.customRoleDescription?.trim()) {
+          errors.push("Précisez le type de contact")
         }
         break
 
@@ -342,24 +347,14 @@ export function ContactCreationClient({
     try {
       logger.info("📤 [CREATE-CONTACT] Submitting contact creation", { formData })
 
-      // Helper pour mapper les types français vers anglais (pour la BDD)
-      const mapContactTypeToEnglish = (frenchType: string): string => {
-        const mapping: Record<string, string> = {
-          'locataire': 'tenant',
-          'prestataire': 'provider',
-          'gestionnaire': 'manager',
-          'proprietaire': 'owner',
-          'autre': 'other'
-        }
-        return mapping[frenchType] || frenchType
-      }
-
       // Préparer les données à envoyer
+      // Note: role doit être en français car le schéma Zod de l'API attend les valeurs françaises
       const payload: any = {
         teamId,
-        role: mapContactTypeToEnglish(formData.contactType),
+        role: formData.contactType, // Envoie directement 'prestataire', 'locataire', etc.
         contactType: formData.personOrCompany,
         speciality: formData.specialty,
+        customRoleDescription: formData.customRoleDescription, // Description pour le rôle "autre"
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
@@ -394,7 +389,7 @@ export function ContactCreationClient({
 
       // Récupérer l'ID du contact créé
       const result = await response.json()
-      const newContactId = result.userId || result.contactId || result.id
+      const newContactId = result.userId || result.contactId || result.id || result.contact?.id
 
       logger.info("✅ [CREATE-CONTACT] Contact created successfully", { newContactId, result })
       toast.success(getSuccessMessage())
@@ -486,9 +481,11 @@ export function ContactCreationClient({
                 contactType={formData.contactType}
                 personOrCompany={formData.personOrCompany}
                 specialty={formData.specialty}
+                customRoleDescription={formData.customRoleDescription}
                 onContactTypeChange={(value) => handleInputChange('contactType', value)}
                 onPersonOrCompanyChange={(value) => handleInputChange('personOrCompany', value)}
                 onSpecialtyChange={(value) => handleInputChange('specialty', value)}
+                onCustomRoleDescriptionChange={(value) => handleInputChange('customRoleDescription', value)}
               />
             )}
 

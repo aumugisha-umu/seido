@@ -27,7 +27,17 @@ export function useCreationSuccess() {
   }: CreationSuccessOptions) => {
     logger.info("🎉 Handling creation success...")
 
-    // 1. Refresh des données AVANT la navigation
+    // 1. Afficher le toast immédiatement (seulement si un titre est fourni)
+    if (successTitle) {
+      toast({
+        title: successTitle,
+        description: successDescription,
+        variant: "success",
+      })
+    }
+
+    // 2. Essayer de refresh les données (non-bloquant)
+    let refreshFailed = false
     try {
       if (refreshData) {
         logger.info("🔄 Calling refreshData before navigation...")
@@ -39,32 +49,22 @@ export function useCreationSuccess() {
       logger.info("✅ Data refreshed successfully")
     } catch (error) {
       logger.warn("⚠️ Refresh failed:", error)
-
-      // Hard refresh fallback si nécessaire
-      if (hardRefreshFallback) {
-        logger.info(`🔄 Scheduling hard refresh in ${hardRefreshDelay}ms...`)
-        setTimeout(() => {
-          logger.info("🔄 Soft refresh failed, doing hard refresh...")
-          window.location.reload()
-        }, hardRefreshDelay)
-        return // Exit early pour éviter la navigation
-      }
+      refreshFailed = true
     }
 
-    // 2. Afficher le toast (seulement si un titre est fourni)
-    if (successTitle) {
-      toast({
-        title: successTitle,
-        description: successDescription,
-        variant: "success",
-      })
+    // 3. Navigation TOUJOURS vers la destination
+    // Si le refresh a échoué, utiliser hard navigation comme fallback
+    if (refreshFailed && hardRefreshFallback) {
+      logger.info(`🔄 Using hard navigation to ${redirectPath}...`)
+      setTimeout(() => {
+        window.location.href = redirectPath
+      }, 500)
+    } else {
+      setTimeout(() => {
+        logger.info(`🚀 Navigating to ${redirectPath}...`)
+        router.push(redirectPath)
+      }, 500)
     }
-
-    // 3. Navigation après un court délai pour garantir que le refresh est appliqué
-    setTimeout(() => {
-      logger.info(`🚀 Navigating to ${redirectPath}...`)
-      router.push(redirectPath)
-    }, 500) // Délai augmenté pour garantir la stabilité
 
   }, [router, toast])
 

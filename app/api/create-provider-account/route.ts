@@ -1,41 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
-import { Database } from '@/lib/database.types'
 import { createServerUserService } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { getServiceRoleClient, isServiceRoleAvailable } from '@/lib/api-service-role-helper'
 import { createProviderAccountSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-
-// Admin client for creating auth users
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  supabaseServiceRoleKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-) : null
 
 export async function POST(request: NextRequest) {
   logger.info({}, "✅ create-provider-account API route called")
 
   try {
-    // ✅ AUTH: 38 lignes → 3 lignes! (route publique pour magic links, mais vérification token ci-dessous)
+    // ✅ AUTH: Route publique pour magic links, mais vérification token ci-dessous
     // Note: Cette route vérifie le magicLinkToken, pas besoin d'auth utilisateur standard
     const authResult = await getApiAuthContext({ fetchProfile: false })
     // On vérifie juste la session, pas le profil (car nouveau compte)
 
-    if (!supabaseAdmin) {
+    if (!isServiceRoleAvailable()) {
       return NextResponse.json({
         success: false,
         error: 'Service de création de compte non configuré'
       }, { status: 503 })
     }
 
+    const supabaseAdmin = getServiceRoleClient()
     const { supabase } = authResult.success ? authResult.data : { supabase: null }
 
     // Initialize services

@@ -194,6 +194,16 @@ export default function UpdatePasswordPage() {
         setError("Erreur lors de la mise à jour du mot de passe : " + updateError.message)
       } else {
         logger.info("✅ [UPDATE-PASSWORD] Password updated successfully")
+
+        // ✅ Invalider la session de récupération pour éviter les conflits côté serveur
+        try {
+          await supabase.auth.signOut()
+          logger.info("✅ [UPDATE-PASSWORD] Recovery session cleared")
+        } catch (signOutError) {
+          logger.warn("⚠️ [UPDATE-PASSWORD] Could not clear recovery session:", signOutError)
+          // Continue anyway - the password was updated successfully
+        }
+
         setIsUpdated(true)
         setError("")
 

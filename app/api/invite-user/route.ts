@@ -1,29 +1,12 @@
-import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
 import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { getServiceRoleClient, isServiceRoleAvailable } from '@/lib/api-service-role-helper'
 import { inviteUserSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 import { createServerActionCompanyRepository } from '@/lib/services/repositories/company.repository'
-
-// Client Supabase avec permissions admin
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-if (!supabaseServiceRoleKey) {
-  logger.warn({}, '⚠️ SUPABASE_SERVICE_ROLE_KEY not configured - invitations will be disabled')
-}
-
-const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  supabaseServiceRoleKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-) : null
 
 export async function POST(request: Request) {
   try {
@@ -34,13 +17,14 @@ export async function POST(request: Request) {
     const { userProfile: currentUserProfile } = authResult.data
 
     // Vérifier si le service d'invitation est disponible
-    if (!supabaseAdmin) {
+    if (!isServiceRoleAvailable()) {
       return NextResponse.json(
         { error: 'Service d\'invitation non configuré - SUPABASE_SERVICE_ROLE_KEY manquant' },
         { status: 503 }
       )
     }
 
+    const supabaseAdmin = getServiceRoleClient()
     const body = await request.json()
 
     // ✅ ZOD VALIDATION
@@ -65,6 +49,7 @@ export async function POST(request: Request) {
       phone,
       notes, // ✅ AJOUT: Notes sur le contact
       speciality, // ✅ AJOUT: Spécialité pour les prestataires
+      customRoleDescription, // ✅ AJOUT: Description personnalisée pour le rôle "autre"
       shouldInviteToApp = false,  // ✅ NOUVELLE LOGIQUE SIMPLE
       // Champs société
       contactType,
@@ -277,6 +262,7 @@ export async function POST(request: Request) {
           role: validUserRole,
           provider_category: finalProviderCategory,
           speciality: speciality || null,
+          custom_role_description: customRoleDescription || null, // Description pour le rôle "autre"
           phone: phone || null,
           notes: notes || null,
           team_id: teamId,

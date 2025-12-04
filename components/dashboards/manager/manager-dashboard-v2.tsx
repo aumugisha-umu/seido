@@ -100,6 +100,7 @@ export function ManagerDashboardV2({ stats, contactStats, interventions, pending
                         interventions={interventions}
                         userContext="gestionnaire"
                         title="Interventions"
+                        onCreateIntervention={() => router.push('/gestionnaire/interventions/nouvelle-intervention')}
                     />
                 </div>
             </div>

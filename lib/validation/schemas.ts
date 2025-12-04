@@ -169,6 +169,7 @@ export const inviteUserSchema = z.object({
   phone: phoneSchema.nullable(),
   notes: z.string().max(2000).trim().optional().nullable(),
   speciality: z.string().max(100).trim().optional().nullable(),
+  customRoleDescription: z.string().max(100).trim().optional().nullable(), // Description pour le rôle "autre"
   shouldInviteToApp: z.boolean().optional().default(false),
   // Champs société
   contactType: z.enum(['person', 'company']).optional().nullable(),

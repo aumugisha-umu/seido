@@ -1,23 +1,10 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
 import { emailService } from '@/lib/email/email-service'
 import { EMAIL_CONFIG } from '@/lib/email/resend-client'
-import type { Database } from '@/lib/database.types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { getServiceRoleClient, isServiceRoleAvailable } from '@/lib/api-service-role-helper'
 import { resendInvitationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-
-// Client admin Supabase pour les opérations privilégiées
-const supabaseAdmin = process.env.SUPABASE_SERVICE_ROLE_KEY ? createClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-) : null
 
 export async function POST(request: Request) {
   try {
@@ -27,13 +14,14 @@ export async function POST(request: Request) {
 
     const { userProfile: currentUserProfile } = authResult.data
 
-    if (!supabaseAdmin) {
+    if (!isServiceRoleAvailable()) {
       return NextResponse.json(
         { error: 'Service non configuré - SUPABASE_SERVICE_ROLE_KEY manquant' },
         { status: 503 }
       )
     }
 
+    const supabaseAdmin = getServiceRoleClient()
     const body = await request.json()
 
     // ✅ ZOD VALIDATION

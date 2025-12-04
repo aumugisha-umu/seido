@@ -1,32 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
-import { createClient } from "@supabase/supabase-js"
-import { Database } from "@/lib/database.types"
 import { emailService } from "@/lib/email/email-service"
 import { EMAIL_CONFIG } from "@/lib/email/resend-client"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+import { getServiceRoleClient, isServiceRoleAvailable } from '@/lib/api-service-role-helper'
 import { resetPasswordSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+
 /**
  * POST /api/reset-password
  * Envoi d'email de réinitialisation de mot de passe via Service Role Key
  * Utilise la même approche que le système d'invitations qui fonctionne
  */
-
-// Client admin Supabase avec permissions élevées (même config que invitations)
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-if (!supabaseServiceRoleKey) {
-  logger.warn({}, '⚠️ SUPABASE_SERVICE_ROLE_KEY not configured - password reset will be disabled')
-}
-
-const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  supabaseServiceRoleKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-) : null
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,16 +24,8 @@ export async function POST(request: NextRequest) {
     })
 
     // Vérifier si le service est disponible (même check que invitations)
-    if (!supabaseAdmin) {
+    if (!isServiceRoleAvailable()) {
       logger.error({}, '❌ [RESET-PASSWORD-API] Service not configured - SUPABASE_SERVICE_ROLE_KEY missing')
-      logger.error({
-        hasSupabaseUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-        hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-        allEnvKeys: Object.keys(process.env, '❌ [RESET-PASSWORD-API] Available env vars:').filter(key => key.includes('SUPABASE'))
-      })
-      // ✅ FIX (Oct 23, 2025 - Issue #5): Remove sensitive debugInfo
-      // Never expose: hasServiceRoleKey, env variable names, etc.
       return NextResponse.json(
         {
           success: false,
@@ -60,6 +35,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    const supabaseAdmin = getServiceRoleClient()
     const body = await request.json()
 
     // ✅ ZOD VALIDATION: Type-safe input validation avec sécurité renforcée

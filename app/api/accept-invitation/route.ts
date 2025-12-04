@@ -1,15 +1,7 @@
 import { NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { logger } from '@/lib/logger'
-import type { Database } from '@/lib/database.types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
-import { acceptInvitationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-
-const supabaseAdmin = createClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-)
+import { getServiceRoleClient } from '@/lib/api-service-role-helper'
 
 /**
  * POST /api/accept-invitation
@@ -17,11 +9,12 @@ const supabaseAdmin = createClient<Database>(
  */
 export async function POST() {
   try {
-    // ✅ AUTH: 16 lignes → 3 lignes! (ancien pattern getServerSession → getApiAuthContext)
+    // ✅ AUTH: Centralized authentication
     const authResult = await getApiAuthContext()
     if (!authResult.success) return authResult.error
 
     const { authUser } = authResult.data
+    const supabaseAdmin = getServiceRoleClient()
 
     const userEmail = authUser.email
     if (!userEmail) {

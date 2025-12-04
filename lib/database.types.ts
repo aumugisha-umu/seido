@@ -2100,6 +2100,7 @@ export type Database = {
           company: string | null
           company_id: string | null
           created_at: string | null
+          custom_role_description: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
@@ -2129,6 +2130,7 @@ export type Database = {
           company?: string | null
           company_id?: string | null
           created_at?: string | null
+          custom_role_description?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
@@ -2158,6 +2160,7 @@ export type Database = {
           company?: string | null
           company_id?: string | null
           created_at?: string | null
+          custom_role_description?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null

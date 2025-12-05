@@ -394,6 +394,283 @@ export type Database = {
           },
         ]
       }
+      contract_contacts: {
+        Row: {
+          contract_id: string
+          created_at: string
+          id: string
+          is_primary: boolean | null
+          notes: string | null
+          role: Database["public"]["Enums"]["contract_contact_role"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean | null
+          notes?: string | null
+          role?: Database["public"]["Enums"]["contract_contact_role"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean | null
+          notes?: string | null
+          role?: Database["public"]["Enums"]["contract_contact_role"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_contacts_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_contacts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_documents: {
+        Row: {
+          contract_id: string
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          document_type: Database["public"]["Enums"]["contract_document_type"]
+          file_size: number
+          filename: string
+          id: string
+          mime_type: string
+          original_filename: string
+          storage_bucket: string
+          storage_path: string
+          team_id: string
+          title: string | null
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          document_type?: Database["public"]["Enums"]["contract_document_type"]
+          file_size: number
+          filename: string
+          id?: string
+          mime_type: string
+          original_filename: string
+          storage_bucket?: string
+          storage_path: string
+          team_id: string
+          title?: string | null
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          document_type?: Database["public"]["Enums"]["contract_document_type"]
+          file_size?: number
+          filename?: string
+          id?: string
+          mime_type?: string
+          original_filename?: string
+          storage_bucket?: string
+          storage_path?: string
+          team_id?: string
+          title?: string | null
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_documents_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_documents_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_documents_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_documents_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          charges_amount: number | null
+          comments: string | null
+          contract_type: Database["public"]["Enums"]["contract_type"]
+          created_at: string
+          created_by: string
+          deleted_at: string | null
+          deleted_by: string | null
+          duration_months: number
+          end_date: string | null
+          guarantee_amount: number | null
+          guarantee_notes: string | null
+          guarantee_type: Database["public"]["Enums"]["guarantee_type"]
+          id: string
+          lot_id: string
+          metadata: Json | null
+          payment_frequency: Database["public"]["Enums"]["payment_frequency"]
+          payment_frequency_value: number
+          renewed_from_id: string | null
+          renewed_to_id: string | null
+          rent_amount: number
+          signed_date: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["contract_status"]
+          team_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          charges_amount?: number | null
+          comments?: string | null
+          contract_type?: Database["public"]["Enums"]["contract_type"]
+          created_at?: string
+          created_by: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          duration_months: number
+          end_date?: string | null
+          guarantee_amount?: number | null
+          guarantee_notes?: string | null
+          guarantee_type?: Database["public"]["Enums"]["guarantee_type"]
+          id?: string
+          lot_id: string
+          metadata?: Json | null
+          payment_frequency?: Database["public"]["Enums"]["payment_frequency"]
+          payment_frequency_value?: number
+          renewed_from_id?: string | null
+          renewed_to_id?: string | null
+          rent_amount: number
+          signed_date?: string | null
+          start_date: string
+          status?: Database["public"]["Enums"]["contract_status"]
+          team_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          charges_amount?: number | null
+          comments?: string | null
+          contract_type?: Database["public"]["Enums"]["contract_type"]
+          created_at?: string
+          created_by?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          duration_months?: number
+          end_date?: string | null
+          guarantee_amount?: number | null
+          guarantee_notes?: string | null
+          guarantee_type?: Database["public"]["Enums"]["guarantee_type"]
+          id?: string
+          lot_id?: string
+          metadata?: Json | null
+          payment_frequency?: Database["public"]["Enums"]["payment_frequency"]
+          payment_frequency_value?: number
+          renewed_from_id?: string | null
+          renewed_to_id?: string | null
+          rent_amount?: number
+          signed_date?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["contract_status"]
+          team_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_renewed_from_id_fkey"
+            columns: ["renewed_from_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_renewed_to_id_fkey"
+            columns: ["renewed_to_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       conversation_messages: {
         Row: {
           content: string
@@ -2339,6 +2616,7 @@ export type Database = {
       }
     }
     Functions: {
+      can_manage_contract: { Args: { contract_uuid: string }; Returns: boolean }
       can_manage_intervention: {
         Args: { p_intervention_id: string }
         Returns: boolean
@@ -2361,6 +2639,7 @@ export type Database = {
         Returns: boolean
       }
       can_view_building: { Args: { building_uuid: string }; Returns: boolean }
+      can_view_contract: { Args: { contract_uuid: string }; Returns: boolean }
       can_view_conversation: { Args: { p_thread_id: string }; Returns: boolean }
       can_view_intervention: {
         Args: { p_intervention_id: string }
@@ -2393,6 +2672,7 @@ export type Database = {
         }[]
       }
       get_building_team_id: { Args: { building_uuid: string }; Returns: string }
+      get_contract_team_id: { Args: { contract_uuid: string }; Returns: string }
       get_current_user_id: { Args: never; Returns: string }
       get_current_user_role: {
         Args: never
@@ -2511,6 +2791,32 @@ export type Database = {
         | "quote"
         | "report"
       activity_status: "success" | "failure" | "pending"
+      contract_contact_role:
+        | "locataire"
+        | "colocataire"
+        | "garant"
+        | "representant_legal"
+        | "autre"
+      contract_document_type:
+        | "bail"
+        | "avenant"
+        | "etat_des_lieux_entree"
+        | "etat_des_lieux_sortie"
+        | "attestation_assurance"
+        | "justificatif_identite"
+        | "justificatif_revenus"
+        | "caution_bancaire"
+        | "quittance"
+        | "reglement_copropriete"
+        | "diagnostic"
+        | "autre"
+      contract_status:
+        | "brouillon"
+        | "actif"
+        | "expire"
+        | "resilie"
+        | "renouvele"
+      contract_type: "bail_habitation" | "bail_meuble"
       conversation_thread_type:
         | "group"
         | "tenant_to_managers"
@@ -2526,6 +2832,12 @@ export type Database = {
       document_visibility_level: "equipe" | "locataire" | "intervention"
       email_direction: "received" | "sent"
       email_status: "unread" | "read" | "archived" | "deleted"
+      guarantee_type:
+        | "pas_de_garantie"
+        | "compte_proprietaire"
+        | "compte_bloque"
+        | "e_depot"
+        | "autre"
       intervention_document_type:
         | "rapport"
         | "photo_avant"
@@ -2578,6 +2890,7 @@ export type Database = {
         | "status_change"
         | "reminder"
         | "deadline"
+      payment_frequency: "mensuel" | "trimestriel" | "semestriel" | "annuel"
       property_document_type:
         | "bail"
         | "garantie"
@@ -2770,6 +3083,29 @@ export const Constants = {
         "report",
       ],
       activity_status: ["success", "failure", "pending"],
+      contract_contact_role: [
+        "locataire",
+        "colocataire",
+        "garant",
+        "representant_legal",
+        "autre",
+      ],
+      contract_document_type: [
+        "bail",
+        "avenant",
+        "etat_des_lieux_entree",
+        "etat_des_lieux_sortie",
+        "attestation_assurance",
+        "justificatif_identite",
+        "justificatif_revenus",
+        "caution_bancaire",
+        "quittance",
+        "reglement_copropriete",
+        "diagnostic",
+        "autre",
+      ],
+      contract_status: ["brouillon", "actif", "expire", "resilie", "renouvele"],
+      contract_type: ["bail_habitation", "bail_meuble"],
       conversation_thread_type: [
         "group",
         "tenant_to_managers",
@@ -2787,6 +3123,13 @@ export const Constants = {
       document_visibility_level: ["equipe", "locataire", "intervention"],
       email_direction: ["received", "sent"],
       email_status: ["unread", "read", "archived", "deleted"],
+      guarantee_type: [
+        "pas_de_garantie",
+        "compte_proprietaire",
+        "compte_bloque",
+        "e_depot",
+        "autre",
+      ],
       intervention_document_type: [
         "rapport",
         "photo_avant",
@@ -2844,6 +3187,7 @@ export const Constants = {
         "reminder",
         "deadline",
       ],
+      payment_frequency: ["mensuel", "trimestriel", "semestriel", "annuel"],
       property_document_type: [
         "bail",
         "garantie",

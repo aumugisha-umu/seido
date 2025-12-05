@@ -52,6 +52,7 @@
 ### ✨ Caractéristiques principales
 
 - 🏢 **Gestion de patrimoine** - Bâtiments, lots, contacts, documents
+- 📝 **Gestion des contrats/baux** - Création, suivi, renouvellement avec alertes expiration
 - 🔧 **Workflow d'interventions** - Cycle complet avec 11 statuts
 - 💰 **Système de devis** - Demandes multi-prestataires et comparaison
 - 📅 **Planification** - Gestion des disponibilités et créneaux horaires
@@ -60,7 +61,7 @@
 - 🔐 **Sécurité** - RLS (Row Level Security) au niveau base de données
 - 📧 **Notifications multi-canaux** - In-app, Push, Email (18 templates)
 - ✉️ **Email client IMAP/SMTP** - Sync emails et gestion communications
-- 🎨 **UI/UX** - 264 composants (50+ shadcn/ui + 19 shared + custom)
+- 🎨 **UI/UX** - 270+ composants (50+ shadcn/ui + 19 shared + custom)
 - ⚡ **Performance** - Cache multi-niveaux (Redis + LRU)
 
 ### 🚀 Fonctionnalités Premium
@@ -95,17 +96,50 @@
 | **Composants UI** | 264 composants | 50+ shadcn/ui + 76 intervention workflow + 19 shared + dashboards |
 | **Storybook Stories** | 19 stories | Documentation interactive composants intervention |
 | **Services** | 24 services | Domain services (business logic) |
-| **Repositories** | 18 repositories | Data access layer avec caching |
+| **Repositories** | 21 repositories | Data access layer avec caching |
 | **Custom Hooks** | 51 hooks | Auth, data fetching, UI state, real-time |
 | **Validation Schemas** | 59 schémas Zod | 780+ lignes, 95% routes validées |
 | **Email Templates** | 18 templates React Email | Auth, interventions, quotes |
-| **Migrations DB** | 83 migrations | Phases 1, 2, 3 appliquées |
+| **Migrations DB** | 85 migrations | Phases 1, 2, 3, 4 (contracts) appliquées |
 | **Test Coverage** | 60% (unit) | Cible: 80% |
 | **Build Status** | ✅ 0 erreurs TS | Production ready |
 
 ---
 
 ## 🚀 Dernières Mises à Jour - Décembre 2025
+
+### 📝 Module Contrats/Baux (Dec 5, 2025)
+
+**Gestion complète des contrats de location** avec alertes automatiques d'expiration.
+
+**Fonctionnalités** :
+- 📝 **Création en 5 étapes** - Lot → Contrat → Paiements → Contacts & Garantie → Confirmation
+- 👥 **Gestion des contacts** - Locataires, colocataires et garants liés au contrat
+- 💰 **Configuration des paiements** - Loyer, charges, fréquence de paiement
+- 🛡️ **Garantie locative** - Types multiples (dépôt, compte bloqué, e-dépôt, etc.)
+- 📄 **Documents contractuels** - Upload avec types (bail, avenant, état des lieux, etc.)
+- ⏰ **Alertes automatiques** - Notifications 30j et 7j avant expiration
+- ✏️ **Édition complète** - Modification des contrats existants
+
+**Nouvelles tables DB** :
+- `contracts` - Contrats de bail avec loyer, charges, garantie
+- `contract_contacts` - Liaison locataires/garants (table junction)
+- `contract_documents` - Documents associés aux contrats
+
+**Nouveaux composants** (25+) :
+```
+components/contracts/
+├── contracts-navigator.tsx     # Navigateur avec filtres et recherche
+├── contract-card-compact.tsx   # Carte pour liste
+├── contract-status-badge.tsx   # Badge statut dynamique
+├── contract-type-badge.tsx     # Badge type de bail
+├── contract-contacts-list.tsx  # Liste locataires/garants
+└── ...
+```
+
+**User Stories couvertes** : US-G22 à US-G27 (voir section User Stories)
+
+---
 
 ### 📊 Microsoft Clarity & Bannière Cookies RGPD (Dec 4, 2025)
 
@@ -389,16 +423,17 @@ seido-app/
 ├── app/                          # Next.js App Router
 │   ├── [role]/                   # Routes dynamiques par rôle
 │   │   ├── admin/                # Dashboard admin (3 pages)
-│   │   ├── gestionnaire/         # Dashboard gestionnaire (13 pages)
+│   │   ├── gestionnaire/         # Dashboard gestionnaire (16 pages)
 │   │   ├── prestataire/          # Dashboard prestataire (5 pages)
 │   │   └── locataire/            # Dashboard locataire (4 pages)
 │   ├── api/                      # 86 API routes (100% auth, 95% validated)
 │   ├── actions/                  # 12 Server Actions files
 │   └── auth/                     # Authentication pages
 │
-├── components/                   # React Components (245 total)
+├── components/                   # React Components (270+ total)
 │   ├── ui/                       # 50+ shadcn/ui components
 │   ├── dashboards/               # Role-specific dashboards
+│   ├── contracts/                # 25+ contract management components
 │   ├── intervention/             # 57 intervention workflow components
 │   ├── email/                    # Email client components
 │   └── notifications/            # Notification components
@@ -453,7 +488,7 @@ SEIDO implémente 4 rôles distincts avec permissions granulaires et isolation m
 | Rôle | Permissions Clés | Dashboard | Pages | Cas d'usage |
 |------|------------------|-----------|-------|-------------|
 | **Admin** | Administration système complète, accès global | KPIs globaux, gestion users | 3 pages | Supervision plateforme |
-| **Gestionnaire** | Gestion patrimoine, validation interventions, email client | Portfolio, interventions en attente, emails | 13 pages | Gestion immobilière |
+| **Gestionnaire** | Gestion patrimoine, contrats/baux, validation interventions, email client | Portfolio, contrats, interventions, emails | 16 pages | Gestion immobilière |
 | **Prestataire** | Exécution travaux, création devis, planning | Tâches assignées, planning | 5 pages | Maintenance & réparations |
 | **Locataire** | Création demandes, suivi interventions, validation | Mes demandes, historique | 4 pages | Vie quotidienne logement |
 
@@ -464,7 +499,7 @@ SEIDO implémente 4 rôles distincts avec permissions granulaires et isolation m
 - `/admin/notifications` - System notifications
 - `/admin/profile` - Admin profile management
 
-#### Gestionnaire (13 pages)
+#### Gestionnaire (16 pages)
 - `/gestionnaire/dashboard` - Portfolio overview + recent interventions
 - `/gestionnaire/biens` - Buildings & lots list
 - `/gestionnaire/biens/immeubles/[id]` - Building details
@@ -472,11 +507,14 @@ SEIDO implémente 4 rôles distincts avec permissions granulaires et isolation m
 - `/gestionnaire/biens/lots/[id]` - Lot details
 - `/gestionnaire/biens/lots/nouveau` - Create lot
 - `/gestionnaire/contacts` - Contacts management
+- `/gestionnaire/contrats` - Contracts list with filters
+- `/gestionnaire/contrats/[id]` - Contract details
+- `/gestionnaire/contrats/nouveau` - Create contract (5 steps)
+- `/gestionnaire/contrats/modifier/[id]` - Edit contract
 - `/gestionnaire/interventions` - Interventions list
 - `/gestionnaire/interventions/[id]` - Intervention details
 - `/gestionnaire/mail` - Email client (IMAP/SMTP)
 - `/gestionnaire/parametres/emails` - Email connections
-- `/gestionnaire/notifications` - Notifications
 - `/gestionnaire/profile` - Profile
 
 #### Prestataire (5 pages)
@@ -559,6 +597,20 @@ Cette section détaille toutes les fonctionnalités de l'application sous forme 
 **US-G20**: En tant que gestionnaire, je veux synchroniser les emails des prestataires et locataires afin d'avoir un historique centralisé des communications.
 
 **US-G21**: En tant que gestionnaire, je veux envoyer des emails depuis la plateforme et les associer aux interventions afin de maintenir le contexte.
+
+#### Gestion des Contrats/Baux
+
+**US-G22**: En tant que gestionnaire, je veux créer des contrats de bail avec un formulaire en 5 étapes afin de structurer les informations de location.
+
+**US-G23**: En tant que gestionnaire, je veux lier des locataires et garants existants aux contrats afin de gérer les relations contractuelles.
+
+**US-G24**: En tant que gestionnaire, je veux configurer les conditions financières (loyer, charges, garantie) afin de formaliser les obligations locatives.
+
+**US-G25**: En tant que gestionnaire, je veux recevoir des alertes automatiques 30 et 7 jours avant l'expiration des baux afin de préparer les renouvellements.
+
+**US-G26**: En tant que gestionnaire, je veux téléverser des documents contractuels (bail, états des lieux, attestations) afin de centraliser les pièces justificatives.
+
+**US-G27**: En tant que gestionnaire, je veux visualiser la liste de mes contrats avec filtres par statut afin de suivre mon portefeuille locatif.
 
 ---
 
@@ -1505,7 +1557,8 @@ npm run build
 | **Phase 1** | Users, Teams, Companies, Invitations | 15 migrations | `users`, `teams`, `team_members`, `companies`, `user_invitations` | ✅ Appliquée |
 | **Phase 2** | Buildings, Lots, Property Documents | 18 migrations | `buildings`, `lots`, `building_contacts`, `lot_contacts`, `property_documents` | ✅ Appliquée |
 | **Phase 3** | Interventions, Quotes, Chat, Notifications | 50 migrations | `interventions`, `intervention_assignments`, `intervention_quotes`, `intervention_time_slots`, `time_slot_responses`, `intervention_documents`, `intervention_comments`, `conversation_threads`, `conversation_messages`, `notifications`, `activity_logs`, `push_subscriptions` | ✅ Appliquée |
-| **TOTAL** | **3 phases complètes** | **83 migrations SQL** | **24 tables principales** | ✅ **Production** |
+| **Phase 4** | Contracts, Contract Contacts, Contract Documents | 2 migrations | `contracts`, `contract_contacts`, `contract_documents` | ✅ Appliquée |
+| **TOTAL** | **4 phases complètes** | **85 migrations SQL** | **27 tables principales** | ✅ **Production** |
 
 ### Schéma Principal
 
@@ -1625,6 +1678,63 @@ lot_contacts (
 )
 
 -- ========================================
+-- PHASE 4: CONTRACTS (BAUX)
+-- ========================================
+contracts (
+  id UUID PRIMARY KEY,
+  team_id UUID REFERENCES teams NOT NULL,
+  lot_id UUID REFERENCES lots NOT NULL,
+  created_by UUID REFERENCES users,
+  title TEXT,
+  contract_type contract_type NOT NULL,  -- 'bail_habitation' | 'bail_meuble'
+  status contract_status NOT NULL,       -- 'brouillon' | 'actif' | 'expire' | 'resilie' | 'renouvele'
+  start_date DATE NOT NULL,
+  duration_months INT NOT NULL,
+  end_date DATE GENERATED,  -- start_date + duration_months
+  payment_frequency payment_frequency,   -- 'mensuel' | 'trimestriel' | etc.
+  payment_frequency_value INT DEFAULT 1,
+  rent_amount DECIMAL(10,2),
+  charges_amount DECIMAL(10,2),
+  guarantee_type guarantee_type,         -- 'pas_de_garantie' | 'compte_proprietaire' | etc.
+  guarantee_amount DECIMAL(10,2),
+  guarantee_notes TEXT,
+  comments TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ,
+  deleted_by UUID REFERENCES users
+)
+
+contract_contacts (
+  id UUID PRIMARY KEY,
+  contract_id UUID REFERENCES contracts NOT NULL,
+  user_id UUID REFERENCES users NOT NULL,
+  role contract_contact_role NOT NULL,   -- 'locataire' | 'colocataire' | 'garant' | 'autre'
+  is_primary BOOLEAN DEFAULT false,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+)
+
+contract_documents (
+  id UUID PRIMARY KEY,
+  contract_id UUID REFERENCES contracts NOT NULL,
+  team_id UUID REFERENCES teams NOT NULL,
+  document_type contract_document_type,  -- 'bail' | 'avenant' | 'etat_des_lieux_entree' | etc.
+  filename TEXT NOT NULL,
+  original_filename TEXT,
+  file_size BIGINT,
+  mime_type TEXT,
+  storage_path TEXT NOT NULL,
+  storage_bucket TEXT DEFAULT 'contract-documents',
+  title TEXT,
+  description TEXT,
+  uploaded_by UUID REFERENCES users,
+  uploaded_at TIMESTAMPTZ DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ,
+  deleted_by UUID REFERENCES users
+)
+
+-- ========================================
 -- PHASE 3: INTERVENTIONS
 -- ========================================
 interventions (
@@ -1680,6 +1790,16 @@ invitation_status: 'pending' | 'accepted' | 'expired' | 'cancelled'
 -- Property
 lot_category: 'appartement' | 'maison' | 'garage' | 'local_commercial' | 'parking' | 'autre'
 document_visibility_level: 'equipe' | 'locataire'
+
+-- Contracts (Baux)
+contract_type: 'bail_habitation' | 'bail_meuble'
+contract_status: 'brouillon' | 'actif' | 'expire' | 'resilie' | 'renouvele'
+guarantee_type: 'pas_de_garantie' | 'compte_proprietaire' | 'compte_bloque' | 'e_depot' | 'autre'
+payment_frequency: 'mensuel' | 'trimestriel' | 'semestriel' | 'annuel'
+contract_contact_role: 'locataire' | 'colocataire' | 'garant' | 'autre'
+contract_document_type: 'bail' | 'avenant' | 'etat_des_lieux_entree' | 'etat_des_lieux_sortie' |
+                        'attestation_assurance' | 'justificatif_identite' | 'justificatif_revenus' |
+                        'caution_bancaire' | 'quittance' | 'reglement_copropriete' | 'diagnostic' | 'autre'
 
 -- Interventions
 intervention_status:

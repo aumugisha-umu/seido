@@ -727,3 +727,338 @@ export async function notifyDocumentUploaded(params: {
     }
   }
 }
+
+// ============================================================================
+// CONTRACT NOTIFICATIONS
+// ============================================================================
+
+/**
+ * Notify team managers about an expiring contract
+ *
+ * @param contractId - ID of the contract
+ * @param daysUntilExpiry - Number of days until contract expires
+ */
+export async function notifyContractExpiring({
+  contractId,
+  daysUntilExpiry
+}: {
+  contractId: string
+  daysUntilExpiry: number
+}) {
+  try {
+    const { profile, team } = await getServerAuthContext('gestionnaire')
+
+    logger.info({
+      action: 'notifyContractExpiring',
+      contractId,
+      daysUntilExpiry,
+      teamId: team.id
+    }, '📬 [NOTIFICATION-ACTION] Creating contract expiration notification')
+
+    const repository = await createServerNotificationRepository()
+
+    // Get contract details
+    const { data: contract } = await repository.supabase
+      .from('contracts')
+      .select(`
+        id,
+        title,
+        end_date,
+        lot_id,
+        lots(reference, address, city)
+      `)
+      .eq('id', contractId)
+      .single()
+
+    if (!contract) {
+      return { success: false, error: 'Contract not found' }
+    }
+
+    const notifications = []
+
+    // Get team managers
+    const { data: teamManagers } = await repository.supabase
+      .from('team_members')
+      .select('user_id')
+      .eq('team_id', team.id)
+      .eq('role', 'gestionnaire')
+
+    const urgencyLevel = daysUntilExpiry <= 7 ? 'urgent' : 'warning'
+    const urgencyEmoji = daysUntilExpiry <= 7 ? '🔴' : '🟠'
+
+    for (const manager of teamManagers || []) {
+      const result = await repository.create({
+        user_id: manager.user_id,
+        team_id: team.id,
+        created_by: profile.id,
+        type: 'alert',
+        title: `${urgencyEmoji} Contrat expire bientot`,
+        message: `Le contrat "${contract.title}" expire dans ${daysUntilExpiry} jour${daysUntilExpiry > 1 ? 's' : ''}`,
+        is_personal: false,
+        metadata: {
+          contract_id: contractId,
+          days_until_expiry: daysUntilExpiry,
+          urgency_level: urgencyLevel,
+          end_date: contract.end_date,
+          lot_reference: (contract.lots as any)?.reference
+        },
+        related_entity_type: 'contract',
+        related_entity_id: contractId,
+        read: false
+      })
+      if (result.success && result.data) notifications.push(result.data)
+    }
+
+    logger.info({
+      contractId,
+      notificationCount: notifications.length
+    }, '✅ [NOTIFICATION-ACTION] Contract expiration notifications created')
+
+    return { success: true, data: notifications }
+  } catch (error) {
+    logger.error({
+      error,
+      contractId
+    }, '❌ [NOTIFICATION-ACTION] Failed to notify contract expiration')
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+/**
+ * Check all expiring contracts for a team and send notifications
+ * This should be called periodically (e.g., by a cron job or on dashboard load)
+ *
+ * Sends notifications for:
+ * - Contracts expiring in 30 days (if not already notified)
+ * - Contracts expiring in 7 days (if not already notified at 7 days)
+ */
+export async function checkExpiringContracts() {
+  try {
+    const { profile, team } = await getServerAuthContext('gestionnaire')
+
+    logger.info({
+      action: 'checkExpiringContracts',
+      teamId: team.id
+    }, '📬 [NOTIFICATION-ACTION] Checking for expiring contracts')
+
+    const repository = await createServerNotificationRepository()
+
+    const now = new Date()
+    const in7Days = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+    // Get active contracts expiring in the next 30 days
+    const { data: expiringContracts } = await repository.supabase
+      .from('contracts')
+      .select(`
+        id,
+        title,
+        end_date,
+        lot_id,
+        metadata
+      `)
+      .eq('team_id', team.id)
+      .eq('status', 'actif')
+      .is('deleted_at', null)
+      .gte('end_date', now.toISOString().split('T')[0])
+      .lte('end_date', in30Days.toISOString().split('T')[0])
+
+    if (!expiringContracts || expiringContracts.length === 0) {
+      return { success: true, data: [], message: 'No expiring contracts found' }
+    }
+
+    const notifications = []
+
+    for (const contract of expiringContracts) {
+      const endDate = new Date(contract.end_date)
+      const daysUntilExpiry = Math.ceil((endDate.getTime() - now.getTime()) / (24 * 60 * 60 * 1000))
+
+      // Check if we've already sent a notification for this milestone
+      const metadata = (contract.metadata as Record<string, any>) || {}
+      const notified30Days = metadata.notified_30_days
+      const notified7Days = metadata.notified_7_days
+
+      // Send 30-day notification if not sent yet and within range
+      if (daysUntilExpiry <= 30 && daysUntilExpiry > 7 && !notified30Days) {
+        const result = await notifyContractExpiring({
+          contractId: contract.id,
+          daysUntilExpiry
+        })
+
+        if (result.success) {
+          // Update contract metadata to mark notification sent
+          await repository.supabase
+            .from('contracts')
+            .update({
+              metadata: {
+                ...metadata,
+                notified_30_days: new Date().toISOString()
+              }
+            })
+            .eq('id', contract.id)
+
+          notifications.push(...(result.data || []))
+        }
+      }
+
+      // Send 7-day notification if not sent yet
+      if (daysUntilExpiry <= 7 && !notified7Days) {
+        const result = await notifyContractExpiring({
+          contractId: contract.id,
+          daysUntilExpiry
+        })
+
+        if (result.success) {
+          // Update contract metadata to mark notification sent
+          await repository.supabase
+            .from('contracts')
+            .update({
+              metadata: {
+                ...metadata,
+                notified_7_days: new Date().toISOString()
+              }
+            })
+            .eq('id', contract.id)
+
+          notifications.push(...(result.data || []))
+        }
+      }
+    }
+
+    logger.info({
+      teamId: team.id,
+      expiringCount: expiringContracts.length,
+      notificationsSent: notifications.length
+    }, '✅ [NOTIFICATION-ACTION] Expiring contracts check complete')
+
+    return { success: true, data: notifications }
+  } catch (error) {
+    logger.error({
+      error
+    }, '❌ [NOTIFICATION-ACTION] Failed to check expiring contracts')
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+/**
+ * Create notification for new contract
+ *
+ * @param contractId - ID of the contract
+ */
+export async function createContractNotification(contractId: string) {
+  try {
+    const { profile, team } = await getServerAuthContext('gestionnaire')
+
+    logger.info({
+      action: 'createContractNotification',
+      contractId,
+      userId: profile.id
+    }, '📬 [NOTIFICATION-ACTION] Creating contract notification')
+
+    const repository = await createServerNotificationRepository()
+
+    // Get contract details
+    const { data: contract } = await repository.supabase
+      .from('contracts')
+      .select(`
+        id,
+        title,
+        start_date,
+        end_date,
+        rent_amount,
+        lot_id,
+        lots(reference, address, city)
+      `)
+      .eq('id', contractId)
+      .single()
+
+    if (!contract) {
+      return { success: false, error: 'Contract not found' }
+    }
+
+    const notifications = []
+
+    // Get team managers
+    const { data: teamManagers } = await repository.supabase
+      .from('team_members')
+      .select('user_id')
+      .eq('team_id', team.id)
+      .eq('role', 'gestionnaire')
+      .neq('user_id', profile.id)
+
+    for (const manager of teamManagers || []) {
+      const result = await repository.create({
+        user_id: manager.user_id,
+        team_id: team.id,
+        created_by: profile.id,
+        type: 'system',
+        title: 'Nouveau contrat cree',
+        message: `Le contrat "${contract.title}" a ete cree pour le lot ${(contract.lots as any)?.reference || 'N/A'}`,
+        is_personal: false,
+        metadata: {
+          contract_id: contractId,
+          start_date: contract.start_date,
+          end_date: contract.end_date,
+          rent_amount: contract.rent_amount
+        },
+        related_entity_type: 'contract',
+        related_entity_id: contractId,
+        read: false
+      })
+      if (result.success && result.data) notifications.push(result.data)
+    }
+
+    // Notify tenants linked to this contract
+    const { data: contractContacts } = await repository.supabase
+      .from('contract_contacts')
+      .select('user_id, role')
+      .eq('contract_id', contractId)
+      .eq('role', 'locataire')
+
+    for (const contact of contractContacts || []) {
+      const result = await repository.create({
+        user_id: contact.user_id,
+        team_id: team.id,
+        created_by: profile.id,
+        type: 'system',
+        title: 'Votre contrat de bail',
+        message: `Un contrat de bail "${contract.title}" a ete cree pour vous`,
+        is_personal: true,
+        metadata: {
+          contract_id: contractId,
+          start_date: contract.start_date,
+          end_date: contract.end_date
+        },
+        related_entity_type: 'contract',
+        related_entity_id: contractId,
+        read: false
+      })
+      if (result.success && result.data) notifications.push(result.data)
+    }
+
+    logger.info({
+      contractId,
+      notificationCount: notifications.length
+    }, '✅ [NOTIFICATION-ACTION] Contract notifications created')
+
+    return { success: true, data: notifications }
+  } catch (error) {
+    logger.error({
+      error,
+      contractId
+    }, '❌ [NOTIFICATION-ACTION] Failed to create contract notification')
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}

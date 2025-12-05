@@ -1,4 +1,4 @@
-import { Building, MapPin, Users, Check, Home, Building2, FileText, CheckCircle, User } from "lucide-react"
+import { Building, MapPin, Users, Check, Home, Building2, FileText, CheckCircle, User, CreditCard, Shield } from "lucide-react"
 import { StepConfig } from "@/components/ui/step-progress-header"
 
 export const buildingSteps: StepConfig[] = [
@@ -87,6 +87,30 @@ export const contactSteps: StepConfig[] = [
   {
     icon: Users,
     label: "Contact"
+  },
+  {
+    icon: Check,
+    label: "Confirmation"
+  }
+]
+
+// Steps pour la création de contrat/bail
+export const contractSteps: StepConfig[] = [
+  {
+    icon: Home,
+    label: "Lot"
+  },
+  {
+    icon: FileText,
+    label: "Contrat"
+  },
+  {
+    icon: CreditCard,
+    label: "Paiements"
+  },
+  {
+    icon: Users,
+    label: "Contacts"
   },
   {
     icon: Check,

@@ -361,6 +361,29 @@ export {
   createStorageService
 } from './domain/storage.service'
 
+// Contract Service (Phase 4 - Contracts/Baux)
+export {
+  ContractRepository,
+  ContractContactRepository,
+  ContractDocumentRepository,
+  createContractRepository,
+  createContractContactRepository,
+  createContractDocumentRepository,
+  createServerContractRepository,
+  createServerContractContactRepository,
+  createServerContractDocumentRepository,
+  createServerActionContractRepository,
+  createServerActionContractContactRepository,
+  createServerActionContractDocumentRepository
+} from './repositories/contract.repository'
+
+export {
+  ContractService,
+  createContractService,
+  createServerContractService,
+  createServerActionContractService
+} from './domain/contract.service'
+
 // Assignment Utilities
 export {
   determineAssignmentType,
@@ -467,7 +490,8 @@ export const SERVICE_CONFIG = {
     stats: true, // ✅ Phase 4.1 completed
     composite: true, // ✅ Phase 4.2 completed
     contactInvitation: true, // ✅ Phase 5.1 completed
-    tenant: true // ✅ Phase 5.1 completed
+    tenant: true, // ✅ Phase 5.1 completed
+    contract: true // ✅ Phase 4 Contracts completed
   },
   services: {
     user: true,
@@ -480,7 +504,8 @@ export const SERVICE_CONFIG = {
     stats: true,
     composite: true,
     contactInvitation: true,
-    tenant: true
+    tenant: true,
+    contract: true // ✅ Phase 4 Contracts service
   }
 } as const
 

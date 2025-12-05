@@ -4,7 +4,7 @@ import {
   createServerContactService,
   createServerBuildingService
 } from '@/lib/services'
-import ContractCreationClient from './contract-creation-client'
+import ContractFormContainer from '@/components/contract/contract-form-container'
 import { logger } from '@/lib/logger'
 
 /**
@@ -112,12 +112,12 @@ export default async function NewContractPage({
   logger.info('✅ [NEW-CONTRACT-PAGE] Contacts loaded', { count: contacts.length })
 
   return (
-    <ContractCreationClient
+    <ContractFormContainer
+      mode="create"
       teamId={team.id}
       initialBuildingsData={buildingsData}
       initialContacts={contacts}
       prefilledLotId={prefilledLotId}
-      renewFromId={renewFromId}
       // Props pour retour après création de contact
       sessionKey={sessionKey}
       newContactId={newContactId}

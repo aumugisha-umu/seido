@@ -110,6 +110,18 @@ export class ContractService {
   }
 
   /**
+   * Get contract by ID with all relations (ServiceResult format)
+   */
+  async getContractWithRelations(id: string): Promise<{ success: true; data: ContractWithRelations } | { success: false; error: { code: string; message: string } }> {
+    const result = await this.contractRepository.findByIdWithRelations(id)
+    if (isErrorResponse(result)) {
+      logger.error({ id, error: result.error }, 'Failed to get contract with relations')
+      return { success: false, error: result.error }
+    }
+    return { success: true, data: result.data }
+  }
+
+  /**
    * Get all contracts for a team
    */
   async getByTeam(teamId: string, options?: { status?: ContractStatus; includeExpired?: boolean }) {

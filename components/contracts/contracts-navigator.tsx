@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { ContractCard } from './contract-card'
+import { ContractsListView } from './contracts-list-view'
 import { deleteContract } from '@/app/actions/contract-actions'
 import { toast } from 'sonner'
 import { useViewMode } from '@/hooks/use-view-mode'
@@ -362,6 +363,13 @@ export function ContractsNavigator({
                   </Button>
                 )}
               </div>
+            ) : viewMode === 'list' ? (
+              <ContractsListView
+                contracts={filteredContracts}
+                onView={handleView}
+                onEdit={handleEdit}
+                onDelete={handleDeleteClick}
+              />
             ) : (
               <div className={gridClass}>
                 {filteredContracts.map((contract) => (

@@ -18,7 +18,13 @@ import { ContactSection } from '@/components/ui/contact-section'
 import ContactSelector, { ContactSelectorRef } from '@/components/contact-selector'
 import PropertySelector from '@/components/property-selector'
 import LeaseFormDetailsMerged from '@/components/contract/lease-form-details-merged-v1'
-import { createContract, addContractContact } from '@/app/actions/contract-actions'
+import {
+  createContract,
+  addContractContact,
+  updateContract,
+  updateContractContact,
+  removeContractContact
+} from '@/app/actions/contract-actions'
 import { createContractNotification } from '@/app/actions/notification-actions'
 import {
   ArrowLeft,
@@ -30,7 +36,8 @@ import {
   Calendar,
   Users,
   Shield,
-  FileText
+  FileText,
+  Save
 } from 'lucide-react'
 import { logger } from '@/lib/logger'
 import type {
@@ -38,7 +45,7 @@ import type {
   PaymentFrequency,
   GuaranteeType,
   ContractContactRole,
-  ContractCreationClientProps
+  ContractWithRelations
 } from '@/lib/types/contract.types'
 import {
   GUARANTEE_TYPE_LABELS,
@@ -46,10 +53,54 @@ import {
   CONTRACT_CONTACT_ROLE_LABELS
 } from '@/lib/types/contract.types'
 
+// ============================================================================
+// TYPES
+// ============================================================================
+
+interface Contact {
+  id: string
+  name: string
+  email: string | null
+  phone: string | null
+  role: string
+}
+
+interface BuildingsData {
+  buildings: any[]
+  lots: any[]
+  teamId: string | null
+}
+
+export interface ContractFormContainerProps {
+  mode: 'create' | 'edit'
+  teamId: string
+  initialBuildingsData: BuildingsData
+  initialContacts: Contact[]
+
+  // Create mode
+  prefilledLotId?: string | null
+
+  // Edit mode
+  existingContract?: ContractWithRelations
+
+  // Contact creation redirect (create mode only)
+  sessionKey?: string | null
+  newContactId?: string | null
+  contactType?: string | null
+}
+
+// Contact with tracking for edit mode
+interface FormContact {
+  id?: string // Database ID for existing contacts
+  userId: string
+  role: ContractContactRole
+  isPrimary: boolean
+}
+
 // Initial form data (title is editable but can be auto-generated)
 const initialFormData: Partial<ContractFormData> = {
   lotId: '',
-  title: '', // Editable reference
+  title: '',
   startDate: new Date().toISOString().split('T')[0],
   durationMonths: 12,
   comments: '',
@@ -63,6 +114,10 @@ const initialFormData: Partial<ContractFormData> = {
   guaranteeNotes: ''
 }
 
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
 // Generate contract reference from lot and dates: BAIL-{LOT_REF}-{START}-{END}
 function generateContractReference(lotReference: string | undefined, startDate: string, durationMonths: number): string {
   if (!lotReference || !startDate) return ''
@@ -74,56 +129,101 @@ function generateContractReference(lotReference: string | undefined, startDate: 
   return `BAIL-${lotReference}-${formatDate(start)}-${formatDate(end)}`
 }
 
-export default function ContractCreationClient({
+// Map existing contract to form data
+function mapContractToFormData(contract: ContractWithRelations): Partial<ContractFormData> {
+  return {
+    lotId: contract.lot_id,
+    title: contract.title,
+    startDate: contract.start_date,
+    durationMonths: contract.duration_months,
+    comments: contract.comments || '',
+    paymentFrequency: contract.payment_frequency,
+    paymentFrequencyValue: contract.payment_frequency_value,
+    rentAmount: contract.rent_amount,
+    chargesAmount: contract.charges_amount,
+    contacts: (contract.contacts || []).map(c => ({
+      id: c.id,
+      userId: c.user_id,
+      role: c.role,
+      isPrimary: c.is_primary
+    })) as any[],
+    guaranteeType: contract.guarantee_type,
+    guaranteeAmount: contract.guarantee_amount || undefined,
+    guaranteeNotes: contract.guarantee_notes || ''
+  }
+}
+
+// ============================================================================
+// MAIN COMPONENT
+// ============================================================================
+
+export default function ContractFormContainer({
+  mode,
   teamId,
   initialBuildingsData,
   initialContacts,
   prefilledLotId,
-  renewFromId: _renewFromId, // Reserved for renewal feature
-  // Props pour retour après création de contact
+  existingContract,
   sessionKey: initialSessionKey,
   newContactId: initialNewContactId,
   contactType: initialContactType
-}: ContractCreationClientProps) {
+}: ContractFormContainerProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [formData, setFormData] = useState<Partial<ContractFormData>>({
-    ...initialFormData,
-    lotId: prefilledLotId || ''
-  })
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
 
-  // État complet du formulaire (à sauvegarder/restaurer)
+  // Initialize form data based on mode
+  const [formData, setFormData] = useState<Partial<ContractFormData>>(() => {
+    if (mode === 'edit' && existingContract) {
+      return mapContractToFormData(existingContract)
+    }
+    return {
+      ...initialFormData,
+      lotId: prefilledLotId || ''
+    }
+  })
+
+  // Track original contacts for edit mode (to determine adds/removes/updates)
+  const [originalContacts] = useState<FormContact[]>(() => {
+    if (mode === 'edit' && existingContract?.contacts) {
+      return existingContract.contacts.map(c => ({
+        id: c.id,
+        userId: c.user_id,
+        role: c.role,
+        isPrimary: c.is_primary
+      }))
+    }
+    return []
+  })
+
+  // Form state for persistence (create mode only)
   const formState = useMemo(() => ({
     currentStep,
     formData,
-    uploadedFiles: [] // Les fichiers ne peuvent pas être sérialisés
+    uploadedFiles: []
   }), [currentStep, formData])
 
-  // Hook pour sauvegarder et rediriger
+  // Hook for save and redirect (create mode)
   const { saveAndRedirect } = useSaveFormState(formState)
 
-  // Hook pour restaurer l'état après retour de création de contact
+  // Hook for restoring state after contact creation return (create mode)
   const { newContactId, sessionKey } = useRestoreFormState((restoredState: any) => {
-    logger.info(`📥 [CONTRACT-FORM] Restoring form state after contact creation`)
-    setCurrentStep(restoredState.currentStep)
-    setFormData(restoredState.formData)
+    if (mode === 'create') {
+      logger.info(`📥 [CONTRACT-FORM] Restoring form state after contact creation`)
+      setCurrentStep(restoredState.currentStep)
+      setFormData(restoredState.formData)
+    }
   })
-
-  // Handle lot selection from PropertySelector
-  const handleLotSelect = useCallback((lotId: string | null) => {
-    updateField('lotId', lotId || '')
-  }, [])
 
   // Get selected lot from buildingsData
   const selectedLot = useMemo(() => {
     return initialBuildingsData.lots.find((lot: any) => lot.id === formData.lotId)
   }, [initialBuildingsData.lots, formData.lotId])
 
-  // Computed arrays for ContactSection: map formData.contacts to full contact objects
+  // Computed arrays for ContactSection
   const selectedTenants = useMemo(() => {
     return (formData.contacts || [])
       .filter(c => c.role === 'locataire')
@@ -141,6 +241,11 @@ export default function ContractCreationClient({
   // Calculate totals
   const monthlyTotal = (formData.rentAmount || 0) + (formData.chargesAmount || 0)
 
+  // Handle lot selection
+  const handleLotSelect = useCallback((lotId: string | null) => {
+    setFormData(prev => ({ ...prev, lotId: lotId || '' }))
+  }, [])
+
   // Update form field
   const updateField = useCallback(<K extends keyof ContractFormData>(
     field: K,
@@ -151,7 +256,6 @@ export default function ContractCreationClient({
 
   // Contact management
   const addContact = useCallback((contactId: string, role: ContractContactRole) => {
-    // Check if contact already added with this role
     const exists = (formData.contacts || []).some(c => c.userId === contactId && c.role === role)
     if (exists) return
 
@@ -171,8 +275,10 @@ export default function ContractCreationClient({
     }))
   }, [])
 
-  // Auto-sélectionner le nouveau contact après retour de création
+  // Auto-select new contact after return from creation (create mode)
   useEffect(() => {
+    if (mode !== 'create') return
+
     const contactId = newContactId || initialNewContactId
     const contactTypeParam = searchParams.get('contactType') || initialContactType
     const sessionKeyParam = sessionKey || initialSessionKey
@@ -181,7 +287,6 @@ export default function ContractCreationClient({
 
     logger.info(`✅ [CONTRACT-FORM] New contact created: ${contactId}`)
 
-    // Récupérer les données du contact depuis sessionStorage
     const contactDataStr = sessionStorage.getItem(`contact-data-${sessionKeyParam}`)
     if (!contactDataStr) {
       logger.warn(`⚠️ [CONTRACT-FORM] No contact data found in sessionStorage`)
@@ -191,7 +296,6 @@ export default function ContractCreationClient({
     try {
       const contactData = JSON.parse(contactDataStr)
 
-      // Mapper le type vers le rôle ContractContactRole
       const roleMap: Record<string, ContractContactRole> = {
         'tenant': 'locataire',
         'locataire': 'locataire',
@@ -200,7 +304,6 @@ export default function ContractCreationClient({
       }
       const role = roleMap[contactTypeParam || ''] || 'locataire'
 
-      // Vérifier si le contact n'est pas déjà sélectionné
       const alreadySelected = formData.contacts?.some(c => c.userId === contactId)
       if (alreadySelected) {
         logger.info(`ℹ️ [CONTRACT-FORM] Contact already selected: ${contactId}`)
@@ -208,26 +311,21 @@ export default function ContractCreationClient({
         return
       }
 
-      // Ajouter le contact
       addContact(contactId, role)
-
-      // Afficher un toast de confirmation
       toast.success(`${contactData.name} ajouté automatiquement !`)
-
-      // Nettoyer sessionStorage
       sessionStorage.removeItem(`contact-data-${sessionKeyParam}`)
     } catch (error) {
       logger.error(`❌ [CONTRACT-FORM] Error parsing contact data:`, error)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newContactId, initialNewContactId, sessionKey, initialSessionKey])
+  }, [newContactId, initialNewContactId, sessionKey, initialSessionKey, mode])
 
-  // Validation per step (4 steps total after merge)
+  // Validation per step (4 steps total)
   const validateStep = useCallback((step: number): boolean => {
     switch (step) {
       case 0: // Lot selection
         return !!formData.lotId
-      case 1: // Merged: Details (dates + payments)
+      case 1: // Details + Payments
         return !!(formData.startDate && formData.durationMonths && formData.rentAmount && formData.rentAmount > 0)
       case 2: // Contacts & Guarantee
         const hasLocataire = (formData.contacts || []).some(c => c.role === 'locataire')
@@ -253,13 +351,53 @@ export default function ContractCreationClient({
   }, [])
 
   const handleStepClick = useCallback((index: number) => {
-    // Only allow going back or to the next valid step
     if (index < currentStep) {
       setCurrentStep(index)
     } else if (index === currentStep + 1 && validateStep(currentStep)) {
       setCurrentStep(index)
     }
   }, [currentStep, validateStep])
+
+  // Sync contacts for edit mode
+  const syncContacts = useCallback(async (contractId: string) => {
+    const currentContacts = formData.contacts || []
+    const currentUserIds = new Set(currentContacts.map(c => c.userId))
+    const originalUserIds = new Set(originalContacts.map(c => c.userId))
+
+    // Contacts to add (in current but not in original)
+    for (const contact of currentContacts) {
+      if (!originalUserIds.has(contact.userId)) {
+        await addContractContact({
+          contract_id: contractId,
+          user_id: contact.userId,
+          role: contact.role,
+          is_primary: contact.isPrimary
+        })
+      }
+    }
+
+    // Contacts to remove (in original but not in current)
+    for (const original of originalContacts) {
+      if (!currentUserIds.has(original.userId) && original.id) {
+        await removeContractContact(original.id, contractId)
+      }
+    }
+
+    // Contacts to update (role or isPrimary changed)
+    for (const contact of currentContacts) {
+      const original = originalContacts.find(o => o.userId === contact.userId)
+      if (original && original.id) {
+        const roleChanged = original.role !== contact.role
+        const primaryChanged = original.isPrimary !== contact.isPrimary
+        if (roleChanged || primaryChanged) {
+          await updateContractContact(original.id, contractId, {
+            role: contact.role,
+            is_primary: contact.isPrimary
+          })
+        }
+      }
+    }
+  }, [formData.contacts, originalContacts])
 
   // Submit form
   const handleSubmit = useCallback(async () => {
@@ -271,58 +409,94 @@ export default function ContractCreationClient({
     setIsSubmitting(true)
 
     try {
-      // Use user-provided title or auto-generate from lot reference and dates
+      // Use user-provided title or auto-generate
       const finalTitle = formData.title?.trim() || generateContractReference(
         selectedLot?.reference,
         formData.startDate!,
         formData.durationMonths || 12
       )
 
-      // Create the contract
-      const contractResult = await createContract({
-        team_id: teamId,
-        lot_id: formData.lotId!,
-        title: finalTitle,
-        start_date: formData.startDate!,
-        duration_months: formData.durationMonths!,
-        payment_frequency: formData.paymentFrequency as PaymentFrequency,
-        payment_frequency_value: formData.paymentFrequencyValue || 1,
-        rent_amount: formData.rentAmount!,
-        charges_amount: formData.chargesAmount || 0,
-        guarantee_type: formData.guaranteeType as GuaranteeType,
-        guarantee_amount: formData.guaranteeAmount,
-        guarantee_notes: formData.guaranteeNotes,
-        comments: formData.comments
-      })
-
-      if (!contractResult.success || !contractResult.data) {
-        throw new Error(contractResult.error || 'Erreur lors de la création du bail')
-      }
-
-      const contractId = contractResult.data.id
-
-      // Add contacts
-      for (const contact of formData.contacts || []) {
-        await addContractContact({
-          contract_id: contractId,
-          user_id: contact.userId,
-          role: contact.role,
-          is_primary: contact.isPrimary
+      if (mode === 'create') {
+        // CREATE MODE
+        const contractResult = await createContract({
+          team_id: teamId,
+          lot_id: formData.lotId!,
+          title: finalTitle,
+          start_date: formData.startDate!,
+          duration_months: formData.durationMonths!,
+          payment_frequency: formData.paymentFrequency as PaymentFrequency,
+          payment_frequency_value: formData.paymentFrequencyValue || 1,
+          rent_amount: formData.rentAmount!,
+          charges_amount: formData.chargesAmount || 0,
+          guarantee_type: formData.guaranteeType as GuaranteeType,
+          guarantee_amount: formData.guaranteeAmount,
+          guarantee_notes: formData.guaranteeNotes,
+          comments: formData.comments
         })
+
+        if (!contractResult.success || !contractResult.data) {
+          throw new Error(contractResult.error || 'Erreur lors de la création du bail')
+        }
+
+        const contractId = contractResult.data.id
+
+        // Add contacts
+        for (const contact of formData.contacts || []) {
+          await addContractContact({
+            contract_id: contractId,
+            user_id: contact.userId,
+            role: contact.role,
+            is_primary: contact.isPrimary
+          })
+        }
+
+        // Send notification
+        await createContractNotification(contractId)
+
+        toast.success('Bail créé avec succès')
+        router.push(`/gestionnaire/contrats/${contractId}`)
+      } else {
+        // EDIT MODE
+        const contractId = existingContract!.id
+
+        const contractResult = await updateContract(contractId, {
+          lot_id: formData.lotId,
+          title: finalTitle,
+          start_date: formData.startDate,
+          duration_months: formData.durationMonths,
+          payment_frequency: formData.paymentFrequency as PaymentFrequency,
+          payment_frequency_value: formData.paymentFrequencyValue || 1,
+          rent_amount: formData.rentAmount,
+          charges_amount: formData.chargesAmount || 0,
+          guarantee_type: formData.guaranteeType as GuaranteeType,
+          guarantee_amount: formData.guaranteeAmount,
+          guarantee_notes: formData.guaranteeNotes,
+          comments: formData.comments
+        })
+
+        if (!contractResult.success) {
+          throw new Error(contractResult.error || 'Erreur lors de la mise à jour du contrat')
+        }
+
+        // Sync contacts (add/remove/update)
+        await syncContacts(contractId)
+
+        toast.success('Contrat mis à jour avec succès')
+        router.push(`/gestionnaire/contrats/${contractId}`)
       }
-
-      // Send notifications for new contract
-      await createContractNotification(contractId)
-
-      toast.success('Bail créé avec succès')
-      router.push(`/gestionnaire/contrats/${contractId}`)
     } catch (error) {
-      logger.error('Error creating contract:', error)
-      toast.error(error instanceof Error ? error.message : 'Erreur lors de la création du bail')
+      logger.error(`Error ${mode === 'create' ? 'creating' : 'updating'} contract:`, error)
+      toast.error(error instanceof Error ? error.message : `Erreur lors de ${mode === 'create' ? 'la création' : 'la mise à jour'} du bail`)
     } finally {
       setIsSubmitting(false)
     }
-  }, [formData, teamId, router, currentStep, validateStep])
+  }, [mode, formData, teamId, existingContract, router, currentStep, validateStep, selectedLot, syncContacts])
+
+  // Page title based on mode
+  const pageTitle = mode === 'create' ? 'Nouveau bail' : 'Modifier le contrat'
+  const submitLabel = mode === 'create' ? 'Créer le bail' : 'Enregistrer les modifications'
+  const submitIcon = mode === 'create' ? Check : Save
+  const SubmitIcon = submitIcon
 
   // Render step content
   const renderStepContent = () => {
@@ -334,11 +508,12 @@ export default function ContractCreationClient({
             <div className="text-center max-w-2xl mx-auto mb-4">
               <h2 className="text-2xl font-bold mb-2">Sélectionnez le lot</h2>
               <p className="text-muted-foreground">
-                Choisissez le lot auquel sera associé ce bail.
+                {mode === 'create'
+                  ? 'Choisissez le lot auquel sera associé ce bail.'
+                  : 'Modifiez le lot si nécessaire (attention: cette action peut avoir des conséquences).'}
               </p>
             </div>
 
-            {/* PropertySelector with view toggle */}
             <div className="h-[500px] w-full overflow-hidden">
               <PropertySelector
                 mode="select"
@@ -382,7 +557,7 @@ export default function ContractCreationClient({
                 </p>
               </div>
 
-              {/* Contacts section using reusable ContactSection - Side by side layout */}
+              {/* Contacts section - Side by side layout */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <ContactSection
                   sectionType="tenants"
@@ -461,7 +636,7 @@ export default function ContractCreationClient({
               </div>
             </CardContent>
 
-            {/* Reusable ContactSelector modal (same as building/lot/intervention) */}
+            {/* ContactSelector modal */}
             <ContactSelector
               ref={contactSelectorRef}
               teamId={teamId}
@@ -481,10 +656,14 @@ export default function ContractCreationClient({
                 const role = contactType === 'tenant' ? 'locataire' : 'garant'
                 removeContactById(contactId, role as ContractContactRole)
               }}
-              // Redirection vers le wizard multi-étapes pour création de contact
               onRequestContactCreation={(contactType) => {
-                logger.info(`🔗 [CONTRACT-FORM] Redirecting to contact creation flow`, { contactType })
-                saveAndRedirect('/gestionnaire/contacts/nouveau', { type: contactType })
+                if (mode === 'create') {
+                  logger.info(`🔗 [CONTRACT-FORM] Redirecting to contact creation flow`, { contactType })
+                  saveAndRedirect('/gestionnaire/contacts/nouveau', { type: contactType })
+                } else {
+                  // In edit mode, open new tab or show message
+                  toast.info('Créez d\'abord le contact depuis la page contacts, puis revenez ici.')
+                }
               }}
             />
           </Card>
@@ -492,7 +671,6 @@ export default function ContractCreationClient({
 
       // Step 4: Confirmation
       case 3:
-        // Use user-provided title or generate one
         const displayRef = formData.title?.trim() || generateContractReference(
           selectedLot?.reference,
           formData.startDate!,
@@ -503,7 +681,9 @@ export default function ContractCreationClient({
             <div className="text-center max-w-2xl mx-auto">
               <h2 className="text-2xl font-bold mb-2">Récapitulatif</h2>
               <p className="text-muted-foreground">
-                Vérifiez les informations avant de créer le bail.
+                {mode === 'create'
+                  ? 'Vérifiez les informations avant de créer le bail.'
+                  : 'Vérifiez les modifications avant d\'enregistrer.'}
               </p>
             </div>
 
@@ -622,6 +802,31 @@ export default function ContractCreationClient({
                 </CardContent>
               </Card>
             </div>
+
+            {/* Changes summary (edit mode only) */}
+            {mode === 'edit' && (() => {
+              const currentUserIds = new Set((formData.contacts || []).map(c => c.userId))
+              const originalUserIds = new Set(originalContacts.map(c => c.userId))
+              const toAdd = [...currentUserIds].filter(id => !originalUserIds.has(id)).length
+              const toRemove = [...originalUserIds].filter(id => !currentUserIds.has(id)).length
+
+              if (toAdd > 0 || toRemove > 0) {
+                return (
+                  <Card className="border-amber-200 bg-amber-50">
+                    <CardContent className="p-4">
+                      <h4 className="font-medium text-amber-800 mb-2">Modifications des contacts</h4>
+                      {toRemove > 0 && (
+                        <p className="text-sm text-amber-700">- {toRemove} contact(s) seront retirés</p>
+                      )}
+                      {toAdd > 0 && (
+                        <p className="text-sm text-amber-700">+ {toAdd} contact(s) seront ajoutés</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )
+              }
+              return null
+            })()}
           </div>
         )
 
@@ -636,17 +841,24 @@ export default function ContractCreationClient({
       <StepProgressHeader
         steps={contractSteps}
         currentStep={currentStep}
-        title="Nouveau bail"
+        title={pageTitle}
         backButtonText="Retour"
-        onBack={() => router.push('/gestionnaire/contrats')}
+        onBack={() => {
+          if (mode === 'create') {
+            router.push('/gestionnaire/contrats')
+          } else {
+            router.push(`/gestionnaire/contrats/${existingContract?.id}`)
+          }
+        }}
+        onStepClick={handleStepClick}
       />
 
-      {/* MAIN CONTENT - Pattern Immeuble */}
+      {/* MAIN CONTENT */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pt-10 pb-20">
         {renderStepContent()}
       </div>
 
-      {/* FOOTER STICKY - Pattern Immeuble */}
+      {/* FOOTER STICKY */}
       <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm border-t border-border px-5 sm:px-6 lg:px-10 py-4">
         <div className="flex flex-col sm:flex-row justify-between gap-2 content-max-width">
           {currentStep > 0 && (
@@ -676,8 +888,8 @@ export default function ContractCreationClient({
               disabled={isSubmitting || !validateStep(currentStep)}
               className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto ml-auto"
             >
-              {isSubmitting ? 'Création...' : 'Créer le bail'}
-              <Check className="w-4 h-4 ml-2" />
+              {isSubmitting ? (mode === 'create' ? 'Création...' : 'Enregistrement...') : submitLabel}
+              <SubmitIcon className="w-4 h-4 ml-2" />
             </Button>
           )}
         </div>

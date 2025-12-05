@@ -1027,6 +1027,7 @@ export default function NouvelleInterventionClient({
                 selectedLotId={selectedLotId}
                 showActions={false}
                 initialData={initialBuildingsData}
+                showViewToggle={true}
               />
             </div>
           </div>

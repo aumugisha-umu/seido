@@ -15,7 +15,8 @@ import {
   Edit,
   Building,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Shield
 } from "lucide-react"
 
 // Base contact interface - compatible with both Contact and UserType
@@ -42,7 +43,7 @@ interface BaseContact {
  * ✅ Responsive design
  */
 
-type ContactSectionType = 'managers' | 'tenants' | 'providers' | 'owners' | 'others'
+type ContactSectionType = 'managers' | 'tenants' | 'providers' | 'owners' | 'others' | 'guarantors'
 
 interface ContactSectionConfig {
   icon: LucideIcon
@@ -164,6 +165,26 @@ const SECTION_CONFIGS: Record<ContactSectionType, ContactSectionConfig> = {
       buttonBorder: "border-gray-300",
       buttonText: "text-gray-700",
       buttonHover: "hover:bg-gray-50"
+    }
+  },
+  guarantors: {
+    icon: Shield,
+    label: "Garants",
+    addButtonLabel: "Ajouter garant",
+    emptyMessage: "Aucun garant",
+    colorScheme: {
+      header: "bg-amber-50",
+      headerHover: "hover:bg-amber-100",
+      iconColor: "text-amber-600",
+      textColor: "text-amber-900",
+      badgeBg: "bg-amber-600",
+      itemBg: "bg-amber-50/50",
+      itemBorder: "border-amber-100",
+      avatarBg: "bg-amber-200",
+      avatarIcon: "text-amber-700",
+      buttonBorder: "border-amber-300",
+      buttonText: "text-amber-700",
+      buttonHover: "hover:bg-amber-50"
     }
   }
 }

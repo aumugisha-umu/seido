@@ -161,10 +161,10 @@ export default function DashboardHeader({
       logger.info('👤 [DASHBOARD-HEADER] Logout button clicked')
       await signOut()
       logger.info('👤 [DASHBOARD-HEADER] Sign out completed, redirecting to login')
-      window.location.href = "/auth/login"
+      router.push("/auth/login")
     } catch (error) {
       logger.error('❌ [DASHBOARD-HEADER] Error during logout:', error)
-      window.location.href = "/auth/login"
+      router.push("/auth/login")
     } finally {
       // Ne pas réinitialiser isLoggingOut car on redirige
     }

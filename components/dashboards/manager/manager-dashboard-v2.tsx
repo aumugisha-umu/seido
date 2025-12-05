@@ -11,7 +11,8 @@ import {
     Hammer,
     Plus,
     Wrench,
-    Home
+    Home,
+    FileText
 } from "lucide-react"
 import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
 import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
@@ -48,36 +49,47 @@ export function ManagerDashboardV2({ stats, contactStats, interventions, pending
                             <p className="text-muted-foreground mt-1">Voici ce qui se passe dans votre parc aujourd'hui.</p>
                         </div>
                         <div className="flex flex-wrap gap-2">
+                            {/* Primary actions */}
                             <Button
                                 onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
                                 className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 rounded-xl px-4"
                             >
                                 <Plus className="h-4 w-4 mr-2" />
-                                Créer une intervention
+                                <span className="hidden sm:inline">Créer une intervention</span>
+                                <span className="sm:hidden">Intervention</span>
                             </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => router.push("/gestionnaire/contrats/nouveau")}
+                                className="bg-card border-border text-foreground rounded-xl"
+                            >
+                                <FileText className="h-4 w-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Créer un contrat</span>
+                            </Button>
+                            {/* Secondary actions */}
                             <Button
                                 variant="outline"
                                 onClick={() => router.push("/gestionnaire/biens/immeubles/nouveau")}
                                 className="bg-card border-border text-foreground rounded-xl"
                             >
-                                <Plus className="h-4 w-4 mr-2" />
-                                Ajouter un immeuble
+                                <Plus className="h-4 w-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Ajouter un immeuble</span>
                             </Button>
                             <Button
                                 variant="outline"
                                 onClick={() => router.push("/gestionnaire/biens/lots/nouveau")}
                                 className="bg-card border-border text-foreground rounded-xl"
                             >
-                                <Plus className="h-4 w-4 mr-2" />
-                                Ajouter un lot
+                                <Plus className="h-4 w-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Ajouter un lot</span>
                             </Button>
                             <Button
                                 variant="outline"
                                 onClick={() => router.push("/gestionnaire/contacts/nouveau")}
                                 className="bg-card border-border text-foreground rounded-xl"
                             >
-                                <Plus className="h-4 w-4 mr-2" />
-                                Ajouter un contact
+                                <Plus className="h-4 w-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Ajouter un contact</span>
                             </Button>
                         </div>
                     </div>

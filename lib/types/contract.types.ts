@@ -404,14 +404,11 @@ export interface ContractDetailsClientProps {
  */
 export interface ContractCreationClientProps {
   teamId: string
-  initialLots: Array<{
-    id: string
-    reference: string
-    category: string
-    street?: string
-    city?: string
-    building?: { id: string; name: string; address?: string; city?: string } | null
-  }>
+  initialBuildingsData: {
+    buildings: any[]
+    lots: any[]
+    teamId: string | null
+  }
   initialContacts: Array<{
     id: string
     name: string
@@ -421,6 +418,10 @@ export interface ContractCreationClientProps {
   }>
   prefilledLotId?: string | null
   renewFromId?: string | null
+  // Props pour retour après création de contact
+  sessionKey?: string | null
+  newContactId?: string | null
+  contactType?: string | null
 }
 
 /**

@@ -11,7 +11,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
@@ -39,7 +38,6 @@ import {
 import { cn } from '@/lib/utils'
 import { logger } from '@/lib/logger'
 import type {
-  ContractType,
   ContractFormData,
   PaymentFrequency,
   GuaranteeType,
@@ -48,7 +46,6 @@ import type {
   ContractContactWithUser
 } from '@/lib/types/contract.types'
 import {
-  CONTRACT_TYPE_LABELS,
   PAYMENT_FREQUENCY_LABELS,
   GUARANTEE_TYPE_LABELS,
   CONTRACT_DURATION_OPTIONS,
@@ -77,7 +74,6 @@ export default function ContractEditClient({
   const [formData, setFormData] = useState<Partial<ContractFormData>>({
     lotId: contract.lot_id,
     title: contract.title,
-    contractType: contract.contract_type,
     startDate: contract.start_date,
     durationMonths: contract.duration_months,
     comments: contract.comments || '',
@@ -285,7 +281,6 @@ export default function ContractEditClient({
       const contractResult = await updateContract(contract.id, {
         lot_id: formData.lotId,
         title: formData.title,
-        contract_type: formData.contractType as ContractType,
         start_date: formData.startDate,
         duration_months: formData.durationMonths,
         payment_frequency: formData.paymentFrequency as PaymentFrequency,
@@ -419,44 +414,11 @@ export default function ContractEditClient({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Title */}
-              <div className="md:col-span-2">
-                <Label htmlFor="title">Titre du contrat *</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => updateField('title', e.target.value)}
-                  placeholder="Ex: Bail appartement T3 - Dupont"
-                />
-              </div>
-
-              {/* Contract type */}
+            {/* Date début, Titre, Durée on same line on desktop */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Start date - First on desktop */}
               <div>
-                <Label>Type de contrat *</Label>
-                <RadioGroup
-                  value={formData.contractType}
-                  onValueChange={(value) => updateField('contractType', value as ContractType)}
-                  className="mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="bail_habitation" id="bail_habitation" />
-                    <Label htmlFor="bail_habitation" className="font-normal">
-                      Bail d'habitation (vide)
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="bail_meuble" id="bail_meuble" />
-                    <Label htmlFor="bail_meuble" className="font-normal">
-                      Bail meuble
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {/* Start date */}
-              <div>
-                <Label htmlFor="startDate">Date de debut *</Label>
+                <Label htmlFor="startDate">Date de début *</Label>
                 <Input
                   id="startDate"
                   type="date"
@@ -465,15 +427,26 @@ export default function ContractEditClient({
                 />
               </div>
 
+              {/* Title */}
+              <div>
+                <Label htmlFor="title">Titre du contrat *</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => updateField('title', e.target.value)}
+                  placeholder="Ex: Bail T3 - Dupont"
+                />
+              </div>
+
               {/* Duration */}
               <div>
-                <Label htmlFor="duration">Duree du bail *</Label>
+                <Label htmlFor="duration">Durée du bail *</Label>
                 <Select
                   value={String(formData.durationMonths)}
                   onValueChange={(value) => updateField('durationMonths', parseInt(value))}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selectionnez une duree" />
+                    <SelectValue placeholder="Sélectionnez une durée" />
                   </SelectTrigger>
                   <SelectContent>
                     {CONTRACT_DURATION_OPTIONS.map((option) => (
@@ -484,18 +457,18 @@ export default function ContractEditClient({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
 
-              {/* Comments */}
-              <div className="md:col-span-2">
-                <Label htmlFor="comments">Commentaires</Label>
-                <Textarea
-                  id="comments"
-                  value={formData.comments}
-                  onChange={(e) => updateField('comments', e.target.value)}
-                  placeholder="Notes supplementaires..."
-                  rows={3}
-                />
-              </div>
+            {/* Comments */}
+            <div>
+              <Label htmlFor="comments">Commentaires</Label>
+              <Textarea
+                id="comments"
+                value={formData.comments}
+                onChange={(e) => updateField('comments', e.target.value)}
+                placeholder="Notes supplémentaires..."
+                rows={3}
+              />
             </div>
           </div>
         )
@@ -810,13 +783,10 @@ export default function ContractEditClient({
                 <CardContent className="space-y-1">
                   <p className="font-medium">{formData.title}</p>
                   <p className="text-sm text-muted-foreground">
-                    {CONTRACT_TYPE_LABELS[formData.contractType as ContractType]}
+                    Début: {new Date(formData.startDate!).toLocaleDateString('fr-FR')}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Debut: {new Date(formData.startDate!).toLocaleDateString('fr-FR')}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Duree: {CONTRACT_DURATION_OPTIONS.find(o => o.value === formData.durationMonths)?.label || `${formData.durationMonths} mois`}
+                    Durée: {CONTRACT_DURATION_OPTIONS.find(o => o.value === formData.durationMonths)?.label || `${formData.durationMonths} mois`}
                   </p>
                 </CardContent>
               </Card>

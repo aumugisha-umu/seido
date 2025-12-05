@@ -104,74 +104,81 @@ export function ContratsPageClient({
   }, [handleRefresh])
 
   return (
-    <div className="contrats-page">
-      {/* Header section */}
-      <div className="contrats-page__header">
-        <div className="contrats-page__title-section">
-          <h1 className="text-2xl font-bold text-foreground">Contrats</h1>
-          <p className="text-muted-foreground mt-1">
-            Gérez vos contrats et baux
-          </p>
+    <div className="h-full flex flex-col overflow-hidden layout-container">
+      <div className="content-max-width flex flex-col flex-1 min-h-0 overflow-hidden">
+        {/* Page Header */}
+        <div className="mb-4 lg:mb-6 flex-shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground sm:text-3xl mb-2">
+                Contrats
+              </h1>
+              <p className="text-muted-foreground">
+                Gérez vos contrats et baux
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                className="flex items-center space-x-2"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+              >
+                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Actualiser</span>
+              </Button>
+              <Button
+                className="flex items-center space-x-2"
+                onClick={() => router.push('/gestionnaire/contrats/nouveau')}
+              >
+                <Plus className="h-4 w-4" />
+                <span>Nouveau contrat</span>
+              </Button>
+            </div>
+          </div>
         </div>
 
-        <div className="contrats-page__actions flex items-center gap-2">
-          {/* Refresh button */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={isRefreshing}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Actualiser</span>
-          </Button>
+        {/* Stats summary (optional, can be expanded) */}
+        {stats.totalActive > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 flex-shrink-0">
+            <div className="bg-card rounded-lg p-4 border border-border shadow-sm">
+              <div className="text-2xl font-bold text-green-600">{stats.totalActive}</div>
+              <div className="text-sm text-muted-foreground">Contrats actifs</div>
+            </div>
+            <div className="bg-card rounded-lg p-4 border border-border shadow-sm">
+              <div className="text-2xl font-bold text-orange-600">{stats.expiringNext30Days}</div>
+              <div className="text-sm text-muted-foreground">Expirent sous 30j</div>
+            </div>
+            <div className="bg-card rounded-lg p-4 border border-border shadow-sm">
+              <div className="text-2xl font-bold text-primary">
+                {stats.totalRentMonthly.toLocaleString('fr-FR')} €
+              </div>
+              <div className="text-sm text-muted-foreground">Loyers mensuels</div>
+            </div>
+            <div className="bg-card rounded-lg p-4 border border-border shadow-sm">
+              <div className="text-2xl font-bold text-muted-foreground">
+                {stats.averageRent.toLocaleString('fr-FR')} €
+              </div>
+              <div className="text-sm text-muted-foreground">Loyer moyen</div>
+            </div>
+          </div>
+        )}
 
-          {/* Create button */}
-          <Button
-            onClick={() => router.push('/gestionnaire/contrats/nouveau')}
-            className="flex items-center gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Nouveau contrat</span>
-            <span className="sm:hidden">Nouveau</span>
-          </Button>
+        {/* Card wrapper - Structure exacte du dashboard */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <div className="bg-card rounded-lg border border-border shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+            {/* Content wrapper avec padding */}
+            <div className="flex-1 flex flex-col min-h-0 p-4">
+              <ContractsNavigator
+                contracts={contracts}
+                loading={isRefreshing}
+                onRefresh={handleRefresh}
+                onDeleteContract={handleDeleteContract}
+              />
+            </div>
+          </div>
         </div>
       </div>
-
-      {/* Stats summary (optional, can be expanded) */}
-      {stats.totalActive > 0 && (
-        <div className="contrats-page__stats grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-          <div className="bg-white rounded-lg p-4 border border-border shadow-sm">
-            <div className="text-2xl font-bold text-green-600">{stats.totalActive}</div>
-            <div className="text-sm text-muted-foreground">Contrats actifs</div>
-          </div>
-          <div className="bg-white rounded-lg p-4 border border-border shadow-sm">
-            <div className="text-2xl font-bold text-orange-600">{stats.expiringNext30Days}</div>
-            <div className="text-sm text-muted-foreground">Expirent sous 30j</div>
-          </div>
-          <div className="bg-white rounded-lg p-4 border border-border shadow-sm">
-            <div className="text-2xl font-bold text-primary">
-              {stats.totalRentMonthly.toLocaleString('fr-FR')} €
-            </div>
-            <div className="text-sm text-muted-foreground">Loyers mensuels</div>
-          </div>
-          <div className="bg-white rounded-lg p-4 border border-border shadow-sm">
-            <div className="text-2xl font-bold text-muted-foreground">
-              {stats.averageRent.toLocaleString('fr-FR')} €
-            </div>
-            <div className="text-sm text-muted-foreground">Loyer moyen</div>
-          </div>
-        </div>
-      )}
-
-      {/* Main content - Navigator */}
-      <ContractsNavigator
-        contracts={contracts}
-        loading={isRefreshing}
-        onRefresh={handleRefresh}
-        onDeleteContract={handleDeleteContract}
-      />
     </div>
   )
 }

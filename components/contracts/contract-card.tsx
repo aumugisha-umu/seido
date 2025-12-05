@@ -4,7 +4,6 @@ import { cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { ContractStatusBadge } from './contract-status-badge'
-import { ContractTypeBadge } from './contract-type-badge'
 import { ContractDatesDisplay } from './contract-dates-display'
 import { ContractContactsPreview } from './contract-contacts-preview'
 import { Eye, Edit, Trash2, Building2, Home, Euro, MoreVertical } from 'lucide-react'
@@ -82,7 +81,6 @@ export function ContractCard({
               </h3>
               <ContractStatusBadge status={contract.status} size="sm" />
             </div>
-            <ContractTypeBadge type={contract.contract_type} />
           </div>
 
           {/* Actions dropdown */}

@@ -10,7 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ContractStatusBadge } from '@/components/contracts/contract-status-badge'
-import { ContractTypeBadge } from '@/components/contracts/contract-type-badge'
 import { ContractDatesDisplay } from '@/components/contracts/contract-dates-display'
 import { ContractContactsPreview } from '@/components/contracts/contract-contacts-preview'
 import {
@@ -174,8 +173,6 @@ export default function ContractDetailsClient({
                   <ContractStatusBadge status={contract.status} />
                 </div>
                 <div className="flex items-center gap-2 mt-1">
-                  <ContractTypeBadge type={contract.contract_type} />
-                  <span className="text-sm text-muted-foreground">•</span>
                   <span className="text-sm text-muted-foreground">{locationInfo}</span>
                 </div>
               </div>
@@ -321,14 +318,10 @@ export default function ContractDetailsClient({
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <p className="text-sm text-muted-foreground">Titre</p>
                       <p className="font-medium">{contract.title}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Type</p>
-                      <ContractTypeBadge type={contract.contract_type} />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Statut</p>

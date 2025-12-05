@@ -63,6 +63,37 @@ export class ContractService {
   ) {}
 
   // ==========================================================================
+  // PRIVATE HELPERS
+  // ==========================================================================
+
+  /**
+   * Détermine le statut du contrat basé sur les dates
+   * - Si end_date < aujourd'hui → 'expire'
+   * - Si start_date <= aujourd'hui → 'actif'
+   * - Sinon → 'brouillon' (contrat futur)
+   */
+  private determineStatusFromDates(startDate: string, durationMonths: number): ContractStatus {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0) // Normaliser à minuit
+
+    const start = new Date(startDate)
+    start.setHours(0, 0, 0, 0)
+
+    // Calculer end_date (start + duration_months)
+    const end = new Date(start)
+    end.setMonth(end.getMonth() + durationMonths)
+    end.setHours(0, 0, 0, 0)
+
+    if (end < today) {
+      return 'expire'
+    }
+    if (start <= today) {
+      return 'actif'
+    }
+    return 'brouillon' // Contrat futur
+  }
+
+  // ==========================================================================
   // CRUD OPERATIONS
   // ==========================================================================
 
@@ -131,10 +162,16 @@ export class ContractService {
     // Validate dates
     this.validateDates(data.start_date, data.duration_months)
 
+    // Déterminer le statut automatiquement basé sur les dates si non spécifié
+    const autoStatus = this.determineStatusFromDates(
+      data.start_date,
+      data.duration_months || 12
+    )
+
     // Set defaults
     const processedData: ContractInsert = {
       ...data,
-      status: data.status || 'brouillon',
+      status: data.status || autoStatus, // Auto-calcul basé sur les dates
       contract_type: data.contract_type || 'bail_habitation',
       payment_frequency: data.payment_frequency || 'mensuel',
       payment_frequency_value: data.payment_frequency_value || 1,

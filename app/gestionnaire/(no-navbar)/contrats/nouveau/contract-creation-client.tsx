@@ -1,20 +1,23 @@
 "use client"
 
-import { useState, useCallback, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useSaveFormState, useRestoreFormState } from '@/hooks/use-form-persistence'
 import { toast } from 'sonner'
 import { StepProgressHeader } from '@/components/ui/step-progress-header'
 import { contractSteps } from '@/lib/step-configurations'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
-import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { ContactSection } from '@/components/ui/contact-section'
+import ContactSelector, { ContactSelectorRef } from '@/components/contact-selector'
+import PropertySelector from '@/components/property-selector'
+import LeaseFormDetailsMerged from '@/components/contract/lease-form-details-merged-v1'
 import { createContract, addContractContact } from '@/app/actions/contract-actions'
 import { createContractNotification } from '@/app/actions/notification-actions'
 import {
@@ -23,19 +26,14 @@ import {
   Check,
   Building2,
   Home,
-  Search,
-  X,
   Euro,
   Calendar,
   Users,
   Shield,
-  FileText,
-  AlertCircle
+  FileText
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { logger } from '@/lib/logger'
 import type {
-  ContractType,
   ContractFormData,
   PaymentFrequency,
   GuaranteeType,
@@ -43,18 +41,15 @@ import type {
   ContractCreationClientProps
 } from '@/lib/types/contract.types'
 import {
-  CONTRACT_TYPE_LABELS,
-  PAYMENT_FREQUENCY_LABELS,
   GUARANTEE_TYPE_LABELS,
   CONTRACT_DURATION_OPTIONS,
   CONTRACT_CONTACT_ROLE_LABELS
 } from '@/lib/types/contract.types'
 
-// Initial form data
+// Initial form data (title is editable but can be auto-generated)
 const initialFormData: Partial<ContractFormData> = {
   lotId: '',
-  title: '',
-  contractType: 'bail_habitation',
+  title: '', // Editable reference
   startDate: new Date().toISOString().split('T')[0],
   durationMonths: 12,
   comments: '',
@@ -68,53 +63,80 @@ const initialFormData: Partial<ContractFormData> = {
   guaranteeNotes: ''
 }
 
+// Generate contract reference from lot and dates: BAIL-{LOT_REF}-{START}-{END}
+function generateContractReference(lotReference: string | undefined, startDate: string, durationMonths: number): string {
+  if (!lotReference || !startDate) return ''
+  const start = new Date(startDate)
+  const end = new Date(startDate)
+  end.setMonth(end.getMonth() + durationMonths)
+
+  const formatDate = (d: Date) => `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+  return `BAIL-${lotReference}-${formatDate(start)}-${formatDate(end)}`
+}
+
 export default function ContractCreationClient({
   teamId,
-  initialLots,
+  initialBuildingsData,
   initialContacts,
   prefilledLotId,
-  renewFromId
+  renewFromId: _renewFromId, // Reserved for renewal feature
+  // Props pour retour après création de contact
+  sessionKey: initialSessionKey,
+  newContactId: initialNewContactId,
+  contactType: initialContactType
 }: ContractCreationClientProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [formData, setFormData] = useState<Partial<ContractFormData>>({
     ...initialFormData,
     lotId: prefilledLotId || ''
   })
-  const [searchTerm, setSearchTerm] = useState('')
-  const [contactSearchTerm, setContactSearchTerm] = useState('')
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const contactSelectorRef = useRef<ContactSelectorRef>(null)
 
-  // Filter lots by search term
-  const filteredLots = useMemo(() => {
-    if (!searchTerm) return initialLots
-    const term = searchTerm.toLowerCase()
-    return initialLots.filter(lot =>
-      lot.reference.toLowerCase().includes(term) ||
-      lot.building?.name?.toLowerCase().includes(term) ||
-      lot.building?.address?.toLowerCase().includes(term) ||
-      lot.street?.toLowerCase().includes(term) ||
-      lot.city?.toLowerCase().includes(term)
-    )
-  }, [initialLots, searchTerm])
+  // État complet du formulaire (à sauvegarder/restaurer)
+  const formState = useMemo(() => ({
+    currentStep,
+    formData,
+    uploadedFiles: [] // Les fichiers ne peuvent pas être sérialisés
+  }), [currentStep, formData])
 
-  // Filter contacts by search term and role
-  const filteredContacts = useMemo(() => {
-    let filtered = initialContacts
-    if (contactSearchTerm) {
-      const term = contactSearchTerm.toLowerCase()
-      filtered = filtered.filter(contact =>
-        contact.name.toLowerCase().includes(term) ||
-        contact.email?.toLowerCase().includes(term)
-      )
-    }
-    return filtered
-  }, [initialContacts, contactSearchTerm])
+  // Hook pour sauvegarder et rediriger
+  const { saveAndRedirect } = useSaveFormState(formState)
 
-  // Get selected lot
+  // Hook pour restaurer l'état après retour de création de contact
+  const { newContactId, sessionKey } = useRestoreFormState((restoredState: any) => {
+    logger.info(`📥 [CONTRACT-FORM] Restoring form state after contact creation`)
+    setCurrentStep(restoredState.currentStep)
+    setFormData(restoredState.formData)
+  })
+
+  // Handle lot selection from PropertySelector
+  const handleLotSelect = useCallback((lotId: string | null) => {
+    updateField('lotId', lotId || '')
+  }, [])
+
+  // Get selected lot from buildingsData
   const selectedLot = useMemo(() => {
-    return initialLots.find(lot => lot.id === formData.lotId)
-  }, [initialLots, formData.lotId])
+    return initialBuildingsData.lots.find((lot: any) => lot.id === formData.lotId)
+  }, [initialBuildingsData.lots, formData.lotId])
+
+  // Computed arrays for ContactSection: map formData.contacts to full contact objects
+  const selectedTenants = useMemo(() => {
+    return (formData.contacts || [])
+      .filter(c => c.role === 'locataire')
+      .map(c => initialContacts.find(ic => ic.id === c.userId))
+      .filter(Boolean) as typeof initialContacts
+  }, [formData.contacts, initialContacts])
+
+  const selectedGuarantors = useMemo(() => {
+    return (formData.contacts || [])
+      .filter(c => c.role === 'garant')
+      .map(c => initialContacts.find(ic => ic.id === c.userId))
+      .filter(Boolean) as typeof initialContacts
+  }, [formData.contacts, initialContacts])
 
   // Calculate totals
   const monthlyTotal = (formData.rentAmount || 0) + (formData.chargesAmount || 0)
@@ -128,54 +150,89 @@ export default function ContractCreationClient({
   }, [])
 
   // Contact management
-  const addContact = useCallback((contactId: string, role: ContractContactRole, isPrimary: boolean = false) => {
+  const addContact = useCallback((contactId: string, role: ContractContactRole) => {
+    // Check if contact already added with this role
+    const exists = (formData.contacts || []).some(c => c.userId === contactId && c.role === role)
+    if (exists) return
+
     setFormData(prev => ({
       ...prev,
       contacts: [
         ...(prev.contacts || []),
-        { userId: contactId, role, isPrimary }
+        { userId: contactId, role, isPrimary: false }
       ]
     }))
-  }, [])
+  }, [formData.contacts])
 
-  const removeContact = useCallback((index: number) => {
+  const removeContactById = useCallback((contactId: string, role: ContractContactRole) => {
     setFormData(prev => ({
       ...prev,
-      contacts: (prev.contacts || []).filter((_, i) => i !== index)
+      contacts: (prev.contacts || []).filter(c => !(c.userId === contactId && c.role === role))
     }))
   }, [])
 
-  const togglePrimary = useCallback((index: number) => {
-    setFormData(prev => {
-      const contacts = [...(prev.contacts || [])]
-      const targetContact = contacts[index]
+  // Auto-sélectionner le nouveau contact après retour de création
+  useEffect(() => {
+    const contactId = newContactId || initialNewContactId
+    const contactTypeParam = searchParams.get('contactType') || initialContactType
+    const sessionKeyParam = sessionKey || initialSessionKey
 
-      // Remove primary from others with same role
-      contacts.forEach((c, i) => {
-        if (c.role === targetContact.role && i !== index) {
-          c.isPrimary = false
-        }
-      })
+    if (!contactId || !sessionKeyParam) return
 
-      // Toggle target
-      contacts[index] = { ...targetContact, isPrimary: !targetContact.isPrimary }
-      return { ...prev, contacts }
-    })
-  }, [])
+    logger.info(`✅ [CONTRACT-FORM] New contact created: ${contactId}`)
 
-  // Validation per step
+    // Récupérer les données du contact depuis sessionStorage
+    const contactDataStr = sessionStorage.getItem(`contact-data-${sessionKeyParam}`)
+    if (!contactDataStr) {
+      logger.warn(`⚠️ [CONTRACT-FORM] No contact data found in sessionStorage`)
+      return
+    }
+
+    try {
+      const contactData = JSON.parse(contactDataStr)
+
+      // Mapper le type vers le rôle ContractContactRole
+      const roleMap: Record<string, ContractContactRole> = {
+        'tenant': 'locataire',
+        'locataire': 'locataire',
+        'guarantor': 'garant',
+        'garant': 'garant'
+      }
+      const role = roleMap[contactTypeParam || ''] || 'locataire'
+
+      // Vérifier si le contact n'est pas déjà sélectionné
+      const alreadySelected = formData.contacts?.some(c => c.userId === contactId)
+      if (alreadySelected) {
+        logger.info(`ℹ️ [CONTRACT-FORM] Contact already selected: ${contactId}`)
+        sessionStorage.removeItem(`contact-data-${sessionKeyParam}`)
+        return
+      }
+
+      // Ajouter le contact
+      addContact(contactId, role)
+
+      // Afficher un toast de confirmation
+      toast.success(`${contactData.name} ajouté automatiquement !`)
+
+      // Nettoyer sessionStorage
+      sessionStorage.removeItem(`contact-data-${sessionKeyParam}`)
+    } catch (error) {
+      logger.error(`❌ [CONTRACT-FORM] Error parsing contact data:`, error)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newContactId, initialNewContactId, sessionKey, initialSessionKey])
+
+  // Validation per step (4 steps total after merge)
   const validateStep = useCallback((step: number): boolean => {
     switch (step) {
       case 0: // Lot selection
         return !!formData.lotId
-      case 1: // Contract info
-        return !!(formData.title && formData.startDate && formData.durationMonths)
-      case 2: // Payments
-        return formData.rentAmount !== undefined && formData.rentAmount > 0
-      case 3: // Contacts & Guarantee
+      case 1: // Merged: Details (dates + payments)
+        return !!(formData.startDate && formData.durationMonths && formData.rentAmount && formData.rentAmount > 0)
+      case 2: // Contacts & Guarantee
         const hasLocataire = (formData.contacts || []).some(c => c.role === 'locataire')
         return hasLocataire
-      case 4: // Confirmation
+      case 3: // Confirmation
         return true
       default:
         return false
@@ -214,12 +271,18 @@ export default function ContractCreationClient({
     setIsSubmitting(true)
 
     try {
+      // Use user-provided title or auto-generate from lot reference and dates
+      const finalTitle = formData.title?.trim() || generateContractReference(
+        selectedLot?.reference,
+        formData.startDate!,
+        formData.durationMonths || 12
+      )
+
       // Create the contract
       const contractResult = await createContract({
         team_id: teamId,
         lot_id: formData.lotId!,
-        title: formData.title!,
-        contract_type: formData.contractType as ContractType,
+        title: finalTitle,
         start_date: formData.startDate!,
         duration_months: formData.durationMonths!,
         payment_frequency: formData.paymentFrequency as PaymentFrequency,
@@ -233,7 +296,7 @@ export default function ContractCreationClient({
       })
 
       if (!contractResult.success || !contractResult.data) {
-        throw new Error(contractResult.error || 'Erreur lors de la création du contrat')
+        throw new Error(contractResult.error || 'Erreur lors de la création du bail')
       }
 
       const contractId = contractResult.data.id
@@ -251,11 +314,11 @@ export default function ContractCreationClient({
       // Send notifications for new contract
       await createContractNotification(contractId)
 
-      toast.success('Contrat créé avec succès')
+      toast.success('Bail créé avec succès')
       router.push(`/gestionnaire/contrats/${contractId}`)
     } catch (error) {
       logger.error('Error creating contract:', error)
-      toast.error(error instanceof Error ? error.message : 'Erreur lors de la création du contrat')
+      toast.error(error instanceof Error ? error.message : 'Erreur lors de la création du bail')
     } finally {
       setIsSubmitting(false)
     }
@@ -267,532 +330,295 @@ export default function ContractCreationClient({
       // Step 1: Lot Selection
       case 0:
         return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-2">Sélectionnez le lot</h2>
-              <p className="text-sm text-muted-foreground">
-                Choisissez le lot auquel sera associé ce contrat de bail.
+          <div className="content-max-width space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="text-center max-w-2xl mx-auto mb-4">
+              <h2 className="text-2xl font-bold mb-2">Sélectionnez le lot</h2>
+              <p className="text-muted-foreground">
+                Choisissez le lot auquel sera associé ce bail.
               </p>
             </div>
 
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Rechercher un lot..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9"
+            {/* PropertySelector with view toggle */}
+            <div className="h-[500px] w-full overflow-hidden">
+              <PropertySelector
+                mode="select"
+                onLotSelect={handleLotSelect}
+                selectedLotId={formData.lotId}
+                initialData={initialBuildingsData}
+                showViewToggle={true}
+                showOnlyLots={true}
               />
             </div>
-
-            {/* Lots grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[400px] overflow-y-auto">
-              {filteredLots.length === 0 ? (
-                <div className="col-span-2 text-center py-8 text-muted-foreground">
-                  <Home className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Aucun lot disponible</p>
-                </div>
-              ) : (
-                filteredLots.map((lot) => (
-                  <Card
-                    key={lot.id}
-                    className={cn(
-                      'cursor-pointer transition-all hover:shadow-md',
-                      formData.lotId === lot.id && 'ring-2 ring-primary'
-                    )}
-                    onClick={() => updateField('lotId', lot.id)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-3">
-                          {lot.building ? (
-                            <Building2 className="h-8 w-8 text-muted-foreground" />
-                          ) : (
-                            <Home className="h-8 w-8 text-muted-foreground" />
-                          )}
-                          <div>
-                            <p className="font-medium">
-                              {lot.building ? `${lot.building.name} - ` : ''}Lot {lot.reference}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {lot.building?.address || lot.street || lot.city || lot.category}
-                            </p>
-                          </div>
-                        </div>
-                        {formData.lotId === lot.id && (
-                          <Check className="h-5 w-5 text-primary" />
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
           </div>
         )
 
-      // Step 2: Contract Info
+      // Step 2: Merged Details (Dates + Payments)
       case 1:
         return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-2">Informations du contrat</h2>
-              <p className="text-sm text-muted-foreground">
-                Renseignez les informations générales du bail.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Title */}
-              <div className="md:col-span-2">
-                <Label htmlFor="title">Titre du contrat *</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => updateField('title', e.target.value)}
-                  placeholder="Ex: Bail appartement T3 - Dupont"
-                />
-              </div>
-
-              {/* Contract type */}
-              <div>
-                <Label>Type de contrat *</Label>
-                <RadioGroup
-                  value={formData.contractType}
-                  onValueChange={(value) => updateField('contractType', value as ContractType)}
-                  className="mt-2"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="bail_habitation" id="bail_habitation" />
-                    <Label htmlFor="bail_habitation" className="font-normal">
-                      Bail d'habitation (vide)
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="bail_meuble" id="bail_meuble" />
-                    <Label htmlFor="bail_meuble" className="font-normal">
-                      Bail meublé
-                    </Label>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {/* Start date */}
-              <div>
-                <Label htmlFor="startDate">Date de début *</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => updateField('startDate', e.target.value)}
-                />
-              </div>
-
-              {/* Duration */}
-              <div>
-                <Label htmlFor="duration">Durée du bail *</Label>
-                <Select
-                  value={String(formData.durationMonths)}
-                  onValueChange={(value) => updateField('durationMonths', parseInt(value))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Sélectionnez une durée" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CONTRACT_DURATION_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={String(option.value)}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Comments */}
-              <div className="md:col-span-2">
-                <Label htmlFor="comments">Commentaires</Label>
-                <Textarea
-                  id="comments"
-                  value={formData.comments}
-                  onChange={(e) => updateField('comments', e.target.value)}
-                  placeholder="Notes supplémentaires..."
-                  rows={3}
-                />
-              </div>
-            </div>
-          </div>
+          <LeaseFormDetailsMerged
+            lotReference={selectedLot?.reference}
+            title={formData.title || ''}
+            startDate={formData.startDate || ''}
+            durationMonths={formData.durationMonths || 12}
+            comments={formData.comments || ''}
+            paymentFrequency={formData.paymentFrequency as PaymentFrequency || 'mensuel'}
+            rentAmount={formData.rentAmount || 0}
+            chargesAmount={formData.chargesAmount || 0}
+            files={uploadedFiles}
+            onFilesChange={setUploadedFiles}
+            onFieldChange={(field, value) => updateField(field as keyof ContractFormData, value)}
+          />
         )
 
-      // Step 3: Payments
+      // Step 3: Contacts & Guarantee
       case 2:
         return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-2">Informations de paiement</h2>
-              <p className="text-sm text-muted-foreground">
-                Définissez le loyer et les charges mensuelles.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Payment frequency */}
+          <Card className="shadow-sm content-max-width min-w-0">
+            <CardContent className="px-6 py-6 space-y-6">
               <div>
-                <Label>Fréquence de paiement</Label>
-                <Select
-                  value={formData.paymentFrequency}
-                  onValueChange={(value) => updateField('paymentFrequency', value as PaymentFrequency)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(PAYMENT_FREQUENCY_LABELS).map(([value, label]) => (
-                      <SelectItem key={value} value={value}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <h2 className="text-lg font-semibold mb-2">Contacts et garantie</h2>
+                <p className="text-sm text-muted-foreground">
+                  Ajoutez les locataires et garants, puis définissez la garantie locative.
+                </p>
               </div>
 
-              <div /> {/* Spacer */}
+              {/* Contacts section using reusable ContactSection - Side by side layout */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ContactSection
+                  sectionType="tenants"
+                  contacts={selectedTenants}
+                  onAddContact={() => contactSelectorRef.current?.openContactModal('tenant')}
+                  onRemoveContact={(id) => removeContactById(id, 'locataire')}
+                  minRequired={1}
+                />
 
-              {/* Rent amount */}
-              <div>
-                <Label htmlFor="rentAmount">Loyer (hors charges) *</Label>
-                <div className="relative">
-                  <Input
-                    id="rentAmount"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.rentAmount || ''}
-                    onChange={(e) => updateField('rentAmount', parseFloat(e.target.value) || 0)}
-                    className="pr-8"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">€</span>
-                </div>
-              </div>
-
-              {/* Charges amount */}
-              <div>
-                <Label htmlFor="chargesAmount">Charges</Label>
-                <div className="relative">
-                  <Input
-                    id="chargesAmount"
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={formData.chargesAmount || ''}
-                    onChange={(e) => updateField('chargesAmount', parseFloat(e.target.value) || 0)}
-                    className="pr-8"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">€</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Total */}
-            <Card className="bg-primary/5 border-primary/20">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium">Total mensuel</span>
-                  <span className="text-2xl font-bold text-primary">
-                    {monthlyTotal.toLocaleString('fr-FR')} €
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        )
-
-      // Step 4: Contacts & Guarantee
-      case 3:
-        return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-2">Contacts et garantie</h2>
-              <p className="text-sm text-muted-foreground">
-                Ajoutez les locataires et garants, puis définissez la garantie locative.
-              </p>
-            </div>
-
-            {/* Contacts section */}
-            <div className="space-y-4">
-              <h3 className="font-medium flex items-center gap-2">
-                <Users className="h-4 w-4" />
-                Contacts liés au contrat
-              </h3>
-
-              {/* Selected contacts */}
-              {(formData.contacts || []).length > 0 && (
-                <div className="space-y-2">
-                  {(formData.contacts || []).map((contact, index) => {
-                    const contactInfo = initialContacts.find(c => c.id === contact.userId)
-                    return (
-                      <div
-                        key={index}
-                        className="flex items-center justify-between p-3 rounded-lg border border-border"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
-                            <span className="text-sm font-medium text-primary">
-                              {contactInfo?.name?.[0] || 'C'}
-                            </span>
-                          </div>
-                          <div>
-                            <p className="font-medium">{contactInfo?.name}</p>
-                            <p className="text-xs text-muted-foreground">{contactInfo?.email}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={contact.role === 'locataire' ? 'default' : 'secondary'}>
-                            {CONTRACT_CONTACT_ROLE_LABELS[contact.role]}
-                          </Badge>
-                          <div className="flex items-center gap-1">
-                            <Checkbox
-                              checked={contact.isPrimary}
-                              onCheckedChange={() => togglePrimary(index)}
-                              id={`primary-${index}`}
-                            />
-                            <Label htmlFor={`primary-${index}`} className="text-xs">
-                              Principal
-                            </Label>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => removeContact(index)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-
-              {/* Contact search */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher un contact..."
-                  value={contactSearchTerm}
-                  onChange={(e) => setContactSearchTerm(e.target.value)}
-                  className="pl-9"
+                <ContactSection
+                  sectionType="guarantors"
+                  contacts={selectedGuarantors}
+                  onAddContact={() => contactSelectorRef.current?.openContactModal('guarantor')}
+                  onRemoveContact={(id) => removeContactById(id, 'garant')}
                 />
               </div>
 
-              {/* Available contacts */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[200px] overflow-y-auto">
-                {filteredContacts.filter(c =>
-                  !(formData.contacts || []).some(fc => fc.userId === c.id)
-                ).slice(0, 10).map((contact) => (
-                  <div
-                    key={contact.id}
-                    className="flex items-center justify-between p-2 rounded border border-border hover:bg-muted/50"
-                  >
-                    <div>
-                      <p className="font-medium text-sm">{contact.name}</p>
-                      <p className="text-xs text-muted-foreground">{contact.email}</p>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addContact(contact.id, 'locataire', true)}
-                      >
-                        + Locataire
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => addContact(contact.id, 'garant', false)}
-                      >
-                        + Garant
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <Separator />
 
-              {/* Warning if no locataire */}
-              {!(formData.contacts || []).some(c => c.role === 'locataire') && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
-                  <AlertCircle className="h-4 w-4" />
-                  <span className="text-sm">Au moins un locataire est requis pour créer le contrat.</span>
-                </div>
-              )}
-            </div>
+              {/* Guarantee section */}
+              <div className="space-y-4">
+                <h3 className="font-medium flex items-center gap-2">
+                  <Shield className="h-4 w-4" />
+                  Garantie locative
+                </h3>
 
-            <Separator />
-
-            {/* Guarantee section */}
-            <div className="space-y-4">
-              <h3 className="font-medium flex items-center gap-2">
-                <Shield className="h-4 w-4" />
-                Garantie locative
-              </h3>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label>Type de garantie</Label>
-                  <Select
-                    value={formData.guaranteeType}
-                    onValueChange={(value) => updateField('guaranteeType', value as GuaranteeType)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(GUARANTEE_TYPE_LABELS).map(([value, label]) => (
-                        <SelectItem key={value} value={value}>{label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {formData.guaranteeType !== 'pas_de_garantie' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="guaranteeAmount">Montant de la garantie</Label>
-                    <div className="relative">
-                      <Input
-                        id="guaranteeAmount"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.guaranteeAmount || ''}
-                        onChange={(e) => updateField('guaranteeAmount', parseFloat(e.target.value) || undefined)}
-                        className="pr-8"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">€</span>
-                    </div>
+                    <Label>Type de garantie</Label>
+                    <Select
+                      value={formData.guaranteeType}
+                      onValueChange={(value) => updateField('guaranteeType', value as GuaranteeType)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(GUARANTEE_TYPE_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>{label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                )}
 
-                {formData.guaranteeType !== 'pas_de_garantie' && (
-                  <div className="md:col-span-2">
-                    <Label htmlFor="guaranteeNotes">Notes sur la garantie</Label>
-                    <Textarea
-                      id="guaranteeNotes"
-                      value={formData.guaranteeNotes}
-                      onChange={(e) => updateField('guaranteeNotes', e.target.value)}
-                      placeholder="Informations complémentaires..."
-                      rows={2}
-                    />
-                  </div>
-                )}
+                  {formData.guaranteeType !== 'pas_de_garantie' && (
+                    <div>
+                      <Label htmlFor="guaranteeAmount">Montant de la garantie</Label>
+                      <div className="relative">
+                        <Input
+                          id="guaranteeAmount"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formData.guaranteeAmount || ''}
+                          onChange={(e) => updateField('guaranteeAmount', parseFloat(e.target.value) || undefined)}
+                          className="pr-8"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">€</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {formData.guaranteeType !== 'pas_de_garantie' && (
+                    <div className="md:col-span-2">
+                      <Label htmlFor="guaranteeNotes">Notes sur la garantie</Label>
+                      <Textarea
+                        id="guaranteeNotes"
+                        value={formData.guaranteeNotes}
+                        onChange={(e) => updateField('guaranteeNotes', e.target.value)}
+                        placeholder="Informations complémentaires..."
+                        rows={2}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
+            </CardContent>
+
+            {/* Reusable ContactSelector modal (same as building/lot/intervention) */}
+            <ContactSelector
+              ref={contactSelectorRef}
+              teamId={teamId}
+              displayMode="compact"
+              hideUI={true}
+              selectionMode="multi"
+              allowedContactTypes={['tenant', 'guarantor']}
+              selectedContacts={{
+                tenant: selectedTenants,
+                guarantor: selectedGuarantors
+              }}
+              onContactSelected={(contact, contactType) => {
+                const role = contactType === 'tenant' ? 'locataire' : 'garant'
+                addContact(contact.id, role as ContractContactRole)
+              }}
+              onContactRemoved={(contactId, contactType) => {
+                const role = contactType === 'tenant' ? 'locataire' : 'garant'
+                removeContactById(contactId, role as ContractContactRole)
+              }}
+              // Redirection vers le wizard multi-étapes pour création de contact
+              onRequestContactCreation={(contactType) => {
+                logger.info(`🔗 [CONTRACT-FORM] Redirecting to contact creation flow`, { contactType })
+                saveAndRedirect('/gestionnaire/contacts/nouveau', { type: contactType })
+              }}
+            />
+          </Card>
         )
 
-      // Step 5: Confirmation
-      case 4:
+      // Step 4: Confirmation
+      case 3:
+        // Use user-provided title or generate one
+        const displayRef = formData.title?.trim() || generateContractReference(
+          selectedLot?.reference,
+          formData.startDate!,
+          formData.durationMonths || 12
+        )
         return (
-          <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold mb-2">Récapitulatif</h2>
-              <p className="text-sm text-muted-foreground">
-                Vérifiez les informations avant de créer le contrat.
+          <div className="content-max-width space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="text-center max-w-2xl mx-auto">
+              <h2 className="text-2xl font-bold mb-2">Récapitulatif</h2>
+              <p className="text-muted-foreground">
+                Vérifiez les informations avant de créer le bail.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Lot info */}
-              <Card>
-                <CardHeader className="pb-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Lot info - Large Card */}
+              <Card className="md:col-span-2 overflow-hidden border-border/60 shadow-sm hover:shadow-md transition-shadow">
+                <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Home className="h-4 w-4" />
-                    Lot
+                    <Home className="h-4 w-4 text-primary" />
+                    Lot concerné
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-6">
                   {selectedLot && (
-                    <div>
-                      <p className="font-medium">
-                        {selectedLot.building ? `${selectedLot.building.name} - ` : ''}
-                        Lot {selectedLot.reference}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {selectedLot.address || selectedLot.city}
-                      </p>
+                    <div className="flex items-start gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Building2 className="h-6 w-6 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-lg font-semibold">
+                          {selectedLot.building ? `${selectedLot.building.name}` : `Lot ${selectedLot.reference}`}
+                        </p>
+                        {selectedLot.building && <p className="text-muted-foreground">Lot {selectedLot.reference}</p>}
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {selectedLot.street || selectedLot.city}
+                        </p>
+                      </div>
                     </div>
                   )}
                 </CardContent>
               </Card>
 
-              {/* Contract info */}
-              <Card>
+              {/* Financial info - Highlight Card */}
+              <Card className="bg-primary/5 border-primary/20 shadow-sm hover:shadow-md transition-shadow">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Contrat
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-1">
-                  <p className="font-medium">{formData.title}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {CONTRACT_TYPE_LABELS[formData.contractType as ContractType]}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Début: {new Date(formData.startDate!).toLocaleDateString('fr-FR')}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Durée: {CONTRACT_DURATION_OPTIONS.find(o => o.value === formData.durationMonths)?.label || `${formData.durationMonths} mois`}
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Financial info */}
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-base flex items-center gap-2">
+                  <CardTitle className="text-base flex items-center gap-2 text-primary">
                     <Euro className="h-4 w-4" />
                     Finances
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-1">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Loyer</span>
-                    <span>{formData.rentAmount?.toLocaleString('fr-FR')} €</span>
+                <CardContent className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Loyer HC</span>
+                      <span className="font-medium">{formData.rentAmount?.toLocaleString('fr-FR')} €</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Charges</span>
+                      <span className="font-medium">{(formData.chargesAmount || 0).toLocaleString('fr-FR')} €</span>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Charges</span>
-                    <span>{(formData.chargesAmount || 0).toLocaleString('fr-FR')} €</span>
+                  <Separator className="bg-primary/20" />
+                  <div className="flex justify-between items-end">
+                    <span className="font-medium text-sm">Total mensuel</span>
+                    <span className="text-3xl font-bold text-primary tracking-tight">{monthlyTotal.toLocaleString('fr-FR')} €</span>
                   </div>
-                  <Separator className="my-2" />
-                  <div className="flex justify-between font-medium">
-                    <span>Total mensuel</span>
-                    <span className="text-primary">{monthlyTotal.toLocaleString('fr-FR')} €</span>
+                </CardContent>
+              </Card>
+
+              {/* Contract info */}
+              <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
+                <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-primary" />
+                    Détails du bail
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-6 space-y-4">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Référence</p>
+                    <p className="font-mono font-medium mt-1 text-primary">{displayRef}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Date d'effet</p>
+                      <p className="text-sm mt-1 flex items-center gap-2">
+                        <Calendar className="h-3 w-3" />
+                        {new Date(formData.startDate!).toLocaleDateString('fr-FR', { dateStyle: 'long' })}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Durée</p>
+                      <p className="text-sm mt-1">{CONTRACT_DURATION_OPTIONS.find(o => o.value === formData.durationMonths)?.label || `${formData.durationMonths} mois`}</p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Contacts info */}
-              <Card>
-                <CardHeader className="pb-2">
+              <Card className="md:col-span-2 border-border/60 shadow-sm hover:shadow-md transition-shadow">
+                <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
                   <CardTitle className="text-base flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Contacts ({(formData.contacts || []).length})
+                    <Users className="h-4 w-4 text-primary" />
+                    Signataires ({(formData.contacts || []).length})
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  {(formData.contacts || []).map((contact, index) => {
-                    const info = initialContacts.find(c => c.id === contact.userId)
-                    return (
-                      <div key={index} className="flex items-center gap-2 py-1">
-                        <span className="font-medium">{info?.name}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          {CONTRACT_CONTACT_ROLE_LABELS[contact.role]}
-                        </Badge>
-                        {contact.isPrimary && (
-                          <Badge variant="outline" className="text-xs">Principal</Badge>
-                        )}
-                      </div>
-                    )
-                  })}
+                <CardContent className="p-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(formData.contacts || []).map((contact, index) => {
+                      const info = initialContacts.find(c => c.id === contact.userId)
+                      return (
+                        <div key={index} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card/50">
+                          <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                            {info?.name?.[0] || 'C'}
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm">{info?.name}</p>
+                            <Badge variant="secondary" className="text-[10px] h-5 px-1.5 mt-1">
+                              {CONTRACT_CONTACT_ROLE_LABELS[contact.role]}
+                            </Badge>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </CardContent>
               </Card>
             </div>
@@ -805,54 +631,57 @@ export default function ContractCreationClient({
   }
 
   return (
-    <div className="contract-creation min-h-screen bg-background">
-      {/* Step header */}
+    <div className="flex flex-col flex-1 min-h-0 bg-background">
+      {/* HEADER - StepProgressHeader */}
       <StepProgressHeader
         steps={contractSteps}
         currentStep={currentStep}
-        title="Nouveau contrat"
-        onStepClick={handleStepClick}
+        title="Nouveau bail"
+        backButtonText="Retour"
         onBack={() => router.push('/gestionnaire/contrats')}
       />
 
-      {/* Main content */}
-      <main className="content-max-width px-4 sm:px-6 lg:px-8 py-8">
-        <Card>
-          <CardContent className="p-6">
-            {renderStepContent()}
+      {/* MAIN CONTENT - Pattern Immeuble */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pt-10 pb-20">
+        {renderStepContent()}
+      </div>
 
-            {/* Navigation buttons */}
-            <div className="flex items-center justify-between mt-8 pt-6 border-t border-border">
-              <Button
-                variant="outline"
-                onClick={handlePrevious}
-                disabled={currentStep === 0 || isSubmitting}
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Précédent
-              </Button>
+      {/* FOOTER STICKY - Pattern Immeuble */}
+      <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm border-t border-border px-5 sm:px-6 lg:px-10 py-4">
+        <div className="flex flex-col sm:flex-row justify-between gap-2 content-max-width">
+          {currentStep > 0 && (
+            <Button
+              variant="outline"
+              onClick={handlePrevious}
+              disabled={isSubmitting}
+              className="w-full sm:w-auto"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Précédent
+            </Button>
+          )}
 
-              {currentStep < contractSteps.length - 1 ? (
-                <Button
-                  onClick={handleNext}
-                  disabled={!validateStep(currentStep)}
-                >
-                  Suivant
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              ) : (
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || !validateStep(currentStep)}
-                >
-                  {isSubmitting ? 'Création...' : 'Créer le contrat'}
-                  <Check className="h-4 w-4 ml-2" />
-                </Button>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </main>
+          {currentStep < contractSteps.length - 1 ? (
+            <Button
+              onClick={handleNext}
+              disabled={!validateStep(currentStep)}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto ml-auto"
+            >
+              Continuer
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          ) : (
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting || !validateStep(currentStep)}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto ml-auto"
+            >
+              {isSubmitting ? 'Création...' : 'Créer le bail'}
+              <Check className="w-4 h-4 ml-2" />
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

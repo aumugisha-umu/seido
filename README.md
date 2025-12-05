@@ -113,13 +113,15 @@
 **Gestion complète des contrats de location** avec alertes automatiques d'expiration.
 
 **Fonctionnalités** :
-- 📝 **Création en 5 étapes** - Lot → Contrat → Paiements → Contacts & Garantie → Confirmation
+- 📝 **Création en 4 étapes** - Lot → Détails & Paiements → Contacts & Garantie → Confirmation
 - 👥 **Gestion des contacts** - Locataires, colocataires et garants liés au contrat
+- 🔄 **Retour automatique après création contact** - Création de contact depuis le flux bail avec retour automatique et auto-sélection
 - 💰 **Configuration des paiements** - Loyer, charges, fréquence de paiement
 - 🛡️ **Garantie locative** - Types multiples (dépôt, compte bloqué, e-dépôt, etc.)
 - 📄 **Documents contractuels** - Upload avec types (bail, avenant, état des lieux, etc.)
 - ⏰ **Alertes automatiques** - Notifications 30j et 7j avant expiration
 - ✏️ **Édition complète** - Modification des contrats existants
+- 🎯 **Statut auto-calculé** - Statut déterminé automatiquement selon les dates (brouillon/actif/expiré)
 
 **Nouvelles tables DB** :
 - `contracts` - Contrats de bail avec loyer, charges, garantie

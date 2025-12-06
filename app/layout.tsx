@@ -7,7 +7,6 @@ import { Suspense } from "react"
 import { AuthProvider } from "@/hooks/use-auth"
 import { TeamStatusProvider } from "@/hooks/use-team-status"
 import { CookieConsentProvider } from "@/hooks/use-cookie-consent"
-import { ClarityProvider } from "@/components/clarity-provider"
 import { CookieConsentBanner } from "@/components/cookie-consent-banner"
 import { ConnectionStatus } from "@/components/connection-status"
 import { Toaster } from "@/components/ui/toaster"
@@ -63,12 +62,10 @@ export default function RootLayout({
         <AuthProvider>
           <TeamStatusProvider>
             <CookieConsentProvider>
-              <ClarityProvider>
-                <Suspense fallback={null}>{children}</Suspense>
-                <ConnectionStatus />
-                <Toaster />
-                <CookieConsentBanner />
-              </ClarityProvider>
+              <Suspense fallback={null}>{children}</Suspense>
+              <ConnectionStatus />
+              <Toaster />
+              <CookieConsentBanner />
             </CookieConsentProvider>
           </TeamStatusProvider>
         </AuthProvider>

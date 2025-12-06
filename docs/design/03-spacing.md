@@ -1,5 +1,7 @@
 # 📐 Design System - Espacement
 
+> 📁 **Source de vérité :** `app/globals.css` contient tous les design tokens centralisés (couleurs OKLCH, spacing, shadows, fonts)
+
 ## Vue d'ensemble
 
 Notre système d'espacement est basé sur une progression **mathématique harmonieuse** qui garantit la cohérence visuelle et la lisibilité. Il utilise une base de **4px** (0.25rem) avec des multiples logiques pour créer un rythme visuel équilibré.
@@ -229,14 +231,14 @@ className = "px-4 py-2";
 // Padding réduit pour plus de données
 ```
 
-### 🏢 Owner - Professional & Clear
+### 🏢 Gestionnaire - Professional & Clear
 
 ```tsx
 // Espacement business professional
 className = "p-6 space-y-6";
 // Équilibre confort/efficacité
 
-// Dashboard owner
+// Dashboard gestionnaire
 className = "gap-6 lg:gap-8";
 // Gaps généreux pour clarté
 ```
@@ -365,6 +367,51 @@ className = "space-x-4 space-y-4"; // Cohérent
   --space-20: 5rem; /* 80px */
   --space-24: 6rem; /* 96px */
 }
+```
+
+### Variables Dashboard (globals.css)
+
+```css
+:root {
+  /* Dashboard Padding */
+  --dashboard-padding-x-mobile: 1.25rem;   /* 20px */
+  --dashboard-padding-x-tablet: 1.5rem;    /* 24px */
+  --dashboard-padding-x-desktop: 2.5rem;   /* 40px */
+  --dashboard-padding-y: 1.5rem;           /* 24px */
+
+  /* Dashboard Spacing */
+  --dashboard-section-gap: 2rem;           /* 32px - Entre sections */
+  --dashboard-header-gap: 1rem;            /* 16px - Entre header éléments */
+
+  /* Header Dimensions */
+  --header-height-mobile: 3.5rem;          /* 56px */
+  --header-height-desktop: 4rem;           /* 64px */
+  --header-touch-target: 2.75rem;          /* 44px minimum WCAG */
+
+  /* Content Constraints */
+  --content-max-width: 96rem;              /* 1536px */
+}
+```
+
+**Usage avec les classes BEM (globals.css) :**
+
+```tsx
+// Dashboard container
+<div className="dashboard">
+  <div className="dashboard__container">
+    <header className="dashboard__header">
+      {/* Utilise --dashboard-header-gap */}
+    </header>
+    <main className="dashboard__content">
+      {/* Utilise --dashboard-section-gap */}
+    </main>
+  </div>
+</div>
+
+// Layout padding responsive
+<div className="layout-padding">
+  {/* px-5 sm:px-6 lg:px-10 py-4 */}
+</div>
 ```
 
 ### Utility Classes Personnalisées

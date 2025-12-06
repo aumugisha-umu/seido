@@ -1,8 +1,10 @@
 # 🏗️ Design System - Layouts & Grilles
 
+> 📁 **Source de vérité :** `app/globals.css` contient tous les design tokens centralisés (couleurs OKLCH, spacing, shadows, fonts)
+
 ## Vue d'ensemble
 
-Notre système de layout est conçu pour créer des interfaces **cohérentes**, **responsive** et **accessibles** sur tous les devices. Il combine CSS Grid, Flexbox et des patterns éprouvés pour optimiser l'expérience utilisateur de chaque rôle (Admin, Owner, Tenant, Provider).
+Notre système de layout est conçu pour créer des interfaces **cohérentes**, **responsive** et **accessibles** sur tous les devices. Il combine CSS Grid, Flexbox et des patterns éprouvés pour optimiser l'expérience utilisateur de chaque rôle (Admin, Gestionnaire, Locataire, Prestataire).
 
 ## 📱 Breakpoints & Responsive
 
@@ -139,10 +141,10 @@ className = "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4";
 </div>
 ```
 
-### 🏢 Owner Layout - Business Professional
+### 🏢 Gestionnaire Layout - Business Professional
 
 ```tsx
-// Layout owner - Professional clean
+// Layout gestionnaire - Professional clean
 <div className="max-w-7xl mx-auto">
 
   {/* Header spacieux avec branding */}
@@ -151,7 +153,7 @@ className = "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4";
       <div className="flex items-center space-x-4">
         <h1 className="text-3xl font-bold">Portfolio Overview</h1>
       </div>
-      <div className="flex space-x-4"> {/* Actions owner */}
+      <div className="flex space-x-4"> {/* Actions gestionnaire */}
     </div>
   </header>
 
@@ -431,6 +433,50 @@ className="max-w-full" // Largeur contrôlée
   --container-xl: 1280px;
   --container-2xl: 1536px;
 }
+```
+
+### Classes BEM (globals.css)
+
+Ces classes sont définies dans `globals.css` pour garantir la cohérence des layouts :
+
+```css
+/* Header */
+.header { /* Container header principal */ }
+.header__container { /* Inner container avec max-width */ }
+.header__nav { /* Navigation links */ }
+.header__logo { /* Logo brand */ }
+.header__actions { /* Actions header (notifications, profile) */ }
+
+/* Dashboard */
+.dashboard { /* Container dashboard */ }
+.dashboard__container { /* Inner container avec padding responsive */ }
+.dashboard__header { /* Header section dashboard */ }
+.dashboard__stats { /* Zone KPIs/stats */ }
+.dashboard__content { /* Contenu principal */ }
+
+/* Layout Utilities */
+.layout-padding { /* px-5 sm:px-6 lg:px-10 py-4 */ }
+.layout-container { /* Combination avec max-width */ }
+.content-max-width { /* max-width: var(--content-max-width) */ }
+.sticky-footer { /* Footer sticky avec backdrop-blur */ }
+```
+
+**Usage exemple :**
+
+```tsx
+<div className="dashboard">
+  <div className="dashboard__container content-max-width mx-auto">
+    <header className="dashboard__header">
+      <h1>Tableau de bord</h1>
+    </header>
+    <section className="dashboard__stats">
+      {/* KPI cards */}
+    </section>
+    <main className="dashboard__content">
+      {/* Contenu principal */}
+    </main>
+  </div>
+</div>
 ```
 
 ### Layout Utility Classes

@@ -85,7 +85,6 @@
 - **Logs d'activité** - Audit trail complet de toutes les actions
 - **RGPD compliant** - Données sécurisées, chiffrement, droit à l'oubli
 - **Bannière cookies RGPD** - Consentement opt-in avec préférences granulaires
-- **Microsoft Clarity** - Analytics comportemental avec respect du consentement
 - **Multi-tenant** - Isolation RLS garantie entre équipes
 
 ### 📊 Métriques de l'Application
@@ -143,39 +142,20 @@ components/contracts/
 
 ---
 
-### 📊 Microsoft Clarity & Bannière Cookies RGPD (Dec 4, 2025)
+### 🍪 Bannière Cookies RGPD (Dec 4, 2025)
 
-**Analytics comportemental et conformité RGPD** avec consentement granulaire.
+**Conformité RGPD** avec consentement granulaire.
 
-**Nouveautés** :
-- 📊 **Microsoft Clarity** - Heatmaps, session replays, insights utilisateur
+**Fonctionnalités** :
 - 🍪 **Bannière cookies RGPD** - Consentement opt-in conforme EU/UK/CH
 - 🎛️ **Préférences granulaires** - Analytics / Publicité / Fonctionnel
-- 🔒 **Respect consentement** - Clarity n'enregistre qu'après acceptation
 - 💾 **Persistance localStorage** - 1 an avec versioning
-- 👤 **Identification utilisateurs** - Sessions liées aux profils (hashé)
-
-**Architecture** :
-```
-CookieConsentProvider
-└── ClarityProvider
-    ├── Attend le consentement avant init
-    ├── Clarity.consentV2() selon préférences
-    └── Identification users authentifiés
-```
 
 **Fichiers clés** :
 | Fichier | Rôle |
 |---------|------|
 | `hooks/use-cookie-consent.tsx` | Context + Provider + Hooks consentement |
 | `components/cookie-consent-banner.tsx` | Bannière UI + Modal préférences |
-| `components/clarity-provider.tsx` | Intégration Microsoft Clarity |
-
-**Configuration** :
-```env
-# .env.local
-NEXT_PUBLIC_CLARITY_PROJECT_ID=your_project_id
-```
 
 ---
 
@@ -209,6 +189,68 @@ NEXT_PUBLIC_CLARITY_PROJECT_ID=your_project_id
 | `app/providers.tsx` | ThemeProvider (next-themes) |
 | `components/ui/theme-toggle.tsx` | Toggle Sun/Moon animé |
 | `components/landing/hero-video.tsx` | Vidéo conditionnelle selon thème |
+
+---
+
+### 👥 Personas & UX Design (Dec 6, 2025)
+
+**Guide de décision UX/UI complet** basé sur l'analyse approfondie de 3 personas utilisateurs.
+
+#### Personas Analysés
+
+| Persona | Profil | Portefeuille | Mode de travail | Besoin UX principal |
+|---------|--------|--------------|-----------------|---------------------|
+| **Philippe** (Multipropriétaire) | 55 ans, peu digital | 10-50 logements | Desktop, emails | Dashboard KPIs clair |
+| **Thomas** (Gestionnaire) | 38 ans, très mobile | 50-200 logements | **80% mobile** | App mobile complète |
+| **Julien** (Agent agence) | 42 ans, variable | 200-500+ logements | Multi-outils | Intégrations, multi-users |
+
+#### 5 Challenges UX Critiques Identifiés
+
+| Challenge | Citation utilisateur | Solution UX |
+|-----------|---------------------|-------------|
+| Mode pompier 70-80% | "Je passe mon temps à éteindre des feux" | Priorisation intelligente |
+| Trou noir prestataires | "Impossible de savoir où en est..." | Tracking visible end-to-end |
+| Multi-canal ingérable | "Je perds 2h/jour à chercher des infos" | Recherche universelle (Ctrl+K) |
+| Peur de perdre contrôle | "Je perds le contrôle si je délègue" | Permissions granulaires |
+| Burn-out imminent | "Pas de vacances depuis 3 ans" | Automatisations poussées |
+
+#### Philosophie Design SEIDO
+
+> **"Professional without being corporate, powerful without being complex."**
+
+- **Clarity over cleverness** — Information immédiatement compréhensible
+- **Mobile-first** — 80% du travail terrain se fait sur mobile
+- **Progressive complexity** — Simple par défaut, puissant quand nécessaire
+
+**Documentation complète** : [`docs/design/ux-ui-decision-guide.md`](./docs/design/ux-ui-decision-guide.md) (3500+ lignes)
+- Heuristiques de Nielsen appliquées à SEIDO
+- Patterns Material Design 3 & Apple HIG
+- Guidelines par rôle (Gestionnaire, Prestataire, Locataire, Admin)
+- Stratégies pour la densité de données
+- Anti-patterns à éviter
+
+#### 🎨 Design System SEIDO
+
+| Document | Contenu |
+|----------|---------|
+| [`00-general.md`](./docs/design/00-general.md) | Introduction et principes fondamentaux |
+| [`01-colors.md`](./docs/design/01-colors.md) | Système de couleurs OKLCH |
+| [`02-typography.md`](./docs/design/02-typography.md) | Typographie et hiérarchie |
+| [`03-spacing.md`](./docs/design/03-spacing.md) | Système d'espacement 4px |
+| [`04-layouts.md`](./docs/design/04-layouts.md) | Grilles et layouts responsive |
+| [`05-components.md`](./docs/design/05-components.md) | Composants UI et métier |
+| [`06-icons.md`](./docs/design/06-icons.md) | Système d'icônes Lucide React |
+| [`07-guidelines.md`](./docs/design/07-guidelines.md) | Bonnes pratiques UX |
+
+**Personas unifiés** :
+- [`persona-gestionnaire-unifie.md`](./docs/design/persona-gestionnaire-unifie.md) - Thomas, 280 logements, 60% bureau / 40% mobile
+- [`persona-locataire.md`](./docs/design/persona-locataire.md) - Emma, 29 ans, Millennial, mobile-first
+- [`persona-prestataire.md`](./docs/design/persona-prestataire.md) - Marc, 38 ans, artisan, 75% terrain
+
+**Source de vérité CSS** : [`app/globals.css`](./app/globals.css)
+- Couleurs OKLCH (`--primary`, `--background`, `--destructive`, etc.)
+- Variables dashboard (`--dashboard-padding-*`, `--header-*`)
+- Classes BEM (`.header`, `.dashboard`, `.layout-*`)
 
 ---
 

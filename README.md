@@ -96,7 +96,7 @@
 | **Storybook Stories** | 19 stories | Documentation interactive composants intervention |
 | **Services** | 24 services | Domain services (business logic) |
 | **Repositories** | 21 repositories | Data access layer avec caching |
-| **Custom Hooks** | 51 hooks | Auth, data fetching, UI state, real-time |
+| **Custom Hooks** | 53 hooks | Auth, data fetching, UI state, real-time, analytics |
 | **Validation Schemas** | 59 schémas Zod | 780+ lignes, 95% routes validées |
 | **Email Templates** | 18 templates React Email | Auth, interventions, quotes |
 | **Migrations DB** | 85 migrations | Phases 1, 2, 3, 4 (contracts) appliquées |
@@ -156,6 +156,57 @@ components/contracts/
 |---------|------|
 | `hooks/use-cookie-consent.tsx` | Context + Provider + Hooks consentement |
 | `components/cookie-consent-banner.tsx` | Bannière UI + Modal préférences |
+
+---
+
+### 📊 Analytics & SEO (Dec 6, 2025)
+
+**Intégration Contentsquare/Clarity avec tracking SPA et conformité RGPD.**
+
+**Fonctionnalités** :
+- 🗺️ **Sitemap dynamique** - Next.js 15 sitemap.ts avec routes publiques
+- 📈 **SPA Page Tracking** - Notification automatique à chaque changement de route
+- 👤 **User Segmentation** - Custom variables par rôle (gestionnaire, locataire, prestataire)
+- 🔒 **Privacy Masking** - Masquage automatique des PII (email, password) via `data-cs-mask`
+- ✅ **Consent-aware** - Tracking uniquement si cookies analytics acceptés
+
+**Architecture** :
+```
+Navigation SPA → usePathname() → trackPageview() → Contentsquare
+                                ↓
+              useAuth() → setCustomVariable(role) → Segmentation dashboard
+```
+
+**Fichiers clés** :
+| Fichier | Rôle |
+|---------|------|
+| `app/sitemap.ts` | Sitemap dynamique (routes publiques uniquement) |
+| `hooks/use-analytics-tracking.ts` | Hook tracking changements de page |
+| `hooks/use-analytics-identify.ts` | Hook segmentation utilisateur (anonymisé) |
+| `components/analytics-provider.tsx` | Provider avec respect du consentement |
+
+---
+
+### 🔒 Headers de Sécurité (Dec 6, 2025)
+
+**Configuration Next.js complète pour protection contre attaques web.**
+
+**Headers configurés** (`next.config.js`) :
+| Header | Valeur | Protection |
+|--------|--------|------------|
+| `X-Frame-Options` | `SAMEORIGIN` | Clickjacking |
+| `X-Content-Type-Options` | `nosniff` | MIME sniffing |
+| `X-XSS-Protection` | `1; mode=block` | XSS (legacy) |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Fuite de données |
+| `Content-Security-Policy` | Voir ci-dessous | XSS, injection |
+| `Vary` | `Accept-Encoding` | Cache optimisation |
+
+**CSP Directives** :
+- `default-src 'self'` - Ressources par défaut
+- `base-uri 'self'` - Protection injection `<base>`
+- `script-src` - Self + Vercel + Contentsquare
+- `connect-src` - Self + Supabase (https + wss)
+- `frame-ancestors 'self'` - Anti-clickjacking
 
 ---
 

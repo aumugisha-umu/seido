@@ -123,11 +123,58 @@ L'attribut `aria-labelledby` est la solution accessible recommandee par WAI-ARIA
 
 ---
 
+## Sitemap & Analytics (2025-12-06)
+
+### Corrections Appliquees
+
+| Categorie | Probleme | Statut | Fichier |
+|-----------|----------|--------|---------|
+| **SEO** | Sitemap manquant (404) | CORRIGE | `app/sitemap.ts` |
+| **Analytics** | SPA page tracking | CORRIGE | `hooks/use-analytics-tracking.ts` |
+| **Analytics** | User segmentation | CORRIGE | `hooks/use-analytics-identify.ts` |
+| **RGPD** | Privacy masking PII | CORRIGE | `globals.css`, `input.tsx` |
+
+### Details
+
+#### 1. Sitemap Dynamique (`app/sitemap.ts`)
+
+Creation d'un sitemap Next.js avec uniquement les routes publiques:
+- `/` (landing)
+- `/auth/login`, `/auth/signup`, `/auth/reset-password`
+- `/conditions-generales`, `/confidentialite`, `/cookies`
+
+Les routes protegees sont exclues (deja bloquees par robots.txt).
+
+#### 2. Analytics SPA Tracking
+
+**Hooks crees:**
+- `use-analytics-tracking.ts` - Track les changements de page via `trackPageview`
+- `use-analytics-identify.ts` - Segmente par role (gestionnaire, locataire, prestataire)
+
+**Provider:**
+- `components/analytics-provider.tsx` - Wrapper qui respecte le consentement cookies
+
+**Integration:**
+- `app/layout.tsx` - AnalyticsProvider integre dans la hierarchie des providers
+
+#### 3. Privacy Masking RGPD
+
+**CSS (`globals.css`):**
+- Selecteurs `[data-cs-mask]`, `.cs-mask`, `input[type="email"]`, etc.
+- Contentsquare detecte et masque automatiquement
+
+**Component (`input.tsx`):**
+- Ajout de `data-cs-mask` pour `type="password"` et `type="email"`
+
+---
+
 ## Validation Post-Deploiement
 
 - [ ] Tester headers: https://securityheaders.com
 - [ ] Verifier robots.txt: https://www.seido-app.com/robots.txt
+- [ ] Verifier sitemap: https://www.seido-app.com/sitemap.xml
 - [ ] Tester Open Graph: https://developers.facebook.com/tools/debug/
+- [ ] Verifier tracking dans Clarity dashboard
 - [ ] Re-audit Lighthouse Performance
 - [ ] Re-audit Dareboost
 
@@ -137,4 +184,5 @@ L'attribut `aria-labelledby` est la solution accessible recommandee par WAI-ARIA
 
 | Date | Source | Score Initial | Score Final | Actions |
 |------|--------|---------------|-------------|---------|
-| 2025-12-06 | Dareboost | N/A | En attente | 14 corrections appliquees |
+| 2025-12-06 | Dareboost | N/A | En attente | 14 corrections securite/SEO |
+| 2025-12-06 | Sitemap/Analytics | N/A | Implemente | Sitemap + SPA tracking + RGPD masking |

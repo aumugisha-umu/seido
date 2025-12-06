@@ -53,8 +53,9 @@ export function LandingHeader({
           <Image
             src="/images/Logo/Logo_Seido_White.png"
             alt="SEIDO"
-            width={120}
+            width={96}
             height={36}
+            sizes="96px"
             className="h-9 w-auto"
             priority
           />

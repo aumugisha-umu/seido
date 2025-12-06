@@ -13,6 +13,58 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 })
 
 const nextConfig = {
+  // Security and cache headers for all routes
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          // Protection against clickjacking
+          {
+            key: 'X-Frame-Options',
+            value: 'SAMEORIGIN'
+          },
+          // Protection against MIME sniffing
+          {
+            key: 'X-Content-Type-Options',
+            value: 'nosniff'
+          },
+          // XSS Protection (legacy browsers)
+          {
+            key: 'X-XSS-Protection',
+            value: '1; mode=block'
+          },
+          // Referrer Policy
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin'
+          },
+          // Content Security Policy
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "base-uri 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.contentsquare.net https://*.contentsquare.com https://*.vercel-insights.com https://*.vercel.app",
+              "style-src 'self' 'unsafe-inline'",
+              "img-src 'self' data: blob: https:",
+              "font-src 'self' data:",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.contentsquare.net https://*.contentsquare.com https://*.vercel-insights.com",
+              "frame-ancestors 'self'",
+              "media-src 'self' blob:",
+              "worker-src 'self' blob:"
+            ].join('; ')
+          },
+          // Cache compression hint
+          {
+            key: 'Vary',
+            value: 'Accept-Encoding'
+          }
+        ]
+      }
+    ]
+  },
+
   eslint: {
     // Ignore ESLint errors during build (Vercel deployment)
     ignoreDuringBuilds: true,

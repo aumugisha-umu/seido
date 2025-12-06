@@ -84,6 +84,7 @@ export function LandingPage() {
                         loop
                         muted
                         playsInline
+                        preload="none"
                         className="w-full h-full object-cover"
                     >
                         <source src="/videos/hero-video.webm" type="video/webm" />
@@ -844,8 +845,9 @@ export function LandingPage() {
                                 <Image
                                     src="/images/Logo/Logo_Seido_White_1.webp"
                                     alt="SEIDO"
-                                    width={120}
+                                    width={96}
                                     height={36}
+                                    sizes="96px"
                                     className="h-9 w-auto"
                                 />
                             </div>

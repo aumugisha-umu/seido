@@ -163,11 +163,11 @@ export function DemoRequestForm({
           />
         </div>
         <div className={cn(styles.field, styles.fieldHalf)}>
-          <Label htmlFor="demo-lotsCount" className={styles.label}>
+          <Label id="label-lotsCount" className={styles.label}>
             Patrimoine en gestion *
           </Label>
-          <Select name="lotsCount" required>
-            <SelectTrigger className={styles.input}>
+          <Select name="lotsCount" required aria-labelledby="label-lotsCount">
+            <SelectTrigger className={styles.input} aria-labelledby="label-lotsCount">
               <SelectValue placeholder="Sélectionner" />
             </SelectTrigger>
             <SelectContent className="bg-landing-card border-white/20">

@@ -45,11 +45,11 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               "base-uri 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.contentsquare.net https://*.vercel-insights.com https://*.vercel.app",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.contentsquare.net https://*.contentsquare.com https://*.vercel-insights.com https://*.vercel.app",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",
               "font-src 'self' data:",
-              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.contentsquare.net https://*.vercel-insights.com",
+              "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.contentsquare.net https://*.contentsquare.com https://*.vercel-insights.com",
               "frame-ancestors 'self'",
               "media-src 'self' blob:",
               "worker-src 'self' blob:"

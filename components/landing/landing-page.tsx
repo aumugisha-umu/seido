@@ -845,8 +845,9 @@ export function LandingPage() {
                                 <Image
                                     src="/images/Logo/Logo_Seido_White_1.webp"
                                     alt="SEIDO"
-                                    width={120}
+                                    width={96}
                                     height={36}
+                                    sizes="96px"
                                     className="h-9 w-auto"
                                 />
                             </div>

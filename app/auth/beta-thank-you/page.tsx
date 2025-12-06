@@ -21,8 +21,9 @@ export default function BetaThankYouPage() {
               <Image
                 src="/images/Logo/Logo_Seido_White.png"
                 alt="SEIDO"
-                width={120}
+                width={107}
                 height={40}
+                sizes="107px"
                 className="h-10 w-auto"
                 priority
               />

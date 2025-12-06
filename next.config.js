@@ -44,6 +44,7 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
+              "base-uri 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://*.contentsquare.net https://*.vercel-insights.com https://*.vercel.app",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https:",

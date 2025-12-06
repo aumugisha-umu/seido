@@ -75,7 +75,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
         })
     }, [interventions, period])
 
-    // Realtime updates for interventions
+    // Realtime updates for interventions 
     useRealtimeInterventions({
         interventionCallbacks: {
             onUpdate: useCallback((updatedIntervention: DbIntervention) => {

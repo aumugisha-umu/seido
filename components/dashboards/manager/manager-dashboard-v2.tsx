@@ -16,6 +16,10 @@ import { GestionnaireFAB } from "@/components/ui/fab"
 import { PeriodSelector, getDefaultPeriod, type Period } from "@/components/ui/period-selector"
 
 import type { ContractStats } from "@/lib/types/contract.types"
+import type { Database } from "@/lib/database.types"
+
+// Type for intervention row from Supabase (used in realtime callback)
+type DbIntervention = Database['public']['Tables']['interventions']['Row']
 
 interface ManagerDashboardProps {
     stats: any
@@ -74,7 +78,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
     // Realtime updates for interventions
     useRealtimeInterventions({
         interventionCallbacks: {
-            onUpdate: useCallback((updatedIntervention) => {
+            onUpdate: useCallback((updatedIntervention: DbIntervention) => {
                 setInterventions(prev =>
                     prev.map(intervention =>
                         intervention.id === updatedIntervention.id

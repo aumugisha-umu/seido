@@ -35,6 +35,7 @@ const contactTypes = [
   { key: "tenant", label: "Locataire", icon: User, color: "text-blue-600" },
   { key: "provider", label: "Prestataire", icon: Briefcase, color: "text-green-600" },
   { key: "owner", label: "Propriétaire", icon: Home, color: "text-amber-600" },
+  { key: "guarantor", label: "Garant", icon: Shield, color: "text-amber-600" },
   { key: "other", label: "Autre", icon: MoreHorizontal, color: "text-gray-600" },
 ]
 

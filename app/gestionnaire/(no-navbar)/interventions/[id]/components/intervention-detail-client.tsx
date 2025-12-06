@@ -287,7 +287,7 @@ export function InterventionDetailClient({
       created_at: q.created_at || undefined,
       description: q.description || undefined
     }))
-  , [quotes])
+    , [quotes])
 
   // TimeSlots transformés pour PlanningCard
   const transformedTimeSlots: SharedTimeSlot[] = useMemo(() =>
@@ -306,7 +306,7 @@ export function InterventionDetailClient({
         user: r.user ? { name: r.user.name, role: r.user.role || '' } : undefined
       }))
     }))
-  , [timeSlots])
+    , [timeSlots])
 
   // Comments transformés pour CommentsCard
   const transformedComments: SharedComment[] = useMemo(() =>
@@ -317,7 +317,7 @@ export function InterventionDetailClient({
       date: c.created_at,
       role: c.user?.role || undefined
     }))
-  , [comments])
+    , [comments])
 
   // Documents transformés pour DocumentsCard
   const transformedDocuments: InterventionDocument[] = useMemo(() =>
@@ -329,7 +329,7 @@ export function InterventionDetailClient({
       date: d.uploaded_at ? new Date(d.uploaded_at).toLocaleDateString('fr-FR') : undefined,
       url: d.storage_path || undefined
     }))
-  , [documents])
+    , [documents])
 
   // Timeline events pour la progression
   const timelineEvents: TimelineEventData[] = useMemo(() => {
@@ -1153,226 +1153,226 @@ export function InterventionDetailClient({
         }
       />
 
-      <div className="layout-padding flex-1 min-h-0 bg-slate-50 flex flex-col overflow-hidden">
+      <div className="layout-padding flex-1 min-h-0 bg-muted flex flex-col overflow-hidden">
 
-      {/* Programming Modal */}
-      <ProgrammingModal
-        isOpen={planning.programmingModal.isOpen}
-        onClose={planning.closeProgrammingModal}
-        intervention={planning.programmingModal.intervention}
-        programmingOption={planning.programmingOption}
-        onProgrammingOptionChange={planning.setProgrammingOption}
-        directSchedule={planning.programmingDirectSchedule}
-        onDirectScheduleChange={planning.setProgrammingDirectSchedule}
-        proposedSlots={planning.programmingProposedSlots}
-        onAddProposedSlot={planning.addProgrammingSlot}
-        onUpdateProposedSlot={planning.updateProgrammingSlot}
-        onRemoveProposedSlot={planning.removeProgrammingSlot}
-        managers={managers}
-        selectedManagers={managers.map(m => m.id)}
-        onManagerToggle={() => {}}
-        onOpenManagerModal={handleOpenManagerModal}
-        providers={providers}
-        selectedProviders={providers.map(p => p.id)}
-        onProviderToggle={() => {}}
-        onOpenProviderModal={handleOpenProviderModal}
-        tenants={tenants}
-        selectedTenants={tenants.map(t => t.id)}
-        onTenantToggle={() => {}}
-        onConfirm={planning.handleProgrammingConfirm}
-        isFormValid={planning.isProgrammingFormValid()}
-        quoteRequests={quotes}
-        onViewProvider={(providerId) => {
-          // Close modal and switch to Devis tab to view provider details
-          planning.closeProgrammingModal()
-          // TODO: Could add logic to highlight the specific provider in quotes tab
-        }}
-        onCancelQuoteRequest={handleCancelQuoteRequest}
-        requireQuote={requireQuote}
-        onRequireQuoteChange={handleToggleQuoteRequest}
-      />
+        {/* Programming Modal */}
+        <ProgrammingModal
+          isOpen={planning.programmingModal.isOpen}
+          onClose={planning.closeProgrammingModal}
+          intervention={planning.programmingModal.intervention}
+          programmingOption={planning.programmingOption}
+          onProgrammingOptionChange={planning.setProgrammingOption}
+          directSchedule={planning.programmingDirectSchedule}
+          onDirectScheduleChange={planning.setProgrammingDirectSchedule}
+          proposedSlots={planning.programmingProposedSlots}
+          onAddProposedSlot={planning.addProgrammingSlot}
+          onUpdateProposedSlot={planning.updateProgrammingSlot}
+          onRemoveProposedSlot={planning.removeProgrammingSlot}
+          managers={managers}
+          selectedManagers={managers.map(m => m.id)}
+          onManagerToggle={() => { }}
+          onOpenManagerModal={handleOpenManagerModal}
+          providers={providers}
+          selectedProviders={providers.map(p => p.id)}
+          onProviderToggle={() => { }}
+          onOpenProviderModal={handleOpenProviderModal}
+          tenants={tenants}
+          selectedTenants={tenants.map(t => t.id)}
+          onTenantToggle={() => { }}
+          onConfirm={planning.handleProgrammingConfirm}
+          isFormValid={planning.isProgrammingFormValid()}
+          quoteRequests={quotes}
+          onViewProvider={(providerId) => {
+            // Close modal and switch to Devis tab to view provider details
+            planning.closeProgrammingModal()
+            // TODO: Could add logic to highlight the specific provider in quotes tab
+          }}
+          onCancelQuoteRequest={handleCancelQuoteRequest}
+          requireQuote={requireQuote}
+          onRequireQuoteChange={handleToggleQuoteRequest}
+        />
 
-      {/* Cancel Slot Modal */}
-      <CancelSlotModal
-        isOpen={planning.cancelSlotModal.isOpen}
-        onClose={planning.closeCancelSlotModal}
-        slot={planning.cancelSlotModal.slot}
-        interventionId={intervention.id}
-        onSuccess={handleRefresh}
-      />
+        {/* Cancel Slot Modal */}
+        <CancelSlotModal
+          isOpen={planning.cancelSlotModal.isOpen}
+          onClose={planning.closeCancelSlotModal}
+          slot={planning.cancelSlotModal.slot}
+          interventionId={intervention.id}
+          onSuccess={handleRefresh}
+        />
 
-      {/* Reject Slot Modal */}
-      <RejectSlotModal
-        isOpen={planning.rejectSlotModal.isOpen}
-        onClose={planning.closeRejectSlotModal}
-        slot={planning.rejectSlotModal.slot}
-        interventionId={intervention.id}
-        onSuccess={handleRefresh}
-      />
+        {/* Reject Slot Modal */}
+        <RejectSlotModal
+          isOpen={planning.rejectSlotModal.isOpen}
+          onClose={planning.closeRejectSlotModal}
+          slot={planning.rejectSlotModal.slot}
+          interventionId={intervention.id}
+          onSuccess={handleRefresh}
+        />
 
-      {/* Cancel Quote Request Modal */}
-      <CancelQuoteRequestModal
-        isOpen={cancelQuoteModal.isOpen}
-        onClose={() => setCancelQuoteModal({ isOpen: false, quoteId: null, providerName: '' })}
-        onConfirm={handleConfirmCancelQuote}
-        providerName={cancelQuoteModal.providerName}
-        isLoading={isCancellingQuote}
-      />
+        {/* Cancel Quote Request Modal */}
+        <CancelQuoteRequestModal
+          isOpen={cancelQuoteModal.isOpen}
+          onClose={() => setCancelQuoteModal({ isOpen: false, quoteId: null, providerName: '' })}
+          onConfirm={handleConfirmCancelQuote}
+          providerName={cancelQuoteModal.providerName}
+          isLoading={isCancellingQuote}
+        />
 
-      {/* Cancel Quote Confirm Modal (from toggle) */}
-      <CancelQuoteConfirmModal
-        isOpen={cancelQuoteConfirmModal.isOpen}
-        onClose={() => setCancelQuoteConfirmModal({ isOpen: false, quoteId: null, providerName: '' })}
-        onConfirm={handleConfirmCancelQuoteFromToggle}
-        providerName={cancelQuoteConfirmModal.providerName}
-        isLoading={isCancellingQuoteFromToggle}
-      />
+        {/* Cancel Quote Confirm Modal (from toggle) */}
+        <CancelQuoteConfirmModal
+          isOpen={cancelQuoteConfirmModal.isOpen}
+          onClose={() => setCancelQuoteConfirmModal({ isOpen: false, quoteId: null, providerName: '' })}
+          onConfirm={handleConfirmCancelQuoteFromToggle}
+          providerName={cancelQuoteConfirmModal.providerName}
+          isLoading={isCancellingQuoteFromToggle}
+        />
 
-      {/* Finalization Modal */}
-      <FinalizationModalLive
-        interventionId={intervention.id}
-        isOpen={showFinalizationModal}
-        onClose={() => setShowFinalizationModal(false)}
-        onComplete={handleRefresh}
-      />
+        {/* Finalization Modal */}
+        <FinalizationModalLive
+          interventionId={intervention.id}
+          isOpen={showFinalizationModal}
+          onClose={() => setShowFinalizationModal(false)}
+          onComplete={handleRefresh}
+        />
 
-      {/* Nouveau design PreviewHybrid */}
-      <PreviewHybridLayout
-        className="flex-1"
-        sidebar={
-          <InterventionSidebar
-            participants={participants}
-            currentUserRole="manager"
-            currentStatus={intervention.status}
-            timelineEvents={timelineEvents}
-            activeConversation={activeConversation}
-            showConversationButtons={true}
-            onConversationClick={handleConversationClick}
-            onGroupConversationClick={handleGroupConversationClick}
-          />
-        }
-        content={
-          <InterventionTabs
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-            userRole="manager"
-          >
-            {/* TAB: GENERAL */}
-            <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
-              <ContentWrapper>
-                {/* Détails de l'intervention */}
-                <div className="flex-shrink-0">
-                  <InterventionDetailsCard
-                    title={intervention.title}
-                    description={intervention.description || undefined}
-                    instructions={intervention.instructions || undefined}
-                    planning={{
-                      scheduledDate,
-                      status: planningStatus,
-                      quotesCount: transformedQuotes.length,
-                      quotesStatus,
-                      selectedQuoteAmount
-                    }}
-                  />
-                </div>
+        {/* Nouveau design PreviewHybrid */}
+        <PreviewHybridLayout
+          className="flex-1"
+          sidebar={
+            <InterventionSidebar
+              participants={participants}
+              currentUserRole="manager"
+              currentStatus={intervention.status}
+              timelineEvents={timelineEvents}
+              activeConversation={activeConversation}
+              showConversationButtons={true}
+              onConversationClick={handleConversationClick}
+              onGroupConversationClick={handleGroupConversationClick}
+            />
+          }
+          content={
+            <InterventionTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              userRole="manager"
+            >
+              {/* TAB: GENERAL */}
+              <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <ContentWrapper>
+                  {/* Détails de l'intervention */}
+                  <div className="flex-shrink-0">
+                    <InterventionDetailsCard
+                      title={intervention.title}
+                      description={intervention.description || undefined}
+                      instructions={intervention.instructions || undefined}
+                      planning={{
+                        scheduledDate,
+                        status: planningStatus,
+                        quotesCount: transformedQuotes.length,
+                        quotesStatus,
+                        selectedQuoteAmount
+                      }}
+                    />
+                  </div>
 
-                {/* Documents + Commentaires */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 flex-1 min-h-0 overflow-hidden">
-                  <DocumentsCard
-                    documents={transformedDocuments}
-                    userRole="manager"
-                    onUpload={() => console.log('Upload document')}
-                    onView={(id) => console.log('View document:', id)}
-                    onDownload={(id) => console.log('Download document:', id)}
-                    className="overflow-hidden"
-                  />
+                  {/* Documents + Commentaires */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 flex-1 min-h-0 overflow-hidden">
+                    <DocumentsCard
+                      documents={transformedDocuments}
+                      userRole="manager"
+                      onUpload={() => console.log('Upload document')}
+                      onView={(id) => console.log('View document:', id)}
+                      onDownload={(id) => console.log('Download document:', id)}
+                      className="overflow-hidden"
+                    />
 
-                  <CommentsCard
-                    comments={transformedComments}
-                    onAddComment={(content) => console.log('Add comment:', content)}
-                    className="overflow-hidden"
-                  />
-                </div>
-              </ContentWrapper>
-            </TabsContent>
+                    <CommentsCard
+                      comments={transformedComments}
+                      onAddComment={(content) => console.log('Add comment:', content)}
+                      className="overflow-hidden"
+                    />
+                  </div>
+                </ContentWrapper>
+              </TabsContent>
 
-            {/* TAB: CONVERSATIONS */}
-            <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
-              <ConversationCard
-                messages={mockMessages}
-                currentUserId={serverUserId}
-                currentUserRole="manager"
-                conversationType={activeConversation === 'group' ? 'group' : 'individual'}
-                participantName={
-                  activeConversation !== 'group'
-                    ? [...participants.managers, ...participants.providers, ...participants.tenants]
+              {/* TAB: CONVERSATIONS */}
+              <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
+                <ConversationCard
+                  messages={mockMessages}
+                  currentUserId={serverUserId}
+                  currentUserRole="manager"
+                  conversationType={activeConversation === 'group' ? 'group' : 'individual'}
+                  participantName={
+                    activeConversation !== 'group'
+                      ? [...participants.managers, ...participants.providers, ...participants.tenants]
                         .find(p => p.id === activeConversation)?.name
-                    : undefined
-                }
-                onSendMessage={(content) => console.log('Send message:', content)}
-                className="flex-1 mx-4"
-              />
-            </TabsContent>
+                      : undefined
+                  }
+                  onSendMessage={(content) => console.log('Send message:', content)}
+                  className="flex-1 mx-4"
+                />
+              </TabsContent>
 
-            {/* TAB: PLANNING */}
-            <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
-              <div className="flex-1 flex flex-col gap-4 p-4 sm:p-6">
-                {/* Devis */}
-                {requireQuote && (
-                  <QuotesCard
-                    quotes={transformedQuotes}
+              {/* TAB: PLANNING */}
+              <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 flex flex-col gap-4 p-4 sm:p-6">
+                  {/* Devis */}
+                  {requireQuote && (
+                    <QuotesCard
+                      quotes={transformedQuotes}
+                      userRole="manager"
+                      showActions={true}
+                      onAddQuote={() => console.log('Add quote')}
+                      onApproveQuote={handleApproveQuote}
+                      onRejectQuote={handleRejectQuote}
+                      className="flex-1 min-h-0"
+                    />
+                  )}
+
+                  {/* Planning */}
+                  <PlanningCard
+                    timeSlots={transformedTimeSlots}
+                    scheduledDate={scheduledDate || undefined}
                     userRole="manager"
-                    showActions={true}
-                    onAddQuote={() => console.log('Add quote')}
-                    onApproveQuote={handleApproveQuote}
-                    onRejectQuote={handleRejectQuote}
+                    currentUserId={serverUserId}
+                    onAddSlot={handleOpenProgrammingModalWithData}
+                    onApproveSlot={(slotId) => {
+                      const slot = timeSlots.find(s => s.id === slotId)
+                      if (slot) handleApproveSlot(slot)
+                    }}
+                    onRejectSlot={(slotId) => {
+                      const slot = timeSlots.find(s => s.id === slotId)
+                      if (slot) handleRejectSlot(slot)
+                    }}
+                    onEditSlot={(slotId) => {
+                      const slot = timeSlots.find(s => s.id === slotId)
+                      if (slot) handleEditSlot(slot)
+                    }}
+                    onCancelSlot={(slotId) => {
+                      const slot = timeSlots.find(s => s.id === slotId)
+                      if (slot) planning.openCancelSlotModal(slot, intervention.id)
+                    }}
+                    onChooseSlot={handleChooseSlot}
                     className="flex-1 min-h-0"
                   />
-                )}
-
-                {/* Planning */}
-                <PlanningCard
-                  timeSlots={transformedTimeSlots}
-                  scheduledDate={scheduledDate || undefined}
-                  userRole="manager"
-                  currentUserId={serverUserId}
-                  onAddSlot={handleOpenProgrammingModalWithData}
-                  onApproveSlot={(slotId) => {
-                    const slot = timeSlots.find(s => s.id === slotId)
-                    if (slot) handleApproveSlot(slot)
-                  }}
-                  onRejectSlot={(slotId) => {
-                    const slot = timeSlots.find(s => s.id === slotId)
-                    if (slot) handleRejectSlot(slot)
-                  }}
-                  onEditSlot={(slotId) => {
-                    const slot = timeSlots.find(s => s.id === slotId)
-                    if (slot) handleEditSlot(slot)
-                  }}
-                  onCancelSlot={(slotId) => {
-                    const slot = timeSlots.find(s => s.id === slotId)
-                    if (slot) planning.openCancelSlotModal(slot, intervention.id)
-                  }}
-                  onChooseSlot={handleChooseSlot}
-                  className="flex-1 min-h-0"
-                />
-              </div>
-            </TabsContent>
-          </InterventionTabs>
-        }
-      />
-
-      {/* Modale de choix de créneau */}
-      {selectedFullSlotForChoice && (
-        <ChooseTimeSlotModal
-          slot={selectedFullSlotForChoice}
-          interventionId={selectedFullSlotForChoice.intervention_id}
-          hasActiveQuotes={transformedQuotes.some(q => q.status === 'pending' || q.status === 'sent')}
-          open={isChooseModalOpen}
-          onOpenChange={setIsChooseModalOpen}
-          onSuccess={handleChooseModalSuccess}
+                </div>
+              </TabsContent>
+            </InterventionTabs>
+          }
         />
-      )}
+
+        {/* Modale de choix de créneau */}
+        {selectedFullSlotForChoice && (
+          <ChooseTimeSlotModal
+            slot={selectedFullSlotForChoice}
+            interventionId={selectedFullSlotForChoice.intervention_id}
+            hasActiveQuotes={transformedQuotes.some(q => q.status === 'pending' || q.status === 'sent')}
+            open={isChooseModalOpen}
+            onOpenChange={setIsChooseModalOpen}
+            onSuccess={handleChooseModalSuccess}
+          />
+        )}
 
         {/* Contact Selector Modal */}
         <ContactSelector

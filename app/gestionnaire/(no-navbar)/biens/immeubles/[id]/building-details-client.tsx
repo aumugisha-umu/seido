@@ -435,7 +435,7 @@ export default function BuildingDetailsClient({
         dropdownActions={dropdownActions}
       />
 
-      <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
+      <div className="layout-padding h-full bg-muted flex flex-col overflow-hidden">
         {error && (
         <div className="content-max-width px-4 sm:px-6 lg:px-8 py-4">
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -447,7 +447,7 @@ export default function BuildingDetailsClient({
       {/* Tabs Navigation */}
       <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4 mb-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="border-b border-slate-200">
+          <div className="border-b border-border">
             <TabsList className="inline-flex h-auto p-0 bg-transparent w-full justify-start">
               {tabs.map((tab) => {
                 const Icon = tab.icon
@@ -455,13 +455,13 @@ export default function BuildingDetailsClient({
                   <TabsTrigger
                     key={tab.id}
                     value={tab.id}
-                    className="flex items-center space-x-2 px-4 py-3 text-sm font-medium text-slate-600 data-[state=active]:text-sky-600 data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-sky-600 rounded-none border-b-2 border-transparent hover:text-slate-900 transition-colors"
+                    className="flex items-center space-x-2 px-4 py-3 text-sm font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent hover:text-foreground transition-colors"
                   >
                     <Icon className="h-4 w-4" />
                     <span className="hidden sm:inline">{tab.label}</span>
                     <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
                     {tab.count !== null && (
-                      <Badge variant="secondary" className="ml-1 text-xs bg-slate-100 text-slate-600 data-[state=active]:bg-sky-100 data-[state=active]:text-sky-700">
+                      <Badge variant="secondary" className="ml-1 text-xs bg-muted text-muted-foreground data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
                         {tab.count}
                       </Badge>
                     )}
@@ -492,15 +492,15 @@ export default function BuildingDetailsClient({
 
               {/* Section 1.5: Description (if exists) */}
               {(building as { description?: string }).description && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
-                  <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-sm text-gray-700 whitespace-pre-wrap flex-1">{(building as { description: string }).description}</p>
+                <div className="bg-secondary/50 border border-secondary rounded-lg p-3 flex items-start gap-2 dark:bg-secondary/20">
+                  <Info className="h-4 w-4 text-secondary-foreground flex-shrink-0 mt-0.5" />
+                  <p className="text-sm text-foreground whitespace-pre-wrap flex-1">{(building as { description: string }).description}</p>
                 </div>
               )}
 
               {/* Section 2: Contacts Preview - Grid Only */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-700 mb-3 px-1">Contacts de l'immeuble</h3>
+                <h3 className="text-sm font-semibold text-foreground mb-3 px-1">Contacts de l'immeuble</h3>
                 <ContactsGridPreview
                   buildingId={building.id}
                   buildingName={building.name}
@@ -517,7 +517,7 @@ export default function BuildingDetailsClient({
               <div className="flex flex-col min-h-[300px] flex-1" ref={lotsSectionContainerRef}>
                 {/* Header avec titre et bouton d'ajout */}
                 <div ref={lotsSectionHeaderRef} className="flex items-center justify-between mb-3 px-1 flex-shrink-0">
-                  <h3 className="text-sm font-semibold text-gray-700">Lots et leurs contacts</h3>
+                  <h3 className="text-sm font-semibold text-foreground">Lots et leurs contacts</h3>
                   <Button
                     variant="outline"
                     size="sm"
@@ -576,8 +576,8 @@ export default function BuildingDetailsClient({
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-lg font-medium text-gray-900">Documents de l'immeuble</h2>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <h2 className="text-lg font-medium text-foreground">Documents de l'immeuble</h2>
+                    <p className="text-sm text-muted-foreground mt-1">
                       Documents liés aux interventions réalisées dans cet immeuble
                     </p>
                   </div>

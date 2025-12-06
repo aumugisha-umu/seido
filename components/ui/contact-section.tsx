@@ -15,7 +15,8 @@ import {
   Edit,
   Building,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Shield
 } from "lucide-react"
 
 // Base contact interface - compatible with both Contact and UserType
@@ -42,7 +43,7 @@ interface BaseContact {
  * ✅ Responsive design
  */
 
-type ContactSectionType = 'managers' | 'tenants' | 'providers' | 'owners' | 'others'
+type ContactSectionType = 'managers' | 'tenants' | 'providers' | 'owners' | 'others' | 'guarantors'
 
 interface ContactSectionConfig {
   icon: LucideIcon
@@ -165,6 +166,26 @@ const SECTION_CONFIGS: Record<ContactSectionType, ContactSectionConfig> = {
       buttonText: "text-gray-700",
       buttonHover: "hover:bg-gray-50"
     }
+  },
+  guarantors: {
+    icon: Shield,
+    label: "Garants",
+    addButtonLabel: "Ajouter garant",
+    emptyMessage: "Aucun garant",
+    colorScheme: {
+      header: "bg-amber-50",
+      headerHover: "hover:bg-amber-100",
+      iconColor: "text-amber-600",
+      textColor: "text-amber-900",
+      badgeBg: "bg-amber-600",
+      itemBg: "bg-amber-50/50",
+      itemBorder: "border-amber-100",
+      avatarBg: "bg-amber-200",
+      avatarIcon: "text-amber-700",
+      buttonBorder: "border-amber-300",
+      buttonText: "text-amber-700",
+      buttonHover: "hover:bg-amber-50"
+    }
   }
 }
 
@@ -269,9 +290,9 @@ export function ContactSection({
             {isInheritedExpanded && (
               <div className="border-t border-blue-200/60 bg-white/50">
                 <div className="p-2 space-y-1.5 max-h-[138px] overflow-y-auto">
-                  {inheritedContacts.map((contact) => (
+                  {inheritedContacts.map((contact, index) => (
                     <div
-                      key={contact.id}
+                      key={contact.id || `inherited-${index}`}
                       className="flex items-center gap-2 p-2 bg-white rounded border border-blue-100"
                     >
                       {/* Avatar for managers, icon for others */}
@@ -307,12 +328,12 @@ export function ContactSection({
 
         {/* Lot-specific contacts */}
         {contacts.length > 0 ? (
-          contacts.map((contact) => {
+          contacts.map((contact, index) => {
             const canRemoveThisContact = canRemove(contact)
 
             return (
               <div
-                key={contact.id}
+                key={contact.id || `contact-${index}`}
                 className={`flex items-center justify-between p-2 ${colorScheme.itemBg} rounded border ${colorScheme.itemBorder}`}
               >
                 <div className="flex items-center gap-2 flex-1 min-w-0">

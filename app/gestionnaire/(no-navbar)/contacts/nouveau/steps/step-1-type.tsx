@@ -1,4 +1,5 @@
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { User, Building2 } from "lucide-react"
@@ -7,25 +8,29 @@ interface Step1TypeProps {
   contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre'
   personOrCompany: 'person' | 'company'
   specialty?: string
+  customRoleDescription?: string
   onContactTypeChange: (value: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre') => void
   onPersonOrCompanyChange: (value: 'person' | 'company') => void
   onSpecialtyChange: (value: string) => void
+  onCustomRoleDescriptionChange: (value: string) => void
 }
 
 export function Step1Type({
   contactType,
   personOrCompany,
   specialty,
+  customRoleDescription,
   onContactTypeChange,
   onPersonOrCompanyChange,
-  onSpecialtyChange
+  onSpecialtyChange,
+  onCustomRoleDescriptionChange
 }: Step1TypeProps) {
   return (
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Type de contact</h2>
-        <p className="text-gray-600">
+        <h2 className="text-2xl font-semibold text-foreground mb-2">Type de contact</h2>
+        <p className="text-muted-foreground">
           Sélectionnez le type de contact et indiquez s'il s'agit d'une personne physique ou d'une société.
         </p>
       </div>
@@ -74,6 +79,23 @@ export function Step1Type({
             </Select>
           </div>
         )}
+
+        {/* Description personnalisée (si Autre) */}
+        {contactType === 'autre' && (
+          <div className="space-y-3">
+            <Label htmlFor="customRoleDescription" className="text-base font-medium">
+              Précisez le type de contact <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="customRoleDescription"
+              placeholder="Ex: Architecte, Notaire, Assureur..."
+              value={customRoleDescription || ''}
+              onChange={(e) => onCustomRoleDescriptionChange(e.target.value)}
+              maxLength={100}
+              className="w-full"
+            />
+          </div>
+        )}
       </div>
 
 
@@ -96,11 +118,11 @@ export function Step1Type({
             />
             <Label
               htmlFor="person"
-              className="flex flex-col items-center justify-between rounded-lg border-2 border-gray-200 bg-white p-6 hover:bg-gray-50 peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 cursor-pointer transition-all"
+              className="flex flex-col items-center justify-between rounded-lg border-2 border-border bg-card p-6 hover:bg-muted peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 dark:peer-data-[state=checked]:bg-blue-950 cursor-pointer transition-all"
             >
-              <User className="h-12 w-12 mb-3 text-gray-400 peer-data-[state=checked]:text-blue-600" />
+              <User className="h-12 w-12 mb-3 text-muted-foreground/70 peer-data-[state=checked]:text-blue-600" />
               <div className="text-center">
-                <div className="font-semibold text-gray-900">Personne physique</div>
+                <div className="font-semibold text-foreground">Personne physique</div>
               </div>
             </Label>
           </div>
@@ -114,11 +136,11 @@ export function Step1Type({
             />
             <Label
               htmlFor="company"
-              className="flex flex-col items-center justify-between rounded-lg border-2 border-gray-200 bg-white p-6 hover:bg-gray-50 peer-data-[state=checked]:border-purple-600 peer-data-[state=checked]:bg-purple-50 cursor-pointer transition-all"
+              className="flex flex-col items-center justify-between rounded-lg border-2 border-border bg-card p-6 hover:bg-muted peer-data-[state=checked]:border-purple-600 peer-data-[state=checked]:bg-purple-50 dark:peer-data-[state=checked]:bg-purple-950 cursor-pointer transition-all"
             >
-              <Building2 className="h-12 w-12 mb-3 text-gray-400 peer-data-[state=checked]:text-purple-600" />
+              <Building2 className="h-12 w-12 mb-3 text-muted-foreground/70 peer-data-[state=checked]:text-purple-600" />
               <div className="text-center">
-                <div className="font-semibold text-gray-900">Société</div>
+                <div className="font-semibold text-foreground">Société</div>
               </div>
             </Label>
           </div>

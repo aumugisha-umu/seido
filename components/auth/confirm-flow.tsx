@@ -7,7 +7,7 @@ import { confirmEmailAction, checkProfileCreated } from '@/app/actions/confirm-a
 import { SignupSuccessModal } from './signup-success-modal'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
+import AuthLogo from '@/components/ui/auth-logo'
 
 type FlowState = 'verifying' | 'creating_profile' | 'success' | 'error'
 
@@ -112,69 +112,97 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
     switch (state) {
       case 'verifying':
         return (
-          <div className="text-center space-y-4">
-            <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-            <h2 className="text-xl font-semibold">Vérification de votre email...</h2>
-            <p className="text-muted-foreground">
-              Nous validons votre lien de confirmation
-            </p>
+          <div className="w-full space-y-6">
+            <div className="flex flex-col items-center space-y-4 text-center">
+              <AuthLogo />
+              <div className="space-y-4">
+                <Loader2 className="h-12 w-12 animate-spin text-purple-600 mx-auto" />
+                <h2 className="text-xl font-semibold text-white">Vérification de votre email...</h2>
+                <p className="text-white/60">
+                  Nous validons votre lien de confirmation
+                </p>
+              </div>
+            </div>
           </div>
         )
 
       case 'creating_profile':
         return (
-          <div className="text-center space-y-4">
-            <div className="relative">
-              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto" />
-              <CheckCircle2 className="h-5 w-5 text-green-500 absolute -bottom-1 -right-1" />
-            </div>
-            <h2 className="text-xl font-semibold">Création de votre profil...</h2>
-            <p className="text-muted-foreground">
-              Initialisation de votre compte et de votre équipe
-            </p>
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <div className="flex gap-1">
-                <div className="h-1.5 w-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <div className="h-1.5 w-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <div className="h-1.5 w-1.5 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          <div className="w-full space-y-6">
+            <div className="flex flex-col items-center space-y-4 text-center">
+              <AuthLogo />
+              <div className="space-y-4">
+                <div className="relative mx-auto">
+                  <Loader2 className="h-12 w-12 animate-spin text-purple-600" />
+                  <CheckCircle2 className="h-5 w-5 text-green-400 absolute -bottom-1 -right-1" />
+                </div>
+                <h2 className="text-xl font-semibold text-white">Création de votre profil...</h2>
+                <p className="text-white/60">
+                  Initialisation de votre compte et de votre équipe
+                </p>
+                <div className="flex items-center justify-center gap-2 text-sm text-white/50">
+                  <div className="flex gap-1">
+                    <div className="h-1.5 w-1.5 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="h-1.5 w-1.5 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="h-1.5 w-1.5 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                  <span>Cela ne prend que quelques secondes</span>
+                </div>
               </div>
-              <span>Cela ne prend que quelques secondes</span>
             </div>
           </div>
         )
 
       case 'error':
         return (
-          <div className="space-y-4">
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                {error || 'Une erreur est survenue lors de la confirmation.'}
-              </AlertDescription>
-            </Alert>
+          <div className="w-full space-y-6">
+            <div className="flex flex-col items-center space-y-4 text-center">
+              <AuthLogo />
 
-            <div className="flex flex-col gap-2">
-              <Button
-                onClick={() => router.push('/auth/login')}
-                className="w-full"
-              >
-                Aller à la page de connexion
-              </Button>
-              <Button
-                onClick={() => router.push('/auth/signup')}
-                variant="outline"
-                className="w-full"
-              >
-                Créer un nouveau compte
-              </Button>
+              <div className="relative">
+                <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-orange-500/20 rounded-full blur-xl" />
+                <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-red-500/10 to-orange-500/10 border border-red-500/20">
+                  <AlertCircle className="h-8 w-8 text-red-400" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h1 className="text-3xl font-bold tracking-tight text-white">Erreur de confirmation</h1>
+                <p className="text-white/60">Une erreur est survenue lors de la confirmation</p>
+              </div>
             </div>
 
-            <p className="text-sm text-muted-foreground text-center">
-              Si le problème persiste, contactez le support à{' '}
-              <a href="mailto:support@seido-app.com" className="underline">
-                support@seido-app.com
-              </a>
-            </p>
+            <div className="space-y-4">
+              <Alert variant="destructive" className="bg-red-500/10 border-red-500/30 text-red-200">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  {error || 'Une erreur est survenue lors de la confirmation.'}
+                </AlertDescription>
+              </Alert>
+
+              <div className="flex flex-col gap-2">
+                <Button
+                  onClick={() => router.push('/auth/login')}
+                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+                >
+                  Aller à la page de connexion
+                </Button>
+                <Button
+                  onClick={() => router.push('/auth/signup')}
+                  variant="outline"
+                  className="w-full border-white/20 bg-white/5 text-white hover:bg-white/10 hover:text-white transition-colors"
+                >
+                  Créer un nouveau compte
+                </Button>
+              </div>
+
+              <p className="text-sm text-white/50 text-center">
+                Si le problème persiste, contactez le support à{' '}
+                <a href="mailto:support@seido-app.com" className="text-purple-400 hover:text-purple-300 underline">
+                  support@seido-app.com
+                </a>
+              </p>
+            </div>
           </div>
         )
 
@@ -190,13 +218,7 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
   return (
     <>
       {/* Contenu principal (loading/error states) */}
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md border-border shadow-lg">
-          <CardContent className="pt-6">
-            {renderContent()}
-          </CardContent>
-        </Card>
-      </div>
+      {renderContent()}
 
       {/* Modale de succès */}
       {state === 'success' && userData && (

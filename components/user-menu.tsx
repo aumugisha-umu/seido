@@ -40,15 +40,15 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
       await signOut()
       logger.info('👤 [USER-MENU] Sign out completed, redirecting to login')
 
-      // Redirection forcée pour s'assurer que ça marche
-      window.location.href = "/auth/login"
+      // Navigation soft Next.js (plus rapide que window.location.href)
+      router.push("/auth/login")
 
     } catch (error) {
       logger.error('❌ [USER-MENU] Error during logout:', error)
 
       // Même en cas d'erreur, rediriger vers login
       logger.info('🔄 [USER-MENU] Forcing redirect to login after error')
-      window.location.href = "/auth/login"
+      router.push("/auth/login")
     } finally {
       // Ne pas réinitialiser isLoggingOut car on redirige
     }

@@ -25,6 +25,7 @@ interface ContactFormData {
   contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre'
   personOrCompany: 'person' | 'company'
   specialty?: string
+  customRoleDescription?: string // Description personnalisée pour le rôle "autre"
 
   // Step 2: Informations société (si company)
   companyMode: 'new' | 'existing'
@@ -111,6 +112,7 @@ export function ContactCreationClient({
         if (!formData.contactType) return false
         if (!formData.personOrCompany) return false
         if (formData.contactType === 'prestataire' && !formData.specialty) return false
+        if (formData.contactType === 'autre' && !formData.customRoleDescription?.trim()) return false
         return true
 
       case 2: // Informations société (seulement si company)
@@ -177,6 +179,9 @@ export function ContactCreationClient({
         if (!formData.personOrCompany) errors.push("Sélectionnez Personne ou Société")
         if (formData.contactType === 'prestataire' && !formData.specialty) {
           errors.push("Sélectionnez une spécialité pour le prestataire")
+        }
+        if (formData.contactType === 'autre' && !formData.customRoleDescription?.trim()) {
+          errors.push("Précisez le type de contact")
         }
         break
 
@@ -343,11 +348,13 @@ export function ContactCreationClient({
       logger.info("📤 [CREATE-CONTACT] Submitting contact creation", { formData })
 
       // Préparer les données à envoyer
+      // Note: role doit être en français car le schéma Zod de l'API attend les valeurs françaises
       const payload: any = {
         teamId,
-        role: formData.contactType,
+        role: formData.contactType, // Envoie directement 'prestataire', 'locataire', etc.
         contactType: formData.personOrCompany,
         speciality: formData.specialty,
+        customRoleDescription: formData.customRoleDescription, // Description pour le rôle "autre"
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
@@ -382,7 +389,7 @@ export function ContactCreationClient({
 
       // Récupérer l'ID du contact créé
       const result = await response.json()
-      const newContactId = result.userId || result.contactId || result.id
+      const newContactId = result.userId || result.contactId || result.id || result.contact?.id
 
       logger.info("✅ [CREATE-CONTACT] Contact created successfully", { newContactId, result })
       toast.success(getSuccessMessage())
@@ -441,7 +448,7 @@ export function ContactCreationClient({
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-background">
       {/* Header avec progression */}
       <StepProgressHeader
         title="Créer un contact"
@@ -468,15 +475,17 @@ export function ContactCreationClient({
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pt-4 pb-20">
         <div className="content-max-width">
           {/* Step content will be rendered here */}
-          <div className="bg-white rounded-lg border shadow-sm p-6 transition-all duration-500">
+          <div className="bg-card rounded-lg border border-border shadow-sm p-6 transition-all duration-500">
             {currentStep === 1 && (
               <Step1Type
                 contactType={formData.contactType}
                 personOrCompany={formData.personOrCompany}
                 specialty={formData.specialty}
+                customRoleDescription={formData.customRoleDescription}
                 onContactTypeChange={(value) => handleInputChange('contactType', value)}
                 onPersonOrCompanyChange={(value) => handleInputChange('personOrCompany', value)}
                 onSpecialtyChange={(value) => handleInputChange('specialty', value)}
+                onCustomRoleDescriptionChange={(value) => handleInputChange('customRoleDescription', value)}
               />
             )}
 
@@ -539,7 +548,7 @@ export function ContactCreationClient({
       </div>
 
       {/* Footer avec navigation */}
-      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">
+      <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm border-t border-border px-5 sm:px-6 lg:px-10 py-4">
         <div className={`flex flex-col sm:flex-row gap-2 content-max-width ${currentStep === 1 ? 'justify-end' : 'justify-between'}`}>
           {/* Bouton Retour - Affiché seulement à partir de step 2 */}
           {currentStep > 1 && (

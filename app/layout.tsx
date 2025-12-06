@@ -4,8 +4,11 @@ import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
+import Script from "next/script"
 import { AuthProvider } from "@/hooks/use-auth"
 import { TeamStatusProvider } from "@/hooks/use-team-status"
+import { CookieConsentProvider } from "@/hooks/use-cookie-consent"
+import { CookieConsentBanner } from "@/components/cookie-consent-banner"
 import { ConnectionStatus } from "@/components/connection-status"
 import { Toaster } from "@/components/ui/toaster"
 import EnvironmentLogger from "@/components/environment-logger"
@@ -59,12 +62,19 @@ export default function RootLayout({
         <EnvironmentLogger />
         <AuthProvider>
           <TeamStatusProvider>
-            <Suspense fallback={null}>{children}</Suspense>
-            <ConnectionStatus />
-            <Toaster />
+            <CookieConsentProvider>
+              <Suspense fallback={null}>{children}</Suspense>
+              <ConnectionStatus />
+              <Toaster />
+              <CookieConsentBanner />
+            </CookieConsentProvider>
           </TeamStatusProvider>
         </AuthProvider>
         <Analytics />
+        <Script
+          src="https://t.contentsquare.net/uxa/b3cbc84e830fe.js"
+          strategy="afterInteractive"
+        />
       </body>
     </html>
   )

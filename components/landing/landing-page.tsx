@@ -28,7 +28,7 @@ import { LandingHeader } from './landing-header'
  */
 
 function FadeIn({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) {
-    const [isVisible, setIsVisible] = useState(false)
+    const [isVisible, setIsVisible] = useState(true)
     const ref = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -86,7 +86,7 @@ export function LandingPage() {
                         playsInline
                         className="w-full h-full object-cover"
                     >
-                        <source src="/videos/Image-to-Image-9b0ddc9b.webm" type="video/webm" />
+                        <source src="/videos/hero-video.webm" type="video/webm" />
                     </video>
                     {/* Gradient Overlay - Darker on left for text readability, transparent on right to show video */}
                     <div className="absolute inset-0 bg-gradient-to-r from-[#131426]/95 via-[#131426]/70 md:via-[#131426]/60 to-[#131426]/80 md:to-transparent" />
@@ -96,16 +96,14 @@ export function LandingPage() {
                 <div className="container mx-auto px-4 py-12 md:py-0 relative z-10">
                     <div className="max-w-2xl">
 
-                        <FadeIn delay={100}>
-                            <h1 className="landing-display mb-6 md:mb-8 drop-shadow-2xl">
-                                <span className="block text-white">
-                                    La gestion locative
-                                </span>
-                                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-purple-400 via-blue-400 to-cyan-400">
-                                    simplifiée
-                                </span>
-                            </h1>
-                        </FadeIn>
+                        <h1 className="landing-display mb-6 md:mb-8 drop-shadow-2xl">
+                            <span className="block text-white">
+                                La gestion locative
+                            </span>
+                            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 dark:from-purple-400 dark:via-blue-400 dark:to-cyan-400">
+                                simplifiée
+                            </span>
+                        </h1>
 
                         <FadeIn delay={200}>
                             <p className="landing-subtitle text-white/90 mb-8 md:mb-10 drop-shadow-lg">
@@ -140,7 +138,7 @@ export function LandingPage() {
                             Les coûts cachés de la gestion locative
                         </h2>
                     </div>
-                </FadeIn>
+                </FadeIn >
 
                 <div className="grid md:grid-cols-3 gap-8 text-center mb-8">
                     <FadeIn delay={0}>
@@ -217,10 +215,10 @@ export function LandingPage() {
                         </FadeIn>
                     ))}
                 </div>
-            </section>
+            </section >
 
             {/* SEIDO Experience Section - Moved here after pain points */}
-            <section id="features" className="relative z-10 container mx-auto px-4 py-24">
+            < section id="features" className="relative z-10 container mx-auto px-4 py-24" >
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <h2 className="landing-h2 mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/60">
@@ -407,10 +405,10 @@ export function LandingPage() {
                         </FadeIn>
                     ))}
                 </div>
-            </section>
+            </section >
 
             {/* Upcoming Features - Roadmap */}
-            <section className="relative z-10 container mx-auto px-4 py-24 bg-[#1e293b]/30">
+            < section className="relative z-10 container mx-auto px-4 py-24 bg-[#1e293b]/30" >
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-medium mb-6">
@@ -475,12 +473,12 @@ export function LandingPage() {
                         </FadeIn>
                     ))}
                 </div>
-            </section>
+            </section >
 
 
 
             {/* Testimonials - Glass Cards */}
-            <section className="relative z-10 container mx-auto px-4 py-24">
+            < section className="relative z-10 container mx-auto px-4 py-24" >
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <h2 className="landing-h2 mb-6 text-white">
@@ -525,10 +523,10 @@ export function LandingPage() {
                         </FadeIn>
                     ))}
                 </div>
-            </section>
+            </section >
 
             {/* Pricing - Gradient Borders */}
-            <section id="pricing" className="relative z-10 container mx-auto px-4 py-24">
+            < section id="pricing" className="relative z-10 container mx-auto px-4 py-24" >
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-green-500/20 border border-green-500/30 mb-6">
@@ -703,10 +701,10 @@ export function LandingPage() {
                         </div>
                     </div>
                 </FadeIn>
-            </section>
+            </section >
 
             {/* Contact Section */}
-            <section id="contact" className="relative z-10 container mx-auto px-4 py-24">
+            < section id="contact" className="relative z-10 container mx-auto px-4 py-24" >
                 <FadeIn>
                     <div className="max-w-4xl mx-auto">
                         <div className="text-center mb-12">
@@ -757,10 +755,10 @@ export function LandingPage() {
                         </div>
                     </div>
                 </FadeIn>
-            </section>
+            </section >
 
             {/* FAQ Section */}
-            <section id="faq" className="relative z-10 bg-[#1e293b]/30 py-24">
+            < section id="faq" className="relative z-10 bg-[#1e293b]/30 py-24" >
                 <div className="container mx-auto px-4">
                     <FadeIn>
                         <div className="text-center mb-12">
@@ -810,10 +808,10 @@ export function LandingPage() {
                         </div>
                     </FadeIn>
                 </div>
-            </section>
+            </section >
 
             {/* CTA Section */}
-            <section className="relative z-10 container mx-auto px-4 py-32 text-center">
+            < section className="relative z-10 container mx-auto px-4 py-32 text-center" >
                 <FadeIn>
                     <div className="max-w-4xl mx-auto relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20 blur-[100px]" />
@@ -835,10 +833,10 @@ export function LandingPage() {
                         </div>
                     </div>
                 </FadeIn>
-            </section>
+            </section >
 
             {/* Footer */}
-            <footer className="relative z-10 border-t border-white/10 bg-[#020617] py-12">
+            < footer className="relative z-10 border-t border-white/10 bg-[#020617] py-12" >
                 <div className="container mx-auto px-4">
                     <div className="grid md:grid-cols-4 gap-8 mb-8">
                         <div>
@@ -884,10 +882,10 @@ export function LandingPage() {
                         <p>© {new Date().getFullYear()} SEIDO. Tous droits réservés.</p>
                     </div>
                 </div>
-            </footer>
+            </footer >
 
             {/* Demo Request Modal */}
-            <Dialog open={showDemoModal} onOpenChange={setShowDemoModal}>
+            < Dialog open={showDemoModal} onOpenChange={setShowDemoModal} >
                 <DialogContent className="bg-[#1e293b] border-white/10 text-white sm:max-w-lg">
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-bold">Demander une démo</DialogTitle>
@@ -901,7 +899,7 @@ export function LandingPage() {
                         className="mt-4"
                     />
                 </DialogContent>
-            </Dialog>
-        </div>
+            </Dialog >
+        </div >
     )
 }

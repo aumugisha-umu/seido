@@ -29,8 +29,8 @@ export function Step3Contact({
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Coordonnées du contact</h2>
-        <p className="text-gray-600">
+        <h2 className="text-2xl font-semibold text-foreground mb-2">Coordonnées du contact</h2>
+        <p className="text-muted-foreground">
           {personOrCompany === 'person'
             ? "Saisissez les informations personnelles du contact."
             : "Saisissez les coordonnées de la personne de contact au sein de la société."}
@@ -41,7 +41,7 @@ export function Step3Contact({
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <User className="h-5 w-5 text-blue-600" />
-          <h3 className="font-semibold text-gray-900">Identité</h3>
+          <h3 className="font-semibold text-foreground">Identité</h3>
           {personOrCompany === 'person' && (
             <span className="text-sm text-red-500">*</span>
           )}
@@ -53,7 +53,7 @@ export function Step3Contact({
               {personOrCompany === 'person' ? (
                 <span className="text-red-500">*</span>
               ) : (
-                <span className="text-sm text-gray-500 ml-1">(optionnel)</span>
+                <span className="text-sm text-muted-foreground ml-1">(optionnel)</span>
               )}
             </Label>
             <Input
@@ -69,7 +69,7 @@ export function Step3Contact({
               {personOrCompany === 'person' ? (
                 <span className="text-red-500">*</span>
               ) : (
-                <span className="text-sm text-gray-500 ml-1">(optionnel)</span>
+                <span className="text-sm text-muted-foreground ml-1">(optionnel)</span>
               )}
             </Label>
             <Input
@@ -86,11 +86,11 @@ export function Step3Contact({
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <Mail className="h-5 w-5 text-blue-600" />
-          <h3 className="font-semibold text-gray-900">Communication</h3>
+          <h3 className="font-semibold text-foreground">Communication</h3>
           {!inviteToApp && personOrCompany === 'company' && (
             <>
               <span className="text-sm text-red-500">*</span>
-              <span className="text-sm text-gray-500">(au moins un email ou numéro de téléphone est requis)</span>
+              <span className="text-sm text-muted-foreground">(au moins un email ou numéro de téléphone est requis)</span>
             </>
           )}
         </div>
@@ -102,9 +102,9 @@ export function Step3Contact({
               {inviteToApp ? (
                 <span className="text-red-500">*</span>
               ) : personOrCompany === 'company' ? (
-                <span className="text-sm text-gray-500 ml-1">(optionnel)</span>
+                <span className="text-sm text-muted-foreground ml-1">(optionnel)</span>
               ) : (
-                <span className="text-sm text-gray-500 ml-1">(optionnel)</span>
+                <span className="text-sm text-muted-foreground ml-1">(optionnel)</span>
               )}
             </Label>
             <Input
@@ -121,9 +121,9 @@ export function Step3Contact({
             <Label htmlFor="phone">
               Téléphone
               {!inviteToApp && personOrCompany === 'company' ? (
-                <span className="text-sm text-gray-500 ml-1">(optionnel)</span>
+                <span className="text-sm text-muted-foreground ml-1">(optionnel)</span>
               ) : (
-                <span className="text-sm text-gray-500">(optionnel)</span>
+                <span className="text-sm text-muted-foreground">(optionnel)</span>
               )}
             </Label>
             <Input
@@ -141,11 +141,11 @@ export function Step3Contact({
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <FileText className="h-5 w-5 text-blue-600" />
-          <h3 className="font-semibold text-gray-900">Notes complémentaires</h3>
+          <h3 className="font-semibold text-foreground">Notes complémentaires</h3>
         </div>
         <div className="space-y-2">
           <Label htmlFor="notes">
-            Notes <span className="text-sm text-gray-500">(optionnel)</span>
+            Notes <span className="text-sm text-muted-foreground">(optionnel)</span>
           </Label>
           <Textarea
             id="notes"
@@ -159,7 +159,7 @@ export function Step3Contact({
       </div>
 
       {/* Invitation à l'application */}
-      <div className="p-4 border rounded-lg bg-blue-50/50 border-blue-200">
+      <div className="p-4 border rounded-lg bg-blue-50/50 dark:bg-blue-950/50 border-blue-200 dark:border-blue-800">
         <div className="flex items-start gap-3">
           <Checkbox
             id="invite-checkbox"
@@ -174,7 +174,7 @@ export function Step3Contact({
             >
               Inviter ce contact à rejoindre l'application
             </Label>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Un email d'invitation sera envoyé à <strong>{email || "l'adresse email"}</strong> pour qu'il/elle puisse accéder à ses informations et interventions.
             </p>
           </div>

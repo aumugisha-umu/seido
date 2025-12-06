@@ -96,10 +96,10 @@ export function EmailPreviewClient({ templates, userEmail }: EmailPreviewClientP
           {/* Contenu de chaque template */}
           {templates.map((template) => (
             <TabsContent key={template.id} value={template.id} className="space-y-4">
-              {/* Métadonnées du template */}
-              <div className="bg-gray-50 p-4 rounded-lg border">
+              {/* Metadonnees du template */}
+              <div className="bg-muted p-4 rounded-lg border">
                 <h3 className="font-semibold text-lg mb-1">{template.name}</h3>
-                <p className="text-sm text-gray-600 mb-3">{template.description}</p>
+                <p className="text-sm text-muted-foreground mb-3">{template.description}</p>
 
                 <div className="flex gap-2">
                   <Button
@@ -141,11 +141,11 @@ export function EmailPreviewClient({ templates, userEmail }: EmailPreviewClientP
                 </div>
               </div>
 
-              {/* Preview du template dans un iframe isolé */}
-              <div className="border rounded-lg overflow-hidden bg-white">
-                <div className="bg-gray-100 px-4 py-2 border-b flex items-center justify-between">
-                  <span className="text-sm font-medium text-gray-600">
-                    Preview (rendu réel)
+              {/* Preview du template dans un iframe isole */}
+              <div className="border rounded-lg overflow-hidden bg-card">
+                <div className="bg-muted px-4 py-2 border-b flex items-center justify-between">
+                  <span className="text-sm font-medium text-muted-foreground">
+                    Preview (rendu reel)
                   </span>
                   <Badge variant="outline" className="text-xs">
                     {template.html.length} caractères
@@ -154,8 +154,7 @@ export function EmailPreviewClient({ templates, userEmail }: EmailPreviewClientP
 
                 <iframe
                   srcDoc={template.html}
-                  className="w-full border-0"
-                  style={{ height: '600px' }}
+                  className="w-full border-0 h-email-preview"
                   title={`Preview: ${template.name}`}
                   sandbox="allow-same-origin"
                 />

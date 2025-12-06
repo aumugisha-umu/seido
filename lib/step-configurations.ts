@@ -93,3 +93,23 @@ export const contactSteps: StepConfig[] = [
     label: "Confirmation"
   }
 ]
+
+// Steps pour la création de contrat/bail (4 étapes après fusion Contrat+Paiements)
+export const contractSteps: StepConfig[] = [
+  {
+    icon: Home,
+    label: "Lot"
+  },
+  {
+    icon: FileText,
+    label: "Détails"
+  },
+  {
+    icon: Users,
+    label: "Contacts"
+  },
+  {
+    icon: Check,
+    label: "Confirmation"
+  }
+]

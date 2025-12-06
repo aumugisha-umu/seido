@@ -1013,7 +1013,7 @@ export default function NouvelleInterventionClient({
       />
 
       {/* Main Content with horizontal padding and bottom space for footer */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pb-10 bg-gray-50">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pb-10 bg-background">
         <main className="content-max-width w-full pt-10">
         {/* Step 1: Sélection du logement avec PropertySelector */}
         {currentStep === 1 && (
@@ -1027,6 +1027,7 @@ export default function NouvelleInterventionClient({
                 selectedLotId={selectedLotId}
                 showActions={false}
                 initialData={initialBuildingsData}
+                showViewToggle={true}
               />
             </div>
           </div>
@@ -1047,24 +1048,24 @@ export default function NouvelleInterventionClient({
                   <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
                     {/* Titre - Même largeur que Description */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Titre du problème *</label>
+                      <label className="block text-sm font-medium text-foreground mb-2">Titre du problème *</label>
                       <Input
                         placeholder="Ex: Fuite d'eau dans la salle de bain"
                         value={formData.title}
                         onChange={(e) => setFormData((prev) => ({ ...prev, title: e.target.value }))}
-                        className="border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                        className="border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20"
                       />
                     </div>
 
                     {/* Type + Urgence - Partagent le 1/3 restant */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="min-w-0">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Type de problème</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Type de problème</label>
                         <Select
                           value={formData.type}
                           onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
                         >
-                          <SelectTrigger className="border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 w-full">
+                          <SelectTrigger className="border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20 w-full">
                             <SelectValue placeholder="Sélectionnez le type" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1078,14 +1079,14 @@ export default function NouvelleInterventionClient({
                       </div>
 
                       <div className="min-w-0">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-foreground mb-2">
                           Urgence <span className="text-red-500">*</span>
                         </label>
                         <Select
                           value={formData.urgency}
                           onValueChange={(value) => setFormData((prev) => ({ ...prev, urgency: value }))}
                         >
-                          <SelectTrigger className="border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 w-full">
+                          <SelectTrigger className="border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20 w-full">
                             <SelectValue placeholder="Sélectionnez l'urgence" />
                           </SelectTrigger>
                           <SelectContent>
@@ -1104,18 +1105,18 @@ export default function NouvelleInterventionClient({
                   <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
                     {/* Description - 2/3 largeur (aligné avec Titre) */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Description détaillée *</label>
+                      <label className="block text-sm font-medium text-foreground mb-2">Description détaillée *</label>
                       <Textarea
                         placeholder="Décrivez le problème en détail : où, quand, comment..."
                         value={formData.description}
                         onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
-                        className="min-h-[280px] border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 resize-none"
+                        className="min-h-[280px] border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
                       />
                     </div>
 
                     {/* File Uploader - 1/3 largeur (aligné avec Type+Urgence) */}
                     <div className="h-[280px]">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Fichiers joints (optionnel)</label>
+                      <label className="block text-sm font-medium text-foreground mb-2">Fichiers joints (optionnel)</label>
                       <InterventionFileAttachment
                         files={fileUpload.files}
                         onAddFiles={fileUpload.addFiles}
@@ -1134,25 +1135,25 @@ export default function NouvelleInterventionClient({
                 {formData.availabilities.length > 0 && (
                   <div className="space-y-3">
                     {formData.availabilities.map((availability, index) => (
-                      <div key={index} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
+                      <div key={index} className="flex items-center space-x-3 p-3 bg-muted rounded-lg">
                         <Input
                           type="date"
                           value={availability.date}
                           onChange={(e) => updateAvailability(index, "date", e.target.value)}
-                          className="flex-1 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                          className="flex-1 border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
                         <Input
                           type="time"
                           value={availability.startTime}
                           onChange={(e) => updateAvailability(index, "startTime", e.target.value)}
-                          className="w-32 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                          className="w-32 border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
-                        <span className="text-gray-500">à</span>
+                        <span className="text-muted-foreground">a</span>
                         <Input
                           type="time"
                           value={availability.endTime}
                           onChange={(e) => updateAvailability(index, "endTime", e.target.value)}
-                          className="w-32 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                          className="w-32 border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20"
                         />
                         <Button type="button" variant="ghost" size="sm" onClick={() => removeAvailability(index)}>
                           <X className="h-4 w-4" />
@@ -1291,7 +1292,7 @@ export default function NouvelleInterventionClient({
       </div>
 
         {/* Footer Navigation - Always visible at bottom */}
-        <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">
+        <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm border-t border-border px-5 sm:px-6 lg:px-10 py-4">
         <div className="flex flex-col sm:flex-row justify-between gap-2 content-max-width">
             {/* Back Button - Show from step 2 onwards */}
             {currentStep > 1 && (
@@ -1393,7 +1394,7 @@ export default function NouvelleInterventionClient({
               </DialogTitle>
             </DialogHeader>
             <div className="text-center space-y-4">
-              <p className="text-gray-600">
+              <p className="text-muted-foreground">
                 Votre intervention a été créée et les personnes assignées ont été notifiées.
               </p>
               <div className="flex flex-col space-y-2">
@@ -1413,8 +1414,8 @@ export default function NouvelleInterventionClient({
                   Voir les détails de l'intervention
                 </Button>
               </div>
-              <p className="text-sm text-gray-500">
-                Redirection automatique vers les détails dans {countdown} secondes
+              <p className="text-sm text-muted-foreground">
+                Redirection automatique vers les details dans {countdown} secondes
               </p>
             </div>
           </DialogContent>

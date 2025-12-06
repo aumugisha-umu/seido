@@ -1,24 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
-import { createClient } from '@supabase/supabase-js'
 import { createServerUserService } from '@/lib/services'
 import crypto from 'crypto'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { isServiceRoleAvailable } from '@/lib/api-service-role-helper'
 import { generateMagicLinksSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-
-// Admin client for sending emails
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  supabaseServiceRoleKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-) : null
 
 export async function POST(request: NextRequest) {
   logger.info({}, "✅ generate-intervention-magic-links API route called")
@@ -146,7 +133,7 @@ export async function POST(request: NextRequest) {
         logger.info(`✅ Magic link generated for ${email}:`, magicLink.id)
 
         // Send email notification with magic link
-        if (supabaseAdmin) {
+        if (isServiceRoleAvailable()) {
           try {
             // const individualMessage = individualMessages[email] || additionalNotes || ''
 

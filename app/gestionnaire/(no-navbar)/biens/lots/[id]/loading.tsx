@@ -4,7 +4,7 @@ export default function LotDetailsLoading() {
   return (
     <>
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 -mx-5 sm:-mx-6 lg:-mx-10 -mt-6 mb-4">
+      <header className="bg-card border-b border-border -mx-5 sm:-mx-6 lg:-mx-10 -mt-6 mb-4">
         <div className="content-max-width px-5 sm:px-6 lg:px-10 py-4">
           <div className="flex items-center justify-between">
             <Skeleton className="h-10 w-24" />
@@ -31,7 +31,7 @@ export default function LotDetailsLoading() {
 
       {/* Tabs */}
       <div className="content-max-width">
-        <div className="border-b border-gray-200">
+        <div className="border-b border-border">
           <nav className="-mb-px flex space-x-8">
             {[1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="h-10 w-24" />
@@ -44,7 +44,7 @@ export default function LotDetailsLoading() {
       <div className="content-max-width py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="border rounded-lg p-6 bg-white">
+            <div key={i} className="border rounded-lg p-6 bg-card">
               <Skeleton className="h-6 w-40 mb-4" />
               <div className="space-y-3">
                 {[1, 2, 3, 4].map((j) => (

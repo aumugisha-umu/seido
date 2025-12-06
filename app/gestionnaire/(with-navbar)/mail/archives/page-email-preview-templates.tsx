@@ -106,11 +106,11 @@ export default async function EmailPreviewPage() {
   return (
     <div className="layout-padding">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2">📧 Preview Templates Email</h1>
-        <p className="text-gray-600">
-          Visualisez tous les templates email utilisés dans SEIDO
+        <h1 className="text-3xl font-bold mb-2">Preview Templates Email</h1>
+        <p className="text-muted-foreground">
+          Visualisez tous les templates email utilises dans SEIDO
           <br />
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-muted-foreground/70">
             Email de test : <strong>{userEmail}</strong>
           </span>
         </p>

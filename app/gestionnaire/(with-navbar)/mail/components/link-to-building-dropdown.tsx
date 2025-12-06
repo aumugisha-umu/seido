@@ -63,7 +63,7 @@ export function LinkToBuildingDropdown({
                 </div>
               </div>
               {currentBuildingId === building.id && !currentLotId && (
-                <Check className="h-4 w-4 text-blue-600" />
+                <Check className="h-4 w-4 text-primary" />
               )}
             </CommandItem>
 
@@ -84,7 +84,7 @@ export function LinkToBuildingDropdown({
                   )}
                 </div>
                 {currentLotId === lot.id && (
-                  <Check className="h-4 w-4 text-blue-600" />
+                  <Check className="h-4 w-4 text-primary" />
                 )}
               </CommandItem>
             ))}

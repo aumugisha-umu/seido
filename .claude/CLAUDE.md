@@ -61,6 +61,45 @@ This file provides guidance to Claude Code when working with this repository.
 2. **Apply official recommendations** over custom patterns found in codebase
 3. **Follow latest best practices** as technologies evolve
 
+## 🎨 UX/UI Design Guidelines
+
+**Pour TOUTE modification UX/UI, TOUJOURS consulter:**
+
+1. **📖 Guide de Décisions UX/UI** : `docs/design/ux-ui-decision-guide.md`
+   - Heuristiques de Nielsen pour l'évaluation
+   - Standards Material Design 3
+   - Guidelines par rôle (Admin, Gestionnaire, Locataire, Prestataire)
+
+2. **🎨 Design System SEIDO** : `docs/design/`
+   | Document | Contenu |
+   |----------|---------|
+   | `00-general.md` | Introduction et principes fondamentaux |
+   | `01-colors.md` | Système de couleurs OKLCH |
+   | `02-typography.md` | Typographie et hiérarchie |
+   | `03-spacing.md` | Système d'espacement 4px |
+   | `04-layouts.md` | Grilles et layouts responsive |
+   | `05-components.md` | Composants UI et métier |
+   | `06-icons.md` | Système d'icônes Lucide React |
+   | `07-guidelines.md` | Bonnes pratiques UX |
+
+3. **👥 Personas Unifiés** :
+   - `docs/design/persona-gestionnaire-unifie.md` - Thomas, 280 logements
+   - `docs/design/persona-locataire.md` - Emma, 29 ans, mobile-first
+   - `docs/design/persona-prestataire.md` - Marc, 38 ans, 75% terrain
+
+4. **📁 Source de Vérité CSS** : `app/globals.css`
+   - Couleurs OKLCH (`--primary`, `--background`, etc.)
+   - Variables dashboard (`--dashboard-padding-*`, `--header-*`)
+   - Classes BEM (`.header`, `.dashboard`, `.layout-*`)
+
+**Principe de Modularité :**
+> "Créer une fois, utiliser partout"
+
+- ✅ Vérifier shadcn/ui (50+ composants) avant de créer
+- ✅ Chercher dans `components/` si un composant existe
+- ✅ Étendre avec props/variants au lieu de dupliquer
+- ❌ Ne JAMAIS hardcoder des couleurs ou styles inline
+
 ## Project Overview
 
 **SEIDO** - Real estate management platform built with Next.js 15. Production-ready multi-role app (Admin, Gestionnaire, Prestataire, Locataire).
@@ -671,6 +710,6 @@ npm test -- --coverage                 # Coverage
 
 ---
 
-**Last Updated**: 2025-11-29
+**Last Updated**: 2025-12-06
 **Status**: ✅ Production Ready
-**Current Focus**: Performance optimizations completed (Realtime + Caching)
+**Current Focus**: Design System alignment & UX guidelines

@@ -1,31 +1,89 @@
 # 🧩 Design System - Composants
 
+> 📁 **Source de vérité :** `app/globals.css` contient tous les design tokens centralisés (couleurs OKLCH, spacing, shadows, fonts)
+
 ## Vue d'ensemble
 
-Notre bibliothèque de composants est construite selon les principes **MVP**, **réutilisabilité** et **accessibilité**. Chaque composant est conçu pour être **cohérent**, **flexible** et **facile à maintenir**. Les composants sont organisés en deux catégories : **UI (génériques)** et **Features (spécifiques métier)**.
+Notre bibliothèque de composants est construite selon les principes **modularité**, **réutilisabilité** et **accessibilité**. Chaque composant est conçu pour être **cohérent**, **flexible** et **facile à maintenir**. Les composants sont organisés en deux catégories : **UI (génériques)** et **Features (spécifiques métier)**.
+
+## 🔄 Principe de Modularité
+
+> "Créer une fois, utiliser partout"
+
+### Règle d'Or : Réutiliser avant de créer
+
+**Avant de créer un nouveau composant :**
+
+1. ✅ **Vérifier shadcn/ui** — 50+ composants disponibles dans `components/ui/`
+2. ✅ **Chercher existant** — Le composant existe peut-être déjà dans `components/`
+3. ✅ **Étendre avec props** — Ajouter des variants au lieu de dupliquer
+4. ✅ **Composer** — Combiner des composants simples plutôt qu'un composant monolithique
+
+### Anti-Patterns à Éviter
+
+```tsx
+// ❌ MAUVAIS - Duplication pour modification mineure
+// components/buttons/DashboardButton.tsx
+// components/buttons/FormButton.tsx
+// components/buttons/ModalButton.tsx
+
+// ✅ BON - Un composant avec variants
+<Button variant="primary" size="lg">Dashboard</Button>
+<Button variant="secondary" size="md">Form</Button>
+<Button variant="ghost" size="sm">Modal</Button>
+```
+
+```tsx
+// ❌ MAUVAIS - Composant trop spécifique
+<InterventionCardForDashboardWithActionsAndStatus />
+
+// ✅ BON - Composants composables
+<Card>
+  <InterventionHeader intervention={intervention} />
+  <InterventionStatus status={status} />
+  <ActionButtons role={role} actions={actions} />
+</Card>
+```
+
+```tsx
+// ❌ MAUVAIS - Styles hardcodés
+<div style={{ backgroundColor: '#2563eb', padding: '16px' }}>
+
+// ✅ BON - Tokens de design
+<div className="bg-primary p-4">
+```
+
+### Checklist Avant Création
+
+- [ ] Le composant existe-t-il dans shadcn/ui ?
+- [ ] Existe-t-il un composant similaire dans `components/` ?
+- [ ] Peut-on étendre un composant existant avec des props ?
+- [ ] Le composant est-il réutilisable dans d'autres contextes ?
+- [ ] Utilise-t-il les tokens de `globals.css` ?
 
 ## 📁 Architecture des Composants
 
 ### Structure de Dossiers
 
 ```
-src/components/
-├── ui/                    # Composants génériques réutilisables
-│   ├── Button/
-│   ├── Card/
-│   ├── Input/
-│   ├── Modal/
-│   └── ...
-├── features/              # Composants spécifiques métier
+components/
+├── ui/                    # Composants shadcn/ui réutilisables
+│   ├── button.tsx
+│   ├── card.tsx
+│   ├── input.tsx
+│   ├── dialog.tsx
+│   └── ...               # 50+ composants disponibles
+├── dashboards/           # Composants de tableaux de bord
 │   ├── admin/
-│   ├── owner/
-│   ├── tenant/
-│   ├── provider/
-│   └── shared/           # Composants métier partagés
-└── layout/               # Composants de structure
-    ├── Header/
-    ├── Sidebar/
-    └── Navigation/
+│   ├── gestionnaire/
+│   ├── locataire/
+│   └── prestataire/
+├── intervention/         # Workflow interventions
+├── layout/               # Structure de page
+│   ├── header.tsx
+│   ├── sidebar.tsx
+│   └── ...
+└── shared/               # Composants partagés multi-rôles
 ```
 
 ## 🎯 Composants UI - Foundation
@@ -223,10 +281,10 @@ const Button: React.FC<ButtonProps> = ({
 ### InterventionCard - Gestion Interventions
 
 ```tsx
-// Card intervention pour Owner
+// Card intervention pour Gestionnaire
 <InterventionCard
   intervention={intervention}
-  role="owner"
+  role="gestionnaire"
   onApprove={handleApprove}
   onReject={handleReject}
   onAssign={handleAssign}
@@ -349,15 +407,15 @@ const Button: React.FC<ButtonProps> = ({
 </AdminUserManager>
 ```
 
-### 🏢 Owner Components
+### 🏢 Gestionnaire Components
 
 ```tsx
-// OwnerPortfolio - Vue portfolio
-<OwnerPortfolio>
+// GestionnairePortfolio - Vue portfolio
+<GestionnairePortfolio>
   <PortfolioSummary data={portfolioData} />
   <PropertyGrid properties={properties} />
   <RecentInterventions interventions={recentInterventions} />
-</OwnerPortfolio>
+</GestionnairePortfolio>
 
 // PropertyManager - Gestion propriétés
 <PropertyManager>

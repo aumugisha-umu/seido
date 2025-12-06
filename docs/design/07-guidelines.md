@@ -1,8 +1,13 @@
 # 📋 Design System - Guidelines & Bonnes Pratiques
 
+> 📁 **Source de vérité :** `app/globals.css` contient tous les design tokens centralisés (couleurs OKLCH, spacing, shadows, fonts)
+
+> 📖 **Guide de référence :** [UX/UI Decision Guide](./ux-ui-decision-guide.md)
+> 👥 **Personas :** [Gestionnaire](./persona-gestionnaire-unifie.md) | [Locataire](./persona-locataire.md) | [Prestataire](./persona-prestataire.md)
+
 ## Vue d'ensemble
 
-Ces guidelines définissent les **principes fondamentaux** et **bonnes pratiques** pour maintenir la cohérence, l'accessibilité et la qualité de l'expérience utilisateur sur la plateforme de gestion immobilière.
+Ces guidelines définissent les **principes fondamentaux** et **bonnes pratiques** pour maintenir la cohérence, l'accessibilité et la qualité de l'expérience utilisateur sur la plateforme SEIDO de gestion immobilière.
 
 ## 🎯 Principes Directeurs
 
@@ -24,7 +29,23 @@ Ces guidelines définissent les **principes fondamentaux** et **bonnes pratiques
 - **Styles harmonieux** : Respect des tokens du Design System
 - **Comportements standardisés** : États loading, erreur, succès identiques
 
-### 3. Accessibilité Inclusive
+### 3. Modularité & Réutilisabilité
+
+> "Créer une fois, utiliser partout"
+
+**Avant de créer un composant :**
+1. ✅ Vérifier si shadcn/ui a un composant similaire (50+ disponibles)
+2. ✅ Chercher dans `components/` si un composant existe déjà
+3. ✅ Considérer l'extension d'un composant existant avec des props/variants
+4. ✅ Composer plusieurs composants simples plutôt qu'un composant monolithique
+
+**Anti-patterns à éviter :**
+- ❌ Copier-coller un composant pour modification mineure
+- ❌ Styles inline ou valeurs hardcodées
+- ❌ Composant trop spécifique (ex: `ButtonForDashboardOnlyForAdmin`)
+- ❌ Duplication de logic business dans les composants UI
+
+### 4. Accessibilité Inclusive
 
 > "L'application doit être utilisable par tous, sans exception"
 
@@ -142,7 +163,7 @@ className = "bg-sky-600 text-white py-3 px-6 rounded-lg text-base font-medium";
 </div>
 ```
 
-### 🏢 Owner - Clarté Business
+### 🏢 Gestionnaire - Clarté Business
 
 **Objectif** : Insights clairs, décisions informées
 
@@ -400,9 +421,9 @@ className = "bg-sky-600 text-white py-3 px-6 rounded-lg text-base font-medium";
 ### Tests utilisateurs
 
 - [ ] **Admin** : Peut accomplir ses tâches rapidement
-- [ ] **Owner** : Comprend ses KPIs et peut prendre des décisions
-- [ ] **Tenant** : Peut demander une intervention facilement
-- [ ] **Provider** : Peut traiter une intervention efficacement
+- [ ] **Gestionnaire** : Comprend ses KPIs et peut prendre des décisions
+- [ ] **Locataire** : Peut demander une intervention facilement
+- [ ] **Prestataire** : Peut traiter une intervention efficacement
 
 ---
 

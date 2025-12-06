@@ -30,9 +30,16 @@ export default async function GestionnaireLayout({
   const { profile, team } = await getServerAuthContext('gestionnaire')
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
+    <div className="h-screen bg-background flex flex-col overflow-hidden relative">
+      {/* 🌈 Ambient Gradient Background - Dark mode only */}
+      <div className="fixed inset-0 z-0 pointer-events-none opacity-0 dark:opacity-100 overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600/20 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-600/20 rounded-full blur-[120px]" />
+        <div className="absolute top-[40%] left-[60%] w-[400px] h-[400px] bg-indigo-600/10 rounded-full blur-[100px]" />
+      </div>
+
       {/* Contenu principal - DashboardHeader délégué aux Route Group layouts */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-y-auto">
+      <main className="flex-1 flex flex-col min-h-0 overflow-y-auto relative z-10">
         {/* 🔄 RealtimeWrapper centralise les subscriptions Supabase Realtime */}
         <RealtimeWrapper userId={profile.id} teamId={team?.id}>
           {children}

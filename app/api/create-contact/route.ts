@@ -1,30 +1,11 @@
-import { createClient } from '@supabase/supabase-js'
 import { createServerContactService } from '@/lib/services'
 import { NextResponse } from 'next/server'
 import type { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { getServiceRoleClient, isServiceRoleAvailable } from '@/lib/api-service-role-helper'
 import { createContactSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 import { createContactNotification } from '@/app/actions/notification-actions'
-
-// Créer un client Supabase avec les permissions service-role pour bypass les RLS
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-
-if (!supabaseServiceRoleKey || !supabaseUrl) {
-  logger.warn({}, '⚠️ Service role key or URL not configured')
-}
-
-const supabaseAdmin = supabaseServiceRoleKey ? createClient<Database>(
-  supabaseUrl!,
-  supabaseServiceRoleKey,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-) : null
 
 export async function POST(request: Request) {
   try {
@@ -61,6 +42,8 @@ export async function POST(request: Request) {
       team_id,
       is_active = true
     } = validatedData
+
+    const supabaseAdmin = isServiceRoleAvailable() ? getServiceRoleClient() : null
 
     logger.info({
       email,

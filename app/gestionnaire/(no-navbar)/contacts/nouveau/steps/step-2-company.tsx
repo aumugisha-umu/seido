@@ -77,8 +77,8 @@ export function Step2Company({
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">Informations de la société</h2>
-        <p className="text-gray-600">
+        <h2 className="text-2xl font-semibold text-foreground mb-2">Informations de la société</h2>
+        <p className="text-muted-foreground">
           Créez une nouvelle société ou sélectionnez une société existante dans votre équipe.
         </p>
       </div>
@@ -99,13 +99,13 @@ export function Step2Company({
             />
             <Label
               htmlFor="new-company"
-              className="flex flex-col items-start h-full rounded-lg border-2 border-gray-200 bg-white p-4 hover:bg-gray-50 peer-data-[state=checked]:border-purple-600 peer-data-[state=checked]:bg-purple-50 cursor-pointer transition-all"
+              className="flex flex-col items-start h-full rounded-lg border-2 border-border bg-card p-4 hover:bg-muted peer-data-[state=checked]:border-purple-600 peer-data-[state=checked]:bg-purple-50 dark:peer-data-[state=checked]:bg-purple-950 cursor-pointer transition-all"
             >
               <div className="flex items-center gap-2 mb-2">
                 <Plus className="h-5 w-5" />
-                <div className="font-semibold">Nouvelle société</div>
+                <div className="font-semibold text-foreground">Nouvelle société</div>
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-muted-foreground">
                 Créer une nouvelle société avec toutes ses informations
               </div>
             </Label>
@@ -120,13 +120,13 @@ export function Step2Company({
             />
             <Label
               htmlFor="existing-company"
-              className="flex flex-col items-start h-full rounded-lg border-2 border-gray-200 bg-white p-4 hover:bg-gray-50 peer-data-[state=checked]:border-purple-600 peer-data-[state=checked]:bg-purple-50 cursor-pointer transition-all"
+              className="flex flex-col items-start h-full rounded-lg border-2 border-border bg-card p-4 hover:bg-muted peer-data-[state=checked]:border-purple-600 peer-data-[state=checked]:bg-purple-50 dark:peer-data-[state=checked]:bg-purple-950 cursor-pointer transition-all"
             >
               <div className="flex items-center gap-2 mb-2">
                 <Building2 className="h-5 w-5" />
-                <div className="font-semibold">Société existante</div>
+                <div className="font-semibold text-foreground">Société existante</div>
               </div>
-              <div className="text-sm text-gray-500">
+              <div className="text-sm text-muted-foreground">
                 Sélectionner une société déjà enregistrée ({companies.length} disponible{companies.length > 1 ? 's' : ''})
               </div>
             </Label>
@@ -136,10 +136,10 @@ export function Step2Company({
 
       {/* Sélection société existante */}
       {companyMode === 'existing' && (
-        <div className="space-y-4 p-6 border rounded-lg bg-purple-50/30">
+        <div className="space-y-4 p-6 border rounded-lg bg-purple-50/30 dark:bg-purple-950/30">
           <div className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-purple-600" />
-            <h3 className="font-semibold text-gray-900">Sélection de la société</h3>
+            <h3 className="font-semibold text-foreground">Sélection de la société</h3>
           </div>
           <div className="space-y-3">
             <Label>
@@ -151,7 +151,7 @@ export function Step2Company({
               onChange={(id) => onFieldChange('companyId', id)}
               placeholder="Sélectionnez une société..."
             />
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-muted-foreground">
               Sélectionnez une société existante de votre équipe.
             </p>
           </div>
@@ -160,10 +160,10 @@ export function Step2Company({
 
       {/* Détails nouvelle société */}
       {companyMode === 'new' && (
-        <div className="space-y-6 p-6 border rounded-lg bg-purple-50/30">
+        <div className="space-y-6 p-6 border rounded-lg bg-purple-50/30 dark:bg-purple-950/30">
           <div className="flex items-center gap-2">
             <Plus className="h-5 w-5 text-purple-600" />
-            <h3 className="font-semibold text-gray-900">Détails de la nouvelle société</h3>
+            <h3 className="font-semibold text-foreground">Détails de la nouvelle société</h3>
           </div>
 
           {/* Barres de recherche côte à côte */}
@@ -187,10 +187,10 @@ export function Step2Company({
           {/* Séparateur */}
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
+              <div className="w-full border-t border-border"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-purple-50/30 text-gray-500">
+              <span className="px-4 bg-purple-50/30 dark:bg-purple-950/30 text-muted-foreground">
                 Ou remplissez manuellement le formulaire ci-dessous
               </span>
             </div>
@@ -220,7 +220,7 @@ export function Step2Company({
                 onChange={(e) => onFieldChange('vatNumber', formatVatNumber(e.target.value))}
                 placeholder="BE0123456789"
               />
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-muted-foreground">
                 Format: BE0123456789, FR12345678901, etc.
               </p>
             </div>

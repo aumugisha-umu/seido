@@ -6,7 +6,8 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Building2, Home, Users, MapPin, Eye, ChevronDown, AlertCircle, Zap, Edit, Wrench, UserCircle, Check, X, MoreVertical, Archive } from "lucide-react"
+import { Building2, Home, Users, MapPin, Eye, ChevronDown, AlertCircle, Zap, Edit, Wrench, UserCircle, Check, X, MoreVertical, Archive, LayoutGrid, List } from "lucide-react"
+import { useViewMode } from "@/hooks/use-view-mode"
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"
 import {
   DropdownMenu,
@@ -38,7 +39,9 @@ interface PropertySelectorProps {
   showActions?: boolean
   hideLotsSelect?: boolean  // ✅ Masquer les boutons Select des lots (utile pour création de lot)
   showOnlyBuildings?: boolean  // ✅ Masquer complètement les lots indépendants et leurs tabs
+  showOnlyLots?: boolean  // ✅ Masquer complètement les immeubles (utile pour création de bail)
   initialData?: BuildingsData  // ✅ Optional server data
+  showViewToggle?: boolean  // ✅ Afficher le toggle grille/liste
 }
 
 interface PropertySelectorViewProps extends Omit<PropertySelectorProps, 'initialData'> {
@@ -47,6 +50,8 @@ interface PropertySelectorViewProps extends Omit<PropertySelectorProps, 'initial
   loading: boolean
   hideLotsSelect?: boolean
   showOnlyBuildings?: boolean
+  showOnlyLots?: boolean
+  showViewToggle?: boolean
 }
 
 // ⚡ PERFORMANCE: Split into two components to avoid unnecessary hook calls
@@ -155,6 +160,8 @@ function PropertySelectorView({
   showActions: _showActions = true,
   hideLotsSelect = false,
   showOnlyBuildings = false,
+  showOnlyLots = false,
+  showViewToggle = false,
   buildings,
   individualLots,
   loading
@@ -165,6 +172,12 @@ function PropertySelectorView({
   const [filters, setFilters] = useState({
     status: "all",
     interventions: "all"
+  })
+
+  // View mode state (grid/list)
+  const { viewMode, setViewMode, mounted } = useViewMode({
+    defaultMode: 'cards',
+    syncWithUrl: false
   })
 
   const toggleBuildingExpansion = (buildingId: string) => {
@@ -246,7 +259,8 @@ function PropertySelectorView({
     })
   }, [individualLots, searchTerm, filters])
 
-  const buildingsContent = (
+  // Card view for buildings (grid layout)
+  const buildingsCardView = (
     <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
         {loading ? (
@@ -703,7 +717,240 @@ function PropertySelectorView({
     </div>
   )
 
-  const individualLotsContent = (
+  // List view for buildings (table layout)
+  const buildingsListView = (
+    <div className="flex-1 min-h-0 overflow-y-auto pb-6">
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-16 bg-slate-100 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      ) : filteredBuildings.length === 0 ? (
+        <div className="text-center py-12 px-4">
+          <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Building2 className="h-8 w-8 text-slate-400" />
+          </div>
+          <h3 className="text-xl font-semibold text-slate-900 mb-3">Aucun immeuble trouvé</h3>
+          <p className="text-slate-600 mb-6 max-w-sm mx-auto">
+            Ajoutez votre premier immeuble pour gérer votre portefeuille immobilier
+          </p>
+          <Button
+            size="lg"
+            onClick={() => router.push('/gestionnaire/biens/immeubles/nouveau')}
+            className="w-full sm:w-auto"
+          >
+            <Building2 className="h-4 w-4 mr-2" />
+            Ajouter un immeuble
+          </Button>
+        </div>
+      ) : (
+        <div className="border border-slate-200 rounded-lg overflow-hidden">
+          {/* Table header */}
+          <div className="hidden sm:grid sm:grid-cols-12 gap-4 px-4 py-3 bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase tracking-wider">
+            <div className="col-span-4">Immeuble</div>
+            <div className="col-span-3">Adresse</div>
+            <div className="col-span-2">Lots</div>
+            <div className="col-span-1">Occupés</div>
+            <div className="col-span-2 text-right">Action</div>
+          </div>
+          {/* Table rows */}
+          <div className="divide-y divide-slate-200">
+            {filteredBuildings.map((building) => {
+              const buildingIdStr = building.id.toString()
+              const isSelected = selectedBuildingId === buildingIdStr
+              const occupiedLots = (building.lots || []).filter((lot: Lot) => lot.status === "occupied").length
+              const totalLots = (building.lots || []).length
+
+              return (
+                <div
+                  key={building.id}
+                  className={`grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 px-4 py-3 hover:bg-slate-50 transition-colors ${
+                    isSelected ? 'bg-sky-50 ring-1 ring-inset ring-sky-500' : ''
+                  }`}
+                >
+                  {/* Building name */}
+                  <div className="sm:col-span-4 flex items-center gap-2">
+                    <div className="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Building2 className="h-4 w-4 text-sky-600" />
+                    </div>
+                    <span className="font-medium text-slate-900 truncate">{building.name}</span>
+                  </div>
+                  {/* Address */}
+                  <div className="sm:col-span-3 flex items-center text-sm text-slate-600">
+                    <div className="flex items-center gap-1 truncate">
+                      <MapPin className="h-3 w-3 flex-shrink-0" />
+                      <span className="truncate">{building.address}</span>
+                    </div>
+                  </div>
+                  {/* Total lots */}
+                  <div className="sm:col-span-2 flex items-center">
+                    <Badge variant="secondary" className="text-xs">
+                      {totalLots} lot{totalLots > 1 ? 's' : ''}
+                    </Badge>
+                  </div>
+                  {/* Occupied */}
+                  <div className="sm:col-span-1 flex items-center">
+                    <span className={`text-sm ${occupiedLots > 0 ? 'text-green-700 font-medium' : 'text-slate-400'}`}>
+                      {occupiedLots}
+                    </span>
+                  </div>
+                  {/* Action */}
+                  <div className="sm:col-span-2 flex items-center justify-end gap-2">
+                    {mode === "select" ? (
+                      <Button
+                        variant={isSelected ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 px-3 text-xs"
+                        onClick={() => {
+                          if (isSelected) {
+                            onBuildingSelect?.(null)
+                          } else {
+                            onBuildingSelect?.(buildingIdStr)
+                          }
+                        }}
+                      >
+                        {isSelected ? "Sélectionné" : "Sélectionner"}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => router.push(`/gestionnaire/biens/immeubles/${building.id}`)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  // Choose content based on view mode for buildings
+  const buildingsContent = (showViewToggle && viewMode === 'list')
+    ? buildingsListView
+    : buildingsCardView
+
+  // List view for individual lots
+  const individualLotsListView = (
+    <div className="flex-1 min-h-0 overflow-y-auto pb-6">
+      {filteredIndividualLots.length === 0 ? (
+        <div className="text-center py-12 px-4">
+          <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Home className="h-8 w-8 text-amber-600" />
+          </div>
+          <h3 className="text-xl font-semibold text-slate-900 mb-3">Aucun lot trouvé</h3>
+          <p className="text-slate-600 mb-6 max-w-sm mx-auto">
+            Ajoutez votre premier lot pour gérer vos propriétés individuelles
+          </p>
+          <Button
+            size="lg"
+            onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}
+            className="w-full sm:w-auto"
+          >
+            <Home className="h-4 w-4 mr-2" />
+            Ajouter un lot
+          </Button>
+        </div>
+      ) : (
+        <div className="border border-slate-200 rounded-lg overflow-hidden">
+          {/* Table header */}
+          <div className="hidden sm:grid sm:grid-cols-12 gap-4 px-4 py-3 bg-slate-50 border-b border-slate-200 text-xs font-medium text-slate-500 uppercase tracking-wider">
+            <div className="col-span-3">Référence</div>
+            <div className="col-span-3">Immeuble</div>
+            <div className="col-span-2">Catégorie</div>
+            <div className="col-span-2">Statut</div>
+            <div className="col-span-2 text-right">Action</div>
+          </div>
+          {/* Table rows */}
+          <div className="divide-y divide-slate-200">
+            {filteredIndividualLots.map((lot) => {
+              const isSelected = selectedLotId === lot.id?.toString()
+              const isOccupied = (lot as any).is_occupied || lot.status === "occupied" || ((lot as any).lot_contacts?.filter((c: any) => c.user?.role === 'locataire')?.length > 0)
+              return (
+                <div
+                  key={lot.id}
+                  className={`grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-4 px-4 py-3 hover:bg-slate-50 transition-colors ${
+                    isSelected ? 'bg-sky-50 ring-1 ring-inset ring-sky-500' : ''
+                  }`}
+                >
+                  {/* Reference */}
+                  <div className="sm:col-span-3 flex items-center gap-2">
+                    <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <Home className="h-4 w-4 text-amber-600" />
+                    </div>
+                    <span className="font-medium text-slate-900">{lot.reference}</span>
+                  </div>
+                  {/* Building */}
+                  <div className="sm:col-span-3 flex items-center text-sm text-slate-600">
+                    {lot.building_name ? (
+                      <div className="flex items-center gap-1 truncate">
+                        <Building2 className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{lot.building_name}</span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">-</span>
+                    )}
+                  </div>
+                  {/* Category */}
+                  <div className="sm:col-span-2 flex items-center">
+                    <Badge variant="secondary" className="text-xs">
+                      {getLotCategoryLabel((lot as any).category || 'autre')}
+                    </Badge>
+                  </div>
+                  {/* Status */}
+                  <div className="sm:col-span-2 flex items-center">
+                    <Badge
+                      variant={isOccupied ? "default" : "secondary"}
+                      className={`text-xs ${isOccupied ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-800"}`}
+                    >
+                      {isOccupied ? "Occupé" : "Libre"}
+                    </Badge>
+                  </div>
+                  {/* Action */}
+                  <div className="sm:col-span-2 flex items-center justify-end gap-2">
+                    {mode === "select" && !hideLotsSelect && (
+                      <Button
+                        variant={isSelected ? "default" : "outline"}
+                        size="sm"
+                        className="h-8 px-3 text-xs"
+                        onClick={() => {
+                          if (!isSelected) {
+                            onLotSelect?.(lot.id?.toString() || '', undefined)
+                          }
+                        }}
+                      >
+                        {isSelected ? "Sélectionné" : "Sélectionner"}
+                      </Button>
+                    )}
+                    {mode === "view" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0"
+                        onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  // Card view for individual lots
+  const individualLotsCardView = (
     <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
         {filteredIndividualLots.length === 0 ? (
@@ -715,7 +962,7 @@ function PropertySelectorView({
             <p className="text-slate-600 mb-6 max-w-sm mx-auto">
               Ajoutez votre premier lot pour gérer vos propriétés individuelles
             </p>
-            <Button 
+            <Button
               size="lg"
               onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}
               className="w-full sm:w-auto"
@@ -731,12 +978,10 @@ function PropertySelectorView({
             const lotForCard = {
               id: lot.id?.toString() || "",
               reference: lot.reference,
-              // ✅ Phase 2: Pass lot_contacts and is_occupied for proper occupancy calculation
               lot_contacts: (lot as any).lot_contacts || [],
               is_occupied: (lot as any).is_occupied || false,
-              tenant_id: lot.status === "occupied" ? "occupied" : null, // Fallback for compatibility
+              tenant_id: lot.status === "occupied" ? "occupied" : null,
               tenant: undefined as undefined | { id: string; name: string },
-              // ✅ Pass building with complete address info
               building: lot.building_name
                 ? {
                     id: (lot as any).building?.id || "",
@@ -745,7 +990,6 @@ function PropertySelectorView({
                     city: (lot as any).building?.city || lot.city || undefined
                   }
                 : undefined,
-              // Additional lot properties for LotCard display
               floor: (lot as any).floor,
               surface_area: (lot as any).surface_area,
               rooms: (lot as any).rooms,
@@ -769,7 +1013,12 @@ function PropertySelectorView({
     </div>
   )
 
-  // ✅ Conditionner l'affichage des tabs selon showOnlyBuildings
+  // Choose content based on view mode
+  const individualLotsContent = (showViewToggle && viewMode === 'list')
+    ? individualLotsListView
+    : individualLotsCardView
+
+  // ✅ Conditionner l'affichage des tabs selon showOnlyBuildings / showOnlyLots
   const tabs = showOnlyBuildings
     ? [
         {
@@ -778,6 +1027,16 @@ function PropertySelectorView({
           icon: Building2,
           count: filteredBuildings.length,
           content: buildingsContent
+        }
+      ]
+    : showOnlyLots
+    ? [
+        {
+          id: "individual-lots",
+          label: "Lots",
+          icon: Home,
+          count: filteredIndividualLots.length,
+          content: individualLotsContent
         }
       ]
     : [
@@ -820,14 +1079,43 @@ function PropertySelectorView({
     }
   ]
 
+  // View toggle controls
+  const viewToggleControls = showViewToggle && mounted ? (
+    <div className="flex-shrink-0 inline-flex h-10 bg-slate-100 rounded-md p-1">
+      <button
+        onClick={() => setViewMode('cards')}
+        className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
+          viewMode === 'cards'
+            ? 'bg-white text-slate-900 shadow-sm'
+            : 'text-slate-600 hover:bg-slate-200/60'
+        }`}
+        title="Vue cartes"
+      >
+        <LayoutGrid className="h-4 w-4" />
+      </button>
+      <button
+        onClick={() => setViewMode('list')}
+        className={`inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all ${
+          viewMode === 'list'
+            ? 'bg-white text-slate-900 shadow-sm'
+            : 'text-slate-600 hover:bg-slate-200/60'
+        }`}
+        title="Vue liste"
+      >
+        <List className="h-4 w-4" />
+      </button>
+    </div>
+  ) : null
+
   return (
     <ContentNavigator
       tabs={tabs}
-      defaultTab="buildings"
+      defaultTab={showOnlyLots ? "individual-lots" : "buildings"}
       searchPlaceholder="Rechercher..."
       filters={filterConfigs}
       onSearch={handleSearch}
       onFilterChange={handleFilterChange}
+      rightControls={viewToggleControls}
     />
   )
 }

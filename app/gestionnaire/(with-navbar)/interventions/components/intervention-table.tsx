@@ -61,7 +61,7 @@ const STATUS_CONFIG: Record<InterventionStatus, {
   color: string
   icon: React.ComponentType<{ className?: string }>
 }> = {
-  demande: { label: 'Demande', color: 'bg-gray-500', icon: Clock },
+  demande: { label: 'Demande', color: 'bg-muted-foreground', icon: Clock },
   rejetee: { label: 'Rejetée', color: 'bg-red-500', icon: XCircle },
   approuvee: { label: 'Approuvée', color: 'bg-green-500', icon: CheckCircle },
   demande_de_devis: { label: 'Devis demandé', color: 'bg-yellow-500', icon: AlertTriangle },
@@ -71,7 +71,7 @@ const STATUS_CONFIG: Record<InterventionStatus, {
   cloturee_par_prestataire: { label: 'Terminée (Prestataire)', color: 'bg-purple-500', icon: CheckCircle },
   cloturee_par_locataire: { label: 'Validée (Locataire)', color: 'bg-purple-600', icon: CheckCircle },
   cloturee_par_gestionnaire: { label: 'Clôturée', color: 'bg-green-600', icon: CheckCircle },
-  annulee: { label: 'Annulée', color: 'bg-gray-600', icon: XCircle }
+  annulee: { label: 'Annulee', color: 'bg-muted-foreground', icon: XCircle }
 }
 
 // Urgency configuration

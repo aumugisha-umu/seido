@@ -70,10 +70,10 @@ const getActivityIcon = (actionType: ActivityActionType, entityType: ActivityEnt
   
   // Priorité au statut pour les couleurs d'erreur
   if (status === 'failed') {
-    return <XCircle className={`h-4 w-4 text-red-500`} />
+    return <XCircle className={`h-4 w-4 text-destructive`} />
   }
   if (status === 'in_progress') {
-    return <Clock className={`h-4 w-4 text-amber-500`} />
+    return <Clock className={`h-4 w-4 text-warning`} />
   }
 
   // Icônes par type d'action
@@ -83,17 +83,17 @@ const getActivityIcon = (actionType: ActivityActionType, entityType: ActivityEnt
     case 'update':
       return <Edit className={iconClass} />
     case 'delete':
-      return <Trash2 className={`h-4 w-4 text-red-500`} />
+      return <Trash2 className={`h-4 w-4 text-destructive`} />
     case 'assign':
       return <UserCheck className={iconClass} />
     case 'unassign':
       return <UserX className={iconClass} />
     case 'approve':
-      return <CheckCircle className={`h-4 w-4 text-emerald-500`} />
+      return <CheckCircle className={`h-4 w-4 text-success`} />
     case 'reject':
-      return <XCircle className={`h-4 w-4 text-red-500`} />
+      return <XCircle className={`h-4 w-4 text-destructive`} />
     case 'complete':
-      return <CheckCircle className={`h-4 w-4 text-emerald-500`} />
+      return <CheckCircle className={`h-4 w-4 text-success`} />
     case 'upload':
       return <Upload className={iconClass} />
     case 'download':
@@ -101,9 +101,9 @@ const getActivityIcon = (actionType: ActivityActionType, entityType: ActivityEnt
     case 'invite':
       return <Mail className={iconClass} />
     case 'accept_invite':
-      return <UserPlus className={`h-4 w-4 text-emerald-500`} />
+      return <UserPlus className={`h-4 w-4 text-success`} />
     case 'login':
-      return <LogIn className={`h-4 w-4 text-blue-500`} />
+      return <LogIn className={`h-4 w-4 text-info`} />
     case 'logout':
       return <LogOut className={`h-4 w-4 text-slate-500`} />
     case 'status_change':
@@ -117,15 +117,15 @@ const getActivityIcon = (actionType: ActivityActionType, entityType: ActivityEnt
 const getStatusColor = (status: ActivityStatus) => {
   switch (status) {
     case 'success':
-      return 'text-emerald-600'
+      return 'text-success'
     case 'failed':
-      return 'text-red-600'
+      return 'text-destructive'
     case 'in_progress':
-      return 'text-amber-600'
+      return 'text-warning'
     case 'cancelled':
-      return 'text-slate-500'
+      return 'text-muted-foreground'
     default:
-      return 'text-slate-600'
+      return 'text-muted-foreground'
   }
 }
 

@@ -170,7 +170,7 @@ export function DemoRequestForm({
             <SelectTrigger className={styles.input}>
               <SelectValue placeholder="Sélectionner" />
             </SelectTrigger>
-            <SelectContent className="bg-[#1e293b] border-white/20">
+            <SelectContent className="bg-landing-card border-white/20">
               <SelectItem value="1-10" className="text-white hover:bg-white/10">1 - 10 lots</SelectItem>
               <SelectItem value="11-50" className="text-white hover:bg-white/10">11 - 50 lots</SelectItem>
               <SelectItem value="51-200" className="text-white hover:bg-white/10">51 - 200 lots</SelectItem>

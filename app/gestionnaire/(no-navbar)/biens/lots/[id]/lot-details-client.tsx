@@ -335,8 +335,8 @@ export default function LotDetailsClient({
   } else {
     headerBadges.push({
       label: 'Libre',
-      color: 'bg-gray-100 text-gray-800 border-gray-200',
-      dotColor: 'bg-gray-500'
+      color: 'bg-muted text-foreground border-border',
+      dotColor: 'bg-muted-foreground'
     })
   }
 
@@ -401,7 +401,7 @@ export default function LotDetailsClient({
         dropdownActions={dropdownActions}
       />
 
-      <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
+      <div className="layout-padding h-full bg-muted flex flex-col overflow-hidden">
         {error && (
           <div className="content-max-width px-4 sm:px-6 lg:px-8 py-4">
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
@@ -412,7 +412,7 @@ export default function LotDetailsClient({
 
       {/* Tabs Navigation */}
       <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-0 mb-6">
-        <div className="border-b border-slate-200">
+        <div className="border-b border-border">
           <nav className="-mb-px flex space-x-8">
             {tabs.map((tab) => {
               const Icon = tab.icon
@@ -422,14 +422,14 @@ export default function LotDetailsClient({
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex items-center space-x-2 py-3 px-4 border-b-2 font-medium text-sm transition-colors ${
                     activeTab === tab.id
-                      ? "border-sky-600 text-sky-600 bg-white"
-                      : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                      ? "border-primary text-primary bg-card"
+                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
                   }`}
                 >
                   <Icon className="h-4 w-4" />
                   <span>{tab.label}</span>
                   {tab.count !== undefined && (
-                    <Badge variant="secondary" className="ml-1 text-xs bg-slate-100 text-slate-600">
+                    <Badge variant="secondary" className="ml-1 text-xs bg-muted text-muted-foreground">
                       {tab.count}
                     </Badge>
                   )}
@@ -460,13 +460,13 @@ export default function LotDetailsClient({
             {lot.description && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
                 <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
-                <p className="text-sm text-gray-700 whitespace-pre-wrap flex-1">{lot.description}</p>
+                <p className="text-sm text-foreground whitespace-pre-wrap flex-1">{lot.description}</p>
               </div>
             )}
 
             {/* Section 2: Contacts Preview - Grid Only */}
             <div>
-              <h3 className="text-sm font-semibold text-gray-700 mb-3 px-1">Contacts du lot</h3>
+              <h3 className="text-sm font-semibold text-foreground mb-3 px-1">Contacts du lot</h3>
               <LotContactsGridPreview
                 lotId={lot.id}
                 lotReference={lot.reference}
@@ -512,8 +512,8 @@ export default function LotDetailsClient({
           <div className="space-y-6 flex-1 flex flex-col min-h-0">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-medium text-gray-900">Documents du lot</h2>
-                <p className="text-sm text-gray-600 mt-1">
+                <h2 className="text-lg font-medium text-foreground">Documents du lot</h2>
+                <p className="text-sm text-muted-foreground mt-1">
                   Documents liés aux interventions réalisées dans ce lot
                 </p>
               </div>

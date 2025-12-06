@@ -27,8 +27,8 @@ export function EmailListItem({
       className={`
         p-3 px-4 cursor-pointer transition-colors border-b
         hover:bg-muted/50
-        ${isSelected ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''}
-        ${!email.is_read ? 'bg-blue-50/30' : ''}
+        ${isSelected ? 'bg-primary/10 border-l-4 border-l-primary' : ''}
+        ${!email.is_read ? 'bg-primary/5' : ''}
       `}
       onClick={onClick}
       role="listitem"

@@ -309,7 +309,7 @@ export default function LotEditClient({
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-background">
       {/* Header - Sticky at top */}
       <StepProgressHeader
         title="Modifier le lot"
@@ -340,8 +340,8 @@ export default function LotEditClient({
 
         {/* Step 1: Building Association (Read-Only) */}
         {currentStep === 1 && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
+          <div className="bg-card rounded-lg shadow p-6">
+            <h2 className="text-xl font-semibold text-foreground mb-4">
               Association à un immeuble
             </h2>
 
@@ -360,11 +360,11 @@ export default function LotEditClient({
                 </p>
               </div>
             ) : (
-              <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                <p className="text-sm text-gray-700 font-medium mb-1">
+              <div className="p-4 bg-muted border border-border rounded-lg">
+                <p className="text-sm text-foreground font-medium mb-1">
                   Lot indépendant
                 </p>
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-muted-foreground">
                   Ce lot n'est pas associé à un immeuble.
                 </p>
               </div>
@@ -378,7 +378,7 @@ export default function LotEditClient({
             {/* Conditional rendering based on lot type */}
             {building ? (
               // Building-associated lot - Use BuildingInfoForm (no address section)
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-card rounded-lg shadow p-6">
                 <BuildingInfoForm
                   buildingInfo={{
                     name: lotInfo.reference,
@@ -413,8 +413,8 @@ export default function LotEditClient({
               </div>
             ) : (
               // Independent lot - Use IndependentLotInputCardV2 (with full address)
-              <div className="bg-white rounded-lg shadow p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              <div className="bg-card rounded-lg shadow p-6">
+                <h2 className="text-lg font-semibold text-foreground mb-4">
                   Informations du lot indépendant
                 </h2>
                 <IndependentLotInputCardV2
@@ -532,7 +532,7 @@ export default function LotEditClient({
       </div>
 
       {/* Sticky Footer Navigation - Outside all steps */}
-      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">
+      <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm border-t border-border px-5 sm:px-6 lg:px-10 py-4">
         <div className="flex justify-between w-full content-max-width">
           <Button
             variant="outline"
@@ -557,7 +557,7 @@ export default function LotEditClient({
             <Button
               onClick={handleSave}
               disabled={saving}
-              className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 min-w-[140px]"
+              className="flex items-center space-x-2 bg-primary text-primary-foreground hover:bg-primary/90 min-w-[140px]"
             >
               {saving ? (
                 <>

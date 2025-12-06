@@ -724,43 +724,51 @@ export default function NewImmeubleePage({
       const contactsData = [
         // Contacts de l'immeuble (provider, owner, other)
         ...Object.entries(buildingContacts).flatMap(([contactType, contactArray]) =>
-          contactArray.map(contact => ({
-            id: contact.id,
-            type: contactType,
-            isPrimary: false
-          }))
+          contactArray
+            .filter(contact => contact.id) // ✅ Filtrer les contacts sans ID valide
+            .map(contact => ({
+              id: contact.id,
+              type: contactType,
+              isPrimary: false
+            }))
         ),
         // Gestionnaires de l'immeuble (toujours inclus)
-        ...buildingManagers.map((manager, index) => ({
-          id: manager.id, // ✅ Utiliser manager.id directement
-          type: 'gestionnaire',
-          isPrimary: index === 0 // Premier gestionnaire = principal
-        }))
+        ...buildingManagers
+          .filter(manager => manager.id) // ✅ Filtrer les managers sans ID valide
+          .map((manager, index) => ({
+            id: manager.id,
+            type: 'gestionnaire',
+            isPrimary: index === 0 // Premier gestionnaire = principal
+          }))
       ]
 
       // Preparer les assignations de contacts aux lots
       const lotContactAssignmentsData = Object.entries(lotContactAssignments).map(([lotId, assignments]) => {
         // Trouver l'index du lot dans le tableau lotsData base sur l'ID
         const lotIndex = lots.findIndex(lot => lot.id === lotId)
-        
+
         // Recuperer les contacts classiques assignes a ce lot
         const contactAssignments = Object.entries(assignments).flatMap(([contactType, contacts]) =>
-          contacts.map(contact => ({
-            contactId: contact.id,
-            contactType: contactType,
-            isPrimary: false // Peut etre etendu plus tard
-          }))
+          contacts
+            .filter(contact => contact.id) // ✅ Filtrer les contacts sans ID valide
+            .map(contact => ({
+              contactId: contact.id,
+              contactType: contactType,
+              isPrimary: false // Peut etre etendu plus tard
+            }))
         )
-        
+
         // Ajouter les gestionnaires assignes a ce lot
         const managersForThisLot = assignedManagers[lotId] || []
-        const managerAssignments = managersForThisLot.map((manager, index) => ({
-          contactId: manager.id, // ✅ Utiliser manager.id directement
-          contactType: 'gestionnaire',
-          isPrimary: index === 0, // Le premier gestionnaire est principal, les autres additionnels
-          isLotPrincipal: index === 0 // Marquer le gestionnaire principal pour lot_contacts.is_primary
-        }))
-        
+        const managerAssignments = managersForThisLot
+          .filter(manager => manager.id) // ✅ Filtrer les managers sans ID valide
+          .map((manager, index) => ({
+            contactId: manager.id,
+            contactType: 'gestionnaire',
+            isPrimary: index === 0, // Le premier gestionnaire est principal, les autres additionnels
+            isLotPrincipal: index === 0 // Marquer le gestionnaire principal pour lot_contacts.is_primary
+          }))
+
         return {
           lotId: lotId,
           lotIndex: lotIndex, // Index du lot dans le tableau lotsData
@@ -882,7 +890,7 @@ export default function NewImmeubleePage({
   }
 
   return (
-    <div className="flex flex-col flex-1 min-h-0 bg-gray-50">
+    <div className="flex flex-col flex-1 min-h-0 bg-background">
       {/* Header */}
       <StepProgressHeader
         title="Ajouter un immeuble"
@@ -988,7 +996,7 @@ export default function NewImmeubleePage({
         </div>
 
         {/* Footer Navigation - Always visible at bottom */}
-        <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-5 sm:px-6 lg:px-10 py-4">
+        <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm border-t border-border px-5 sm:px-6 lg:px-10 py-4">
           <div className="flex flex-col sm:flex-row justify-between gap-2 content-max-width">
               {/* Back Button - Only show from step 2 onwards */}
               {currentStep > 1 && (
@@ -1015,7 +1023,7 @@ export default function NewImmeubleePage({
                   }
                 }}
                 disabled={!canProceedToNextStep() || (currentStep === 4 && isCreating)}
-                className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto ml-auto"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto ml-auto"
               >
                 {isCreating && currentStep === 4 && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {currentStep === 1 && "Continuer vers les lots"}
@@ -1056,7 +1064,7 @@ export default function NewImmeubleePage({
                           key={manager.user.id}
                           className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
                             isAlreadyAssigned
-                              ? 'bg-gray-100 border-gray-300 opacity-60'
+                              ? 'bg-muted border-border opacity-60'
                               : isBuildingManager
                               ? 'bg-blue-50 border-blue-200'
                               : 'hover:bg-purple-50 border-purple-200'
@@ -1074,7 +1082,7 @@ export default function NewImmeubleePage({
                             </div>
                             <div>
                               <div className="font-medium">{manager.user.name}</div>
-                              <div className="text-sm text-gray-500">{manager.user.email}</div>
+                              <div className="text-sm text-muted-foreground">{manager.user.email}</div>
                               <div className="flex gap-1 mt-1">
                                 {manager.user.id === userProfile.id && (
                                   <Badge variant="outline" className="text-xs">Vous</Badge>
@@ -1093,10 +1101,10 @@ export default function NewImmeubleePage({
                             disabled={isAlreadyAssigned || isBuildingManager}
                             className={`${
                               isAlreadyAssigned
-                                ? 'bg-gray-300 text-gray-500'
+                                ? 'bg-muted text-muted-foreground'
                                 : isBuildingManager
                                 ? 'bg-blue-300 text-blue-700'
-                                : 'bg-purple-600 text-white hover:bg-purple-700'
+                                : 'bg-primary text-primary-foreground hover:bg-primary/90'
                             }`}
                             size="sm"
                           >
@@ -1109,13 +1117,13 @@ export default function NewImmeubleePage({
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Users className="w-8 h-8 text-gray-400" />
+                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Users className="w-8 h-8 text-muted-foreground/70" />
                   </div>
-                  <h3 className="font-medium text-gray-900 mb-2">
+                  <h3 className="font-medium text-foreground mb-2">
                     Aucun gestionnaire disponible
                   </h3>
-                  <p className="text-sm text-gray-500 mb-4">
+                  <p className="text-sm text-muted-foreground mb-4">
                     Aucun gestionnaire trouvé dans votre équipe
                   </p>
                 </div>
@@ -1164,7 +1172,7 @@ export default function NewImmeubleePage({
                           key={manager.user.id}
                           className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
                             isAlreadyAssigned
-                              ? 'bg-gray-100 border-gray-300 opacity-60'
+                              ? 'bg-muted border-border opacity-60'
                               : 'hover:bg-blue-50 border-blue-200'
                           }`}
                         >
@@ -1174,7 +1182,7 @@ export default function NewImmeubleePage({
                             </div>
                             <div>
                               <div className="font-medium">{manager.user.name}</div>
-                              <div className="text-sm text-gray-500">{manager.user.email}</div>
+                              <div className="text-sm text-muted-foreground">{manager.user.email}</div>
                               <div className="flex gap-1 mt-1">
                                 {manager.user.id === userProfile.id && (
                                   <Badge variant="outline" className="text-xs">Vous</Badge>
@@ -1187,8 +1195,8 @@ export default function NewImmeubleePage({
                             disabled={isAlreadyAssigned}
                             className={`${
                               isAlreadyAssigned
-                                ? 'bg-gray-300 text-gray-500'
-                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                                ? 'bg-muted text-muted-foreground'
+                                : 'bg-secondary text-secondary-foreground hover:bg-secondary/90'
                             }`}
                             size="sm"
                           >
@@ -1201,13 +1209,13 @@ export default function NewImmeubleePage({
                 </div>
               ) : (
                 <div className="text-center py-8">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Users className="w-8 h-8 text-gray-400" />
+                  <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Users className="w-8 h-8 text-muted-foreground/70" />
                   </div>
-                  <h3 className="font-medium text-gray-900 mb-2">
+                  <h3 className="font-medium text-foreground mb-2">
                     Aucun gestionnaire disponible
                   </h3>
-                  <p className="text-sm text-gray-500 mb-4">
+                  <p className="text-sm text-muted-foreground mb-4">
                     Aucun gestionnaire trouvé dans votre équipe
                   </p>
                 </div>

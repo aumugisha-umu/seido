@@ -1,5 +1,7 @@
 # ✍️ Design System - Typographie
 
+> 📁 **Source de vérité :** `app/globals.css` contient tous les design tokens centralisés (couleurs OKLCH, spacing, shadows, fonts)
+
 ## Vue d'ensemble
 
 Notre système typographique est conçu pour optimiser la **lisibilité**, créer une **hiérarchie claire** et garantir une **accessibilité optimale** sur tous les devices. Il utilise la police **Inter** pour sa neutralité professionnelle et sa lisibilité exceptionnelle.
@@ -29,6 +31,29 @@ font-family: "Inter", /* Police principale */ system-ui, /* Police système mode
   /* San Francisco sur macOS/iOS */ BlinkMacSystemFont, /* San Francisco sur macOS Chrome */
     "Segoe UI", /* Segoe UI sur Windows */ Roboto, /* Roboto sur Android */
     sans-serif; /* Fallback générique */
+```
+
+### Familles de Polices (globals.css)
+
+```css
+:root {
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;     /* Interface principale */
+  --font-serif: "Merriweather", Georgia, serif;                    /* Contenu éditorial */
+  --font-mono: "JetBrains Mono", "Fira Code", monospace;          /* Code et données */
+}
+```
+
+**Usage avec Tailwind :**
+
+```tsx
+// Police sans-serif (par défaut)
+className="font-sans"
+
+// Police serif (titres éditoriaux)
+className="font-serif"
+
+// Police monospace (code, données)
+className="font-mono"
 ```
 
 ## 📏 Échelle Typographique
@@ -273,16 +298,16 @@ className = "text-sm text-slate-700 leading-normal";
 className = "text-xs font-bold uppercase tracking-wide";
 ```
 
-### 🏢 Owner - Professionnalisme & Clarté
+### 🏢 Gestionnaire - Professionnalisme & Clarté
 
 ```tsx
-// Headers owner - Business professional
+// Headers gestionnaire - Business professional
 className = "text-2xl font-bold text-slate-800";
 
-// Body owner - Lecture confortable
+// Body gestionnaire - Lecture confortable
 className = "text-base text-slate-700 leading-normal";
 
-// Emphasis owner - Insights business
+// Emphasis gestionnaire - Insights business
 className = "text-lg font-semibold text-slate-900";
 ```
 

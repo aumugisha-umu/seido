@@ -522,7 +522,7 @@ export default function EditBuildingClient({
   }
 
   return (
-    <div className="layout-padding min-h-screen bg-gray-50 py-2 sm:py-3">
+    <div className="layout-padding min-h-screen bg-background py-2 sm:py-3">
       {/* Header */}
       <StepProgressHeader
         title="Modifier l'immeuble"
@@ -644,7 +644,7 @@ export default function EditBuildingClient({
               }
             }}
             disabled={!canProceedToNextStep() || (currentStep === 4 && isSaving)}
-            className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto ml-auto"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto ml-auto"
           >
             {isSaving && currentStep === 4 && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
             {currentStep === 1 && "Continuer vers les lots"}
@@ -682,7 +682,7 @@ export default function EditBuildingClient({
                         key={manager.user.id}
                         className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
                           isAlreadyAssigned
-                            ? 'bg-gray-100 border-gray-300 opacity-60'
+                            ? 'bg-muted border-border opacity-60'
                             : 'hover:bg-purple-50 border-purple-200'
                         }`}
                       >
@@ -692,7 +692,7 @@ export default function EditBuildingClient({
                           </div>
                           <div>
                             <div className="font-medium">{manager.user.name}</div>
-                            <div className="text-sm text-gray-500">{manager.user.email}</div>
+                            <div className="text-sm text-muted-foreground">{manager.user.email}</div>
                             <div className="flex gap-1 mt-1">
                               {manager.user.id === userProfile.id && (
                                 <Badge variant="outline" className="text-xs">Vous</Badge>
@@ -705,8 +705,8 @@ export default function EditBuildingClient({
                           disabled={isAlreadyAssigned}
                           className={`${
                             isAlreadyAssigned
-                              ? 'bg-gray-300 text-gray-500'
-                              : 'bg-purple-600 text-white hover:bg-purple-700'
+                              ? 'bg-muted text-muted-foreground'
+                              : 'bg-primary text-primary-foreground hover:bg-primary/90'
                           }`}
                           size="sm"
                         >
@@ -719,13 +719,13 @@ export default function EditBuildingClient({
               </div>
             ) : (
               <div className="text-center py-8">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Users className="w-8 h-8 text-gray-400" />
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-8 h-8 text-muted-foreground/70" />
                 </div>
-                <h3 className="font-medium text-gray-900 mb-2">
+                <h3 className="font-medium text-foreground mb-2">
                   Aucun gestionnaire disponible
                 </h3>
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-sm text-muted-foreground mb-4">
                   Aucun gestionnaire trouvé dans votre équipe
                 </p>
               </div>
@@ -773,7 +773,7 @@ export default function EditBuildingClient({
                         key={manager.user.id}
                         className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
                           isAlreadyAssigned
-                            ? 'bg-gray-100 border-gray-300 opacity-60'
+                            ? 'bg-muted border-border opacity-60'
                             : 'hover:bg-blue-50 border-blue-200'
                         }`}
                       >
@@ -783,7 +783,7 @@ export default function EditBuildingClient({
                           </div>
                           <div>
                             <div className="font-medium">{manager.user.name}</div>
-                            <div className="text-sm text-gray-500">{manager.user.email}</div>
+                            <div className="text-sm text-muted-foreground">{manager.user.email}</div>
                             <div className="flex gap-1 mt-1">
                               {manager.user.id === userProfile.id && (
                                 <Badge variant="outline" className="text-xs">Vous</Badge>
@@ -810,13 +810,13 @@ export default function EditBuildingClient({
               </div>
             ) : (
               <div className="text-center py-8">
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Users className="w-8 h-8 text-gray-400" />
+                <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-8 h-8 text-muted-foreground/70" />
                 </div>
-                <h3 className="font-medium text-gray-900 mb-2">
+                <h3 className="font-medium text-foreground mb-2">
                   Aucun gestionnaire disponible
                 </h3>
-                <p className="text-sm text-gray-500 mb-4">
+                <p className="text-sm text-muted-foreground mb-4">
                   Aucun gestionnaire trouvé dans votre équipe
                 </p>
               </div>

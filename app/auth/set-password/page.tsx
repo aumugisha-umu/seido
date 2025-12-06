@@ -334,20 +334,17 @@ export default function SetPasswordPage() {
   // État de chargement pendant la vérification de l'authentification OU période de grâce
   if (loading || isWaitingForSession) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <Card className="border-slate-200 shadow-lg">
-            <CardContent className="flex items-center justify-center p-8">
-              <div className="text-center space-y-4">
-                <div className="w-8 h-8 border-4 border-sky-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-                <p className="text-slate-600">
-                  {isWaitingForSession
-                    ? 'Synchronisation de votre session...'
-                    : 'Vérification de l\'authentification...'}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+      <div className="w-full space-y-6">
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <AuthLogo />
+          <div className="space-y-4">
+            <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="text-white/60">
+              {isWaitingForSession
+                ? 'Synchronisation de votre session...'
+                : 'Vérification de l\'authentification...'}
+            </p>
+          </div>
         </div>
       </div>
     )
@@ -357,196 +354,189 @@ export default function SetPasswordPage() {
   if (isCompleted) {
     return (
       <>
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <Card className="border-slate-200 shadow-lg">
-            <CardHeader className="text-center space-y-4">
-              <div className="flex justify-center">
-                <div className="w-12 h-12 bg-emerald-100 rounded-lg flex items-center justify-center">
-                  <CheckCircle className="w-6 h-6 text-emerald-600" />
-                </div>
-              </div>
-              <div>
-                <CardTitle className="text-2xl font-bold text-slate-900">Mot de passe défini !</CardTitle>
-                <CardDescription className="text-slate-600">
-                  Votre compte est maintenant configuré et prêt à être utilisé
-                </CardDescription>
-              </div>
-            </CardHeader>
-            <CardContent className="text-center space-y-4">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4">
-                <p className="text-sm text-emerald-800">
-                  <strong>Bienvenue dans SEIDO !</strong><br />
-                  Vous allez être redirigé vers votre tableau de bord dans quelques secondes.
-                </p>
-              </div>
-              <Button
-                onClick={() => {
-                  if (user?.role) {
-                    const dashboardPath = `/${user.role}/dashboard`
-                    logger.info("🔄 [SET-PASSWORD] Manual redirect to dashboard:", dashboardPath)
-                    window.location.href = dashboardPath  // Hard redirect
-                  } else {
-                    window.location.href = '/auth/login'
-                  }
-                }}
-                className="w-full bg-sky-600 hover:bg-sky-700 text-white"
-              >
-                Accéder au tableau de bord
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+        <div className="w-full space-y-6">
+          <div className="flex flex-col items-center space-y-4 text-center">
+            <AuthLogo />
 
-      {/* 📱 PWA Installation Prompt - Triggered automatically after 2s */}
-      <PWAInstallPromptModal
-        isOpen={showPWAPrompt}
-        onClose={() => setShowPWAPrompt(false)}
-        onInstallSuccess={handlePWAInstallSuccess}
-        onDismiss={handlePWADismiss}
-      />
+            <div className="relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-full blur-xl" />
+              <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
+                <CheckCircle className="h-8 w-8 text-green-400" />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold tracking-tight text-white">Mot de passe défini !</h1>
+              <p className="text-white/60">
+                Votre compte est maintenant configuré et prêt à être utilisé
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+              <p className="text-sm text-green-200">
+                <strong>Bienvenue dans SEIDO !</strong><br />
+                Vous allez être redirigé vers votre tableau de bord dans quelques secondes.
+              </p>
+            </div>
+            <Button
+              onClick={() => {
+                if (user?.role) {
+                  const dashboardPath = `/${user.role}/dashboard`
+                  logger.info("🔄 [SET-PASSWORD] Manual redirect to dashboard:", dashboardPath)
+                  window.location.href = dashboardPath
+                } else {
+                  window.location.href = '/auth/login'
+                }
+              }}
+              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+            >
+              Accéder au tableau de bord
+            </Button>
+          </div>
+        </div>
+
+        <PWAInstallPromptModal
+          isOpen={showPWAPrompt}
+          onClose={() => setShowPWAPrompt(false)}
+          onInstallSuccess={handlePWAInstallSuccess}
+          onDismiss={handlePWADismiss}
+        />
       </>
     )
   }
 
   // Formulaire principal de définition du mot de passe
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <Card className="border-slate-200 shadow-lg">
-          <CardHeader className="text-center space-y-4">
-            <div className="flex justify-center">
-              <AuthLogo />
-            </div>
-            <div>
-              <CardTitle className="text-2xl font-bold text-slate-900">Définir votre mot de passe</CardTitle>
-              <CardDescription className="text-slate-600">
-                Bienvenue ! Choisissez un mot de passe sécurisé pour finaliser votre compte
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {error && (
-                <Alert variant="destructive">
-                  <AlertDescription>{error}</AlertDescription>
-                </Alert>
-              )}
+    <div className="w-full space-y-6">
+      <div className="flex flex-col items-center space-y-4 text-center">
+        <AuthLogo />
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight text-white">Définir votre mot de passe</h1>
+          <p className="text-white/60">
+            Bienvenue ! Choisissez un mot de passe sécurisé pour finaliser votre compte
+          </p>
+        </div>
+      </div>
 
-              {user && (
-                <div className="bg-sky-50 border border-sky-200 rounded-lg p-4">
-                  <div className="flex items-center space-x-2">
-                    <Shield className="w-4 h-4 text-sky-600" />
-                    <p className="text-sm text-sky-800">
-                      <strong>Compte :</strong> {user.email}
-                    </p>
-                  </div>
-                </div>
-              )}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <Alert variant="destructive" className="bg-red-500/10 border-red-500/30 text-red-200">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-slate-900">
-                  Nouveau mot de passe
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Votre mot de passe"
-                    value={_password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="bg-white border-slate-200 pr-10"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-slate-500" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-slate-500" />
-                    )}
-                  </Button>
-                </div>
-
-                {/* Critères de sécurité du mot de passe */}
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
-                  <p className="text-xs font-medium text-slate-700">Critères de sécurité :</p>
-                  <div className="grid grid-cols-2 gap-1 text-xs">
-                    <div className={`flex items-center space-x-1 ${criteria.minLength ? 'text-emerald-600' : 'text-slate-500'}`}>
-                      {criteria.minLength ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                      <span>8 caractères min.</span>
-                    </div>
-                    <div className={`flex items-center space-x-1 ${criteria.hasUppercase ? 'text-emerald-600' : 'text-slate-500'}`}>
-                      {criteria.hasUppercase ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                      <span>Majuscule</span>
-                    </div>
-                    <div className={`flex items-center space-x-1 ${criteria.hasLowercase ? 'text-emerald-600' : 'text-slate-500'}`}>
-                      {criteria.hasLowercase ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                      <span>Minuscule</span>
-                    </div>
-                    <div className={`flex items-center space-x-1 ${criteria.hasNumber ? 'text-emerald-600' : 'text-slate-500'}`}>
-                      {criteria.hasNumber ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                      <span>Chiffre</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword" className="text-slate-900">
-                  Confirmer le mot de passe
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="confirmPassword"
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Confirmez votre mot de passe"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="bg-white border-slate-200 pr-10"
-                    required
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="h-4 w-4 text-slate-500" />
-                    ) : (
-                      <Eye className="h-4 w-4 text-slate-500" />
-                    )}
-                  </Button>
-                </div>
-                {confirmPassword && _password !== confirmPassword && (
-                  <p className="text-xs text-red-600">Les mots de passe ne correspondent pas</p>
-                )}
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-sky-600 hover:bg-sky-700 text-white"
-                disabled={isLoading || !isPasswordValid() || _password !== confirmPassword}
-              >
-                {isLoading ? "Configuration..." : "Définir le mot de passe"}
-              </Button>
-            </form>
-
-            <div className="mt-6 text-center">
-              <p className="text-xs text-slate-500">
-                En définissant votre mot de passe, vous acceptez nos conditions d'utilisation
+        {user && (
+          <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+            <div className="flex items-center space-x-2">
+              <Shield className="w-4 h-4 text-blue-400" />
+              <p className="text-sm text-blue-200">
+                <strong>Compte :</strong> {user.email}
               </p>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <Label htmlFor="password" className="text-white font-medium">
+            Nouveau mot de passe
+          </Label>
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              placeholder="Votre mot de passe"
+              value={_password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 pr-10 transition-colors focus:bg-white/20"
+              required
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-white/10 text-white/60 hover:text-white"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+
+          {/* Critères de sécurité du mot de passe */}
+          <div className="bg-white/5 border border-white/10 rounded-lg p-3 space-y-2">
+            <p className="text-xs font-medium text-white/80">Critères de sécurité :</p>
+            <div className="grid grid-cols-2 gap-1 text-xs">
+              <div className={`flex items-center space-x-1 ${criteria.minLength ? 'text-green-400' : 'text-white/50'}`}>
+                {criteria.minLength ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                <span>8 caractères min.</span>
+              </div>
+              <div className={`flex items-center space-x-1 ${criteria.hasUppercase ? 'text-green-400' : 'text-white/50'}`}>
+                {criteria.hasUppercase ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                <span>Majuscule</span>
+              </div>
+              <div className={`flex items-center space-x-1 ${criteria.hasLowercase ? 'text-green-400' : 'text-white/50'}`}>
+                {criteria.hasLowercase ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                <span>Minuscule</span>
+              </div>
+              <div className={`flex items-center space-x-1 ${criteria.hasNumber ? 'text-green-400' : 'text-white/50'}`}>
+                {criteria.hasNumber ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                <span>Chiffre</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="confirmPassword" className="text-white font-medium">
+            Confirmer le mot de passe
+          </Label>
+          <div className="relative">
+            <Input
+              id="confirmPassword"
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Confirmez votre mot de passe"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="bg-white/10 border-white/20 text-white placeholder:text-white/40 h-11 pr-10 transition-colors focus:bg-white/20"
+              required
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-white/10 text-white/60 hover:text-white"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            >
+              {showConfirmPassword ? (
+                <EyeOff className="h-4 w-4" />
+              ) : (
+                <Eye className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+          {confirmPassword && _password !== confirmPassword && (
+            <p className="text-xs text-red-400">Les mots de passe ne correspondent pas</p>
+          )}
+        </div>
+
+        <Button
+          type="submit"
+          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+          disabled={isLoading || !isPasswordValid() || _password !== confirmPassword}
+        >
+          {isLoading ? "Configuration..." : "Définir le mot de passe"}
+        </Button>
+      </form>
+
+      <div className="mt-6 text-center">
+        <p className="text-xs text-white/50">
+          En définissant votre mot de passe, vous acceptez nos conditions d'utilisation
+        </p>
       </div>
     </div>
   )

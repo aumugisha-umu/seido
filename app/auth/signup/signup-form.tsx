@@ -265,7 +265,7 @@ export function SignupForm() {
 
       {/* Téléphone */}
       <div className="space-y-2">
-        <Label htmlFor="phone" className="text-foreground font-medium">
+        <Label htmlFor="phone" className="text-white font-medium">
           <Phone className="w-4 h-4 inline mr-1" />
           Téléphone (optionnel)
         </Label>

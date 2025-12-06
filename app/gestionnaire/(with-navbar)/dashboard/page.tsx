@@ -4,7 +4,9 @@ import {
   createServerActionBuildingService,
   createServerActionLotService,
   createServerActionInterventionService,
+  createServerActionContractService,
 } from "@/lib/services"
+import type { ContractStats } from "@/lib/types/contract.types"
 import { ManagerDashboardV2 } from "@/components/dashboards/manager/manager-dashboard-v2"
 import { logger as baseLogger } from '@/lib/logger'
 import { filterPendingActions } from '@/lib/intervention-alert-utils'
@@ -46,6 +48,15 @@ export default async function DashboardGestionnaire() {
     contactsByType: {} as Record<string, { total: number; active: number }>
   }
 
+  let contractStats: ContractStats = {
+    totalActive: 0,
+    expiringThisMonth: 0,
+    expiringNext30Days: 0,
+    expired: 0,
+    totalRentMonthly: 0,
+    averageRent: 0
+  }
+
   let allInterventions: InterventionWithRelations[] = []
   let pendingActionsCount = 0
 
@@ -57,6 +68,7 @@ export default async function DashboardGestionnaire() {
     const buildingService = await createServerActionBuildingService()
     const lotService = await createServerActionLotService()
     const interventionService = await createServerActionInterventionService()
+    const contractService = await createServerActionContractService()
 
     dashLogger.info('✅ [DASHBOARD] All services initialized successfully')
     dashLogger.info('📦 [DASHBOARD] Using team ID from context:', team.id)
@@ -166,6 +178,16 @@ export default async function DashboardGestionnaire() {
     dashLogger.info('📊 [DASHBOARD] Final stats calculated:', stats)
     dashLogger.info('📊 [DASHBOARD] Stats object structure:', JSON.stringify(stats, null, 2))
 
+    // 📜 CONTRACT STATS: Charger les statistiques des contrats
+    dashLogger.info('📜 [DASHBOARD] Loading contract stats...')
+    try {
+      contractStats = await contractService.getStats(team.id)
+      dashLogger.info('✅ [DASHBOARD] Contract stats loaded:', contractStats)
+    } catch (contractError) {
+      dashLogger.error('❌ [DASHBOARD] Error loading contract stats:', contractError)
+      // Keep default values (all zeros)
+    }
+
     // Statistiques contacts
     // 🛡️ DEFENSIVE: Ensure users is always an array before operations
     const safeUsers = Array.isArray(users) ? users : []
@@ -233,6 +255,7 @@ export default async function DashboardGestionnaire() {
     <ManagerDashboardV2
       stats={stats}
       contactStats={contactStats}
+      contractStats={contractStats}
       interventions={allInterventions}
       pendingCount={pendingActionsCount}
     />

@@ -12,16 +12,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-    Wrench,
     MapPin,
     Calendar,
-    Droplets,
-    Flame,
-    Zap,
-    Key,
-    Home,
-    Paintbrush,
-    Hammer,
     MoreVertical,
     Eye,
     Check,
@@ -43,36 +35,12 @@ import {
     getPriorityLabel
 } from "@/lib/intervention-utils"
 import { shouldShowAlertBadge } from "@/lib/intervention-alert-utils"
+import { InterventionTypeIcon } from "@/components/interventions/intervention-type-icon"
 
 interface ManagerInterventionCardProps {
     intervention: any
     userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
     onAction?: (action: string, intervention: any) => void
-}
-
-const getTypeIcon = (type: string) => {
-    switch (type?.toLowerCase()) {
-        case "plomberie": return Droplets
-        case "electricite": return Zap
-        case "chauffage": return Flame
-        case "serrurerie": return Key
-        case "peinture": return Paintbrush
-        case "maintenance": return Hammer
-        case "toiture": return Home
-        default: return Wrench
-    }
-}
-
-const getTypeColor = (type: string) => {
-    switch (type?.toLowerCase()) {
-        case "plomberie": return "bg-type-plomberie"
-        case "electricite": return "bg-type-electricite"
-        case "chauffage": return "bg-type-chauffage"
-        case "serrurerie": return "bg-type-serrurerie"
-        case "peinture": return "bg-brand-purple"
-        case "toiture": return "bg-type-toiture"
-        default: return "bg-type-autre"
-    }
 }
 
 export function ManagerInterventionCard({
@@ -81,8 +49,6 @@ export function ManagerInterventionCard({
     onAction
 }: ManagerInterventionCardProps) {
     const router = useRouter()
-    const TypeIcon = getTypeIcon(intervention.type)
-    const typeColor = getTypeColor(intervention.type)
     const isUrgent = intervention.priority === 'haute' || intervention.priority === 'urgente'
 
     // Action banner logic
@@ -335,53 +301,52 @@ export function ManagerInterventionCard({
             className="group relative bg-card dark:bg-white/5 rounded-2xl p-6 shadow-sm dark:shadow-none hover:shadow-xl dark:hover:shadow-none transition-all duration-300 border border-border dark:border-white/10 h-full flex flex-col dark:backdrop-blur-sm"
             onClick={() => handleActionClick('view_details')}
         >
-            {/* Header: Icon + Action Banner + Badges + Menu */}
+            {/* Header: Icon + (Badge + Action) + Menu */}
             <div className="flex items-start mb-4 gap-3">
                 {/* Icône de type */}
-                <div className={cn("w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-md flex-shrink-0", typeColor)}>
-                    <TypeIcon className="h-6 w-6" />
-                </div>
+                <InterventionTypeIcon
+                    type={intervention.type}
+                    interventionType={intervention.intervention_type}
+                    size="lg"
+                />
 
-                {/* Banner d'action (au milieu, prend l'espace disponible) */}
-                <div className={cn(
-                    "flex-1 border rounded-lg px-3 py-2 min-w-0",
-                    isAlert
-                        ? 'bg-orange-50 border-orange-200 dark:bg-orange-500/10 dark:border-orange-500/30'
-                        : 'bg-blue-50 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/30',
-                )}>
-                    <div className="flex items-center gap-2">
-                        <div className={cn(
-                            "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
-                            isAlert ? 'bg-orange-100 dark:bg-orange-500/20' : 'bg-blue-100 dark:bg-blue-500/20'
-                        )}>
-                            <Clock className={cn("h-3 w-3", isAlert ? 'text-orange-600' : 'text-blue-600')} />
-                        </div>
-                        <p className={cn(
-                            "text-xs font-medium truncate",
-                            isAlert ? 'text-orange-800' : 'text-blue-800'
-                        )}>
-                            {actionMessage}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Badges + Menu (à droite) */}
-                <div className="flex items-start gap-2 flex-shrink-0">
-                    <div className="flex flex-col items-end gap-1">
-                        {/* Badge de priorité */}
-                        {isUrgent && (
+                {/* Colonne centrale : Badge priorité + Action card empilés */}
+                <div className="flex-1 flex flex-col gap-2 min-w-0">
+                    {/* Badge de priorité uniquement (si urgent) */}
+                    {isUrgent && (
+                        <div className="flex items-center gap-2">
                             <Badge className={cn(getPriorityColor(intervention.priority), "text-xs border")}>
                                 {getPriorityLabel(intervention.priority)}
                             </Badge>
-                        )}
-                        {/* Badge de statut coloré */}
-                        <Badge className={cn(getStatusColor(intervention.status), "text-xs border")}>
-                            {getStatusLabel(intervention.status)}
-                        </Badge>
-                    </div>
+                        </div>
+                    )}
 
-                    {/* Menu d'actions */}
-                    <div onClick={(e) => e.stopPropagation()}>
+                    {/* Banner d'action */}
+                    <div className={cn(
+                        "border rounded-lg px-3 py-2",
+                        isAlert
+                            ? 'bg-orange-50 border-orange-200 dark:bg-orange-500/10 dark:border-orange-500/30'
+                            : 'bg-blue-50 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/30',
+                    )}>
+                        <div className="flex items-center gap-2">
+                            <div className={cn(
+                                "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
+                                isAlert ? 'bg-orange-100 dark:bg-orange-500/20' : 'bg-blue-100 dark:bg-blue-500/20'
+                            )}>
+                                <Clock className={cn("h-3 w-3", isAlert ? 'text-orange-600' : 'text-blue-600')} />
+                            </div>
+                            <p className={cn(
+                                "text-xs font-medium truncate",
+                                isAlert ? 'text-orange-800' : 'text-blue-800'
+                            )}>
+                                {actionMessage}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Menu d'actions (à droite) */}
+                <div className="flex-shrink-0" onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                                 <Button
@@ -410,7 +375,6 @@ export function ManagerInterventionCard({
                                 })}
                             </DropdownMenuContent>
                         </DropdownMenu>
-                    </div>
                 </div>
             </div>
 
@@ -425,17 +389,20 @@ export function ManagerInterventionCard({
             </p>
 
             {/* Footer */}
-            <div className="flex items-center justify-between pt-4 border-t border-border text-sm text-muted-foreground mt-auto">
-                <div className="flex items-center gap-1.5">
-                    <Calendar className="h-4 w-4" />
-                    {new Date(intervention.created_at).toLocaleDateString('fr-FR')}
-                </div>
-                <div className="flex items-center gap-1.5 max-w-[60%]">
+            <div className="flex items-center justify-between pt-4 border-t border-border text-sm text-muted-foreground mt-auto gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
                     <MapPin className="h-4 w-4 flex-shrink-0" />
                     <span className="truncate">
                         {intervention.lot?.building?.name || intervention.lot?.building?.address}
                     </span>
                 </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <Calendar className="h-4 w-4" />
+                    <span>Créé le {new Date(intervention.created_at).toLocaleDateString('fr-FR')}</span>
+                </div>
+                <Badge className={cn(getStatusColor(intervention.status), "text-xs border flex-shrink-0")}>
+                    {getStatusLabel(intervention.status)}
+                </Badge>
             </div>
         </div>
     )

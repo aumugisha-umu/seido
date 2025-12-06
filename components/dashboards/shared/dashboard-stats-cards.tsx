@@ -1,8 +1,13 @@
 "use client"
 
-import { Card, CardContent } from "@/components/ui/card"
-import { AlertTriangle, CheckCircle2, Wrench, Building2, Users, Home, TrendingUp } from "lucide-react"
+import { AlertTriangle, Building2, Users, FileText, Wrench, AlertCircle, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import type { ContractStats } from "@/lib/types/contract.types"
+import { StatsCard, type TrendData } from "./stats-card"
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface DashboardStatsCardsProps {
     pendingCount: number
@@ -11,123 +16,128 @@ interface DashboardStatsCardsProps {
     buildingsCount?: number
     lotsCount?: number
     occupancyRate?: number
+    contractStats?: ContractStats
+    /** Number of active tenants */
+    tenantCount?: number
+    /** Optional trend data for each KPI */
+    trendData?: {
+        actions?: TrendData
+        patrimoine?: TrendData
+        occupation?: TrendData
+        contrats?: TrendData
+        interventions?: TrendData
+    }
 }
+
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export function DashboardStatsCards({
     pendingCount,
     activeCount,
-    completedCount,
+    completedCount = 0,
     buildingsCount,
     lotsCount,
-    occupancyRate
+    occupancyRate,
+    contractStats,
+    tenantCount = 0,
+    trendData
 }: DashboardStatsCardsProps) {
     const isManager = buildingsCount !== undefined
 
     return (
         <div className={cn(
             "dashboard-stats-cards grid grid-cols-1 gap-6",
-            isManager ? "md:grid-cols-2 lg:grid-cols-4" : "md:grid-cols-3"
+            isManager ? "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" : "md:grid-cols-3"
         )}>
             {/* Card 1: Actions requises (Always First) */}
-            <Card className={cn(
-                "dashboard-stats-cards__card",
-                "border-none shadow-sm hover:shadow-md transition-all duration-300 hover:transform hover:-translate-y-1 rounded-2xl overflow-hidden group",
-                "dark:backdrop-blur-sm dark:shadow-none",
-                pendingCount > 0 ? "dashboard-stats-cards__card--warning" : "dashboard-stats-cards__card--success"
-            )}>
-                <CardContent className="dashboard-stats-cards__content p-6 relative">
-                    <div className="dashboard-stats-cards__icon-bg absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <AlertTriangle className="dashboard-stats-cards__icon h-24 w-24" />
-                    </div>
-                    <div className="dashboard-stats-cards__info relative z-10">
-                        <p className="dashboard-stats-cards__label text-sm font-medium uppercase tracking-wider">
-                            Actions requises
-                        </p>
-                        <div className="dashboard-stats-cards__value-container flex items-baseline gap-2 mt-2">
-                            <span className="dashboard-stats-cards__value text-4xl font-bold">
-                                {pendingCount}
-                            </span>
-                            <span className="dashboard-stats-cards__sublabel text-sm font-medium">
-                                {pendingCount > 0 ? "Urgent" : "Tout est calme"}
-                            </span>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
+            <StatsCard
+                id="actions"
+                label="Actions requises"
+                value={pendingCount}
+                sublabel={pendingCount > 0 ? "Urgent" : "Tout est calme"}
+                icon={AlertTriangle}
+                iconColor={pendingCount > 0 ? "text-amber-500" : "text-emerald-500"}
+                variant={pendingCount > 0 ? "warning" : "success"}
+                href="/gestionnaire/interventions?filter=pending"
+            />
 
-            {/* Card 2: Patrimoine (Manager Only) */}
+            {/* Card 2: Immeubles (Manager Only) - Renamed from Patrimoine */}
             {isManager && (
-                <Card className="dashboard-stats-cards__card dashboard-stats-cards__card--buildings bg-card dark:bg-white/5 border-none dark:border dark:border-white/10 shadow-sm dark:shadow-none hover:shadow-md dark:hover:shadow-none transition-all duration-300 hover:transform hover:-translate-y-1 rounded-2xl overflow-hidden group dark:backdrop-blur-sm">
-                    <CardContent className="dashboard-stats-cards__content p-6 relative">
-                        <div className="dashboard-stats-cards__icon-bg absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <Building2 className="h-24 w-24 text-indigo-600" />
-                        </div>
-                        <div className="dashboard-stats-cards__info relative z-10">
-                            <p className="dashboard-stats-cards__label text-sm font-medium text-muted-foreground uppercase tracking-wider">Patrimoine</p>
-                            <div className="dashboard-stats-cards__value-container flex items-baseline gap-2 mt-2">
-                                <span className="dashboard-stats-cards__value text-4xl font-bold text-foreground">{buildingsCount}</span>
-                                <span className="dashboard-stats-cards__sublabel text-sm text-muted-foreground/70 flex items-center gap-1">
-                                    <Home className="h-3 w-3" /> {lotsCount} lots
-                                </span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <StatsCard
+                    id="buildings"
+                    label="Patrimoine"
+                    value={buildingsCount}
+                    sublabel={
+                        <span className="flex items-center gap-1">
+                            <Building2 className="h-3 w-3" /> {lotsCount} lots
+                        </span>
+                    }
+                    icon={Building2}
+                    iconColor="text-indigo-600"
+                    variant="default"
+                    href="/gestionnaire/biens/immeubles"
+                />
             )}
 
-            {/* Card 3: Occupation (Manager Only) */}
+            {/* Card 3: Occupation (Manager Only) - Shows tenant count instead of "Stable" */}
             {isManager && occupancyRate !== undefined && (
-                <Card className="dashboard-stats-cards__card dashboard-stats-cards__card--occupancy bg-card dark:bg-white/5 border-none dark:border dark:border-white/10 shadow-sm dark:shadow-none hover:shadow-md dark:hover:shadow-none transition-all duration-300 hover:transform hover:-translate-y-1 rounded-2xl overflow-hidden group dark:backdrop-blur-sm">
-                    <CardContent className="dashboard-stats-cards__content p-6 relative">
-                        <div className="dashboard-stats-cards__icon-bg absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <Users className="h-24 w-24 text-emerald-600" />
-                        </div>
-                        <div className="dashboard-stats-cards__info relative z-10">
-                            <p className="dashboard-stats-cards__label text-sm font-medium text-muted-foreground uppercase tracking-wider">Occupation</p>
-                            <div className="dashboard-stats-cards__value-container flex items-baseline gap-2 mt-2">
-                                <span className="dashboard-stats-cards__value text-4xl font-bold text-foreground">{occupancyRate}%</span>
-                                <span className="dashboard-stats-cards__sublabel text-sm text-success font-medium flex items-center gap-1">
-                                    <TrendingUp className="h-3 w-3" /> Stable
-                                </span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                <StatsCard
+                    id="occupation"
+                    label="Occupation"
+                    value={`${occupancyRate}%`}
+                    sublabel={`${tenantCount} locataire${tenantCount > 1 ? 's' : ''}`}
+                    icon={Users}
+                    iconColor="text-emerald-600"
+                    variant="default"
+                    href="/gestionnaire/contacts?type=locataire"
+                    trendData={trendData?.occupation}
+                />
             )}
 
-            {/* Card: En cours (Common) */}
-            <Card className="dashboard-stats-cards__card dashboard-stats-cards__card--active bg-card dark:bg-white/5 border-none dark:border dark:border-white/10 shadow-sm dark:shadow-none hover:shadow-md dark:hover:shadow-none transition-all duration-300 hover:transform hover:-translate-y-1 rounded-2xl overflow-hidden group dark:backdrop-blur-sm">
-                <CardContent className="dashboard-stats-cards__content p-6 relative">
-                    <div className="dashboard-stats-cards__icon-bg absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                        <Wrench className="h-24 w-24 text-blue-600" />
-                    </div>
-                    <div className="dashboard-stats-cards__info relative z-10">
-                        <p className="dashboard-stats-cards__label text-sm font-medium text-muted-foreground uppercase tracking-wider">En cours</p>
-                        <div className="dashboard-stats-cards__value-container flex items-baseline gap-2 mt-2">
-                            <span className="dashboard-stats-cards__value text-4xl font-bold text-primary">{activeCount}</span>
-                            <span className="dashboard-stats-cards__sublabel text-sm text-muted-foreground/70">interventions</span>
-                        </div>
-                    </div>
-                </CardContent>
-            </Card>
-
-            {/* Card: Terminées (Optional / Non-Manager) */}
-            {!isManager && completedCount !== undefined && (
-                <Card className="dashboard-stats-cards__card dashboard-stats-cards__card--completed bg-card dark:bg-white/5 border-none dark:border dark:border-white/10 shadow-sm dark:shadow-none hover:shadow-md dark:hover:shadow-none transition-all duration-300 hover:transform hover:-translate-y-1 rounded-2xl overflow-hidden group dark:backdrop-blur-sm">
-                    <CardContent className="dashboard-stats-cards__content p-6 relative">
-                        <div className="dashboard-stats-cards__icon-bg absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <CheckCircle2 className="h-24 w-24 text-success" />
-                        </div>
-                        <div className="dashboard-stats-cards__info relative z-10">
-                            <p className="dashboard-stats-cards__label text-sm font-medium text-muted-foreground uppercase tracking-wider">Terminées</p>
-                            <div className="dashboard-stats-cards__value-container flex items-baseline gap-2 mt-2">
-                                <span className="dashboard-stats-cards__value text-4xl font-bold text-success">{completedCount}</span>
-                                <span className="dashboard-stats-cards__sublabel text-sm text-muted-foreground/70">interventions</span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+            {/* Card 4: Contrats (Manager Only) - Shows expiring in secondary line */}
+            {isManager && contractStats && (
+                <StatsCard
+                    id="contracts"
+                    label="Contrats"
+                    value={contractStats.totalActive}
+                    sublabel="actifs"
+                    secondaryValue={
+                        contractStats.expiringNext30Days > 0 ? (
+                            <span className="text-warning font-medium flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3" />
+                                {contractStats.expiringNext30Days} expire{contractStats.expiringNext30Days > 1 ? 'nt' : ''} bientot
+                            </span>
+                        ) : null
+                    }
+                    icon={FileText}
+                    iconColor="text-violet-600"
+                    variant="default"
+                    href="/gestionnaire/biens/contrats"
+                    alertRing={contractStats.expiringNext30Days > 0}
+                />
             )}
+
+            {/* Card 5: Interventions (Renamed from "En cours") - Shows completed count */}
+            <StatsCard
+                id="interventions"
+                label="En cours"
+                value={activeCount}
+                sublabel="interventions"
+                secondaryValue={
+                    completedCount > 0 ? (
+                        <span className="text-success font-medium flex items-center gap-1">
+                            <CheckCircle2 className="h-3 w-3" />
+                            {completedCount} terminee{completedCount > 1 ? 's' : ''}
+                        </span>
+                    ) : null
+                }
+                icon={Wrench}
+                iconColor="text-blue-600"
+                variant="default"
+                href="/gestionnaire/interventions"
+            />
         </div>
     )
 }

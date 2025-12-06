@@ -4,6 +4,41 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ========================================
+   CONTENTSQUARE/CLARITY PRIVACY MASKING
+   RGPD Compliance - Mask sensitive data
+   ======================================== */
+
+/*
+ * Contentsquare detecte automatiquement ces attributs et masque
+ * le contenu dans les session replays et heatmaps.
+ *
+ * Usage:
+ * - data-cs-mask: Masque le contenu de l'element
+ * - data-cs-capture: Force la capture (inverse)
+ * - .cs-mask: Classe CSS alternative
+ *
+ * @see https://support.contentsquare.com/hc/en-us/articles/37271886552209
+ */
+[data-cs-mask],
+.cs-mask {
+  /* Contentsquare remplace le texte par des asterisques */
+  /* et floute les images automatiquement */
+}
+
+/* Types d'input sensibles - toujours masques */
+input[type="password"],
+input[type="email"],
+input[name*="email"],
+input[name*="phone"],
+input[name*="tel"],
+input[autocomplete="email"],
+input[autocomplete="tel"],
+input[autocomplete="cc-number"],
+[data-sensitive] {
+  /* Ces selecteurs sont detectes par Contentsquare */
+}
+
 /* Mobile-optimized scrollbar styles */
 @layer utilities {
 

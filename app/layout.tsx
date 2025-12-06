@@ -9,6 +9,7 @@ import { AuthProvider } from "@/hooks/use-auth"
 import { TeamStatusProvider } from "@/hooks/use-team-status"
 import { CookieConsentProvider } from "@/hooks/use-cookie-consent"
 import { CookieConsentBanner } from "@/components/cookie-consent-banner"
+import { AnalyticsProvider } from "@/components/analytics-provider"
 import { ConnectionStatus } from "@/components/connection-status"
 import { Toaster } from "@/components/ui/toaster"
 import EnvironmentLogger from "@/components/environment-logger"
@@ -63,7 +64,9 @@ export default function RootLayout({
         <AuthProvider>
           <TeamStatusProvider>
             <CookieConsentProvider>
-              <Suspense fallback={null}>{children}</Suspense>
+              <AnalyticsProvider>
+                <Suspense fallback={null}>{children}</Suspense>
+              </AnalyticsProvider>
               <ConnectionStatus />
               <Toaster />
               <CookieConsentBanner />

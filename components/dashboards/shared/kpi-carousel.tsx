@@ -243,13 +243,13 @@ export function statsToKPICards({
         })
     }
 
-    // Occupation (manager only) - Shows tenant count instead of "Stable"
+    // Occupation (manager only)
     if (occupancyRate !== undefined) {
         cards.push({
             id: 'occupation',
             label: 'Occupation',
             value: `${occupancyRate}%`,
-            sublabel: `${tenantCount} locataire${tenantCount > 1 ? 's' : ''}`,
+            sublabel: 'des lots',
             icon: Users,
             iconColor: 'text-emerald-600',
             variant: 'default'

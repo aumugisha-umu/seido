@@ -77,21 +77,21 @@ export function DashboardStatsCards({
                     icon={Building2}
                     iconColor="text-indigo-600"
                     variant="default"
-                    href="/gestionnaire/biens/immeubles"
+                    href="/gestionnaire/biens"
                 />
             )}
 
-            {/* Card 3: Occupation (Manager Only) - Shows tenant count instead of "Stable" */}
+            {/* Card 3: Occupation (Manager Only) */}
             {isManager && occupancyRate !== undefined && (
                 <StatsCard
                     id="occupation"
                     label="Occupation"
                     value={`${occupancyRate}%`}
-                    sublabel={`${tenantCount} locataire${tenantCount > 1 ? 's' : ''}`}
+                    sublabel="des lots"
                     icon={Users}
                     iconColor="text-emerald-600"
                     variant="default"
-                    href="/gestionnaire/contacts?type=locataire"
+                    href="/gestionnaire/contacts"
                     trendData={trendData?.occupation}
                 />
             )}
@@ -114,7 +114,7 @@ export function DashboardStatsCards({
                     icon={FileText}
                     iconColor="text-violet-600"
                     variant="default"
-                    href="/gestionnaire/biens/contrats"
+                    href="/gestionnaire/contrats"
                     alertRing={contractStats.expiringNext30Days > 0}
                 />
             )}

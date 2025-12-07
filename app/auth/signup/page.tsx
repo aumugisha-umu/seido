@@ -50,7 +50,7 @@ export default async function SignupPage() {
           Vous avez déjà un compte ?{" "}
           <Link
             href="/auth/login"
-            className="text-purple-400 hover:text-purple-300 underline-offset-4 hover:underline font-medium transition-colors"
+            className="text-brand-primary hover:text-brand-primary/80 underline-offset-4 hover:underline font-medium transition-colors"
           >
             Se connecter
           </Link>

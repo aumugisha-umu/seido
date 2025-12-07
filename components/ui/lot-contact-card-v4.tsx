@@ -65,11 +65,10 @@ interface LotContactCardV4Props {
   lotManagers: UserType[]
   onAddLotManager?: () => void
   onRemoveLotManager?: (managerId: string) => void
-  tenants: Contact[]
   providers: Contact[]
   owners: Contact[]
   others: Contact[]
-  onAddContact?: (contactType: 'tenant' | 'provider' | 'owner' | 'other') => void
+  onAddContact?: (contactType: 'provider' | 'owner' | 'other') => void
   onRemoveContact?: (contactId: string, contactType: string) => void
   // Contacts hérités de l'immeuble (not shown in readOnly mode)
   buildingManagers?: UserType[]
@@ -95,7 +94,6 @@ export function LotContactCardV4({
   lotManagers,
   onAddLotManager,
   onRemoveLotManager,
-  tenants,
   providers,
   owners,
   others,
@@ -189,17 +187,6 @@ export function LotContactCardV4({
                   </Tooltip>
                 )}
 
-                {tenants.length > 0 && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700 border border-blue-300 font-medium px-2 py-0.5 cursor-help">
-                        <User className="w-3.5 h-3.5 mr-1" />
-                        {tenants.length}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent side="top"><p className="text-xs">Locataires</p></TooltipContent>
-                  </Tooltip>
-                )}
 
                 {providers.length > 0 && (
                   <Tooltip>
@@ -265,8 +252,8 @@ export function LotContactCardV4({
       {/* Expanded Content - Accordion Style from V3 */}
       {isExpanded && (
         <CardContent className="p-3 pt-0">
-          {/* Responsive Grid: Vertical on mobile, 5 columns on desktop */}
-          <div className="grid grid-cols-1 lg:grid-cols-5 gap-2">
+          {/* Responsive Grid: Vertical on mobile, 4 columns on desktop (contacts only) */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-2">
           {/* Lot Managers Section */}
           <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col">
             <div className="w-full flex items-center gap-2 p-2.5 bg-purple-50">
@@ -330,50 +317,6 @@ export function LotContactCardV4({
                   <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddLotManager() }} className="w-full text-xs border-purple-300 text-purple-700 hover:bg-purple-50 h-8">
                     <Plus className="w-4 h-4 mr-1" />
                     Ajouter gestionnaire
-                  </Button>
-              </div>
-            )}
-          </div>
-
-          {/* Tenants Section */}
-          <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col">
-            <div className="w-full flex items-center gap-2 p-2.5 bg-blue-50">
-              <User className="w-4 h-4 text-blue-600" />
-              <span className="font-semibold text-sm text-blue-900">Locataires</span>
-            </div>
-
-            {/* Scrollable list - max 3 contacts visible */}
-            <div className="p-2 bg-white overflow-y-auto max-h-[138px] space-y-1.5 flex-1">
-                {tenants.length > 0 ? (
-                  tenants.map((tenant) => (
-                    <div key={tenant.id} className="flex items-center justify-between p-2 bg-blue-50/50 rounded border border-blue-100">
-                      <div className="flex items-center gap-2 flex-1 min-w-0">
-                        <User className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm truncate">{tenant.name}</div>
-                          <div className="text-xs text-gray-500 truncate">{tenant.email}</div>
-                        </div>
-                      </div>
-                      {!readOnly && onRemoveContact && (
-                        <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); onRemoveContact(tenant.id, 'tenant') }} className="text-red-500 hover:text-red-700 h-6 w-6 p-0 flex-shrink-0">
-                          <X className="w-3.5 h-3.5" />
-                        </Button>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  !readOnly && (
-                    <p className="text-xs text-gray-500 px-2 py-1">Aucun locataire</p>
-                  )
-                )}
-            </div>
-
-            {/* Button always visible at bottom - only if not readOnly */}
-            {!readOnly && onAddContact && (
-              <div className="p-2 pt-0 bg-white border-t border-slate-100">
-                  <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); onAddContact('tenant') }} className="w-full text-xs border-blue-300 text-blue-700 hover:bg-blue-50 h-8">
-                    <Plus className="w-4 h-4 mr-1" />
-                    Ajouter locataire
                   </Button>
               </div>
             )}

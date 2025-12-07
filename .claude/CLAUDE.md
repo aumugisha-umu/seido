@@ -65,32 +65,54 @@ This file provides guidance to Claude Code when working with this repository.
 
 **Pour TOUTE modification UX/UI, TOUJOURS consulter:**
 
-1. **📖 Guide de Décisions UX/UI** : `docs/design/ux-ui-decision-guide.md`
-   - Heuristiques de Nielsen pour l'évaluation
-   - Standards Material Design 3
-   - Guidelines par rôle (Admin, Gestionnaire, Locataire, Prestataire)
+### 1. 📖 Guide de Décisions UX/UI (INDEX)
 
-2. **🎨 Design System SEIDO** : `docs/design/`
-   | Document | Contenu |
-   |----------|---------|
-   | `00-general.md` | Introduction et principes fondamentaux |
-   | `01-colors.md` | Système de couleurs OKLCH |
-   | `02-typography.md` | Typographie et hiérarchie |
-   | `03-spacing.md` | Système d'espacement 4px |
-   | `04-layouts.md` | Grilles et layouts responsive |
-   | `05-components.md` | Composants UI et métier |
-   | `06-icons.md` | Système d'icônes Lucide React |
-   | `07-guidelines.md` | Bonnes pratiques UX |
+`docs/design/ux-ui-decision-guide.md` - Point d'entrée principal qui référence tous les fichiers ci-dessous.
 
-3. **👥 Personas Unifiés** :
-   - `docs/design/persona-gestionnaire-unifie.md` - Thomas, 280 logements
-   - `docs/design/persona-locataire.md` - Emma, 29 ans, mobile-first
-   - `docs/design/persona-prestataire.md` - Marc, 38 ans, 75% terrain
+### 2. 📚 Documentation UX par Thème
 
-4. **📁 Source de Vérité CSS** : `app/globals.css`
-   - Couleurs OKLCH (`--primary`, `--background`, etc.)
-   - Variables dashboard (`--dashboard-padding-*`, `--header-*`)
-   - Classes BEM (`.header`, `.dashboard`, `.layout-*`)
+| Fichier | Contenu |
+|---------|---------|
+| `ux-common-principles.md` | Nielsen, Material Design 3, Apple HIG, Apps de référence |
+| `ux-components.md` | Navigation, Forms, Notifications, Mobile-first |
+| `ux-anti-patterns.md` | Erreurs à éviter basées sur frustrations personas |
+| `ux-metrics.md` | KPIs UX, Core Web Vitals, métriques business |
+| `ux-references.md` | Apps de référence, design systems, ressources |
+
+### 3. 👥 Guidelines par Rôle Utilisateur
+
+| Fichier | Rôle | Focus |
+|---------|------|-------|
+| `ux-role-gestionnaire.md` | Gestionnaire | Dashboard, interventions, création - 70% users |
+| `ux-role-prestataire.md` | Prestataire | Planning, devis, mobile-first terrain |
+| `ux-role-locataire.md` | Locataire | Wizard simplifié, suivi interventions |
+| `ux-role-admin.md` | Admin | Interface dense, outils système |
+
+### 4. 🎨 Design System SEIDO
+
+| Document | Contenu |
+|----------|---------|
+| `00-general.md` | Introduction et principes fondamentaux |
+| `01-colors.md` | Système de couleurs OKLCH |
+| `02-typography.md` | Typographie et hiérarchie |
+| `03-spacing.md` | Système d'espacement 4px |
+| `04-layouts.md` | Grilles et layouts responsive |
+| `05-components.md` | Composants UI et métier |
+| `06-icons.md` | Système d'icônes Lucide React |
+| `07-guidelines.md` | Bonnes pratiques UX |
+
+### 5. 👥 Personas Unifiés
+
+- `persona-gestionnaire-unifie.md` - Thomas, 280 logements, 80% mobile
+- `persona-locataire.md` - Emma, 29 ans, mobile-first
+- `persona-prestataire.md` - Marc, 38 ans, 75% terrain
+
+### 6. 📁 Source de Vérité CSS
+
+`app/globals.css` :
+- Couleurs OKLCH (`--primary`, `--background`, etc.)
+- Variables dashboard (`--dashboard-padding-*`, `--header-*`)
+- Classes BEM (`.header`, `.dashboard`, `.layout-*`)
 
 **Principe de Modularité :**
 > "Créer une fois, utiliser partout"

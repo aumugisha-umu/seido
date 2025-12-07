@@ -67,9 +67,9 @@ export function LandingPage() {
         <div className="min-h-screen bg-[#0f172a] text-white selection:bg-purple-500 selection:text-white">
             {/* Background Gradients */}
             <div className="fixed inset-0 z-0 pointer-events-none">
-                <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600/30 rounded-full blur-[120px]" />
+                <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-blue-600/30 rounded-full blur-[120px]" />
                 <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-blue-600/30 rounded-full blur-[120px]" />
-                <div className="absolute top-[40%] left-[50%] -translate-x-1/2 w-[800px] h-[800px] bg-indigo-900/20 rounded-full blur-[100px]" />
+                <div className="absolute top-[40%] left-[50%] -translate-x-1/2 w-[800px] h-[800px] bg-blue-900/20 rounded-full blur-[100px]" />
             </div>
 
             {/* Navigation Header - Shared Component */}
@@ -101,7 +101,7 @@ export function LandingPage() {
                             <span className="block text-white">
                                 La gestion locative
                             </span>
-                            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 dark:from-purple-400 dark:via-blue-400 dark:to-cyan-400">
+                            <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-blue-500 to-cyan-400 dark:from-blue-400 dark:via-sky-400 dark:to-cyan-300">
                                 simplifiée
                             </span>
                         </h1>
@@ -204,7 +204,7 @@ export function LandingPage() {
                         { icon: AlertTriangle, title: "Multiples saisies, erreurs et perte d'informations", desc: "Ressaisir les mêmes infos plusieurs fois augmente le risque d'erreurs et de pertes de données critiques." }
                     ].map((item, i) => (
                         <FadeIn key={i} delay={i * 100} className="h-full">
-                            <div className="p-8 rounded-3xl border border-white/5 bg-white/5 backdrop-blur-sm h-full hover:-translate-y-2 hover:bg-white/10 transition-all duration-300 hover:shadow-xl hover:shadow-purple-500/10 group">
+                            <div className="p-8 rounded-3xl border border-white/5 bg-white/5 backdrop-blur-sm h-full hover:-translate-y-2 hover:bg-white/10 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 group">
                                 <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
                                     <item.icon className="w-6 h-6 text-red-400" />
                                 </div>
@@ -223,10 +223,10 @@ export function LandingPage() {
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <h2 className="landing-h2 mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/60">
-                            SEIDO, votre centre de commande
+                            SEIDO, votre centre de commande opérationnel
                         </h2>
                         <p className="landing-subtitle text-white/60">
-                            Une plateforme conçue pour vous, le gestionnaire. Reprenez le contrôle de votre temps.
+                            Une plateforme conçue pour vous aider à retrouver la sérénité.
                         </p>
                     </div>
                 </FadeIn>
@@ -236,46 +236,46 @@ export function LandingPage() {
                     <FadeIn delay={0}>
                         <div className="relative group rounded-3xl overflow-hidden hover:-translate-y-2 transition-transform duration-500">
                             {/* Gradient glow effect */}
-                            <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 rounded-3xl opacity-20 group-hover:opacity-30 blur-xl transition-opacity duration-500" />
-                            <div className="absolute inset-0 bg-gradient-to-b from-purple-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                            <div className="relative p-8 md:p-10 bg-[#1e293b]/70 border border-purple-500/30 backdrop-blur-md">
+                            <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 via-sky-600 to-cyan-500 rounded-3xl opacity-20 group-hover:opacity-30 blur-xl transition-opacity duration-500" />
+                            <div className="absolute inset-0 bg-gradient-to-b from-blue-600/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                            <div className="relative p-8 md:p-10 bg-[#1e293b]/70 border border-blue-500/30 backdrop-blur-md">
                                 <div className="flex items-center gap-3 mb-6">
-                                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
+                                    <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-400 flex items-center justify-center">
                                         <Building2 className="w-6 h-6 text-white" />
                                     </div>
                                     <div>
                                         <h3 className="landing-h3 text-white">Tableau de bord Gestionnaire</h3>
-                                        <p className="landing-caption text-purple-300">Tout votre patrimoine en un coup d&apos;œil</p>
+                                        <p className="landing-caption text-blue-300">Tout votre patrimoine en un coup d&apos;œil</p>
                                     </div>
                                 </div>
                                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                                     <ul className="space-y-3">
                                         <li className="flex items-start landing-body-sm text-white/80">
-                                            <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                                            <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
                                             <span><strong>Centralisez tout</strong> : communications, interventions et documents en un seul endroit</span>
                                         </li>
                                         <li className="flex items-start landing-body-sm text-white/80">
-                                            <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                                            <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
                                             <span><strong>Gagnez 2h par jour</strong> grâce à l&apos;automatisation des tâches</span>
                                         </li>
                                     </ul>
                                     <ul className="space-y-3">
                                         <li className="flex items-start landing-body-sm text-white/80">
-                                            <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                                            <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
                                             <span><strong>Décidez plus vite</strong> avec la comparaison de devis instantanée</span>
                                         </li>
                                         <li className="flex items-start landing-body-sm text-white/80">
-                                            <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                                            <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
                                             <span><strong>Communiquez sans friction</strong> via le chat intégré par intervention</span>
                                         </li>
                                     </ul>
                                     <ul className="space-y-3">
                                         <li className="flex items-start landing-body-sm text-white/80">
-                                            <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                                            <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
                                             <span><strong>Gardez le contrôle</strong> avec vos tableaux de bord en temps réel</span>
                                         </li>
                                         <li className="flex items-start landing-body-sm text-white/80">
-                                            <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                                            <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
                                             <span><strong>Client email intégré</strong> : Recevez et envoyez des emails directement depuis l'application</span>
                                         </li>
                                     </ul>
@@ -394,7 +394,7 @@ export function LandingPage() {
                         }
                     ].map((feature, i) => (
                         <FadeIn key={i} delay={i * 100}>
-                            <div className="group p-8 rounded-3xl border border-white/5 bg-white/5 hover:bg-white/10 backdrop-blur-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/10">
+                            <div className="group p-8 rounded-3xl border border-white/5 bg-white/5 hover:bg-white/10 backdrop-blur-sm transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-blue-500/10">
                                 <div className={`w-14 h-14 rounded-2xl ${feature.bg} flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300`}>
                                     <feature.icon className={`w-7 h-7 ${feature.color}`} />
                                 </div>
@@ -412,7 +412,7 @@ export function LandingPage() {
             < section className="relative z-10 container mx-auto px-4 py-24 bg-[#1e293b]/30" >
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-medium mb-6">
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-sm font-medium mb-6">
                             <Sparkles className="w-4 h-4" />
                             <span>Bientôt disponible</span>
                         </div>
@@ -447,7 +447,7 @@ export function LandingPage() {
                         }
                     ].map((item, i) => (
                         <FadeIn key={i} delay={i * 100} className="h-full">
-                            <div className="relative h-full p-8 rounded-3xl border border-white/10 bg-gradient-to-b from-white/5 to-transparent backdrop-blur-sm overflow-hidden group hover:border-purple-500/30 transition-colors duration-300 flex flex-col">
+                            <div className="relative h-full p-8 rounded-3xl border border-white/10 bg-gradient-to-b from-white/5 to-transparent backdrop-blur-sm overflow-hidden group hover:border-blue-500/30 transition-colors duration-300 flex flex-col">
                                 <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity duration-300">
                                     <item.icon className="w-24 h-24 text-white rotate-12" />
                                 </div>
@@ -545,13 +545,13 @@ export function LandingPage() {
                         </p>
 
                         {/* Freemium offer */}
-                        <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20">
-                            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20">
-                                <Home className="w-5 h-5 text-purple-400" />
+                        <div className="inline-flex items-center gap-3 px-6 py-3 rounded-2xl bg-gradient-to-r from-blue-500/10 to-sky-500/10 border border-blue-500/20">
+                            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-sky-500/20">
+                                <Home className="w-5 h-5 text-blue-400" />
                             </div>
                             <div className="text-left">
                                 <p className="landing-caption font-semibold text-white">5 biens ou moins ?</p>
-                                <p className="landing-caption text-white/60">Gratuit à vie <span className="text-purple-400">(hors IA et API externes)</span></p>
+                                <p className="landing-caption text-white/60">Gratuit à vie <span className="text-blue-400">(hors IA et API externes)</span></p>
                             </div>
                         </div>
                     </div>
@@ -602,10 +602,10 @@ export function LandingPage() {
 
                     {/* Annuel - Glowing */}
                     <FadeIn delay={150} className="h-full">
-                        <div className="relative p-8 rounded-3xl bg-[#1e293b]/80 backdrop-blur-md border border-purple-500/50 shadow-[0_0_40px_rgba(168,85,247,0.15)] flex flex-col h-full hover:scale-[1.02] transition-transform duration-300 hover:shadow-[0_0_60px_rgba(168,85,247,0.25)]">
+                        <div className="relative p-8 rounded-3xl bg-[#1e293b]/80 backdrop-blur-md border border-blue-500/50 shadow-[0_0_40px_rgba(59,130,246,0.15)] flex flex-col h-full hover:scale-[1.02] transition-transform duration-300 hover:shadow-[0_0_60px_rgba(59,130,246,0.25)]">
                             {/* Badges */}
                             <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex gap-2">
-                                <span className="px-3 py-1 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full landing-overline text-white flex items-center justify-center text-center">
+                                <span className="px-3 py-1 bg-gradient-to-r from-blue-600 to-blue-400 rounded-full landing-overline text-white flex items-center justify-center text-center">
                                     Populaire
                                 </span>
                                 <span className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full landing-overline text-white animate-pulse flex items-center justify-center text-center whitespace-nowrap">
@@ -617,12 +617,12 @@ export function LandingPage() {
                                 <span className="text-4xl font-bold text-white">50€</span>
                                 <span className="text-white/60">/lot/an</span>
                             </div>
-                            <p className="landing-caption text-purple-300 mb-6">Économisez 2 mois</p>
+                            <p className="landing-caption text-blue-300 mb-6">Économisez 2 mois</p>
 
                             {/* Reference to Monthly */}
                             <div className="mb-4 pb-4 border-b border-white/10">
                                 <p className="landing-caption text-white/60 flex items-center gap-2">
-                                    <ArrowRight className="w-4 h-4 text-purple-400" />
+                                    <ArrowRight className="w-4 h-4 text-blue-400" />
                                     Tout ce qui est inclus dans Mensuel, plus :
                                 </p>
                             </div>
@@ -630,25 +630,25 @@ export function LandingPage() {
                             {/* Exclusive Annual Benefits */}
                             <ul className="space-y-3 mb-6 flex-grow">
                                 <li className="flex items-center text-white">
-                                    <CheckCircle2 className="w-5 h-5 text-purple-400 mr-3 flex-shrink-0" />
+                                    <CheckCircle2 className="w-5 h-5 text-blue-400 mr-3 flex-shrink-0" />
                                     <span><strong>Service d&apos;import pro inclus</strong></span>
                                 </li>
                                 <li className="flex items-center text-white/80">
-                                    <CheckCircle2 className="w-5 h-5 text-purple-400 mr-3 flex-shrink-0" />
+                                    <CheckCircle2 className="w-5 h-5 text-blue-400 mr-3 flex-shrink-0" />
                                     Données connectées et vérifiées
                                 </li>
                                 <li className="flex items-center text-white/80">
-                                    <CheckCircle2 className="w-5 h-5 text-purple-400 mr-3 flex-shrink-0" />
+                                    <CheckCircle2 className="w-5 h-5 text-blue-400 mr-3 flex-shrink-0" />
                                     Priorité support
                                 </li>
                             </ul>
-                            <div className="pt-4 border-t border-purple-500/30 mb-6">
-                                <p className="landing-caption text-purple-300">
+                            <div className="pt-4 border-t border-blue-500/30 mb-6">
+                                <p className="landing-caption text-blue-300">
                                     Notre équipe migre vos données (valeur jusqu&apos;à 2000€)
                                 </p>
                             </div>
                             <Link href="/auth/signup" className="w-full mt-auto">
-                                <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 border-0 shadow-lg shadow-purple-500/25 transition-all hover:scale-105">
+                                <Button className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border-0 shadow-lg shadow-blue-500/25 transition-all hover:scale-105">
                                     Démarrer mon essai gratuit
                                 </Button>
                             </Link>
@@ -660,7 +660,7 @@ export function LandingPage() {
                 <FadeIn delay={200}>
                     <div className="max-w-4xl mx-auto mt-16 p-8 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm">
                         <h3 className="landing-h4 text-white mb-4 flex items-center gap-2">
-                            <BarChart3 className="w-5 h-5 text-purple-400" />
+                            <BarChart3 className="w-5 h-5 text-blue-400" />
                             Vos données actuelles ? On s&apos;en occupe.
                         </h3>
                         <p className="landing-body text-white/70 mb-6">
@@ -671,21 +671,21 @@ export function LandingPage() {
                         <div className="grid md:grid-cols-2 gap-6">
                             <ul className="space-y-2">
                                 <li className="flex items-start landing-caption text-white/80">
-                                    <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                                    <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
                                     Nettoyage et formatage de vos fichiers
                                 </li>
                                 <li className="flex items-start landing-caption text-white/80">
-                                    <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                                    <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
                                     Connexion automatique entre immeubles, lots et contacts
                                 </li>
                             </ul>
                             <ul className="space-y-2">
                                 <li className="flex items-start landing-caption text-white/80">
-                                    <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                                    <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
                                     Vérification complète avant mise en production
                                 </li>
                                 <li className="flex items-start landing-caption text-white/80">
-                                    <CheckCircle2 className="w-4 h-4 text-purple-400 mr-2 mt-0.5 flex-shrink-0" />
+                                    <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
                                     Zéro doublon, zéro perte de données
                                 </li>
                             </ul>
@@ -721,10 +721,10 @@ export function LandingPage() {
                             {/* Contact Info */}
                             <div className="h-full flex flex-col gap-6">
                                 <div className="p-6 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm flex items-start gap-4 hover:bg-white/10 transition-colors flex-1">
-                                    <Mail className="w-8 h-8 text-purple-400 flex-shrink-0" />
+                                    <Mail className="w-8 h-8 text-blue-400 flex-shrink-0" />
                                     <div>
                                         <h3 className="landing-body font-semibold text-white mb-1">Email</h3>
-                                        <a href="mailto:contact@seido-app.com" className="landing-body-sm text-white/60 hover:text-purple-400 transition-colors">
+                                        <a href="mailto:contact@seido-app.com" className="landing-body-sm text-white/60 hover:text-blue-400 transition-colors">
                                             contact@seido-app.com
                                         </a>
                                     </div>

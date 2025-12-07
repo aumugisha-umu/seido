@@ -383,7 +383,7 @@ export function ContactSection({
             {contacts.length > 0 ? (
               <>
                 <Edit className="w-4 h-4 mr-1" />
-                {addButtonLabel.replace('Ajouter', 'Modifier')}
+                Modifier sélection
               </>
             ) : (
               <>

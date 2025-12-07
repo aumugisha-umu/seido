@@ -22,7 +22,7 @@ function SubmitButton() {
   return (
     <Button
       type="submit"
-      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+      className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
       disabled={pending}
     >
       {pending ? "Envoi en cours..." : "Envoyer l'email de réinitialisation"}
@@ -100,7 +100,7 @@ export function ResetPasswordForm() {
 
       <div className="bg-white/5 border border-white/10 rounded-md p-4">
         <p className="text-sm text-white/60">
-        Entrez l'adresse email associée à votre compte.
+          Entrez l'adresse email associée à votre compte.
           Vous recevrez un lien pour créer un nouveau mot de passe.
         </p>
       </div>

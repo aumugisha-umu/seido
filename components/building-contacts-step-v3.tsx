@@ -143,7 +143,6 @@ export function BuildingContactsStepV3({
               const isExpanded = expandedLots[lot.id] || false
               const lotNumber = lots.length - index
               const lotManagers = getAssignedManagers(lot.id)
-              const tenants = getLotContactsByType(lot.id, 'tenant')
               const lotProviders = getLotContactsByType(lot.id, 'provider')
               const lotOwners = getLotContactsByType(lot.id, 'owner')
               const lotOthers = getLotContactsByType(lot.id, 'other')
@@ -162,7 +161,6 @@ export function BuildingContactsStepV3({
                     lotManagers={lotManagers}
                     onAddLotManager={() => openManagerModal(lot.id)}
                     onRemoveLotManager={(managerId) => removeManagerFromLot(lot.id, managerId)}
-                    tenants={tenants}
                     providers={lotProviders}
                     owners={lotOwners}
                     others={lotOthers}

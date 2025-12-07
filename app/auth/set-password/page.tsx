@@ -338,7 +338,7 @@ export default function SetPasswordPage() {
         <div className="flex flex-col items-center space-y-4 text-center">
           <AuthLogo />
           <div className="space-y-4">
-            <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <div className="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
             <p className="text-white/60">
               {isWaitingForSession
                 ? 'Synchronisation de votre session...'
@@ -390,7 +390,7 @@ export default function SetPasswordPage() {
                   window.location.href = '/auth/login'
                 }
               }}
-              className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+              className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
             >
               Accéder au tableau de bord
             </Button>
@@ -526,7 +526,7 @@ export default function SetPasswordPage() {
 
         <Button
           type="submit"
-          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+          className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
           disabled={isLoading || !isPasswordValid() || _password !== confirmPassword}
         >
           {isLoading ? "Configuration..." : "Définir le mot de passe"}

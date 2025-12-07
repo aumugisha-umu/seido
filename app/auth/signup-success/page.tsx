@@ -71,7 +71,7 @@ export default async function SignupSuccessPage({ searchParams }: SignupSuccessP
         <div className="flex flex-col gap-3 pt-2">
           <Button
             asChild
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+            className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
           >
             <Link href="/auth/login">
               Aller à la page de connexion
@@ -81,7 +81,7 @@ export default async function SignupSuccessPage({ searchParams }: SignupSuccessP
           <div className="text-center">
             <Link
               href="/auth/signup"
-              className="text-sm text-purple-400 hover:text-purple-300 underline-offset-4 hover:underline transition-colors"
+              className="text-sm text-brand-primary hover:text-brand-primary/80 underline-offset-4 hover:underline transition-colors"
             >
               Utiliser une autre adresse email
             </Link>

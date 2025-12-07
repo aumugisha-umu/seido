@@ -116,7 +116,7 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
             <div className="flex flex-col items-center space-y-4 text-center">
               <AuthLogo />
               <div className="space-y-4">
-                <Loader2 className="h-12 w-12 animate-spin text-purple-600 mx-auto" />
+                <Loader2 className="h-12 w-12 animate-spin text-brand-primary mx-auto" />
                 <h2 className="text-xl font-semibold text-white">Vérification de votre email...</h2>
                 <p className="text-white/60">
                   Nous validons votre lien de confirmation
@@ -133,7 +133,7 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
               <AuthLogo />
               <div className="space-y-4">
                 <div className="relative mx-auto">
-                  <Loader2 className="h-12 w-12 animate-spin text-purple-600" />
+                  <Loader2 className="h-12 w-12 animate-spin text-brand-primary" />
                   <CheckCircle2 className="h-5 w-5 text-green-400 absolute -bottom-1 -right-1" />
                 </div>
                 <h2 className="text-xl font-semibold text-white">Création de votre profil...</h2>
@@ -142,9 +142,9 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
                 </p>
                 <div className="flex items-center justify-center gap-2 text-sm text-white/50">
                   <div className="flex gap-1">
-                    <div className="h-1.5 w-1.5 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <div className="h-1.5 w-1.5 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <div className="h-1.5 w-1.5 bg-purple-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                    <div className="h-1.5 w-1.5 bg-brand-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <div className="h-1.5 w-1.5 bg-brand-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <div className="h-1.5 w-1.5 bg-brand-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                   <span>Cela ne prend que quelques secondes</span>
                 </div>
@@ -183,7 +183,7 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
               <div className="flex flex-col gap-2">
                 <Button
                   onClick={() => router.push('/auth/login')}
-                  className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+                  className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
                 >
                   Aller à la page de connexion
                 </Button>
@@ -198,7 +198,7 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
 
               <p className="text-sm text-white/50 text-center">
                 Si le problème persiste, contactez le support à{' '}
-                <a href="mailto:support@seido-app.com" className="text-purple-400 hover:text-purple-300 underline">
+                <a href="mailto:support@seido-app.com" className="text-brand-primary hover:text-brand-primary/80 underline">
                   support@seido-app.com
                 </a>
               </p>

@@ -8,7 +8,8 @@ export function ContractDatesDisplay({
   startDate,
   endDate,
   showRemaining = true,
-  compact = false
+  compact = false,
+  showProgress = false
 }: ContractDatesDisplayProps) {
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
@@ -34,27 +35,67 @@ export function ContractDatesDisplay({
   const isExpiringSoon = daysRemaining > 0 && daysRemaining <= 30
   const isExpiringVerySoon = daysRemaining > 0 && daysRemaining <= 7
 
+  // Calculate progress percentage for the progress bar
+  const calculateProgress = () => {
+    const start = new Date(startDate)
+    const end = new Date(endDate)
+    const today = new Date()
+
+    const totalDuration = end.getTime() - start.getTime()
+    const elapsed = today.getTime() - start.getTime()
+
+    if (totalDuration <= 0) return 100
+    if (elapsed <= 0) return 0
+    if (elapsed >= totalDuration) return 100
+
+    return Math.round((elapsed / totalDuration) * 100)
+  }
+
+  const progressPercent = calculateProgress()
+
+  // Progress bar color based on percentage
+  const getProgressColor = () => {
+    if (progressPercent >= 90) return 'bg-red-500'
+    if (progressPercent >= 75) return 'bg-amber-500'
+    return 'bg-emerald-500'
+  }
+
   if (compact) {
     return (
-      <div className="contract-dates-display contract-dates-display--compact flex items-center gap-2 text-sm">
-        <Calendar className="h-4 w-4 text-muted-foreground" />
-        <span className="text-muted-foreground">
-          {formatDate(startDate)} - {formatDate(endDate)}
-        </span>
-        {showRemaining && (
-          <span
-            className={cn(
-              'ml-1 text-xs font-medium',
-              isExpired && 'text-red-600',
-              isExpiringVerySoon && !isExpired && 'text-red-600',
-              isExpiringSoon && !isExpiringVerySoon && 'text-orange-600',
-              !isExpired && !isExpiringSoon && 'text-green-600'
-            )}
-          >
-            {isExpired
-              ? `Expiré il y a ${Math.abs(daysRemaining)}j`
-              : `${daysRemaining}j restants`}
+      <div className="contract-dates-display contract-dates-display--compact space-y-2">
+        <div className="flex items-center gap-2 text-sm">
+          <Calendar className="h-4 w-4 text-muted-foreground" />
+          <span className="text-muted-foreground">
+            {formatDate(startDate)} - {formatDate(endDate)}
           </span>
+          {showRemaining && (
+            <span
+              className={cn(
+                'ml-1 text-xs font-medium',
+                isExpired && 'text-red-600',
+                isExpiringVerySoon && !isExpired && 'text-red-600',
+                isExpiringSoon && !isExpiringVerySoon && 'text-orange-600',
+                !isExpired && !isExpiringSoon && 'text-green-600'
+              )}
+            >
+              {isExpired
+                ? `Expiré il y a ${Math.abs(daysRemaining)}j`
+                : `${daysRemaining}j restants`}
+            </span>
+          )}
+        </div>
+
+        {/* Progress bar - compact, sans texte redondant */}
+        {showProgress && (
+          <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className={cn(
+                "h-full rounded-full transition-all duration-300",
+                getProgressColor()
+              )}
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
         )}
       </div>
     )

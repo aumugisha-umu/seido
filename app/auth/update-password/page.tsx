@@ -227,7 +227,7 @@ export default function UpdatePasswordPage() {
         <div className="flex flex-col items-center space-y-4 text-center">
           <AuthLogo />
           <div className="space-y-4">
-            <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <div className="w-8 h-8 border-4 border-brand-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
             <p className="text-white/60">Vérification de la session...</p>
           </div>
         </div>
@@ -260,7 +260,7 @@ export default function UpdatePasswordPage() {
             Vous allez être redirigé vers la page de connexion dans quelques secondes.
           </p>
           <Link href="/auth/login">
-            <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]">
+            <Button className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]">
               Aller à la connexion
             </Button>
           </Link>
@@ -298,7 +298,7 @@ export default function UpdatePasswordPage() {
           </p>
           <div className="space-y-2">
             <Link href="/auth/reset-password">
-              <Button className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]">
+              <Button className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]">
                 Nouvelle demande
               </Button>
             </Link>
@@ -399,7 +399,7 @@ export default function UpdatePasswordPage() {
 
         <Button
           type="submit"
-          className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+          className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
           disabled={isLoading}
         >
           {isLoading ? "Mise à jour..." : "Mettre à jour le mot de passe"}
@@ -409,7 +409,7 @@ export default function UpdatePasswordPage() {
       <div className="mt-6 text-center">
         <Link
           href="/auth/login"
-          className="inline-flex items-center text-sm text-purple-400 hover:text-purple-300 underline-offset-4 hover:underline transition-colors"
+          className="inline-flex items-center text-sm text-brand-primary hover:text-brand-primary/80 underline-offset-4 hover:underline transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
           Retour à la connexion

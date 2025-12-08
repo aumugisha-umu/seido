@@ -36,7 +36,7 @@ export default function ResetPasswordPage() {
       <div className="mt-6 text-center">
         <Link
           href="/auth/login"
-          className="inline-flex items-center text-sm text-purple-400 hover:text-purple-300 underline-offset-4 hover:underline transition-colors"
+          className="inline-flex items-center text-sm text-brand-primary hover:text-brand-primary/80 underline-offset-4 hover:underline transition-colors"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
           Retour à la connexion

@@ -150,7 +150,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <div className="flex items-center justify-between mt-4">
         <Link
           href="/auth/reset-password"
-          className="text-sm text-purple-400 hover:text-purple-300 underline-offset-4 hover:underline transition-colors"
+          className="text-sm text-brand-primary hover:text-brand-primary/80 underline-offset-4 hover:underline transition-colors"
         >
           Mot de passe oublié ?
         </Link>
@@ -160,7 +160,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           Pas encore de compte ?{" "}
           <Link
             href="/auth/signup"
-            className="text-purple-400 hover:text-purple-300 underline-offset-4 hover:underline font-medium transition-colors"
+            className="text-brand-primary hover:text-brand-primary/80 underline-offset-4 hover:underline font-medium transition-colors"
           >
             Créer un compte
           </Link>

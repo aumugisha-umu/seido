@@ -380,10 +380,10 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
       thirtyDaysLater.setDate(thirtyDaysLater.getDate() + 30)
       const thirtyDaysLaterStr = thirtyDaysLater.toISOString().split('T')[0]
 
-      // Get all active contracts
+      // Get all active contracts with lot_id for unique lot counting
       const { data: activeContracts, error: activeError } = await this.supabase
         .from(this.tableName)
-        .select('id, rent_amount, charges_amount, end_date')
+        .select('id, lot_id, rent_amount, charges_amount, end_date')
         .eq('team_id', teamId)
         .eq('status', 'actif')
         .is('deleted_at', null)
@@ -394,6 +394,10 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
 
       const contracts = activeContracts || []
       const totalActive = contracts.length
+
+      // Count unique lots with active contracts
+      const uniqueLotIds = new Set(contracts.map(c => c.lot_id))
+      const totalLots = uniqueLotIds.size
 
       // Calculate expiring counts
       const expiringNext30Days = contracts.filter(c => {
@@ -411,6 +415,20 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
         .eq('status', 'expire')
         .is('deleted_at', null)
 
+      // Get tenant count (contacts with role 'locataire' on active contracts)
+      const activeContractIds = contracts.map(c => c.id)
+      let totalTenants = 0
+
+      if (activeContractIds.length > 0) {
+        const { count: tenantsCount } = await this.supabase
+          .from('contract_contacts')
+          .select('id', { count: 'exact', head: true })
+          .in('contract_id', activeContractIds)
+          .eq('role', 'locataire')
+
+        totalTenants = tenantsCount || 0
+      }
+
       // Calculate totals
       const totalRentMonthly = contracts.reduce((sum, c) => sum + (Number(c.rent_amount) || 0), 0)
       const averageRent = totalActive > 0 ? totalRentMonthly / totalActive : 0
@@ -423,7 +441,9 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
           expiringNext30Days,
           expired: expiredCount || 0,
           totalRentMonthly,
-          averageRent
+          averageRent,
+          totalLots,
+          totalTenants
         }
       }
     } catch (error) {

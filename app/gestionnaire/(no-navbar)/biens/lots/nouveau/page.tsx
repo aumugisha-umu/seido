@@ -2130,7 +2130,6 @@ export default function NewLotPage() {
               const isExpanded = expandedIndependentLots[lot.id] || false
               const lotNumber = independentLots.length - index
               const lotManagers = assignedManagersByLot[lot.id] || []
-              const tenants = lotContactAssignments[lot.id]?.tenant || []
               const providers = lotContactAssignments[lot.id]?.provider || []
               const owners = lotContactAssignments[lot.id]?.owner || []
               const others = lotContactAssignments[lot.id]?.other || []
@@ -2149,7 +2148,6 @@ export default function NewLotPage() {
                     lotManagers={lotManagers}
                     onAddLotManager={() => openManagerModal(lot.id)}
                     onRemoveLotManager={(managerId) => removeManagerFromLot(lot.id, managerId)}
-                    tenants={tenants}
                     providers={providers}
                     owners={owners}
                     others={others}
@@ -2257,7 +2255,6 @@ export default function NewLotPage() {
               {independentLots.map((lot, index) => {
                 const lotNumber = independentLots.length - index
                 const lotManagers = assignedManagersByLot[lot.id] || []
-                const tenants = lotContactAssignments[lot.id]?.tenant || []
                 const providers = lotContactAssignments[lot.id]?.provider || []
                 const owners = lotContactAssignments[lot.id]?.owner || []
                 const others = lotContactAssignments[lot.id]?.other || []
@@ -2275,7 +2272,6 @@ export default function NewLotPage() {
                       isExpanded={isExpanded}
                       onToggleExpand={() => toggleIndependentLotExpansion(lot.id)}
                       lotManagers={lotManagers}
-                      tenants={tenants}
                       providers={providers}
                       owners={owners}
                       others={others}

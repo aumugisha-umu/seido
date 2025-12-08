@@ -108,7 +108,7 @@ export function InviteRecoveryFlow({ tokenHash, type }: InviteRecoveryFlowProps)
             </p>
           </div>
           <div className="space-y-4">
-            <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto" />
+            <Loader2 className="w-12 h-12 animate-spin text-brand-primary mx-auto" />
             <p className="text-sm text-white/50">
               Veuillez patienter quelques instants
             </p>
@@ -156,7 +156,7 @@ export function InviteRecoveryFlow({ tokenHash, type }: InviteRecoveryFlowProps)
 
           <Button
             onClick={() => router.push(redirectTo)}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+            className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
           >
             Continuer
           </Button>
@@ -207,7 +207,7 @@ export function InviteRecoveryFlow({ tokenHash, type }: InviteRecoveryFlowProps)
 
           <Button
             onClick={() => router.push(type === 'invite' ? '/auth/login' : '/auth/reset-password')}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+            className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
           >
             {type === 'invite' ? 'Retour à la connexion' : 'Nouvelle demande'}
           </Button>

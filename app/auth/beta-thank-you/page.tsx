@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button'
 
 export default function BetaThankYouPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-600 via-violet-600 to-indigo-600 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-primary via-blue-700 to-brand-secondary p-4">
       <div className="w-full max-w-lg">
         {/* Logo SEIDO */}
         <div className="text-center mb-8">
@@ -44,7 +44,7 @@ export default function BetaThankYouPage() {
           </h1>
 
           {/* Badge */}
-          <span className="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium mb-6">
+          <span className="inline-block px-3 py-1 bg-brand-primary/10 text-brand-primary rounded-full text-sm font-medium mb-6">
             Candidature enregistrée
           </span>
 
@@ -56,7 +56,7 @@ export default function BetaThankYouPage() {
               <p className="text-sm text-gray-500">3 ans</p>
             </div>
             <div className="p-3 bg-gray-50 rounded-xl text-center">
-              <Calendar className="w-5 h-5 text-purple-600 mx-auto mb-1" />
+              <Calendar className="w-5 h-5 text-brand-primary mx-auto mb-1" />
               <p className="text-sm font-medium text-gray-700">Accès</p>
               <p className="text-sm text-gray-500">Prioritaire</p>
             </div>
@@ -68,33 +68,33 @@ export default function BetaThankYouPage() {
           </div>
 
           {/* Prochaine étape */}
-          <div className="bg-purple-50 border border-purple-100 rounded-xl p-6 mb-8 text-left">
+          <div className="bg-brand-primary/5 border border-brand-primary/20 rounded-xl p-6 mb-8 text-left">
             <div className="flex items-start gap-3 mb-4">
-              <Clock className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+              <Clock className="w-5 h-5 text-brand-primary mt-0.5 flex-shrink-0" />
               <div>
                 <h3 className="font-semibold text-gray-900 mb-1">
                   Prochaine étape
                 </h3>
                 <p className="text-sm text-gray-600">
-                  <strong className="text-purple-700">Arthur</strong>, fondateur de SEIDO,
+                  <strong className="text-brand-primary">Arthur</strong>, fondateur de SEIDO,
                   vous contactera personnellement sous <strong>48h</strong> pour discuter de vos besoins
                   et planifier votre onboarding.
                 </p>
               </div>
             </div>
 
-            <div className="text-sm text-gray-600 space-y-2 border-t border-purple-100 pt-4 mt-4">
+            <div className="text-sm text-gray-600 space-y-2 border-t border-brand-primary/20 pt-4 mt-4">
               <p className="flex items-start">
-                <span className="text-purple-600 mr-2">•</span>
+                <span className="text-brand-primary mr-2">•</span>
                 <span>Vérifiez vos emails (et vos spams) dans les prochaines heures</span>
               </p>
               <p className="flex items-start">
-                <span className="text-purple-600 mr-2">•</span>
+                <span className="text-brand-primary mr-2">•</span>
                 <span>Préparez vos questions sur SEIDO - Arthur y répondra !</span>
               </p>
               <p className="flex items-start">
-                <span className="text-purple-600 mr-2">•</span>
-                <span>Des questions urgentes ? <a href="mailto:contact@seido-app.com" className="text-purple-600 hover:underline">contact@seido-app.com</a></span>
+                <span className="text-brand-primary mr-2">•</span>
+                <span>Des questions urgentes ? <a href="mailto:contact@seido-app.com" className="text-brand-primary hover:underline">contact@seido-app.com</a></span>
               </p>
             </div>
           </div>
@@ -103,7 +103,7 @@ export default function BetaThankYouPage() {
           <Link href="/">
             <Button
               variant="outline"
-              className="w-full border-purple-200 text-purple-700 hover:bg-purple-50 hover:text-purple-800"
+              className="w-full border-brand-primary/40 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Retour à l&apos;accueil
@@ -113,12 +113,12 @@ export default function BetaThankYouPage() {
 
         {/* Footer */}
         <div className="text-center mt-8">
-          <p className="text-purple-100 text-sm mb-2">
+          <p className="text-brand-primary/20 text-sm mb-2">
             Programme co-développement 2026 - SEIDO
           </p>
           <Link
             href="/auth/login"
-            className="text-purple-200 hover:text-white underline transition-colors text-sm"
+            className="text-brand-primary/40 hover:text-white underline transition-colors text-sm"
           >
             Se connecter
           </Link>

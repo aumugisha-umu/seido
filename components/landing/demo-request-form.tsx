@@ -63,19 +63,19 @@ const styles = {
   input: cn(
     'bg-white/10 border-white/20 text-white',
     'placeholder:text-white/40',
-    'focus:bg-white/20 focus:border-white/30',
+    'focus:bg-white/20 focus:border-blue-500 focus:ring-1 focus:ring-blue-500',
     'transition-colors w-full'
   ),
   textarea: cn(
     'bg-white/10 border-white/20 text-white',
     'placeholder:text-white/40',
-    'focus:bg-white/20 focus:border-white/30',
+    'focus:bg-white/20 focus:border-blue-500 focus:ring-1 focus:ring-blue-500',
     'transition-colors w-full resize-none'
   ),
   submit: cn(
     'w-full mt-2',
-    'bg-gradient-to-r from-purple-600 to-blue-600',
-    'hover:from-purple-500 hover:to-blue-500',
+    'bg-gradient-to-r from-blue-600 to-blue-500',
+    'hover:from-blue-500 hover:to-blue-400',
     'transition-all hover:scale-[1.02]'
   ),
 
@@ -171,14 +171,14 @@ export function DemoRequestForm({
               <SelectValue placeholder="Sélectionner" />
             </SelectTrigger>
             <SelectContent className="bg-landing-card border-white/20">
-              <SelectItem value="1-10" className="text-white hover:bg-white/10">1 - 10 lots</SelectItem>
-              <SelectItem value="11-50" className="text-white hover:bg-white/10">11 - 50 lots</SelectItem>
-              <SelectItem value="51-200" className="text-white hover:bg-white/10">51 - 200 lots</SelectItem>
-              <SelectItem value="201-500" className="text-white hover:bg-white/10">201 - 500 lots</SelectItem>
-              <SelectItem value="501-1000" className="text-white hover:bg-white/10">501 - 1 000 lots</SelectItem>
-              <SelectItem value="1001-5000" className="text-white hover:bg-white/10">1 001 - 5 000 lots</SelectItem>
-              <SelectItem value="5001-10000" className="text-white hover:bg-white/10">5 001 - 10 000 lots</SelectItem>
-              <SelectItem value="10000+" className="text-white hover:bg-white/10">10 000+ lots</SelectItem>
+              <SelectItem value="1-10" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">1 - 10 lots</SelectItem>
+              <SelectItem value="11-50" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">11 - 50 lots</SelectItem>
+              <SelectItem value="51-200" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">51 - 200 lots</SelectItem>
+              <SelectItem value="201-500" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">201 - 500 lots</SelectItem>
+              <SelectItem value="501-1000" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">501 - 1 000 lots</SelectItem>
+              <SelectItem value="1001-5000" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">1 001 - 5 000 lots</SelectItem>
+              <SelectItem value="5001-10000" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">5 001 - 10 000 lots</SelectItem>
+              <SelectItem value="10000+" className="text-white hover:bg-blue-600/20 focus:bg-blue-600/20">10 000+ lots</SelectItem>
             </SelectContent>
           </Select>
         </div>

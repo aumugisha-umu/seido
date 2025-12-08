@@ -103,7 +103,7 @@ export function LandingHeader({
                   className={cn(
                     'text-sm font-medium transition-colors',
                     isActive
-                      ? 'text-white border-b-2 border-purple-500 pb-1'
+                      ? 'text-white border-b-2 border-blue-500 pb-1'
                       : 'text-white/70 hover:text-white'
                   )}
                 >
@@ -128,7 +128,7 @@ export function LandingHeader({
           <Link href="/auth/signup">
             <Button
               size="sm"
-              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 border-0 shadow-lg shadow-purple-500/25"
+              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border-0 shadow-lg shadow-blue-500/25"
             >
               Commencer <Sparkles className="w-3 h-3 ml-2" />
             </Button>

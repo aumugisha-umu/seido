@@ -67,10 +67,10 @@ module.exports = {
           DEFAULT: "oklch(var(--card))",
           foreground: "oklch(var(--card-foreground))",
         },
-        // SEIDO Brand Colors (Purple/Indigo gradient)
+        // SEIDO Brand Colors (Semantic Tokens)
         brand: {
-          purple: 'oklch(0.5500 0.1800 300)', // #667eea
-          indigo: 'oklch(0.4800 0.1500 285)', // #764ba2
+          primary: 'oklch(0.5854 0.2041 277.1173)',   // Primary Blue (was purple key)
+          secondary: 'oklch(0.6231 0.1865 256.6341)', // Secondary Blue (was indigo key)
         },
         // Landing page dark theme colors (flat keys for bg-landing-* classes)
         'landing-bg': '#0f172a',        // slate-900

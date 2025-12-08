@@ -16,8 +16,8 @@ export default function UnauthorizedPage() {
 
         {/* Icône d'erreur */}
         <div className="relative">
-          <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-purple-500/20 rounded-full blur-xl" />
-          <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-red-500/10 to-purple-500/10 border border-red-500/20">
+          <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-brand-primary/20 rounded-full blur-xl" />
+          <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-red-500/10 to-brand-primary/10 border border-red-500/20">
             <ShieldX className="h-8 w-8 text-red-400" />
           </div>
         </div>
@@ -43,7 +43,7 @@ export default function UnauthorizedPage() {
         <div className="flex flex-col gap-3 pt-2">
           <Button
             asChild
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+            className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
           >
             <Link href="/">
               <Home className="mr-2 h-4 w-4" />
@@ -70,7 +70,7 @@ export default function UnauthorizedPage() {
           Vous n'avez pas encore de compte ?{" "}
           <Link
             href="/auth/signup"
-            className="text-purple-400 hover:text-purple-300 underline-offset-4 hover:underline font-medium transition-colors"
+            className="text-brand-primary hover:text-brand-primary/80 underline-offset-4 hover:underline font-medium transition-colors"
           >
             Créer un compte
           </Link>
@@ -79,7 +79,7 @@ export default function UnauthorizedPage() {
           Déjà un compte ?{" "}
           <Link
             href="/auth/login"
-            className="text-purple-400 hover:text-purple-300 underline-offset-4 hover:underline font-medium transition-colors"
+            className="text-brand-primary hover:text-brand-primary/80 underline-offset-4 hover:underline font-medium transition-colors"
           >
             Se connecter
           </Link>

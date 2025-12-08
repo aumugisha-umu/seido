@@ -26,7 +26,7 @@ function SubmitButton({ isFormValid, isSubmitting }: { isFormValid: boolean; isS
   return (
     <Button
       type="submit"
-      className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg shadow-purple-500/25 transition-all hover:scale-[1.02]"
+      className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
       disabled={isLoading || !isFormValid}
     >
       {isLoading ? (
@@ -305,7 +305,7 @@ export function SignupForm() {
                 En créant mon compte, j'accepte les{" "}
                 <Link
                   href="/terms"
-                  className="text-purple-400 hover:text-purple-300 underline decoration-purple-400/60 underline-offset-2 font-medium transition-colors"
+                  className="text-brand-primary hover:text-brand-primary/80 underline decoration-brand-primary/60 underline-offset-2 font-medium transition-colors"
                   onClick={(e) => e.stopPropagation()}
                 >
                   conditions d'utilisation
@@ -315,7 +315,7 @@ export function SignupForm() {
                 et la{" "}
                 <Link
                   href="/privacy"
-                  className="text-purple-400 hover:text-purple-300 underline decoration-purple-400/60 underline-offset-2 font-medium transition-colors"
+                  className="text-brand-primary hover:text-brand-primary/80 underline decoration-brand-primary/60 underline-offset-2 font-medium transition-colors"
                   onClick={(e) => e.stopPropagation()}
                 >
                   politique de confidentialité

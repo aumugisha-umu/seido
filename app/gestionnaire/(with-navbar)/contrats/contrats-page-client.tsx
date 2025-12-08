@@ -3,6 +3,7 @@
 import { Plus, RefreshCw } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { ContractStatsCards } from "@/components/dashboards/shared/contract-stats-cards"
 import { ContractsNavigator } from "@/components/contracts/contracts-navigator"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { logger } from '@/lib/logger'
@@ -25,8 +26,7 @@ function createDataHash(contracts: ContractWithRelations[], teamId: string | und
 export function ContratsPageClient({
   initialContracts,
   initialStats,
-  teamId,
-  userId
+  teamId
 }: ContratsPageClientProps) {
   const router = useRouter()
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -138,31 +138,8 @@ export function ContratsPageClient({
           </div>
         </div>
 
-        {/* Stats summary (optional, can be expanded) */}
-        {stats.totalActive > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6 flex-shrink-0">
-            <div className="bg-card rounded-lg p-4 border border-border shadow-sm">
-              <div className="text-2xl font-bold text-green-600">{stats.totalActive}</div>
-              <div className="text-sm text-muted-foreground">Contrats actifs</div>
-            </div>
-            <div className="bg-card rounded-lg p-4 border border-border shadow-sm">
-              <div className="text-2xl font-bold text-orange-600">{stats.expiringNext30Days}</div>
-              <div className="text-sm text-muted-foreground">Expirent sous 30j</div>
-            </div>
-            <div className="bg-card rounded-lg p-4 border border-border shadow-sm">
-              <div className="text-2xl font-bold text-primary">
-                {stats.totalRentMonthly.toLocaleString('fr-FR')} €
-              </div>
-              <div className="text-sm text-muted-foreground">Loyers mensuels</div>
-            </div>
-            <div className="bg-card rounded-lg p-4 border border-border shadow-sm">
-              <div className="text-2xl font-bold text-muted-foreground">
-                {stats.averageRent.toLocaleString('fr-FR')} €
-              </div>
-              <div className="text-sm text-muted-foreground">Loyer moyen</div>
-            </div>
-          </div>
-        )}
+        {/* Stats financières + portfolio (les compteurs statuts sont dans les tabs) */}
+        <ContractStatsCards stats={stats} className="mb-6 flex-shrink-0" />
 
         {/* Card wrapper - Structure exacte du dashboard */}
         <div className="flex-1 flex flex-col min-h-0">

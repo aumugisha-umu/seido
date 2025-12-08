@@ -547,7 +547,9 @@ export class ContractService {
         expiringNext30Days: 0,
         expired: 0,
         totalRentMonthly: 0,
-        averageRent: 0
+        averageRent: 0,
+        totalLots: 0,
+        totalTenants: 0
       }
     }
 

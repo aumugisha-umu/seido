@@ -378,6 +378,8 @@ export interface ContractDatesDisplayProps {
   endDate: string
   showRemaining?: boolean
   compact?: boolean
+  /** Affiche une barre de progression visuelle du temps écoulé */
+  showProgress?: boolean
 }
 
 /**
@@ -461,6 +463,10 @@ export interface ContractStats {
   expired: number
   totalRentMonthly: number
   averageRent: number
+  /** Nombre de lots concernés par les contrats actifs */
+  totalLots: number
+  /** Nombre total de locataires sur les contrats actifs */
+  totalTenants: number
 }
 
 /**

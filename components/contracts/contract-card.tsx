@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { ContractStatusBadge } from './contract-status-badge'
 import { ContractDatesDisplay } from './contract-dates-display'
 import { ContractContactsPreview } from './contract-contacts-preview'
-import { Eye, Edit, Trash2, Building2, Home, Euro, MoreVertical } from 'lucide-react'
+import { Eye, Edit, Trash2, Building2, Euro, MoreVertical } from 'lucide-react'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -50,12 +50,12 @@ export function ContractCard({
 
   const headerClass = cn(
     'contract-card__header',
-    'flex items-start justify-between gap-2 pb-2'
+    'flex items-start justify-between gap-2'
   )
 
   const contentClass = cn(
     'contract-card__content',
-    'space-y-3'
+    'space-y-2'
   )
 
   const handleCardClick = () => {
@@ -71,16 +71,14 @@ export function ContractCard({
       role={mode === 'select' ? 'button' : undefined}
       tabIndex={mode === 'select' ? 0 : undefined}
     >
-      <CardHeader className="p-4 pb-2">
+      <CardHeader className="p-3 pb-0">
         <div className={headerClass}>
-          <div className="flex flex-col gap-1.5 min-w-0 flex-1">
-            {/* Title and badges */}
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="contract-card__title font-semibold text-foreground truncate">
-                {contract.title}
-              </h3>
-              <ContractStatusBadge status={contract.status} size="sm" />
-            </div>
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {/* Title and badge inline */}
+            <h3 className="contract-card__title font-medium text-foreground truncate text-sm">
+              {contract.title}
+            </h3>
+            <ContractStatusBadge status={contract.status} size="sm" />
           </div>
 
           {/* Actions dropdown */}
@@ -125,46 +123,37 @@ export function ContractCard({
         </div>
       </CardHeader>
 
-      <CardContent className="p-4 pt-0">
+      <CardContent className="p-3 pt-0">
         <div className={contentClass}>
-          {/* Location */}
-          <div className="contract-card__location flex items-start gap-2 text-sm">
-            <Building2 className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-            <div className="min-w-0">
-              <div className="font-medium text-foreground truncate">{locationInfo}</div>
-              {addressInfo && (
-                <div className="text-muted-foreground text-xs truncate">{addressInfo}</div>
-              )}
-            </div>
+          {/* Location - compact */}
+          <div className="contract-card__location flex items-center gap-2 text-xs text-muted-foreground">
+            <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
+            <span className="truncate">
+              {locationInfo}{addressInfo && ` • ${addressInfo}`}
+            </span>
           </div>
 
-          {/* Dates */}
+          {/* Dates avec barre de progression */}
           <ContractDatesDisplay
             startDate={contract.start_date}
             endDate={contract.end_date}
             compact
             showRemaining
+            showProgress
           />
 
-          {/* Financial info */}
-          <div className="contract-card__financial flex items-center gap-2 text-sm">
-            <Euro className="h-4 w-4 text-muted-foreground" />
-            <div className="flex items-baseline gap-2">
-              <span className="font-semibold text-foreground">
-                {monthlyTotal.toLocaleString('fr-FR')} €
-              </span>
-              <span className="text-xs text-muted-foreground">/mois</span>
-              {contract.charges_amount > 0 && (
-                <span className="text-xs text-muted-foreground">
-                  ({contract.rent_amount.toLocaleString('fr-FR')} € + {contract.charges_amount.toLocaleString('fr-FR')} € charges)
-                </span>
-              )}
-            </div>
+          {/* Financial info - compact */}
+          <div className="contract-card__financial flex items-center gap-2 text-xs">
+            <Euro className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="font-semibold text-foreground">
+              {monthlyTotal.toLocaleString('fr-FR')} €
+            </span>
+            <span className="text-muted-foreground">/mois</span>
           </div>
 
           {/* Contacts preview */}
           {contract.contacts && contract.contacts.length > 0 && (
-            <div className="contract-card__contacts pt-2 border-t border-border">
+            <div className="contract-card__contacts pt-1.5 border-t border-border">
               <ContractContactsPreview
                 contacts={contract.contacts}
                 maxDisplay={3}

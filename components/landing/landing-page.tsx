@@ -851,8 +851,11 @@ export function LandingPage() {
                                     className="h-9 w-auto"
                                 />
                             </div>
-                            <p className="landing-caption text-white/40">
+                            <p className="landing-caption text-white/40 mb-4">
                                 La gestion immobilière simplifiée
+                            </p>
+                            <p className="landing-caption text-white/40 text-xs">
+                                © {new Date().getFullYear()} SEIDO. Tous droits réservés.
                             </p>
                         </div>
 
@@ -878,10 +881,6 @@ export function LandingPage() {
                                 <li><Link href="/cookies" className="hover:text-white transition-colors">Cookies</Link></li>
                             </ul>
                         </div>
-                    </div>
-
-                    <div className="pt-8 border-t border-white/10 text-center landing-caption text-white/40">
-                        <p>© {new Date().getFullYear()} SEIDO. Tous droits réservés.</p>
                     </div>
                 </div>
             </footer >

@@ -130,6 +130,87 @@ async function getAuthenticatedUser() {
 }
 
 /**
+ * Create a new intervention (for tenant requests)
+ * Used by InterventionRequestForm component
+ */
+export async function createInterventionAction(
+  data: {
+    title: string
+    description: string
+    type: string
+    urgency?: string
+    lot_id?: string
+    building_id?: string
+    team_id: string
+    tenant_comment?: string
+    specific_location?: string
+    requested_date?: Date
+  }
+): Promise<ActionResult<Intervention>> {
+  try {
+    // Auth check
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Validate input data
+    const validatedData = InterventionCreateSchema.safeParse({
+      ...data,
+      type: data.type as InterventionType,
+      urgency: (data.urgency || 'normale') as InterventionUrgency
+    })
+
+    if (!validatedData.success) {
+      logger.warn({ errors: validatedData.error.errors }, 'Intervention creation validation failed')
+      return { success: false, error: 'Données invalides: ' + validatedData.error.errors.map(e => e.message).join(', ') }
+    }
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // Create intervention with status 'demande' (tenant request)
+    const { data: intervention, error } = await supabase
+      .from('interventions')
+      .insert({
+        title: validatedData.data.title,
+        description: validatedData.data.description,
+        type: validatedData.data.type,
+        urgency: validatedData.data.urgency,
+        status: 'demande' as InterventionStatus,
+        lot_id: validatedData.data.lot_id || null,
+        building_id: validatedData.data.building_id || null,
+        team_id: validatedData.data.team_id,
+        tenant_comment: validatedData.data.tenant_comment || null,
+        specific_location: validatedData.data.specific_location || null,
+        created_by: user.id
+      })
+      .select()
+      .single()
+
+    if (error) {
+      logger.error({ error }, 'Failed to create intervention')
+      return { success: false, error: 'Échec de la création de l\'intervention' }
+    }
+
+    // Invalidate caches
+    revalidateInterventionCaches(intervention.id, validatedData.data.team_id)
+
+    // Create notification for managers
+    try {
+      await createInterventionNotification(intervention.id)
+    } catch (notifError) {
+      logger.warn({ error: notifError }, 'Failed to create intervention notification (non-blocking)')
+    }
+
+    logger.info({ interventionId: intervention.id }, 'Intervention created successfully by tenant')
+    return { success: true, data: intervention }
+  } catch (error) {
+    logger.error({ error }, 'Unexpected error in createInterventionAction')
+    return { success: false, error: 'Erreur inattendue' }
+  }
+}
+
+/**
  * Get a single intervention by ID
  */
 export async function getInterventionAction(

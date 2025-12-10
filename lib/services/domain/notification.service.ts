@@ -626,3 +626,37 @@ export class NotificationService {
   // LEGACY METHOD REMOVED - Duplicate with improved method above (lines 106-171)
   // The main notifyInterventionCreated() method now handles all the logic
 }
+
+// ============================================================================
+// FACTORY FUNCTIONS
+// ============================================================================
+
+import {
+  createServerNotificationRepository,
+  createServerActionNotificationRepository,
+  createNotificationRepository
+} from '../repositories/notification-repository'
+
+/**
+ * Create NotificationService for browser/client usage
+ */
+export const createNotificationService = async () => {
+  const repository = await createNotificationRepository()
+  return new NotificationService(repository)
+}
+
+/**
+ * Create NotificationService for Server Components (read-only)
+ */
+export const createServerNotificationService = async () => {
+  const repository = await createServerNotificationRepository()
+  return new NotificationService(repository)
+}
+
+/**
+ * Create NotificationService for Server Actions (read-write)
+ */
+export const createServerActionNotificationService = async () => {
+  const repository = await createServerActionNotificationRepository()
+  return new NotificationService(repository)
+}

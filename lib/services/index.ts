@@ -265,6 +265,14 @@ export {
   createServerActionNotificationRepository
 } from './repositories/notification-repository'
 
+// Notification Service
+export {
+  NotificationService,
+  createNotificationService,
+  createServerNotificationService,
+  createServerActionNotificationService
+} from './domain/notification.service'
+
 // Team Service
 export {
   TeamRepository,

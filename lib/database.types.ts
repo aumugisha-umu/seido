@@ -1057,6 +1057,7 @@ export type Database = {
           is_primary: boolean | null
           notes: string | null
           notified: boolean | null
+          provider_instructions: string | null
           role: string
           updated_at: string
           user_id: string
@@ -1070,6 +1071,7 @@ export type Database = {
           is_primary?: boolean | null
           notes?: string | null
           notified?: boolean | null
+          provider_instructions?: string | null
           role: string
           updated_at?: string
           user_id: string
@@ -1083,6 +1085,7 @@ export type Database = {
           is_primary?: boolean | null
           notes?: string | null
           notified?: boolean | null
+          provider_instructions?: string | null
           role?: string
           updated_at?: string
           user_id?: string
@@ -1262,6 +1265,65 @@ export type Database = {
           {
             foreignKeyName: "intervention_documents_validated_by_fkey"
             columns: ["validated_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      intervention_links: {
+        Row: {
+          child_intervention_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          link_type: string
+          parent_intervention_id: string
+          provider_id: string
+        }
+        Insert: {
+          child_intervention_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          link_type?: string
+          parent_intervention_id: string
+          provider_id: string
+        }
+        Update: {
+          child_intervention_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          link_type?: string
+          parent_intervention_id?: string
+          provider_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_links_child_intervention_id_fkey"
+            columns: ["child_intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_links_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_links_parent_intervention_id_fkey"
+            columns: ["parent_intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_links_provider_id_fkey"
+            columns: ["provider_id"]
             isOneToOne: false
             referencedRelation: "users"
             referencedColumns: ["id"]
@@ -1465,6 +1527,7 @@ export type Database = {
           is_selected: boolean | null
           notes: string | null
           proposed_by: string | null
+          provider_id: string | null
           rejected_by_manager: boolean
           rejected_by_provider: boolean
           rejected_by_tenant: boolean
@@ -1485,6 +1548,7 @@ export type Database = {
           is_selected?: boolean | null
           notes?: string | null
           proposed_by?: string | null
+          provider_id?: string | null
           rejected_by_manager?: boolean
           rejected_by_provider?: boolean
           rejected_by_tenant?: boolean
@@ -1505,6 +1569,7 @@ export type Database = {
           is_selected?: boolean | null
           notes?: string | null
           proposed_by?: string | null
+          provider_id?: string | null
           rejected_by_manager?: boolean
           rejected_by_provider?: boolean
           rejected_by_tenant?: boolean
@@ -1537,10 +1602,18 @@ export type Database = {
             referencedRelation: "users"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "intervention_time_slots_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
         ]
       }
       interventions: {
         Row: {
+          assignment_mode: Database["public"]["Enums"]["assignment_mode"]
           building_id: string | null
           completed_date: string | null
           created_at: string
@@ -1571,6 +1644,7 @@ export type Database = {
           urgency: Database["public"]["Enums"]["intervention_urgency"]
         }
         Insert: {
+          assignment_mode?: Database["public"]["Enums"]["assignment_mode"]
           building_id?: string | null
           completed_date?: string | null
           created_at?: string
@@ -1601,6 +1675,7 @@ export type Database = {
           urgency?: Database["public"]["Enums"]["intervention_urgency"]
         }
         Update: {
+          assignment_mode?: Database["public"]["Enums"]["assignment_mode"]
           building_id?: string | null
           completed_date?: string | null
           created_at?: string
@@ -2648,6 +2723,10 @@ export type Database = {
       can_view_lot: { Args: { lot_uuid: string }; Returns: boolean }
       can_view_quote: { Args: { p_quote_id: string }; Returns: boolean }
       can_view_report: { Args: { p_report_id: string }; Returns: boolean }
+      can_view_time_slot_for_provider: {
+        Args: { p_slot_id: string }
+        Returns: boolean
+      }
       check_timeslot_can_be_finalized: {
         Args: { slot_id_param: string }
         Returns: boolean
@@ -2681,6 +2760,17 @@ export type Database = {
       get_intervention_team_id: {
         Args: { p_intervention_id: string }
         Returns: string
+      }
+      get_linked_interventions: {
+        Args: { p_intervention_id: string }
+        Returns: {
+          child_id: string
+          created_at: string
+          link_id: string
+          link_type: string
+          parent_id: string
+          provider_id: string
+        }[]
       }
       get_lot_team_id: { Args: { lot_uuid: string }; Returns: string }
       get_team_id_from_storage_path: {
@@ -2727,6 +2817,10 @@ export type Database = {
       }
       is_provider_assigned_to_lot: {
         Args: { lot_id: string }
+        Returns: boolean
+      }
+      is_provider_of_intervention: {
+        Args: { p_intervention_id: string }
         Returns: boolean
       }
       is_sender_blacklisted: {
@@ -2791,6 +2885,7 @@ export type Database = {
         | "quote"
         | "report"
       activity_status: "success" | "failure" | "pending"
+      assignment_mode: "single" | "group" | "separate"
       contract_contact_role:
         | "locataire"
         | "colocataire"
@@ -3083,6 +3178,7 @@ export const Constants = {
         "report",
       ],
       activity_status: ["success", "failure", "pending"],
+      assignment_mode: ["single", "group", "separate"],
       contract_contact_role: [
         "locataire",
         "colocataire",

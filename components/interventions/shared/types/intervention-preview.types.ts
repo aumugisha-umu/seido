@@ -364,6 +364,11 @@ export interface TimelineEventData {
 }
 
 /**
+ * Mode d'assignation des prestataires
+ */
+export type AssignmentMode = 'single' | 'group' | 'separate'
+
+/**
  * Props pour InterventionSidebar
  */
 export interface InterventionSidebarProps {
@@ -379,5 +384,7 @@ export interface InterventionSidebarProps {
   onGroupConversationClick?: () => void
   /** Afficher les boutons de conversation */
   showConversationButtons?: boolean
+  /** Mode d'assignation (single/group/separate) */
+  assignmentMode?: AssignmentMode
   className?: string
 }

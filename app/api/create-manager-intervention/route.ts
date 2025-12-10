@@ -106,6 +106,10 @@ export async function POST(request: NextRequest) {
       selectedManagerIds, // ✅ Nouveau format: array de gestionnaires
       selectedProviderIds,
 
+      // Multi-provider mode
+      assignmentMode,
+      providerInstructions,
+
       // Scheduling
       schedulingType,
       fixedDateTime,
@@ -326,7 +330,9 @@ export async function POST(request: NextRequest) {
       scheduled_date: scheduledDate,
       requires_quote: expectsQuote || false,
       scheduling_type: schedulingType,
-      specific_location: location
+      specific_location: location,
+      // Multi-provider mode
+      assignment_mode: assignmentMode || 'single'
     }
 
     // Add lot_id only if it exists (for lot-specific interventions)
@@ -416,6 +422,7 @@ export async function POST(request: NextRequest) {
       role: string,
       is_primary: boolean,
       notes?: string,
+      provider_instructions?: string, // ✅ Instructions spécifiques au prestataire (mode séparé)
       assigned_by: string
     }> = []
 
@@ -436,12 +443,17 @@ export async function POST(request: NextRequest) {
     if (selectedProviderIds && selectedProviderIds.length > 0) {
       selectedProviderIds.forEach((providerId: string, index: number) => {
         logger.info({ assignmentNumber: index + 1, providerId }, "🔧 Adding provider assignment")
+
+        // Get provider-specific instructions (if in separate mode)
+        const providerSpecificInstructions = providerInstructions?.[providerId] || undefined
+
         contactAssignments.push({
           intervention_id: intervention.id,
           user_id: providerId, // ✅ Correction: user_id
           role: 'prestataire',
           is_primary: false, // Les gestionnaires sont prioritaires pour is_primary
           notes: messageType === 'individual' ? individualMessages[providerId] : undefined,
+          provider_instructions: providerSpecificInstructions, // ✅ Instructions spécifiques au prestataire
           assigned_by: user.id
         })
       })

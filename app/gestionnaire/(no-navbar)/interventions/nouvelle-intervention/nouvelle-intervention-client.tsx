@@ -125,6 +125,10 @@ export default function NouvelleInterventionClient({
   const [selectedManagerIds, setSelectedManagerIds] = useState<string[]>([])
   const [selectedProviderIds, setSelectedProviderIds] = useState<string[]>([])
 
+  // Multi-provider mode states
+  const [assignmentMode, setAssignmentMode] = useState<'single' | 'group' | 'separate'>('single')
+  const [providerInstructions, setProviderInstructions] = useState<Record<string, string>>({})
+
   const [showSuccessModal, setShowSuccessModal] = useState(false)
   const [countdown] = useState(10)
   const [isPreFilled, setIsPreFilled] = useState(false)
@@ -172,7 +176,10 @@ export default function NouvelleInterventionClient({
     selectedManagerIds,
     selectedProviderIds,
     expectsQuote,
-    files: fileUpload.files
+    files: fileUpload.files,
+    // Multi-provider mode
+    assignmentMode,
+    providerInstructions
   }
   const { saveAndRedirect } = useSaveFormState(formState)
 
@@ -193,6 +200,9 @@ export default function NouvelleInterventionClient({
     setSelectedManagerIds(restoredState.selectedManagerIds)
     setSelectedProviderIds(restoredState.selectedProviderIds)
     setExpectsQuote(restoredState.expectsQuote)
+    // Multi-provider mode
+    if (restoredState.assignmentMode) setAssignmentMode(restoredState.assignmentMode)
+    if (restoredState.providerInstructions) setProviderInstructions(restoredState.providerInstructions)
     // Note: files ne sont pas restaurés car ils ne sont pas sérialisables
   })
 
@@ -562,14 +572,21 @@ export default function NouvelleInterventionClient({
       const normalizedPrevIds = prevIds.map(id => String(id))
       if (normalizedPrevIds.includes(normalizedProviderId)) {
         // Si déjà sélectionné, le retirer
-        const newIds = []
+        const newIds = normalizedPrevIds.filter(id => id !== normalizedProviderId)
         logger.info("🔧 Prestataire retiré, nouveaux IDs:", newIds)
+        // Si on passe à 1 ou 0 prestataire, revenir au mode single
+        if (newIds.length <= 1) {
+          setAssignmentMode('single')
+        }
         return newIds
       } else {
-        // ⚠️ LIMITATION: Un seul prestataire autorisé
-        // Remplacer le prestataire existant par le nouveau
-        const newIds = [normalizedProviderId]
-        logger.info("🔧 Prestataire sélectionné (remplace l'ancien), nouveaux IDs:", newIds)
+        // ✅ Multi-sélection : ajouter le prestataire
+        const newIds = [...normalizedPrevIds, normalizedProviderId]
+        logger.info("🔧 Prestataire ajouté, nouveaux IDs:", newIds)
+        // Si on passe à plusieurs prestataires, suggérer le mode group par défaut
+        if (newIds.length > 1 && assignmentMode === 'single') {
+          setAssignmentMode('group')
+        }
         return newIds
       }
     })
@@ -875,6 +892,10 @@ export default function NouvelleInterventionClient({
         selectedManagerIds,
         selectedProviderIds,
 
+        // Multi-provider mode
+        assignmentMode: selectedProviderIds.length > 1 ? assignmentMode : 'single',
+        providerInstructions: assignmentMode === 'separate' ? providerInstructions : {},
+
         // Scheduling - Send scheduling type directly (valid values: 'fixed', 'flexible', 'slots')
         schedulingType: schedulingType,
         fixedDateTime: schedulingType === 'fixed' && fixedDateTime.date && fixedDateTime.time
@@ -1168,37 +1189,49 @@ export default function NouvelleInterventionClient({
         )}
 
         {currentStep === 3 && (
-          <Card className="p-6">
-            <AssignmentSectionV2
-              managers={managers as any[]}
-              providers={providers as any[]}
-              tenants={[]}
-              selectedManagerIds={selectedManagerIds}
-              selectedProviderIds={selectedProviderIds}
-              onManagerSelect={handleManagerSelect}
-              onProviderSelect={handleProviderSelect}
-              onContactCreated={handleContactCreated}
-              schedulingType={schedulingType}
-              onSchedulingTypeChange={setSchedulingType}
-              fixedDateTime={fixedDateTime}
-              onFixedDateTimeChange={setFixedDateTime}
-              timeSlots={timeSlots}
-              onAddTimeSlot={addTimeSlot}
-              onUpdateTimeSlot={(index, field, value) => updateTimeSlot(index, field as string, value)}
-              onRemoveTimeSlot={removeTimeSlot}
-              expectsQuote={expectsQuote}
-              onExpectsQuoteChange={setExpectsQuote}
-              globalMessage={globalMessage}
-              onGlobalMessageChange={setGlobalMessage}
-              teamId={(() => {
-                const finalTeamId = currentUserTeam?.id || initialBuildingsData.teamId || ""
-                logger.info(`🔍 [INTERVENTION-CLIENT] Passing teamId to ContactSelector: "${finalTeamId}" (currentUserTeam: ${currentUserTeam?.id}, initialData: ${initialBuildingsData.teamId})`)
-                return finalTeamId
-              })()}
-              isLoading={loading}
-              contactSelectorRef={contactSelectorRef}
-            />
-          </Card>
+          <div className="space-y-6">
+            <Card className="p-6">
+              <AssignmentSectionV2
+                managers={managers as any[]}
+                providers={providers as any[]}
+                tenants={[]}
+                selectedManagerIds={selectedManagerIds}
+                selectedProviderIds={selectedProviderIds}
+                onManagerSelect={handleManagerSelect}
+                onProviderSelect={handleProviderSelect}
+                onContactCreated={handleContactCreated}
+                schedulingType={schedulingType}
+                onSchedulingTypeChange={setSchedulingType}
+                fixedDateTime={fixedDateTime}
+                onFixedDateTimeChange={setFixedDateTime}
+                timeSlots={timeSlots}
+                onAddTimeSlot={addTimeSlot}
+                onUpdateTimeSlot={(index, field, value) => updateTimeSlot(index, field as string, value)}
+                onRemoveTimeSlot={removeTimeSlot}
+                expectsQuote={expectsQuote}
+                onExpectsQuoteChange={setExpectsQuote}
+                globalMessage={globalMessage}
+                onGlobalMessageChange={setGlobalMessage}
+                teamId={(() => {
+                  const finalTeamId = currentUserTeam?.id || initialBuildingsData.teamId || ""
+                  logger.info(`🔍 [INTERVENTION-CLIENT] Passing teamId to ContactSelector: "${finalTeamId}" (currentUserTeam: ${currentUserTeam?.id}, initialData: ${initialBuildingsData.teamId})`)
+                  return finalTeamId
+                })()}
+                isLoading={loading}
+                contactSelectorRef={contactSelectorRef}
+                // Multi-provider mode props
+                assignmentMode={assignmentMode}
+                onAssignmentModeChange={setAssignmentMode}
+                providerInstructions={providerInstructions}
+                onProviderInstructionsChange={(providerId, instructions) => {
+                  setProviderInstructions(prev => ({
+                    ...prev,
+                    [providerId]: instructions
+                  }))
+                }}
+              />
+            </Card>
+          </div>
         )}
 
         {/* Get values from form data */}
@@ -1261,6 +1294,9 @@ export default function NouvelleInterventionClient({
                 }
               }),
               expectsQuote,
+              // Multi-provider mode data
+              assignmentMode: selectedProviderIds.length > 1 ? assignmentMode : 'single',
+              providerInstructions: assignmentMode === 'separate' ? providerInstructions : undefined,
             }
 
             return (

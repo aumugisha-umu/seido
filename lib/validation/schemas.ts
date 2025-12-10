@@ -377,6 +377,10 @@ export const createManagerInterventionSchema = z.object({
   selectedManagerIds: z.array(uuidSchema).optional(),
   selectedProviderIds: z.array(uuidSchema).optional(),
 
+  // Multi-provider mode
+  assignmentMode: z.enum(['single', 'group', 'separate']).optional().default('single'),
+  providerInstructions: z.record(z.string(), z.string()).optional().default({}),
+
   // Scheduling
   schedulingType: z.enum(['none', 'fixed', 'flexible', 'slots']).optional(),
   fixedDateTime: z.object({

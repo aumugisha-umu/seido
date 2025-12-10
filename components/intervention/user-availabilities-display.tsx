@@ -4,6 +4,7 @@ import { useState, useMemo } from "react"
 import { User, Clock, Info, Filter, AlertCircle } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { SeidoBadge } from "@/components/ui/seido-badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
@@ -138,22 +139,6 @@ export function UserAvailabilitiesDisplay({
 
   const displayTitle = title || defaultTitle
 
-  // Fonction pour obtenir la couleur du badge selon le rôle
-  const getRoleBadgeColor = (_role: string) => {
-    switch (role.toLowerCase()) {
-      case 'prestataire':
-        return "bg-blue-100 text-blue-700"
-      case 'locataire':
-        return "bg-green-100 text-green-700"
-      case 'gestionnaire':
-        return "bg-purple-100 text-purple-700"
-      case 'superviseur':
-        return "bg-orange-100 text-orange-700"
-      default:
-        return "bg-gray-100 text-gray-700"
-    }
-  }
-
   // Contenu principal
   const content = (
     <div className={cn("relative", className)}>
@@ -236,9 +221,7 @@ export function UserAvailabilitiesDisplay({
             <div className="flex items-center space-x-2 mb-2">
               <User className="h-4 w-4 text-gray-600" />
               <span className="font-medium text-gray-900">{data.person}</span>
-              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${getRoleBadgeColor(data.role)}`}>
-                {data.role}
-              </span>
+              <SeidoBadge type="role" value={data.role} size="sm" />
             </div>
             <div className="space-y-1">
               {data.slots.map((availability, index) => (

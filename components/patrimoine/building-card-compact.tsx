@@ -29,11 +29,26 @@ export function BuildingCardCompact({ item, actions }: CardComponentProps<Buildi
     // BEM Classes
     const blockClass = "building-card"
 
+    const handleCardClick = () => {
+        router.push(`/gestionnaire/biens/immeubles/${building.id}`)
+    }
+
     return (
-        <Card className={cn(
-            blockClass,
-            "group hover:shadow-md transition-all duration-200 h-full bg-white p-0"
-        )}>
+        <Card
+            className={cn(
+                blockClass,
+                "group hover:shadow-md hover:border-primary/30 transition-all duration-200 h-full bg-white p-0 cursor-pointer"
+            )}
+            onClick={handleCardClick}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleCardClick()
+                }
+            }}
+        >
             <CardContent className={cn(`${blockClass}__content`, "p-4")}>
                 <div className="space-y-3">
                     {/* Header */}
@@ -62,7 +77,10 @@ export function BuildingCardCompact({ item, actions }: CardComponentProps<Buildi
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
-                                onClick={() => router.push(`/gestionnaire/biens/immeubles/modifier/${building.id}`)}
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    router.push(`/gestionnaire/biens/immeubles/modifier/${building.id}`)
+                                }}
                                 title="Modifier"
                             >
                                 <Edit className="h-3.5 w-3.5" />
@@ -71,7 +89,10 @@ export function BuildingCardCompact({ item, actions }: CardComponentProps<Buildi
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
-                                onClick={() => router.push(`/gestionnaire/biens/immeubles/${building.id}`)}
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    router.push(`/gestionnaire/biens/immeubles/${building.id}`)
+                                }}
                                 title="Voir détails"
                             >
                                 <Eye className="h-3.5 w-3.5" />

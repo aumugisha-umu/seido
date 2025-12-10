@@ -74,6 +74,11 @@ import { CancelQuoteRequestModal } from '@/components/intervention/modals/cancel
 import { CancelQuoteConfirmModal } from '@/components/intervention/modals/cancel-quote-confirm-modal'
 import { FinalizationModalLive } from '@/components/intervention/finalization-modal-live'
 
+// Multi-provider components
+import { LinkedInterventionsSection, LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
+// AssignmentModeBadge moved to sidebar - see ParticipantsList
+import { FinalizeMultiProviderButton } from '@/components/intervention/finalize-multi-provider-button'
+
 import type { Database } from '@/lib/database.types'
 
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
@@ -111,6 +116,21 @@ interface Comment {
   user?: Pick<User, 'id' | 'name' | 'email' | 'avatar_url' | 'role'>
 }
 
+// Multi-provider types
+type AssignmentMode = Database['public']['Enums']['assignment_mode']
+
+interface InterventionLink {
+  id: string
+  parent_intervention_id: string
+  child_intervention_id: string
+  provider_id: string
+  link_type: string
+  created_at: string
+  parent?: { id: string; reference: string; title: string; status: string }
+  child?: { id: string; reference: string; title: string; status: string }
+  provider?: { id: string; first_name: string; last_name: string; avatar_url?: string }
+}
+
 interface InterventionDetailClientProps {
   intervention: Intervention
   assignments: Assignment[]
@@ -124,6 +144,12 @@ interface InterventionDetailClientProps {
   // Server-provided user info to prevent hydration mismatch
   serverUserRole: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire' | 'proprietaire'
   serverUserId: string
+  // Multi-provider mode data
+  assignmentMode?: AssignmentMode
+  linkedInterventions?: InterventionLink[]
+  isParentIntervention?: boolean
+  isChildIntervention?: boolean
+  providerCount?: number
 }
 
 export function InterventionDetailClient({
@@ -137,7 +163,12 @@ export function InterventionDetailClient({
   initialParticipantsByThread,
   comments,
   serverUserRole,
-  serverUserId
+  serverUserId,
+  assignmentMode = 'single',
+  linkedInterventions = [],
+  isParentIntervention = false,
+  isChildIntervention = false,
+  providerCount = 0
 }: InterventionDetailClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -988,24 +1019,36 @@ export function InterventionDetailClient({
 
               {/* Bouton Finaliser avec tooltip - conditionnel */}
               {canFinalize && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => setShowFinalizationModal(true)}
-                        className="gap-2 min-h-[36px] bg-green-600 hover:bg-green-700"
-                      >
-                        <UserCheck className="w-4 h-4" />
-                        <span>Finaliser</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Valider et clôturer définitivement l'intervention</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <>
+                  {/* Mode séparé avec plusieurs prestataires : bouton spécial pour créer les interventions enfants */}
+                  {assignmentMode === 'separate' && providerCount > 1 && !isParentIntervention ? (
+                    <FinalizeMultiProviderButton
+                      interventionId={intervention.id}
+                      providerCount={providerCount}
+                      onSuccess={handleRefresh}
+                      variant="desktop"
+                    />
+                  ) : (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => setShowFinalizationModal(true)}
+                            className="gap-2 min-h-[36px] bg-green-600 hover:bg-green-700"
+                          >
+                            <UserCheck className="w-4 h-4" />
+                            <span>Finaliser</span>
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Valider et clôturer définitivement l'intervention</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                </>
               )}
 
               {/* Bouton Annuler avec tooltip - conditionnel */}
@@ -1058,15 +1101,26 @@ export function InterventionDetailClient({
 
               {/* Bouton Finaliser - conditionnel */}
               {canFinalize && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => setShowFinalizationModal(true)}
-                  className="gap-1.5 min-h-[36px] bg-green-600 hover:bg-green-700"
-                >
-                  <UserCheck className="w-4 h-4" />
-                  <span>Finaliser</span>
-                </Button>
+                <>
+                  {assignmentMode === 'separate' && providerCount > 1 && !isParentIntervention ? (
+                    <FinalizeMultiProviderButton
+                      interventionId={intervention.id}
+                      providerCount={providerCount}
+                      onSuccess={handleRefresh}
+                      variant="tablet"
+                    />
+                  ) : (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => setShowFinalizationModal(true)}
+                      className="gap-1.5 min-h-[36px] bg-green-600 hover:bg-green-700"
+                    >
+                      <UserCheck className="w-4 h-4" />
+                      <span>Finaliser</span>
+                    </Button>
+                  )}
+                </>
               )}
 
               {/* Bouton Annuler - conditionnel */}
@@ -1125,10 +1179,21 @@ export function InterventionDetailClient({
 
                   {/* Action Finaliser - conditionnelle */}
                   {canFinalize && (
-                    <DropdownMenuItem onSelect={() => setShowFinalizationModal(true)}>
-                      <UserCheck className="w-4 h-4 mr-2 text-green-600" />
-                      Finaliser l'intervention
-                    </DropdownMenuItem>
+                    <>
+                      {assignmentMode === 'separate' && providerCount > 1 && !isParentIntervention ? (
+                        <FinalizeMultiProviderButton
+                          interventionId={intervention.id}
+                          providerCount={providerCount}
+                          onSuccess={handleRefresh}
+                          variant="mobile"
+                        />
+                      ) : (
+                        <DropdownMenuItem onSelect={() => setShowFinalizationModal(true)}>
+                          <UserCheck className="w-4 h-4 mr-2 text-green-600" />
+                          Finaliser l'intervention
+                        </DropdownMenuItem>
+                      )}
+                    </>
                   )}
 
                   {canModifyOrCancel && <DropdownMenuSeparator />}
@@ -1152,6 +1217,17 @@ export function InterventionDetailClient({
           </>
         }
       />
+
+      {/* Banner for child interventions (linked from parent) */}
+      {isChildIntervention && linkedInterventions[0]?.parent && (
+        <div className="layout-padding pt-4 bg-background">
+          <LinkedInterventionBanner
+            parentId={linkedInterventions[0].parent.id}
+            parentReference={linkedInterventions[0].parent.reference}
+          />
+        </div>
+      )}
+
 
       <div className="layout-padding flex-1 min-h-0 bg-muted flex flex-col overflow-hidden">
 
@@ -1249,6 +1325,7 @@ export function InterventionDetailClient({
               showConversationButtons={true}
               onConversationClick={handleConversationClick}
               onGroupConversationClick={handleGroupConversationClick}
+              assignmentMode={assignmentMode}
             />
           }
           content={
@@ -1293,6 +1370,15 @@ export function InterventionDetailClient({
                       className="overflow-hidden"
                     />
                   </div>
+
+                  {/* Linked interventions section (for parent interventions in separate mode) */}
+                  {isParentIntervention && linkedInterventions.length > 0 && (
+                    <LinkedInterventionsSection
+                      links={linkedInterventions}
+                      currentInterventionId={intervention.id}
+                      className="mt-6"
+                    />
+                  )}
                 </ContentWrapper>
               </TabsContent>
 

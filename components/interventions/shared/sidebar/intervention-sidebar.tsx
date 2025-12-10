@@ -33,6 +33,7 @@ export const InterventionSidebar = ({
   onConversationClick,
   onGroupConversationClick,
   showConversationButtons = false,
+  assignmentMode,
   className
 }: InterventionSidebarProps) => {
   return (
@@ -51,6 +52,7 @@ export const InterventionSidebar = ({
           activeConversation={activeConversation}
           onConversationClick={onConversationClick}
           onGroupConversationClick={onGroupConversationClick}
+          assignmentMode={assignmentMode}
         />
       </div>
 

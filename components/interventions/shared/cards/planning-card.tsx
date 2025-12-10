@@ -50,11 +50,12 @@ export const PlanningCard = ({
   const canPropose = permissions.canProposeTimeSlot(userRole)
 
   // Sépare les créneaux par statut
+  // Valid DB statuses: 'requested', 'pending', 'selected', 'rejected', 'cancelled'
   const confirmedSlots = timeSlots.filter(s =>
-    ['confirmed', 'selected'].includes(s.status)
+    ['selected'].includes(s.status)
   )
   const pendingSlots = timeSlots.filter(s =>
-    ['pending', 'proposed'].includes(s.status)
+    ['pending', 'requested'].includes(s.status)
   )
 
   return (

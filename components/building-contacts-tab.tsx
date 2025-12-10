@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { SeidoBadge } from "@/components/ui/seido-badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/components/ui/use-toast"
@@ -413,23 +414,6 @@ export function BuildingContactsTab({
     }
   }
 
-  // Get badge configuration by role
-  const getRoleBadge = (role: string, providerCategory?: string) => {
-    if (role === 'gestionnaire') {
-      return { label: 'Gestionnaire', className: 'bg-purple-100 text-purple-700 border-purple-200' }
-    }
-    if (role === 'locataire') {
-      return { label: 'Locataire', className: 'bg-blue-100 text-blue-700 border-blue-200' }
-    }
-    if (role === 'proprietaire') {
-      return { label: 'Propriétaire', className: 'bg-amber-100 text-amber-700 border-amber-200' }
-    }
-    if (role === 'prestataire') {
-      return { label: 'Prestataire', className: 'bg-green-100 text-green-700 border-green-200' }
-    }
-    return { label: 'Autre', className: 'bg-gray-100 text-gray-700 border-gray-200' }
-  }
-
   // Get category badge configuration
   const getCategoryBadge = (category: string) => {
     const configs: Record<string, { label: string; className: string }> = {
@@ -500,9 +484,7 @@ export function BuildingContactsTab({
                 </h4>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {groupedBuildingContacts.gestionnaires.map((contact) => {
-                  const badge = getRoleBadge(contact.user.role)
-                  return (
+                {groupedBuildingContacts.gestionnaires.map((contact) => (
                     <Card key={contact.id} className="border-purple-200">
                       <CardContent className="p-3">
                         <div className="flex items-start justify-between gap-2">
@@ -536,8 +518,7 @@ export function BuildingContactsTab({
                         </div>
                       </CardContent>
                     </Card>
-                  )
-                })}
+                ))}
               </div>
             </div>
           )}
@@ -784,9 +765,7 @@ export function BuildingContactsTab({
                         {/* Expanded details */}
                         {isExpanded && (
                           <div className="space-y-2 pt-2 border-t">
-                            {lot.lot_contacts.map((contact) => {
-                              const badge = getRoleBadge(contact.user.role)
-                              return (
+                            {lot.lot_contacts.map((contact) => (
                                 <div key={contact.id} className="flex items-start justify-between gap-2 p-2 bg-gray-50 rounded border">
                                   <div className="flex items-start gap-2 min-w-0 flex-1">
                                     <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -795,9 +774,7 @@ export function BuildingContactsTab({
                                     <div className="min-w-0 flex-1">
                                       <div className="flex items-center gap-1 flex-wrap">
                                         <p className="font-medium text-xs truncate">{contact.user.name}</p>
-                                        <Badge variant="outline" className={`text-[10px] px-1 py-0 ${badge.className}`}>
-                                          {badge.label}
-                                        </Badge>
+                                        <SeidoBadge type="role" value={contact.user.role} size="sm" />
                                       </div>
                                       <p className="text-[10px] text-gray-600 truncate">{contact.user.email}</p>
                                       {contact.user.phone && (
@@ -815,7 +792,7 @@ export function BuildingContactsTab({
                                   </Button>
                                 </div>
                               )
-                            })}
+                            )}
                           </div>
                         )}
                       </div>

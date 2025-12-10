@@ -49,7 +49,9 @@ export function ManagerInterventionCard({
     onAction
 }: ManagerInterventionCardProps) {
     const router = useRouter()
-    const isUrgent = intervention.priority === 'haute' || intervention.priority === 'urgente'
+    // Fix: use 'urgency' field (not 'priority') from DB schema
+    const urgency = intervention.urgency || 'normale'
+    const isUrgent = urgency === 'haute' || urgency === 'urgente'
 
     // Action banner logic
     const isAlert = shouldShowAlertBadge(intervention, userContext)
@@ -298,8 +300,17 @@ export function ManagerInterventionCard({
 
     return (
         <div
-            className="group relative bg-card dark:bg-white/5 rounded-2xl p-6 shadow-sm dark:shadow-none hover:shadow-xl dark:hover:shadow-none transition-all duration-300 border border-border dark:border-white/10 h-full flex flex-col dark:backdrop-blur-sm"
+            className="group relative bg-card dark:bg-white/5 rounded-2xl p-6 shadow-sm dark:shadow-none hover:shadow-xl dark:hover:shadow-none transition-all duration-300 border border-border dark:border-white/10 hover:border-primary/30 h-full flex flex-col dark:backdrop-blur-sm cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             onClick={() => handleActionClick('view_details')}
+            role="button"
+            tabIndex={0}
+            aria-label={`Intervention: ${intervention.title}, statut ${getStatusLabel(intervention.status)}`}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleActionClick('view_details')
+                }
+            }}
         >
             {/* Header: Icon + (Badge + Action) + Menu */}
             <div className="flex items-start mb-4 gap-3">
@@ -310,17 +321,8 @@ export function ManagerInterventionCard({
                     size="lg"
                 />
 
-                {/* Colonne centrale : Badge priorité + Action card empilés */}
+                {/* Colonne centrale : Action card */}
                 <div className="flex-1 flex flex-col gap-2 min-w-0">
-                    {/* Badge de priorité uniquement (si urgent) */}
-                    {isUrgent && (
-                        <div className="flex items-center gap-2">
-                            <Badge className={cn(getPriorityColor(intervention.priority), "text-xs border")}>
-                                {getPriorityLabel(intervention.priority)}
-                            </Badge>
-                        </div>
-                    )}
-
                     {/* Banner d'action */}
                     <div className={cn(
                         "border rounded-lg px-3 py-2",
@@ -378,10 +380,15 @@ export function ManagerInterventionCard({
                 </div>
             </div>
 
-            {/* Title */}
-            <h3 className="text-lg font-bold text-foreground mb-2 group-hover:text-primary transition-colors line-clamp-1">
-                {intervention.title}
-            </h3>
+            {/* Title + Urgency Badge */}
+            <div className="flex items-center gap-2 mb-2">
+                <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors truncate flex-1 min-w-0">
+                    {intervention.title}
+                </h3>
+                <Badge className={cn(getPriorityColor(urgency), "text-xs border flex-shrink-0")}>
+                    {getPriorityLabel(urgency)}
+                </Badge>
+            </div>
 
             {/* Description */}
             <p className="text-muted-foreground text-sm mb-4 line-clamp-2 flex-1">

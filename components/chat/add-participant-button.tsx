@@ -23,7 +23,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
-import { Badge } from '@/components/ui/badge'
+import { SeidoBadge } from '@/components/ui/seido-badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { addParticipantAction } from '@/app/actions/conversation-actions'
 import type { Database } from '@/lib/database.types'
@@ -44,35 +44,6 @@ interface AddParticipantButtonProps {
   currentParticipantIds: string[]
   userRole: UserRole
   className?: string
-}
-
-// Role badge colors
-const getRoleBadgeVariant = (role: UserRole) => {
-  switch (role) {
-    case 'gestionnaire':
-      return 'default'
-    case 'prestataire':
-      return 'secondary'
-    case 'locataire':
-      return 'outline'
-    default:
-      return 'outline'
-  }
-}
-
-const getRoleLabel = (role: UserRole) => {
-  switch (role) {
-    case 'gestionnaire':
-      return 'Gestionnaire'
-    case 'prestataire':
-      return 'Prestataire'
-    case 'locataire':
-      return 'Locataire'
-    case 'admin':
-      return 'Admin'
-    default:
-      return role
-  }
 }
 
 export function AddParticipantButton({
@@ -160,9 +131,7 @@ export function AddParticipantButton({
                       {member.email}
                     </p>
                   </div>
-                  <Badge variant={getRoleBadgeVariant(member.role)} className="text-xs">
-                    {getRoleLabel(member.role)}
-                  </Badge>
+                  <SeidoBadge type="role" value={member.role} size="sm" />
                 </CommandItem>
               ))}
             </CommandGroup>

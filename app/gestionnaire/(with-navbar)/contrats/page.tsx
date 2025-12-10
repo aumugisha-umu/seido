@@ -30,24 +30,17 @@ export default async function ContratsPage() {
       logger.error(`❌ [CONTRATS-PAGE] Failed to load contracts: ${result.error?.message || 'Unknown error'}`)
     }
 
-    // Get contract stats
-    const stats = await contractService.getStats(team.id)
-
     // Check for expiring contracts and send notifications (async, non-blocking)
     checkExpiringContracts().catch((err) => {
       logger.warn('⚠️ [CONTRATS-PAGE] Failed to check expiring contracts:', err)
     })
 
-    logger.info(`📊 [CONTRATS-PAGE] Server data ready - Contracts: ${contracts.length}`, {
-      active: stats.totalActive,
-      expiringSoon: stats.expiringNext30Days
-    })
+    logger.info(`📊 [CONTRATS-PAGE] Server data ready - Contracts: ${contracts.length}`)
 
     // Pass data to Client Component
     return (
       <ContratsPageClient
         initialContracts={contracts}
-        initialStats={stats}
         teamId={team.id}
         userId={profile.id}
       />
@@ -72,16 +65,6 @@ export default async function ContratsPage() {
     return (
       <ContratsPageClient
         initialContracts={[]}
-        initialStats={{
-          totalActive: 0,
-          expiringThisMonth: 0,
-          expiringNext30Days: 0,
-          expired: 0,
-          totalRentMonthly: 0,
-          averageRent: 0,
-          totalLots: 0,
-          totalTenants: 0
-        }}
         teamId={undefined}
         userId={undefined}
       />

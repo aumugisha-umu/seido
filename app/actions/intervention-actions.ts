@@ -2384,3 +2384,279 @@ export async function updateProviderGuidelinesAction(
     }
   }
 }
+
+// =============================================================================
+// MULTI-PROVIDER ASSIGNMENT ACTIONS
+// =============================================================================
+
+// Types for multi-provider assignments
+type AssignmentMode = 'single' | 'group' | 'separate'
+
+interface MultiProviderAssignmentInput {
+  interventionId: string
+  providerIds: string[]
+  mode: AssignmentMode
+  providerInstructions?: Record<string, string>
+}
+
+interface TimeSlotInput {
+  date: string
+  start_time: string
+  end_time: string
+}
+
+/**
+ * Assign Multiple Providers Action
+ * Assigns multiple providers to an intervention with a specific assignment mode
+ * Mode: 'single' (1 provider), 'group' (shared info), 'separate' (isolated info)
+ */
+export async function assignMultipleProvidersAction(
+  input: MultiProviderAssignmentInput
+): Promise<ActionResult<{ assignments: any[]; mode: AssignmentMode; providerCount: number }>> {
+  try {
+    logger.info('👥 [SERVER-ACTION] Assigning multiple providers', {
+      interventionId: input.interventionId,
+      providerCount: input.providerIds.length,
+      mode: input.mode
+    })
+
+    const { user } = await createServerActionSupabaseClient()
+
+    if (!user) {
+      return { success: false, error: 'Non authentifié' }
+    }
+
+    // Validate input
+    if (!input.providerIds || input.providerIds.length === 0) {
+      return { success: false, error: 'Au moins un prestataire doit être sélectionné' }
+    }
+
+    if (input.providerIds.length === 1 && input.mode !== 'single') {
+      return { success: false, error: 'Un seul prestataire doit utiliser le mode "single"' }
+    }
+
+    if (input.providerIds.length > 1 && input.mode === 'single') {
+      return { success: false, error: 'Plusieurs prestataires nécessitent le mode "group" ou "separate"' }
+    }
+
+    const service = await createServerActionInterventionService()
+
+    const result = await service.assignMultipleProviders({
+      interventionId: input.interventionId,
+      providerIds: input.providerIds,
+      mode: input.mode,
+      assignedBy: user.id,
+      providerInstructions: input.providerInstructions
+    })
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error?.message || 'Erreur lors de l\'assignation des prestataires'
+      }
+    }
+
+    // Get team_id for cache invalidation
+    const { supabase } = await createServerActionSupabaseClient()
+    const { data: intervention } = await supabase
+      .from('interventions')
+      .select('team_id')
+      .eq('id', input.interventionId)
+      .single()
+
+    revalidateInterventionCaches(input.interventionId, intervention?.team_id)
+
+    logger.info('✅ Multiple providers assigned successfully', {
+      interventionId: input.interventionId,
+      providerCount: input.providerIds.length,
+      mode: input.mode
+    })
+
+    return { success: true, data: result.data! }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error assigning multiple providers:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }
+  }
+}
+
+/**
+ * Get Linked Interventions Action
+ * Retrieves parent/child intervention links for a given intervention
+ */
+export async function getLinkedInterventionsAction(
+  interventionId: string
+): Promise<ActionResult<any[]>> {
+  try {
+    logger.info('🔗 [SERVER-ACTION] Getting linked interventions', { interventionId })
+
+    const { user } = await createServerActionSupabaseClient()
+
+    if (!user) {
+      return { success: false, error: 'Non authentifié' }
+    }
+
+    const service = await createServerActionInterventionService()
+    const result = await service.getLinkedInterventions(interventionId)
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error?.message || 'Erreur lors de la récupération des interventions liées'
+      }
+    }
+
+    return { success: true, data: result.data || [] }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error getting linked interventions:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }
+  }
+}
+
+/**
+ * Create Child Interventions Action
+ * Creates individual child interventions from a parent intervention in "separate" mode
+ * Called when manager finalizes a multi-provider intervention
+ */
+export async function createChildInterventionsAction(
+  parentInterventionId: string
+): Promise<ActionResult<{ parentId: string; childInterventions: any[]; childCount: number }>> {
+  try {
+    logger.info('👶 [SERVER-ACTION] Creating child interventions', { parentInterventionId })
+
+    const { user } = await createServerActionSupabaseClient()
+
+    if (!user) {
+      return { success: false, error: 'Non authentifié' }
+    }
+
+    const service = await createServerActionInterventionService()
+    const result = await service.createChildInterventions(parentInterventionId, user.id)
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error?.message || 'Erreur lors de la création des interventions enfants'
+      }
+    }
+
+    // Get team_id for cache invalidation
+    const { supabase } = await createServerActionSupabaseClient()
+    const { data: intervention } = await supabase
+      .from('interventions')
+      .select('team_id')
+      .eq('id', parentInterventionId)
+      .single()
+
+    revalidateInterventionCaches(parentInterventionId, intervention?.team_id)
+
+    // Also revalidate child intervention paths
+    if (result.data?.childInterventions) {
+      for (const child of result.data.childInterventions) {
+        revalidatePath(`/gestionnaire/interventions/${child.id}`)
+      }
+    }
+
+    logger.info('✅ Child interventions created successfully', {
+      parentId: parentInterventionId,
+      childCount: result.data?.childCount
+    })
+
+    return { success: true, data: result.data! }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error creating child interventions:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }
+  }
+}
+
+/**
+ * Update Provider Instructions Action
+ * Updates specific instructions for a provider in an intervention
+ */
+export async function updateProviderInstructionsAction(
+  interventionId: string,
+  providerId: string,
+  instructions: string
+): Promise<ActionResult<any>> {
+  try {
+    logger.info('📝 [SERVER-ACTION] Updating provider instructions', {
+      interventionId,
+      providerId,
+      instructionsLength: instructions.length
+    })
+
+    const { user } = await createServerActionSupabaseClient()
+
+    if (!user) {
+      return { success: false, error: 'Non authentifié' }
+    }
+
+    if (instructions.length > 5000) {
+      return {
+        success: false,
+        error: 'Les instructions ne doivent pas dépasser 5000 caractères'
+      }
+    }
+
+    const service = await createServerActionInterventionService()
+    const result = await service.updateProviderInstructions(
+      interventionId,
+      providerId,
+      instructions,
+      user.id
+    )
+
+    if (!result.success) {
+      return {
+        success: false,
+        error: result.error?.message || 'Erreur lors de la mise à jour des instructions'
+      }
+    }
+
+    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
+    revalidatePath(`/prestataire/interventions/${interventionId}`)
+
+    return { success: true, data: result.data }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error updating provider instructions:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }
+  }
+}
+
+/**
+ * Get Assignment Mode Action
+ * Retrieves the assignment mode for an intervention
+ */
+export async function getAssignmentModeAction(
+  interventionId: string
+): Promise<ActionResult<AssignmentMode>> {
+  try {
+    const { user } = await createServerActionSupabaseClient()
+
+    if (!user) {
+      return { success: false, error: 'Non authentifié' }
+    }
+
+    const service = await createServerActionInterventionService()
+    const mode = await service.getAssignmentMode(interventionId)
+
+    return { success: true, data: mode }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error getting assignment mode:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }
+  }
+}

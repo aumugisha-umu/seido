@@ -2,6 +2,7 @@
 
 import { InterventionSchedulingPreviewProps } from "../intervention-scheduling-preview"
 import { Badge } from "@/components/ui/badge"
+import { SeidoBadge } from "@/components/ui/seido-badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -35,19 +36,6 @@ export function PreviewModern({
 }: InterventionSchedulingPreviewProps) {
 
     const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2)
-
-    const RoleBadge = ({ role }: { role: string }) => {
-        const styles = {
-            gestionnaire: "bg-blue-100 text-blue-700",
-            prestataire: "bg-purple-100 text-purple-700",
-            locataire: "bg-emerald-100 text-emerald-700"
-        }
-        return (
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${styles[role as keyof typeof styles]}`}>
-                {role}
-            </span>
-        )
-    }
 
     return (
         <div className="max-w-5xl mx-auto space-y-8">
@@ -252,7 +240,7 @@ export function PreviewModern({
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center justify-between mb-1">
                                                     <p className="text-sm font-medium text-slate-900 truncate">{manager.name}</p>
-                                                    <RoleBadge role="gestionnaire" />
+                                                    <SeidoBadge type="role" value="gestionnaire" size="sm" />
                                                 </div>
                                                 <div className="flex flex-col gap-1">
                                                     <div className="flex items-center gap-1.5 text-xs text-slate-500">
@@ -283,7 +271,7 @@ export function PreviewModern({
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center justify-between mb-1">
                                                     <p className="text-sm font-medium text-slate-900 truncate">{provider.name}</p>
-                                                    <RoleBadge role="prestataire" />
+                                                    <SeidoBadge type="role" value="prestataire" size="sm" />
                                                 </div>
                                                 <div className="flex flex-col gap-1">
                                                     <div className="flex items-center gap-1.5 text-xs text-slate-500">
@@ -308,7 +296,7 @@ export function PreviewModern({
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center justify-between mb-1">
                                                     <p className="text-sm font-medium text-slate-900 truncate">{tenant.name}</p>
-                                                    <RoleBadge role="locataire" />
+                                                    <SeidoBadge type="role" value="locataire" size="sm" />
                                                 </div>
                                                 <div className="flex flex-col gap-1">
                                                     <div className="flex items-center gap-1.5 text-xs text-slate-500">
@@ -338,7 +326,7 @@ export function PreviewModern({
                                     <div key={comment.id} className="p-3 bg-slate-50 rounded-lg border border-slate-100">
                                         <div className="flex items-center justify-between mb-2">
                                             <span className="text-xs font-semibold text-slate-700">{comment.author}</span>
-                                            <RoleBadge role={comment.role} />
+                                            <SeidoBadge type="role" value={comment.role} size="sm" />
                                         </div>
                                         <p className="text-sm text-slate-600 leading-relaxed">{comment.content}</p>
                                         <p className="text-xs text-slate-400 mt-2">

@@ -494,7 +494,19 @@ export function InterventionCard({
   // Compact rendering for dashboard
   if (compact) {
     return (
-      <div className="flex items-start sm:items-center space-x-2 sm:space-x-3 p-2 sm:p-3 border rounded-lg hover:bg-slate-50 transition-colors duration-200">
+      <div
+        className="flex items-start sm:items-center space-x-2 sm:space-x-3 p-2 sm:p-3 border rounded-lg hover:bg-slate-50 hover:border-primary/30 transition-all duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        onClick={() => router.push(getInterventionUrl(intervention.id))}
+        role="button"
+        tabIndex={0}
+        aria-label={`Intervention: ${intervention.title}, statut ${getStatusLabel(intervention.status)}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            router.push(getInterventionUrl(intervention.id))
+          }
+        }}
+      >
         {/* Type Icon */}
         <div className={`w-8 h-8 sm:w-10 sm:h-10 ${typeConfig.color} rounded-full flex items-center justify-center flex-shrink-0`}>
           <IconComponent className={`h-4 w-4 sm:h-5 sm:w-5 ${typeConfig.iconColor}`} />
@@ -550,16 +562,19 @@ export function InterventionCard({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 w-8 sm:w-auto sm:px-2 p-0 sm:p-2"
-            onClick={() => router.push(getInterventionUrl(intervention.id))}
+            className="h-11 w-11 sm:h-11 sm:w-auto sm:px-3 p-0 sm:p-2"
+            onClick={(e) => {
+              e.stopPropagation()
+              router.push(getInterventionUrl(intervention.id))
+            }}
           >
-            <Eye className="h-3 w-3" />
+            <Eye className="h-4 w-4" />
             <span className="hidden sm:inline ml-1">Détails</span>
           </Button>
           {availableActions.length > 0 && (
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-8 w-8 sm:w-auto sm:px-3 p-0 text-slate-500 hover:text-slate-700">
+              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="sm" className="h-11 w-11 sm:w-auto sm:px-3 p-0 text-slate-500 hover:text-slate-700">
                   <MoreVertical className="h-3 w-3" />
                   <span className="hidden sm:inline ml-1">Action</span>
                 </Button>
@@ -599,9 +614,19 @@ export function InterventionCard({
   // Full card rendering - Material Design spacing équilibré
   return (
     <Card
-      className="group hover:shadow-sm transition-all duration-200 flex flex-col hover:bg-slate-50/50 p-0 gap-0 w-full"
+      className="group hover:shadow-md hover:border-primary/30 transition-all duration-200 flex flex-col hover:bg-slate-50/50 p-0 gap-0 w-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={() => router.push(getInterventionUrl(intervention.id))}
+      role="button"
+      tabIndex={0}
+      aria-label={`Intervention: ${intervention.title}, statut ${getStatusLabel(intervention.status)}`}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          router.push(getInterventionUrl(intervention.id))
+        }
+      }}
     >
       <CardContent className="p-4 flex flex-col">
         <div className="flex flex-col">

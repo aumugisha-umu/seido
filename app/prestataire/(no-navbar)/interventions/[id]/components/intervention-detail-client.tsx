@@ -56,6 +56,9 @@ import { QuoteSubmissionModal } from '@/components/intervention/modals/quote-sub
 import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
 import { ModifyChoiceModal } from '@/components/intervention/modals/modify-choice-modal'
 
+// Multi-provider components
+import { LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
+
 // Actions
 import { acceptTimeSlotAction } from '@/app/actions/intervention-actions'
 
@@ -80,6 +83,22 @@ type Assignment = Database['public']['Tables']['intervention_assignments']['Row'
   user?: Database['public']['Tables']['users']['Row']
 }
 
+// Multi-provider types
+type AssignmentMode = Database['public']['Enums']['assignment_mode']
+
+interface ParentLink {
+  id: string
+  parent_intervention_id: string
+  child_intervention_id: string
+  provider_id: string
+  link_type: string
+  parent?: {
+    id: string
+    reference: string
+    title: string
+  }
+}
+
 interface PrestataireInterventionDetailClientProps {
   intervention: Intervention
   documents: Document[]
@@ -88,6 +107,10 @@ interface PrestataireInterventionDetailClientProps {
   timeSlots: TimeSlot[]
   assignments: Assignment[]
   currentUser: User
+  // Multi-provider mode data
+  assignmentMode?: AssignmentMode
+  providerInstructions?: string
+  parentLink?: ParentLink
 }
 
 // Status labels
@@ -112,7 +135,10 @@ export function PrestataireInterventionDetailClient({
   threads,
   timeSlots,
   assignments,
-  currentUser
+  currentUser,
+  assignmentMode = 'single',
+  providerInstructions,
+  parentLink
 }: PrestataireInterventionDetailClientProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
@@ -579,6 +605,30 @@ export function PrestataireInterventionDetailClient({
         }
         hasGlobalNav={false}
       />
+
+      {/* Banner for child interventions (linked from parent) */}
+      {parentLink?.parent && (
+        <div className="layout-padding pt-4">
+          <LinkedInterventionBanner
+            parentId={parentLink.parent.id}
+            parentReference={parentLink.parent.reference}
+          />
+        </div>
+      )}
+
+      {/* Provider-specific instructions (in separate mode) */}
+      {providerInstructions && (
+        <div className="layout-padding pt-4">
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 className="text-sm font-medium text-blue-900 mb-2">
+              Instructions pour vous
+            </h3>
+            <p className="text-sm text-blue-800 whitespace-pre-wrap">
+              {providerInstructions}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Nouveau design PreviewHybrid */}
       <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">

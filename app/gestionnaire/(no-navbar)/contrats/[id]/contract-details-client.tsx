@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { ContractStatusBadge } from '@/components/contracts/contract-status-badge'
+import { SeidoBadge } from '@/components/ui/seido-badge'
 import { ContractDatesDisplay } from '@/components/contracts/contract-dates-display'
 import { ContractContactsPreview } from '@/components/contracts/contract-contacts-preview'
 import {
@@ -170,7 +170,7 @@ export default function ContractDetailsClient({
                   <h1 className="text-xl font-bold text-foreground truncate">
                     {contract.title}
                   </h1>
-                  <ContractStatusBadge status={contract.status} />
+                  <SeidoBadge type="contract" value={contract.status} showIcon />
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-sm text-muted-foreground">{locationInfo}</span>
@@ -325,7 +325,7 @@ export default function ContractDetailsClient({
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Statut</p>
-                      <ContractStatusBadge status={contract.status} />
+                      <SeidoBadge type="contract" value={contract.status} showIcon />
                     </div>
                     <div>
                       <p className="text-sm text-muted-foreground">Durée</p>

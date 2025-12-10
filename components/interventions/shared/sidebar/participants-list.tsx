@@ -23,7 +23,14 @@ import { Users, MessageSquare, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { ParticipantsListProps, UserRole, Participant } from '../types'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { SeidoBadge } from '@/components/ui/seido-badge'
+import { ParticipantsListProps, UserRole, Participant, AssignmentMode } from '../types'
 import { permissions, getInitials } from '../utils'
 
 /**
@@ -54,6 +61,7 @@ interface ParticipantGroupProps {
   showConversationButtons: boolean
   activeConversation?: string | 'group'
   onConversationClick?: (participantId: string) => void
+  assignmentMode?: AssignmentMode
 }
 
 const ParticipantGroup = ({
@@ -62,18 +70,52 @@ const ParticipantGroup = ({
   role,
   showConversationButtons,
   activeConversation,
-  onConversationClick
+  onConversationClick,
+  assignmentMode
 }: ParticipantGroupProps) => {
   if (participants.length === 0) return null
 
   const colors = AVATAR_COLORS[role]
 
+  // Show assignment mode badge only for providers when mode is group or separate
+  const showAssignmentBadge = role === 'provider' &&
+    participants.length > 1 &&
+    assignmentMode &&
+    assignmentMode !== 'single'
+
   return (
     <div className="space-y-3">
-      {/* Label du groupe */}
-      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-        {label}
-      </p>
+      {/* Label du groupe + Assignment mode badge */}
+      <div className="flex items-center gap-2">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          {label}
+        </p>
+
+        {showAssignmentBadge && assignmentMode && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">
+                  <SeidoBadge
+                    type="mode"
+                    value={assignmentMode}
+                    size="md"
+                    showIcon
+                  />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-[280px] p-3">
+                <p className="text-sm leading-relaxed">
+                  {assignmentMode === 'separate'
+                    ? 'Chaque prestataire voit uniquement ses propres informations. Des interventions individuelles seront créées à la clôture.'
+                    : 'Tous les prestataires voient les mêmes informations (créneaux, instructions, devis).'
+                  }
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
 
       {/* Liste des participants */}
       <div className="space-y-3">
@@ -168,6 +210,13 @@ const GroupConversationButton = ({ isActive, onClick }: GroupConversationButtonP
 }
 
 /**
+ * Extended props for ParticipantsList with assignment mode
+ */
+interface ExtendedParticipantsListProps extends ParticipantsListProps {
+  assignmentMode?: AssignmentMode
+}
+
+/**
  * Liste complète des participants avec filtrage par rôle
  */
 export const ParticipantsList = ({
@@ -177,8 +226,9 @@ export const ParticipantsList = ({
   onGroupConversationClick,
   activeConversation,
   showConversationButtons = false,
+  assignmentMode,
   className
-}: ParticipantsListProps) => {
+}: ExtendedParticipantsListProps) => {
   // Détermine quels rôles sont visibles selon le rôle de l'utilisateur courant
   const visibleRoles = permissions.canViewParticipantsByRole(currentUserRole)
 
@@ -239,6 +289,7 @@ export const ParticipantsList = ({
             showConversationButtons={canShowConversationButtons}
             activeConversation={activeConversation}
             onConversationClick={onConversationClick}
+            assignmentMode={assignmentMode}
           />
         )}
 

@@ -42,8 +42,8 @@ interface InterventionsNavigatorProps {
   showHeader?: boolean
   headerConfig?: HeaderConfig
 
-  // Tabs preset: 'full' for page, 'dashboard' for dashboard widget
-  tabsPreset?: 'full' | 'dashboard'
+  // Tabs preset: 'full' for page, 'dashboard' for dashboard widget, 'prestataire' for provider dashboard
+  tabsPreset?: 'full' | 'dashboard' | 'prestataire'
 
   // Compact mode (smaller padding, for dashboard)
   compact?: boolean
@@ -183,7 +183,16 @@ export function InterventionsNavigator({
     ].includes(i.status)),
     terminees: () => filteredInterventions.filter(i => [
       "cloturee_par_prestataire", "cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee"
-    ].includes(i.status))
+    ].includes(i.status)),
+
+    // Prestataire preset filters (specific order: en_cours, terminees, toutes)
+    prestataire_en_cours: () => filteredInterventions.filter(i => [
+      "demande_de_devis", "planification", "planifiee", "en_cours", "approuvee"
+    ].includes(i.status)),
+    prestataire_terminees: () => filteredInterventions.filter(i => [
+      "cloturee_par_prestataire", "cloturee_par_locataire", "cloturee_par_gestionnaire"
+    ].includes(i.status)),
+    prestataire_toutes: () => filteredInterventions
   }
 
   // Get filtered data for a tab
@@ -203,7 +212,11 @@ export function InterventionsNavigator({
       cloturees_group: { title: "Aucune intervention clôturée", description: "Les interventions terminées apparaîtront ici" },
       actions_en_attente: { title: "Aucune action en attente", description: "Toutes vos interventions sont à jour" },
       en_cours: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici" },
-      terminees: { title: "Aucune intervention terminée", description: "Les interventions terminées apparaîtront ici" }
+      terminees: { title: "Aucune intervention terminée", description: "Les interventions terminées apparaîtront ici" },
+      // Prestataire presets
+      prestataire_en_cours: { title: "Aucune intervention en cours", description: "Les interventions actives apparaîtront ici" },
+      prestataire_terminees: { title: "Aucune intervention terminée", description: "Les interventions terminées apparaîtront ici" },
+      prestataire_toutes: { title: "Aucune intervention", description: "Les interventions apparaîtront ici" }
     }
     return configs[tabId] || { title: "Aucune donnée", description: "" }
   }
@@ -268,6 +281,33 @@ export function InterventionsNavigator({
       ]
     }
 
+    if (tabsPreset === 'prestataire') {
+      // Prestataire tabs: En cours (default), Terminées, Toutes
+      return [
+        {
+          id: "prestataire_en_cours",
+          label: "En cours",
+          icon: Clock,
+          count: getFilteredByTab("prestataire_en_cours").length,
+          content: renderTabContent("prestataire_en_cours")
+        },
+        {
+          id: "prestataire_terminees",
+          label: "Terminées",
+          icon: Archive,
+          count: getFilteredByTab("prestataire_terminees").length,
+          content: renderTabContent("prestataire_terminees")
+        },
+        {
+          id: "prestataire_toutes",
+          label: "Toutes",
+          icon: ListTodo,
+          count: filteredInterventions.length,
+          content: renderTabContent("prestataire_toutes")
+        }
+      ]
+    }
+
     // Full tabs (page interventions)
     return [
       {
@@ -304,6 +344,8 @@ export function InterventionsNavigator({
   // Default tab
   const defaultTab = tabsPreset === 'dashboard'
     ? (pendingActionsCount > 0 ? "actions_en_attente" : "en_cours")
+    : tabsPreset === 'prestataire'
+    ? "prestataire_en_cours"
     : "toutes"
 
   // View switcher

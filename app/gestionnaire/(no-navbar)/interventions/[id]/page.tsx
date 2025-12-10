@@ -47,10 +47,14 @@ export default async function InterventionDetailPage({ params }: PageProps) {
     }
 
     const intervention = interventionResult.data
+    const assignmentMode = intervention.assignment_mode || 'single'
+    const isSeparateMode = assignmentMode === 'separate'
+
     logger.info('✅ [INTERVENTION-PAGE] Step 1 complete', {
       interventionId: intervention.id,
       status: intervention.status,
       teamId: intervention.team_id,
+      assignmentMode,
       elapsed: `${Date.now() - startTime}ms`
     })
 
@@ -64,7 +68,8 @@ export default async function InterventionDetailPage({ params }: PageProps) {
       { data: quotes },
       { data: timeSlots },
       { data: threads, allMessages: threadMessages, allParticipants: threadParticipants },
-      { data: comments }
+      { data: comments },
+      { data: linkedInterventions }
     ] = await Promise.all([
       // Building
       intervention.building_id
@@ -180,7 +185,23 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         .select('*, user:user_id(id, name, email, avatar_url, role)')
         .eq('intervention_id', id)
         .is('deleted_at', null)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false }),
+
+      // Linked interventions (parent/children) for multi-provider mode
+      supabase
+        .from('intervention_links')
+        .select(`
+          id,
+          parent_intervention_id,
+          child_intervention_id,
+          provider_id,
+          link_type,
+          created_at,
+          parent:interventions!parent_intervention_id(id, reference, title, status),
+          child:interventions!child_intervention_id(id, reference, title, status),
+          provider:users!provider_id(id, first_name, last_name, avatar_url)
+        `)
+        .or(`parent_intervention_id.eq.${id},child_intervention_id.eq.${id}`)
     ])
 
     logger.info('✅ [INTERVENTION-PAGE] Step 2 complete', {
@@ -231,6 +252,14 @@ export default async function InterventionDetailPage({ params }: PageProps) {
       }
     }
 
+    // Determine if this is a parent intervention (has children) or child (has parent)
+    const isParentIntervention = linkedInterventions?.some(link => link.parent_intervention_id === id) || false
+    const isChildIntervention = linkedInterventions?.some(link => link.child_intervention_id === id) || false
+
+    // Get provider count for multi-provider interventions
+    const providerAssignments = assignments?.filter(a => a.role === 'prestataire') || []
+    const providerCount = providerAssignments.length
+
     // ✅ Pass to Client Component
     return (
       <InterventionDetailClient
@@ -249,6 +278,12 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         comments={comments || []}
         serverUserRole={profile.role as 'gestionnaire'}
         serverUserId={profile.id}
+        // Multi-provider mode data
+        assignmentMode={assignmentMode}
+        linkedInterventions={linkedInterventions || []}
+        isParentIntervention={isParentIntervention}
+        isChildIntervention={isChildIntervention}
+        providerCount={providerCount}
       />
     )
   } catch (error) {

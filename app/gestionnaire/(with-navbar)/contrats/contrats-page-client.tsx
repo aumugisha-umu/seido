@@ -1,17 +1,15 @@
 "use client"
 
-import { Plus, RefreshCw } from "lucide-react"
+import { Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ContractStatsCards } from "@/components/dashboards/shared/contract-stats-cards"
 import { ContractsNavigator } from "@/components/contracts/contracts-navigator"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { logger } from '@/lib/logger'
-import type { ContractWithRelations, ContractStats } from '@/lib/types/contract.types'
+import type { ContractWithRelations } from '@/lib/types/contract.types'
 
 interface ContratsPageClientProps {
   initialContracts: ContractWithRelations[]
-  initialStats: ContractStats
   teamId: string | undefined
   userId: string | undefined
 }
@@ -25,25 +23,22 @@ function createDataHash(contracts: ContractWithRelations[], teamId: string | und
 
 export function ContratsPageClient({
   initialContracts,
-  initialStats,
   teamId
 }: ContratsPageClientProps) {
   const router = useRouter()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const previousDataHashRef = useRef<string>('')
 
-  // State for contracts and stats
+  // State for contracts
   const [contracts, setContracts] = useState<ContractWithRelations[]>(
     Array.isArray(initialContracts) ? initialContracts : []
   )
-  const [stats, setStats] = useState<ContractStats>(initialStats)
 
   // Debug: Log initial data structure
   useEffect(() => {
     logger.info("📊 [CONTRATS-PAGE-CLIENT] Initial data received:", {
       contractsCount: Array.isArray(initialContracts) ? initialContracts.length : 0,
-      teamId: teamId,
-      stats: initialStats
+      teamId: teamId
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []) // Only log on mount
@@ -84,7 +79,6 @@ export function ContratsPageClient({
       const safeContracts = Array.isArray(initialContracts) ? initialContracts : []
 
       setContracts(safeContracts)
-      setStats(initialStats)
 
       logger.info("✅ [CONTRATS-PAGE-CLIENT] Data updated in state:", {
         contractsCount: safeContracts.length,
@@ -93,7 +87,7 @@ export function ContratsPageClient({
       previousDataHashRef.current = currentHash
       setIsRefreshing(false)
     }
-  }, [initialContracts, initialStats, teamId])
+  }, [initialContracts, teamId])
 
   // Handle delete callback
   const handleDeleteContract = useCallback(async (id: string) => {
@@ -119,15 +113,6 @@ export function ContratsPageClient({
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
               <Button
-                variant="outline"
-                className="flex items-center space-x-2"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-              >
-                <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">Actualiser</span>
-              </Button>
-              <Button
                 className="flex items-center space-x-2"
                 onClick={() => router.push('/gestionnaire/contrats/nouveau')}
               >
@@ -137,9 +122,6 @@ export function ContratsPageClient({
             </div>
           </div>
         </div>
-
-        {/* Stats financières + portfolio (les compteurs statuts sont dans les tabs) */}
-        <ContractStatsCards stats={stats} className="mb-6 flex-shrink-0" />
 
         {/* Card wrapper - Structure exacte du dashboard */}
         <div className="flex-1 flex flex-col min-h-0">

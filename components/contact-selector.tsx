@@ -152,8 +152,9 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     if (selectionMode) {
       return selectionMode
     }
-    // Sinon, déterminer automatiquement : 'provider' = single, autres = multi
-    return contactType === 'provider' ? 'single' : 'multi'
+    // Par défaut : multi-select pour tous les types (y compris provider pour multi-prestataires)
+    // Exception : tenant = single (un seul locataire par lot)
+    return contactType === 'tenant' ? 'single' : 'multi'
   }
 
   // ✅ Fonction simplifiée pour ouvrir le modal - Les données sont déjà en cache via SWR!

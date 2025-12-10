@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 import { UserRole, USER_ROLE_COLORS } from '../types'
 import { getInitials } from '../utils/helpers'
-import { RoleBadge } from './role-badge'
+import { SeidoBadge } from '@/components/ui/seido-badge'
 
 export interface ParticipantAvatarProps {
   /** Nom du participant */
@@ -55,7 +55,7 @@ export const ParticipantAvatar = ({
             {initials}
           </AvatarFallback>
         </Avatar>
-        <RoleBadge role={role} size="sm" />
+        <SeidoBadge type="role" value={role} size="sm" />
       </div>
     )
   }

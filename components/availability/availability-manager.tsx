@@ -5,6 +5,7 @@ import { Calendar, Clock, Plus, Trash2, Users, AlertCircle, CheckCircle, Loader2
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { SeidoBadge } from "@/components/ui/seido-badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { useAvailabilityManagement, UserAvailability } from "@/hooks/use-availability-management"
@@ -115,26 +116,6 @@ export function AvailabilityManager({ interventionId, userRole }: AvailabilityMa
     )
   }
 
-  const getUserRoleLabel = (_role: string) => {
-    switch (role) {
-      case 'locataire': return 'Locataire'
-      case 'gestionnaire': return 'Gestionnaire'
-      case 'prestataire': return 'Prestataire'
-      default: return role
-    }
-  }
-
-  const getStatusBadgeColor = (_status: string) => {
-    switch (status) {
-      case 'demande': return 'bg-yellow-100 text-yellow-800'
-      case 'approuvee': return 'bg-green-100 text-green-800'
-      case 'planification': return 'bg-blue-100 text-blue-800'
-      case 'planifiee': return 'bg-purple-100 text-purple-800'
-      case 'en_cours': return 'bg-orange-100 text-orange-800'
-      default: return 'bg-gray-100 text-gray-800'
-    }
-  }
-
   return (
     <div className="space-y-6">
       {/* En-tête avec informations intervention */}
@@ -145,9 +126,7 @@ export function AvailabilityManager({ interventionId, userRole }: AvailabilityMa
               <Calendar className="h-5 w-5 text-blue-500" />
               <span>Gestion des Disponibilités</span>
             </CardTitle>
-            <Badge className={getStatusBadgeColor(data.intervention.status)}>
-              {data.intervention.status}
-            </Badge>
+            <SeidoBadge type="status" value={data.intervention.status} />
           </div>
         </CardHeader>
         <CardContent>
@@ -304,9 +283,7 @@ export function AvailabilityManager({ interventionId, userRole }: AvailabilityMa
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-2">
                       <span className="font-medium">{participant.user.name}</span>
-                      <Badge variant="outline">
-                        {getUserRoleLabel(participant.user.role)}
-                      </Badge>
+                      <SeidoBadge type="role" value={participant.user.role} size="sm" />
                     </div>
                     <span className="text-sm text-gray-500">
                       {participant.user.total_slots} créneaux

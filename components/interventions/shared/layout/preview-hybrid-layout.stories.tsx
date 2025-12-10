@@ -103,7 +103,7 @@ const MockContent = () => (
       <div className="p-4 bg-slate-50 rounded-lg">
         <h3 className="font-medium mb-2">Description</h3>
         <p className="text-sm text-muted-foreground">
-          Fuite d&apos;eau importante sous l&apos;évier de la cuisine. L&apos;eau s&apos;écoule depuis le raccord du siphon
+          Fuite d'eau importante sous l'évier de la cuisine. L'eau s'écoule depuis le raccord du siphon
           et a commencé à endommager le meuble.
         </p>
       </div>

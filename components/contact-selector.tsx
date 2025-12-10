@@ -72,7 +72,7 @@ interface ContactSelectorProps {
   // Types de contacts autorisés (tous par défaut)
   allowedContactTypes?: string[]
   // Contacts déjà sélectionnés/assignés (pour affichage)
-  selectedContacts?: {[contactType: string]: Contact[]}
+  selectedContacts?: { [contactType: string]: Contact[] }
   // NOUVEAU: Contacts assignés aux lots (par lotId puis par contactType)
   lotContactAssignments?: { [lotId: string]: { [contactType: string]: Contact[] } }
   // Callback quand un contact est sélectionné - AVEC CONTEXTE
@@ -137,7 +137,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   const router = useRouter()
 
   // ✅ Hook SWR pour fetcher les contacts avec cache intelligent
-  const { data: teamContacts, isLoading: isLoadingContacts, error: loadingError} = useTeamContacts(teamId!)
+  const { data: teamContacts, isLoading: isLoadingContacts, error: loadingError } = useTeamContacts(teamId!)
 
   // ✅ Plus besoin de refs pour le chargement - SWR gère tout
 
@@ -227,19 +227,19 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       phone: contact.phone,
       speciality: contact.speciality,
     }
-    
+
     // Déterminer le lotId à utiliser : externe (ouverture ref) ou prop directe
     const contextLotId = externalLotId || lotId
-    
+
     logger.info('✅ [ContactSelector] Contact selected:', newContact.name, 'type:', selectedContactType, 'lotId:', contextLotId)
-    
+
     // Appeler le callback parent avec contexte
     if (onContactSelected) {
       onContactSelected(newContact, selectedContactType, { lotId: contextLotId })
     } else {
       logger.error('❌ [ContactSelector] onContactSelected callback is missing!')
     }
-    
+
     // Ne pas fermer la modale pour permettre la sélection multiple
     // setIsContactModalOpen(false)
     // setSearchTerm("")
@@ -366,7 +366,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     const contactsByType = teamContacts.filter(contact => {
       // Convertir les rôles français (BDD) vers anglais (interface TypeScript)
       const mappedRole = (() => {
-        switch(contact.role) {
+        switch (contact.role) {
           case 'gestionnaire': return 'manager'
           case 'locataire': return 'tenant'
           case 'prestataire': return 'provider'
@@ -377,7 +377,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
 
       // Convertir les catégories françaises (BDD) vers anglaises (interface TypeScript)
       const mappedProviderCategory = (() => {
-        switch(contact.provider_category) {
+        switch (contact.provider_category) {
           case 'prestataire': return 'service'
           case 'proprietaire': return 'owner'
           case 'autre': return 'other'
@@ -485,7 +485,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
           )}
         </div>
       )}
-      
+
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2.5">
         {filteredContactTypes.map((type) => {
           const Icon = type.icon
@@ -582,10 +582,10 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                     </Button>
                   </div>
                 ))}
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => handleOpenContactModal(type.key)} 
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleOpenContactModal(type.key)}
                   className="w-full"
                 >
                   <Plus className="h-4 w-4 mr-2" />
@@ -643,7 +643,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
               {selectedContactType === 'other' && 'Autre type de contact'}
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
@@ -704,13 +704,12 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                       return (
                         <div
                           key={contact.id}
-                          className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${
-                            isInherited
+                          className={`flex items-center justify-between p-3 border rounded-lg transition-colors ${isInherited
                               ? 'bg-blue-50/30 border-blue-200/50'
                               : isPendingSelected
                                 ? 'bg-green-50 border-green-200'
                                 : 'hover:bg-gray-50'
-                          }`}
+                            }`}
                         >
                           <div className="flex-1">
                             <div className="font-medium flex items-center gap-2 flex-wrap">
@@ -725,7 +724,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                               {isInherited ? (
                                 <Badge variant="secondary" className="bg-blue-100 text-blue-700 border border-blue-300 text-xs flex items-center gap-1">
                                   <Building className="w-3 h-3" />
-                                  Hérité de l&apos;immeuble
+                                  Hérité de l'immeuble
                                 </Badge>
                               ) : isPendingSelected && (
                                 <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
@@ -755,7 +754,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                           {/* NOUVEAU : Checkbox pour multi-select, Radio pour single-select */}
                           {isInherited ? (
                             <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs whitespace-nowrap">
-                              Sur l&apos;immeuble
+                              Sur l'immeuble
                             </Badge>
                           ) : effectiveMode === 'single' ? (
                             <input
@@ -791,7 +790,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                       {searchTerm ? 'Aucun contact trouvé' : `Aucun ${getSelectedContactTypeInfo().label.toLowerCase()} enregistré`}
                     </h3>
                     <p className="text-sm text-gray-500 mb-4">
-                      {searchTerm 
+                      {searchTerm
                         ? `Aucun contact ne correspond à "${searchTerm}"`
                         : `Vous n'avez pas encore de ${getSelectedContactTypeInfo().label.toLowerCase()} dans votre équipe`
                       }

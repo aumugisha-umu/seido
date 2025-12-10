@@ -33,23 +33,23 @@ export default function CGUPage() {
           (Numéro TVA : BE0775691974 - RPM Bruxelles).
         </LegalText>
         <LegalText>
-          Dans les conditions générales d&apos;utilisation de UMUMENTUM SRL (les « <LegalHighlight>CGU</LegalHighlight> »),
+          Dans les conditions générales d'utilisation de UMUMENTUM SRL (les « <LegalHighlight>CGU</LegalHighlight> »),
           le terme « SEIDO » désignera le service proposé et/ou UMUMENTUM SRL elle-même.
         </LegalText>
         <LegalText>
-          Les CGU ont pour but de régir et de contrôler l&apos;utilisation du site web SEIDO dont le nom de domaine
-          est <LegalHighlight>seido-app.com</LegalHighlight>, et l&apos;application mobile le complétant, regroupés sous le terme
+          Les CGU ont pour but de régir et de contrôler l'utilisation du site web SEIDO dont le nom de domaine
+          est <LegalHighlight>seido-app.com</LegalHighlight>, et l'application mobile le complétant, regroupés sous le terme
           (la « <LegalHighlight>Plateforme</LegalHighlight> »). Toute inscription à SEIDO conformément aux modalités
-          décrites ci-après, emporte l&apos;acceptation expresse et sans réserve des CGU qui primeront sur tout autre document.
+          décrites ci-après, emporte l'acceptation expresse et sans réserve des CGU qui primeront sur tout autre document.
         </LegalText>
         <LegalText>
           SEIDO se réserve le droit de mettre à jour et de modifier les CGU à tout moment. En cas de modification
-          significative des CGU pour l&apos;utilisateur de SEIDO, ce dernier en sera informé par e-mail,
-          <LegalHighlight> quinze (15) jours</LegalHighlight> avant l&apos;entrée en vigueur desdites modifications.
+          significative des CGU pour l'utilisateur de SEIDO, ce dernier en sera informé par e-mail,
+          <LegalHighlight> quinze (15) jours</LegalHighlight> avant l'entrée en vigueur desdites modifications.
         </LegalText>
         <LegalText>
           Les CGU annulent et remplacent toute autre proposition ou accord antérieur relatif au même objet.
-          Il ne pourra être dérogé aux CGU qu&apos;en cas d&apos;accord exprès et écrit de SEIDO.
+          Il ne pourra être dérogé aux CGU qu'en cas d'accord exprès et écrit de SEIDO.
         </LegalText>
       </LegalSection>
 
@@ -62,21 +62,21 @@ export default function CGUPage() {
         </LegalText>
         <LegalText>
           SEIDO ne se substitue aucunement à la gestion du Client. Les conseils éventuellement fournis par SEIDO
-          ne concernent que l&apos;utilisation de la Plateforme, et en aucun cas l&apos;organisation ou la gestion des Clients.
+          ne concernent que l'utilisation de la Plateforme, et en aucun cas l'organisation ou la gestion des Clients.
         </LegalText>
         <LegalText>
-          La Plateforme proposée par SEIDO est <LegalHighlight>une solution standard</LegalHighlight>. En l&apos;utilisant,
+          La Plateforme proposée par SEIDO est <LegalHighlight>une solution standard</LegalHighlight>. En l'utilisant,
           le Client est conscient que SEIDO pourrait ne pas savoir répondre aux besoins spécifiques de sa gestion.
         </LegalText>
 
         <LegalSubsection title="Services supplémentaires">
           <LegalText>
             SEIDO se réserve la possibilité de proposer au Client le bénéfice de services supplémentaires
-            directement gérés par des tiers et portant sur l&apos;optimalisation de l&apos;utilisation de SEIDO.
-            En cas d&apos;acceptation par le Client du service supplémentaire, une mise à jour du prix de l&apos;Abonnement sera appliquée.
+            directement gérés par des tiers et portant sur l'optimalisation de l'utilisation de SEIDO.
+            En cas d'acceptation par le Client du service supplémentaire, une mise à jour du prix de l'Abonnement sera appliquée.
           </LegalText>
           <LegalText>
-            L&apos;éventuelle période d&apos;essai du service supplémentaire inclut le bénéfice du service supplémentaire
+            L'éventuelle période d'essai du service supplémentaire inclut le bénéfice du service supplémentaire
             pour le Client pendant une période de <LegalHighlight>7 jours</LegalHighlight> et ce, à titre gratuit.
           </LegalText>
         </LegalSubsection>
@@ -91,19 +91,19 @@ export default function CGUPage() {
           de gestion des interventions.
         </LegalText>
         <LegalText>
-          <LegalHighlight>Le Client s&apos;engage à :</LegalHighlight>
+          <LegalHighlight>Le Client s'engage à :</LegalHighlight>
         </LegalText>
         <LegalList items={[
           "Inviter et encourager ses locataires et les fournisseurs de service à utiliser la Plateforme",
           "Fournir une communication claire aux parties concernées"
         ]} />
         <LegalText>
-          Cependant, la Plateforme est conçue de manière à permettre au gestionnaire d&apos;assurer un suivi complet
+          Cependant, la Plateforme est conçue de manière à permettre au gestionnaire d'assurer un suivi complet
           de son patrimoine, de toutes les interventions et communications, même dans les cas où les locataires
-          ou fournisseurs de service n&apos;effectueraient pas toutes les actions attendues.
+          ou fournisseurs de service n'effectueraient pas toutes les actions attendues.
         </LegalText>
         <LegalText>
-          SEIDO fournira tous les outils de communication et d&apos;onboarding nécessaires pour faciliter l&apos;adoption
+          SEIDO fournira tous les outils de communication et d'onboarding nécessaires pour faciliter l'adoption
           de la Plateforme par toutes les parties concernées, mais <LegalHighlight>ne pourra être tenue responsable
             du refus ou de la sous-utilisation de la Plateforme par une des parties</LegalHighlight>.
         </LegalText>
@@ -112,7 +112,7 @@ export default function CGUPage() {
       {/* Création d'un compte */}
       <LegalSection title="Création d'un compte SEIDO">
         <LegalText>
-          <LegalHighlight>Conditions nécessaires à la création d&apos;un compte sur SEIDO :</LegalHighlight>
+          <LegalHighlight>Conditions nécessaires à la création d'un compte sur SEIDO :</LegalHighlight>
         </LegalText>
         <LegalText>
           Pour pouvoir créer un compte SEIDO, tout utilisateur (futur Client) déclare obligatoirement
@@ -126,7 +126,7 @@ export default function CGUPage() {
         ]} />
         <LegalText>
           SEIDO ne pourra pas être tenue pour responsable de tout dommage ou perte qui pourrait résulter
-          de l&apos;incapacité du Client à protéger ses informations de connexion telles que le nom d&apos;utilisateur
+          de l'incapacité du Client à protéger ses informations de connexion telles que le nom d'utilisateur
           et/ou le mot de passe.
         </LegalText>
       </LegalSection>
@@ -135,15 +135,15 @@ export default function CGUPage() {
       <LegalSection title="Formules d'utilisation et durée">
         <LegalSubsection title="Inscription et acceptation des CGU">
           <LegalText>
-            L&apos;inscription sur la Plateforme SEIDO constitue l&apos;acceptation des présentes CGU, que le Client
+            L'inscription sur la Plateforme SEIDO constitue l'acceptation des présentes CGU, que le Client
             choisisse une formule gratuite ou payante. Cette acceptation prend effet immédiatement lors de
-            la validation de l&apos;inscription par le Client.
+            la validation de l'inscription par le Client.
           </LegalText>
         </LegalSubsection>
 
         <LegalSubsection title="Formules disponibles">
           <LegalText>
-            SEIDO propose différentes formules d&apos;utilisation :
+            SEIDO propose différentes formules d'utilisation :
           </LegalText>
           <LegalList items={[
             <span key="gratuit"><LegalHighlight>Formule gratuite</LegalHighlight> : Accès limité aux fonctionnalités de base</span>,
@@ -153,9 +153,9 @@ export default function CGUPage() {
 
         <LegalSubsection title="Durée pour les abonnements payants">
           <LegalText>
-            Pour les Clients ayant souscrit un abonnement payant, celui-ci prend effet le jour de l&apos;inscription
-            et du premier paiement. À l&apos;issue de chaque période d&apos;abonnement (mensuelle ou annuelle selon la
-            formule choisie), l&apos;abonnement est <LegalHighlight>reconduit tacitement</LegalHighlight> pour la même
+            Pour les Clients ayant souscrit un abonnement payant, celui-ci prend effet le jour de l'inscription
+            et du premier paiement. À l'issue de chaque période d'abonnement (mensuelle ou annuelle selon la
+            formule choisie), l'abonnement est <LegalHighlight>reconduit tacitement</LegalHighlight> pour la même
             durée que celle souscrite initialement par le Client.
           </LegalText>
         </LegalSubsection>
@@ -164,11 +164,11 @@ export default function CGUPage() {
           <LegalText>
             Le Client peut résilier son abonnement payant à tout moment avant la reconduction de celui-ci,
             directement depuis son espace client sur la Plateforme, ou en contactant le service client par
-            e-mail à l&apos;adresse <LegalHighlight>support@seido-app.com</LegalHighlight>.
+            e-mail à l'adresse <LegalHighlight>support@seido-app.com</LegalHighlight>.
           </LegalText>
           <LegalText>
-            La résiliation prend effet à la fin de la période d&apos;abonnement en cours. Le Client conserve
-            l&apos;accès à toutes les fonctionnalités payantes jusqu&apos;à l&apos;expiration de la période pour laquelle il a payé.
+            La résiliation prend effet à la fin de la période d'abonnement en cours. Le Client conserve
+            l'accès à toutes les fonctionnalités payantes jusqu'à l'expiration de la période pour laquelle il a payé.
           </LegalText>
         </LegalSubsection>
 
@@ -184,12 +184,12 @@ export default function CGUPage() {
       <LegalSection title="Paiement, prix et facturation">
         <LegalText>
           Les montants dus par le Client ayant souscrit un abonnement payant seront automatiquement facturés
-          à chaque début de période (selon qu&apos;il s&apos;agisse d&apos;un abonnement mensuel ou annuel). Par les présentes,
+          à chaque début de période (selon qu'il s'agisse d'un abonnement mensuel ou annuel). Par les présentes,
           le Client accepte de recevoir ses factures sous <LegalHighlight>format électronique uniquement</LegalHighlight>.
         </LegalText>
         <LegalText>
           Toute facture est due à dater de la réception de celle-ci par le Client. La réception est supposée
-          être le jour de l&apos;envoi par e-mail de la facture.
+          être le jour de l'envoi par e-mail de la facture.
         </LegalText>
         <LegalText>
           Les tarifs affichés sur la Plateforme sont ceux en vigueur au moment de la souscription et sont
@@ -205,14 +205,14 @@ export default function CGUPage() {
       {/* Suspension */}
       <LegalSection title="Suspension et désactivation du compte">
         <LegalText>
-          SEIDO se réserve le droit, (i) en cas de non-paiement par le Client de l&apos;une de ses factures,
-          ou (ii) en cas de non-respect par le Client de l&apos;une des clauses des CGU, de suspendre l&apos;accès
+          SEIDO se réserve le droit, (i) en cas de non-paiement par le Client de l'une de ses factures,
+          ou (ii) en cas de non-respect par le Client de l'une des clauses des CGU, de suspendre l'accès
           du Client à SEIDO, immédiatement après en avoir notifié le Client et sans préavis.
         </LegalText>
         <LegalText>
           La violation de tout ou partie des CGU peut entraîner temporairement ou définitivement, la désactivation
-          du compte SEIDO du Client. Toute désactivation du compte SEIDO d&apos;un Client aura lieu moyennant
-          l&apos;envoi préalable d&apos;une mise en demeure par courrier électronique avec accusé de réception.
+          du compte SEIDO du Client. Toute désactivation du compte SEIDO d'un Client aura lieu moyennant
+          l'envoi préalable d'une mise en demeure par courrier électronique avec accusé de réception.
         </LegalText>
         <LegalText>
           À défaut de remédier à la violation dans un délai de <LegalHighlight>quinze (15) jours</LegalHighlight> à
@@ -228,15 +228,15 @@ export default function CGUPage() {
       {/* Force majeure */}
       <LegalSection title="Force majeure">
         <LegalText>
-          La responsabilité de SEIDO sera entièrement dégagée si l&apos;inexécution d&apos;une, ou de la totalité de
-          ses obligations en vertu des CGU, résulte d&apos;un cas de force majeure.
+          La responsabilité de SEIDO sera entièrement dégagée si l'inexécution d'une, ou de la totalité de
+          ses obligations en vertu des CGU, résulte d'un cas de force majeure.
         </LegalText>
         <LegalText>
-          Pour l&apos;application des CGU, la force majeure se définit comme un événement imprévisible, inévitable
-          et indépendant de la volonté de SEIDO, tel que par exemple la défaillance de l&apos;hébergeur.
+          Pour l'application des CGU, la force majeure se définit comme un événement imprévisible, inévitable
+          et indépendant de la volonté de SEIDO, tel que par exemple la défaillance de l'hébergeur.
         </LegalText>
         <LegalText>
-          En cas d&apos;impossibilité de remédier à cet événement de force majeure dans les <LegalHighlight>30 jours</LegalHighlight> à
+          En cas d'impossibilité de remédier à cet événement de force majeure dans les <LegalHighlight>30 jours</LegalHighlight> à
           dater de sa survenance, SEIDO pourra procéder à la cessation du service avec le Client, sans être
           tenue à verser une quelconque indemnité au Client.
         </LegalText>
@@ -251,7 +251,7 @@ export default function CGUPage() {
         </LegalText>
         <LegalText>
           Tous les éléments constitutifs de la plateforme, accessibles ou non au Client, sont la propriété
-          exclusive de SEIDO. Il s&apos;agit notamment des éléments suivants : la plateforme, les bases de données,
+          exclusive de SEIDO. Il s'agit notamment des éléments suivants : la plateforme, les bases de données,
           les pages du Site Web, les outils de gestion, ainsi que tout autre outil ou information mis à
           disposition du Client.
         </LegalText>
@@ -264,23 +264,23 @@ export default function CGUPage() {
           "De céder, à titre onéreux ou à titre gratuit, tout ou partie des droits et obligations qu'il détient en lien avec SEIDO"
         ]} />
         <LegalText>
-          L&apos;utilisation de SEIDO par le Client confère à celui-ci le droit de licence d&apos;utilisation de la plateforme,
-          pendant la durée de son utilisation du service, à l&apos;exclusion de tout autre droit.
+          L'utilisation de SEIDO par le Client confère à celui-ci le droit de licence d'utilisation de la plateforme,
+          pendant la durée de son utilisation du service, à l'exclusion de tout autre droit.
         </LegalText>
       </LegalSection>
 
       {/* Obligations et responsabilités */}
       <LegalSection title="Obligations et responsabilités de SEIDO">
         <LegalText>
-          SEIDO s&apos;engage à tout mettre en oeuvre pour fournir à ses Clients un service de qualité.
+          SEIDO s'engage à tout mettre en oeuvre pour fournir à ses Clients un service de qualité.
           Malgré tous les soins apportés par SEIDO pour un service continu (24h/24, 7 jours/7), des interruptions
           de service sont possibles, et sans responsabilité de SEIDO, en cas de panne ou défaillance de
-          l&apos;hébergeur, ou en cas d&apos;interventions de maintenance nécessaires ou utiles.
+          l'hébergeur, ou en cas d'interventions de maintenance nécessaires ou utiles.
         </LegalText>
 
         <LegalCard title="Service d'assistance technique">
           <LegalText>
-            Le service d&apos;assistance technique s&apos;applique à tous les services fournis par SEIDO. Les Clients
+            Le service d'assistance technique s'applique à tous les services fournis par SEIDO. Les Clients
             peuvent être assistés par e-mail, téléphone, ou via le chat intégré à la plateforme, et ce tous
             les jours ouvrables de <LegalHighlight>09h00 à 18h00</LegalHighlight>.
           </LegalText>
@@ -303,12 +303,12 @@ export default function CGUPage() {
         <LegalSubsection title="Limitation de responsabilité">
           <LegalText>
             Dans tous les cas où la responsabilité de SEIDO serait mise en cause et établie, seule sa faute lourde,
-            son dol, ou son manquement à l&apos;une de ses obligations essentielles pourrait lui être reproché.
+            son dol, ou son manquement à l'une de ses obligations essentielles pourrait lui être reproché.
             Dans ce cas, le total des indemnités à charge de SEIDO ne pourrait dépasser le montant facturé
             pour la période au cours de laquelle est survenu le dommage.
           </LegalText>
           <LegalText>
-            Toute réclamation à l&apos;égard de SEIDO doit, sous peine de déchéance, être formulée par e-mail avec
+            Toute réclamation à l'égard de SEIDO doit, sous peine de déchéance, être formulée par e-mail avec
             accusé de réception dans les <LegalHighlight>72 heures</LegalHighlight> suivant le fait générateur.
           </LegalText>
         </LegalSubsection>
@@ -316,7 +316,7 @@ export default function CGUPage() {
         <LegalSubsection title="Limites d'Internet">
           <LegalText>
             Le Client déclare avoir pris connaissance des caractéristiques et des limites du réseau internet et
-            des applications mobiles. Le Client accepte qu&apos;Internet et les applications mobiles ont des limites :
+            des applications mobiles. Le Client accepte qu'Internet et les applications mobiles ont des limites :
           </LegalText>
           <LegalList items={[
             "Les transmissions de données ne bénéficient que d'une fiabilité technique relative",
@@ -329,26 +329,26 @@ export default function CGUPage() {
       {/* Divisibilité */}
       <LegalSection title="Divisibilité">
         <LegalText>
-          Le fait qu&apos;une ou plusieurs dispositions des CGU seraient non valables, nulles ou non exécutables,
-          n&apos;entrave en rien la validité des autres dispositions. En pareil cas, SEIDO et le Client se concerteront
+          Le fait qu'une ou plusieurs dispositions des CGU seraient non valables, nulles ou non exécutables,
+          n'entrave en rien la validité des autres dispositions. En pareil cas, SEIDO et le Client se concerteront
           afin de remplacer la ou les dispositions non valables par une nouvelle disposition qui se rapprochera
-          le plus possible du but visé par l&apos;ancienne disposition.
+          le plus possible du but visé par l'ancienne disposition.
         </LegalText>
       </LegalSection>
 
       {/* Loi applicable */}
       <LegalSection title="Loi applicable et règlement des litiges">
         <LegalText>
-          Les CGU sont soumises au <LegalHighlight>droit belge</LegalHighlight>. L&apos;utilisation de SEIDO et ses services
+          Les CGU sont soumises au <LegalHighlight>droit belge</LegalHighlight>. L'utilisation de SEIDO et ses services
           sont régis par le droit belge. La langue de référence des CGU est le français.
         </LegalText>
         <LegalText>
           Tout CGU rédigées dans une autre langue ne sera considéré que comme une traduction à des fins commerciales
-          et d&apos;information. En cas de divergence entre le texte en français et le texte traduit, le texte français prévaudra.
+          et d'information. En cas de divergence entre le texte en français et le texte traduit, le texte français prévaudra.
         </LegalText>
         <LegalText>
-          A défaut d&apos;accord amiable entre le Client et SEIDO, tout différend ou litige relevant de l&apos;exécution ou
-          de l&apos;interprétation des CGU sera de la compétence exclusive des <LegalHighlight>tribunaux de l&apos;arrondissement
+          A défaut d'accord amiable entre le Client et SEIDO, tout différend ou litige relevant de l'exécution ou
+          de l'interprétation des CGU sera de la compétence exclusive des <LegalHighlight>tribunaux de l'arrondissement
             de Bruxelles (Belgique)</LegalHighlight>.
         </LegalText>
       </LegalSection>

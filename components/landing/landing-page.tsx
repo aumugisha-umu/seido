@@ -170,7 +170,7 @@ export function LandingPage() {
 
                 <FadeIn delay={300}>
                     <p className="text-center landing-caption text-white/40 max-w-2xl mx-auto italic mb-16">
-                        Sur base d&apos;un gestionnaire avec 100 biens en gestion et un taux horaire brut de 45€ (moyenne belge)
+                        Sur base d'un gestionnaire avec 100 biens en gestion et un taux horaire brut de 45€ (moyenne belge)
                     </p>
                 </FadeIn>
 
@@ -179,7 +179,7 @@ export function LandingPage() {
                     <div className="flex flex-col items-center justify-center mb-16 space-y-4">
                         <div className="h-16 w-px bg-gradient-to-b from-white/0 via-white/20 to-white/0" />
                         <div className="px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm landing-caption text-white/60">
-                            D&apos;où viennent ces pertes ?
+                            D'où viennent ces pertes ?
                         </div>
                         <div className="h-16 w-px bg-gradient-to-b from-white/0 via-white/20 to-white/0" />
                     </div>
@@ -456,7 +456,7 @@ export function LandingPage() {
                         <div className="mt-6 pt-4 border-t border-white/10 flex flex-col sm:flex-row gap-4 sm:gap-8">
                             <div className="flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                                <span className="landing-caption text-white/80"><strong className="text-green-400">Gratuit</strong> avec l&apos;abonnement annuel</span>
+                                <span className="landing-caption text-white/80"><strong className="text-green-400">Gratuit</strong> avec l'abonnement annuel</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-white/40"></span>
@@ -480,7 +480,7 @@ export function LandingPage() {
                         </h2>
                         <p className="landing-subtitle text-white/60">
                             Nous commençons par résoudre votre problème le plus douloureux : les interventions. <br />
-                            Mais notre ambition est de devenir votre <strong>Centre de Commandement Unique</strong>.
+                            Mais notre ambition est de devenir le <strong>centre de commandement unique</strong> de votre patrimoine immobilier.
                         </p>
                     </div>
                 </FadeIn>
@@ -649,7 +649,7 @@ export function LandingPage() {
                             </ul>
                             <div className="pt-4 border-t border-white/10 mb-6">
                                 <p className="landing-caption text-white/50">
-                                    Service d&apos;import pro disponible : 500€/jour
+                                    Service d'import pro disponible : 500€/jour
                                 </p>
                             </div>
                             <Link href="/auth/signup" className="w-full mt-auto">
@@ -691,7 +691,7 @@ export function LandingPage() {
                             <ul className="space-y-3 mb-6 flex-grow">
                                 <li className="flex items-center text-white">
                                     <CheckCircle2 className="w-5 h-5 text-blue-400 mr-3 flex-shrink-0" />
-                                    <span><strong>Service d&apos;import pro inclus</strong></span>
+                                    <span><strong>Service d'import pro inclus</strong></span>
                                 </li>
                                 <li className="flex items-center text-white/80">
                                     <CheckCircle2 className="w-5 h-5 text-blue-400 mr-3 flex-shrink-0" />
@@ -704,7 +704,7 @@ export function LandingPage() {
                             </ul>
                             <div className="pt-4 border-t border-blue-500/30 mb-6">
                                 <p className="landing-caption text-blue-300">
-                                    Notre équipe migre vos données (valeur jusqu&apos;à 2000€)
+                                    Notre équipe migre vos données (valeur jusqu'à 2000€)
                                 </p>
                             </div>
                             <Link href="/auth/signup" className="w-full mt-auto">
@@ -835,7 +835,7 @@ export function LandingPage() {
                             Prêt à passer au niveau supérieur ?
                         </h2>
                         <p className="landing-subtitle text-white/60 mb-4 relative z-10">
-                            Rejoignez l&apos;élite des gestionnaires immobiliers dès aujourd&apos;hui.
+                            Rejoignez l'élite des gestionnaires immobiliers dès aujourd'hui.
                         </p>
                         <p className="landing-body text-green-400 mb-10 relative z-10 font-medium">
                             1 mois gratuit, sans engagement, sans carte bancaire

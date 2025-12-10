@@ -295,7 +295,7 @@ export default function LeaseFormDetailsMergedV1({
             className="resize-none"
           />
           <p className="text-xs text-muted-foreground">
-            Informations complémentaires visibles uniquement par l&apos;équipe de gestion.
+            Informations complémentaires visibles uniquement par l'équipe de gestion.
           </p>
         </div>
 
@@ -315,7 +315,7 @@ export default function LeaseFormDetailsMergedV1({
             label="Pièces jointes (optionnel)"
           />
           <p className="text-xs text-muted-foreground">
-            Bail signé, état des lieux, attestation d&apos;assurance, diagnostics...
+            Bail signé, état des lieux, attestation d'assurance, diagnostics...
           </p>
         </div>
       </CardContent>

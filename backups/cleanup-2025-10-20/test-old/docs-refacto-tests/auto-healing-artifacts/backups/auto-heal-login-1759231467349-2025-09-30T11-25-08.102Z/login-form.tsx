@@ -104,7 +104,7 @@ export function LoginForm() {
             <strong>Email non confirmé ?</strong>
           </div>
           <p className="text-sm text-blue-700">
-            Si vous n&apos;avez pas reçu l&apos;email de confirmation, vous pouvez le renvoyer.
+            Si vous n'avez pas reçu l'email de confirmation, vous pouvez le renvoyer.
           </p>
           <Button
             type="button"

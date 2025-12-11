@@ -5,6 +5,8 @@ import { createBrowserSupabaseClient, createTenantService } from '@/lib/services
 import { useAuth } from './use-auth'
 import { useResolvedUserId } from './use-resolved-user-id'
 import { logger, logError } from '@/lib/logger'
+import type { TenantContractStatus } from '@/lib/services/domain/tenant.service'
+
 export interface TenantData {
   id: string
   reference: string
@@ -115,6 +117,7 @@ export const useTenantData = () => {
   const [tenantInterventions, setTenantInterventions] = useState<TenantIntervention[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [contractStatus, setContractStatus] = useState<TenantContractStatus>('none')
 
   // Utiliser des refs pour éviter les re-renders inutiles
   const loadingRef = useRef(false)
@@ -262,8 +265,8 @@ export const useTenantData = () => {
         setTenantData(transformedTenantData)
         setTenantProperties(transformedTenantProperties)
         setTenantStats(transformedStats)
-        setTenantStats(transformedStats)
         setTenantInterventions(transformedInterventions)
+        setContractStatus(data.contractStatus || 'none')
         lastResolvedIdRef.current = resolvedUserId
       }
     } catch (err) {
@@ -303,6 +306,7 @@ export const useTenantData = () => {
     tenantProperties,
     tenantStats,
     tenantInterventions,
+    contractStatus,
     loading,
     error,
     refreshData

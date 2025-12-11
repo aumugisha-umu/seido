@@ -780,6 +780,36 @@ export default function ContractFormContainer({
                 </CardContent>
               </Card>
 
+              {/* Guarantee info - Only show if guarantee is defined */}
+              {formData.guaranteeType && formData.guaranteeType !== 'pas_de_garantie' && (
+                <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
+                  <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-primary" />
+                      Garantie locative
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-6 space-y-3">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Type</p>
+                      <p className="font-medium mt-1">{GUARANTEE_TYPE_LABELS[formData.guaranteeType]}</p>
+                    </div>
+                    {formData.guaranteeAmount && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Montant</p>
+                        <p className="font-medium mt-1 text-primary">{formData.guaranteeAmount.toLocaleString('fr-FR')} €</p>
+                      </div>
+                    )}
+                    {formData.guaranteeNotes && (
+                      <div>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Notes</p>
+                        <p className="text-sm mt-1 text-muted-foreground">{formData.guaranteeNotes}</p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Contract info */}
               <Card className="border-border/60 shadow-sm hover:shadow-md transition-shadow">
                 <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">

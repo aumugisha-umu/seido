@@ -32,6 +32,7 @@ interface LocataireDashboardHybridProps {
   userName?: string
   userInitial?: string
   teamId?: string
+  canCreateIntervention?: boolean  // If false, hide intervention creation button
 }
 
 export default function LocataireDashboardHybrid({
@@ -42,7 +43,8 @@ export default function LocataireDashboardHybrid({
   error,
   userName: serverUserName,
   userInitial: serverUserInitial,
-  teamId: serverTeamId
+  teamId: serverTeamId,
+  canCreateIntervention = true
 }: LocataireDashboardHybridProps) {
   const router = useRouter()
   const { user } = useAuth()
@@ -229,23 +231,25 @@ export default function LocataireDashboardHybrid({
 
       <div className="dashboard__container space-y-8">
 
-        {/* --- ACTION ZONE (V3 Style) --- */}
-        <div className="bg-gray-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
-          <div className="relative z-10">
-            <h2 className="text-xl font-bold mb-2">Un problème technique ?</h2>
-            <p className="text-gray-300 mb-6 text-sm max-w-[80%]">Signalez-le rapidement pour une intervention.</p>
-            <Button
-              onClick={() => router.push('/locataire/interventions/nouvelle-demande')}
-              className="w-full bg-white text-black hover:bg-gray-100 font-bold h-12 rounded-xl px-8 justify-center"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Créer une demande
-            </Button>
+        {/* --- ACTION ZONE (V3 Style) - Only shown if can create interventions --- */}
+        {canCreateIntervention && (
+          <div className="bg-gray-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
+            <div className="relative z-10">
+              <h2 className="text-xl font-bold mb-2">Un problème technique ?</h2>
+              <p className="text-gray-300 mb-6 text-sm max-w-[80%]">Signalez-le rapidement pour une intervention.</p>
+              <Button
+                onClick={() => router.push('/locataire/interventions/nouvelle-demande')}
+                className="w-full bg-white text-black hover:bg-gray-100 font-bold h-12 rounded-xl px-8 justify-center"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Créer une demande
+              </Button>
+            </div>
+            <div className="absolute -right-4 -bottom-8 opacity-10">
+              <Wrench className="h-40 w-40" />
+            </div>
           </div>
-          <div className="absolute -right-4 -bottom-8 opacity-10">
-            <Wrench className="h-40 w-40" />
-          </div>
-        </div>
+        )}
 
         {/* --- STATS CARDS (Reusable Component) --- */}
         {(() => {

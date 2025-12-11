@@ -630,6 +630,72 @@ export class ContractContactRepository extends BaseRepository<ContractContact, C
   }
 
   /**
+   * Get ACTIVE contracts for a tenant user with lot and building details
+   * Used by TenantService to display tenant's properties
+   *
+   * @param userId - The tenant user ID
+   * @returns Active contracts with lot and building data
+   */
+  async findActiveContractsByUser(userId: string) {
+    try {
+      // Note: Only using columns that exist in the lots table schema
+      const { data, error } = await this.supabase
+        .from(this.tableName)
+        .select(`
+          id,
+          role,
+          is_primary,
+          contract:contract_id(
+            id,
+            title,
+            status,
+            start_date,
+            end_date,
+            lot:lot_id(
+              id,
+              reference,
+              floor,
+              category,
+              street,
+              city,
+              postal_code,
+              building:building_id(
+                id,
+                name,
+                address,
+                city,
+                postal_code,
+                description
+              )
+            )
+          )
+        `)
+        .eq('user_id', userId)
+        .in('role', ['locataire', 'colocataire'])
+
+      if (error) {
+        return createErrorResponse(handleError(error, 'contract_contact:findActiveContractsByUser'))
+      }
+
+      // Filter to only active contracts (status = 'actif')
+      const activeContracts = (data || []).filter(
+        item => item.contract?.status === 'actif'
+      )
+
+      logger.info({
+        userId,
+        totalContracts: data?.length || 0,
+        activeContracts: activeContracts.length
+      }, '✅ [CONTRACT-CONTACT-REPO] findActiveContractsByUser')
+
+      return { success: true as const, data: activeContracts }
+    } catch (error) {
+      logger.error({ error, userId }, '❌ [CONTRACT-CONTACT-REPO] findActiveContractsByUser error')
+      return createErrorResponse(handleError(error as Error, 'contract_contact:findActiveContractsByUser'))
+    }
+  }
+
+  /**
    * Set primary contact for a role in a contract
    */
   async setPrimary(contractId: string, userId: string, role: string) {

@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/use-auth"
-import { useRouter } from "next/navigation"
 import { TeamCheckModal } from "@/components/team-check-modal"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { useTenantData } from "@/hooks/use-tenant-data"
 import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
 import LocataireDashboardHybrid from "@/components/dashboards/locataire-dashboard-hybrid"
 import { logger } from '@/lib/logger'
+import { Clock, FileText } from "lucide-react"
 
 interface LocataireDashboardProps {
   userName?: string
@@ -18,9 +18,8 @@ interface LocataireDashboardProps {
 
 export default function LocataireDashboard({ userName, userInitial, teamId }: LocataireDashboardProps) {
   const { user } = useAuth()
-  const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
-  const { tenantData, tenantProperties, tenantInterventions, loading, error } = useTenantData()
+  const { tenantData, tenantProperties, tenantInterventions, contractStatus, loading, error } = useTenantData()
 
   // Pattern "mounted" to avoid React hydration error
   const [mounted, setMounted] = useState(false)
@@ -60,15 +59,77 @@ export default function LocataireDashboard({ userName, userInitial, teamId }: Lo
     )
   }
 
-  // Show empty state if no data
-  if (!tenantData) {
+  // Show state for tenants without any contract
+  if (contractStatus === 'none') {
     return (
-      <div className="p-8 text-center">
-        <p className="text-gray-500">Aucune donnée disponible.</p>
-      </div>
+      <>
+        <TeamCheckModal
+          isOpen={!hasTeam}
+          teamStatus={teamStatus}
+          userRole={user?.role}
+        />
+        <div className="flex flex-col items-center justify-center min-h-[60vh] p-8">
+          <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-8 max-w-md text-center shadow-lg border border-gray-100">
+            <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="w-8 h-8 text-amber-600" />
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Aucun contrat lié
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Votre compte n'est actuellement lié à aucun contrat de location.
+              Si vous êtes locataire, contactez votre gestionnaire pour qu'il associe votre compte à votre contrat.
+            </p>
+            <div className="bg-amber-50 rounded-lg p-4 text-left">
+              <p className="text-sm text-amber-800">
+                <strong>Besoin d'aide ?</strong><br />
+                Contactez votre gestionnaire immobilier pour obtenir l'accès à vos informations de location.
+              </p>
+            </div>
+          </div>
+        </div>
+      </>
     )
   }
 
+  // Show state for tenants with upcoming contract (a_venir)
+  // They can see their info but cannot create interventions
+  if (contractStatus === 'a_venir') {
+    return (
+      <>
+        <TeamCheckModal
+          isOpen={!hasTeam}
+          teamStatus={teamStatus}
+          userRole={user?.role}
+        />
+        <div className="mb-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+            <Clock className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-blue-900 font-medium">Contrat à venir</p>
+              <p className="text-blue-700 text-sm">
+                Votre contrat n'a pas encore démarré. Vous pouvez consulter vos informations,
+                mais la création de demandes d'intervention sera disponible à partir du début de votre bail.
+              </p>
+            </div>
+          </div>
+        </div>
+        <LocataireDashboardHybrid
+          tenantData={tenantData}
+          tenantProperties={tenantProperties}
+          tenantInterventions={tenantInterventions}
+          loading={loading}
+          error={error}
+          userName={userName}
+          userInitial={userInitial}
+          teamId={teamId}
+          canCreateIntervention={false}
+        />
+      </>
+    )
+  }
+
+  // Normal state: active contract - show full dashboard
   return (
     <>
       <TeamCheckModal
@@ -85,7 +146,9 @@ export default function LocataireDashboard({ userName, userInitial, teamId }: Lo
         userName={userName}
         userInitial={userInitial}
         teamId={teamId}
+        canCreateIntervention={true}
       />
     </>
   )
 }
+

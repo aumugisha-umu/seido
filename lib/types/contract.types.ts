@@ -13,14 +13,14 @@ import type { Database } from '@/lib/database.types'
 
 export type ContractType = 'bail_habitation' | 'bail_meuble'
 
-export type ContractStatus = 'brouillon' | 'a_venir' | 'actif' | 'expire' | 'resilie' | 'renouvele'
+// Enum for contract life cycle status
+// 'brouillon' is replaced by 'a_venir' as the initial state
+export type ContractStatus = 'a_venir' | 'actif' | 'expire' | 'resilie' | 'renouvele'
 
-export type GuaranteeType =
-  | 'pas_de_garantie'
-  | 'compte_proprietaire'
-  | 'compte_bloque'
-  | 'e_depot'
-  | 'autre'
+// Enum for guarantee types
+export type GuaranteeType = 'pas_de_garantie' | 'compte_proprietaire' | 'compte_bloque' | 'e_depot' | 'autre'
+
+export const DEFAULT_CONTRACT_STATUS: ContractStatus = 'a_venir'
 
 export type PaymentFrequency = 'mensuel' | 'trimestriel' | 'semestriel' | 'annuel'
 
@@ -487,7 +487,6 @@ export interface ContractWithCalculations extends ContractWithRelations {
  * Labels francais pour les statuts
  */
 export const CONTRACT_STATUS_LABELS: Record<ContractStatus, string> = {
-  brouillon: 'Brouillon',
   a_venir: 'À venir',
   actif: 'Actif',
   expire: 'Expiré',
@@ -557,7 +556,6 @@ export const CONTRACT_CONTACT_ROLE_LABELS: Record<ContractContactRole, string> =
  * Couleurs pour les badges de statut
  */
 export const CONTRACT_STATUS_COLORS: Record<ContractStatus, string> = {
-  brouillon: 'bg-gray-100 text-gray-800 border-gray-200',
   a_venir: 'bg-amber-100 text-amber-800 border-amber-200',
   actif: 'bg-green-100 text-green-800 border-green-200',
   expire: 'bg-red-100 text-red-800 border-red-200',

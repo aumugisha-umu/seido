@@ -181,17 +181,6 @@ export default function ContractDetailsClient({
             {/* Actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
               {/* Quick actions based on status */}
-              {contract.status === 'brouillon' && (
-                <Button
-                  onClick={handleActivate}
-                  disabled={isLoading}
-                  className="hidden sm:flex items-center gap-2"
-                >
-                  <PlayCircle className="h-4 w-4" />
-                  Activer
-                </Button>
-              )}
-
               {contract.status === 'actif' && (
                 <>
                   <Button

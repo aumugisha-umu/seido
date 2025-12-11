@@ -4,6 +4,7 @@ import { createServerActionContactService, createServerActionLotService, createC
 import type { LotInsert, ContactInvitationData, Building } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { revalidateTag, revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 
 /**
  * Server Action pour assigner un contact à un lot
@@ -72,8 +73,12 @@ export async function assignContactToLotAction(
  * Utilise le contexte de requête serveur pour accéder aux cookies (auth session)
  *
  * @param lotData - Données du lot à créer
+ * @param options - Options optionnelles incluant redirectTo pour redirection server-side
  */
-export async function createLotAction(lotData: LotInsert) {
+export async function createLotAction(
+  lotData: LotInsert,
+  options?: { redirectTo?: string }
+) {
   try {
     logger.info('[SERVER-ACTION] Creating lot with data:', lotData)
 
@@ -97,21 +102,21 @@ export async function createLotAction(lotData: LotInsert) {
     // ✅ Revalidate cache tags and paths after successful creation
     const createdLot = result.data
     const teamId = lotData.team_id
-    
+
     // Always revalidate lots cache
     revalidateTag('lots')
-    
+
     // Revalidate team-specific cache if team_id is available
     if (teamId) {
       revalidateTag(`lots-team-${teamId}`)
     }
-    
+
     // If lot is linked to a building, revalidate building caches
     const buildingId = createdLot?.building_id || lotData.building_id
     if (buildingId) {
       revalidateTag('buildings')
       revalidateTag(`building-${buildingId}`)
-      
+
       // Get building team_id to invalidate team-specific caches
       try {
         const supabase = await createServerActionSupabaseClient()
@@ -120,7 +125,7 @@ export async function createLotAction(lotData: LotInsert) {
           .select('team_id')
           .eq('id', buildingId)
           .single()
-        
+
         if (buildingData?.team_id) {
           revalidateTag(`buildings-team-${buildingData.team_id}`)
           // Also revalidate lots cache for the building's team
@@ -133,19 +138,30 @@ export async function createLotAction(lotData: LotInsert) {
         logger.warn('[SERVER-ACTION] Could not fetch building data for cache invalidation:', error)
       }
     }
-    
+
     // Revalidate main patrimoine pages
     revalidatePath('/gestionnaire/biens')
     revalidatePath('/gestionnaire/biens/lots')
-    
+
     // Revalidate lot detail page if lot ID is available
     if (createdLot?.id) {
       revalidatePath(`/gestionnaire/biens/lots/${createdLot.id}`)
     }
 
     logger.info('[SERVER-ACTION] Cache invalidated for lot creation')
+
+    // ✅ Redirection server-side si demandée (pattern Next.js 15)
+    if (options?.redirectTo) {
+      redirect(options.redirectTo)
+    }
+
     return { success: true, data: result.data }
   } catch (error) {
+    // ✅ redirect() throws NEXT_REDIRECT - propager normalement
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error
+    }
+
     logger.error('[SERVER-ACTION] Exception in createLotAction:', error)
     return {
       success: false,

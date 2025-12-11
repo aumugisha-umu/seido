@@ -223,10 +223,10 @@ export function LandingPage() {
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <h2 className="landing-h2 mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/60">
-                            Reprenez le contrôle de vos immeubles
+                            Reprenez le contrôle de votre patrimoine immobilière
                         </h2>
                         <p className="landing-subtitle text-white/60">
-                            Seido n'est pas juste un logiciel de gestion, c'est votre <strong>Centre de Contrôle Opérationnel</strong>. Visibilité totale, temps réel, zéro friction.
+                            Seido n'est pas un autre logiciel de gestion, c'est votre <strong>centre de contrôle opérationnel</strong>. Visibilité totale, temps réel, zéro friction.
                         </p>
                     </div>
                 </FadeIn>

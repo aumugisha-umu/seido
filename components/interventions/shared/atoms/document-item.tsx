@@ -50,6 +50,29 @@ export interface DocumentItemProps {
 }
 
 /**
+ * Labels français pour les types de documents
+ */
+const DOCUMENT_TYPE_LABELS: Record<string, string> = {
+  'photo_avant': 'Photo avant',
+  'photo_apres': 'Photo après',
+  'devis': 'Devis',
+  'facture': 'Facture',
+  'rapport': 'Rapport',
+  'plan': 'Plan',
+  'certificat': 'Certificat',
+  'garantie': 'Garantie',
+  'bon_de_commande': 'Bon de commande',
+  'autre': 'Autre'
+}
+
+/**
+ * Retourne le label français du type de document
+ */
+const getDocumentTypeLabel = (type: string): string | null => {
+  return DOCUMENT_TYPE_LABELS[type] || null
+}
+
+/**
  * Retourne l'icône appropriée selon le type de fichier
  */
 const getFileIcon = (filename: string) => {
@@ -189,12 +212,18 @@ export const DocumentItem = ({
 
       {/* Informations */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{document.name}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm font-medium truncate">{document.name}</p>
+          {/* Badge de catégorie */}
+          {document.type && getDocumentTypeLabel(document.type) && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 flex-shrink-0">
+              {getDocumentTypeLabel(document.type)}
+            </span>
+          )}
+        </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          {document.author && <span>Par {document.author}</span>}
-          {document.author && document.date && <span>•</span>}
           {document.date && <span>{formatDateShort(document.date)}</span>}
-          {(document.author || document.date) && document.size && <span>•</span>}
+          {document.date && document.size && <span>•</span>}
           {document.size && <span>{document.size}</span>}
         </div>
       </div>

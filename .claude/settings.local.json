@@ -19,7 +19,9 @@
       "Bash(ls:*)",
       "Bash(find:*)",
       "Bash(powershell:*)",
-      "WebFetch(domain:resend.com)"
+      "WebFetch(domain:resend.com)",
+      "Bash(cat:*)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

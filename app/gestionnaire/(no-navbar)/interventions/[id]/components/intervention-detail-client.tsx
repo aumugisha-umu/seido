@@ -14,13 +14,18 @@ import { Button } from '@/components/ui/button'
 import { ChatTab } from './chat-tab'
 import { DocumentsTab } from './documents-tab'
 
+// Chat complet avec threads et temps réel
+import { InterventionChatTab } from '@/components/interventions/intervention-chat-tab'
+
+// Modale d'upload de documents
+import { DocumentUploadDialog } from '@/components/interventions/document-upload-dialog'
+
 // Composants partagés pour le nouveau design
 import {
   // Types
   Participant,
   Quote as SharedQuote,
   TimeSlot as SharedTimeSlot,
-  Message,
   Comment as SharedComment,
   InterventionDocument,
   TimelineEventData,
@@ -35,8 +40,7 @@ import {
   CommentsCard,
   DocumentsCard,
   QuotesCard,
-  PlanningCard,
-  ConversationCard
+  PlanningCard
 } from '@/components/interventions/shared'
 
 // Modal pour choisir un créneau
@@ -65,6 +69,7 @@ import { ContactSelector, type ContactSelectorRef } from '@/components/contact-s
 
 // Actions
 import { assignUserAction, unassignUserAction } from '@/app/actions/intervention-actions'
+import { addInterventionComment } from '@/app/actions/intervention-comment-actions'
 
 // Modals
 import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
@@ -80,6 +85,7 @@ import { LinkedInterventionsSection, LinkedInterventionBanner } from '@/componen
 import { FinalizeMultiProviderButton } from '@/components/intervention/finalize-multi-provider-button'
 
 import type { Database } from '@/lib/database.types'
+import { createBrowserSupabaseClient } from '@/lib/services'
 
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
   building?: Database['public']['Tables']['buildings']['Row']
@@ -194,6 +200,12 @@ export function InterventionDetailClient({
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
   const [selectedSlotIdForChoice, setSelectedSlotIdForChoice] = useState<string | null>(null)
   const [isChooseModalOpen, setIsChooseModalOpen] = useState(false)
+
+  // Thread type sélectionné pour le chat (utilisé quand on clique sur une icône message)
+  const [selectedThreadType, setSelectedThreadType] = useState<string>('group')
+
+  // État pour la modale d'upload de documents
+  const [isDocumentUploadOpen, setIsDocumentUploadOpen] = useState(false)
 
   // Helpers for button visibility based on intervention status
   const canModifyOrCancel = !['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'].includes(intervention.status)
@@ -410,16 +422,37 @@ export function InterventionDetailClient({
     return events
   }, [intervention, requireQuote])
 
+  // Calculer les compteurs de messages non lus par type de thread
+  const unreadCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    threads.forEach(t => {
+      if ((t as any).unread_count && (t as any).unread_count > 0) {
+        counts[t.thread_type] = (counts[t.thread_type] || 0) + (t as any).unread_count
+      }
+    })
+    return counts
+  }, [threads])
+
   // Récupérer le slot complet pour la modale de choix
   const selectedFullSlotForChoice = selectedSlotIdForChoice
     ? timeSlots.find(s => s.id === selectedSlotIdForChoice)
     : null
 
-  // Date planifiée (si un créneau est sélectionné)
+  // Date planifiée (si un créneau est sélectionné/confirmé)
   const scheduledDate = timeSlots.find(s => s.status === 'selected')?.slot_date || null
 
-  // Statut du planning
-  const planningStatus = scheduledDate ? 'scheduled' : 'pending'
+  // Compter les créneaux proposés (non sélectionnés)
+  // Statuts DB: 'requested' (demandé), 'pending' (en attente), 'selected' (confirmé), 'rejected', 'cancelled'
+  const proposedSlotsCount = timeSlots.filter(s =>
+    s.status === 'pending' || s.status === 'requested'
+  ).length
+
+  // Statut du planning: 'scheduled' si confirmé, 'proposed' si créneaux proposés, 'pending' sinon
+  const planningStatus: 'pending' | 'proposed' | 'scheduled' | 'completed' = scheduledDate
+    ? 'scheduled'
+    : proposedSlotsCount > 0
+      ? 'proposed'
+      : 'pending'
 
   // Statut des devis
   const quotesStatus = transformedQuotes.some(q => q.status === 'approved')
@@ -430,9 +463,6 @@ export function InterventionDetailClient({
 
   // Montant du devis validé
   const selectedQuoteAmount = transformedQuotes.find(q => q.status === 'approved')?.amount
-
-  // Messages mock (à remplacer par de vraies données si disponibles)
-  const mockMessages: Message[] = useMemo(() => [], [])
 
   // Initialize planning hook with quote request data
   const planning = useInterventionPlanning(
@@ -876,15 +906,118 @@ export function InterventionDetailClient({
   // Callbacks pour le nouveau design PreviewHybrid
   // ============================================================================
 
-  // Callbacks pour les conversations
+  // Callbacks pour les conversations - switchent vers l'onglet conversations
   const handleConversationClick = (participantId: string) => {
     setActiveConversation(participantId)
+    // Déterminer le type de thread en fonction du rôle du participant
+    const isProvider = participants.providers.some(p => p.id === participantId)
+    const isTenant = participants.tenants.some(p => p.id === participantId)
+    if (isProvider) {
+      setSelectedThreadType('provider_to_managers')
+    } else if (isTenant) {
+      setSelectedThreadType('tenant_to_managers')
+    } else {
+      setSelectedThreadType('group')
+    }
+    // Switch vers l'onglet conversations
     setActiveTab('conversations')
   }
 
   const handleGroupConversationClick = () => {
     setActiveConversation('group')
+    setSelectedThreadType('group')
+    // Switch vers l'onglet conversations
     setActiveTab('conversations')
+  }
+
+  // Handler pour visualiser un document (ouvre dans un nouvel onglet)
+  const handleViewDocument = async (documentId: string) => {
+    const doc = documents.find(d => d.id === documentId)
+    if (!doc) {
+      toast({ title: "Erreur", description: "Document non trouvé", variant: "destructive" })
+      return
+    }
+
+    try {
+      const supabase = createBrowserSupabaseClient()
+      // Le bucket est privé, on doit utiliser une URL signée (valide 1 heure)
+      const { data, error } = await supabase.storage
+        .from(doc.storage_bucket)
+        .createSignedUrl(doc.storage_path, 3600) // 1 heure de validité
+
+      if (error) throw error
+
+      window.open(data.signedUrl, '_blank')
+    } catch (error) {
+      console.error('Error previewing document:', error)
+      toast({ title: "Erreur", description: "Impossible d'ouvrir le document", variant: "destructive" })
+    }
+  }
+
+  // Handler pour télécharger un document
+  const handleDownloadDocument = async (documentId: string) => {
+    const doc = documents.find(d => d.id === documentId)
+    if (!doc) {
+      toast({ title: "Erreur", description: "Document non trouvé", variant: "destructive" })
+      return
+    }
+
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const fileName = (doc as any).original_filename || doc.filename || 'document'
+
+      // Créer une URL signée avec l'option download pour forcer Content-Disposition: attachment
+      const { data, error } = await supabase.storage
+        .from(doc.storage_bucket)
+        .createSignedUrl(doc.storage_path, 3600, {
+          download: fileName
+        })
+
+      if (error) throw error
+
+      // Créer un élément <a> temporaire pour déclencher le téléchargement
+      const link = document.createElement('a')
+      link.href = data.signedUrl
+      link.download = fileName
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch (error) {
+      console.error('Error downloading document:', error)
+      toast({ title: "Erreur", description: "Impossible de télécharger le document", variant: "destructive" })
+    }
+  }
+
+  // Handler pour ajouter un commentaire
+  const handleAddComment = async (content: string) => {
+    try {
+      const result = await addInterventionComment({
+        interventionId: intervention.id,
+        content
+      })
+
+      if (result.success) {
+        toast({
+          title: 'Commentaire ajouté',
+          description: 'Votre commentaire a été enregistré'
+        })
+        router.refresh()
+      } else {
+        toast({
+          title: 'Erreur',
+          description: result.error || 'Impossible d\'ajouter le commentaire',
+          variant: 'destructive'
+        })
+      }
+    } catch (error) {
+      console.error('Error adding comment:', error)
+      toast({
+        title: 'Erreur',
+        description: 'Une erreur est survenue',
+        variant: 'destructive'
+      })
+    }
   }
 
   // Handler pour ouvrir la modale de choix de créneau
@@ -1319,6 +1452,7 @@ export function InterventionDetailClient({
             <InterventionSidebar
               participants={participants}
               currentUserRole="manager"
+              currentUserId={serverUserId}
               currentStatus={intervention.status}
               timelineEvents={timelineEvents}
               activeConversation={activeConversation}
@@ -1326,6 +1460,7 @@ export function InterventionDetailClient({
               onConversationClick={handleConversationClick}
               onGroupConversationClick={handleGroupConversationClick}
               assignmentMode={assignmentMode}
+              unreadCounts={unreadCounts}
             />
           }
           content={
@@ -1346,10 +1481,12 @@ export function InterventionDetailClient({
                       planning={{
                         scheduledDate,
                         status: planningStatus,
+                        proposedSlotsCount,
                         quotesCount: transformedQuotes.length,
                         quotesStatus,
                         selectedQuoteAmount
                       }}
+                      onNavigateToPlanning={() => setActiveTab('planning')}
                     />
                   </div>
 
@@ -1358,15 +1495,15 @@ export function InterventionDetailClient({
                     <DocumentsCard
                       documents={transformedDocuments}
                       userRole="manager"
-                      onUpload={() => console.log('Upload document')}
-                      onView={(id) => console.log('View document:', id)}
-                      onDownload={(id) => console.log('Download document:', id)}
+                      onUpload={() => setIsDocumentUploadOpen(true)}
+                      onView={handleViewDocument}
+                      onDownload={handleDownloadDocument}
                       className="overflow-hidden"
                     />
 
                     <CommentsCard
                       comments={transformedComments}
-                      onAddComment={(content) => console.log('Add comment:', content)}
+                      onAddComment={handleAddComment}
                       className="overflow-hidden"
                     />
                   </div>
@@ -1384,19 +1521,14 @@ export function InterventionDetailClient({
 
               {/* TAB: CONVERSATIONS */}
               <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
-                <ConversationCard
-                  messages={mockMessages}
+                <InterventionChatTab
+                  interventionId={intervention.id}
+                  threads={threads}
+                  initialMessagesByThread={initialMessagesByThread}
+                  initialParticipantsByThread={initialParticipantsByThread}
                   currentUserId={serverUserId}
-                  currentUserRole="manager"
-                  conversationType={activeConversation === 'group' ? 'group' : 'individual'}
-                  participantName={
-                    activeConversation !== 'group'
-                      ? [...participants.managers, ...participants.providers, ...participants.tenants]
-                        .find(p => p.id === activeConversation)?.name
-                      : undefined
-                  }
-                  onSendMessage={(content) => console.log('Send message:', content)}
-                  className="flex-1 mx-4"
+                  userRole={serverUserRole as 'gestionnaire' | 'locataire' | 'prestataire' | 'admin'}
+                  defaultThreadType={selectedThreadType}
                 />
               </TabsContent>
 
@@ -1474,6 +1606,17 @@ export function InterventionDetailClient({
           onContactCreated={handleContactCreated}
           onContactRemoved={handleContactRemoved}
           onRequestContactCreation={handleRequestContactCreation}
+        />
+
+        {/* Modale d'upload de documents */}
+        <DocumentUploadDialog
+          interventionId={intervention.id}
+          open={isDocumentUploadOpen}
+          onOpenChange={setIsDocumentUploadOpen}
+          onUploadComplete={() => {
+            setIsDocumentUploadOpen(false)
+            router.refresh()
+          }}
         />
       </div>
     </div>

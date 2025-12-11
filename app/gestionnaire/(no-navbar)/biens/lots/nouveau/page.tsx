@@ -11,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Home, Users, ArrowLeft, ArrowRight, Plus, X, User, MapPin, FileText, Building2, Check, Loader2 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useCreationSuccess } from "@/hooks/use-creation-success"
 import { BuildingInfoForm } from "@/components/building-info-form"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 import PropertySelector from "@/components/property-selector"
@@ -99,10 +98,9 @@ interface LotData {
 export default function NewLotPage() {
   const router = useRouter()
   const { toast } = useToast()
-  const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
-  const { data: managerData, forceRefetch: refetchManagerData } = useManagerStats()
+  const { data: managerData } = useManagerStats()
   const [currentStep, setCurrentStep] = useState(1)
   
   // États pour la gestion des gestionnaires de lot
@@ -1049,16 +1047,21 @@ export default function NewLotPage() {
           }
         }
 
-        // Succès - Rediriger vers la page de l'immeuble
-        await handleSuccess({
-          successTitle: `${successfulCreations.length} lot${successfulCreations.length > 1 ? 's créés' : ' créé'} avec succès`,
-          successDescription: `Les lots ont été créés et assignés à l'immeuble.`,
-          redirectPath: `/gestionnaire/biens/immeubles/${lotData.selectedBuilding}`,
-          refreshData: refetchManagerData,
+        // Succès - Rediriger vers la page de l'immeuble (navigation immédiate)
+        toast({
+          title: `${successfulCreations.length} lot${successfulCreations.length > 1 ? 's créés' : ' créé'} avec succès`,
+          description: `Les lots ont été créés et assignés à l'immeuble.`,
+          variant: "success",
         })
+        router.push(`/gestionnaire/biens/immeubles/${lotData.selectedBuilding}`)
 
         return
       } catch (error) {
+        // ✅ redirect() throws NEXT_REDIRECT - propager sans afficher d'erreur
+        if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+          throw error
+        }
+
         logger.error("❌ Error in multi-lot creation:", error)
         toast({
           title: "Erreur lors de la création des lots",
@@ -1180,16 +1183,21 @@ export default function NewLotPage() {
           }
         }
 
-        // Succès - Rediriger vers la page des biens
-        await handleSuccess({
-          successTitle: `${successfulCreations.length} lot${successfulCreations.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`,
-          successDescription: `Les lots ont été créés avec leurs adresses respectives.`,
-          redirectPath: `/gestionnaire/biens`,
-          refreshData: refetchManagerData,
+        // Succès - Rediriger vers la page des biens (navigation immédiate)
+        toast({
+          title: `${successfulCreations.length} lot${successfulCreations.length > 1 ? 's indépendants créés' : ' indépendant créé'} avec succès`,
+          description: `Les lots ont été créés avec leurs adresses respectives.`,
+          variant: "success",
         })
+        router.push(`/gestionnaire/biens`)
 
         return
       } catch (error) {
+        // ✅ redirect() throws NEXT_REDIRECT - propager sans afficher d'erreur
+        if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+          throw error
+        }
+
         logger.error("❌ Error in independent multi-lot creation:", error)
         toast({
           title: "Erreur lors de la création des lots indépendants",
@@ -1307,15 +1315,20 @@ export default function NewLotPage() {
         })
       }
 
-      // Gérer le succès avec la nouvelle stratégie
-      await handleSuccess({
-        successTitle: "Lot créé avec succès",
-        successDescription: `Le lot "${createdLot.reference}" a été créé et assigné à votre équipe.`,
-        redirectPath: "/gestionnaire/biens",
-        refreshData: refetchManagerData,
+      // Succès - Rediriger vers la page des biens (navigation immédiate)
+      toast({
+        title: "Lot créé avec succès",
+        description: `Le lot "${createdLot.reference}" a été créé et assigné à votre équipe.`,
+        variant: "success",
       })
-      
+      router.push("/gestionnaire/biens")
+
     } catch (error) {
+      // ✅ redirect() throws NEXT_REDIRECT - propager sans afficher d'erreur
+      if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+        throw error
+      }
+
       logger.error("❌ Error creating lot:", error)
       toast({
         title: "Erreur lors de la création",

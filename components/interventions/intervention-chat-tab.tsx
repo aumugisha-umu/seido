@@ -10,16 +10,13 @@
  * - Prestataire: Can see group + provider_to_managers
  */
 
-import { useState } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { useState, useEffect } from 'react'
+import { Card, CardContent } from '@/components/ui/card'
 import { MessageSquare, Users, UserCheck, Shield, Briefcase } from 'lucide-react'
 import { ChatInterface } from '@/components/chat/chat-interface'
 import { sendMessageAction } from '@/app/actions/conversation-actions'
 import { toast } from 'sonner'
 import type { Database } from '@/lib/database.types'
-import { truncateMessage, formatRelativeTime } from '@/lib/utils/chat-helpers'
-import { getConversationShortLabel } from '@/lib/utils/conversation-display'
 
 type Thread = Database['public']['Tables']['conversation_threads']['Row'] & {
   unread_count?: number  // Added by conversation service
@@ -39,6 +36,8 @@ export interface InterventionChatTabProps {
   initialParticipantsByThread?: Record<string, any[]>
   currentUserId: string
   userRole: UserRole
+  /** Type de thread à pré-sélectionner à l'ouverture */
+  defaultThreadType?: string
 }
 
 // ============================================================================
@@ -169,7 +168,8 @@ export function InterventionChatTab({
   initialMessagesByThread,
   initialParticipantsByThread,
   currentUserId,
-  userRole
+  userRole,
+  defaultThreadType
 }: InterventionChatTabProps) {
   // Get role-specific configuration
   const config = roleBasedConfig[userRole]
@@ -179,10 +179,24 @@ export function InterventionChatTab({
     config.visibleThreads.includes(thread.thread_type as ThreadType)
   )
 
-  // Active thread state
-  const [activeThread, setActiveThread] = useState<Thread | null>(
-    visibleThreads.length > 0 ? visibleThreads[0] : null
-  )
+  // Active thread state - pré-sélectionne le thread demandé ou le premier
+  const [activeThread, setActiveThread] = useState<Thread | null>(() => {
+    if (defaultThreadType) {
+      const targetThread = visibleThreads.find(t => t.thread_type === defaultThreadType)
+      if (targetThread) return targetThread
+    }
+    return visibleThreads.length > 0 ? visibleThreads[0] : null
+  })
+
+  // Réagir aux changements de defaultThreadType (quand on clique sur une icône message)
+  useEffect(() => {
+    if (defaultThreadType) {
+      const targetThread = visibleThreads.find(t => t.thread_type === defaultThreadType)
+      if (targetThread && targetThread.id !== activeThread?.id) {
+        setActiveThread(targetThread)
+      }
+    }
+  }, [defaultThreadType, visibleThreads, activeThread?.id])
 
   // Handle sending message
   const handleSendMessage = async (content: string, attachments?: string[]) => {
@@ -230,101 +244,28 @@ export function InterventionChatTab({
     )
   }
 
-  // Main layout: 2-column grid (thread selector + chat interface)
+  // Main layout: Chat interface only (no sidebar list)
+  // Le thread actif est déterminé par defaultThreadType ou le premier thread disponible
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-      {/* LEFT COLUMN: Thread selector sidebar */}
-      <div className="lg:col-span-1">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Conversations</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="space-y-1">
-              {visibleThreads.map((thread) => {
-                const threadConfig = config.threadConfigs[thread.thread_type as ThreadType]
-                const Icon = threadConfig?.icon || MessageSquare
-                const isActive = activeThread?.id === thread.id
-
-                return (
-                  <button
-                    key={thread.id}
-                    onClick={() => setActiveThread(thread)}
-                    className={`
-                      w-full text-left px-4 py-3 hover:bg-accent transition-colors
-                      ${isActive ? 'bg-accent border-l-2 border-primary' : ''}
-                    `}
-                  >
-                    <div className="flex items-start gap-3">
-                      <Icon className="w-5 h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-
-                      <div className="flex-1 min-w-0 space-y-1">
-                        {/* Header: Titre + Timestamp */}
-                        <div className="flex items-baseline justify-between gap-2">
-                          <p className="text-sm font-medium truncate">
-                            {getConversationShortLabel(thread.thread_type, userRole)}
-                          </p>
-                          {thread.last_message?.[0] && (
-                            <span className="text-xs text-muted-foreground flex-shrink-0">
-                              {formatRelativeTime(thread.last_message[0].created_at)}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Preview: Auteur + Message + Badge */}
-                        <div className="flex items-center gap-2">
-                          <p className="text-xs text-muted-foreground truncate flex-1">
-                            {thread.last_message?.[0] ? (
-                              <>
-                                <span className="font-medium">
-                                  {thread.last_message[0].user?.name || 'Utilisateur'}
-                                </span>
-                                {': '}
-                                {truncateMessage(thread.last_message[0].content)}
-                              </>
-                            ) : (
-                              <span className="italic">Aucun message</span>
-                            )}
-                          </p>
-
-                          {/* Badge non lu */}
-                          {thread.unread_count && thread.unread_count > 0 && (
-                            <Badge variant="destructive" className="text-xs min-w-[20px] h-5 flex items-center justify-center rounded-full px-2 flex-shrink-0">
-                              {thread.unread_count}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
+    <div className="h-full flex flex-col">
+      {activeThread ? (
+        <ChatInterface
+          threadId={activeThread.id}
+          currentUserId={currentUserId}
+          userRole={userRole}
+          initialMessages={initialMessagesByThread}
+          initialParticipants={initialParticipantsByThread}
+          onSendMessage={handleSendMessage}
+        />
+      ) : (
+        <Card className="flex-1">
+          <CardContent className="flex items-center justify-center py-12 h-full">
+            <p className="text-muted-foreground">
+              Aucune conversation disponible
+            </p>
           </CardContent>
         </Card>
-      </div>
-
-      {/* RIGHT COLUMN: Chat interface */}
-      <div className="lg:col-span-3">
-        {activeThread ? (
-          <ChatInterface
-            threadId={activeThread.id}
-            currentUserId={currentUserId}
-            userRole={userRole}
-            initialMessages={initialMessagesByThread}
-            initialParticipants={initialParticipantsByThread}
-            onSendMessage={handleSendMessage}
-          />
-        ) : (
-          <Card>
-            <CardContent className="flex items-center justify-center py-12">
-              <p className="text-muted-foreground">
-                Sélectionnez une conversation pour commencer
-              </p>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      )}
     </div>
   )
 }

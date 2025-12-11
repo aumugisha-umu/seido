@@ -21,6 +21,7 @@ import type {
   ContractContact,
   ContractContactInsert,
   ContractContactUpdate,
+  ContractContactRole,
   ContractDocument,
   ContractDocumentInsert,
   ContractDocumentUpdate,
@@ -69,8 +70,11 @@ export class ContractService {
   /**
    * Détermine le statut du contrat basé sur les dates
    * - Si end_date < aujourd'hui → 'expire'
-   * - Si start_date <= aujourd'hui → 'actif'
-   * - Sinon → 'brouillon' (contrat futur)
+   * - Si start_date > aujourd'hui → 'a_venir' (contrat futur programmé)
+   * - Sinon → 'actif' (contrat en cours)
+   *
+   * Note: "brouillon" n'est plus attribué automatiquement.
+   * Le statut "brouillon" est réservé aux contrats explicitement incomplets.
    */
   private determineStatusFromDates(startDate: string, durationMonths: number): ContractStatus {
     const today = new Date()
@@ -87,10 +91,10 @@ export class ContractService {
     if (end < today) {
       return 'expire'
     }
-    if (start <= today) {
-      return 'actif'
+    if (start > today) {
+      return 'a_venir' // Contrat futur programmé
     }
-    return 'brouillon' // Contrat futur
+    return 'actif' // Contrat en cours
   }
 
   // ==========================================================================
@@ -160,19 +164,28 @@ export class ContractService {
    * Create a new contract with validation
    */
   async create(data: ContractInsert): Promise<{ success: true; data: Contract } | { success: false; error: { code: string; message: string } }> {
-    // Validate no active contract exists for this lot
-    const hasActiveResult = await this.contractRepository.hasActiveContract(data.lot_id)
-    if (isSuccessResponse(hasActiveResult) && hasActiveResult.data) {
+    // Validate dates first
+    this.validateDates(data.start_date, data.duration_months)
+
+    // Calculate end_date for overlap validation
+    const startDate = data.start_date
+    const endDate = this.calculateEndDate(startDate, data.duration_months)
+
+    // Check for overlapping contracts on this lot (allows multiple contracts if dates don't overlap)
+    const overlapResult = await this.contractRepository.hasOverlappingContract(
+      data.lot_id,
+      startDate,
+      endDate
+    )
+
+    if (isSuccessResponse(overlapResult) && overlapResult.data) {
       throw new ConflictException(
-        'Un contrat actif existe déjà pour ce lot. Veuillez d\'abord clôturer ou résilier le contrat existant.',
+        'Un contrat existe déjà pour ce lot sur cette période. Les dates de début et fin ne peuvent pas chevaucher un contrat existant.',
         'contracts',
-        'lot_id',
+        'date_overlap',
         data.lot_id
       )
     }
-
-    // Validate dates
-    this.validateDates(data.start_date, data.duration_months)
 
     // Déterminer le statut automatiquement basé sur les dates si non spécifié
     const autoStatus = this.determineStatusFromDates(
@@ -294,13 +307,19 @@ export class ContractService {
     // Validate contract has required data
     this.validateContractForActivation(existing.data)
 
-    // Check no other active contract on this lot
-    const hasActiveResult = await this.contractRepository.hasActiveContract(existing.data.lot_id)
-    if (isSuccessResponse(hasActiveResult) && hasActiveResult.data) {
+    // Check for overlapping contracts on this lot (excludes current contract)
+    const overlapResult = await this.contractRepository.hasOverlappingContract(
+      existing.data.lot_id,
+      existing.data.start_date,
+      existing.data.end_date,
+      id // Exclude the contract being activated
+    )
+
+    if (isSuccessResponse(overlapResult) && overlapResult.data) {
       throw new ConflictException(
-        'Un autre contrat actif existe déjà pour ce lot',
+        'Un autre contrat existe sur ce lot pour la même période. Veuillez modifier les dates ou résilier le contrat existant.',
         'contracts',
-        'lot_id',
+        'date_overlap',
         existing.data.lot_id
       )
     }
@@ -401,6 +420,194 @@ export class ContractService {
     }
 
     return newContractResult
+  }
+
+  // ==========================================================================
+  // ACTIVE TENANTS BY LOT
+  // ==========================================================================
+
+  /**
+   * Récupère les locataires des contrats ACTIFS d'un lot
+   *
+   * @param lotId - ID du lot
+   * @returns Liste des locataires + indicateur si le lot est occupé
+   *
+   * Note: Seuls les contrats avec status='actif' sont considérés.
+   * Les contrats 'a_venir' ne comptent pas (bail pas encore commencé).
+   */
+  async getActiveTenantsByLot(lotId: string): Promise<{
+    success: true
+    data: {
+      tenants: Array<{
+        id: string
+        user_id: string
+        name: string
+        email: string | null
+        phone: string | null
+        role: ContractContactRole
+        contract_id: string
+        contract_title: string
+        is_primary: boolean
+      }>
+      hasActiveTenants: boolean
+    }
+  } | { success: false; error: { code: string; message: string } }> {
+    try {
+      // Get contracts for this lot - only active status
+      const contractsResult = await this.contractRepository.findByLot(lotId, {
+        includeExpired: false
+      })
+
+      if (isErrorResponse(contractsResult)) {
+        logger.error({ lotId, error: contractsResult.error }, 'Failed to get contracts for lot')
+        return { success: false, error: contractsResult.error }
+      }
+
+      // Filter to only 'actif' status (not 'a_venir', not 'brouillon', etc.)
+      const activeContracts = (contractsResult.data || []).filter(
+        contract => contract.status === 'actif'
+      )
+
+      // Extract tenants from active contracts
+      const tenants: Array<{
+        id: string
+        user_id: string
+        name: string
+        email: string | null
+        phone: string | null
+        role: ContractContactRole
+        contract_id: string
+        contract_title: string
+        is_primary: boolean
+      }> = []
+
+      // Track user_ids to avoid duplicates (same tenant on multiple contracts)
+      const seenUserIds = new Set<string>()
+
+      for (const contract of activeContracts) {
+        if (contract.contacts && Array.isArray(contract.contacts)) {
+          for (const contact of contract.contacts) {
+            // Only include tenants (locataire, colocataire)
+            if (contact.role === 'locataire' || contact.role === 'colocataire') {
+              // Avoid duplicates - prefer primary tenant
+              if (seenUserIds.has(contact.user_id)) {
+                // If this one is primary and existing one isn't, replace
+                const existingIndex = tenants.findIndex(t => t.user_id === contact.user_id)
+                if (existingIndex >= 0 && contact.is_primary && !tenants[existingIndex].is_primary) {
+                  tenants[existingIndex] = {
+                    id: contact.id,
+                    user_id: contact.user_id,
+                    name: contact.user?.name || 'Unknown',
+                    email: contact.user?.email || null,
+                    phone: (contact.user as any)?.phone || null,
+                    role: contact.role,
+                    contract_id: contract.id,
+                    contract_title: contract.title,
+                    is_primary: contact.is_primary
+                  }
+                }
+                continue
+              }
+
+              seenUserIds.add(contact.user_id)
+              tenants.push({
+                id: contact.id,
+                user_id: contact.user_id,
+                name: contact.user?.name || 'Unknown',
+                email: contact.user?.email || null,
+                phone: (contact.user as any)?.phone || null,
+                role: contact.role,
+                contract_id: contract.id,
+                contract_title: contract.title,
+                is_primary: contact.is_primary
+              })
+            }
+          }
+        }
+      }
+
+      // Sort: primary tenants first, then by name
+      tenants.sort((a, b) => {
+        if (a.is_primary !== b.is_primary) return a.is_primary ? -1 : 1
+        return a.name.localeCompare(b.name)
+      })
+
+      logger.info({
+        lotId,
+        activeContractsCount: activeContracts.length,
+        tenantsCount: tenants.length
+      }, 'Active tenants retrieved for lot')
+
+      return {
+        success: true,
+        data: {
+          tenants,
+          hasActiveTenants: tenants.length > 0
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      logger.error({ lotId, error: errorMessage }, 'Error getting active tenants for lot')
+      return {
+        success: false,
+        error: { code: 'FETCH_ERROR', message: errorMessage }
+      }
+    }
+  }
+
+  /**
+   * Récupère la liste des lot_id qui sont occupés (ont un contrat actif avec locataire)
+   * Optimisé pour éviter N+1 queries dans la liste des biens
+   *
+   * @param teamId - ID de l'équipe
+   * @returns Set des lot_id occupés
+   */
+  async getOccupiedLotIdsByTeam(teamId: string): Promise<{
+    success: true
+    data: Set<string>
+  } | { success: false; error: { code: string; message: string } }> {
+    try {
+      // Get all contracts for this team with status 'actif' only
+      const contractsResult = await this.contractRepository.findByTeam(teamId, {
+        includeExpired: false
+      })
+
+      if (isErrorResponse(contractsResult)) {
+        logger.error({ teamId, error: contractsResult.error }, 'Failed to get contracts for team')
+        return { success: false, error: contractsResult.error }
+      }
+
+      // Filter to only 'actif' contracts and extract lot_ids with tenants
+      const occupiedLotIds = new Set<string>()
+
+      for (const contract of contractsResult.data || []) {
+        // Only 'actif' contracts count (not 'a_venir', not 'brouillon', etc.)
+        if (contract.status !== 'actif') continue
+
+        // Check if contract has at least one tenant
+        const hasTenant = contract.contacts?.some(
+          (c: { role: ContractContactRole }) => c.role === 'locataire' || c.role === 'colocataire'
+        )
+
+        if (hasTenant && contract.lot_id) {
+          occupiedLotIds.add(contract.lot_id)
+        }
+      }
+
+      logger.info({
+        teamId,
+        occupiedLotsCount: occupiedLotIds.size
+      }, 'Occupied lot IDs retrieved for team')
+
+      return { success: true, data: occupiedLotIds }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      logger.error({ teamId, error: errorMessage }, 'Error getting occupied lot IDs for team')
+      return {
+        success: false,
+        error: { code: 'FETCH_ERROR', message: errorMessage }
+      }
+    }
   }
 
   // ==========================================================================
@@ -618,6 +825,20 @@ export class ContractService {
         durationMonths
       )
     }
+  }
+
+  /**
+   * Calcule la date de fin à partir de la date de début et durée en mois.
+   * Reproduit le calcul PostgreSQL: start_date + make_interval(months => duration_months)
+   *
+   * @param startDate - Date de début (format YYYY-MM-DD)
+   * @param durationMonths - Durée en mois
+   * @returns Date de fin au format YYYY-MM-DD
+   */
+  private calculateEndDate(startDate: string, durationMonths: number): string {
+    const start = new Date(startDate)
+    start.setMonth(start.getMonth() + durationMonths)
+    return start.toISOString().split('T')[0]
   }
 
   /**

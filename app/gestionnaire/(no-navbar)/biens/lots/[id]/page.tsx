@@ -4,7 +4,8 @@ import {
   createServerLotService,
   createServerInterventionService,
   createServerLotContactRepository,
-  createServerBuildingRepository
+  createServerBuildingRepository,
+  createServerContractService
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
 import LotDetailsClient from './lot-details-client'
@@ -234,11 +235,39 @@ export default async function LotDetailsPage({
       }
     }
 
-    // Calculate occupation from lot_contacts
-    const hasTenant = transformedContacts.some((contact: { user: { role?: string } }) =>
-      contact.user?.role === 'locataire'
-    )
-    logger.info('🏠 [LOT-PAGE-SERVER] Lot occupation status:', hasTenant ? "Occupied" : "Vacant")
+    // Load contracts for this lot
+    logger.info('📍 [LOT-PAGE-SERVER] Step 3c: Loading contracts...', { lotId: id })
+    let contracts: any[] = []
+    const contractService = await createServerContractService()
+    try {
+      const contractsResult = await contractService.getByLot(id, { includeExpired: true })
+
+      if (contractsResult.success && contractsResult.data) {
+        contracts = contractsResult.data
+        logger.info('✅ [LOT-PAGE-SERVER] Contracts loaded', {
+          contractCount: contracts.length,
+          elapsed: `${Date.now() - startTime}ms`
+        })
+      }
+    } catch (error) {
+      logger.warn('⚠️ [LOT-PAGE-SERVER] Could not load contracts', { error })
+      contracts = []
+    }
+
+    // Calculate occupation from ACTIVE CONTRACTS (not lot_contacts)
+    // Only contracts with status='actif' count (not 'a_venir')
+    let hasTenant = false
+    try {
+      const tenantsResult = await contractService.getActiveTenantsByLot(id)
+      hasTenant = tenantsResult.success && tenantsResult.data?.hasActiveTenants || false
+      logger.info('🏠 [LOT-PAGE-SERVER] Lot occupation status (from contracts):', {
+        status: hasTenant ? "Occupied" : "Vacant",
+        activeTenantsCount: tenantsResult.success ? tenantsResult.data?.tenants.length : 0
+      })
+    } catch (error) {
+      logger.warn('⚠️ [LOT-PAGE-SERVER] Could not check active tenants, defaulting to vacant', { error })
+      hasTenant = false
+    }
 
     // Load interventions with documents (for documents tab)
     logger.info('📍 [LOT-PAGE-SERVER] Step 4: Loading interventions with documents...')
@@ -289,6 +318,7 @@ export default async function LotDetailsPage({
         contacts={transformedContacts}
         buildingContacts={buildingContacts}
         interventionsWithDocs={interventionsWithDocs}
+        contracts={contracts}
         isOccupied={hasTenant}
         teamId={team.id}
       />

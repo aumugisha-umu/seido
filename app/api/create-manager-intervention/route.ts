@@ -522,35 +522,25 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // ✅ NEW 2025-10-15: Auto-assign tenants from lot_contacts (if lot intervention)
+    // ✅ UPDATED 2025-12-10: Auto-assign tenants from ACTIVE CONTRACTS (not lot_contacts)
+    // Only contracts with status='actif' are considered (not 'a_venir')
     if (lotId) {
-      logger.info({}, "👤 Extracting and assigning tenants from lot_contacts...")
+      logger.info({}, "👤 Extracting and assigning tenants from active contracts...")
 
       try {
-        const { data: tenantContactsData, error: tenantsError } = await supabase
-          .from('lot_contacts')
-          .select(`
-            user_id,
-            is_primary,
-            users!inner (
-              id,
-              name,
-              email,
-              role
-            )
-          `)
-          .eq('lot_id', lotId)
-          .eq('users.role', 'locataire')
+        const { createServerContractService } = await import('@/lib/services')
+        const contractService = await createServerContractService()
+        const tenantsResult = await contractService.getActiveTenantsByLot(lotId)
 
-        if (tenantsError) {
-          logger.error({ error: tenantsError }, "⚠️ Error fetching tenants from lot_contacts")
-        } else if (tenantContactsData && tenantContactsData.length > 0) {
-          // Prepare tenant assignments
-          const tenantAssignments = tenantContactsData.map((contact: any, index: number) => ({
+        if (!tenantsResult.success) {
+          logger.error({ error: tenantsResult.error }, "⚠️ Error fetching tenants from active contracts")
+        } else if (tenantsResult.data.tenants.length > 0) {
+          // Prepare tenant assignments from active contracts
+          const tenantAssignments = tenantsResult.data.tenants.map((tenant, index) => ({
             intervention_id: intervention.id,
-            user_id: contact.user_id,
+            user_id: tenant.user_id,
             role: 'locataire',
-            is_primary: contact.is_primary || index === 0, // Use lot_contacts is_primary or first tenant
+            is_primary: tenant.is_primary || index === 0, // Use contract is_primary or first tenant
             assigned_by: user.id
           }))
 
@@ -562,10 +552,13 @@ export async function POST(request: NextRequest) {
           if (tenantAssignError) {
             logger.error({ error: tenantAssignError }, "⚠️ Error assigning tenants")
           } else {
-            logger.info({ count: tenantAssignments.length }, "✅ Tenants auto-assigned from lot_contacts")
+            logger.info({
+              count: tenantAssignments.length,
+              tenants: tenantsResult.data.tenants.map(t => ({ name: t.name, contract: t.contract_title }))
+            }, "✅ Tenants auto-assigned from active contracts")
           }
         } else {
-          logger.info({}, "ℹ️ No tenants found in lot_contacts for this lot")
+          logger.info({}, "ℹ️ No active tenants found in contracts for this lot")
         }
       } catch (error) {
         logger.error({ error }, "❌ Error in tenant auto-assignment")

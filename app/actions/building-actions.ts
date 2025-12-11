@@ -7,6 +7,7 @@
 
 import { createServerActionCompositeService, createServerActionSupabaseClient, createServerActionBuildingService } from '@/lib/services'
 import { revalidatePath, revalidateTag } from 'next/cache'
+import { redirect } from 'next/navigation'
 import type { CreateCompletePropertyData, CompositeOperationResult } from '@/lib/services/domain/composite.service'
 import type { Building, Lot } from '@/lib/services/core/service-types'
 import { logger } from '@/lib/logger'
@@ -54,13 +55,22 @@ export async function createCompleteProperty(
       revalidateTag(`lots-team-${data.building.team_id}`)
       revalidatePath('/gestionnaire/biens')
       revalidatePath('/gestionnaire/biens/immeubles')
-    } else {
-      logger.error('❌ [SERVER-ACTION] Property creation failed:', result.error)
+
+      // ✅ Redirection server-side (pattern Next.js 15)
+      // redirect() throws NEXT_REDIRECT - intercepté par le catch ci-dessous
+      redirect('/gestionnaire/biens')
     }
 
+    // Retourner le résultat seulement si échec (pour afficher l'erreur côté client)
+    logger.error('❌ [SERVER-ACTION] Property creation failed:', result.error)
     return result
 
   } catch (error) {
+    // ✅ redirect() throws NEXT_REDIRECT - propager normalement pour que Next.js gère la navigation
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error
+    }
+
     logger.error('❌ [SERVER-ACTION] Unexpected error creating property:', error)
 
     return {

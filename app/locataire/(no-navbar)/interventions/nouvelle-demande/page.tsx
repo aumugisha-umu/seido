@@ -19,7 +19,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useCreationSuccess } from "@/hooks/use-creation-success"
 import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
 import { generateId, generateInterventionId } from "@/lib/id-utils"
 import { useAuth } from "@/hooks/use-auth"
@@ -34,7 +33,6 @@ import { useToast } from "@/hooks/use-toast"
 
 export default function NouvelleDemandePage() {
   const router = useRouter()
-  const { handleSuccess } = useCreationSuccess()
   const { user } = useAuth()
   const { toast } = useToast()
 
@@ -252,18 +250,20 @@ export default function NouvelleDemandePage() {
 
       // Store the real intervention ID
       setCreatedInterventionId(result.intervention.id)
-      
-      // Gérer le succès avec la nouvelle stratégie
-      await handleSuccess({
-        successTitle: "Demande d'intervention créée avec succès",
-        successDescription: `Votre demande "${result.intervention.title}" a été transmise à votre gestionnaire.`,
-        redirectPath: "/locataire/dashboard",
-        refreshData: refreshData,
+
+      // ✅ Pattern simplifié: toast + redirect immédiat (sans délai 500ms)
+      toast({
+        title: "Demande d'intervention créée avec succès",
+        description: `Votre demande "${result.intervention.title}" a été transmise à votre gestionnaire.`,
+        variant: "success",
       })
+
+      // Redirect immédiat vers le dashboard
+      router.push("/locataire/dashboard")
 
     } catch (error) {
       logger.error("❌ Error creating intervention:", error)
-      
+
       // Store error message to display in UI
       setCreationError(error instanceof Error ? error.message : 'Erreur inconnue lors de la création')
     } finally {
@@ -636,8 +636,3 @@ function LoadingSkeleton() {
   )
 }
 
-// Fonction helper pour rafraîchir les données après création
-function refreshData() {
-  // Placeholder - cette fonction pourrait être utilisée pour rafraîchir les données
-  return Promise.resolve()
-}

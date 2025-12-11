@@ -140,7 +140,18 @@ export function InterventionConfirmationSummary({
   // Séparer les contacts par rôle
   const gestionnaires = data.contacts.filter(c => c.role.toLowerCase().includes('gestionnaire'))
   const prestataires = data.contacts.filter(c => c.role.toLowerCase().includes('prestataire'))
-  const locataires = data.contacts.filter(c => c.role.toLowerCase().includes('locataire'))
+  let locataires = data.contacts.filter(c => c.role.toLowerCase().includes('locataire'))
+
+  // ✅ Fallback: Si aucun locataire dans contacts mais tenant existe dans logement
+  if (locataires.length === 0 && data.logement.tenant) {
+    locataires = [{
+      id: 'tenant-from-logement',
+      name: data.logement.tenant,
+      role: 'Locataire',
+      email: undefined,
+      phone: undefined,
+    }]
+  }
 
   return (
     <div className="max-w-4xl mx-auto">

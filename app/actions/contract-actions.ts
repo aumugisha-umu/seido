@@ -886,3 +886,351 @@ export async function getExpiringContracts(
     }
   }
 }
+
+// ============================================================================
+// OVERLAP VALIDATION
+// ============================================================================
+
+/**
+ * Détails d'un contrat en chevauchement
+ */
+export interface OverlappingContractInfo {
+  id: string
+  title: string
+  start_date: string
+  end_date: string
+  status: ContractStatus
+}
+
+/**
+ * Résultat de la vérification de chevauchement
+ */
+export interface OverlapCheckResult {
+  hasOverlap: boolean
+  overlappingContracts: OverlappingContractInfo[]
+  nextAvailableDate: string | null
+}
+
+/**
+ * Vérifie les contrats qui chevauchent une période donnée pour un lot.
+ * Utilisé pour l'affichage temps réel dans le formulaire de création/édition.
+ *
+ * @param lotId - ID du lot
+ * @param startDate - Date de début (format YYYY-MM-DD)
+ * @param durationMonths - Durée en mois
+ * @param excludeContractId - ID du contrat à exclure (mode édition)
+ */
+export async function getOverlappingContracts(
+  lotId: string,
+  startDate: string,
+  durationMonths: number,
+  excludeContractId?: string
+): Promise<ActionResult<OverlapCheckResult>> {
+  try {
+    // Calculer la date de fin
+    const endDate = calculateEndDate(startDate, durationMonths)
+
+    logger.debug(
+      { lotId, startDate, endDate, durationMonths, excludeContractId },
+      '🔍 [CONTRACT-ACTION] Checking for overlapping contracts'
+    )
+
+    // Accès direct au repository (pas besoin du service complet ici)
+    const { createServerActionContractRepository } = await import('@/lib/services/repositories/contract.repository')
+    const repository = await createServerActionContractRepository()
+
+    const result = await repository.findOverlappingContracts(
+      lotId,
+      startDate,
+      endDate,
+      excludeContractId
+    )
+
+    if (!result.success) {
+      return { success: false, error: result.error.message }
+    }
+
+    const overlappingContracts = result.data as OverlappingContractInfo[]
+    const hasOverlap = overlappingContracts.length > 0
+
+    // Calculer la prochaine date disponible si chevauchement
+    let nextAvailableDate: string | null = null
+    if (hasOverlap) {
+      nextAvailableDate = calculateNextAvailableDate(overlappingContracts)
+    }
+
+    logger.debug(
+      { hasOverlap, count: overlappingContracts.length, nextAvailableDate },
+      '✅ [CONTRACT-ACTION] Overlap check complete'
+    )
+
+    return {
+      success: true,
+      data: {
+        hasOverlap,
+        overlappingContracts,
+        nextAvailableDate
+      }
+    }
+
+  } catch (error) {
+    logger.error('❌ [CONTRACT-ACTION] Error checking overlapping contracts:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
+}
+
+/**
+ * Calcule la date de fin à partir de la date de début et la durée
+ */
+function calculateEndDate(startDate: string, durationMonths: number): string {
+  const start = new Date(startDate)
+  start.setMonth(start.getMonth() + durationMonths)
+  return start.toISOString().split('T')[0]
+}
+
+/**
+ * Calcule la prochaine date disponible après tous les contrats en chevauchement.
+ * La date retournée est le lendemain de la fin du dernier contrat conflictuel.
+ */
+function calculateNextAvailableDate(
+  overlappingContracts: OverlappingContractInfo[]
+): string {
+  // Trier par date de fin décroissante pour trouver la plus tardive
+  const sortedByEndDate = [...overlappingContracts].sort(
+    (a, b) => new Date(b.end_date).getTime() - new Date(a.end_date).getTime()
+  )
+
+  // La prochaine date est le lendemain de la fin du dernier contrat
+  const latestEndDate = sortedByEndDate[0].end_date
+  const nextDate = new Date(latestEndDate)
+  nextDate.setDate(nextDate.getDate() + 1) // Jour suivant
+
+  return nextDate.toISOString().split('T')[0]
+}
+
+// ============================================================================
+// STATUS TRANSITION (AUTOMATIC)
+// ============================================================================
+
+/**
+ * Résultat de la transition automatique des statuts
+ */
+export interface StatusTransitionResult {
+  activatedCount: number      // Contrats passés de "a_venir" à "actif"
+  expiredCount: number        // Contrats passés à "expire"
+  activatedIds: string[]
+  expiredIds: string[]
+}
+
+/**
+ * Transition automatique des statuts des contrats.
+ * - Les contrats "a_venir" dont la date de début est <= aujourd'hui → "actif"
+ * - Les contrats "actif" dont la date de fin est < aujourd'hui → "expire"
+ *
+ * Cette action peut être appelée :
+ * - Par un cron job quotidien
+ * - Au chargement de la page des contrats (pour sync immédiate)
+ *
+ * @param teamId - Optionnel, limiter la transition à une équipe
+ */
+export async function transitionContractStatuses(
+  teamId?: string
+): Promise<ActionResult<StatusTransitionResult>> {
+  try {
+    const today = new Date().toISOString().split('T')[0]
+
+    logger.info(
+      { teamId, today },
+      '🔄 [CONTRACT-ACTION] Starting automatic status transition'
+    )
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // 1. Trouver les contrats "a_venir" dont la date de début est passée
+    let queryAVenir = supabase
+      .from('contracts')
+      .select('id, title, start_date, end_date')
+      .eq('status', 'a_venir')
+      .lte('start_date', today)
+      .is('deleted_at', null)
+
+    if (teamId) {
+      queryAVenir = queryAVenir.eq('team_id', teamId)
+    }
+
+    const { data: toActivate, error: errorAVenir } = await queryAVenir
+
+    if (errorAVenir) {
+      logger.error({ error: errorAVenir }, '❌ [CONTRACT-ACTION] Error fetching a_venir contracts')
+      return { success: false, error: errorAVenir.message }
+    }
+
+    // 2. Trouver les contrats "actif" dont la date de fin est passée
+    let queryActif = supabase
+      .from('contracts')
+      .select('id, title, start_date, end_date')
+      .eq('status', 'actif')
+      .lt('end_date', today)
+      .is('deleted_at', null)
+
+    if (teamId) {
+      queryActif = queryActif.eq('team_id', teamId)
+    }
+
+    const { data: toExpire, error: errorActif } = await queryActif
+
+    if (errorActif) {
+      logger.error({ error: errorActif }, '❌ [CONTRACT-ACTION] Error fetching actif contracts to expire')
+      return { success: false, error: errorActif.message }
+    }
+
+    const activatedIds: string[] = []
+    const expiredIds: string[] = []
+
+    // 3. Mettre à jour les contrats "a_venir" → "actif"
+    if (toActivate && toActivate.length > 0) {
+      const idsToActivate = toActivate.map(c => c.id)
+
+      const { error: updateError } = await supabase
+        .from('contracts')
+        .update({ status: 'actif' })
+        .in('id', idsToActivate)
+
+      if (updateError) {
+        logger.error({ error: updateError }, '❌ [CONTRACT-ACTION] Error activating contracts')
+      } else {
+        activatedIds.push(...idsToActivate)
+        logger.info(
+          { count: idsToActivate.length, ids: idsToActivate },
+          '✅ [CONTRACT-ACTION] Contracts activated (a_venir → actif)'
+        )
+      }
+    }
+
+    // 4. Mettre à jour les contrats "actif" → "expire"
+    if (toExpire && toExpire.length > 0) {
+      const idsToExpire = toExpire.map(c => c.id)
+
+      const { error: updateError } = await supabase
+        .from('contracts')
+        .update({ status: 'expire' })
+        .in('id', idsToExpire)
+
+      if (updateError) {
+        logger.error({ error: updateError }, '❌ [CONTRACT-ACTION] Error expiring contracts')
+      } else {
+        expiredIds.push(...idsToExpire)
+        logger.info(
+          { count: idsToExpire.length, ids: idsToExpire },
+          '✅ [CONTRACT-ACTION] Contracts expired (actif → expire)'
+        )
+      }
+    }
+
+    const result: StatusTransitionResult = {
+      activatedCount: activatedIds.length,
+      expiredCount: expiredIds.length,
+      activatedIds,
+      expiredIds
+    }
+
+    logger.info(result, '✅ [CONTRACT-ACTION] Status transition complete')
+
+    return { success: true, data: result }
+
+  } catch (error) {
+    logger.error('❌ [CONTRACT-ACTION] Error in status transition:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
+}
+
+// ============================================================================
+// LOT TENANT QUERIES (for occupation status & intervention assignments)
+// ============================================================================
+
+import type { ContractContactRole } from '@/lib/types/contract.types'
+
+/**
+ * Tenant information from active contracts
+ */
+export interface ActiveTenant {
+  id: string
+  user_id: string
+  name: string
+  email: string | null
+  phone: string | null
+  role: ContractContactRole
+  contract_id: string
+  contract_title: string
+  is_primary: boolean
+}
+
+/**
+ * Result of getting active tenants for a lot
+ */
+export interface ActiveTenantsResult {
+  tenants: ActiveTenant[]
+  hasActiveTenants: boolean
+}
+
+/**
+ * Récupère les locataires des contrats ACTIFS d'un lot.
+ *
+ * Utilisé pour :
+ * - Déterminer si un lot est "Occupé" (hasActiveTenants = true)
+ * - Auto-assigner les locataires lors de la création d'une intervention
+ *
+ * @param lotId - ID du lot
+ * @returns Liste des locataires avec indicateur d'occupation
+ *
+ * Note: Seuls les contrats avec status='actif' sont considérés.
+ * Les contrats 'a_venir' ne comptent pas (bail pas encore commencé).
+ */
+export async function getActiveTenantsByLotAction(
+  lotId: string
+): Promise<ActionResult<ActiveTenantsResult>> {
+  try {
+    logger.info('🏠 [CONTRACT-ACTION] Getting active tenants for lot:', { lotId })
+
+    // Verify auth
+    const auth = await getAuthContext()
+    if (!auth.success) {
+      return { success: false, error: auth.error }
+    }
+
+    // Get active tenants via service
+    const service = await createServerActionContractService()
+    const result = await service.getActiveTenantsByLot(lotId)
+
+    if (result.success) {
+      logger.info('✅ [CONTRACT-ACTION] Active tenants retrieved:', {
+        lotId,
+        tenantsCount: result.data.tenants.length,
+        hasActiveTenants: result.data.hasActiveTenants
+      })
+
+      return {
+        success: true,
+        data: {
+          tenants: result.data.tenants,
+          hasActiveTenants: result.data.hasActiveTenants
+        }
+      }
+    }
+
+    return { success: false, error: result.error.message }
+
+  } catch (error) {
+    logger.error('❌ [CONTRACT-ACTION] Error getting active tenants:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
+}

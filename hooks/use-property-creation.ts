@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { useManagerStats } from "@/hooks/use-manager-stats"
-import { useCreationSuccess } from "@/hooks/use-creation-success"
+import { useToast } from "@/hooks/use-toast"
 import { logger } from "@/lib/logger"
 import {
   createServerTeamService,
@@ -70,8 +70,8 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
   const router = useRouter()
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
-  const { data: managerData, forceRefetch: refetchManagerData } = useManagerStats()
-  const { handleSuccess } = useCreationSuccess()
+  const { data: managerData } = useManagerStats()
+  const { toast } = useToast()
 
   // Services initialization
   const [services] = useState(() => ({
@@ -719,12 +719,13 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
       if (config.onSuccess) {
         config.onSuccess(result)
       } else {
-        await handleSuccess({
-          successTitle: formData.mode === 'building' ? "Immeuble créé avec succès" : "Lot créé avec succès",
-          successDescription: result.message,
-          redirectPath: "/gestionnaire/biens",
-          refreshData: refetchManagerData,
+        // ✅ Pattern simplifié: toast + redirect immédiat (sans délai 500ms)
+        toast({
+          title: formData.mode === 'building' ? "Immeuble créé avec succès" : "Lot créé avec succès",
+          description: result.message,
+          variant: "success",
         })
+        router.push("/gestionnaire/biens")
       }
 
     } catch (err) {
@@ -741,7 +742,7 @@ export function usePropertyCreation(config: PropertyCreationConfig): UseProperty
     } finally {
       setIsCreating(false)
     }
-  }, [formData, teamData, user, validateStep, services, config, handleSuccess, refetchManagerData])
+  }, [formData, teamData, user, validateStep, services, config, toast, router])
 
   // Validation utilities
   const validateForm = useCallback((): boolean => {

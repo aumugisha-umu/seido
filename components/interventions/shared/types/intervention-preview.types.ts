@@ -243,6 +243,8 @@ export interface InterventionPreviewProps {
 export interface ParticipantsListProps {
   participants: ParticipantsGroup
   currentUserRole: UserRole
+  /** ID de l'utilisateur connecté (pour masquer son icône de conversation) */
+  currentUserId?: string
   /** Callback pour conversation individuelle avec un participant */
   onConversationClick?: (participantId: string) => void
   /** Callback pour conversation de groupe */
@@ -337,8 +339,10 @@ export interface InterventionDetailsCardProps {
   planning?: {
     /** Date planifiée */
     scheduledDate?: string | null
-    /** Statut du planning */
-    status: 'pending' | 'scheduled' | 'completed'
+    /** Statut du planning: pending (rien), proposed (créneaux proposés), scheduled (confirmé), completed */
+    status: 'pending' | 'proposed' | 'scheduled' | 'completed'
+    /** Nombre de créneaux proposés (pour status='proposed') */
+    proposedSlotsCount?: number
     /** Nombre de devis reçus */
     quotesCount?: number
     /** Statut des devis */
@@ -346,6 +350,8 @@ export interface InterventionDetailsCardProps {
     /** Montant du devis validé */
     selectedQuoteAmount?: number | null
   }
+  /** Callback pour naviguer vers l'onglet Planning */
+  onNavigateToPlanning?: () => void
   className?: string
 }
 
@@ -374,6 +380,8 @@ export type AssignmentMode = 'single' | 'group' | 'separate'
 export interface InterventionSidebarProps {
   participants: ParticipantsGroup
   currentUserRole: UserRole
+  /** ID de l'utilisateur connecté (pour masquer son icône de conversation) */
+  currentUserId?: string
   currentStatus: string
   /** Historique des événements de la timeline (date, heure, auteur) */
   timelineEvents?: TimelineEventData[]
@@ -386,5 +394,7 @@ export interface InterventionSidebarProps {
   showConversationButtons?: boolean
   /** Mode d'assignation (single/group/separate) */
   assignmentMode?: AssignmentMode
+  /** Compteurs de messages non lus par type de thread */
+  unreadCounts?: Record<string, number>
   className?: string
 }

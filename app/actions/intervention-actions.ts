@@ -11,6 +11,7 @@ import {
   createServerActionSupabaseClient
 } from '@/lib/services'
 import { revalidatePath, revalidateTag } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
@@ -132,6 +133,9 @@ async function getAuthenticatedUser() {
 /**
  * Create a new intervention (for tenant requests)
  * Used by InterventionRequestForm component
+ *
+ * @param data - Intervention data
+ * @param options - Optional configuration including redirectTo for server-side redirect
  */
 export async function createInterventionAction(
   data: {
@@ -145,7 +149,8 @@ export async function createInterventionAction(
     tenant_comment?: string
     specific_location?: string
     requested_date?: Date
-  }
+  },
+  options?: { redirectTo?: string }
 ): Promise<ActionResult<Intervention>> {
   try {
     // Auth check
@@ -203,8 +208,18 @@ export async function createInterventionAction(
     }
 
     logger.info({ interventionId: intervention.id }, 'Intervention created successfully by tenant')
+
+    // Server-side redirect if requested (Next.js 15 pattern)
+    if (options?.redirectTo) {
+      redirect(options.redirectTo)
+    }
+
     return { success: true, data: intervention }
   } catch (error) {
+    // Propagate NEXT_REDIRECT (thrown by redirect())
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error
+    }
     logger.error({ error }, 'Unexpected error in createInterventionAction')
     return { success: false, error: 'Erreur inattendue' }
   }

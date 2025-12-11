@@ -40,12 +40,14 @@ import {
   Save
 } from 'lucide-react'
 import { logger } from '@/lib/logger'
+import { useContractUpload } from '@/hooks/use-contract-upload'
 import type {
   ContractFormData,
   PaymentFrequency,
   GuaranteeType,
   ContractContactRole,
-  ContractWithRelations
+  ContractWithRelations,
+  ContractDocumentType
 } from '@/lib/types/contract.types'
 import {
   GUARANTEE_TYPE_LABELS,
@@ -172,8 +174,26 @@ export default function ContractFormContainer({
   const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
+
+  // Document upload hook with category support
+  const {
+    files: documentFiles,
+    isUploading: isUploadingDocuments,
+    addFiles: addDocumentFiles,
+    removeFile: removeDocumentFile,
+    updateFileDocumentType,
+    uploadFiles: uploadDocumentFiles,
+    hasFiles: hasDocuments,
+    hasPendingUploads
+  } = useContractUpload({
+    onUploadComplete: (documentIds) => {
+      logger.info({ documentIds }, '✅ [CONTRACT-FORM] Documents uploaded successfully')
+    },
+    onUploadError: (error) => {
+      toast.error(error)
+    }
+  })
 
   // Initialize form data based on mode
   const [formData, setFormData] = useState<Partial<ContractFormData>>(() => {
@@ -450,6 +470,12 @@ export default function ContractFormContainer({
           })
         }
 
+        // Upload documents with their categories
+        if (hasPendingUploads) {
+          logger.info({ fileCount: documentFiles.length }, '📤 [CONTRACT-FORM] Uploading documents...')
+          await uploadDocumentFiles(contractId)
+        }
+
         // Send notification
         await createContractNotification(contractId)
 
@@ -481,6 +507,12 @@ export default function ContractFormContainer({
         // Sync contacts (add/remove/update)
         await syncContacts(contractId)
 
+        // Upload new documents with their categories (edit mode)
+        if (hasPendingUploads) {
+          logger.info({ fileCount: documentFiles.length }, '📤 [CONTRACT-FORM] Uploading new documents...')
+          await uploadDocumentFiles(contractId)
+        }
+
         toast.success('Contrat mis à jour avec succès')
         router.push(`/gestionnaire/contrats/${contractId}`)
       }
@@ -490,7 +522,7 @@ export default function ContractFormContainer({
     } finally {
       setIsSubmitting(false)
     }
-  }, [mode, formData, teamId, existingContract, router, currentStep, validateStep, selectedLot, syncContacts])
+  }, [mode, formData, teamId, existingContract, router, currentStep, validateStep, selectedLot, syncContacts, hasPendingUploads, documentFiles.length, uploadDocumentFiles])
 
   // Page title based on mode
   const pageTitle = mode === 'create' ? 'Nouveau bail' : 'Modifier le contrat'
@@ -527,7 +559,7 @@ export default function ContractFormContainer({
           </div>
         )
 
-      // Step 2: Merged Details (Dates + Payments)
+      // Step 2: Merged Details (Dates + Payments + Documents with categories)
       case 1:
         return (
           <LeaseFormDetailsMerged
@@ -539,9 +571,14 @@ export default function ContractFormContainer({
             paymentFrequency={formData.paymentFrequency as PaymentFrequency || 'mensuel'}
             rentAmount={formData.rentAmount || 0}
             chargesAmount={formData.chargesAmount || 0}
-            files={uploadedFiles}
-            onFilesChange={setUploadedFiles}
+            files={documentFiles}
+            onAddFiles={addDocumentFiles}
+            onRemoveFile={removeDocumentFile}
+            onUpdateFileType={updateFileDocumentType}
+            isUploading={isUploadingDocuments}
             onFieldChange={(field, value) => updateField(field as keyof ContractFormData, value)}
+            lotId={formData.lotId}
+            existingContractId={existingContract?.id}
           />
         )
 

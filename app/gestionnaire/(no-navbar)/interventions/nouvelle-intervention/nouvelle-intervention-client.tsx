@@ -29,7 +29,6 @@ import {
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
-import { useCreationSuccess } from "@/hooks/use-creation-success"
 import { useEffect } from "react"
 import { useSearchParams } from "next/navigation"
 import { useSaveFormState, useRestoreFormState } from "@/hooks/use-form-persistence"
@@ -44,6 +43,8 @@ import { ContactSection } from "@/components/ui/contact-section"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { interventionSteps } from "@/lib/step-configurations"
 import { logger, logError } from '@/lib/logger'
+import { getTeamContactsAction } from '@/app/actions/contacts'
+import { getActiveTenantsByLotAction } from '@/app/actions/contract-actions'
 import { AssignmentSectionV2 } from "@/components/intervention/assignment-section-v2"
 import { useInterventionUpload, DOCUMENT_TYPES } from "@/hooks/use-intervention-upload"
 import { InterventionFileAttachment } from "@/components/intervention/intervention-file-attachment"
@@ -72,6 +73,7 @@ interface BuildingsData {
   buildings: Building[]
   lots: Lot[]
   teamId: string | null
+  userId: string | null  // ✅ Ajout pour pré-sélection gestionnaire
 }
 
 interface NouvelleInterventionClientProps {
@@ -148,8 +150,7 @@ export default function NouvelleInterventionClient({
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
 
   const router = useRouter()
-  // const { toast } = useToast()
-  const { handleSuccess } = useCreationSuccess()
+  const { toast } = useToast()
   const searchParams = useSearchParams()
   const { user, loading: authLoading } = useAuth()
 
@@ -240,25 +241,18 @@ export default function NouvelleInterventionClient({
     selectedProviders: selectedProviderIds.length
   })
 
-  // Fonction pour charger les données réelles depuis la DB avec logique unifiée
-  const loadRealData = async () => {
-    logger.info("📡 loadRealData démarré avec user:", user?.id)
-
-    // ✅ Check services are ready
-    if (!services) {
-      logger.info("⏳ Services not ready yet, skipping data load")
-      return
-    }
+  // Fonction pour charger l'équipe de l'utilisateur (les contacts sont chargés séparément)
+  const loadUserTeam = async () => {
+    logger.info("📡 loadUserTeam démarré avec user:", user?.id)
 
     if (!user?.id) {
-      logger.info("⚠️ Pas d'utilisateur, arrêt de loadRealData")
+      logger.info("⚠️ Pas d'utilisateur, arrêt de loadUserTeam")
       return
     }
 
     setLoading(true)
     try {
-      logger.info("🔄 Chargement des données en cours...")
-      // 1. ✅ APPEL API: Récupérer l'équipe de l'utilisateur
+      // ✅ Récupérer l'équipe de l'utilisateur
       const teamsResponse = await fetch(`/api/user-teams?userId=${user.id}`)
       if (!teamsResponse.ok) {
         logger.error("❌ Failed to fetch user teams")
@@ -269,63 +263,21 @@ export default function NouvelleInterventionClient({
       const team = teams[0]
       if (team) {
         setCurrentUserTeam(team)
-
-        // 2. ✅ APPEL API: Utiliser la route API au lieu du service browser
-        const response = await fetch(`/api/team-contacts?teamId=${team.id}`)
-        if (!response.ok) {
-          logger.error("❌ Failed to fetch team contacts")
-          return
-        }
-        const contactsResult = await response.json()
-        const contacts = contactsResult?.contacts || []
-        logger.info("📋 All team contacts:", contacts.map((c: any) => ({ id: c.id, name: c.name, role: c.role, provider_category: c.provider_category })))
-        
-        // Filtrer les gestionnaires avec la même logique que les prestataires
-        const managersData = contacts
-          .filter((contact: unknown) => determineAssignmentType(contact) === 'manager')
-          .map((contact: unknown) => ({
-            id: contact.id,
-            name: contact.name,
-            role: "Gestionnaire",
-            email: contact.email,
-            phone: contact.phone,
-            isCurrentUser: contact.email === user.email,
-            type: "gestionnaire",
-          }))
-        
-        // Filtrer les prestataires avec la même logique
-        const providersData = contacts
-          .filter((contact: unknown) => determineAssignmentType(contact) === 'provider')
-          .map((contact: unknown) => ({
-            id: contact.id,
-            name: contact.name,
-            role: "Prestataire",
-            email: contact.email,
-            phone: contact.phone,
-            speciality: contact.speciality,
-            isCurrentUser: false,
-            type: "prestataire",
-          }))
-
-        logger.info("👥 Managers filtrés:", managersData.map(m => ({ id: m.id, name: m.name, email: m.email, isCurrentUser: m.isCurrentUser })))
-        logger.info("🔧 Providers filtrés:", providersData.map(p => ({ id: p.id, name: p.name, email: p.email })))
-        
-        setManagers(managersData)
-        setProviders(providersData)
-
-        // Pré-sélectionner l'utilisateur connecté comme gestionnaire
-        const currentManager = managersData.find(manager => manager.isCurrentUser)
-        if (currentManager && selectedManagerIds.length === 0) {
-          logger.info("🏠 Pré-sélection du gestionnaire connecté:", { id: currentManager.id, name: currentManager.name })
-          setSelectedManagerIds([String(currentManager.id)])
-        }
+        logger.info("✅ User team loaded:", { id: team.id, name: team.name })
       }
     } catch (error) {
-      logger.error("Erreur lors du chargement des données:", error)
+      logger.error("Erreur lors du chargement de l'équipe:", error)
     } finally {
       setLoading(false)
     }
   }
+
+  // ✅ Charger l'équipe utilisateur au démarrage
+  useEffect(() => {
+    if (user?.id && !currentUserTeam) {
+      loadUserTeam()
+    }
+  }, [user?.id])
 
   // ✅ Auto-sélectionner le contact créé après retour de la création
   useEffect(() => {
@@ -422,7 +374,7 @@ export default function NouvelleInterventionClient({
     }
   }
 
-  // Step 2: Load data when services become available
+  // Step 2: Load data when services become available (for lot/building related data)
   useEffect(() => {
     if (!services) {
       logger.info("⏳ [DATA-LOAD] Services not yet initialized, waiting...")
@@ -433,9 +385,84 @@ export default function NouvelleInterventionClient({
       return
     }
 
-    logger.info("🔄 [DATA-LOAD] Services ready, loading contacts for user:", user.email)
-    loadRealData()
+    logger.info("🔄 [DATA-LOAD] Services ready for user:", user.email)
+    // Note: Contacts are now loaded separately via the dedicated useEffect below
   }, [services, user?.id])
+
+  // ✅ Charger les contacts dès que teamId est disponible (userId depuis Server Component)
+  // Ne dépend PAS de useAuth() - données disponibles au premier rendu !
+  useEffect(() => {
+    const teamId = initialBuildingsData.teamId
+    const userId = initialBuildingsData.userId
+
+    if (!teamId) {
+      logger.info("⏳ [CONTACTS-LOAD] Waiting for teamId")
+      return
+    }
+
+    const loadContacts = async () => {
+      logger.info("📡 [CONTACTS-LOAD] Loading contacts for team:", teamId, "userId:", userId)
+
+      try {
+        const contactsResult = await getTeamContactsAction(teamId)
+        if (!contactsResult.success) {
+          logger.error("❌ [CONTACTS-LOAD] Failed to fetch team contacts:", contactsResult.error)
+          return
+        }
+
+        const contacts = contactsResult.data || []
+        logger.info("📋 [CONTACTS-LOAD] Loaded contacts:", contacts.length)
+
+        // Filtrer les gestionnaires
+        const managersData = contacts
+          .filter((contact: any) => determineAssignmentType(contact) === 'manager')
+          .map((contact: any) => ({
+            id: contact.id,
+            name: contact.name,
+            role: "Gestionnaire",
+            email: contact.email,
+            phone: contact.phone,
+            isCurrentUser: userId ? String(contact.id) === String(userId) : false,
+            type: "gestionnaire" as const,
+          }))
+
+        // Filtrer les prestataires
+        const providersData = contacts
+          .filter((contact: any) => determineAssignmentType(contact) === 'provider')
+          .map((contact: any) => ({
+            id: contact.id,
+            name: contact.name,
+            role: "Prestataire",
+            email: contact.email,
+            phone: contact.phone,
+            speciality: contact.speciality,
+            isCurrentUser: false,
+            type: "prestataire" as const,
+          }))
+
+        logger.info("👥 [CONTACTS-LOAD] Managers:", managersData.length, "Providers:", providersData.length)
+
+        setManagers(managersData)
+        setProviders(providersData)
+
+        // Pré-sélectionner l'utilisateur connecté comme gestionnaire
+        const currentUserManager = managersData.find((m: any) => m.isCurrentUser)
+        if (currentUserManager) {
+          logger.info("🏠 [CONTACTS-LOAD] Pre-selecting current user:", currentUserManager.name)
+          setSelectedManagerIds(prevIds => {
+            if (prevIds.length === 0) {
+              return [String(currentUserManager.id)]
+            }
+            return prevIds
+          })
+        }
+      } catch (error) {
+        logger.error("❌ [CONTACTS-LOAD] Error:", error)
+      }
+    }
+
+    loadContacts()
+  }, [initialBuildingsData.teamId, initialBuildingsData.userId])  // ✅ Pas de user?.id !
 
   useEffect(() => {
     if (isPreFilled) return // Prevent re-execution if already pre-filled
@@ -703,6 +730,40 @@ export default function NouvelleInterventionClient({
 
       if (lotResult && lotResult.success && lotResult.data) {
         const lotData = lotResult.data as any
+
+        // ✅ Charger les locataires actifs depuis les contrats pour obtenir email et téléphone
+        let tenantName: string | null = lotData.tenant?.name || null
+        let tenantEmail: string | null = null
+        let tenantPhone: string | null = null
+        let tenants: Array<{ name: string; email: string | null; phone: string | null }> = []
+
+        try {
+          const tenantsResult = await getActiveTenantsByLotAction(lotIdStr)
+          if (tenantsResult.success && tenantsResult.data?.tenants.length > 0) {
+            // Prendre le locataire principal ou le premier
+            const primaryTenant = tenantsResult.data.tenants.find(t => t.is_primary)
+              || tenantsResult.data.tenants[0]
+
+            tenantName = primaryTenant.name
+            tenantEmail = primaryTenant.email
+            tenantPhone = primaryTenant.phone
+
+            // Stocker tous les locataires
+            tenants = tenantsResult.data.tenants.map(t => ({
+              name: t.name,
+              email: t.email,
+              phone: t.phone
+            }))
+
+            logger.info("✅ [LOT-SELECT] Tenant data loaded from contracts:", {
+              primaryTenant: tenantName,
+              tenantsCount: tenants.length
+            })
+          }
+        } catch (tenantError) {
+          logger.warn("⚠️ [LOT-SELECT] Could not load tenant data from contracts:", tenantError)
+        }
+
         setSelectedLogement({
           id: lotData.id,
           name: lotData.reference,
@@ -711,7 +772,10 @@ export default function NouvelleInterventionClient({
           address: lotData.building?.address || "",
           buildingId: lotData.building_id || lotData.building?.id,
           floor: lotData.floor,
-          tenant: lotData.tenant?.name || null,
+          tenant: tenantName,
+          tenantEmail,
+          tenantPhone,
+          tenants, // Liste de tous les locataires
           is_occupied: lotData.is_occupied || false
         })
         setSelectedLotId(String(lotData.id))
@@ -978,21 +1042,15 @@ export default function NouvelleInterventionClient({
 
       logger.info("✅ Intervention created successfully:", result)
 
-      // Gérer le succès avec vidage du cache (la navigation forcera le rechargement)
-      await handleSuccess({
-        successTitle: "Intervention créée avec succès",
-        successDescription: `L'intervention "${result.intervention.title}" a été créée et assignée.`,
-        redirectPath: `/gestionnaire/interventions/${result.intervention.id}`,
-        refreshData: async () => {
-          // Vider le cache pour forcer le rechargement des interventions lors de la navigation
-          // const { createServerStatsService } = await import("@/lib/services")
-          if (user?.id) {
-            logger.info("Cache clearing for user:", user.id)
-            // Stats service cache clearing functionality would be handled by new architecture
-          }
-        },
-        hardRefreshFallback: false, // La navigation vers une nouvelle page force naturellement le rechargement
+      // ✅ Pattern simplifié: toast + redirect immédiat (sans délai 500ms)
+      toast({
+        title: "Intervention créée avec succès",
+        description: `L'intervention "${result.intervention.title}" a été créée et assignée.`,
+        variant: "success",
       })
+
+      // Redirect immédiat vers la page de détail de l'intervention
+      router.push(`/gestionnaire/interventions/${result.intervention.id}`)
 
     } catch (error) {
       logger.error("❌ Error creating intervention:", error)
@@ -1254,15 +1312,38 @@ export default function NouvelleInterventionClient({
                 urgency: formData.urgency,
                 room: formData.room,
               },
-              contacts: getSelectedContacts().map(contact => ({
-                id: contact.id.toString(),
-                name: contact.name,
-                email: contact.email,
-                phone: contact.phone,
-                role: contact.role,
-                speciality: contact.speciality,
-                isCurrentUser: contact.isCurrentUser,
-              })),
+              contacts: [
+                // Gestionnaires et prestataires sélectionnés
+                ...getSelectedContacts().map(contact => ({
+                  id: contact.id.toString(),
+                  name: contact.name,
+                  email: contact.email,
+                  phone: contact.phone,
+                  role: contact.role,
+                  speciality: contact.speciality,
+                  isCurrentUser: contact.isCurrentUser,
+                })),
+                // ✅ Ajouter tous les locataires du lot sélectionné (depuis les contrats actifs)
+                ...(selectedLogement?.tenants && selectedLogement.tenants.length > 0
+                  ? selectedLogement.tenants.map((tenant: { name: string; email: string | null; phone: string | null }, index: number) => ({
+                      id: `tenant-${selectedLogement.id}-${index}`,
+                      name: tenant.name,
+                      role: 'Locataire',
+                      email: tenant.email || undefined,
+                      phone: tenant.phone || undefined,
+                      isCurrentUser: false,
+                    }))
+                  // Fallback si pas de liste mais juste le nom
+                  : selectedLogement?.tenant ? [{
+                      id: `tenant-${selectedLogement.id}`,
+                      name: selectedLogement.tenant,
+                      role: 'Locataire',
+                      email: selectedLogement.tenantEmail || undefined,
+                      phone: selectedLogement.tenantPhone || undefined,
+                      isCurrentUser: false,
+                    }]
+                  : [])
+              ],
               scheduling: schedulingType === 'slots' && timeSlots.length > 0
                 ? {
                     type: 'slots' as const,

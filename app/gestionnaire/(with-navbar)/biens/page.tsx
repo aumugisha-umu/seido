@@ -1,7 +1,8 @@
 import { BiensPageClient } from './biens-page-client'
 import {
   createServerBuildingService,
-  createServerLotService
+  createServerLotService,
+  createServerContractService
 } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { getServerAuthContext } from '@/lib/server-context'
@@ -56,6 +57,19 @@ export default async function BiensPage() {
       logger.error('❌ [BIENS-PAGE] Error loading lots:', lotsResult.error || 'No data')
     }
 
+    // ✅ 2025-12-10: Get occupied lot IDs from ACTIVE CONTRACTS (not lot_contacts)
+    let occupiedLotIds = new Set<string>()
+    try {
+      const contractService = await createServerContractService()
+      const occupiedResult = await contractService.getOccupiedLotIdsByTeam(team.id)
+      if (occupiedResult.success) {
+        occupiedLotIds = occupiedResult.data
+        logger.info('✅ [BIENS-PAGE] Occupied lots from contracts:', occupiedLotIds.size)
+      }
+    } catch (error) {
+      logger.warn('⚠️ [BIENS-PAGE] Could not get occupied lots from contracts, falling back to lot_contacts')
+    }
+
     // Initialize lots array for each building
     buildings.forEach((building: any) => {
       building.lots = []
@@ -65,10 +79,11 @@ export default async function BiensPage() {
     const independentLots: any[] = []
 
     allLots.forEach((lot: any) => {
-      // ✅ Phase 2: Calculate status from is_occupied
-      const isOccupied = lot.is_occupied || false
+      // ✅ 2025-12-10: Calculate occupation from ACTIVE CONTRACTS (not lot_contacts)
+      const isOccupied = occupiedLotIds.has(lot.id)
       const lotWithStatus = {
         ...lot,
+        is_occupied: isOccupied,
         status: isOccupied ? "occupied" : "vacant"
       }
 
@@ -96,11 +111,12 @@ export default async function BiensPage() {
     logger.info(`📊 [BIENS-PAGE] Total lots: ${allLots.length}`)
 
     // ✅ FIX: Pass ALL lots for display in Lots tab, not just independent ones
-    // ✅ Phase 2: Calculate status from is_occupied (calculated by repository)
+    // ✅ 2025-12-10: Calculate status from ACTIVE CONTRACTS (not lot_contacts)
     const allLotsForDisplay = allLots.map((lot: any) => {
-      const isOccupied = lot.is_occupied || false
+      const isOccupied = occupiedLotIds.has(lot.id)
       return {
         ...lot,
+        is_occupied: isOccupied,
         status: isOccupied ? "occupied" : "vacant",
         building_name: buildings.find((b: any) => b.id === lot.building_id)?.name || null
       }

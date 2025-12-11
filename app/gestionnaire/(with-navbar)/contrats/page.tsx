@@ -3,6 +3,7 @@ import { createServerContractService } from '@/lib/services/domain/contract.serv
 import { logger } from '@/lib/logger'
 import { getServerAuthContext } from '@/lib/server-context'
 import { checkExpiringContracts } from '@/app/actions/notification-actions'
+import { transitionContractStatuses } from '@/app/actions/contract-actions'
 import type { ContractWithRelations } from '@/lib/types/contract.types'
 
 // Force dynamic rendering - cette page dépend toujours de la session
@@ -29,6 +30,12 @@ export default async function ContratsPage() {
     } else {
       logger.error(`❌ [CONTRATS-PAGE] Failed to load contracts: ${result.error?.message || 'Unknown error'}`)
     }
+
+    // Transition automatique des statuts (a_venir → actif, actif → expire)
+    // Exécuté au chargement pour synchroniser les statuts avec les dates
+    transitionContractStatuses(team.id).catch((err) => {
+      logger.warn('⚠️ [CONTRATS-PAGE] Failed to transition contract statuses:', err)
+    })
 
     // Check for expiring contracts and send notifications (async, non-blocking)
     checkExpiringContracts().catch((err) => {

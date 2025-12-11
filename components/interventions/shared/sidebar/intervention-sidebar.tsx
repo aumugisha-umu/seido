@@ -27,6 +27,7 @@ import { ProgressionTimeline } from './progression-timeline'
 export const InterventionSidebar = ({
   participants,
   currentUserRole,
+  currentUserId,
   currentStatus,
   timelineEvents,
   activeConversation,
@@ -34,6 +35,7 @@ export const InterventionSidebar = ({
   onGroupConversationClick,
   showConversationButtons = false,
   assignmentMode,
+  unreadCounts = {},
   className
 }: InterventionSidebarProps) => {
   return (
@@ -48,11 +50,13 @@ export const InterventionSidebar = ({
         <ParticipantsList
           participants={participants}
           currentUserRole={currentUserRole}
+          currentUserId={currentUserId}
           showConversationButtons={showConversationButtons}
           activeConversation={activeConversation}
           onConversationClick={onConversationClick}
           onGroupConversationClick={onGroupConversationClick}
           assignmentMode={assignmentMode}
+          unreadCounts={unreadCounts}
         />
       </div>
 

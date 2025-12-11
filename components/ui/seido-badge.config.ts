@@ -201,7 +201,7 @@ export const BADGE_CONFIG: Record<BadgeType, Record<string, BadgeValueConfig>> =
 
   // Statuts de contrat
   contract: {
-    brouillon: { color: 'gray',   label: 'Brouillon', icon: FileText },
+    a_venir:   { color: 'amber',  label: 'À venir',   icon: Clock },
     actif:     { color: 'green',  label: 'Actif',     icon: CheckCircle },
     expire:    { color: 'red',    label: 'Expiré',    icon: AlertCircle },
     resilie:   { color: 'slate',  label: 'Résilié',   icon: XCircle },

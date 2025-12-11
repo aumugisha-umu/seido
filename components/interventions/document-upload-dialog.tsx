@@ -179,7 +179,7 @@ export function DocumentUploadDialog({
     setFiles(prev => prev.filter((_, i) => i !== index))
   }
 
-  // Handle upload
+  // Handle upload - uploads files one by one to /api/upload-intervention-document
   const handleUpload = async () => {
     if (files.length === 0) {
       toast.error('Veuillez sélectionner au moins un fichier')
@@ -191,48 +191,48 @@ export function DocumentUploadDialog({
     setUploadError(null)
 
     try {
-      // Create FormData
-      const formData = new FormData()
-      formData.append('interventionId', interventionId)
-      formData.append('documentType', documentType)
-      formData.append('description', description)
+      const uploadedIds: string[] = []
+      const totalFiles = files.length
 
-      // Add files
-      files.forEach((file, index) => {
-        formData.append(`file_${index}`, file)
-      })
+      // Upload each file individually
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]
 
-      // Upload with progress tracking
-      const xhr = new XMLHttpRequest()
+        // Update progress (per file)
+        setUploadProgress(Math.round(((i) / totalFiles) * 100))
 
-      xhr.upload.addEventListener('progress', (event) => {
-        if (event.lengthComputable) {
-          const progress = Math.round((event.loaded / event.total) * 100)
-          setUploadProgress(progress)
+        const formData = new FormData()
+        formData.append('file', file)
+        formData.append('interventionId', interventionId)
+        formData.append('documentType', documentType)
+        formData.append('description', description || `Document ${documentType} - ${file.name}`)
+
+        const response = await fetch('/api/upload-intervention-document', {
+          method: 'POST',
+          body: formData,
+        })
+
+        const result = await response.json()
+
+        if (!response.ok) {
+          throw new Error(result.error || `Erreur lors de l'upload de ${file.name}`)
         }
-      })
 
-      xhr.addEventListener('load', () => {
-        if (xhr.status === 200) {
-          const response = JSON.parse(xhr.responseText)
-          toast.success('Documents uploadés avec succès')
-          onUploadComplete?.(response.documentId)
-          handleClose()
-        } else {
-          throw new Error('Upload failed')
-        }
-      })
+        uploadedIds.push(result.document.id)
 
-      xhr.addEventListener('error', () => {
-        throw new Error('Network error')
-      })
+        // Update progress after each file
+        setUploadProgress(Math.round(((i + 1) / totalFiles) * 100))
+      }
 
-      xhr.open('POST', `/api/interventions/${interventionId}/documents`)
-      xhr.send(formData)
+      toast.success(`${uploadedIds.length} document(s) uploadé(s) avec succès`)
+      onUploadComplete?.(uploadedIds[0]) // Pass first document ID for backward compatibility
+      handleClose()
+
     } catch (error) {
       console.error('Upload error:', error)
-      setUploadError('Une erreur est survenue lors de l\'upload')
-      toast.error('Erreur lors de l\'upload des documents')
+      const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'upload'
+      setUploadError(errorMessage)
+      toast.error(errorMessage)
     } finally {
       setUploading(false)
       setUploadProgress(0)

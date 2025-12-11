@@ -32,6 +32,8 @@ interface LotContactsGridPreviewProps {
   buildingOthers?: Contact[]
   lotContactIds: Record<string, string> // Maps user_id to lot_contact_id
   teamId: string
+  /** Hide tenants section (when tenants come from contracts instead) */
+  hideTenants?: boolean
 }
 
 /**
@@ -60,7 +62,8 @@ export function LotContactsGridPreview({
   buildingOwners = [],
   buildingOthers = [],
   lotContactIds,
-  teamId
+  teamId,
+  hideTenants = false
 }: LotContactsGridPreviewProps) {
   const { toast } = useToast()
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
@@ -218,9 +221,12 @@ export function LotContactsGridPreview({
     }
   }
 
+  // Determine grid columns based on hideTenants
+  const gridCols = hideTenants ? 'lg:grid-cols-4' : 'lg:grid-cols-5'
+
   return (
     <>
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-2">
+      <div className={`grid grid-cols-1 ${gridCols} gap-2`}>
         {/* Managers Section */}
         <ContactSection
           sectionType="managers"
@@ -236,19 +242,21 @@ export function LotContactsGridPreview({
           showInheritedSummary={true}
         />
 
-        {/* Tenants Section */}
-        <ContactSection
-          sectionType="tenants"
-          contacts={tenants}
-          readOnly={false}
-          onAddContact={() => handleAddContact('locataires')}
-          onRemoveContact={(id) => {
-            const contact = tenants.find(c => c.id === id)
-            if (contact) handleRemoveContact(contact)
-          }}
-          inheritedContacts={buildingTenants}
-          showInheritedSummary={true}
-        />
+        {/* Tenants Section - Hidden when tenants come from contracts */}
+        {!hideTenants && (
+          <ContactSection
+            sectionType="tenants"
+            contacts={tenants}
+            readOnly={false}
+            onAddContact={() => handleAddContact('locataires')}
+            onRemoveContact={(id) => {
+              const contact = tenants.find(c => c.id === id)
+              if (contact) handleRemoveContact(contact)
+            }}
+            inheritedContacts={buildingTenants}
+            showInheritedSummary={true}
+          />
+        )}
 
         {/* Providers Section */}
         <ContactSection

@@ -542,6 +542,48 @@ export const uploadInterventionDocumentSchema = z.object({
 })
 
 /**
+ * POST /api/upload-contract-document
+ *
+ * Schema for contract document uploads (bail, état des lieux, etc.)
+ * Uses same MIME type whitelist as intervention documents
+ */
+export const uploadContractDocumentSchema = z.object({
+  contractId: uuidSchema,
+  fileName: z.string().min(1).max(255).trim(),
+  fileSize: z.number().int().positive().max(50 * 1024 * 1024), // max 50MB (matching bucket config)
+  fileType: z.enum([
+    // Documents (safe formats only)
+    'application/pdf',
+    'application/msword',  // .doc
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  // .docx
+    'application/vnd.ms-excel',  // .xls
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  // .xlsx
+    // Images
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+  ], {
+    errorMap: () => ({ message: 'Format de fichier invalide. Seuls PDF, DOC, DOCX, XLS, XLSX, JPEG, PNG, WEBP, GIF sont autorisés' })
+  }),
+  documentType: z.enum([
+    'bail',
+    'avenant',
+    'etat_des_lieux_entree',
+    'etat_des_lieux_sortie',
+    'attestation_assurance',
+    'justificatif_identite',
+    'justificatif_revenus',
+    'caution_bancaire',
+    'quittance',
+    'reglement_copropriete',
+    'diagnostic',
+    'autre',
+  ]).optional().default('autre'),
+  description: z.string().max(2000).trim().optional(),
+})
+
+/**
  * POST /api/upload-avatar
  */
 export const uploadAvatarSchema = z.object({

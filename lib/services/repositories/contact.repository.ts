@@ -143,70 +143,64 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
 
   /**
    * Get contacts by team
-   * NEW SCHEMA: Queries team_members → users
+   * Queries users table directly with team_id filter
+   * This ensures contacts remain visible even without team_members entries
+   * (e.g., after invitation revocation)
    * @param excludeUserId - Optional user ID to exclude from results (e.g., current user)
    */
   async findByTeam(teamId: string, role?: string, excludeUserId?: string) {
     let queryBuilder = this.supabase
-      .from('team_members')
+      .from('users')
       .select(`
         id,
-        user_id,
+        name,
+        email,
+        phone,
+        company,
         role,
-        joined_at,
-        user:user_id (
+        provider_category,
+        speciality,
+        address,
+        is_active,
+        avatar_url,
+        notes,
+        first_name,
+        last_name,
+        is_company,
+        company_id,
+        auth_user_id,
+        company:company_id (
           id,
           name,
-          email,
-          phone,
-          company,
-          role,
-          provider_category,
-          speciality,
-          address,
-          is_active,
-          avatar_url,
-          notes,
-          first_name,
-          last_name,
-          is_company,
-          company_id,
-          company:company_id (
-            id,
-            name,
-            vat_number,
-            street,
-            street_number,
-            postal_code,
-            city,
-            country
-          ),
-          created_at,
-          updated_at
-        )
+          vat_number,
+          street,
+          street_number,
+          postal_code,
+          city,
+          country
+        ),
+        created_at,
+        updated_at
       `)
       .eq('team_id', teamId)
-      .is('left_at', null)  // Only active members
+      .eq('is_active', true)  // Only active contacts (soft-delete filter)
 
     if (role) {
-      // This needs to query the user role, not team_member role
-      queryBuilder = queryBuilder.filter('user.role', 'eq', role)
+      queryBuilder = queryBuilder.eq('role', role)
     }
 
     if (excludeUserId) {
       // Exclude specific user (e.g., current user)
-      queryBuilder = queryBuilder.neq('user_id', excludeUserId)
+      queryBuilder = queryBuilder.neq('id', excludeUserId)
     }
 
-    const { data, error } = await queryBuilder.order('joined_at', { ascending: false })
+    const { data, error } = await queryBuilder.order('created_at', { ascending: false })
 
     if (error) {
-      return createErrorResponse(handleError(error, 'team_members:query'))
+      return createErrorResponse(handleError(error, 'users:query'))
     }
 
-    // Extract users from team_members relation
-    const contacts = data?.map(tm => tm.user).filter(user => user !== null) || []
-    return { success: true as const, data: contacts }
+    return { success: true as const, data: data || [] }
   }
 
   /**
@@ -372,31 +366,31 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
   }
   /**
    * Find a specific contact within a team
-   * Queries team_members to ensure the user belongs to the team (and respects RLS)
+   * Queries users table directly with team_id filter
+   * This ensures contacts remain accessible even without team_members entries
+   * (e.g., after invitation revocation)
    */
   async findContactInTeam(teamId: string, contactId: string) {
     const { data, error } = await this.supabase
-      .from('team_members')
+      .from('users')
       .select(`
-        user:user_id (
-          *,
-          team:team_id(id, name, description),
-          company:company_id(id, name, vat_number, street, street_number, postal_code, city, country, email, phone, is_active)
-        )
+        *,
+        team:team_id(id, name, description),
+        company:company_id(id, name, vat_number, street, street_number, postal_code, city, country, email, phone, is_active)
       `)
       .eq('team_id', teamId)
-      .eq('user_id', contactId)
-      .is('left_at', null)
+      .eq('id', contactId)
+      .eq('is_active', true)
       .single()
 
     if (error) {
       if (error.code === 'PGRST116') {
         return { success: true as const, data: null }
       }
-      return createErrorResponse(handleError(error, 'team_members:query'))
+      return createErrorResponse(handleError(error, 'users:query'))
     }
 
-    return { success: true as const, data: data?.user as unknown as Contact }
+    return { success: true as const, data: data as Contact }
   }
 }
 

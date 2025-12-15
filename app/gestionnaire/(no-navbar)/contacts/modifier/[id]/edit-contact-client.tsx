@@ -13,7 +13,6 @@ import { Step1Type } from "../../nouveau/steps/step-1-type"
 import { Step2Company } from "../../nouveau/steps/step-2-company"
 import { Step3Contact } from "../../nouveau/steps/step-3-contact"
 import { Step4Confirmation } from "../../nouveau/steps/step-4-confirmation"
-import { createContactService } from '@/lib/services'
 
 // Types
 interface Company {
@@ -68,33 +67,31 @@ export function EditContactClient({
     const [currentStep, setCurrentStep] = useState(1)
     const [isSaving, setIsSaving] = useState(false)
 
-    // Helper pour mapper les types anglais vers français (pour l'affichage)
-    const mapContactTypeToFrench = (englishType: string): ContactFormData['contactType'] => {
-        const mapping: Record<string, ContactFormData['contactType']> = {
+    // Note: La DB utilise les termes français (prestataire, locataire, gestionnaire, etc.)
+    // Les valeurs UI et DB sont identiques, pas de mapping nécessaire
+    // On garde ces helpers pour clarté et compatibilité avec l'ancien code
+
+    const normalizeContactType = (dbRole: string): ContactFormData['contactType'] => {
+        // Les valeurs DB sont déjà en français, on les utilise directement
+        // Fallback pour compatibilité avec d'éventuelles anciennes données
+        const validRoles: ContactFormData['contactType'][] = ['locataire', 'prestataire', 'gestionnaire', 'proprietaire', 'autre']
+        if (validRoles.includes(dbRole as ContactFormData['contactType'])) {
+            return dbRole as ContactFormData['contactType']
+        }
+        // Fallback pour anciennes données potentiellement en anglais
+        const legacyMapping: Record<string, ContactFormData['contactType']> = {
             'tenant': 'locataire',
             'provider': 'prestataire',
             'manager': 'gestionnaire',
             'owner': 'proprietaire',
             'other': 'autre'
         }
-        return mapping[englishType] || englishType as ContactFormData['contactType']
-    }
-
-    // Helper pour mapper les types français vers anglais (pour la BDD)
-    const mapContactTypeToEnglish = (frenchType: string): string => {
-        const mapping: Record<string, string> = {
-            'locataire': 'tenant',
-            'prestataire': 'provider',
-            'gestionnaire': 'manager',
-            'proprietaire': 'owner',
-            'autre': 'other'
-        }
-        return mapping[frenchType] || frenchType
+        return legacyMapping[dbRole] || 'autre'
     }
 
     // Initialiser le formulaire avec les données existantes
     const [formData, setFormData] = useState<ContactFormData>({
-        contactType: mapContactTypeToFrench(initialData.role || 'tenant'),
+        contactType: normalizeContactType(initialData.role || 'locataire'),
         personOrCompany: initialData.is_company ? 'company' : 'person',
         specialty: initialData.speciality || '',
 
@@ -204,9 +201,14 @@ export function EditContactClient({
         }
     }
 
-    // Sauvegarde
+    // Sauvegarde avec timeout global pour éviter blocage UI
     const handleSave = async () => {
         setIsSaving(true)
+
+        // Timeout de 10 secondes pour l'opération complète
+        const timeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('La sauvegarde prend trop de temps. Veuillez réessayer.')), 10000)
+        )
 
         try {
             logger.info("💾 Saving contact:", formData)
@@ -217,19 +219,116 @@ export function EditContactClient({
                 last_name: formData.lastName || null,
                 email: formData.email,
                 phone: formData.phone || null,
-                role: mapContactTypeToEnglish(formData.contactType),
+                role: formData.contactType, // Valeurs UI = valeurs DB (français)
                 speciality: formData.specialty || null,
                 notes: formData.notes || null,
                 // Company fields if applicable
                 company_id: formData.personOrCompany === 'company' && formData.companyMode === 'existing' ? formData.companyId : null,
-                // If new company, we might need to handle that differently or assume backend handles it
-                // For now, let's assume we update basic contact info. 
-                // NOTE: Complex company update/creation logic might be needed if we allow changing company details here.
-                // Given the scope, we focus on contact properties.
             }
 
-            const contactService = createContactService()
-            await contactService.update(contactId, updateData, userProfile?.id)
+            // Étape 1: Sauvegarder les données du contact via API (bypass RLS)
+            // Note: On utilise une API route car le browser client est soumis aux RLS policies
+            // qui peuvent bloquer l'update sur des contacts invités (pending)
+            const updateResponse = await Promise.race([
+                fetch("/api/update-contact", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contactId: contactId,
+                        updateData: updateData
+                    })
+                }),
+                timeoutPromise
+            ])
+
+            if (!updateResponse.ok) {
+                const errorData = await updateResponse.json()
+                throw new Error(errorData.error || "Erreur lors de la sauvegarde")
+            }
+
+            logger.info("✅ Contact updated via API")
+
+            // Déterminer les actions à effectuer
+            const wasInvitedBefore = !!initialData.auth_user_id
+            const shouldInviteNow = formData.inviteToApp && !wasInvitedBefore
+            const shouldRevokeNow = !formData.inviteToApp && wasInvitedBefore
+
+            // ═══════════════════════════════════════════════════════════════
+            // Étape 2A: Envoyer l'invitation si nécessaire
+            // ═══════════════════════════════════════════════════════════════
+            if (shouldInviteNow) {
+                logger.info("💌 Sending invitation to contact...")
+
+                try {
+                    const inviteResponse = await fetch("/api/send-existing-contact-invitation", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            contactId: contactId,
+                            ...(formData.email && { email: formData.email })
+                        })
+                    })
+
+                    if (!inviteResponse.ok) {
+                        const errorData = await inviteResponse.json()
+                        logger.warn("⚠️ Invitation failed:", errorData)
+                        toast.warning("Contact modifié, mais l'invitation n'a pas pu être envoyée", {
+                            description: errorData.error || "Vous pouvez réessayer depuis la page de détail"
+                        })
+                    } else {
+                        const inviteResult = await inviteResponse.json()
+                        logger.info("✅ Invitation sent:", inviteResult)
+                        toast.success("Contact modifié et invitation envoyée !")
+                        router.push("/gestionnaire/contacts")
+                        router.refresh()
+                        return // Skip the default success toast
+                    }
+                } catch (inviteError) {
+                    logger.error("❌ Invitation error:", inviteError)
+                    toast.warning("Contact modifié, mais l'invitation a échoué", {
+                        description: "Vous pouvez réessayer depuis la page de détail"
+                    })
+                }
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // Étape 2B: Révoquer l'accès si nécessaire
+            // (Gère les cas: invitation pending OU invitation accepted)
+            // ═══════════════════════════════════════════════════════════════
+            if (shouldRevokeNow) {
+                logger.info("🚫 Revoking access for contact...")
+
+                try {
+                    const revokeResponse = await fetch("/api/revoke-invitation", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            contactId: contactId,
+                            teamId: teamId
+                        })
+                    })
+
+                    if (!revokeResponse.ok) {
+                        const errorData = await revokeResponse.json()
+                        logger.warn("⚠️ Revocation failed:", errorData)
+                        toast.warning("Contact modifié, mais l'accès n'a pas pu être révoqué", {
+                            description: errorData.error || "Vous pouvez réessayer depuis la page de détail"
+                        })
+                    } else {
+                        const revokeResult = await revokeResponse.json()
+                        logger.info("✅ Access revoked:", revokeResult)
+                        toast.success("Contact modifié et accès révoqué")
+                        router.push("/gestionnaire/contacts")
+                        router.refresh()
+                        return // Skip the default success toast
+                    }
+                } catch (revokeError) {
+                    logger.error("❌ Revocation error:", revokeError)
+                    toast.warning("Contact modifié, mais la révocation a échoué", {
+                        description: "Vous pouvez réessayer depuis la page de détail"
+                    })
+                }
+            }
 
             toast.success("Contact modifié avec succès")
             router.push("/gestionnaire/contacts")

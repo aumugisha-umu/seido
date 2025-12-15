@@ -21,7 +21,10 @@
       "Bash(powershell:*)",
       "WebFetch(domain:resend.com)",
       "Bash(cat:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(tree:*)",
+      "Bash(wc:*)",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []

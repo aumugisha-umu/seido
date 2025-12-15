@@ -310,10 +310,12 @@ export const createContactSchema = z.object({
 
 /**
  * POST /api/send-existing-contact-invitation
+ * Note: email is optional - used when contact doesn't have an email yet
  */
 export const sendContactInvitationSchema = z.object({
   contactId: uuidSchema,
-  teamId: uuidSchema,
+  teamId: uuidSchema.optional(), // teamId is optional, will use contact.team_id if not provided
+  email: emailSchema.optional(), // Optional email to update contact before sending invitation
 })
 
 // ============================================================================

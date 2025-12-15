@@ -413,14 +413,22 @@ export abstract class BaseRepository<
    * Update record by ID
    */
   async update(id: string, data: TUpdate): Promise<RepositoryResponse<TRow>> {
+    console.log(`🔄 [BASE-REPOSITORY] update called`, {
+      table: this.tableName,
+      id,
+      dataKeys: Object.keys(data),
+      timestamp: new Date().toISOString()
+    })
+
     try {
       validateUUID(id)
 
-      // First check if record exists
-      const existsResult = await this.findById(id, false)
-      if (!existsResult.success) {
-        return existsResult
-      }
+      // ⚠️ REMOVED: findById check before update
+      // This was causing timeout issues with RLS on browser client.
+      // Supabase will return an error if the record doesn't exist or is not accessible.
+
+      console.log(`📍 [BASE-REPOSITORY] Executing UPDATE query...`, { table: this.tableName, id })
+      const queryStart = Date.now()
 
       const { data: result, error } = await this.supabase
         .from(this.tableName as keyof Database['public']['Tables'])
@@ -429,12 +437,34 @@ export abstract class BaseRepository<
         .select()
         .single()
 
+      const queryElapsed = Date.now() - queryStart
+      console.log(`⏱️ [BASE-REPOSITORY] UPDATE query completed`, {
+        table: this.tableName,
+        hasData: !!result,
+        hasError: !!error,
+        errorCode: error?.code,
+        errorMessage: error?.message,
+        elapsed: `${queryElapsed}ms`
+      })
+
       if (error) {
+        console.error(`❌ [BASE-REPOSITORY] UPDATE error`, {
+          table: this.tableName,
+          id,
+          error: error.message,
+          code: error.code
+        })
         return createErrorResponse(handleError(error, `${this.tableName}:update`))
       }
 
+      console.log(`✅ [BASE-REPOSITORY] UPDATE success`, { table: this.tableName, id })
       return createSuccessResponse(result as unknown as TRow)
     } catch (error) {
+      console.error(`❌ [BASE-REPOSITORY] UPDATE exception`, {
+        table: this.tableName,
+        id,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      })
       return createErrorResponse(handleError(error, `${this.tableName}:update`))
     }
   }

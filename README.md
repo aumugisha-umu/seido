@@ -92,20 +92,52 @@
 | Métrique | Valeur | Détails |
 |----------|--------|---------|
 | **API Routes** | 86 routes | 100% authentifiées, 100% rate-limited |
-| **Composants UI** | 264 composants | 50+ shadcn/ui + 76 intervention workflow + 19 shared + dashboards |
+| **Composants UI** | 270+ composants | 50+ shadcn/ui + 76 intervention workflow + 19 shared + dashboards |
 | **Storybook Stories** | 19 stories | Documentation interactive composants intervention |
 | **Services** | 24 services | Domain services (business logic) |
 | **Repositories** | 21 repositories | Data access layer avec caching |
-| **Custom Hooks** | 53 hooks | Auth, data fetching, UI state, real-time, analytics |
+| **Custom Hooks** | 56 hooks | Auth, data fetching, UI state, real-time, analytics |
 | **Validation Schemas** | 59 schémas Zod | 780+ lignes, 95% routes validées |
 | **Email Templates** | 18 templates React Email | Auth, interventions, quotes |
-| **Migrations DB** | 85 migrations | Phases 1, 2, 3, 4 (contracts) appliquées |
+| **Migrations DB** | 87 migrations | Phases 1, 2, 3, 4 (contracts) + RLS fixes appliquées |
 | **Test Coverage** | 60% (unit) | Cible: 80% |
 | **Build Status** | ✅ 0 erreurs TS | Production ready |
 
 ---
 
 ## 🚀 Dernières Mises à Jour - Décembre 2025
+
+### 🔧 Corrections & Améliorations (Dec 8-15, 2025)
+
+**Fixes critiques et améliorations** :
+- 🔐 **Tenant RLS Fix** (Dec 15) - Accès locataire via `contract_contacts` pour isolation multi-tenant correcte
+- 👥 **Multi-provider Assignments** (Dec 8) - Support de plusieurs prestataires par intervention
+- 💬 **Intervention Detail UX** (Dec 9) - Amélioration des cartes commentaires et planning
+- ✉️ **Email Notification Service** (Dec 11) - Dispatcher notifications amélioré
+- 📇 **Contact Management** (Dec 11-12) - Service et repository contacts enrichis
+
+---
+
+### 📋 Documentation QA Complète (Dec 15, 2025)
+
+**Suite complète de documentation QA** basée sur ISO 29119, ISTQB et OWASP.
+
+**12 fichiers créés** dans [`docs/testing/QA/`](./docs/testing/QA/) :
+
+| Fichier | Description |
+|---------|-------------|
+| `00-plan-test-qa-complet.md` | Index et méthodologie (ISO 29119, ISTQB) |
+| `01-checklist-fonctionnel.md` | 63 pages testées exhaustivement |
+| `02-checklist-design-system.md` | Vérification Design System SEIDO |
+| `03-checklist-accessibilite.md` | Conformité WCAG 2.1 AA |
+| `04-checklist-securite.md` | Tests OWASP Top 10 |
+| `05-checklist-performance.md` | Core Web Vitals |
+| `06-10-parcours-*.md` | Parcours E2E par rôle (5 fichiers) |
+| `09-template-bug-report.md` | Template rapport de bug |
+
+**Couverture** : 63 pages, 5 rôles, 330+ tests, workflows E2E complets
+
+---
 
 ### 📝 Module Contrats/Baux (Dec 5, 2025)
 
@@ -563,9 +595,11 @@ seido-app/
 │       ├── quotes/               # 4 quote templates
 │       └── ...
 │
-├── supabase/migrations/          # 83 Database Migrations
+├── supabase/migrations/          # 87 Database Migrations
 ├── tests-new/                    # E2E Test Suite (Playwright)
 ├── docs/                         # Documentation
+│   ├── design/                   # Design System (8 fichiers)
+│   ├── testing/QA/               # Documentation QA (12 fichiers)
 │   ├── refacto/                  # Architecture docs
 │   ├── rapport-audit-complet-seido.md
 │   └── notification-migration-status.md
@@ -576,16 +610,17 @@ seido-app/
 
 ## 👥 Système Multi-Rôles
 
-SEIDO implémente 4 rôles distincts avec permissions granulaires et isolation multi-tenant via Row Level Security (RLS).
+SEIDO implémente **5 rôles distincts** avec permissions granulaires et isolation multi-tenant via Row Level Security (RLS).
 
 ### 🔑 Rôles et Permissions
 
 | Rôle | Permissions Clés | Dashboard | Pages | Cas d'usage |
 |------|------------------|-----------|-------|-------------|
 | **Admin** | Administration système complète, accès global | KPIs globaux, gestion users | 3 pages | Supervision plateforme |
-| **Gestionnaire** | Gestion patrimoine, contrats/baux, validation interventions, email client | Portfolio, contrats, interventions, emails | 16 pages | Gestion immobilière |
+| **Gestionnaire** | Gestion patrimoine, contrats/baux, validation interventions, email client | Portfolio, contrats, interventions, emails | 27 pages | Gestion immobilière |
 | **Prestataire** | Exécution travaux, création devis, planning | Tâches assignées, planning | 5 pages | Maintenance & réparations |
-| **Locataire** | Création demandes, suivi interventions, validation | Mes demandes, historique | 4 pages | Vie quotidienne logement |
+| **Locataire** | Création demandes, suivi interventions, validation | Mes demandes, historique | 8 pages | Vie quotidienne logement |
+| **Proprietaire** | Consultation patrimoine et interventions (lecture seule) | Vue consolidée patrimoine | 3 pages | Suivi investissement |
 
 ### 📄 Pages par Rôle
 
@@ -619,11 +654,22 @@ SEIDO implémente 4 rôles distincts avec permissions granulaires et isolation m
 - `/prestataire/profile` - Profile
 - `/prestataire/parametres` - Settings
 
-#### Locataire (4 pages)
+#### Locataire (8 pages)
 - `/locataire/dashboard` - My requests and status
 - `/locataire/interventions` - Interventions list
 - `/locataire/interventions/nouvelle-demande` - Create request
+- `/locataire/interventions/new` - Alternate create request
 - `/locataire/interventions/[id]` - Request details
+- `/locataire/notifications` - Notifications
+- `/locataire/parametres` - Settings
+- `/locataire/profile` - Profile
+
+#### Proprietaire (3 pages) - NOUVEAU
+- `/proprietaire/dashboard` - Vue consolidée du patrimoine
+- `/proprietaire/biens` - Consultation des biens (lecture seule)
+- `/proprietaire/interventions` - Suivi des interventions (lecture seule)
+
+> **Note**: Le rôle Proprietaire a un accès en **lecture seule** uniquement. Aucune action de création, modification ou suppression n'est possible.
 
 ---
 

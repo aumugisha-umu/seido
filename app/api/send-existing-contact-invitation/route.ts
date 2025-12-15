@@ -34,7 +34,7 @@ export async function POST(request: Request) {
     }
 
     const validatedData = validation.data
-    const { contactId, teamId } = validatedData
+    const { contactId, email: newEmail } = validatedData
 
     const { data: contact, error: contactError } = await supabaseAdmin
       .from('users')
@@ -48,6 +48,39 @@ export async function POST(request: Request) {
     }
 
     logger.info({ contact: contact.id, email: contact.email }, '✅ Contact found')
+
+    // ============================================================================
+    // ÉTAPE 2.5: UPDATE EMAIL IF PROVIDED (for contacts without email)
+    // ============================================================================
+    if (newEmail && !contact.email) {
+      logger.info({ newEmail }, '📧 Updating contact email before invitation')
+
+      const { error: updateError } = await supabaseAdmin
+        .from('users')
+        .update({ email: newEmail })
+        .eq('id', contactId)
+
+      if (updateError) {
+        logger.error({ updateError }, '❌ Failed to update contact email')
+        return NextResponse.json(
+          { error: 'Impossible de mettre à jour l\'email du contact' },
+          { status: 500 }
+        )
+      }
+
+      // Update local contact object with new email
+      contact.email = newEmail
+      logger.info({}, '✅ Contact email updated')
+    }
+
+    // Verify contact has email before proceeding
+    if (!contact.email) {
+      logger.error({}, '❌ Contact has no email and none was provided')
+      return NextResponse.json(
+        { error: 'Le contact n\'a pas d\'adresse email' },
+        { status: 400 }
+      )
+    }
 
     // ============================================================================
     // ÉTAPE 3: CHECK EXISTING INVITATION

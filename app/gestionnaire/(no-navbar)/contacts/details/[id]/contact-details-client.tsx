@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   Eye,
   User,
@@ -108,6 +110,10 @@ export function ContactDetailsClient({
   const [showRevokeModal, setShowRevokeModal] = useState(false)
   const [revokeConfirmChecked, setRevokeConfirmChecked] = useState(false)
 
+  // Email input pour invitation quand email manquant
+  const [emailInput, setEmailInput] = useState('')
+  const [emailError, setEmailError] = useState<string | null>(null)
+
   // Utiliser les données initiales du Server Component
   const contact = initialContact
   const interventions = initialInterventions
@@ -130,6 +136,12 @@ export function ContactDetailsClient({
   const handleArchive = () => {
     logger.info("Archive contact:", contact?.id)
     // TODO: Implémenter la logique d'archivage
+  }
+
+  // Helper de validation email
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email.trim())
   }
 
   const handleInvitationAction = async (action: string) => {
@@ -158,6 +170,19 @@ export function ContactDetailsClient({
   const handleSendInvitation = async () => {
     if (!contact?.id) return
 
+    // Validation si email manquant
+    const emailToUse = contact.email || emailInput.trim()
+
+    if (!emailToUse) {
+      setEmailError('L\'email est requis pour envoyer une invitation')
+      return
+    }
+
+    if (!contact.email && !validateEmail(emailInput)) {
+      setEmailError('Format d\'email invalide')
+      return
+    }
+
     try {
       setInvitationLoading(true)
       logger.info("🔄 Sending invitation to existing contact:", contact.id)
@@ -166,7 +191,9 @@ export function ContactDetailsClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contactId: contact.id
+          contactId: contact.id,
+          // Envoyer l'email seulement si c'est un nouvel email (contact sans email)
+          ...((!contact.email && emailInput) && { email: emailInput.trim() })
         }),
       })
 
@@ -178,7 +205,7 @@ export function ContactDetailsClient({
         toast({
           title: "✅ Invitation envoyée",
           description: isNewAuthUser
-            ? `Une invitation a été envoyée à ${contact.email}`
+            ? `Une invitation a été envoyée à ${emailToUse}`
             : `${contact.name} a été ajouté à votre équipe (compte existant)`,
           variant: "default"
         })
@@ -203,6 +230,9 @@ export function ContactDetailsClient({
     } finally {
       setInvitationLoading(false)
       setShowInviteModal(false)
+      // Réinitialiser les champs email
+      setEmailInput('')
+      setEmailError(null)
     }
   }
 
@@ -1027,19 +1057,56 @@ export function ContactDetailsClient({
       {/* ========================================================================== */}
 
       {/* Modale 1: Inviter (nouveau contact) */}
-      <Dialog open={showInviteModal} onOpenChange={setShowInviteModal}>
+      <Dialog open={showInviteModal} onOpenChange={(open) => {
+        setShowInviteModal(open)
+        if (!open) {
+          setEmailInput('')
+          setEmailError(null)
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Inviter {contact.name}</DialogTitle>
             <DialogDescription>
-              Un email d'invitation sera envoyé à <strong>{contact.email}</strong> pour créer son compte et accéder à l'application.
+              {contact.email ? (
+                <>Un email d'invitation sera envoyé à <strong>{contact.email}</strong> pour créer son compte et accéder à l'application.</>
+              ) : (
+                <>Ce contact n'a pas d'adresse email. Veuillez en saisir une pour envoyer l'invitation.</>
+              )}
             </DialogDescription>
           </DialogHeader>
+
+          {/* Champ email conditionnel si manquant */}
+          {!contact.email && (
+            <div className="space-y-2 py-4">
+              <Label htmlFor="invitation-email" className="text-sm font-medium">
+                Adresse email <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="invitation-email"
+                type="email"
+                placeholder="exemple@email.com"
+                value={emailInput}
+                onChange={(e) => {
+                  setEmailInput(e.target.value)
+                  setEmailError(null)
+                }}
+                className={emailError ? 'border-destructive' : ''}
+              />
+              {emailError && (
+                <p className="text-sm text-destructive">{emailError}</p>
+              )}
+            </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowInviteModal(false)}>
               Annuler
             </Button>
-            <Button onClick={handleSendInvitation} disabled={invitationLoading}>
+            <Button
+              onClick={handleSendInvitation}
+              disabled={invitationLoading || (!contact.email && !emailInput.trim())}
+            >
               {invitationLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Envoyer l'invitation
             </Button>

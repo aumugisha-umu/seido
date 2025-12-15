@@ -112,19 +112,10 @@ export class ContactService {
 
   /**
    * Update contact with validation
+   * Note: We skip findById check to avoid timeout issues with RLS on browser client.
+   * Supabase will return an error if the contact doesn't exist or is not accessible.
    */
   async update(id: string, updates: ContactUpdate, updatedBy?: string) {
-    // Check if contact exists
-    const existingContact = await this.repository.findById(id)
-    if (!existingContact.success) return existingContact
-
-    if (!existingContact.data) {
-      return {
-        success: false as const,
-        error: { code: 'NOT_FOUND', message: 'Contact not found' }
-      }
-    }
-
     // Update timestamp
     const processedUpdates = {
       ...updates,
@@ -132,6 +123,25 @@ export class ContactService {
     }
 
     const result = await this.repository.update(id, processedUpdates)
+
+    // Handle case where contact doesn't exist (Supabase returns PGRST116 or empty result)
+    if (!result.success) {
+      // If the error suggests "not found", return a cleaner error
+      if (result.error?.code === 'PGRST116' || result.error?.message?.includes('not found')) {
+        return {
+          success: false as const,
+          error: { code: 'NOT_FOUND', message: 'Contact not found' }
+        }
+      }
+      return result
+    }
+
+    if (!result.data) {
+      return {
+        success: false as const,
+        error: { code: 'NOT_FOUND', message: 'Contact not found or not accessible' }
+      }
+    }
 
     // Log activity
     if (result.success && result.data) {

@@ -15,6 +15,7 @@ import { Toaster } from "@/components/ui/toaster"
 import EnvironmentLogger from "@/components/environment-logger"
 import LoggerInitializer from "@/components/logger-initializer"
 import { PWARegister } from "@/components/pwa-register"
+import { ImpersonationBanner } from "@/components/impersonation-banner"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -63,6 +64,7 @@ export default function RootLayout({
         <EnvironmentLogger />
         <AuthProvider>
           <TeamStatusProvider>
+            <ImpersonationBanner />
             <CookieConsentProvider>
               <AnalyticsProvider>
                 <Suspense fallback={null}>{children}</Suspense>

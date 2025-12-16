@@ -107,6 +107,56 @@
 
 ## 🚀 Dernières Mises à Jour - Décembre 2025
 
+### 🔐 Impersonation Admin (Dec 16, 2025)
+
+**Fonctionnalité d'impersonation** permettant aux admins de se connecter en tant qu'un autre utilisateur pour debug et support.
+
+**Fonctionnalités** :
+- 👤 **Se connecter en tant que** - Menu action dans `/admin/users` pour chaque utilisateur
+- 🔗 **Magic Link sécurisé** - Utilise `auth.admin.generateLink()` de Supabase (flow PKCE standard)
+- 🍪 **Cookie JWT signé** - Stocke l'email admin pour restauration de session
+- 🟠 **Bandeau visuel** - Indicateur orange en bas de l'écran pendant l'impersonation
+- ↩️ **Retour admin** - Bouton "Revenir à mon compte" pour restaurer la session admin
+- 📍 **Mode minimisé** - Le bandeau peut être réduit en badge discret
+
+**Fichiers créés** :
+| Fichier | Rôle |
+|---------|------|
+| `lib/impersonation-jwt.ts` | Utilitaires JWT pour cookie d'impersonation |
+| `app/actions/impersonation-actions.ts` | Server Actions start/stop impersonation |
+| `app/auth/impersonate/callback/route.ts` | Callback OTP verification |
+| `components/impersonation-banner.tsx` | Bandeau visuel avec minimize |
+
+**Sécurité** :
+- ✅ Vérification admin obligatoire avant impersonation
+- ✅ JWT signé avec `SUPABASE_JWT_SECRET`
+- ✅ Expiration 4h du token
+- ✅ Logging complet des actions
+
+---
+
+### 👥 Gestion Utilisateurs Admin (Dec 16, 2025)
+
+**Page complète de gestion des utilisateurs** pour les administrateurs.
+
+**Fonctionnalités** :
+- 📋 **Liste paginée** - Tous les utilisateurs avec filtres (rôle, statut, recherche)
+- ➕ **Création** - Dialogue modal pour créer de nouveaux utilisateurs
+- ✏️ **Modification** - Édition des informations utilisateur
+- 🔄 **Changement de rôle** - Switch entre admin/gestionnaire/prestataire/locataire
+- 🔒 **Toggle statut** - Activer/désactiver un compte
+- 🗑️ **Suppression** - Avec protection contre suppression du dernier admin
+- 👤 **Impersonation** - Se connecter en tant que l'utilisateur
+
+**Fichiers créés** :
+| Fichier | Rôle |
+|---------|------|
+| `app/admin/(with-navbar)/users/page.tsx` | Server Component avec stats |
+| `app/admin/(with-navbar)/users/users-management-client.tsx` | Client Component table + dialogs |
+| `app/actions/user-admin-actions.ts` | Server Actions CRUD utilisateurs |
+
+---
+
 ### 🔧 Corrections & Améliorations (Dec 8-15, 2025)
 
 **Fixes critiques et améliorations** :
@@ -616,7 +666,7 @@ SEIDO implémente **5 rôles distincts** avec permissions granulaires et isolati
 
 | Rôle | Permissions Clés | Dashboard | Pages | Cas d'usage |
 |------|------------------|-----------|-------|-------------|
-| **Admin** | Administration système complète, accès global | KPIs globaux, gestion users | 3 pages | Supervision plateforme |
+| **Admin** | Administration système complète, accès global, impersonation | KPIs globaux, gestion users | 4 pages | Supervision plateforme |
 | **Gestionnaire** | Gestion patrimoine, contrats/baux, validation interventions, email client | Portfolio, contrats, interventions, emails | 27 pages | Gestion immobilière |
 | **Prestataire** | Exécution travaux, création devis, planning | Tâches assignées, planning | 5 pages | Maintenance & réparations |
 | **Locataire** | Création demandes, suivi interventions, validation | Mes demandes, historique | 8 pages | Vie quotidienne logement |
@@ -624,8 +674,9 @@ SEIDO implémente **5 rôles distincts** avec permissions granulaires et isolati
 
 ### 📄 Pages par Rôle
 
-#### Admin (3 pages)
+#### Admin (4 pages)
 - `/admin/dashboard` - System KPIs with growth metrics
+- `/admin/users` - User management with CRUD + impersonation
 - `/admin/notifications` - System notifications
 - `/admin/profile` - Admin profile management
 
@@ -679,11 +730,31 @@ Cette section détaille toutes les fonctionnalités de l'application sous forme 
 
 ### Admin Stories
 
+#### Supervision Système
+
 **US-A1**: En tant qu'admin, je veux visualiser les statistiques globales de la plateforme (total utilisateurs, bâtiments, interventions, revenus) afin de monitorer la santé et la croissance du système.
 
 **US-A2**: En tant qu'admin, je veux recevoir des notifications système sur les événements critiques afin de pouvoir répondre rapidement aux problèmes.
 
 **US-A3**: En tant qu'admin, je veux accéder à toutes les équipes et utilisateurs afin de fournir du support et résoudre les problèmes.
+
+#### Gestion des Utilisateurs
+
+**US-A4**: En tant qu'admin, je veux visualiser la liste de tous les utilisateurs avec filtres (rôle, statut, recherche) afin de gérer efficacement les comptes.
+
+**US-A5**: En tant qu'admin, je veux créer, modifier et supprimer des utilisateurs afin de gérer les accès à la plateforme.
+
+**US-A6**: En tant qu'admin, je veux changer le rôle d'un utilisateur (admin/gestionnaire/prestataire/locataire) afin d'adapter ses permissions.
+
+**US-A7**: En tant qu'admin, je veux activer ou désactiver un compte utilisateur afin de contrôler l'accès sans supprimer les données.
+
+#### Impersonation & Debug
+
+**US-A8**: En tant qu'admin, je veux me connecter en tant qu'un autre utilisateur (impersonation) afin de debugger des problèmes ou effectuer des opérations de support.
+
+**US-A9**: En tant qu'admin en mode impersonation, je veux voir un bandeau visuel indiquant que je suis connecté en tant qu'un autre utilisateur afin de ne pas confondre avec mon propre compte.
+
+**US-A10**: En tant qu'admin en mode impersonation, je veux pouvoir revenir à mon compte admin en un clic afin de terminer la session de debug rapidement.
 
 ---
 
@@ -1369,6 +1440,37 @@ function ClientComponent() {
   // Client-side logic
 }
 ```
+
+### Impersonation Security (Admin Only)
+
+L'impersonation permet aux admins de se connecter en tant qu'un autre utilisateur pour debug et support.
+
+**Flow sécurisé** :
+```
+1. Admin clique "Se connecter en tant que" sur /admin/users
+2. Server Action vérifie le rôle admin
+3. Magic link généré via supabaseAdmin.auth.admin.generateLink()
+4. Email admin stocké dans cookie JWT signé (4h expiration)
+5. Callback vérifie OTP et établit session utilisateur
+6. Bandeau orange visible pendant toute la session
+7. "Revenir à mon compte" restaure la session admin
+```
+
+**Mesures de sécurité** :
+| Mesure | Détails |
+|--------|---------|
+| **Auth vérification** | `getServerAuthContext('admin')` obligatoire |
+| **JWT signé** | Cookie signé avec `SUPABASE_JWT_SECRET` |
+| **Expiration** | Token valide 4 heures maximum |
+| **Audit trail** | Logging de start/stop impersonation |
+| **Visual indicator** | Bandeau orange permanent (non masquable) |
+| **RLS preserved** | L'admin voit exactement ce que voit l'utilisateur |
+
+**Fichiers** :
+- `lib/impersonation-jwt.ts` - Utilities JWT
+- `app/actions/impersonation-actions.ts` - Server Actions
+- `app/auth/impersonate/callback/route.ts` - OTP callback
+- `components/impersonation-banner.tsx` - Visual indicator
 
 ---
 

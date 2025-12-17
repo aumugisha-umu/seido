@@ -99,18 +99,32 @@ export function LandingPage() {
 
                         <h1 className="landing-display mb-6 md:mb-8 drop-shadow-2xl">
                             <span className="block text-white">
-                                La fin du chaos dans la
+                                La tranquillité d’esprit des gestionnaires,
                             </span>
                             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-blue-500 to-cyan-400 dark:from-blue-400 dark:via-sky-400 dark:to-cyan-300">
-                                gestion de vos interventions
+                                pour des interventions enfin maîtrisées
                             </span>
                         </h1>
 
                         <FadeIn delay={200}>
-                            <p className="landing-subtitle text-white/90 mb-8 md:mb-10 drop-shadow-lg max-w-2xl">
-                                Fuites, pannes, devis... Ne laissez plus les incidents techniques prendre jusqu'à <span className="font-bold text-white">40% de votre temps</span>.
-                                Seido connecte gestionnaires, prestataires et locataires pour une gestion efficace et transparente.
+                            <p className="landing-subtitle text-white/90 mb-6 md:mb-8 drop-shadow-lg max-w-2xl">
+                                Toutes vos interventions techniques au même endroit : demandes, devis, planning, photos et factures — avec locataires et prestataires alignés, sans relances.
                             </p>
+
+                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-8 md:mb-10 max-w-2xl">
+                                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
+                                    <CheckCircle2 className="h-4 w-4 text-blue-300" />
+                                    <span className="landing-caption text-white/80">Traçabilité complète</span>
+                                </div>
+                                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
+                                    <CheckCircle2 className="h-4 w-4 text-blue-300" />
+                                    <span className="landing-caption text-white/80">Suivi temps réel</span>
+                                </div>
+                                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
+                                    <CheckCircle2 className="h-4 w-4 text-blue-300" />
+                                    <span className="landing-caption text-white/80">Moins d’appels & relances</span>
+                                </div>
+                            </div>
                         </FadeIn>
 
                         <FadeIn delay={300}>
@@ -136,7 +150,7 @@ export function LandingPage() {
                 <FadeIn>
                     <div className="text-center mb-12">
                         <h2 className="landing-h2 text-white mb-4">
-                            Pourquoi la gestion technique est votre pire cauchemar
+                            Le vrai coût du mode pompier
                         </h2>
                     </div>
                 </FadeIn >
@@ -147,7 +161,7 @@ export function LandingPage() {
                             <div className="landing-h1 text-red-400 mb-2">
                                 <CountUp end={40} suffix="%" />
                             </div>
-                            <div className="landing-body text-white/80 font-medium">de votre temps "pompier" sur des problèmes techniques</div>
+                            <div className="landing-body text-white/80 font-medium">de temps perdu sur des urgences techniques</div>
                         </div>
                     </FadeIn>
                     <FadeIn delay={100}>
@@ -155,7 +169,7 @@ export function LandingPage() {
                             <div className="landing-h1 text-red-400 mb-2">
                                 <CountUp end={36000} suffix="€" separator=" " />
                             </div>
-                            <div className="landing-body text-white/80 font-medium">de coûts annuels par gestionnaire</div>
+                            <div className="landing-body text-white/80 font-medium">de coûts cachés par gestionnaire / an</div>
                         </div>
                     </FadeIn>
                     <FadeIn delay={200}>
@@ -163,7 +177,7 @@ export function LandingPage() {
                             <div className="landing-h1 text-red-400 mb-2">
                                 <CountUp end={360} suffix="€" />
                             </div>
-                            <div className="landing-body text-white/80 font-medium">de perte cachée par bien/an</div>
+                            <div className="landing-body text-white/80 font-medium">de pertes évitables par bien / an</div>
                         </div>
                     </FadeIn>
                 </div>
@@ -174,34 +188,23 @@ export function LandingPage() {
                     </p>
                 </FadeIn>
 
-                {/* Connector */}
-                <FadeIn delay={400}>
-                    <div className="flex flex-col items-center justify-center mb-16 space-y-4">
-                        <div className="h-16 w-px bg-gradient-to-b from-white/0 via-white/20 to-white/0" />
-                        <div className="px-4 py-2 rounded-full border border-white/10 bg-white/5 backdrop-blur-sm landing-caption text-white/60">
-                            D'où viennent ces pertes ?
-                        </div>
-                        <div className="h-16 w-px bg-gradient-to-b from-white/0 via-white/20 to-white/0" />
-                    </div>
-                </FadeIn>
-
                 {/* Part 2: The Causes (Pain Points) */}
                 <FadeIn>
                     <div className="max-w-4xl mx-auto text-center mb-12">
                         <h2 className="landing-h2 text-white mb-4">
-                            L'enfer opérationnel quotidien
+                            Là où ça se casse toujours
                         </h2>
                         <p className="landing-subtitle text-white/60">
-                            Reconnaissez-vous ces situations ?
+                            Trois scénarios qui reviennent en boucle.
                         </p>
                     </div>
                 </FadeIn>
 
                 <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
                     {[
-                        { icon: MessageSquare, title: "Le Téléphone Arabe", desc: "Le locataire appelle, vous appelez l'artisan, l'artisan rappelle... l'info se perd, les délais explosent." },
-                        { icon: AlertTriangle, title: "Le Trou Noir Opérationnel", desc: "Une fois l'ordre de service envoyé, plus aucune nouvelle. Est-ce réparé ? Le locataire est-il content ? Mystère." },
-                        { icon: FileText, title: "La Jungle Administrative", desc: "Devis reçus par SMS, photos sur WhatsApp, factures par mail. Retrouver un dossier complet est une mission impossible." }
+                        { icon: MessageSquare, title: "Téléphone arabe", desc: "L’info circule mal, les délais explosent." },
+                        { icon: AlertTriangle, title: "Trou noir", desc: "Après l’ordre: plus de visibilité." },
+                        { icon: FileText, title: "Jungle admin", desc: "Devis, photos, factures dispersés." }
                     ].map((item, i) => (
                         <FadeIn key={i} delay={i * 100} className="h-full">
                             <div className="p-8 rounded-3xl border border-white/5 bg-white/5 backdrop-blur-sm h-full hover:-translate-y-2 hover:bg-white/10 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 group">
@@ -223,10 +226,10 @@ export function LandingPage() {
                 <FadeIn>
                     <div className="text-center max-w-3xl mx-auto mb-16">
                         <h2 className="landing-h2 mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white via-white to-white/60">
-                            Reprenez le contrôle de votre patrimoine immobilière
+                            Votre centre de contrôle
                         </h2>
                         <p className="landing-subtitle text-white/60">
-                            Seido n'est pas un autre logiciel de gestion, c'est votre <strong>centre de contrôle opérationnel</strong>. Visibilité totale, temps réel, zéro friction.
+                            Interventions pilotées en temps réel, avec historique et preuves au même endroit.
                         </p>
                     </div>
                 </FadeIn>
@@ -245,42 +248,24 @@ export function LandingPage() {
                                     </div>
                                     <div>
                                         <h3 className="landing-h3 text-white">Vos interventions sous haute surveillance</h3>
-                                        <p className="landing-caption text-blue-300">Fini le micromanagement</p>
+                                        <p className="landing-caption text-blue-300">Moins de suivi, plus de contrôle</p>
                                     </div>
                                 </div>
-                                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                    <ul className="space-y-3">
-                                        <li className="flex items-start landing-body-sm text-white/80">
-                                            <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
-                                            <span><strong>Traçabilité totale</strong> : De la demande locataire à la facture finale, tout est historisé.</span>
-                                        </li>
-                                        <li className="flex items-start landing-body-sm text-white/80">
-                                            <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
-                                            <span><strong>Notifications Intelligentes</strong> : Soyez alerté uniquement quand une action est requise.</span>
-                                        </li>
-                                    </ul>
-                                    <ul className="space-y-3">
-                                        <li className="flex items-start landing-body-sm text-white/80">
-                                            <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
-                                            <span><strong>Devis comparés</strong> : Demandez 3 devis en 1 clic, comparez et validez.</span>
-                                        </li>
-                                        <li className="flex items-start landing-body-sm text-white/80">
-                                            <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
-                                            <span><strong>Chat Contextuel</strong> : Finies les chaînes d'emails. Discutez sur l'intervention.</span>
-                                        </li>
-                                    </ul>
-                                    <ul className="space-y-3">
-                                        <li className="flex items-start landing-body-sm text-white/80">
-                                            <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
-                                            <span><strong>Tableaux de bord</strong> : Pilotez vos prestataires par la performance (délais, coûts).</span>
-                                        </li>
-                                        <li className="flex items-start landing-body-sm text-white/80">
-                                            <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
-                                            <span><strong>Automatisations</strong> : Relances automatiques des locataires et fournisseurs.</span>
-                                        </li>
-                                    </ul>
-                                </div>
-                                <p className="mt-6 landing-caption text-white/40">+ 15 autres fonctionnalités incluses</p>
+                                <ul className="grid md:grid-cols-3 gap-4">
+                                    <li className="flex items-start landing-body-sm text-white/80">
+                                        <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
+                                        <span><strong>Traçabilité totale</strong> : demande → intervention → facture.</span>
+                                    </li>
+                                    <li className="flex items-start landing-body-sm text-white/80">
+                                        <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
+                                        <span><strong>Devis simplifiés</strong> : demander, comparer, valider.</span>
+                                    </li>
+                                    <li className="flex items-start landing-body-sm text-white/80">
+                                        <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
+                                        <span><strong>Alertes utiles</strong> : uniquement quand une action est requise.</span>
+                                    </li>
+                                </ul>
+                                <p className="mt-6 landing-caption text-white/40">+ tableaux de bord, relances, chat, pilotage prestataires…</p>
                             </div>
                         </div>
                     </FadeIn>
@@ -293,7 +278,7 @@ export function LandingPage() {
                             Déléguez sans perdre le contrôle
                         </h3>
                         <p className="landing-subtitle text-white/60">
-                            Donnez les bons outils à vos partenaires pour qu'ils arrêtent de vous solliciter pour des détails.
+                            Chacun fait sa part. Vous gardez la visibilité.
                         </p>
                     </div>
                 </FadeIn>
@@ -311,23 +296,23 @@ export function LandingPage() {
                                         <p className="landing-caption text-green-400/80">Ils s'auto-gèrent, vous validez</p>
                                     </div>
                                 </div>
-                                <p className="landing-body-sm text-white/60 mb-5">Connectez vos artisans préférés à la plateforme :</p>
+                                <p className="landing-body-sm text-white/60 mb-5">Des interventions claires, côté terrain.</p>
                                 <ul className="space-y-3">
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Prise de RDV autonome</strong> : Ils gèrent leur planning directement avec le locataire.</span>
+                                        <span><strong>RDV autonome</strong> avec le locataire.</span>
                                     </li>
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Rapports d'intervention</strong> : Photos avant/après directement uploadées depuis le chantier.</span>
+                                        <span><strong>Rapport terrain</strong> (photos avant/après).</span>
                                     </li>
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-green-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Facturation intégrée</strong> : La facture arrive directement dans le bon dossier.</span>
+                                        <span><strong>Facture au bon dossier</strong>, automatiquement.</span>
                                     </li>
                                 </ul>
                                 <div className="mt-5 pt-4 border-t border-white/10">
-                                    <p className="landing-caption text-white/40">→ Gain : -80% d'appels entrants</p>
+                                    <p className="landing-caption text-white/40">→ Moins d’allers-retours et de relances</p>
                                 </div>
                             </div>
                         </div>
@@ -345,23 +330,23 @@ export function LandingPage() {
                                         <p className="landing-caption text-orange-400/80">Responsabilisez vos occupants</p>
                                     </div>
                                 </div>
-                                <p className="landing-body-sm text-white/60 mb-5">Offrez une expérience moderne à vos locataires :</p>
+                                <p className="landing-body-sm text-white/60 mb-5">Des demandes plus claires, moins de friction.</p>
                                 <ul className="space-y-3">
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-orange-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Signalement précis</strong> : Assistant guidé pour qualifier la panne (avec photos si nécessaire).</span>
+                                        <span><strong>Signalement guidé</strong> (+ photos).</span>
                                     </li>
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-orange-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Transparence</strong> : Ils suivent l'avancement "comme un colis Amazon", ça les rassure.</span>
+                                        <span><strong>Suivi “type colis”</strong> : statut clair.</span>
                                     </li>
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-orange-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Validation</strong> : Ils confirment la fin des travaux, vous êtes sûr que c'est fait.</span>
+                                        <span><strong>Validation de fin</strong> : vous savez que c’est réglé.</span>
                                     </li>
                                 </ul>
                                 <div className="mt-5 pt-4 border-t border-white/10">
-                                    <p className="landing-caption text-white/40">→ Gain : locataires rassurés, moins de conflits</p>
+                                    <p className="landing-caption text-white/40">→ Locataires rassurés, moins de conflits</p>
                                 </div>
                             </div>
                         </div>
@@ -375,7 +360,7 @@ export function LandingPage() {
                             Pensé pour vous faciliter la vie
                         </h3>
                         <p className="landing-body text-white/60">
-                            Nous comblons le vide opérationnel que votre solution de gestion immobilière peine à remplir.
+                            Simple à déployer. Facile à suivre. Conçu pour le terrain.
                         </p>
                     </div>
                 </FadeIn>
@@ -386,21 +371,21 @@ export function LandingPage() {
                         {
                             icon: Zap,
                             title: "Mise en place immédiate",
-                            desc: "Pas d'installation complexe. Créez vos immeubles, invitez vos prestataires, commencez à gérer.",
+                            desc: "Créez vos immeubles, invitez, commencez.",
                             color: "text-yellow-400",
                             bg: "bg-yellow-400/10"
                         },
                         {
                             icon: Shield,
                             title: "Preuves & Historique",
-                            desc: "En cas de litige, vous avez toutes les traces : photos, échanges, validations horodatées.",
+                            desc: "Photos, échanges, validations horodatées.",
                             color: "text-green-400",
                             bg: "bg-green-400/10"
                         },
                         {
                             icon: Smartphone,
                             title: "Mobile First",
-                            desc: "Pensé pour le terrain. Vos gardiens et gestionnaires ont tout dans la poche.",
+                            desc: "Tout dans la poche, partout.",
                             color: "text-blue-400",
                             bg: "bg-blue-400/10"
                         }
@@ -427,29 +412,27 @@ export function LandingPage() {
                             Vos données actuelles ? On s'en occupe.
                         </h3>
                         <p className="landing-body text-white/70 mb-6">
-                            Tous les abonnements incluent l'import CSV standard. Mais si vous avez des années de données
-                            dans Excel, un ancien logiciel, ou plusieurs sources différentes, notre service d'import
-                            professionnel s'occupe de tout :
+                            Import CSV inclus. Pour les données complexes (Excel / ancien logiciel), on gère la migration.
                         </p>
                         <div className="grid md:grid-cols-2 gap-6">
                             <ul className="space-y-2">
                                 <li className="flex items-start landing-caption text-white/80">
                                     <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
-                                    Nettoyage et formatage de vos fichiers
+                                    Nettoyage & formatage
                                 </li>
                                 <li className="flex items-start landing-caption text-white/80">
                                     <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
-                                    Connexion automatique entre immeubles, lots et contacts
+                                    Liens immeubles / lots / contacts
                                 </li>
                             </ul>
                             <ul className="space-y-2">
                                 <li className="flex items-start landing-caption text-white/80">
                                     <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
-                                    Vérification complète avant mise en production
+                                    Vérification avant mise en prod
                                 </li>
                                 <li className="flex items-start landing-caption text-white/80">
                                     <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
-                                    Zéro doublon, zéro perte de données
+                                    Zéro doublon, zéro perte
                                 </li>
                             </ul>
                         </div>
@@ -479,8 +462,7 @@ export function LandingPage() {
                             Aujourd'hui l'opérationnel, demain tout le reste
                         </h2>
                         <p className="landing-subtitle text-white/60">
-                            Nous commençons par résoudre votre problème le plus douloureux : les interventions. <br />
-                            Mais notre ambition est de devenir le <strong>centre de commandement unique</strong> de votre patrimoine immobilier.
+                            On commence par le plus douloureux : les interventions. Puis on étend au reste du patrimoine.
                         </p>
                     </div>
                 </FadeIn>
@@ -490,19 +472,19 @@ export function LandingPage() {
                         {
                             icon: Mail,
                             title: "Inbox Unifiée",
-                            desc: "Transformez chaque email en tâche. Assignez, traitez et archivez. La fin du chaos de la boîte de réception partagée.",
+                            desc: "Chaque email devient une action, assignée et suivie.",
                             tags: ["Bientôt", "Collaboration"]
                         },
                         {
                             icon: FileText,
                             title: "Gestion Administrative",
-                            desc: "Baux, états des lieux, indexations... Tout sera lié à vos immeubles. Alertes automatiques pour ne rien rater.",
+                            desc: "Baux & documents liés aux biens, avec alertes.",
                             tags: ["Bientôt", "Juridique"]
                         },
                         {
                             icon: BarChart3,
                             title: "Pilotage Financier",
-                            desc: "Réconciliation bancaire, suivi des loyers et appel de charges. Votre comptabilité en pilote automatique.",
+                            desc: "Loyers, charges, réconciliation : vue claire et actionnable.",
                             tags: ["Bientôt", "Finance"]
                         }
                     ].map((item, i) => (
@@ -552,19 +534,19 @@ export function LandingPage() {
                         {
                             name: "Thomas D.",
                             role: "Gestionnaire de 450 lots",
-                            content: "Seido a divisé par 3 le temps que je passe au téléphone. Mes locataires sont ravis de l'app.",
+                            content: "Moins d’appels, plus de visibilité. Mes locataires adorent.",
                             rating: 5
                         },
                         {
                             name: "Sarah L.",
                             role: "Agence Immobilière",
-                            content: "L'interface est magnifique et ultra fluide. On sent que c'est pensé pour nous.",
+                            content: "Simple, fluide, et vraiment pensé pour le terrain.",
                             rating: 5
                         },
                         {
                             name: "Marc B.",
                             role: "Plombier Partenaire",
-                            content: "Enfin des demandes claires avec des photos ! Je valide les devis sur mon mobile entre deux chantiers.",
+                            content: "Demandes claires avec photos. Tout sur mobile.",
                             rating: 5
                         }
                     ].map((t, i) => (
@@ -601,7 +583,7 @@ export function LandingPage() {
                             1 mois gratuit pour vous convaincre
                         </h2>
                         <p className="landing-subtitle text-white/60 mb-6">
-                            Testez toutes les fonctionnalités sans engagement. Payez uniquement si SEIDO vous fait gagner du temps.
+                            Testez tout, sans engagement. Continuez seulement si ça vous fait gagner du temps.
                         </p>
 
                         {/* Freemium offer */}
@@ -642,10 +624,6 @@ export function LandingPage() {
                                     <CheckCircle2 className="w-5 h-5 text-green-400 mr-3 flex-shrink-0" />
                                     Import CSV inclus
                                 </li>
-                                <li className="flex items-center text-white/80">
-                                    <CheckCircle2 className="w-5 h-5 text-green-400 mr-3 flex-shrink-0" />
-                                    Toutes les fonctionnalités
-                                </li>
                             </ul>
                             <div className="pt-4 border-t border-white/10 mb-6">
                                 <p className="landing-caption text-white/50">
@@ -683,7 +661,7 @@ export function LandingPage() {
                             <div className="mb-4 pb-4 border-b border-white/10">
                                 <p className="landing-caption text-white/60 flex items-center gap-2">
                                     <ArrowRight className="w-4 h-4 text-blue-400" />
-                                    Tout ce qui est inclus dans Mensuel, plus :
+                                    Inclus (Annuel) :
                                 </p>
                             </div>
 
@@ -695,7 +673,7 @@ export function LandingPage() {
                                 </li>
                                 <li className="flex items-center text-white/80">
                                     <CheckCircle2 className="w-5 h-5 text-blue-400 mr-3 flex-shrink-0" />
-                                    Données connectées et vérifiées
+                                    Données connectées & vérifiées
                                 </li>
                                 <li className="flex items-center text-white/80">
                                     <CheckCircle2 className="w-5 h-5 text-blue-400 mr-3 flex-shrink-0" />
@@ -728,7 +706,7 @@ export function LandingPage() {
                                 Contactez-nous
                             </h2>
                             <p className="landing-subtitle text-white/60">
-                                Une question ? Notre équipe vous répond sous 24h
+                                Une question ? Réponse sous 24h.
                             </p>
                         </div>
 
@@ -782,7 +760,7 @@ export function LandingPage() {
                                 Questions fréquentes
                             </h2>
                             <p className="landing-subtitle text-white/60 max-w-2xl mx-auto">
-                                Tout ce que vous devez savoir sur SEIDO
+                                Les réponses aux questions les plus fréquentes.
                             </p>
                         </div>
                     </FadeIn>
@@ -832,10 +810,10 @@ export function LandingPage() {
                     <div className="max-w-4xl mx-auto relative">
                         <div className="absolute inset-0 bg-gradient-to-r from-purple-600/20 to-blue-600/20 blur-[100px]" />
                         <h2 className="landing-h1 text-white mb-6 relative z-10">
-                            Prêt à passer au niveau supérieur ?
+                            Prêt à reprendre le contrôle ?
                         </h2>
                         <p className="landing-subtitle text-white/60 mb-4 relative z-10">
-                            Rejoignez l'élite des gestionnaires immobiliers dès aujourd'hui.
+                            Démarrez en quelques minutes.
                         </p>
                         <p className="landing-body text-green-400 mb-10 relative z-10 font-medium">
                             1 mois gratuit, sans engagement, sans carte bancaire
@@ -906,7 +884,7 @@ export function LandingPage() {
                     <DialogHeader>
                         <DialogTitle className="text-2xl font-bold">Demander une démo</DialogTitle>
                         <DialogDescription className="text-white/60">
-                            Remplissez ce formulaire et notre équipe vous contactera sous 24h.
+                            Laissez vos infos. Réponse sous 24h.
                         </DialogDescription>
                     </DialogHeader>
                     <DemoRequestForm

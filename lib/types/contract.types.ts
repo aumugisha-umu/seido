@@ -5,8 +5,6 @@
  * Ces types seront alignes avec database.types.ts apres regeneration.
  */
 
-import type { Database } from '@/lib/database.types'
-
 // ============================================================================
 // ENUMS (miroir des enums PostgreSQL)
 // ============================================================================

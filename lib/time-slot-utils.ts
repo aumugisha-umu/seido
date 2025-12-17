@@ -33,7 +33,7 @@ export interface TimeSlotAnalysis {
  */
 export function analyzeTimeSlots(
     timeSlots: TimeSlot[] = [],
-    userId?: string
+    _userId?: string // Reserved for future filtering by proposer
 ): TimeSlotAnalysis {
     const pendingSlots = timeSlots.filter(s => s.status === 'pending')
     const requestedSlots = timeSlots.filter(s => s.status === 'requested')

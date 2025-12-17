@@ -91,7 +91,7 @@
 
 | Métrique | Valeur | Détails |
 |----------|--------|---------|
-| **API Routes** | 86 routes | 100% authentifiées, 100% rate-limited |
+| **API Routes** | 94 routes | 100% authentifiées, 100% rate-limited |
 | **Composants UI** | 270+ composants | 50+ shadcn/ui + 76 intervention workflow + 19 shared + dashboards |
 | **Storybook Stories** | 19 stories | Documentation interactive composants intervention |
 | **Services** | 24 services | Domain services (business logic) |
@@ -106,6 +106,34 @@
 ---
 
 ## 🚀 Dernières Mises à Jour - Décembre 2025
+
+### 📥 Import Excel/CSV Biens (Dec 17, 2025)
+
+**Fonctionnalité d'import en masse** permettant aux gestionnaires d'importer leurs biens immobiliers depuis Excel ou CSV.
+
+**Fonctionnalités** :
+- 📊 **Template Excel multi-feuilles** - 4 onglets : Immeubles, Lots, Contacts, Baux
+- 🔄 **Mode Upsert intelligent** - Mise à jour si existe, création sinon (clé : nom immeuble, référence lot, email contact)
+- ✅ **Validation en temps réel** - Erreurs affichées avant import avec numéro de ligne
+- 📈 **Données d'exemple Belgique** - 3 immeubles, 15 lots, 10 contacts, 4 baux pré-remplis
+- 🌍 **Support multi-pays** - France, Belgique, Suisse, Luxembourg, Allemagne, Pays-Bas
+
+**Architecture** :
+| Composant | Description |
+|-----------|-------------|
+| `lib/import/` | Parser, validateurs, templates, types |
+| `app/api/import/` | 3 routes : template, validate, execute |
+| `components/import/` | Wizard 4 étapes avec drag & drop |
+| `lib/services/domain/import.service.ts` | Orchestration import |
+| `supabase/migrations/20251216000000_create_import_jobs.sql` | Table de tracking |
+
+**Workflow** :
+1. **Télécharger template** → Fichier Excel avec exemples
+2. **Upload fichier** → Drag & drop ou sélection
+3. **Validation** → Vérification format et références
+4. **Import** → Création/mise à jour en base
+
+---
 
 ### 🔐 Impersonation Admin (Dec 16, 2025)
 

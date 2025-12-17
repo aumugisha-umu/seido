@@ -23,11 +23,11 @@ Ce document définit le plan de test QA complet pour l'application SEIDO, une pl
 
 | Élément | Quantité |
 |---------|----------|
-| Pages/Écrans | 63 |
-| Routes API | 91 |
-| Composants | 333+ |
+| Pages/Écrans | 64 |
+| Routes API | 94 |
+| Composants | 340+ |
 | Rôles utilisateur | 5 |
-| Workflows E2E | 15+ |
+| Workflows E2E | 16+ |
 
 ---
 
@@ -98,9 +98,9 @@ Distribution recommandée des tests :
 - Auth : login, signup, signup-success, reset-password, confirm, callback, logout, beta-thank-you, unauthorized, update-password, set-password, error
 - Legal : terms, privacy
 
-#### Gestionnaire (27 pages)
+#### Gestionnaire (28 pages)
 - Dashboard
-- Biens : liste, immeubles (nouveau, détail, modifier), lots (nouveau, détail, modifier)
+- Biens : liste, immeubles (nouveau, détail, modifier), lots (nouveau, détail, modifier), **import Excel/CSV**
 - Contacts : liste, nouveau, détail, modifier, sociétés (détail, modifier)
 - Contrats : liste, nouveau, détail, modifier
 - Interventions : liste, nouvelle, détail
@@ -132,6 +132,7 @@ Distribution recommandée des tests :
 | 8 | Demande intervention locataire | Basse | P2 |
 | 9 | Soumission devis prestataire | Moyenne | P2 |
 | 10 | Validation travaux | Basse | P3 |
+| 11 | Import Excel/CSV biens | Moyenne | P2 |
 
 ---
 

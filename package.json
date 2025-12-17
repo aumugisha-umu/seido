@@ -124,6 +124,7 @@
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^13.0.0",
     "web-push": "^3.6.7",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "3.25.67"
   },
   "devDependencies": {

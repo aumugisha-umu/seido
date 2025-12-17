@@ -57,3 +57,6 @@ test-*.html
 *storybook.log
 storybook-static
 nul
+
+# backups (old cleanup files)
+backups/

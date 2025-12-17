@@ -1,4 +1,4 @@
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 
 /**
  * 🧹 SYSTÈME DE NETTOYAGE DES SESSIONS CORROMPUES
@@ -239,7 +239,7 @@ if (typeof window !== 'undefined') {
 /**
  * Nettoyage complet et redirection vers login (VERSION COMPLEXE TEMPORAIREMENT COMMENTÉE)
  */
-export const cleanupCorruptedSession = async (options?: CleanupOptions): Promise<void> => {
+export const cleanupCorruptedSession = async (_options?: CleanupOptions): Promise<void> => {
   logger.info('⚠️ [SESSION-CLEANUP] Complex cleanup temporarily disabled - use manualSessionCleanup() for testing')
 
   // Fallback vers la fonction simple

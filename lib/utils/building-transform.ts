@@ -5,7 +5,7 @@
  * pour les wizards de création et d'édition d'immeubles.
  */
 
-import type { Building, Lot as DBLot, Contact as DBContact, User } from "@/lib/services/core/service-types"
+import type { User } from "@/lib/services/core/service-types"
 import type { LotCategory } from "@/lib/lot-types"
 
 // Mapping des valeurs enum DB vers noms de pays affichés

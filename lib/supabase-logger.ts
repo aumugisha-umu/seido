@@ -1,30 +1,12 @@
 import { supabaseLogger, logSupabaseOperation } from './logger'
 import type { SupabaseClient, ServerSupabaseClient } from './services/core/supabase-client'
-import { logger, logError } from '@/lib/logger'
 
-// Types for Supabase operations
-interface _SupabaseOperationOptions {
-  error?: string
-  query?: string
-  values?: Record<string, unknown>
-  filter?: Record<string, unknown>
-  params?: Record<string, unknown>
-  duration?: number
-  rowCount?: number
-  resultCount?: number
-}
-
+// Type for auth session used in logging
 interface AuthSession {
   user?: {
     id?: string
     email?: string
   }
-}
-
-interface AuthError {
-  message?: string
-  code?: string
-  status?: number
 }
 
 // Wrapper pour les opérations Supabase avec logging automatique

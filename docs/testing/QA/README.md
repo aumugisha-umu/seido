@@ -1,7 +1,7 @@
 # Documentation QA - SEIDO
 
-> **Version** : 1.1
-> **Dernière mise à jour** : 2025-12-15
+> **Version** : 1.2
+> **Dernière mise à jour** : 2025-12-17
 > **Statut** : Complet et vérifié
 
 ---
@@ -14,11 +14,11 @@ Ce dossier contient la documentation complète pour les tests QA (Quality Assura
 
 | Métrique | Valeur |
 |----------|--------|
-| Pages/Écrans | 63 |
-| Routes API | 91 |
-| Composants | 333+ |
+| Pages/Écrans | 64 |
+| Routes API | 94 |
+| Composants | 340+ |
 | Rôles utilisateur | 5 |
-| Workflows E2E | 15+ |
+| Workflows E2E | 16+ |
 
 ### Rôles Testés
 
@@ -231,6 +231,7 @@ Après chaque session QA, mettre à jour :
 |---------|------|-------------|
 | 1.0 | 2025-12-15 | Création initiale (10 fichiers) |
 | 1.1 | 2025-12-15 | Ajout rôle Proprietaire, correction comptage pages (63), ajout pages Auth manquantes |
+| 1.2 | 2025-12-17 | Ajout fonctionnalité Import Excel/CSV (immeubles, lots, contacts, baux) |
 
 ---
 

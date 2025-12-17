@@ -12,7 +12,7 @@ import {
   createServerActionSupabaseClient
 } from '../core/supabase-client'
 import { handleError, createErrorResponse } from '../core/error-handler'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 /**
  * Team Member Type (from database)
  */

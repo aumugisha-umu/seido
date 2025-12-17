@@ -352,6 +352,150 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
 
     return { success: true as const, data: data || [] }
   }
+
+  /**
+   * Find user by email within a team (via team_members)
+   * For import: find contacts that belong to the team
+   */
+  async findByEmailInTeam(email: string, teamId: string) {
+    if (!email) {
+      return { success: true as const, data: null }
+    }
+
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select(`
+        *,
+        team_members!inner(team_id)
+      `)
+      .eq('email', email.toLowerCase().trim())
+      .eq('team_members.team_id', teamId)
+      .is('team_members.left_at', null)
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      return { success: false as const, error: handleError(error) }
+    }
+
+    // Clean up the response - remove team_members from user data
+    if (data) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { team_members: _, ...user } = data
+      return { success: true as const, data: user as User }
+    }
+
+    return { success: true as const, data: null }
+  }
+
+  /**
+   * Bulk upsert users (for import)
+   * Match by email - if exists globally, check team membership
+   */
+  async upsertMany(
+    users: (UserInsert & { _existingId?: string })[],
+    teamId: string
+  ): Promise<{ success: true; created: string[]; updated: string[]; skipped: string[] } | { success: false; error: { code: string; message: string } }> {
+    const created: string[] = []
+    const updated: string[] = []
+    const skipped: string[] = []
+
+    logger.info('[USER-REPO] upsertMany starting', { count: users.length, teamId })
+
+    for (let i = 0; i < users.length; i++) {
+      const user = users[i]
+      logger.debug(`[USER-REPO] Processing user ${i + 1}/${users.length}`, { name: user.name, email: user.email })
+      // Check if user already exists by email
+      if (user.email) {
+        const existingResult = await this.findByEmail(user.email)
+
+        if (!existingResult.success) {
+          return existingResult as { success: false; error: { code: string; message: string } }
+        }
+
+        if (existingResult.data) {
+          // User exists globally - check if in team
+          const teamMemberResult = await this.supabase
+            .from('team_members')
+            .select('id')
+            .eq('user_id', existingResult.data.id)
+            .eq('team_id', teamId)
+            .is('left_at', null)
+            .maybeSingle()
+
+          if (teamMemberResult.data) {
+            // Already in team, update user
+            const updateResult = await this.update(existingResult.data.id, {
+              name: user.name,
+              phone: user.phone,
+              address: user.address,
+              speciality: user.speciality,
+              notes: user.notes,
+            })
+
+            if (!updateResult.success) {
+              return updateResult as { success: false; error: { code: string; message: string } }
+            }
+
+            updated.push(existingResult.data.id)
+          } else {
+            // User exists but not in team - ADD them to the team using SECURITY DEFINER function
+            const { error: memberError } = await this.supabase
+              .rpc('add_user_to_team', {
+                p_user_id: existingResult.data.id,
+                p_team_id: teamId,
+                p_role: user.role,
+              })
+
+            if (memberError) {
+              logger.warn('Failed to add existing user to team_members:', memberError)
+              skipped.push(existingResult.data.id)
+            } else {
+              // Also update user data
+              await this.update(existingResult.data.id, {
+                name: user.name,
+                phone: user.phone,
+                address: user.address,
+                speciality: user.speciality,
+                notes: user.notes,
+              })
+              updated.push(existingResult.data.id)
+            }
+          }
+          continue
+        }
+      }
+
+      // Create new user - exclude internal fields like _rowIndex, _existingId
+      const { _rowIndex, _existingId, ...userDataForDb } = user as typeof user & { _rowIndex?: number };
+      const createResult = await this.create({
+        ...userDataForDb,
+        email: user.email?.toLowerCase().trim() || null,
+        team_id: teamId,
+      })
+
+      if (!createResult.success) {
+        return createResult as { success: false; error: { code: string; message: string } }
+      }
+
+      // Add to team_members using SECURITY DEFINER function to bypass RLS recursion
+      const { error: memberError } = await this.supabase
+        .rpc('add_user_to_team', {
+          p_user_id: createResult.data.id,
+          p_team_id: teamId,
+          p_role: user.role,
+        })
+
+      if (memberError) {
+        logger.warn('Failed to add user to team_members:', memberError)
+      }
+
+      created.push(createResult.data.id)
+    }
+
+    logger.info('[USER-REPO] upsertMany completed', { created: created.length, updated: updated.length, skipped: skipped.length })
+    return { success: true, created, updated, skipped }
+  }
 }
 
 // Factory functions for creating repository instances

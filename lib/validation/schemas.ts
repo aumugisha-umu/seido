@@ -324,8 +324,9 @@ export const sendContactInvitationSchema = z.object({
 
 /**
  * Intervention status enum
+ * Exported for use in validation across the app
  */
-const interventionStatusEnum = z.enum([
+export const interventionStatusEnum = z.enum([
   'demande',
   'rejetee',
   'approuvee',

@@ -98,17 +98,17 @@ export function LandingPage() {
                     <div className="w-full lg:w-6/10">
 
                         <h1 className="landing-display mb-6 md:mb-8 drop-shadow-2xl">
-                            <span className="block text-white">
-                                La tranquillité d’esprit des gestionnaires,
-                            </span>
                             <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-700 via-blue-500 to-cyan-400 dark:from-blue-400 dark:via-sky-400 dark:to-cyan-300">
-                                pour des interventions enfin maîtrisées
+                                La sérénité retrouvée
+                            </span>
+                            <span className="block text-white">
+                                pour les gestionnaires immobiliers
                             </span>
                         </h1>
 
                         <FadeIn delay={200}>
                             <p className="landing-subtitle text-white/90 mb-6 md:mb-8 drop-shadow-lg max-w-2xl">
-                                Toutes vos interventions techniques au même endroit : demandes, devis, planning, photos et factures — avec locataires et prestataires alignés, sans relances.
+                                Grâce au suivi des interventions techniques sur une plateforme unique : <span className="font-bold">demandes</span>, <span className="font-bold">devis</span>, <span className="font-bold">planning</span>, <span className="font-bold">photos</span> et <span className="font-bold">factures</span>, collaborez avec vos locataires et prestataires pour plus de transparence, efficacité et, et moins de relances.
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-8 md:mb-10 max-w-2xl">

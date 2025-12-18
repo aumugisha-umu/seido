@@ -16,7 +16,17 @@ export async function POST(request: NextRequest) {
     return authResult.error;
   }
 
-  const { team } = authResult.data;
+  const { userProfile } = authResult.data;
+
+  // Ensure we have the required profile data
+  if (!userProfile || !userProfile.team_id) {
+    return NextResponse.json(
+      { error: 'Profil utilisateur ou équipe non trouvé' },
+      { status: 400 }
+    );
+  }
+
+  const teamId = userProfile.team_id;
 
   try {
     const body = await request.json();
@@ -30,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info('[API:import/validate] Starting validation', {
-      teamId: team.id,
+      teamId,
       buildingsCount: data.buildings?.length || 0,
       lotsCount: data.lots?.length || 0,
       contactsCount: data.contacts?.length || 0,
@@ -39,10 +49,10 @@ export async function POST(request: NextRequest) {
 
     // Create service and validate
     const importService = await createServerActionImportService();
-    const result = await importService.validate(data, team.id);
+    const result = await importService.validate(data, teamId);
 
     logger.info('[API:import/validate] Validation completed', {
-      teamId: team.id,
+      teamId,
       isValid: result.isValid,
       errorCount: result.errors.length,
     });

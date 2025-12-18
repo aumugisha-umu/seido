@@ -148,7 +148,7 @@ Résultat attendu : Texte affiché tel quel, pas d'exécution JS
 | Locataire | `/locataire/*` | `/gestionnaire/*`, `/prestataire/*` | ☐ |
 | Admin | Tout | - | ☐ |
 
-### 4.3 Vérifications RLS Supabase
+### 4.3 Vérifications RLS Supabase (Base)
 
 | # | Test | Status |
 |---|------|--------|
@@ -158,6 +158,134 @@ Résultat attendu : Texte affiché tel quel, pas d'exécution JS
 | 4.3.4 | `interventions` : visible par team + assignés | ☐ |
 | 4.3.5 | `notifications` : visible par recipient | ☐ |
 | 4.3.6 | `contracts` : visible par team | ☐ |
+
+---
+
+### 4.4 Tests RLS Multi-Tenant Avancés (NOUVEAU)
+
+> **Objectif** : Vérifier l'isolation complète entre équipes/utilisateurs
+> **Criticité** : 🔴 Haute - Faille = accès données autres clients
+
+#### 4.4.1 Isolation Team A / Team B
+
+**Préconditions** :
+- Compte Team A : `gestionnaire-a@test-seido.fr` (team_id = X)
+- Compte Team B : `gestionnaire-b@test-seido.fr` (team_id = Y)
+
+| # | Test | Action | Résultat Attendu | Status |
+|---|------|--------|------------------|--------|
+| RLS-01 | Team A ne voit pas les immeubles Team B | Login Team A → GET `/api/buildings` | Liste ne contient que buildings où `team_id = X` | ☐ |
+| RLS-02 | Team A ne voit pas les lots Team B | Login Team A → GET `/api/lots` | Liste ne contient que lots de buildings Team A | ☐ |
+| RLS-03 | Team A ne voit pas les contacts Team B | Login Team A → GET `/api/contacts` | Contacts de Team B absents | ☐ |
+| RLS-04 | Team A ne voit pas les interventions Team B | Login Team A → GET `/api/interventions` | Interventions Team B absentes | ☐ |
+| RLS-05 | Accès direct par ID bloqué | Login Team A → GET `/api/buildings/{ID_TEAM_B}` | 404 ou 403 Forbidden | ☐ |
+| RLS-06 | Modification cross-team bloquée | Login Team A → PUT `/api/buildings/{ID_TEAM_B}` | 403 Forbidden | ☐ |
+| RLS-07 | Suppression cross-team bloquée | Login Team A → DELETE `/api/lots/{ID_TEAM_B}` | 403 Forbidden | ☐ |
+
+**Procédure de test** :
+```bash
+# 1. Login Team A
+curl -X POST /api/auth/login -d '{"email":"gestionnaire-a@test-seido.fr"}'
+
+# 2. Récupérer un ID d'immeuble Team B (via Supabase admin)
+# Ex: building_id_team_b = "uuid-team-b-building"
+
+# 3. Tenter l'accès
+curl -H "Authorization: Bearer $TOKEN_TEAM_A" \
+     /api/buildings/uuid-team-b-building
+
+# Attendu: 404 ou {"error": "Not found"}
+```
+
+#### 4.4.2 Isolation Locataire
+
+**Préconditions** :
+- Locataire A : `locataire-a@test-seido.fr` (associé lot 101)
+- Locataire B : `locataire-b@test-seido.fr` (associé lot 202)
+
+| # | Test | Action | Résultat Attendu | Status |
+|---|------|--------|------------------|--------|
+| RLS-10 | Locataire ne voit que son lot | Login Locataire A → Dashboard | Seul lot 101 visible | ☐ |
+| RLS-11 | Locataire ne voit pas lot autre locataire | Login Locataire A → GET `/api/lots/lot-202-id` | 403 Forbidden | ☐ |
+| RLS-12 | Locataire ne voit pas liste immeubles | Login Locataire A → GET `/api/buildings` | Liste vide ou 403 | ☐ |
+| RLS-13 | Locataire ne crée pas d'intervention sur autre lot | Login Locataire A → POST intervention sur lot 202 | 403 Forbidden | ☐ |
+| RLS-14 | Locataire ne voit que ses interventions | Login Locataire A → GET `/api/interventions` | Seules interventions de son lot | ☐ |
+
+**Test `is_tenant_of_lot()` helper** :
+```sql
+-- Vérification directe via Supabase
+SELECT is_tenant_of_lot('lot-101-uuid') -- connecté en tant que Locataire A
+-- Attendu: true
+
+SELECT is_tenant_of_lot('lot-202-uuid') -- connecté en tant que Locataire A
+-- Attendu: false
+```
+
+#### 4.4.3 Isolation Prestataire
+
+**Préconditions** :
+- Prestataire : `prestataire@test-seido.fr`
+- Intervention assignée : INT-001
+- Intervention non assignée : INT-002 (autre prestataire)
+
+| # | Test | Action | Résultat Attendu | Status |
+|---|------|--------|------------------|--------|
+| RLS-20 | Prestataire ne voit que ses interventions assignées | Login Prestataire → Dashboard | Seule INT-001 visible | ☐ |
+| RLS-21 | Prestataire ne voit pas intervention non assignée | Login Prestataire → GET `/api/interventions/INT-002` | 403 Forbidden | ☐ |
+| RLS-22 | Prestataire ne peut modifier que ses devis | Login Prestataire → PUT `/api/quotes/quote-autre` | 403 Forbidden | ☐ |
+| RLS-23 | Prestataire ne voit pas détails financiers | Login Prestataire → GET building details | Pas d'accès aux contrats/finances | ☐ |
+| RLS-24 | Prestataire ne peut pas changer statut arbitrairement | Login Prestataire → PUT status "cloturee_par_gestionnaire" | 400 Bad Request ou 403 | ☐ |
+
+#### 4.4.4 Helper Functions RLS
+
+**Vérification des fonctions helper** (`supabase/migrations/`) :
+
+| # | Fonction | Test | Résultat Attendu | Status |
+|---|----------|------|------------------|--------|
+| RLS-30 | `is_admin()` | Login admin → Appeler fonction | Retourne `true` | ☐ |
+| RLS-31 | `is_admin()` | Login gestionnaire → Appeler fonction | Retourne `false` | ☐ |
+| RLS-32 | `is_gestionnaire()` | Login gestionnaire → Appeler fonction | Retourne `true` | ☐ |
+| RLS-33 | `is_team_manager(team_id)` | Login membre team → Appeler avec son team_id | Retourne `true` | ☐ |
+| RLS-34 | `is_team_manager(team_id)` | Login membre team → Appeler avec autre team_id | Retourne `false` | ☐ |
+| RLS-35 | `get_building_team_id(building_id)` | Appeler avec building existant | Retourne team_id correct | ☐ |
+| RLS-36 | `get_lot_team_id(lot_id)` | Appeler avec lot existant | Retourne team_id du building | ☐ |
+| RLS-37 | `can_view_building(building_id)` | Login membre team propriétaire | Retourne `true` | ☐ |
+| RLS-38 | `can_view_building(building_id)` | Login autre team | Retourne `false` | ☐ |
+| RLS-39 | `can_view_lot(lot_id)` | Login locataire du lot | Retourne `true` | ☐ |
+
+#### 4.4.5 Tests API Directe (Bypass Attempts)
+
+**Tenter de contourner RLS via API directe** :
+
+| # | Test | Méthode | Résultat Attendu | Status |
+|---|------|---------|------------------|--------|
+| RLS-40 | Appel API sans auth | GET `/api/buildings` sans token | 401 Unauthorized | ☐ |
+| RLS-41 | Appel API avec token expiré | GET avec token ancien | 401 Unauthorized | ☐ |
+| RLS-42 | Appel API avec token forgé | GET avec JWT invalide | 401 Unauthorized | ☐ |
+| RLS-43 | Supabase direct sans RLS | `supabase.from('buildings').select()` client anon | Données filtrées par RLS | ☐ |
+| RLS-44 | GraphQL endpoint (si activé) | Query buildings avec auth autre team | Données filtrées | ☐ |
+
+**Test de sécurité Supabase** :
+```javascript
+// Test côté client avec clé ANON (comme un attaquant)
+const { data, error } = await supabase
+  .from('buildings')
+  .select('*')
+  .eq('id', 'uuid-team-b-building')
+
+// Attendu: data = null ou [] (RLS bloque)
+// ❌ FAIL si: data contient des résultats
+```
+
+#### 4.4.6 Cas Limites RLS
+
+| # | Test | Scénario | Résultat Attendu | Status |
+|---|------|----------|------------------|--------|
+| RLS-50 | Utilisateur multi-team | User membre de Team A et Team B | Voit données des 2 teams | ☐ |
+| RLS-51 | Changement de team | User retiré de Team A | Perd accès immédiatement | ☐ |
+| RLS-52 | Suppression utilisateur | User supprimé | Sessions invalidées, plus d'accès | ☐ |
+| RLS-53 | Team désactivée | Team marquée inactive | Membres perdent accès | ☐ |
+| RLS-54 | Données orphelines | Building sans team_id | Non accessible par personne (sauf admin) | ☐ |
 
 ---
 

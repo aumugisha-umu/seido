@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { useRealtimeInterventions } from "@/hooks/use-realtime-interventions"
 import {
     Plus,
-    FileText
+    FileText,
+    Upload
 } from "lucide-react"
 import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
 import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
@@ -131,6 +132,14 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                             >
                                 <FileText className="h-4 w-4 sm:mr-2" />
                                 <span className="hidden sm:inline">Créer un contrat</span>
+                            </Button>
+                            <Button
+                                variant="outline"
+                                onClick={() => router.push("/gestionnaire/biens/import")}
+                                className="bg-card border-border text-foreground rounded-xl"
+                            >
+                                <Upload className="h-4 w-4 sm:mr-2" />
+                                <span className="hidden sm:inline">Importer</span>
                             </Button>
                             {/* Secondary actions */}
                             <Button

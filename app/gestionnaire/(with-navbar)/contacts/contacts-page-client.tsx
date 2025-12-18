@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle } from "lucide-react"
+import { AlertCircle, Upload } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import { ContactsNavigator } from "@/components/contacts/contacts-navigator"
 import { useRouter } from "next/navigation"
 import { createContactService, createContactInvitationService } from '@/lib/services'
@@ -214,6 +215,16 @@ export function ContactsPageClient({
               <h1 className="text-2xl font-bold text-foreground sm:text-3xl mb-2">
                 Contacts
               </h1>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                className="flex items-center space-x-2"
+                onClick={() => router.push('/gestionnaire/biens/import')}
+              >
+                <Upload className="h-4 w-4" />
+                <span>Importer</span>
+              </Button>
             </div>
           </div>
         </div>

@@ -1,5 +1,5 @@
 import { getServerAuthContext } from '@/lib/server-context'
-import { getAllUsersAction } from '@/app/actions/user-admin-actions'
+import { getAllUsersWithStatusAction } from '@/app/actions/user-admin-actions'
 import { UsersManagementClient } from './users-management-client'
 import { Badge } from '@/components/ui/badge'
 import { Shield, Users } from 'lucide-react'
@@ -14,19 +14,21 @@ export default async function AdminUsersPage() {
   // Auth verification (admin only)
   const { profile } = await getServerAuthContext('admin')
 
-  // Load all users
-  const usersResult = await getAllUsersAction()
+  // Load all users with computed status
+  const usersResult = await getAllUsersWithStatusAction()
   const users = usersResult.success ? usersResult.data || [] : []
 
-  // Calculate stats
+  // Calculate stats based on computed_status for accurate counts
   const stats = {
     total: users.length,
     admins: users.filter(u => u.role === 'admin').length,
     gestionnaires: users.filter(u => u.role === 'gestionnaire').length,
     prestataires: users.filter(u => u.role === 'prestataire').length,
     locataires: users.filter(u => u.role === 'locataire').length,
-    active: users.filter(u => u.is_active).length,
-    inactive: users.filter(u => !u.is_active).length,
+    // Active = users who have actually logged in at least once
+    active: users.filter(u => u.computed_status === 'active').length,
+    // Inactive = manually deactivated OR pending/expired/not_invited
+    inactive: users.filter(u => u.computed_status !== 'active').length,
   }
 
   return (

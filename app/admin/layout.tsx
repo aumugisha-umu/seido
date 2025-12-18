@@ -2,6 +2,7 @@ import type React from "react"
 import { requireRole } from "@/lib/auth-dal"
 import { AdminLayoutClient } from "./layout-client"
 import { FrillWidget } from "@/components/frill-widget"
+import { PWABannerWrapper } from "@/components/pwa/pwa-banner-wrapper"
 
 /**
  * 🔐 ADMIN LAYOUT - ROOT LAYOUT (Architecture Next.js 15 + Route Groups)
@@ -23,17 +24,19 @@ export default async function AdminLayout({
   await requireRole(['admin'])
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Contenu principal - DashboardHeader délégué aux Route Group layouts */}
-      <main className="layout-container">
-        {children}
-      </main>
+    <PWABannerWrapper>
+      <div className="min-h-screen bg-gray-50">
+        {/* Contenu principal - DashboardHeader délégué aux Route Group layouts */}
+        <main className="layout-container">
+          {children}
+        </main>
 
-      {/* Client components pour interactivité */}
-      <AdminLayoutClient />
+        {/* Client components pour interactivité */}
+        <AdminLayoutClient />
 
-      {/* Widget Frill pour feedback utilisateur */}
-      <FrillWidget />
-    </div>
+        {/* Widget Frill pour feedback utilisateur */}
+        <FrillWidget />
+      </div>
+    </PWABannerWrapper>
   )
 }

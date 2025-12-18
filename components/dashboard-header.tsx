@@ -13,7 +13,8 @@ import { useNotificationPopover } from "@/hooks/use-notification-popover"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import NotificationPopover from "@/components/notification-popover"
-import { InstallPWAHeaderButton } from "@/components/install-pwa-header-button"
+import { usePWABannerOptional, PWA_BANNER_HEIGHT } from "@/contexts/pwa-banner-context"
+import { cn } from "@/lib/utils"
 import { logger, logError } from '@/lib/logger'
 interface NavigationItem {
   href: string
@@ -86,6 +87,7 @@ export default function DashboardHeader({
 
   const config = roleConfigs[role] || roleConfigs.gestionnaire
   const { user, signOut } = useAuth()
+  const { isBannerVisible } = usePWABannerOptional()
   const pathname = usePathname()
   const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
@@ -194,7 +196,13 @@ export default function DashboardHeader({
 
   return (
     <>
-      <header className="header">
+      <header 
+        className={cn(
+          "header",
+          "transition-[top] duration-300 ease-in-out"
+        )}
+        style={{ top: isBannerVisible ? PWA_BANNER_HEIGHT : 0 }}
+      >
         <div className="header__container">
           <nav className="header__nav">
             {/* Logo à gauche */}
@@ -213,9 +221,6 @@ export default function DashboardHeader({
                   </Link>
                 </div>
               </div>
-
-              {/* Bouton installation PWA - visible uniquement si non installé */}
-              <InstallPWAHeaderButton />
             </div>
 
             {/* Navigation desktop - cachée sur mobile et tablet - affichée seulement si navigation existe */}
@@ -321,7 +326,10 @@ export default function DashboardHeader({
           />
 
           {/* Menu panel */}
-          <div className="fixed top-16 inset-x-0 bottom-0 bg-background border-b border-border shadow-lg">
+          <div 
+            className="fixed inset-x-0 bottom-0 bg-background border-b border-border shadow-lg"
+            style={{ top: isBannerVisible ? `calc(4rem + ${PWA_BANNER_HEIGHT}px)` : '4rem' }}
+          >
             <div className="flex flex-col h-full content-max-width px-5 sm:px-6 lg:px-10 py-4">
 
               {/* Navigation principale - affichée seulement si navigation existe */}

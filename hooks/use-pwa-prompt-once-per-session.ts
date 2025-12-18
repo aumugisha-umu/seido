@@ -7,6 +7,10 @@ import { logger } from '@/lib/logger'
 /**
  * 📱 Hook : Affichage PWA unique par session
  *
+ * @deprecated Utilisez plutôt le PWABannerProvider et usePWABanner() de
+ * '@/contexts/pwa-banner-context' pour le nouveau système de banner.
+ * Ce hook est conservé pour compatibilité avec l'ancienne modal.
+ *
  * Gère la logique d'affichage de la modale PWA sur les dashboards :
  * - Vérifie que l'utilisateur est authentifié
  * - Vérifie que la PWA n'est pas déjà installée

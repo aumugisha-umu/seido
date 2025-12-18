@@ -17,15 +17,19 @@
  * - Instant financial total feedback
  */
 
+import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
-import { FileUploader } from '@/components/ui/file-uploader'
-import { Info, Calendar, Euro, TrendingUp, Paperclip } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { DocumentFileAttachment } from '@/components/ui/document-file-attachment'
+import { DatePicker } from '@/components/ui/date-picker'
+import { Info, Calendar, Euro, TrendingUp, Paperclip, AlertTriangle, Loader2 } from 'lucide-react'
 import {
   Tooltip,
   TooltipContent,
@@ -37,7 +41,10 @@ import {
   PaymentFrequency,
   PAYMENT_FREQUENCY_LABELS,
   CONTRACT_DURATION_OPTIONS,
+  ContractDocumentType,
 } from '@/lib/types/contract.types'
+import { ContractFileWithPreview, CONTRACT_DOCUMENT_TYPES } from '@/hooks/use-contract-upload'
+import { getOverlappingContracts, type OverlappingContractInfo } from '@/app/actions/contract-actions'
 
 interface LeaseFormDetailsMergedV1Props {
   // Lot info for auto-reference generation
@@ -52,15 +59,32 @@ interface LeaseFormDetailsMergedV1Props {
   rentAmount: number
   chargesAmount: number
 
-  // File upload
-  files: File[]
-  onFilesChange: (files: File[]) => void
+  // File upload with document types
+  files: ContractFileWithPreview[]
+  onAddFiles: (files: File[]) => void
+  onRemoveFile: (fileId: string) => void
+  onUpdateFileType: (fileId: string, documentType: ContractDocumentType) => void
+  isUploading?: boolean
 
   // Handlers
   onFieldChange: (field: string, value: any) => void
 
+  // Overlap validation
+  lotId?: string              // Pour vérification de chevauchement
+  existingContractId?: string // Pour exclure en mode édition
+
   // Styling
   className?: string
+}
+
+/**
+ * État de la vérification de chevauchement
+ */
+interface OverlapCheckState {
+  isChecking: boolean
+  hasOverlap: boolean
+  overlappingContracts: OverlappingContractInfo[]
+  nextAvailableDate: string | null
 }
 
 export default function LeaseFormDetailsMergedV1({
@@ -73,10 +97,77 @@ export default function LeaseFormDetailsMergedV1({
   rentAmount,
   chargesAmount,
   files,
-  onFilesChange,
+  onAddFiles,
+  onRemoveFile,
+  onUpdateFileType,
+  isUploading = false,
   onFieldChange,
+  lotId,
+  existingContractId,
   className
 }: LeaseFormDetailsMergedV1Props) {
+  // État pour la vérification de chevauchement
+  const [overlapCheck, setOverlapCheck] = useState<OverlapCheckState>({
+    isChecking: false,
+    hasOverlap: false,
+    overlappingContracts: [],
+    nextAvailableDate: null
+  })
+
+  // Vérification de chevauchement avec debounce
+  useEffect(() => {
+    // Skip si pas de lot sélectionné ou pas de date
+    if (!lotId || !startDate || !durationMonths) {
+      setOverlapCheck({
+        isChecking: false,
+        hasOverlap: false,
+        overlappingContracts: [],
+        nextAvailableDate: null
+      })
+      return
+    }
+
+    // Debounce de 500ms
+    const timer = setTimeout(async () => {
+      setOverlapCheck(prev => ({ ...prev, isChecking: true }))
+
+      try {
+        const result = await getOverlappingContracts(
+          lotId,
+          startDate,
+          durationMonths,
+          existingContractId
+        )
+
+        if (result.success && result.data) {
+          setOverlapCheck({
+            isChecking: false,
+            hasOverlap: result.data.hasOverlap,
+            overlappingContracts: result.data.overlappingContracts,
+            nextAvailableDate: result.data.nextAvailableDate
+          })
+        } else {
+          setOverlapCheck(prev => ({ ...prev, isChecking: false }))
+        }
+      } catch (error) {
+        console.error('Erreur lors de la vérification de chevauchement:', error)
+        setOverlapCheck(prev => ({ ...prev, isChecking: false }))
+      }
+    }, 500)
+
+    return () => clearTimeout(timer)
+  }, [lotId, startDate, durationMonths, existingContractId])
+
+  // Formater une date pour l'affichage
+  const formatDateDisplay = (dateStr: string): string => {
+    const date = new Date(dateStr)
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    })
+  }
+
   // Calculate end date from start date + duration
   const calculateEndDate = (start: string, months: number): Date => {
     const date = new Date(start)
@@ -164,16 +255,12 @@ export default function LeaseFormDetailsMergedV1({
               <Label htmlFor="startDate" className="flex items-center gap-1.5">
                 Date de début <span className="text-destructive">*</span>
               </Label>
-              <div className="relative">
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => onFieldChange('startDate', e.target.value)}
-                  className="pr-10"
-                />
-                <Calendar className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              </div>
+              <DatePicker
+                value={startDate}
+                onChange={(value) => onFieldChange('startDate', value)}
+                placeholder="Sélectionner une date"
+                className="w-full"
+              />
             </div>
 
             {/* Duration */}
@@ -198,6 +285,55 @@ export default function LeaseFormDetailsMergedV1({
               </Select>
             </div>
           </div>
+
+          {/* Alerte de chevauchement - Vérification en cours */}
+          {overlapCheck.isChecking && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground animate-pulse">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Vérification des contrats existants...
+            </div>
+          )}
+
+          {/* Alerte de chevauchement - Conflit détecté */}
+          {!overlapCheck.isChecking && overlapCheck.hasOverlap && (
+            <Alert className="border-amber-200 bg-amber-50 animate-in fade-in-50 duration-300">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-amber-800 font-semibold">
+                Conflit de période détecté
+              </AlertTitle>
+              <AlertDescription className="text-amber-700">
+                <p className="mb-2">
+                  Un ou plusieurs contrats existent déjà sur cette période pour ce lot :
+                </p>
+                <ul className="space-y-1">
+                  {overlapCheck.overlappingContracts.map((contract) => (
+                    <li key={contract.id} className="flex flex-wrap items-center gap-x-2 text-sm">
+                      <span className="font-medium">{contract.title}</span>
+                      <span className="text-amber-600">
+                        ({formatDateDisplay(contract.start_date)} → {formatDateDisplay(contract.end_date)})
+                      </span>
+                      <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
+                        {contract.status === 'actif' ? 'Actif' : 'Brouillon'}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+
+                {overlapCheck.nextAvailableDate && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-3 border-amber-300 bg-amber-100 hover:bg-amber-200 text-amber-800"
+                    onClick={() => onFieldChange('startDate', overlapCheck.nextAvailableDate)}
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Utiliser le {formatDateDisplay(overlapCheck.nextAvailableDate)}
+                  </Button>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
         </div>
 
         <Separator />
@@ -295,27 +431,32 @@ export default function LeaseFormDetailsMergedV1({
             className="resize-none"
           />
           <p className="text-xs text-muted-foreground">
-            Informations complémentaires visibles uniquement par l&apos;équipe de gestion.
+            Informations complémentaires visibles uniquement par l'équipe de gestion.
           </p>
         </div>
 
         <Separator />
 
-        {/* Section 4: Document Upload */}
+        {/* Section 4: Document Upload with Category Selection */}
         <div className="space-y-4">
           <div className="flex items-center gap-2 text-sm font-medium">
             <Paperclip className="h-4 w-4 text-primary" />
             Documents
           </div>
-          <FileUploader
+          <DocumentFileAttachment
             files={files}
-            onFilesChange={onFilesChange}
-            accept=".jpg,.jpeg,.png,.pdf,.doc,.docx"
-            maxSize={10}
-            label="Pièces jointes (optionnel)"
+            documentTypes={CONTRACT_DOCUMENT_TYPES}
+            onAddFiles={onAddFiles}
+            onRemoveFile={onRemoveFile}
+            onUpdateFileType={onUpdateFileType}
+            isUploading={isUploading}
+            accept=".jpg,.jpeg,.png,.pdf,.doc,.docx,.xls,.xlsx"
+            maxFiles={10}
+            label="Ajouter des documents"
+            hint="Déposez des fichiers ici ou cliquez sur le bouton ci-dessus. Sélectionnez le type de document pour chaque fichier."
           />
           <p className="text-xs text-muted-foreground">
-            Bail signé, état des lieux, attestation d&apos;assurance, diagnostics...
+            Bail signé, état des lieux, attestation d'assurance, diagnostics, justificatifs...
           </p>
         </div>
       </CardContent>

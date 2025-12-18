@@ -10,6 +10,7 @@ import { useState, useTransition, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { SeidoBadge } from '@/components/ui/seido-badge'
 import { MessageSquare, Trash2, Plus } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -100,36 +101,6 @@ export function InterventionCommentsCard({
       .slice(0, 2)
   }
 
-  const getRoleBadgeColor = (role: string) => {
-    switch (role) {
-      case 'gestionnaire':
-        return 'bg-purple-100 text-purple-800'
-      case 'prestataire':
-        return 'bg-green-100 text-green-800'
-      case 'locataire':
-        return 'bg-blue-100 text-blue-800'
-      case 'admin':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  const getRoleLabel = (role: string) => {
-    switch (role) {
-      case 'gestionnaire':
-        return 'Gestionnaire'
-      case 'prestataire':
-        return 'Prestataire'
-      case 'locataire':
-        return 'Locataire'
-      case 'admin':
-        return 'Admin'
-      default:
-        return role
-    }
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -186,13 +157,7 @@ export function InterventionCommentsCard({
                         {user?.name || 'Utilisateur inconnu'}
                       </span>
                       {user?.role && (
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${getRoleBadgeColor(
-                            user.role
-                          )}`}
-                        >
-                          {getRoleLabel(user.role)}
-                        </span>
+                        <SeidoBadge type="role" value={user.role} size="sm" />
                       )}
                       <span className="text-xs text-muted-foreground">
                         {format(new Date(comment.created_at), 'dd MMM yyyy à HH:mm', {

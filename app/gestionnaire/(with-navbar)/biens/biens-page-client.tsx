@@ -1,6 +1,6 @@
 "use client"
 
-import { Plus } from "lucide-react"
+import { Plus, Upload } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { PatrimoineNavigator } from "@/components/patrimoine/patrimoine-navigator"
@@ -129,6 +129,14 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
               </h1>
             </div>
             <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant="outline"
+                className="flex items-center space-x-2"
+                onClick={() => router.push('/gestionnaire/biens/import')}
+              >
+                <Upload className="h-4 w-4" />
+                <span>Importer</span>
+              </Button>
               <Button
                 variant="outline"
                 className="flex items-center space-x-2"

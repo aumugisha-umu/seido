@@ -34,7 +34,6 @@ import {
   ChevronUp,
 } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { useCreationSuccess } from "@/hooks/use-creation-success"
 import { toast } from "sonner"
 import { useSaveFormState, useRestoreFormState, loadFormState, clearFormState } from "@/hooks/use-form-persistence"
 import { BuildingInfoForm } from "@/components/building-info-form"
@@ -144,8 +143,7 @@ export default function NewImmeubleePage({
 }: NewImmeublePageProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { handleSuccess } = useCreationSuccess()
-  const { data: managerData, forceRefetch: refetchManagerData } = useManagerStats()
+  const { data: managerData } = useManagerStats()
 
   // TOUS LES HOOKS useState DOIVENT ÊTRE AVANT LES EARLY RETURNS (Rules of Hooks)
   const [currentStep, setCurrentStep] = useState(1)
@@ -779,33 +777,32 @@ export default function NewImmeubleePage({
       // ✅ Utiliser la Server Action pour créer l'immeuble avec auth server-side
       // La Server Action utilise createServerCompositeService() avec le server client authentifié
       // Cela garantit que auth.uid() est disponible pour les RLS policies
+      // Note: Si succès, la Server Action fait redirect() automatiquement vers /gestionnaire/biens
       const result = await createCompleteProperty({
         building: immeubleData,
         lots: lotsData,
-        buildingContacts: contactsData, // ✨ Contacts de l'immeuble
+        buildingContacts: contactsData,
         lotContactAssignments: lotContactAssignmentsData,
       })
 
-      // Verifier le succes de l'operation
+      // Si on arrive ici, c'est que la création a échoué
+      // (sinon redirect() dans la Server Action aurait interrompu l'exécution)
       if (!result.success) {
-        // ✅ Safely extract error message whether string or object
         const errorMessage = typeof result.error === 'string'
           ? result.error
           : result.error?.message || JSON.stringify(result.error) || 'Échec de la création de l\'immeuble'
         throw new Error(errorMessage)
       }
 
-      // ✅ Rediriger avec toast et refresh des données
-      await handleSuccess({
-        successTitle: "✅ Immeuble créé avec succès",
-        successDescription: `L'immeuble "${result.data.building.name}" avec ${result.data.lots.length} lot(s) a été créé et assigné à votre équipe.`,
-        redirectPath: "/gestionnaire/biens",
-        refreshData: refetchManagerData,
-      })
     } catch (err) {
+      // ✅ redirect() throws NEXT_REDIRECT - propager sans afficher d'erreur
+      if (err instanceof Error && err.message === 'NEXT_REDIRECT') {
+        throw err
+      }
+
       logger.error("Error creating building:", err)
       setError(
-        err instanceof Error 
+        err instanceof Error
           ? `Erreur lors de la création : ${err.message}`
           : "Une erreur est survenue lors de la création de l'immeuble"
       )

@@ -20,6 +20,14 @@
         "@typescript-eslint/no-explicit-any": "off",
         "@typescript-eslint/no-unused-vars": "off"
       }
+    },
+    {
+      "files": [
+        "app/(legal)/**/*.tsx"
+      ],
+      "rules": {
+        "react/no-unescaped-entities": "off"
+      }
     }
   ]
 }

@@ -1,14 +1,25 @@
 /**
- * Tenant Service - Phase 5.1
+ * Tenant Service - Phase 5.1 (Updated for Contract-based tenant-lot linkage)
  * Handles tenant-specific data and operations
+ *
+ * ✅ UPDATE 2025-12-11: Tenants are now linked to lots via contracts (contract_contacts)
+ * instead of the old lot_contacts table.
  */
 
 import { UserService, createUserService, createServerUserService } from './user.service'
 import { LotService, createLotService, createServerLotService } from './lot.service'
 import { ContactService, createContactService, createServerContactService } from './contact.service'
 import { InterventionService, createInterventionService, createServerInterventionService } from './intervention-service'
+import { createBrowserSupabaseClient, createServerSupabaseClient } from '../core/supabase-client'
 import type { ServiceResult, User, Lot, Intervention } from '../core/service-types'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { logger, logError } from '@/lib/logger'
+
+/**
+ * Contract status for tenant UX
+ */
+export type TenantContractStatus = 'none' | 'a_venir' | 'actif'
+
 /**
  * Tenant data with related information
  */
@@ -19,9 +30,11 @@ export interface TenantData {
     is_primary: boolean
     start_date?: string
     end_date?: string
+    contractStatus?: TenantContractStatus  // Status of the contract for this lot
   }>
   interventions: unknown[]
   teamData?: unknown
+  contractStatus: TenantContractStatus  // Overall contract status
 }
 
 /**
@@ -29,12 +42,27 @@ export interface TenantData {
  * Specialized service for tenant-related operations and data retrieval
  */
 export class TenantService {
+  private supabase: SupabaseClient | null = null
+
   constructor(
     private userService: UserService,
     private lotService: LotService,
     private contactService: ContactService,
-    private interventionService: InterventionService
-  ) {}
+    private interventionService: InterventionService,
+    supabase?: SupabaseClient
+  ) {
+    this.supabase = supabase || null
+  }
+
+  /**
+   * Get Supabase client (lazy initialization for browser)
+   */
+  private getSupabaseClient(): SupabaseClient {
+    if (!this.supabase) {
+      this.supabase = createBrowserSupabaseClient()
+    }
+    return this.supabase
+  }
 
   /**
    * Get comprehensive tenant data by user ID
@@ -74,22 +102,41 @@ export class TenantService {
       // Get lots associated with this tenant
       const lots = await this.getTenantLots(actualUserId)
 
+      // Determine overall contract status:
+      // - 'none' if no contracts
+      // - 'actif' if at least one active contract
+      // - 'a_venir' if only upcoming contracts
+      let contractStatus: TenantContractStatus = 'none'
+      if (lots.length > 0) {
+        const hasActiveContract = lots.some(l => l.contractStatus === 'actif')
+        contractStatus = hasActiveContract ? 'actif' : 'a_venir'
+      }
+
       // Get interventions for this tenant (filtered by team for multi-tenant isolation)
-      const interventions = await this.getTenantInterventions(actualUserId, user.team_id)
+      // Only fetch interventions if tenant has at least one contract
+      const interventions = contractStatus !== 'none'
+        ? await this.getTenantInterventions(actualUserId, user.team_id)
+        : []
 
       // Get team data if user is part of a team
       let teamData = null
       if (user.team_id) {
-        // This would require team service integration
-        // For now, we'll leave it as null and can implement later
         teamData = { id: user.team_id, name: 'Team' }
       }
+
+      logger.info("✅ [TENANT-SERVICE] getTenantData complete:", {
+        userId: actualUserId,
+        lotsCount: lots.length,
+        contractStatus,
+        interventionsCount: interventions.length
+      })
 
       return {
         user,
         lots,
         interventions,
-        teamData
+        teamData,
+        contractStatus
       }
 
     } catch (error) {
@@ -111,8 +158,10 @@ export class TenantService {
   }
 
   /**
-   * Get lots associated with a tenant via lot_contacts junction table
-   * ✅ CORRECTIF (2025-10-07): Use ContactService to query lot_contacts properly
+   * Get lots associated with a tenant via CONTRACTS (contract_contacts table)
+   * ✅ UPDATE 2025-12-11: Changed from lot_contacts to contract_contacts
+   *
+   * Only returns lots from ACTIVE contracts (status = 'actif')
    */
   private async getTenantLots(userId: string): Promise<Array<{
     lot: Lot
@@ -121,32 +170,90 @@ export class TenantService {
     end_date?: string
   }>> {
     try {
-      logger.info("🏠 [TENANT-SERVICE] Getting lots for tenant via lot_contacts:", userId)
+      logger.info("🏠 [TENANT-SERVICE] Getting lots for tenant via contracts:", userId)
 
-      // Get all lot contacts for this user (queries lot_contacts table with relations)
-      const contactsResult = await this.contactService.getUserContacts(userId)
-      if (!contactsResult.success) {
-        logger.warn("⚠️ [TENANT-SERVICE] Could not get user contacts:", contactsResult.error)
+      const supabase = this.getSupabaseClient()
+
+      // Query contract_contacts to find tenant's active contracts with lot data
+      // Note: Only using columns that exist in the lots table schema
+      const { data, error } = await supabase
+        .from('contract_contacts')
+        .select(`
+          id,
+          role,
+          is_primary,
+          contract:contract_id(
+            id,
+            title,
+            status,
+            start_date,
+            end_date,
+            lot:lot_id(
+              id,
+              reference,
+              floor,
+              category,
+              street,
+              city,
+              postal_code,
+              building:building_id(
+                id,
+                name,
+                address,
+                city,
+                postal_code,
+                description
+              )
+            )
+          )
+        `)
+        .eq('user_id', userId)
+        .in('role', ['locataire', 'colocataire'])
+
+      if (error) {
+        logger.warn("⚠️ [TENANT-SERVICE] Could not get tenant contracts:", error.message)
         return []
       }
 
-      // Filter contacts that have lot data (lot relation should be populated)
-      const contactsWithLots = contactsResult.data.filter(contact => contact.lot_id && contact.lot)
-
-      if (contactsWithLots.length === 0) {
-        logger.info("ℹ️ [TENANT-SERVICE] No lot contacts found for user:", userId)
+      if (!data || data.length === 0) {
+        logger.info("ℹ️ [TENANT-SERVICE] No contracts found for tenant:", userId)
         return []
       }
 
-      // Map lot contacts to the expected format (lot data is already loaded via relations)
-      const lotsWithDetails = contactsWithLots.map((contact) => ({
-        lot: contact.lot, // Lot data already loaded via Supabase relation
-        is_primary: contact.is_primary || false,
-        start_date: contact.start_date || undefined,
-        end_date: contact.end_date || undefined
-      }))
 
-      logger.info("✅ [TENANT-SERVICE] Found tenant lots:", lotsWithDetails.length)
+      // Filter to only ACTIVE or UPCOMING contracts
+      const validStatuses = ['actif', 'a_venir']
+      const activeContracts = data.filter(
+        (item: any) => {
+          const status = item.contract?.status?.toLowerCase()
+          const hasLot = !!item.contract?.lot
+          return validStatuses.includes(status) && hasLot
+        }
+      )
+
+      if (activeContracts.length === 0) {
+        logger.info("ℹ️ [TENANT-SERVICE] No active contracts found for tenant:", userId)
+        return []
+      }
+
+      // Map contract data to the expected format with contractStatus
+      const lotsWithDetails = activeContracts.map((item: any) => {
+        const status = item.contract?.status?.toLowerCase() as TenantContractStatus
+        return {
+          lot: item.contract.lot as Lot,
+          is_primary: item.is_primary || false,
+          start_date: item.contract.start_date || undefined,
+          end_date: item.contract.end_date || undefined,
+          contractStatus: status === 'actif' ? 'actif' : 'a_venir' as TenantContractStatus
+        }
+      })
+
+      logger.info("✅ [TENANT-SERVICE] Found tenant lots from active contracts:", {
+        totalContracts: data.length,
+        activeContracts: activeContracts.length,
+        lots: lotsWithDetails.length
+      })
+
       return lotsWithDetails
 
     } catch (error) {
@@ -246,17 +353,18 @@ export const createTenantService = (
   const lots = lotService || createLotService()
   const contacts = contactService || createContactService()
   const interventions = interventionService || createInterventionService()
-
+  // Browser client will be created lazily in getTenantLots()
   return new TenantService(users, lots, contacts, interventions)
 }
 
 export const createServerTenantService = async () => {
-  const [userService, lotService, contactService, interventionService] = await Promise.all([
+  const [userService, lotService, contactService, interventionService, supabase] = await Promise.all([
     createServerUserService(),
     createServerLotService(),
     createServerContactService(),
-    createServerInterventionService()
+    createServerInterventionService(),
+    createServerSupabaseClient()
   ])
 
-  return new TenantService(userService, lotService, contactService, interventionService)
+  return new TenantService(userService, lotService, contactService, interventionService, supabase)
 }

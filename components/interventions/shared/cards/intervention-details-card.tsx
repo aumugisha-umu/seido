@@ -39,28 +39,41 @@ import { formatDate, formatAmount } from '../utils/helpers'
 /**
  * Configuration du statut planning
  */
-const getPlanningStatusConfig = (status: 'pending' | 'scheduled' | 'completed') => {
+const getPlanningStatusConfig = (status: 'pending' | 'proposed' | 'scheduled' | 'completed', proposedCount?: number) => {
   switch (status) {
     case 'completed':
       return {
         icon: CheckCircle2,
         label: 'Terminée',
         color: 'text-green-600',
-        bgColor: 'bg-green-50'
+        bgColor: 'bg-green-50',
+        description: 'Intervention terminée'
       }
     case 'scheduled':
       return {
         icon: Calendar,
-        label: 'Planifiée',
+        label: 'Confirmé',
         color: 'text-purple-600',
-        bgColor: 'bg-purple-50'
+        bgColor: 'bg-purple-50',
+        description: 'Créneau confirmé'
+      }
+    case 'proposed':
+      return {
+        icon: Clock,
+        label: proposedCount && proposedCount > 1 ? `${proposedCount} créneaux` : '1 créneau',
+        color: 'text-blue-600',
+        bgColor: 'bg-blue-50',
+        description: proposedCount && proposedCount > 1
+          ? `${proposedCount} créneaux proposés`
+          : '1 créneau proposé'
       }
     default:
       return {
-        icon: Clock,
+        icon: AlertCircle,
         label: 'En attente',
         color: 'text-amber-600',
-        bgColor: 'bg-amber-50'
+        bgColor: 'bg-amber-50',
+        description: 'Aucun créneau proposé'
       }
   }
 }
@@ -95,28 +108,53 @@ const getQuotesStatusConfig = (status: 'pending' | 'received' | 'approved', coun
 }
 
 /**
- * Section Planification
+ * Section Planification - Cliquable pour naviguer vers l'onglet Planning et Devis
  */
 interface PlanningStatusSectionProps {
   planning: NonNullable<InterventionDetailsCardProps['planning']>
+  onNavigateToPlanning?: () => void
 }
 
-const PlanningStatusSection = ({ planning }: PlanningStatusSectionProps) => {
-  const planningConfig = getPlanningStatusConfig(planning.status)
+const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatusSectionProps) => {
+  const planningConfig = getPlanningStatusConfig(planning.status, planning.proposedSlotsCount)
   const quotesConfig = getQuotesStatusConfig(planning.quotesStatus, planning.quotesCount || 0)
   const PlanningIcon = planningConfig.icon
   const QuotesIcon = quotesConfig.icon
 
+  const isClickable = !!onNavigateToPlanning
+
   return (
     <div className="space-y-3">
-      <h4 className="text-sm font-medium text-muted-foreground">
-        Planification
-      </h4>
+      <div className="flex items-center justify-between">
+        <h4 className="text-sm font-medium text-muted-foreground">
+          Planning et Devis
+        </h4>
+        {isClickable && (
+          <button
+            onClick={onNavigateToPlanning}
+            className="text-xs text-primary hover:underline"
+          >
+            Voir détails →
+          </button>
+        )}
+      </div>
 
-      {/* Grid Planning + Devis */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Grid Planning + Devis - Cliquable */}
+      <div
+        className={cn(
+          'grid grid-cols-1 sm:grid-cols-2 gap-3',
+          isClickable && 'cursor-pointer'
+        )}
+        onClick={isClickable ? onNavigateToPlanning : undefined}
+        role={isClickable ? 'button' : undefined}
+        tabIndex={isClickable ? 0 : undefined}
+        onKeyDown={isClickable ? (e) => e.key === 'Enter' && onNavigateToPlanning?.() : undefined}
+      >
         {/* Planning Status */}
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
+        <div className={cn(
+          'flex items-center gap-3 p-3 rounded-lg bg-slate-50 transition-colors',
+          isClickable && 'hover:bg-slate-100'
+        )}>
           <div
             className={cn(
               'flex items-center justify-center h-9 w-9 rounded-lg flex-shrink-0',
@@ -128,7 +166,9 @@ const PlanningStatusSection = ({ planning }: PlanningStatusSectionProps) => {
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium">Planning</p>
             <p className="text-xs text-muted-foreground truncate">
-              {planning.scheduledDate ? formatDate(planning.scheduledDate) : planningConfig.label}
+              {planning.scheduledDate
+                ? formatDate(planning.scheduledDate)
+                : planningConfig.description}
             </p>
           </div>
           <Badge
@@ -146,7 +186,10 @@ const PlanningStatusSection = ({ planning }: PlanningStatusSectionProps) => {
         </div>
 
         {/* Devis Status */}
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-slate-50">
+        <div className={cn(
+          'flex items-center gap-3 p-3 rounded-lg bg-slate-50 transition-colors',
+          isClickable && 'hover:bg-slate-100'
+        )}>
           <div
             className={cn(
               'flex items-center justify-center h-9 w-9 rounded-lg flex-shrink-0',
@@ -215,6 +258,7 @@ export const InterventionDetailsCard = ({
   instructions,
   location,
   planning,
+  onNavigateToPlanning,
   className
 }: InterventionDetailsCardProps) => {
   const hasContent = description || instructions || location || planning
@@ -275,7 +319,10 @@ export const InterventionDetailsCard = ({
         {planning && (
           <>
             {(description || instructions || location) && <Separator />}
-            <PlanningStatusSection planning={planning} />
+            <PlanningStatusSection
+              planning={planning}
+              onNavigateToPlanning={onNavigateToPlanning}
+            />
           </>
         )}
       </CardContent>

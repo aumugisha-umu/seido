@@ -106,7 +106,7 @@ export default function BetaThankYouPage() {
               className="w-full border-brand-primary/40 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Retour à l&apos;accueil
+              Retour à l'accueil
             </Button>
           </Link>
         </div>

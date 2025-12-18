@@ -7,6 +7,7 @@ import { AlertTriangle, ChevronRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { ManagerInterventionCard } from "@/components/dashboards/manager/manager-intervention-card"
+import { shouldShowAlertBadge } from "@/lib/intervention-alert-utils"
 
 // ============================================================================
 // TYPES
@@ -31,6 +32,18 @@ const getUrgencyLevel = (intervention: any): number => {
     }
 }
 
+// Priorité d'action basée sur le statut (pour le tri)
+const getActionPriority = (intervention: any): number => {
+    switch (intervention.status) {
+        case 'demande': return 5 // Nouvelle demande à traiter
+        case 'cloturee_par_prestataire': return 4 // À finaliser
+        case 'cloturee_par_locataire': return 4 // À finaliser
+        case 'demande_de_devis': return 3 // Devis à gérer
+        case 'planification': return 2 // À planifier
+        default: return 1
+    }
+}
+
 // ============================================================================
 // COMPONENT
 // ============================================================================
@@ -42,36 +55,26 @@ export function UrgentInterventionsSection({
 }: UrgentInterventionsSectionProps) {
     const router = useRouter()
 
-    // Filter and sort urgent interventions
-    const urgentInterventions = useMemo(() => {
-        // Only show interventions that need action (not completed)
-        const actionableStatuses = [
-            'demande',
-            'approuvee',
-            'demande_de_devis',
-            'planification',
-            'planifiee',
-            'en_cours'
-        ]
-
+    // Filter interventions that require action from the current user
+    const actionableInterventions = useMemo(() => {
         return interventions
             .filter(intervention => {
-                const urgency = intervention.urgency || intervention.priority || 'normale'
-                const isUrgent = urgency === 'urgente' || urgency === 'haute'
-                const isActionable = actionableStatuses.includes(intervention.status)
-                return isUrgent && isActionable
+                // Use the same logic as the alert badge to determine if action is needed
+                return shouldShowAlertBadge(intervention, userContext)
             })
             .sort((a, b) => {
-                // Sort by urgency level first, then by date
+                // Sort by action priority first, then urgency, then date
+                const actionDiff = getActionPriority(b) - getActionPriority(a)
+                if (actionDiff !== 0) return actionDiff
                 const urgencyDiff = getUrgencyLevel(b) - getUrgencyLevel(a)
                 if (urgencyDiff !== 0) return urgencyDiff
                 return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
             })
             .slice(0, maxItems)
-    }, [interventions, maxItems])
+    }, [interventions, maxItems, userContext])
 
-    // Don't render if no urgent interventions
-    if (urgentInterventions.length === 0) {
+    // Don't render if no actionable interventions
+    if (actionableInterventions.length === 0) {
         return null
     }
 
@@ -81,7 +84,8 @@ export function UrgentInterventionsSection({
             : userContext === 'prestataire'
                 ? '/prestataire/interventions'
                 : '/locataire/interventions'
-        router.push(`${basePath}?urgency=urgente,haute`)
+        // Navigate to interventions list without urgency filter
+        router.push(basePath)
     }
 
     return (
@@ -110,7 +114,7 @@ export function UrgentInterventionsSection({
                                 À traiter en priorité
                             </CardTitle>
                             <p className="text-sm text-amber-700/70 dark:text-amber-300/70">
-                                {urgentInterventions.length} intervention{urgentInterventions.length > 1 ? 's' : ''} urgente{urgentInterventions.length > 1 ? 's' : ''}
+                                {actionableInterventions.length} action{actionableInterventions.length > 1 ? 's' : ''} requise{actionableInterventions.length > 1 ? 's' : ''}
                             </p>
                         </div>
                     </div>
@@ -128,7 +132,7 @@ export function UrgentInterventionsSection({
             <CardContent className="pt-2 pb-4 px-0 relative z-10">
                 {/* Horizontal scrollable container - reusing ManagerInterventionCard */}
                 <div className="flex gap-4 overflow-x-auto px-4 pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-transparent">
-                    {urgentInterventions.map((intervention) => (
+                    {actionableInterventions.map((intervention) => (
                         <div
                             key={intervention.id}
                             className="flex-shrink-0 w-[calc(33.333%-11px)] min-w-[320px] snap-start"

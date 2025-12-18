@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 import { ContactsNavigator } from "@/components/contacts/contacts-navigator"
@@ -107,6 +107,16 @@ export function ContactsPageClient({
     setPendingInvitations(initialInvitations)
     setCompanies(initialCompanies)
   }, [initialContacts, initialInvitations, initialCompanies])
+
+  // ✅ Enrichir les contacts avec leur statut d'invitation
+  const contactsWithInvitationStatus = useMemo(() => {
+    return contacts.map(contact => ({
+      ...contact,
+      invitationStatus: contact.email
+        ? initialContactsInvitationStatus[contact.email.toLowerCase()] || null
+        : null
+    }))
+  }, [contacts, initialContactsInvitationStatus])
 
   // Instancier les services nécessaires
   const contactService = createContactService()
@@ -222,7 +232,7 @@ export function ContactsPageClient({
             {/* Content wrapper avec padding */}
             <div className="flex-1 flex flex-col min-h-0 p-4">
               <ContactsNavigator
-                contacts={contacts as any}
+                contacts={contactsWithInvitationStatus as any}
                 invitations={pendingInvitations as any}
                 companies={companies as any}
                 loading={loading}

@@ -541,6 +541,127 @@ revalidatePath('/gestionnaire/biens')  // Invalidate Full Route Cache
 - `freshTime`, `staleTime`, `maxAge` configuration
 - Automatic background revalidation
 
+### Entity Creation Pattern (NEW: 2025-12-10)
+
+**✅ Standard Pattern for All Entity Creations**
+
+Use `redirect()` in Server Actions or `toast()` + `router.push()` for immediate navigation.
+
+**Pattern A: Server Actions with redirect() (RECOMMENDED)**
+```typescript
+// Server Action (app/actions/xxx-actions.ts)
+'use server'
+import { redirect } from 'next/navigation'
+import { revalidateTag, revalidatePath } from 'next/cache'
+
+export async function createXxxAction(
+  data: XxxInput,
+  options?: { redirectTo?: string }
+): Promise<ActionResult<Xxx>> {
+  try {
+    // 1. Auth + Validation
+    // 2. Create entity
+    const result = await xxxService.create(data)
+
+    if (!result.success) {
+      return { success: false, error: result.error }
+    }
+
+    // 3. Cache invalidation
+    revalidateTag('xxx')
+    revalidatePath('/gestionnaire/xxx')
+
+    // 4. Server-side redirect (instant, no 500ms delay)
+    if (options?.redirectTo) {
+      redirect(options.redirectTo)
+    }
+
+    return { success: true, data: result.data }
+  } catch (error) {
+    // IMPORTANT: Propagate NEXT_REDIRECT
+    if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+      throw error
+    }
+    return { success: false, error: error.message }
+  }
+}
+```
+
+```typescript
+// Client Component
+const handleSubmit = async () => {
+  try {
+    setIsSubmitting(true)
+    const result = await createXxxAction(data, {
+      redirectTo: '/gestionnaire/xxx'
+    })
+    // If we reach here, creation failed (success = redirect happened)
+    if (!result.success) {
+      throw new Error(result.error)
+    }
+  } catch (err) {
+    if (err instanceof Error && err.message === 'NEXT_REDIRECT') throw err
+    setError(err.message)
+  } finally {
+    setIsSubmitting(false)
+  }
+}
+```
+
+**Pattern B: API Routes with toast + router.push (for file uploads)**
+```typescript
+// Client Component (when using FormData/file uploads)
+const handleSubmit = async () => {
+  try {
+    setIsSubmitting(true)
+    const response = await fetch('/api/create-xxx', {
+      method: 'POST',
+      body: formData
+    })
+    const result = await response.json()
+
+    if (!result.success) throw new Error(result.error)
+
+    // ✅ Toast + immediate redirect (no 500ms delay)
+    toast({
+      title: "Créé avec succès",
+      description: result.message,
+      variant: "success",
+    })
+    router.push(`/gestionnaire/xxx/${result.id}`)
+
+  } catch (error) {
+    toast({ title: "Erreur", description: error.message, variant: "destructive" })
+  } finally {
+    setIsSubmitting(false)
+  }
+}
+```
+
+**❌ DEPRECATED Pattern (DO NOT USE)**
+```typescript
+// ❌ useCreationSuccess hook - causes 500ms+ delays
+import { useCreationSuccess } from '@/hooks/use-creation-success'
+const { handleSuccess } = useCreationSuccess()
+
+await handleSuccess({
+  redirectPath: '/xxx',
+  refreshData: someAsyncFunction,  // ⚠️ Can block indefinitely
+})
+```
+
+**Migration Status** (2025-12-10):
+- ✅ Building creation: `redirect()` in Server Action
+- ✅ Lot creation: `redirect()` in Server Action
+- ✅ Intervention creation: `toast()` + `router.push()` (uses FormData)
+- ✅ Contract creation: `toast()` + `router.push()` (already correct)
+- ✅ Contact creation: `sessionStorage` pattern (special case for multi-form flows)
+
+**Reference Files**:
+- Server Action pattern: `app/gestionnaire/(no-navbar)/biens/lots/nouveau/actions.ts`
+- API route pattern: `app/gestionnaire/(no-navbar)/interventions/nouvelle-intervention/nouvelle-intervention-client.tsx`
+- Deprecated hook: `hooks/use-creation-success.ts` (marked @deprecated)
+
 ### Testing
 
 **E2E Tests** (`docs/refacto/Tests/`):

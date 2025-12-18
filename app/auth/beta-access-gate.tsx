@@ -109,7 +109,7 @@ export function BetaAccessGate() {
               Programme co-développement 2026
             </h1>
             <p className="landing-subtitle text-white/60 max-w-md mx-auto">
-              Rejoignez les professionnels qui co-construisent l&apos;avenir de la gestion locative
+              Rejoignez les professionnels qui co-construisent l'avenir de la gestion locative
             </p>
           </div>
 
@@ -130,7 +130,7 @@ export function BetaAccessGate() {
                   className="rounded-md data-[state=active]:bg-white/10 data-[state=active]:text-white text-white/60"
                 >
                   <Lock className="w-4 h-4 mr-2" />
-                  J&apos;ai un code
+                  J'ai un code
                 </TabsTrigger>
               </TabsList>
 
@@ -350,7 +350,7 @@ export function BetaAccessGate() {
               <TabsContent value="password" className="p-6 pt-2">
                 <div className="mb-6">
                   <h2 className="landing-h4 text-white mb-2">
-                    Vous avez un code d&apos;accès ?
+                    Vous avez un code d'accès ?
                   </h2>
                   <p className="landing-caption text-white/60">
                     Entrez votre code pour accéder directement à la plateforme
@@ -361,7 +361,7 @@ export function BetaAccessGate() {
                   {/* Champ Password */}
                   <div>
                     <Label htmlFor="password" className="text-white landing-caption">
-                      Code d&apos;accès beta
+                      Code d'accès beta
                     </Label>
                     <Input
                       id="password"

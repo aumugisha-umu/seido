@@ -145,10 +145,10 @@ export function StatsCard({
             )}
             onClick={isClickable ? handleClick : undefined}
         >
-            <CardContent className="stats-card__content p-6 relative">
+            <CardContent className="stats-card__content p-4 relative">
                 {/* Background Icon */}
-                <div className="stats-card__icon-bg absolute right-0 top-0 p-6 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <Icon className={cn("h-24 w-24", iconColor)} />
+                <div className="stats-card__icon-bg absolute right-0 top-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Icon className={cn("h-16 w-16", iconColor)} />
                 </div>
 
                 {/* Content */}
@@ -162,12 +162,12 @@ export function StatsCard({
                     </p>
 
                     {/* Value + Sublabel */}
-                    <div className="stats-card__value-container flex items-baseline gap-2 mt-2">
-                        <span className={cn("stats-card__value text-4xl font-bold", styles.value)}>
+                    <div className="stats-card__value-container flex items-baseline gap-1.5 mt-1">
+                        <span className={cn("stats-card__value text-3xl font-bold", styles.value)}>
                             {value}
                         </span>
                         {sublabel && (
-                            <span className={cn("stats-card__sublabel text-sm font-medium", styles.sublabel)}>
+                            <span className={cn("stats-card__sublabel text-xs font-medium", styles.sublabel)}>
                                 {typeof sublabel === 'string' ? sublabel : sublabel}
                             </span>
                         )}

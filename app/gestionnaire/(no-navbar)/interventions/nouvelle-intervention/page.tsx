@@ -1,7 +1,8 @@
 // Server Component - loads data server-side
 import {
   createServerBuildingService,
-  createServerLotService
+  createServerLotService,
+  createServerContractService
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
 import NouvelleInterventionClient from './nouvelle-intervention-client'
@@ -15,9 +16,9 @@ export default async function NouvelleInterventionPage() {
   })
 
   try {
-    // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
+    // ✅ AUTH + TEAM + PROFILE en 1 ligne (cached via React.cache())
     // Remplace ~50 lignes d'auth manuelle !
-    const { team } = await getServerAuthContext('gestionnaire')
+    const { team, profile } = await getServerAuthContext('gestionnaire')
 
     // ✅ Defensive guard: ensure team exists before accessing team.id
     if (!team || !team.id) {
@@ -27,7 +28,8 @@ export default async function NouvelleInterventionPage() {
           initialBuildingsData={{
             buildings: [],
             lots: [],
-            teamId: null
+            teamId: null,
+            userId: null
           }}
         />
       )
@@ -53,16 +55,28 @@ export default async function NouvelleInterventionPage() {
       elapsed: `${Date.now() - startTime}ms`
     })
 
+    // ✅ 2025-12-10: Get occupied lot IDs from ACTIVE CONTRACTS FIRST (before transforming buildings)
+    let occupiedLotIds = new Set<string>()
+    try {
+      const contractService = await createServerContractService()
+      const occupiedResult = await contractService.getOccupiedLotIdsByTeam(team.id)
+      if (occupiedResult.success) {
+        occupiedLotIds = occupiedResult.data
+        logger.info('✅ [INTERVENTION-PAGE-SERVER] Occupied lots from contracts:', {
+          count: occupiedLotIds.size
+        })
+      }
+    } catch (error) {
+      logger.warn('⚠️ [INTERVENTION-PAGE-SERVER] Could not get occupied lots from contracts')
+    }
+
     // Step 2.5: Transform lots inside buildings to add status field
     logger.info('📍 [INTERVENTION-PAGE-SERVER] Step 2.5: Transforming lots inside buildings...')
     buildings = buildings.map((building: any) => ({
       ...building,
       lots: (building.lots || []).map((lot: any) => {
-        // Calculer is_occupied à partir des lot_contacts (comme dans lot.repository.ts)
-        const tenants = lot.lot_contacts?.filter((contact: any) => 
-          contact.user?.role === 'locataire'
-        ) || []
-        const isOccupied = tenants.length > 0
+        // ✅ 2025-12-10: Utiliser contrats actifs au lieu de lot_contacts
+        const isOccupied = occupiedLotIds.has(lot.id)
         return {
           ...lot,
           is_occupied: isOccupied,
@@ -105,9 +119,11 @@ export default async function NouvelleInterventionPage() {
     })
 
     const transformedLots = lots.map((lot: any) => {
-      const isOccupied = lot.is_occupied || false
+      // ✅ 2025-12-10: Utiliser contrats actifs au lieu de lot_contacts
+      const isOccupied = occupiedLotIds.has(lot.id)
       const transformed = {
         ...lot,
+        is_occupied: isOccupied,
         status: isOccupied ? "occupied" : "vacant",
         building_name: buildings.find((b: any) => b.id === lot.building_id)?.name || null
       }
@@ -115,9 +131,8 @@ export default async function NouvelleInterventionPage() {
       // DEBUG: Log transformation for each lot
       if (lot.reference?.includes('Appartement')) {
         logger.info(`🔍 [DEBUG] Lot transformation: ${lot.reference}`, {
-          original_is_occupied: lot.is_occupied,
-          original_status: lot.status,
-          lot_contacts_count: lot.lot_contacts?.length || 0,
+          lotId: lot.id,
+          inOccupiedSet: occupiedLotIds.has(lot.id),
           calculated_isOccupied: isOccupied,
           final_status: transformed.status
         })
@@ -140,7 +155,8 @@ export default async function NouvelleInterventionPage() {
     const buildingsData = {
       buildings,
       lots: transformedLots,
-      teamId: team.id
+      teamId: team.id,
+      userId: profile.id  // ✅ Passer userId pour pré-sélection gestionnaire
     }
 
     logger.info('🎉 [INTERVENTION-PAGE-SERVER] All data loaded successfully', {
@@ -166,7 +182,8 @@ export default async function NouvelleInterventionPage() {
         initialBuildingsData={{
           buildings: [],
           lots: [],
-          teamId: null
+          teamId: null,
+          userId: null
         }}
       />
     )

@@ -31,9 +31,22 @@ import { determineInterventionRecipients } from './notification-helpers'
 
 // React Email templates
 import InterventionCreatedEmail from '@/emails/templates/interventions/intervention-created'
+import InterventionApprovedEmail from '@/emails/templates/interventions/intervention-approved'
+import InterventionRejectedEmail from '@/emails/templates/interventions/intervention-rejected'
+import InterventionScheduledEmail from '@/emails/templates/interventions/intervention-scheduled'
+import InterventionCompletedEmail from '@/emails/templates/interventions/intervention-completed'
+import QuoteRequestEmail from '@/emails/templates/quotes/quote-request'
+
 import type {
   InterventionCreatedEmailProps,
+  InterventionApprovedEmailProps,
+  InterventionRejectedEmailProps,
+  InterventionScheduledEmailProps,
+  InterventionCompletedEmailProps,
+  QuoteRequestEmailProps
 } from '@/emails/utils/types'
+
+import type { Intervention, User } from '../core/service-types'
 
 type NotificationType = Database['public']['Enums']['notification_type']
 type InterventionStatus = Database['public']['Enums']['intervention_status']
@@ -81,7 +94,7 @@ export class EmailNotificationService {
     private userRepository: UserRepository,
     private buildingRepository: BuildingRepository,
     private lotRepository: LotRepository
-  ) {}
+  ) { }
 
   /**
    * Envoie les emails pour une intervention créée
@@ -384,6 +397,263 @@ export class EmailNotificationService {
       failedCount: 0,
       results: [],
     }
+  }
+
+  /**
+   * Envoie un email "Nouvelle intervention créée"
+   */
+  async sendInterventionCreated(params: {
+    intervention: Intervention
+    property: { address: string; lotReference?: string }
+    manager: User & { email: string }
+    tenant: User
+  }) {
+    const { intervention, property, manager, tenant } = params
+
+    // Mapper urgency
+    const urgencyMap: Record<string, 'faible' | 'moyenne' | 'haute' | 'critique'> = {
+      'basse': 'faible',
+      'normale': 'moyenne',
+      'haute': 'haute',
+      'urgente': 'critique'
+    }
+
+    const emailProps: InterventionCreatedEmailProps = {
+      firstName: manager.first_name || 'Gestionnaire',
+      interventionRef: intervention.reference ?? 'REF-???',
+      interventionType: intervention.type || 'Intervention',
+      description: intervention.description,
+      propertyAddress: property.address,
+      lotReference: property.lotReference,
+      interventionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/gestionnaire/interventions/${intervention.id}`,
+      tenantName: `${tenant.first_name} ${tenant.last_name}`,
+      urgency: urgencyMap[intervention.urgency || 'normale'] || 'moyenne',
+      createdAt: new Date(intervention.created_at || new Date().toISOString())
+    }
+
+    return this.emailService.send({
+      to: manager.email,
+      subject: `Nouvelle demande d'intervention : ${intervention.title}`,
+      react: InterventionCreatedEmail(emailProps),
+      tags: [{ name: 'type', value: 'intervention_created' }]
+    })
+  }
+
+  /**
+   * Envoie un email "Intervention approuvée"
+   */
+  async sendInterventionApproved(params: {
+    intervention: Intervention
+    property: { address: string; lotReference?: string }
+    manager: User
+    tenant: User & { email: string }
+    approvalNotes?: string
+  }) {
+    const { intervention, property, manager, tenant, approvalNotes } = params
+
+    const emailProps: InterventionApprovedEmailProps = {
+      firstName: tenant.first_name || 'Locataire',
+      interventionRef: intervention.reference ?? 'REF-???',
+      interventionType: intervention.type || 'Intervention',
+      description: intervention.description,
+      propertyAddress: property.address,
+      lotReference: property.lotReference,
+      interventionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/locataire/interventions/${intervention.id}`,
+      managerName: `${manager.first_name} ${manager.last_name}`,
+      approvedAt: new Date(),
+      nextSteps: approvalNotes
+    }
+
+    return this.emailService.send({
+      to: tenant.email,
+      subject: `Votre demande d'intervention a été approuvée`,
+      react: InterventionApprovedEmail(emailProps),
+      tags: [{ name: 'type', value: 'intervention_approved' }]
+    })
+  }
+
+  /**
+   * Envoie un email "Intervention rejetée"
+   */
+  async sendInterventionRejected(params: {
+    intervention: Intervention
+    property: { address: string; lotReference?: string }
+    manager: User
+    tenant: User & { email: string }
+    rejectionReason: string
+  }) {
+    const { intervention, property, manager, tenant, rejectionReason } = params
+
+    const emailProps: InterventionRejectedEmailProps = {
+      firstName: tenant.first_name || 'Locataire',
+      interventionRef: intervention.reference ?? 'REF-???',
+      interventionType: intervention.type || 'Intervention',
+      description: intervention.description,
+      propertyAddress: property.address,
+      lotReference: property.lotReference,
+      interventionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/locataire/interventions/${intervention.id}`,
+      managerName: `${manager.first_name} ${manager.last_name}`,
+      rejectionReason,
+      rejectedAt: new Date()
+    }
+
+    return this.emailService.send({
+      to: tenant.email,
+      subject: `Votre demande d'intervention a été refusée`,
+      react: InterventionRejectedEmail(emailProps),
+      tags: [{ name: 'type', value: 'intervention_rejected' }]
+    })
+  }
+
+  /**
+   * Envoie un email "Intervention planifiée"
+   */
+  async sendInterventionScheduled(params: {
+    intervention: Intervention
+    property: { address: string; lotReference?: string }
+    tenant: User & { email: string }
+    provider: User & { email: string }
+    scheduledDate: Date
+    estimatedDuration?: number
+  }) {
+    const { intervention, property, tenant, provider, scheduledDate, estimatedDuration } = params
+
+    // Email pour le locataire
+    const tenantProps: InterventionScheduledEmailProps = {
+      firstName: tenant.first_name || 'Locataire',
+      interventionRef: intervention.reference ?? 'REF-???',
+      interventionType: intervention.type || 'Intervention',
+      description: intervention.description,
+      propertyAddress: property.address,
+      lotReference: property.lotReference,
+      interventionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/locataire/interventions/${intervention.id}`,
+      providerName: `${provider.first_name} ${provider.last_name}`,
+      providerCompany: (provider as any).company_name, // TODO: Check type
+      scheduledDate,
+      estimatedDuration,
+      recipientRole: 'locataire'
+    }
+
+    await this.emailService.send({
+      to: tenant.email,
+      subject: `Rendez-vous confirmé pour votre intervention`,
+      react: InterventionScheduledEmail(tenantProps),
+      tags: [{ name: 'type', value: 'intervention_scheduled_tenant' }]
+    })
+
+    // Email pour le prestataire
+    const providerProps: InterventionScheduledEmailProps = {
+      firstName: provider.first_name || 'Prestataire',
+      interventionRef: intervention.reference ?? 'REF-???',
+      interventionType: intervention.type || 'Intervention',
+      description: intervention.description,
+      propertyAddress: property.address,
+      lotReference: property.lotReference,
+      interventionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/prestataire/interventions/${intervention.id}`,
+      providerName: 'Vous-même',
+      scheduledDate,
+      estimatedDuration,
+      recipientRole: 'prestataire'
+    }
+
+    await this.emailService.send({
+      to: provider.email,
+      subject: `Nouvelle intervention planifiée`,
+      react: InterventionScheduledEmail(providerProps),
+      tags: [{ name: 'type', value: 'intervention_scheduled_provider' }]
+    })
+  }
+
+  /**
+   * Envoie un email "Intervention terminée"
+   */
+  async sendInterventionCompleted(params: {
+    intervention: Intervention
+    property: { address: string; lotReference?: string }
+    tenant: User & { email: string }
+    manager: User & { email: string }
+    provider: User
+    completionNotes?: string
+    hasDocuments: boolean
+  }) {
+    const { intervention, property, tenant, manager, provider, completionNotes, hasDocuments } = params
+
+    // Email pour le locataire
+    const tenantProps: InterventionCompletedEmailProps = {
+      firstName: tenant.first_name || 'Locataire',
+      interventionRef: intervention.reference ?? 'REF-???',
+      interventionType: intervention.type || 'Intervention',
+      description: intervention.description,
+      propertyAddress: property.address,
+      lotReference: property.lotReference,
+      interventionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/locataire/interventions/${intervention.id}`,
+      providerName: `${provider.first_name} ${provider.last_name}`,
+      completedAt: new Date(),
+      completionNotes,
+      hasDocuments,
+      recipientRole: 'locataire'
+    }
+
+    await this.emailService.send({
+      to: tenant.email,
+      subject: `Intervention terminée - Validation requise`,
+      react: InterventionCompletedEmail(tenantProps),
+      tags: [{ name: 'type', value: 'intervention_completed_tenant' }]
+    })
+
+    // Email pour le gestionnaire
+    const managerProps: InterventionCompletedEmailProps = {
+      firstName: manager.first_name || 'Gestionnaire',
+      interventionRef: intervention.reference ?? 'REF-???',
+      interventionType: intervention.type || 'Intervention',
+      description: intervention.description,
+      propertyAddress: property.address,
+      lotReference: property.lotReference,
+      interventionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/gestionnaire/interventions/${intervention.id}`,
+      providerName: `${provider.first_name} ${provider.last_name}`,
+      completedAt: new Date(),
+      completionNotes,
+      hasDocuments,
+      recipientRole: 'gestionnaire'
+    }
+
+    await this.emailService.send({
+      to: manager.email,
+      subject: `Intervention terminée par le prestataire`,
+      react: InterventionCompletedEmail(managerProps),
+      tags: [{ name: 'type', value: 'intervention_completed_manager' }]
+    })
+  }
+
+  /**
+   * Envoie une demande de devis
+   */
+  async sendQuoteRequest(params: {
+    quote: any // TODO: Typed Quote
+    intervention: Intervention
+    property: { address: string }
+    manager: User
+    provider: User & { email: string }
+  }) {
+    const { quote, intervention, property, manager, provider } = params
+
+    const emailProps: QuoteRequestEmailProps = {
+      firstName: provider.first_name || 'Prestataire',
+      quoteRef: quote.reference || 'DEV-???',
+      interventionRef: intervention.reference ?? 'REF-???',
+      interventionType: intervention.type || 'Intervention',
+      description: intervention.description,
+      propertyAddress: property.address,
+      quoteUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/prestataire/interventions/${intervention.id}/devis/${quote.id}`,
+      managerName: `${manager.first_name} ${manager.last_name}`
+    }
+
+    return this.emailService.send({
+      to: provider.email,
+      subject: `Demande de devis pour intervention ${intervention.reference || ''}`,
+      react: QuoteRequestEmail(emailProps),
+      tags: [{ name: 'type', value: 'quote_request' }]
+    })
   }
 
   /**

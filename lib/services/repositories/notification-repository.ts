@@ -29,10 +29,11 @@ type NotificationInsert = Database['public']['Tables']['notifications']['Insert'
 type NotificationUpdate = Database['public']['Tables']['notifications']['Update']
 type NotificationType = Database['public']['Enums']['notification_type']
 
-// Extended types
-interface NotificationWithRelations extends Notification {
+// Extended types (reserved for future use)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface _NotificationWithRelations extends Notification {
   created_by_user?: Database['public']['Tables']['users']['Row']
-  related_entity?: any // Polymorphic, could be intervention, quote, etc.
+  related_entity?: unknown // Polymorphic, could be intervention, quote, etc.
 }
 
 // Filter interface

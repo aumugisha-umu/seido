@@ -50,7 +50,7 @@ const InteractiveTabsWrapper = ({
           <div className="p-4 bg-slate-50 rounded-lg">
             <h3 className="font-medium mb-2">Onglet Général</h3>
             <p className="text-sm text-muted-foreground">
-              Contenu de l&apos;onglet général avec les détails de l&apos;intervention.
+              Contenu de l'onglet général avec les détails de l'intervention.
             </p>
           </div>
         </TabContentWrapper>
@@ -138,9 +138,9 @@ export const WithRichContent: Story = {
           <TabContentWrapper value="general">
             <div className="space-y-4">
               <div className="p-4 bg-slate-50 rounded-lg">
-                <h3 className="font-medium mb-2">Détails de l&apos;intervention</h3>
+                <h3 className="font-medium mb-2">Détails de l'intervention</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Fuite d&apos;eau importante sous l&apos;évier de la cuisine.
+                  Fuite d'eau importante sous l'évier de la cuisine.
                 </p>
                 <div className="flex gap-2">
                   <span className="px-2 py-1 bg-amber-100 text-amber-800 text-xs rounded">
@@ -172,7 +172,7 @@ export const WithRichContent: Story = {
                   </div>
                   <div className="p-2 bg-white rounded shadow-sm">
                     <p className="text-xs text-muted-foreground">Marie Durand - 11:00</p>
-                    <p className="text-sm">Merci, la fuite s&apos;est aggravée.</p>
+                    <p className="text-sm">Merci, la fuite s'est aggravée.</p>
                   </div>
                 </div>
               </div>

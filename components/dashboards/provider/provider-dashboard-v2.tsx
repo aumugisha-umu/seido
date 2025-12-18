@@ -1,7 +1,12 @@
 "use client"
 
-import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
-import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
+import { AlertTriangle } from "lucide-react"
+import { StatsCard } from "@/components/dashboards/shared/stats-card"
+import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 interface ProviderDashboardV2Props {
     stats: any
@@ -9,28 +14,38 @@ interface ProviderDashboardV2Props {
     pendingCount: number
 }
 
-export function ProviderDashboardV2({ stats, interventions, pendingCount }: ProviderDashboardV2Props) {
-    // Calculate counts for stats cards
-    const activeCount = interventions.filter(i => ['en_cours', 'planifiee', 'planification'].includes(i.status)).length
-    const completedCount = interventions.filter(i => ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire'].includes(i.status)).length
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
+export function ProviderDashboardV2({ stats, interventions, pendingCount }: ProviderDashboardV2Props) {
     return (
         <div className="dashboard">
             <div className="dashboard__container">
-                {/* Stats Section */}
-                <div className="dashboard__stats">
-                    <DashboardStatsCards
-                        pendingCount={pendingCount}
-                        activeCount={activeCount}
-                        completedCount={completedCount}
-                    />
-                </div>
+                {/* Actions Requises Card - Full width, hidden when no pending */}
+                {pendingCount > 0 && (
+                    <div className="mb-6">
+                        <StatsCard
+                            id="actions"
+                            label="ACTIONS REQUISES"
+                            value={pendingCount}
+                            sublabel="Urgent"
+                            icon={AlertTriangle}
+                            iconColor="text-amber-500"
+                            variant="warning"
+                            href="/prestataire/interventions?filter=pending"
+                            className="w-full"
+                        />
+                    </div>
+                )}
 
-                {/* Content Section */}
+                {/* Interventions Section with tabs inside the card */}
                 <div className="dashboard__content">
-                    <DashboardInterventionsSection
+                    <InterventionsNavigator
                         interventions={interventions}
                         userContext="prestataire"
+                        tabsPreset="prestataire"
+                        className="bg-card rounded-lg border border-border shadow-sm"
                     />
                 </div>
             </div>

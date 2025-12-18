@@ -154,6 +154,7 @@ export async function POST(request: NextRequest) {
       .from('intervention_documents')
       .insert({
         intervention_id: validatedData.interventionId,
+        team_id: intervention.team_id, // Required NOT NULL field
         filename: uniqueFilename,
         original_filename: validatedData.fileName,
         file_size: validatedData.fileSize,

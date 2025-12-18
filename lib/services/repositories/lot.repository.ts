@@ -26,18 +26,6 @@ interface LotContact {
   user?: User
 }
 
-interface LotWithContacts extends Lot {
-  lot_contacts?: LotContact[]
-  tenant?: User | null
-  is_occupied?: boolean
-  tenants?: User[]
-  building?: {
-    name: string
-    address: string
-    city: string
-  }
-}
-
 /**
  * Lot Repository
  * Manages all database operations for lots with relations
@@ -381,7 +369,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       queryBuilder = queryBuilder.neq('id', excludeId)
     }
 
-    const { data, error } = await queryBuilder.single()
+    const { error } = await queryBuilder.single()
 
     if (error) {
       if (error.code === 'PGRST116') {
@@ -392,6 +380,91 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     }
 
     return { success: true as const, exists: true }
+  }
+
+  /**
+   * Find lot by reference and team (for import upsert)
+   * Case-insensitive match
+   */
+  async findByReferenceAndTeam(reference: string, teamId: string) {
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select(`
+        *,
+        building:building_id(team_id)
+      `)
+      .eq('team_id', teamId)
+      .ilike('reference', reference.trim())
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      return createErrorResponse(handleError(error, `${this.tableName}:findByReferenceAndTeam`))
+    }
+
+    return { success: true as const, data }
+  }
+
+  /**
+   * Bulk upsert lots (for import)
+   * Returns created and updated counts
+   */
+  async upsertMany(
+    lots: (LotInsert & { _resolvedBuildingId?: string | null })[],
+    teamId: string
+  ): Promise<{ success: true; created: string[]; updated: string[] } | { success: false; error: { code: string; message: string } }> {
+    const created: string[] = []
+    const updated: string[] = []
+
+    logger.info('[LOT-REPO] upsertMany starting', { count: lots.length, teamId })
+
+    for (let i = 0; i < lots.length; i++) {
+      const lot = lots[i]
+      logger.debug(`[LOT-REPO] Processing lot ${i + 1}/${lots.length}`, { reference: lot.reference })
+
+      const existingResult = await this.findByReferenceAndTeam(lot.reference, teamId)
+
+      if (!existingResult.success) {
+        logger.error(`[LOT-REPO] findByReferenceAndTeam failed for "${lot.reference}"`, existingResult.error)
+        return existingResult
+      }
+
+      const lotData = {
+        ...lot,
+        team_id: teamId,
+        building_id: lot._resolvedBuildingId ?? lot.building_id ?? null,
+      }
+
+      // Remove internal field
+      delete (lotData as Record<string, unknown>)._resolvedBuildingId
+
+      if (existingResult.data) {
+        // Update existing
+        logger.debug(`[LOT-REPO] Updating existing lot`, { id: existingResult.data.id, reference: lot.reference })
+        const updateResult = await this.update(existingResult.data.id, lotData)
+
+        if (!updateResult.success) {
+          logger.error(`[LOT-REPO] Update failed for "${lot.reference}"`, updateResult.error)
+          return updateResult as { success: false; error: { code: string; message: string } }
+        }
+
+        updated.push(existingResult.data.id)
+      } else {
+        // Create new
+        logger.debug(`[LOT-REPO] Creating new lot`, { reference: lot.reference })
+        const createResult = await this.create(lotData)
+
+        if (!createResult.success) {
+          logger.error(`[LOT-REPO] Create failed for "${lot.reference}"`, createResult.error)
+          return createResult as { success: false; error: { code: string; message: string } }
+        }
+
+        created.push(createResult.data.id)
+      }
+    }
+
+    logger.info('[LOT-REPO] upsertMany completed', { created: created.length, updated: updated.length })
+    return { success: true, created, updated }
   }
 
   /**
@@ -479,7 +552,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
     // Filter for lots without tenants
     const vacantLots = data?.filter(lot => {
-      const hasTenant = lot.lot_contacts?.some((_contact: unknown) =>
+      const hasTenant = lot.lot_contacts?.some((contact: { user?: { role?: string } }) =>
         contact.user?.role === 'locataire'
       )
       return !hasTenant

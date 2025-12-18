@@ -22,11 +22,13 @@ import {
   Users,
   Calendar,
   MessageSquare,
+  MessageSquareText,
   FileText,
   Paperclip,
   ArrowLeft,
   AlertCircle,
   MapPin,
+  UserCog,
 } from 'lucide-react'
 
 export interface InterventionConfirmationData {
@@ -74,6 +76,9 @@ export interface InterventionConfirmationData {
     type?: string
   }>
   expectsQuote?: boolean
+  // Multi-provider mode
+  assignmentMode?: 'single' | 'group' | 'separate'
+  providerInstructions?: Record<string, string>
 }
 
 interface InterventionConfirmationSummaryProps {
@@ -86,38 +91,39 @@ interface InterventionConfirmationSummaryProps {
   showFooter?: boolean
 }
 
-// Helper to get urgency color scheme
+// Helper to get urgency color scheme - Using design tokens for OKLCH compliance
 function getUrgencyColors(urgency: string) {
   switch (urgency.toLowerCase()) {
     case 'urgente':
     case 'haute':
+    case 'critique':
       return {
-        gradient: 'from-orange-50 to-orange-100',
-        border: 'border-orange-500',
-        badge: 'bg-orange-600 text-white',
-        icon: 'text-orange-600'
+        gradient: 'from-destructive/10 to-destructive/20',
+        border: 'border-destructive',
+        badge: 'bg-destructive text-destructive-foreground',
+        icon: 'text-destructive'
       }
     case 'normale':
     case 'moyenne':
       return {
-        gradient: 'from-blue-50 to-blue-100',
-        border: 'border-blue-500',
-        badge: 'bg-blue-600 text-white',
-        icon: 'text-blue-600'
+        gradient: 'from-primary/10 to-primary/20',
+        border: 'border-primary',
+        badge: 'bg-primary text-primary-foreground',
+        icon: 'text-primary'
       }
     case 'basse':
       return {
-        gradient: 'from-gray-50 to-gray-100',
-        border: 'border-gray-400',
-        badge: 'bg-gray-600 text-white',
-        icon: 'text-gray-600'
+        gradient: 'from-muted to-muted/80',
+        border: 'border-muted-foreground/50',
+        badge: 'bg-muted text-muted-foreground',
+        icon: 'text-muted-foreground'
       }
     default:
       return {
-        gradient: 'from-blue-50 to-blue-100',
-        border: 'border-blue-500',
-        badge: 'bg-blue-600 text-white',
-        icon: 'text-blue-600'
+        gradient: 'from-primary/10 to-primary/20',
+        border: 'border-primary',
+        badge: 'bg-primary text-primary-foreground',
+        icon: 'text-primary'
       }
   }
 }
@@ -134,7 +140,18 @@ export function InterventionConfirmationSummary({
   // Séparer les contacts par rôle
   const gestionnaires = data.contacts.filter(c => c.role.toLowerCase().includes('gestionnaire'))
   const prestataires = data.contacts.filter(c => c.role.toLowerCase().includes('prestataire'))
-  const locataires = data.contacts.filter(c => c.role.toLowerCase().includes('locataire'))
+  let locataires = data.contacts.filter(c => c.role.toLowerCase().includes('locataire'))
+
+  // ✅ Fallback: Si aucun locataire dans contacts mais tenant existe dans logement
+  if (locataires.length === 0 && data.logement.tenant) {
+    locataires = [{
+      id: 'tenant-from-logement',
+      name: data.logement.tenant,
+      role: 'Locataire',
+      email: undefined,
+      phone: undefined,
+    }]
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -170,8 +187,8 @@ export function InterventionConfirmationSummary({
         </CardHeader>
 
         <CardContent className="space-y-4 pt-6">
-          {/* Property & Contact Grid */}
-          <div className="grid md:grid-cols-2 gap-6">
+          {/* Property & Contact Grid - Mobile-first responsive */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             {/* Property Section */}
             <div className="space-y-3">
               <div className="flex items-center gap-2 mb-3">
@@ -213,35 +230,75 @@ export function InterventionConfirmationSummary({
                   <Users className="w-5 h-5 text-green-600" />
                 </div>
                 <h3 className="font-semibold text-base">Participants</h3>
+                {/* Assignment mode badge when 2+ providers - More visible */}
+                {prestataires.length > 1 && data.assignmentMode && data.assignmentMode !== 'single' && (
+                  <Badge
+                    variant="outline"
+                    className={`ml-auto flex items-center gap-1 ${
+                      data.assignmentMode === 'separate'
+                        ? 'bg-amber-50 text-amber-700 border-amber-300'
+                        : 'bg-blue-50 text-blue-700 border-blue-300'
+                    }`}
+                  >
+                    {data.assignmentMode === 'separate' ? (
+                      <>
+                        <UserCog className="w-3 h-3" />
+                        Mode Séparé
+                      </>
+                    ) : (
+                      <>
+                        <Users className="w-3 h-3" />
+                        Mode Groupe
+                      </>
+                    )}
+                  </Badge>
+                )}
               </div>
-              <dl className="space-y-2 pl-10">
+              <dl className="space-y-3 pl-10">
                 {gestionnaires.length > 0 && (
-                  <div>
-                    <dt className="text-sm text-gray-600 mb-1">Gestionnaire{gestionnaires.length > 1 ? 's' : ''}</dt>
-                    {gestionnaires.map((contact) => (
-                      <dd key={contact.id} className="flex items-center gap-2 mb-1">
-                        <span className="font-medium">{contact.name}</span>
-                        {contact.isCurrentUser && (
-                          <Badge className="bg-blue-100 text-blue-800 text-xs">Vous</Badge>
-                        )}
-                      </dd>
-                    ))}
+                  <div className="mb-3">
+                    <dt className="text-sm font-medium text-gray-600 mb-2">
+                      Gestionnaire{gestionnaires.length > 1 ? 's' : ''}
+                    </dt>
+                    <dd className="space-y-1.5">
+                      {gestionnaires.map((contact) => (
+                        <div key={contact.id} className="flex items-center gap-2">
+                          <span className="font-medium text-sm">{contact.name}</span>
+                          {contact.isCurrentUser && (
+                            <Badge className="bg-blue-100 text-blue-800 text-xs">Vous</Badge>
+                          )}
+                        </div>
+                      ))}
+                    </dd>
                   </div>
                 )}
                 {prestataires.length > 0 && (
-                  <div>
-                    <dt className="text-sm text-gray-600 mb-1">Prestataire{prestataires.length > 1 ? 's' : ''}</dt>
-                    {prestataires.map((contact) => (
-                      <dd key={contact.id} className="font-medium mb-1">{contact.name}</dd>
-                    ))}
+                  <div className="mb-3">
+                    <dt className="text-sm font-medium text-gray-600 mb-2">
+                      Prestataire{prestataires.length > 1 ? 's' : ''}
+                    </dt>
+                    <dd className="space-y-1.5">
+                      {prestataires.map((contact) => (
+                        <div key={contact.id} className="flex items-center gap-2">
+                          <span className="font-medium text-sm">{contact.name}</span>
+                          {contact.speciality && (
+                            <span className="text-xs text-gray-500">({contact.speciality})</span>
+                          )}
+                        </div>
+                      ))}
+                    </dd>
                   </div>
                 )}
                 {locataires.length > 0 && (
                   <div>
-                    <dt className="text-sm text-gray-600 mb-1">Locataire{locataires.length > 1 ? 's' : ''}</dt>
-                    {locataires.map((contact) => (
-                      <dd key={contact.id} className="font-medium mb-1">{contact.name}</dd>
-                    ))}
+                    <dt className="text-sm font-medium text-gray-600 mb-2">
+                      Locataire{locataires.length > 1 ? 's' : ''}
+                    </dt>
+                    <dd className="space-y-1.5">
+                      {locataires.map((contact) => (
+                        <div key={contact.id} className="font-medium text-sm">{contact.name}</div>
+                      ))}
+                    </dd>
                   </div>
                 )}
               </dl>
@@ -329,14 +386,17 @@ export function InterventionConfirmationSummary({
             </>
           )}
 
-          {/* Instructions Section */}
+          {/* Instructions Section - With distinct icon */}
           {data.instructions?.globalMessage && (
             <>
               <Separator />
               <div className="bg-blue-50 -mx-6 px-6 py-4 border-l-4 border-blue-500">
                 <div className="flex items-center gap-2 mb-2">
-                  <MessageSquare className="w-6 h-6 text-blue-600" />
-                  <h3 className="font-semibold text-base">Instructions globales</h3>
+                  <MessageSquareText className="w-6 h-6 text-blue-600" />
+                  <h3 className="font-semibold text-base">Instructions générales</h3>
+                  <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 text-xs ml-auto">
+                    Pour tous
+                  </Badge>
                 </div>
                 <p className="text-sm text-gray-700 pl-8 leading-relaxed">
                   {data.instructions.globalMessage}
@@ -344,22 +404,66 @@ export function InterventionConfirmationSummary({
               </div>
             </>
           )}
+
+          {/* Provider-specific Instructions Section (Separate Mode) - UserCog icon */}
+          {data.assignmentMode === 'separate' && data.providerInstructions && Object.keys(data.providerInstructions).length > 0 && (
+            <>
+              <Separator />
+              <div className="bg-amber-50 -mx-6 px-6 py-4 border-l-4 border-amber-500">
+                <div className="flex items-center gap-2 mb-3">
+                  <UserCog className="w-6 h-6 text-amber-600" />
+                  <h3 className="font-semibold text-base">Instructions par prestataire</h3>
+                  <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 text-xs ml-auto">
+                    Mode Séparé
+                  </Badge>
+                </div>
+                <div className="space-y-3 pl-8">
+                  {prestataires.map((provider) => {
+                    const instructions = data.providerInstructions?.[provider.id]
+                    if (!instructions) return null
+                    return (
+                      <div key={provider.id} className="bg-white rounded-lg p-3 border border-amber-200">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-6 h-6 rounded-full bg-amber-200 flex items-center justify-center text-xs font-medium text-amber-800">
+                            {provider.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-medium text-sm">{provider.name}</span>
+                          {provider.speciality && (
+                            <span className="text-xs text-gray-500">({provider.speciality})</span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-700 pl-8">{instructions}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
 
-        {/* Footer Actions */}
+        {/* Footer Actions - Mobile responsive with 44px touch targets */}
         {showFooter && (
-          <CardFooter className="flex justify-between bg-gray-50 border-t">
-            <Button variant="outline" onClick={onBack} disabled={isLoading}>
+          <CardFooter className="flex flex-col sm:flex-row gap-3 sm:justify-between bg-gray-50 border-t p-4">
+            <Button
+              variant="outline"
+              onClick={onBack}
+              disabled={isLoading}
+              className="w-full sm:w-auto min-h-[44px]"
+            >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Retour
             </Button>
             <Button
-              className="bg-green-600 hover:bg-green-700"
+              className="w-full sm:w-auto min-h-[44px] bg-green-600 hover:bg-green-700"
               onClick={onConfirm}
               disabled={isLoading}
             >
               {isLoading ? (
-                'Création en cours...'
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                  Création en cours...
+                </>
               ) : (
                 <>
                   <CheckCircle2 className="w-4 h-4 mr-2" />

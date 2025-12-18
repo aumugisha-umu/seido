@@ -10,7 +10,7 @@ import {
   createServerActionSupabaseClient
 } from '../core/supabase-client'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 // Repository-specific types for statistics
 export interface ActivityStats {
   period: string

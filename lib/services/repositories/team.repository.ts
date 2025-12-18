@@ -12,7 +12,7 @@ import {
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Team, TeamMember } from '../core/service-types'
 import { ValidationException, NotFoundException, handleError } from '../core/error-handler'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 import {
   validateRequired,
   validateLength

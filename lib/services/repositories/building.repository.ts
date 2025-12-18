@@ -17,6 +17,11 @@ import {
   validateLength,
   validateNumber
 } from '../core/service-types'
+import { logger } from '@/lib/logger'
+
+const logInfo = (msg: string, data?: object) => logger.info(msg, data)
+const logDebug = (msg: string, data?: object) => logger.debug(msg, data)
+const logError = (msg: string, data?: unknown) => logger.error(msg, data)
 
 /**
  * Building Repository
@@ -497,6 +502,86 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
 
     return { success: true as const, data: (data && data.length > 0) }
   }
+
+  /**
+   * Find building by name and team (for import upsert)
+   * Case-insensitive match
+   */
+  async findByNameAndTeam(name: string, teamId: string) {
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select('*')
+      .eq('team_id', teamId)
+      .ilike('name', name.trim())
+      .limit(1)
+      .maybeSingle()
+
+    if (error) {
+      return createErrorResponse(handleError(error, `${this.tableName}:findByNameAndTeam`))
+    }
+
+    return { success: true as const, data }
+  }
+
+  /**
+   * Bulk upsert buildings (for import)
+   * Returns created and updated counts
+   */
+  async upsertMany(
+    buildings: BuildingInsert[],
+    teamId: string
+  ): Promise<{ success: true; created: string[]; updated: string[] } | { success: false; error: { code: string; message: string } }> {
+    const created: string[] = []
+    const updated: string[] = []
+
+    logInfo(`[BUILDING-REPO] upsertMany starting`, { count: buildings.length, teamId })
+
+    for (let i = 0; i < buildings.length; i++) {
+      const building = buildings[i]
+      logDebug(`[BUILDING-REPO] Processing building ${i + 1}/${buildings.length}`, { name: building.name })
+
+      const existingResult = await this.findByNameAndTeam(building.name, teamId)
+
+      if (!existingResult.success) {
+        logError(`[BUILDING-REPO] findByNameAndTeam failed for "${building.name}"`, existingResult.error)
+        return existingResult
+      }
+
+      if (existingResult.data) {
+        // Update existing
+        logDebug(`[BUILDING-REPO] Updating existing building`, { id: existingResult.data.id, name: building.name })
+        const updateResult = await this.update(existingResult.data.id, {
+          ...building,
+          team_id: teamId,
+        })
+
+        if (!updateResult.success) {
+          logError(`[BUILDING-REPO] Update failed for "${building.name}"`, updateResult.error)
+          return updateResult as { success: false; error: { code: string; message: string } }
+        }
+
+        updated.push(existingResult.data.id)
+      } else {
+        // Create new
+        logDebug(`[BUILDING-REPO] Creating new building`, { name: building.name })
+        const createResult = await this.create({
+          ...building,
+          team_id: teamId,
+        })
+
+        if (!createResult.success) {
+          logError(`[BUILDING-REPO] Create failed for "${building.name}"`, createResult.error)
+          return createResult as { success: false; error: { code: string; message: string } }
+        }
+
+        created.push(createResult.data.id)
+      }
+    }
+
+    logInfo(`[BUILDING-REPO] upsertMany completed`, { created: created.length, updated: updated.length })
+    return { success: true, created, updated }
+  }
+
   /**
    * Find buildings by gestionnaire (primary manager) ID
    * Uses building_contacts junction table (Phase 2 refactored schema)

@@ -40,12 +40,27 @@ export function LotCardCompact({ item, actions }: CardComponentProps<LotData>) {
     // BEM Classes
     const blockClass = "lot-card"
 
+    const handleCardClick = () => {
+        router.push(`/gestionnaire/biens/lots/${lot.id}`)
+    }
+
     return (
-        <Card className={cn(
-            blockClass,
-            "group hover:shadow-md transition-all duration-200 h-full bg-white p-0",
-            isOccupied ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-gray-300'
-        )}>
+        <Card
+            className={cn(
+                blockClass,
+                "group hover:shadow-md hover:border-primary/30 transition-all duration-200 h-full bg-white p-0 cursor-pointer",
+                isOccupied ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-gray-300'
+            )}
+            onClick={handleCardClick}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleCardClick()
+                }
+            }}
+        >
             <CardContent className={cn(`${blockClass}__content`, "p-4")}>
                 <div className="space-y-3">
                     {/* Header */}
@@ -81,7 +96,10 @@ export function LotCardCompact({ item, actions }: CardComponentProps<LotData>) {
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
-                                onClick={() => router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)}
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)
+                                }}
                                 title="Modifier"
                             >
                                 <Edit className="h-3.5 w-3.5" />
@@ -90,7 +108,10 @@ export function LotCardCompact({ item, actions }: CardComponentProps<LotData>) {
                                 variant="ghost"
                                 size="sm"
                                 className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
-                                onClick={() => router.push(`/gestionnaire/biens/lots/${lot.id}`)}
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    router.push(`/gestionnaire/biens/lots/${lot.id}`)
+                                }}
                                 title="Voir détails"
                             >
                                 <Eye className="h-3.5 w-3.5" />

@@ -25,10 +25,10 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
     userId: userData.id
   })
 
-  // Check if this provider is assigned to the intervention
+  // Check if this provider is assigned to the intervention + get provider instructions
   const { data: assignment } = await supabase
     .from('intervention_assignments')
-    .select('*')
+    .select('*, provider_instructions')
     .eq('intervention_id', id)
     .eq('user_id', userData.id)
     .single()
@@ -40,6 +40,23 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
     })
     redirect('/prestataire/interventions')
   }
+
+  // Get assignment mode for filtering
+  const { data: interventionMeta } = await supabase
+    .from('interventions')
+    .select('assignment_mode')
+    .eq('id', id)
+    .single()
+
+  const assignmentMode = interventionMeta?.assignment_mode || 'single'
+  const isSeparateMode = assignmentMode === 'separate'
+
+  // Check if this is a child intervention (linked from a parent)
+  const { data: parentLink } = await supabase
+    .from('intervention_links')
+    .select('*, parent:interventions!parent_intervention_id(id, reference, title)')
+    .eq('child_intervention_id', id)
+    .single()
 
   // Load intervention data using repository (includes relations: building, lot, creator)
   const interventionRepo = await createServerInterventionRepository()
@@ -132,18 +149,28 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
     })(),
 
     // Time slots with responses
-    supabase
-      .from('intervention_time_slots')
-      .select(`
-        *,
-        proposed_by_user:users!proposed_by(*),
-        responses:time_slot_responses(
+    // In separate mode, filter by provider_id (only show slots for this provider)
+    (async () => {
+      let query = supabase
+        .from('intervention_time_slots')
+        .select(`
           *,
-          user:users(*)
-        )
-      `)
-      .eq('intervention_id', id)
-      .order('slot_date', { ascending: true }),
+          proposed_by_user:users!proposed_by(*),
+          responses:time_slot_responses(
+            *,
+            user:users(*)
+          )
+        `)
+        .eq('intervention_id', id)
+
+      // In separate mode, only show slots for this provider OR slots without provider_id
+      if (isSeparateMode) {
+        query = query.or(`provider_id.eq.${userData.id},provider_id.is.null`)
+      }
+
+      const { data } = await query.order('slot_date', { ascending: true })
+      return { data }
+    })(),
 
     // All assignments with user details (to find creator)
     supabase
@@ -173,6 +200,10 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
       timeSlots={timeSlots || []}
       assignments={assignments || []}
       currentUser={userData}
+      // Multi-provider mode data
+      assignmentMode={assignmentMode}
+      providerInstructions={assignment.provider_instructions || undefined}
+      parentLink={parentLink || undefined}
     />
   )
 }

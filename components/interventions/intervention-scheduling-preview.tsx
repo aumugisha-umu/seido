@@ -396,13 +396,13 @@ export function InterventionSchedulingPreview({
         ) : requireQuote ? (
           <div className="p-4 bg-amber-50/30 border border-amber-200 rounded-lg">
             <p className="text-sm text-amber-800">
-              En attente d&apos;estimation du prestataire
+              En attente d'estimation du prestataire
             </p>
           </div>
         ) : (
           <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
             <p className="text-sm text-muted-foreground">
-              Pas d&apos;estimation demandée pour cette intervention
+              Pas d'estimation demandée pour cette intervention
             </p>
           </div>
         )}
@@ -786,7 +786,7 @@ export function InterventionSchedulingPreview({
                       Organisation flexible
                     </h5>
                     <p className="text-sm text-emerald-700 leading-relaxed">
-                      Contactez directement le locataire pour convenir d&apos;un rendez-vous qui vous convient à tous les deux.
+                      Contactez directement le locataire pour convenir d'un rendez-vous qui vous convient à tous les deux.
                     </p>
                   </>
                 ) : currentUserRole === 'locataire' ? (

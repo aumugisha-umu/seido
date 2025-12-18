@@ -5,7 +5,7 @@
  * pour le wizard d'édition de lots.
  */
 
-import type { Lot, User } from "@/lib/services/core/service-types"
+import type { User } from "@/lib/services/core/service-types"
 import type { LotCategory } from "@/lib/lot-types"
 
 // Types pour les composants

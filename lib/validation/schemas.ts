@@ -310,10 +310,12 @@ export const createContactSchema = z.object({
 
 /**
  * POST /api/send-existing-contact-invitation
+ * Note: email is optional - used when contact doesn't have an email yet
  */
 export const sendContactInvitationSchema = z.object({
   contactId: uuidSchema,
-  teamId: uuidSchema,
+  teamId: uuidSchema.optional(), // teamId is optional, will use contact.team_id if not provided
+  email: emailSchema.optional(), // Optional email to update contact before sending invitation
 })
 
 // ============================================================================
@@ -322,8 +324,9 @@ export const sendContactInvitationSchema = z.object({
 
 /**
  * Intervention status enum
+ * Exported for use in validation across the app
  */
-const interventionStatusEnum = z.enum([
+export const interventionStatusEnum = z.enum([
   'demande',
   'rejetee',
   'approuvee',
@@ -376,6 +379,10 @@ export const createManagerInterventionSchema = z.object({
   // Contact assignments (arrays)
   selectedManagerIds: z.array(uuidSchema).optional(),
   selectedProviderIds: z.array(uuidSchema).optional(),
+
+  // Multi-provider mode
+  assignmentMode: z.enum(['single', 'group', 'separate']).optional().default('single'),
+  providerInstructions: z.record(z.string(), z.string()).optional().default({}),
 
   // Scheduling
   schedulingType: z.enum(['none', 'fixed', 'flexible', 'slots']).optional(),
@@ -534,6 +541,48 @@ export const uploadInterventionDocumentSchema = z.object({
   ], {
     errorMap: () => ({ message: 'Format de fichier invalide. Seuls PDF, DOC, DOCX, XLS, XLSX, JPEG, PNG, WEBP, GIF sont autorisés' })
   }),
+  description: z.string().max(2000).trim().optional(),
+})
+
+/**
+ * POST /api/upload-contract-document
+ *
+ * Schema for contract document uploads (bail, état des lieux, etc.)
+ * Uses same MIME type whitelist as intervention documents
+ */
+export const uploadContractDocumentSchema = z.object({
+  contractId: uuidSchema,
+  fileName: z.string().min(1).max(255).trim(),
+  fileSize: z.number().int().positive().max(50 * 1024 * 1024), // max 50MB (matching bucket config)
+  fileType: z.enum([
+    // Documents (safe formats only)
+    'application/pdf',
+    'application/msword',  // .doc
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',  // .docx
+    'application/vnd.ms-excel',  // .xls
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',  // .xlsx
+    // Images
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+    'image/gif',
+  ], {
+    errorMap: () => ({ message: 'Format de fichier invalide. Seuls PDF, DOC, DOCX, XLS, XLSX, JPEG, PNG, WEBP, GIF sont autorisés' })
+  }),
+  documentType: z.enum([
+    'bail',
+    'avenant',
+    'etat_des_lieux_entree',
+    'etat_des_lieux_sortie',
+    'attestation_assurance',
+    'justificatif_identite',
+    'justificatif_revenus',
+    'caution_bancaire',
+    'quittance',
+    'reglement_copropriete',
+    'diagnostic',
+    'autre',
+  ]).optional().default('autre'),
   description: z.string().max(2000).trim().optional(),
 })
 

@@ -672,11 +672,7 @@ export function QuoteSubmissionForm({
 
   // Time slot handlers
   const handleAcceptSlot = async (slotId: string) => {
-    if (!currentUserId) {
-      quoteToast.quoteError('Utilisateur non identifié', 'l\'acceptation du créneau')
-      return
-    }
-
+    // Auth is handled server-side by acceptTimeSlotAction via getAuthenticatedUser()
     setAcceptingSlotId(slotId)
     try {
       const result = await acceptTimeSlotAction(slotId, intervention.id)

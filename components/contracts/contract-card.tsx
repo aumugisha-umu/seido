@@ -3,7 +3,7 @@
 import { cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { ContractStatusBadge } from './contract-status-badge'
+import { SeidoBadge } from '@/components/ui/seido-badge'
 import { ContractDatesDisplay } from './contract-dates-display'
 import { ContractContactsPreview } from './contract-contacts-preview'
 import { Eye, Edit, Trash2, Building2, Euro, MoreVertical } from 'lucide-react'
@@ -42,10 +42,9 @@ export function ContractCard({
   // BEM Classes
   const blockClass = cn(
     'contract-card',
-    'group transition-all duration-200 h-full bg-white',
-    mode === 'select' && 'cursor-pointer',
+    'group transition-all duration-200 h-full bg-white cursor-pointer',
     isSelected && 'ring-2 ring-primary',
-    'hover:shadow-md'
+    'hover:shadow-md hover:border-primary/30'
   )
 
   const headerClass = cn(
@@ -61,6 +60,8 @@ export function ContractCard({
   const handleCardClick = () => {
     if (mode === 'select' && onSelect) {
       onSelect(contract.id)
+    } else if (mode === 'view' && onView) {
+      onView(contract.id)
     }
   }
 
@@ -68,8 +69,14 @@ export function ContractCard({
     <Card
       className={blockClass}
       onClick={handleCardClick}
-      role={mode === 'select' ? 'button' : undefined}
-      tabIndex={mode === 'select' ? 0 : undefined}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          handleCardClick()
+        }
+      }}
     >
       <CardHeader className="p-3 pb-0">
         <div className={headerClass}>
@@ -78,7 +85,7 @@ export function ContractCard({
             <h3 className="contract-card__title font-medium text-foreground truncate text-sm">
               {contract.title}
             </h3>
-            <ContractStatusBadge status={contract.status} size="sm" />
+            <SeidoBadge type="contract" value={contract.status} size="sm" showIcon />
           </div>
 
           {/* Actions dropdown */}

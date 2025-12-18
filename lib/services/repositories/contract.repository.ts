@@ -66,7 +66,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
     if ('status' in data && data.status) {
       validateEnum(
         data.status,
-        ['brouillon', 'actif', 'expire', 'resilie', 'renouvele'] as const,
+        ['brouillon', 'a_venir', 'actif', 'expire', 'resilie', 'renouvele'] as const,
         'status'
       )
     }
@@ -201,7 +201,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
           *,
           contacts:contract_contacts(
             id, user_id, role, is_primary,
-            user:user_id(id, name, email)
+            user:user_id(id, name, email, phone)
           )
         `)
         .eq('lot_id', lotId)
@@ -319,7 +319,9 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
   }
 
   /**
-   * Check if lot has an active contract
+   * @deprecated Utiliser hasOverlappingContract() à la place.
+   * Cette méthode ne vérifie que le statut 'actif', pas les dates.
+   * Gardée pour backward compatibility.
    */
   async hasActiveContract(lotId: string, excludeContractId?: string) {
     try {
@@ -344,6 +346,107 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
     } catch (error) {
       logger.error({ error, lotId }, '❌ [CONTRACT-REPO] hasActiveContract error')
       return createErrorResponse(handleError(error as Error, 'contract:hasActiveContract'))
+    }
+  }
+
+  /**
+   * Vérifie si un contrat existe avec une période qui chevauche les dates données.
+   * Permet plusieurs contrats sur un même lot si les périodes ne se chevauchent pas.
+   *
+   * Logique de chevauchement STRICT : start1 < end2 AND start2 < end1
+   * Cela autorise les contrats qui se "touchent" le même jour (fin = début).
+   *
+   * @param lotId - ID du lot
+   * @param startDate - Date de début du nouveau contrat (format YYYY-MM-DD)
+   * @param endDate - Date de fin du nouveau contrat (format YYYY-MM-DD)
+   * @param excludeContractId - ID du contrat à exclure (pour édition/activation)
+   */
+  async hasOverlappingContract(
+    lotId: string,
+    startDate: string,
+    endDate: string,
+    excludeContractId?: string
+  ) {
+    try {
+      let query = this.supabase
+        .from(this.tableName)
+        .select('id', { count: 'exact', head: true })
+        .eq('lot_id', lotId)
+        .in('status', ['actif', 'a_venir', 'brouillon']) // Contrats non terminés
+        .is('deleted_at', null)
+        // Chevauchement STRICT : start_date < endDate AND end_date > startDate
+        // Exclut les cas où fin = début (autorise 1 jour d'écart)
+        .lt('start_date', endDate)
+        .gt('end_date', startDate)
+
+      if (excludeContractId) {
+        query = query.neq('id', excludeContractId)
+      }
+
+      const { count, error } = await query
+
+      if (error) {
+        return createErrorResponse(handleError(error, 'contract:hasOverlappingContract'))
+      }
+
+      logger.debug(
+        { lotId, startDate, endDate, excludeContractId, overlappingCount: count },
+        '🔍 [CONTRACT-REPO] hasOverlappingContract check'
+      )
+
+      return { success: true as const, data: (count || 0) > 0 }
+    } catch (error) {
+      logger.error({ error, lotId, startDate, endDate }, '❌ [CONTRACT-REPO] hasOverlappingContract error')
+      return createErrorResponse(handleError(error as Error, 'contract:hasOverlappingContract'))
+    }
+  }
+
+  /**
+   * Récupère les contrats qui chevauchent une période donnée.
+   * Retourne les détails des contrats (pas juste un boolean) pour l'affichage UX.
+   *
+   * @param lotId - ID du lot
+   * @param startDate - Date de début du nouveau contrat (format YYYY-MM-DD)
+   * @param endDate - Date de fin du nouveau contrat (format YYYY-MM-DD)
+   * @param excludeContractId - ID du contrat à exclure (pour édition)
+   */
+  async findOverlappingContracts(
+    lotId: string,
+    startDate: string,
+    endDate: string,
+    excludeContractId?: string
+  ) {
+    try {
+      let query = this.supabase
+        .from(this.tableName)
+        .select('id, title, start_date, end_date, status')
+        .eq('lot_id', lotId)
+        .in('status', ['actif', 'a_venir', 'brouillon'])
+        .is('deleted_at', null)
+        // Chevauchement STRICT : start_date < endDate AND end_date > startDate
+        .lt('start_date', endDate)
+        .gt('end_date', startDate)
+        .order('start_date', { ascending: true })
+
+      if (excludeContractId) {
+        query = query.neq('id', excludeContractId)
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        return createErrorResponse(handleError(error, 'contract:findOverlappingContracts'))
+      }
+
+      logger.debug(
+        { lotId, startDate, endDate, excludeContractId, count: data?.length || 0 },
+        '🔍 [CONTRACT-REPO] findOverlappingContracts'
+      )
+
+      return { success: true as const, data: data || [] }
+    } catch (error) {
+      logger.error({ error, lotId, startDate, endDate }, '❌ [CONTRACT-REPO] findOverlappingContracts error')
+      return createErrorResponse(handleError(error as Error, 'contract:findOverlappingContracts'))
     }
   }
 
@@ -523,6 +626,72 @@ export class ContractContactRepository extends BaseRepository<ContractContact, C
     } catch (error) {
       logger.error({ error, userId }, '❌ [CONTRACT-CONTACT-REPO] findContractsByUser error')
       return createErrorResponse(handleError(error as Error, 'contract_contact:findContractsByUser'))
+    }
+  }
+
+  /**
+   * Get ACTIVE contracts for a tenant user with lot and building details
+   * Used by TenantService to display tenant's properties
+   *
+   * @param userId - The tenant user ID
+   * @returns Active contracts with lot and building data
+   */
+  async findActiveContractsByUser(userId: string) {
+    try {
+      // Note: Only using columns that exist in the lots table schema
+      const { data, error } = await this.supabase
+        .from(this.tableName)
+        .select(`
+          id,
+          role,
+          is_primary,
+          contract:contract_id(
+            id,
+            title,
+            status,
+            start_date,
+            end_date,
+            lot:lot_id(
+              id,
+              reference,
+              floor,
+              category,
+              street,
+              city,
+              postal_code,
+              building:building_id(
+                id,
+                name,
+                address,
+                city,
+                postal_code,
+                description
+              )
+            )
+          )
+        `)
+        .eq('user_id', userId)
+        .in('role', ['locataire', 'colocataire'])
+
+      if (error) {
+        return createErrorResponse(handleError(error, 'contract_contact:findActiveContractsByUser'))
+      }
+
+      // Filter to only active contracts (status = 'actif')
+      const activeContracts = (data || []).filter(
+        item => item.contract?.status === 'actif'
+      )
+
+      logger.info({
+        userId,
+        totalContracts: data?.length || 0,
+        activeContracts: activeContracts.length
+      }, '✅ [CONTRACT-CONTACT-REPO] findActiveContractsByUser')
+
+      return { success: true as const, data: activeContracts }
+    } catch (error) {
+      logger.error({ error, userId }, '❌ [CONTRACT-CONTACT-REPO] findActiveContractsByUser error')
+      return createErrorResponse(handleError(error as Error, 'contract_contact:findActiveContractsByUser'))
     }
   }
 

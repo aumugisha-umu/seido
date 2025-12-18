@@ -3,6 +3,7 @@
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Mail, Phone, MapPin, Building2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 
 interface ContactCardCompactProps {
@@ -25,9 +26,20 @@ interface ContactCardCompactProps {
     }
     invitationStatus?: string
     isCurrentUser?: boolean
+    onClick?: () => void
 }
 
-export function ContactCardCompact({ contact, invitationStatus, isCurrentUser }: ContactCardCompactProps) {
+export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, onClick }: ContactCardCompactProps) {
+    const router = useRouter()
+
+    const handleCardClick = () => {
+        if (onClick) {
+            onClick()
+        } else {
+            router.push(`/gestionnaire/contacts/details/${contact.id}`)
+        }
+    }
+
     const getContactTypeLabel = () => {
         if (!contact.role) return 'Non défini'
 
@@ -103,10 +115,30 @@ export function ContactCardCompact({ contact, invitationStatus, isCurrentUser }:
     const blockClass = "contact-card"
 
     return (
-        <Card className={cn(
-            blockClass,
-            "p-4 flex flex-col hover:shadow-md transition-shadow h-full bg-white"
-        )}>
+        <Card
+            className={cn(
+                blockClass,
+                "p-4 flex flex-col h-full cursor-pointer",
+                // Hover
+                "hover:shadow-md hover:border-primary/30",
+                // Transition
+                "transition-all duration-200",
+                // Focus visible (WCAG 2.1 AA)
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
+                // Dark mode
+                "bg-white dark:bg-card dark:hover:bg-accent/50"
+            )}
+            onClick={handleCardClick}
+            role="button"
+            tabIndex={0}
+            aria-label={`Contact: ${contact.name}, ${getContactTypeLabel()}`}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleCardClick()
+                }
+            }}
+        >
             {/* Header avec avatar, nom et badges */}
             <div className={cn(`${blockClass}__header`, "flex items-start gap-2 mb-2")}>
                 <div className={cn(
@@ -134,7 +166,7 @@ export function ContactCardCompact({ contact, invitationStatus, isCurrentUser }:
                                 {getContactTypeLabel()}
                             </Badge>
                         )}
-                        {contact.is_company && contact.company && (
+                        {contact.company && (
                             <Badge variant="secondary" className={cn(
                                 `${blockClass}__company`,
                                 "bg-purple-100 text-purple-800 text-xs flex items-center gap-1"

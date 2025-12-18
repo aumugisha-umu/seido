@@ -27,6 +27,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
+import { SeidoBadge } from '@/components/ui/seido-badge'
 import { Separator } from '@/components/ui/separator'
 import {
   Tooltip,

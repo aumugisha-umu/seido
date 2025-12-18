@@ -23,7 +23,14 @@ import { Users, MessageSquare, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import { ParticipantsListProps, UserRole, Participant } from '../types'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { SeidoBadge } from '@/components/ui/seido-badge'
+import { ParticipantsListProps, UserRole, Participant, AssignmentMode } from '../types'
 import { permissions, getInitials } from '../utils'
 
 /**
@@ -45,6 +52,15 @@ const GROUP_LABELS: Record<UserRole, string> = {
 }
 
 /**
+ * Mapping entre rôle de participant et type de thread
+ */
+const ROLE_TO_THREAD_TYPE: Record<UserRole, string> = {
+  manager: 'group', // Les gestionnaires utilisent la discussion générale entre eux
+  provider: 'provider_to_managers',
+  tenant: 'tenant_to_managers'
+}
+
+/**
  * Groupe de participants par rôle
  */
 interface ParticipantGroupProps {
@@ -54,6 +70,11 @@ interface ParticipantGroupProps {
   showConversationButtons: boolean
   activeConversation?: string | 'group'
   onConversationClick?: (participantId: string) => void
+  assignmentMode?: AssignmentMode
+  /** Compteur de messages non lus pour ce type de thread */
+  unreadCount?: number
+  /** ID de l'utilisateur connecté (pour masquer son icône de conversation) */
+  currentUserId?: string
 }
 
 const ParticipantGroup = ({
@@ -62,18 +83,54 @@ const ParticipantGroup = ({
   role,
   showConversationButtons,
   activeConversation,
-  onConversationClick
+  onConversationClick,
+  assignmentMode,
+  unreadCount = 0,
+  currentUserId
 }: ParticipantGroupProps) => {
   if (participants.length === 0) return null
 
   const colors = AVATAR_COLORS[role]
 
+  // Show assignment mode badge only for providers when mode is group or separate
+  const showAssignmentBadge = role === 'provider' &&
+    participants.length > 1 &&
+    assignmentMode &&
+    assignmentMode !== 'single'
+
   return (
     <div className="space-y-3">
-      {/* Label du groupe */}
-      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-        {label}
-      </p>
+      {/* Label du groupe + Assignment mode badge */}
+      <div className="flex items-center gap-2">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+          {label}
+        </p>
+
+        {showAssignmentBadge && assignmentMode && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-help">
+                  <SeidoBadge
+                    type="mode"
+                    value={assignmentMode}
+                    size="md"
+                    showIcon
+                  />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-[280px] p-3">
+                <p className="text-sm leading-relaxed">
+                  {assignmentMode === 'separate'
+                    ? 'Chaque prestataire voit uniquement ses propres informations. Des interventions individuelles seront créées à la clôture.'
+                    : 'Tous les prestataires voient les mêmes informations (créneaux, instructions, devis).'
+                  }
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+      </div>
 
       {/* Liste des participants */}
       <div className="space-y-3">
@@ -104,21 +161,30 @@ const ParticipantGroup = ({
               )}
             </div>
 
-            {/* Bouton de conversation individuelle */}
-            {showConversationButtons && onConversationClick && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  'h-7 w-7 flex-shrink-0 text-slate-400 hover:text-blue-600',
-                  activeConversation === participant.id && 'bg-blue-100 text-blue-600'
+            {/* Bouton de conversation individuelle avec pastille */}
+            {/* Masqué pour l'utilisateur connecté (on ne peut pas s'envoyer un message à soi-même) */}
+            {showConversationButtons && onConversationClick && participant.id !== currentUserId && (
+              <div className="relative flex-shrink-0">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    'h-7 w-7 text-slate-400 hover:text-blue-600',
+                    activeConversation === participant.id && 'bg-blue-100 text-blue-600'
+                  )}
+                  onClick={() => onConversationClick(participant.id)}
+                  aria-label={`Ouvrir la conversation avec ${participant.name}`}
+                  aria-pressed={activeConversation === participant.id}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
+                </Button>
+                {/* Pastille de messages non lus */}
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
                 )}
-                onClick={() => onConversationClick(participant.id)}
-                aria-label={`Ouvrir la conversation avec ${participant.name}`}
-                aria-pressed={activeConversation === participant.id}
-              >
-                <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
-              </Button>
+              </div>
             )}
           </div>
         ))}
@@ -133,9 +199,11 @@ const ParticipantGroup = ({
 interface GroupConversationButtonProps {
   isActive: boolean
   onClick: () => void
+  /** Compteur de messages non lus */
+  unreadCount?: number
 }
 
-const GroupConversationButton = ({ isActive, onClick }: GroupConversationButtonProps) => {
+const GroupConversationButton = ({ isActive, onClick, unreadCount = 0 }: GroupConversationButtonProps) => {
   return (
     <button
       onClick={onClick}
@@ -150,10 +218,16 @@ const GroupConversationButton = ({ isActive, onClick }: GroupConversationButtonP
     >
       <div className="flex items-center gap-3">
         <div className={cn(
-          'p-2 rounded-full',
+          'p-2 rounded-full relative',
           isActive ? 'bg-blue-100' : 'bg-slate-100'
         )}>
           <Users className="w-4 h-4" aria-hidden="true" />
+          {/* Pastille de messages non lus */}
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </span>
+          )}
         </div>
         <span className="text-sm font-medium">Discussion générale</span>
       </div>
@@ -168,17 +242,29 @@ const GroupConversationButton = ({ isActive, onClick }: GroupConversationButtonP
 }
 
 /**
+ * Extended props for ParticipantsList with assignment mode and unread counts
+ */
+interface ExtendedParticipantsListProps extends ParticipantsListProps {
+  assignmentMode?: AssignmentMode
+  /** Compteurs de messages non lus par type de thread */
+  unreadCounts?: Record<string, number>
+}
+
+/**
  * Liste complète des participants avec filtrage par rôle
  */
 export const ParticipantsList = ({
   participants,
   currentUserRole,
+  currentUserId,
   onConversationClick,
   onGroupConversationClick,
   activeConversation,
   showConversationButtons = false,
+  assignmentMode,
+  unreadCounts = {},
   className
-}: ParticipantsListProps) => {
+}: ExtendedParticipantsListProps) => {
   // Détermine quels rôles sont visibles selon le rôle de l'utilisateur courant
   const visibleRoles = permissions.canViewParticipantsByRole(currentUserRole)
 
@@ -228,6 +314,8 @@ export const ParticipantsList = ({
             showConversationButtons={canShowConversationButtons}
             activeConversation={activeConversation}
             onConversationClick={onConversationClick}
+            unreadCount={unreadCounts[ROLE_TO_THREAD_TYPE.manager] || 0}
+            currentUserId={currentUserId}
           />
         )}
 
@@ -239,6 +327,9 @@ export const ParticipantsList = ({
             showConversationButtons={canShowConversationButtons}
             activeConversation={activeConversation}
             onConversationClick={onConversationClick}
+            assignmentMode={assignmentMode}
+            unreadCount={unreadCounts[ROLE_TO_THREAD_TYPE.provider] || 0}
+            currentUserId={currentUserId}
           />
         )}
 
@@ -250,6 +341,8 @@ export const ParticipantsList = ({
             showConversationButtons={canShowConversationButtons}
             activeConversation={activeConversation}
             onConversationClick={onConversationClick}
+            unreadCount={unreadCounts[ROLE_TO_THREAD_TYPE.tenant] || 0}
+            currentUserId={currentUserId}
           />
         )}
       </div>
@@ -261,6 +354,7 @@ export const ParticipantsList = ({
           <GroupConversationButton
             isActive={activeConversation === 'group'}
             onClick={onGroupConversationClick}
+            unreadCount={unreadCounts['group'] || 0}
           />
         </>
       )}

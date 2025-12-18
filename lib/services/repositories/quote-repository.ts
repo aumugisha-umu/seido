@@ -28,8 +28,9 @@ type InterventionQuote = Database['public']['Tables']['intervention_quotes']['Ro
 type InterventionQuoteInsert = Database['public']['Tables']['intervention_quotes']['Insert']
 type InterventionQuoteUpdate = Database['public']['Tables']['intervention_quotes']['Update']
 
-// Extended types
-interface QuoteWithRelations extends InterventionQuote {
+// Extended types (reserved for future use)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+interface _QuoteWithRelations extends InterventionQuote {
   intervention?: Database['public']['Tables']['interventions']['Row']
   provider?: Database['public']['Tables']['users']['Row']
   created_by_user?: Database['public']['Tables']['users']['Row']

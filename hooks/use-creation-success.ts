@@ -1,9 +1,40 @@
 "use client"
 
+/**
+ * @deprecated Ce hook est DEPRECATED et ne doit plus être utilisé.
+ *
+ * PROBLÈMES CONNUS:
+ * - `await refreshData()` peut bloquer indéfiniment si la requête échoue
+ * - `setTimeout(..., 500)` ajoute un délai artificiel de 500ms avant navigation
+ * - Pattern incohérent avec Next.js 15 Server Actions best practices
+ *
+ * ALTERNATIVES RECOMMANDÉES:
+ *
+ * 1. Pour les Server Actions avec navigation:
+ *    - Utiliser `redirect()` directement dans la Server Action
+ *    - Exemple: voir `createLotAction` dans `app/gestionnaire/(no-navbar)/biens/lots/nouveau/actions.ts`
+ *
+ * 2. Pour les composants clients appelant des API:
+ *    - Utiliser `toast()` + `router.push()` directement
+ *    - Exemple:
+ *      ```typescript
+ *      toast({ title: "Succès", description: "Créé!", variant: "success" })
+ *      router.push('/destination')
+ *      ```
+ *
+ * 3. Pour les cas avec upload de fichiers (FormData):
+ *    - Garder les API routes mais utiliser le pattern simplifié côté client
+ *    - Exemple: voir `nouvelle-intervention-client.tsx`
+ *
+ * Migration effectuée le: 2025-12-10
+ * Ce fichier sera supprimé dans une future release.
+ */
+
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { useCallback } from "react"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+
 interface CreationSuccessOptions {
   successTitle: string
   successDescription: string
@@ -13,6 +44,10 @@ interface CreationSuccessOptions {
   hardRefreshDelay?: number
 }
 
+/**
+ * @deprecated Utilisez `toast()` + `router.push()` ou `redirect()` dans Server Actions à la place.
+ * @see ALTERNATIVES RECOMMANDÉES dans le commentaire de fichier ci-dessus
+ */
 export function useCreationSuccess() {
   const router = useRouter()
   const { toast } = useToast()
@@ -25,7 +60,15 @@ export function useCreationSuccess() {
     hardRefreshFallback = true,
     hardRefreshDelay = 3000
   }: CreationSuccessOptions) => {
-    logger.info("🎉 Handling creation success...")
+    // Log deprecation warning in development
+    if (process.env.NODE_ENV === 'development') {
+      console.warn(
+        '[DEPRECATED] useCreationSuccess est deprecated. ' +
+        'Utilisez toast() + router.push() ou redirect() dans Server Actions.'
+      )
+    }
+
+    logger.info("🎉 [DEPRECATED] Handling creation success...")
 
     // 1. Afficher le toast immédiatement (seulement si un titre est fourni)
     if (successTitle) {
@@ -70,4 +113,3 @@ export function useCreationSuccess() {
 
   return { handleSuccess }
 }
-

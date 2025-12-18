@@ -428,7 +428,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   /**
    * Update intervention status with validation
    */
-  async updateStatus(id: string, newStatus: Intervention['status'], _updatedBy?: string) {
+  async updateStatus(id: string, newStatus: Intervention['status']) {
     // Validate status transition
     const existingResult = await this.findById(id)
     if (!existingResult.success || !existingResult.data) {

@@ -43,7 +43,7 @@ const roleConfigs: Record<string, HeaderConfig> = {
     navigation: [
       { href: "/admin/dashboard", label: "Dashboard", icon: Home },
       { href: "/admin/users", label: "Utilisateurs", icon: Users },
-      { href: "/admin/settings", label: "Paramètres", icon: Building2 },
+      { href: "/admin/parametres", label: "Paramètres", icon: Settings },
     ],
     showUserElements: true,
   },

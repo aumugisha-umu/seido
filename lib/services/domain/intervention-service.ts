@@ -63,6 +63,27 @@ type InterventionUrgency = Database['public']['Enums']['intervention_urgency']
 type InterventionType = Database['public']['Enums']['intervention_type']
 type ConversationThreadType = Database['public']['Enums']['conversation_thread_type']
 
+// Multi-provider assignment types
+type AssignmentMode = 'single' | 'group' | 'separate'
+
+interface MultiProviderAssignmentInput {
+  interventionId: string
+  providerIds: string[]
+  mode: AssignmentMode
+  assignedBy: string
+  providerInstructions?: Record<string, string> // { providerId: instructions }
+  providerTimeSlots?: Record<string, TimeSlotInput[]> // { providerId: timeSlots[] }
+}
+
+interface InterventionLinkData {
+  id: string
+  parent_intervention_id: string
+  child_intervention_id: string
+  provider_id: string
+  link_type: string
+  created_at: string
+}
+
 // Input types
 interface InterventionCreateInput {
   lot_id?: string | null
@@ -596,6 +617,451 @@ export class InterventionService {
     } catch (error) {
       return createErrorResponse(handleError(error, 'interventions:unassignUser'))
     }
+  }
+
+  /**
+   * MULTI-PROVIDER ASSIGNMENT METHODS
+   */
+
+  /**
+   * Assign multiple providers to an intervention with a specific mode
+   * @param input - Multi-provider assignment input
+   * @returns Result with assigned providers
+   */
+  async assignMultipleProviders(input: MultiProviderAssignmentInput) {
+    const { interventionId, providerIds, mode, assignedBy, providerInstructions, providerTimeSlots } = input
+
+    try {
+      // Validate intervention exists
+      const intervention = await this.interventionRepo.findById(interventionId)
+      if (!intervention.success || !intervention.data) {
+        return intervention
+      }
+
+      // Validate assigner has permission (must be manager)
+      if (this.userService) {
+        const assignerResult = await this.userService.getById(assignedBy)
+        if (!assignerResult.success || !assignerResult.data) {
+          throw new NotFoundException('User', assignedBy)
+        }
+
+        if (!['gestionnaire', 'admin'].includes(assignerResult.data.role)) {
+          throw new PermissionException(
+            'Only managers can assign providers to interventions',
+            'interventions',
+            'assign',
+            assignedBy
+          )
+        }
+      }
+
+      // Validate mode based on number of providers
+      if (providerIds.length === 0) {
+        throw new ValidationException(
+          'At least one provider must be selected',
+          'interventions',
+          'providerIds'
+        )
+      }
+
+      if (providerIds.length === 1 && mode !== 'single') {
+        throw new ValidationException(
+          'Single provider must use "single" mode',
+          'interventions',
+          'mode'
+        )
+      }
+
+      if (providerIds.length > 1 && mode === 'single') {
+        throw new ValidationException(
+          'Multiple providers require "group" or "separate" mode',
+          'interventions',
+          'mode'
+        )
+      }
+
+      // Update intervention assignment_mode
+      const { error: updateError } = await this.interventionRepo.supabase
+        .from('interventions')
+        .update({ assignment_mode: mode })
+        .eq('id', interventionId)
+
+      if (updateError) {
+        return createErrorResponse(handleError(updateError, 'interventions:assignMultipleProviders:updateMode'))
+      }
+
+      // Assign each provider
+      const assignments = []
+      for (const providerId of providerIds) {
+        // Validate provider exists and has correct role
+        if (this.userService) {
+          const providerResult = await this.userService.getById(providerId)
+          if (!providerResult.success || !providerResult.data) {
+            throw new NotFoundException('User (provider)', providerId)
+          }
+          if (providerResult.data.role !== 'prestataire') {
+            throw new ValidationException(
+              `User ${providerId} must have provider role`,
+              'interventions',
+              'providerIds'
+            )
+          }
+        }
+
+        // Create assignment with optional instructions
+        const instructions = providerInstructions?.[providerId] || null
+
+        const { data: assignment, error: assignError } = await this.interventionRepo.supabase
+          .from('intervention_assignments')
+          .upsert({
+            intervention_id: interventionId,
+            user_id: providerId,
+            role: 'prestataire',
+            assigned_by: assignedBy,
+            provider_instructions: instructions
+          }, {
+            onConflict: 'intervention_id,user_id,role'
+          })
+          .select()
+          .single()
+
+        if (assignError) {
+          logger.error('Failed to assign provider:', { providerId, error: assignError })
+          continue // Continue with other providers
+        }
+
+        assignments.push(assignment)
+
+        // Create time slots for this provider if in separate mode
+        if (mode === 'separate' && providerTimeSlots?.[providerId]) {
+          for (const slot of providerTimeSlots[providerId]) {
+            await this.interventionRepo.supabase
+              .from('intervention_time_slots')
+              .insert({
+                intervention_id: interventionId,
+                provider_id: providerId,
+                slot_date: slot.date,
+                start_time: slot.start_time,
+                end_time: slot.end_time,
+                proposed_by: assignedBy
+              })
+          }
+        }
+      }
+
+      // Create provider conversation thread (one per provider in separate mode)
+      if (this.conversationRepo) {
+        // Check if thread already exists
+        const existingThread = await this.conversationRepo.getThreadsByIntervention(interventionId)
+        const hasProviderThread = existingThread.data?.some(t => t.thread_type === 'provider_to_managers')
+
+        if (!hasProviderThread) {
+          await this.conversationRepo.createThread({
+            intervention_id: interventionId,
+            thread_type: 'provider_to_managers',
+            title: 'Communication avec le(s) prestataire(s)',
+            created_by: assignedBy,
+            team_id: intervention.data.team_id
+          })
+        }
+      }
+
+      // Log activity
+      await this.logActivity('user_assigned', interventionId, assignedBy, {
+        assigned_providers: providerIds,
+        assignment_mode: mode,
+        provider_count: providerIds.length
+      })
+
+      logger.info(`✅ Assigned ${providerIds.length} providers to intervention ${interventionId} in ${mode} mode`)
+
+      return createSuccessResponse({
+        assignments,
+        mode,
+        providerCount: providerIds.length
+      })
+    } catch (error) {
+      return createErrorResponse(handleError(error, 'interventions:assignMultipleProviders'))
+    }
+  }
+
+  /**
+   * Get linked interventions (parent/children) for an intervention
+   * @param interventionId - The intervention ID to get links for
+   * @returns Array of intervention links
+   */
+  async getLinkedInterventions(interventionId: string) {
+    try {
+      const { data, error } = await this.interventionRepo.supabase
+        .from('intervention_links')
+        .select(`
+          id,
+          parent_intervention_id,
+          child_intervention_id,
+          provider_id,
+          link_type,
+          created_at,
+          parent:interventions!parent_intervention_id(id, reference, title, status),
+          child:interventions!child_intervention_id(id, reference, title, status),
+          provider:users!provider_id(id, first_name, last_name)
+        `)
+        .or(`parent_intervention_id.eq.${interventionId},child_intervention_id.eq.${interventionId}`)
+
+      if (error) {
+        return createErrorResponse(handleError(error, 'interventions:getLinkedInterventions'))
+      }
+
+      return createSuccessResponse(data || [])
+    } catch (error) {
+      return createErrorResponse(handleError(error, 'interventions:getLinkedInterventions'))
+    }
+  }
+
+  /**
+   * Create child interventions from a parent intervention in "separate" mode
+   * Called when manager finalizes a multi-provider intervention
+   * @param parentInterventionId - The parent intervention ID
+   * @param managerId - The manager performing the action
+   * @returns Created child interventions
+   */
+  async createChildInterventions(parentInterventionId: string, managerId: string) {
+    try {
+      // Get parent intervention
+      const parentResult = await this.interventionRepo.findById(parentInterventionId)
+      if (!parentResult.success || !parentResult.data) {
+        return parentResult
+      }
+
+      const parent = parentResult.data
+
+      // Validate this is a separate mode intervention
+      if (parent.assignment_mode !== 'separate') {
+        throw new ValidationException(
+          'Child interventions can only be created for "separate" mode interventions',
+          'interventions',
+          'assignment_mode'
+        )
+      }
+
+      // Validate manager permission
+      if (this.userService) {
+        const managerResult = await this.userService.getById(managerId)
+        if (!managerResult.success || !managerResult.data) {
+          throw new NotFoundException('User', managerId)
+        }
+
+        if (!['gestionnaire', 'admin'].includes(managerResult.data.role)) {
+          throw new PermissionException(
+            'Only managers can create child interventions',
+            'interventions',
+            'createChildInterventions',
+            managerId
+          )
+        }
+      }
+
+      // Get all provider assignments
+      const { data: assignments, error: assignError } = await this.interventionRepo.supabase
+        .from('intervention_assignments')
+        .select('*, user:users(*)')
+        .eq('intervention_id', parentInterventionId)
+        .eq('role', 'prestataire')
+
+      if (assignError) {
+        return createErrorResponse(handleError(assignError, 'interventions:createChildInterventions:getAssignments'))
+      }
+
+      if (!assignments || assignments.length === 0) {
+        throw new ValidationException(
+          'No provider assignments found for this intervention',
+          'interventions',
+          'assignments'
+        )
+      }
+
+      const childInterventions = []
+
+      for (const assignment of assignments) {
+        const providerId = assignment.user_id
+        const providerShortId = providerId.substring(0, 4).toUpperCase()
+
+        // Create child intervention
+        const childData = {
+          building_id: parent.building_id,
+          lot_id: parent.lot_id,
+          team_id: parent.team_id,
+          tenant_id: parent.tenant_id,
+          title: parent.title,
+          description: parent.description,
+          type: parent.type,
+          urgency: parent.urgency,
+          status: 'cloturee_par_gestionnaire' as InterventionStatus,
+          reference: `${parent.reference}-${providerShortId}`,
+          specific_location: parent.specific_location,
+          assignment_mode: 'single'
+        }
+
+        const { data: childIntervention, error: childError } = await this.interventionRepo.supabase
+          .from('interventions')
+          .insert(childData)
+          .select()
+          .single()
+
+        if (childError) {
+          logger.error('Failed to create child intervention:', { providerId, error: childError })
+          continue
+        }
+
+        // Assign the provider to child intervention
+        await this.interventionRepo.supabase
+          .from('intervention_assignments')
+          .insert({
+            intervention_id: childIntervention.id,
+            user_id: providerId,
+            role: 'prestataire',
+            assigned_by: managerId,
+            provider_instructions: assignment.provider_instructions
+          })
+
+        // Copy quotes specific to this provider
+        const { data: quotes } = await this.interventionRepo.supabase
+          .from('intervention_quotes')
+          .select('*')
+          .eq('intervention_id', parentInterventionId)
+          .eq('provider_id', providerId)
+
+        if (quotes && quotes.length > 0) {
+          for (const quote of quotes) {
+            await this.interventionRepo.supabase
+              .from('intervention_quotes')
+              .insert({
+                intervention_id: childIntervention.id,
+                provider_id: providerId,
+                team_id: quote.team_id,
+                quote_type: quote.quote_type,
+                amount: quote.amount,
+                currency: quote.currency,
+                description: quote.description,
+                line_items: quote.line_items,
+                status: quote.status,
+                valid_until: quote.valid_until,
+                created_by: quote.created_by
+              })
+          }
+        }
+
+        // Copy time slots specific to this provider
+        const { data: timeSlots } = await this.interventionRepo.supabase
+          .from('intervention_time_slots')
+          .select('*')
+          .eq('intervention_id', parentInterventionId)
+          .eq('provider_id', providerId)
+
+        if (timeSlots && timeSlots.length > 0) {
+          for (const slot of timeSlots) {
+            await this.interventionRepo.supabase
+              .from('intervention_time_slots')
+              .insert({
+                intervention_id: childIntervention.id,
+                provider_id: providerId,
+                slot_date: slot.slot_date,
+                start_time: slot.start_time,
+                end_time: slot.end_time,
+                is_selected: slot.is_selected,
+                proposed_by: slot.proposed_by,
+                notes: slot.notes
+              })
+          }
+        }
+
+        // Create intervention link
+        await this.interventionRepo.supabase
+          .from('intervention_links')
+          .insert({
+            parent_intervention_id: parentInterventionId,
+            child_intervention_id: childIntervention.id,
+            provider_id: providerId,
+            link_type: 'split_assignment',
+            created_by: managerId
+          })
+
+        childInterventions.push(childIntervention)
+      }
+
+      // Update parent status to closed
+      await this.interventionRepo.supabase
+        .from('interventions')
+        .update({ status: 'cloturee_par_gestionnaire' })
+        .eq('id', parentInterventionId)
+
+      // Log activity
+      await this.logActivity('finalized_by_manager', parentInterventionId, managerId, {
+        child_count: childInterventions.length,
+        child_ids: childInterventions.map(c => c.id)
+      })
+
+      logger.info(`✅ Created ${childInterventions.length} child interventions for parent ${parentInterventionId}`)
+
+      return createSuccessResponse({
+        parentId: parentInterventionId,
+        childInterventions,
+        childCount: childInterventions.length
+      })
+    } catch (error) {
+      return createErrorResponse(handleError(error, 'interventions:createChildInterventions'))
+    }
+  }
+
+  /**
+   * Update provider instructions for a specific provider in an intervention
+   * @param interventionId - The intervention ID
+   * @param providerId - The provider's user ID
+   * @param instructions - The new instructions
+   * @param updatedBy - The user performing the update
+   */
+  async updateProviderInstructions(
+    interventionId: string,
+    providerId: string,
+    instructions: string,
+    updatedBy: string
+  ) {
+    try {
+      const { data, error } = await this.interventionRepo.supabase
+        .from('intervention_assignments')
+        .update({ provider_instructions: instructions })
+        .eq('intervention_id', interventionId)
+        .eq('user_id', providerId)
+        .eq('role', 'prestataire')
+        .select()
+        .single()
+
+      if (error) {
+        return createErrorResponse(handleError(error, 'interventions:updateProviderInstructions'))
+      }
+
+      return createSuccessResponse(data)
+    } catch (error) {
+      return createErrorResponse(handleError(error, 'interventions:updateProviderInstructions'))
+    }
+  }
+
+  /**
+   * Get intervention assignment mode
+   * @param interventionId - The intervention ID
+   * @returns The assignment mode ('single', 'group', 'separate')
+   */
+  async getAssignmentMode(interventionId: string): Promise<AssignmentMode> {
+    const { data, error } = await this.interventionRepo.supabase
+      .from('interventions')
+      .select('assignment_mode')
+      .eq('id', interventionId)
+      .single()
+
+    if (error || !data) {
+      return 'single' // Default fallback
+    }
+
+    return data.assignment_mode || 'single'
   }
 
   /**

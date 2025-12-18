@@ -46,10 +46,10 @@ export class EmailConnectionRepository extends BaseRepository<TeamEmailConnectio
             smtp_password_encrypted: EncryptionService.encrypt(dto.smtp_password),
         };
 
-        // Supprimer les mots de passe en clair
-        // @ts-ignore
+        // Supprimer les mots de passe en clair (delete on optional properties)
+        // @ts-expect-error - Deleting optional password fields after encryption
         delete encrypted.imap_password;
-        // @ts-ignore
+        // @ts-expect-error - Deleting optional password fields after encryption
         delete encrypted.smtp_password;
 
         const { data, error } = await this.supabase

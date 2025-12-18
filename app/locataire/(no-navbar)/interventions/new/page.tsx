@@ -1,6 +1,9 @@
 /**
  * Locataire New Intervention Page
  * Allows tenants to create new intervention requests
+ *
+ * ✅ UPDATE 2025-12-11: Changed from lot_contacts to contract_contacts
+ * Tenants are now linked to lots via active contracts
  */
 
 import { getServerAuthContext } from '@/lib/server-context'
@@ -11,33 +14,40 @@ export default async function NewInterventionPage() {
   // Remplace ~17 lignes d'auth manuelle (getUser + role check)
   const { profile: userData, supabase } = await getServerAuthContext('locataire')
 
-  // Get lots where user is tenant
-  const { data: tenantLots } = await supabase
-    .from('lot_contacts')
+  // Get lots where user is tenant via ACTIVE contracts
+  const { data: tenantContracts } = await supabase
+    .from('contract_contacts')
     .select(`
-      lot:lots(
+      role,
+      contract:contract_id(
         id,
-        reference,
-        apartment_number,
-        building_id,
-        building:buildings(
+        status,
+        lot:lot_id(
           id,
-          name,
-          address
+          reference,
+          apartment_number,
+          building_id,
+          building:buildings(
+            id,
+            name,
+            address
+          )
         )
       )
     `)
     .eq('user_id', userData.id)
-    .eq('role', 'locataire')
+    .in('role', ['locataire', 'colocataire'])
 
-  // Transform data for client component
-  const availableLots = tenantLots?.map(item => ({
-    id: item.lot.id,
-    reference: item.lot.reference,
-    apartment_number: item.lot.apartment_number,
-    building_id: item.lot.building_id,
-    building: item.lot.building
-  })) || []
+  // Filter to only active contracts and transform data for client component
+  const availableLots = (tenantContracts || [])
+    .filter((item: any) => item.contract?.status === 'actif' && item.contract?.lot)
+    .map((item: any) => ({
+      id: item.contract.lot.id,
+      reference: item.contract.lot.reference,
+      apartment_number: item.contract.lot.apartment_number,
+      building_id: item.contract.lot.building_id,
+      building: item.contract.lot.building
+    }))
 
   return (
     <NewInterventionClient

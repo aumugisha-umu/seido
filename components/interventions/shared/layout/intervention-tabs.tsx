@@ -38,6 +38,11 @@ const getTabsConfig = (role: UserRole) => {
       value: 'general',
       label: 'Général',
       icon: FileText
+    },
+    {
+      value: 'conversations',
+      label: 'Conversations',
+      icon: MessageSquare
     }
   ]
 
@@ -46,24 +51,14 @@ const getTabsConfig = (role: UserRole) => {
       return [
         ...baseConfig,
         {
-          value: 'conversations',
-          label: 'Conversations',
-          icon: MessageSquare
-        },
-        {
           value: 'planning',
-          label: 'Planning',
+          label: 'Planning et Devis',
           icon: Calendar
         }
       ]
     case 'provider':
       return [
         ...baseConfig,
-        {
-          value: 'conversations',
-          label: 'Messagerie',
-          icon: MessageSquare
-        },
         {
           value: 'planning',
           label: 'Planification',
@@ -73,11 +68,6 @@ const getTabsConfig = (role: UserRole) => {
     case 'tenant':
       return [
         ...baseConfig,
-        {
-          value: 'conversations',
-          label: 'Messagerie',
-          icon: MessageSquare
-        },
         {
           value: 'planning',
           label: 'Rendez-vous',

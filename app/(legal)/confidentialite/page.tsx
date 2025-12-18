@@ -29,33 +29,33 @@ export default function PrivacyPolicyPage() {
         <LegalText>
           À titre préliminaire, les termes « <LegalHighlight>données personnelles</LegalHighlight> »
           et « <LegalHighlight>données à caractère personnel</LegalHighlight> » doivent être entendus
-          au sens qui leur est donné à l&apos;article 4 du Règlement 2016/679 (le « <LegalHighlight>RGPD</LegalHighlight> »).
+          au sens qui leur est donné à l'article 4 du Règlement 2016/679 (le « <LegalHighlight>RGPD</LegalHighlight> »).
         </LegalText>
       </LegalSection>
 
       {/* Traitement des données du Client gestionnaire */}
       <LegalSection title="Traitement des données du Client gestionnaire">
         <LegalText>
-          En s&apos;inscrivant sur <LegalHighlight>SEIDO</LegalHighlight>, le Client accepte que
+          En s'inscrivant sur <LegalHighlight>SEIDO</LegalHighlight>, le Client accepte que
           SEIDO puisse stocker, traiter et utiliser les données personnelles et à caractère personnel
-          collectées lors de l&apos;inscription, et celles relatives au devoir de facturation de SEIDO
+          collectées lors de l'inscription, et celles relatives au devoir de facturation de SEIDO
           envers le Client. Cela inclut la possibilité de citer le nom du Client dans les références
           client de SEIDO.
         </LegalText>
         <LegalText>
-          En s&apos;inscrivant sur SEIDO, le Client consent à ce que SEIDO, en qualité de
+          En s'inscrivant sur SEIDO, le Client consent à ce que SEIDO, en qualité de
           <LegalHighlight> responsable de traitement</LegalHighlight>, conserve et traite ses données
           pour la réalisation des services, en ce compris pour la commercialisation de services
           supplémentaires gérés par des tiers et proposés par SEIDO.
         </LegalText>
         <LegalText>
           Ces données personnelles et à caractère personnel du Client seront conservées pendant toute
-          la durée d&apos;utilisation du service et pendant une période de <LegalHighlight>cinq (5) ans</LegalHighlight> après
+          la durée d'utilisation du service et pendant une période de <LegalHighlight>cinq (5) ans</LegalHighlight> après
           la terminaison de celui-ci.
         </LegalText>
         <LegalText>
           Le Client accepte que la communication de ses informations personnelles intervienne dès la
-          période d&apos;essai gratuite lorsqu&apos;une telle période a été sollicitée par le Client.
+          période d'essai gratuite lorsqu'une telle période a été sollicitée par le Client.
         </LegalText>
       </LegalSection>
 
@@ -63,11 +63,11 @@ export default function PrivacyPolicyPage() {
       <LegalSection title="Traitement des données des utilisateurs de la Plateforme">
         <LegalSubsection title="Locataires">
           <LegalText>
-            Le Client reconnaît que l&apos;utilisation de la Plateforme par ses locataires implique la
+            Le Client reconnaît que l'utilisation de la Plateforme par ses locataires implique la
             collecte et le traitement de données personnelles de ces derniers par SEIDO.
           </LegalText>
           <LegalText>
-            <LegalHighlight>Le Client s&apos;engage à :</LegalHighlight>
+            <LegalHighlight>Le Client s'engage à :</LegalHighlight>
           </LegalText>
           <LegalList items={[
             "Informer préalablement ses locataires de cette collecte et du traitement de leurs données personnelles conformément au RGPD",
@@ -103,9 +103,9 @@ export default function PrivacyPolicyPage() {
             <LegalHighlight>Les données personnelles collectées incluent notamment mais ne se limitent pas aux :</LegalHighlight>
           </LegalText>
           <LegalList items={[
-            <span key="id"><LegalHighlight>Données d&apos;identification</LegalHighlight> : nom, prénom, adresse, téléphone, email</span>,
+            <span key="id"><LegalHighlight>Données d'identification</LegalHighlight> : nom, prénom, adresse, téléphone, email</span>,
             <span key="com"><LegalHighlight>Données de communication</LegalHighlight> : messages, photos, documents échangés via la Plateforme</span>,
-            <span key="int"><LegalHighlight>Données d&apos;intervention</LegalHighlight> : rapports, évaluations, historique des actions</span>,
+            <span key="int"><LegalHighlight>Données d'intervention</LegalHighlight> : rapports, évaluations, historique des actions</span>,
             <span key="geo"><LegalHighlight>Données de géolocalisation</LegalHighlight> : uniquement lorsque nécessaires pour les interventions</span>
           ]} />
         </LegalSubsection>
@@ -120,13 +120,13 @@ export default function PrivacyPolicyPage() {
           Client requises avec :
         </LegalText>
         <LegalList items={[
-          <span key="interlocuteurs"><LegalHighlight>Les interlocuteurs au sein de SEIDO</LegalHighlight> afin de traiter les éventuels problèmes techniques du Client par le système d&apos;assistance technique</span>,
-          <span key="partenaires"><LegalHighlight>Les partenaires de SEIDO</LegalHighlight> pour qu&apos;ils puissent fournir au Client leurs produits et services commercialisés par SEIDO et que le Client a acceptés lors d&apos;une période d&apos;essai gratuite et/ou dans le cadre de l&apos;Abonnement via la Plateforme</span>,
+          <span key="interlocuteurs"><LegalHighlight>Les interlocuteurs au sein de SEIDO</LegalHighlight> afin de traiter les éventuels problèmes techniques du Client par le système d'assistance technique</span>,
+          <span key="partenaires"><LegalHighlight>Les partenaires de SEIDO</LegalHighlight> pour qu'ils puissent fournir au Client leurs produits et services commercialisés par SEIDO et que le Client a acceptés lors d'une période d'essai gratuite et/ou dans le cadre de l'Abonnement via la Plateforme</span>,
           <span key="autorites"><LegalHighlight>Les autorités gouvernementales et publiques compétentes</LegalHighlight>, pour se conformer aux obligations ou demandes légales ou réglementaires</span>,
-          <span key="tiers"><LegalHighlight>Les éventuels autres tiers jugés nécessaires ou appropriés</LegalHighlight> : (a) en vertu de la loi applicable ; (b) pour se conformer à la procédure judiciaire ; (c) pour faire respecter les CGU ; (d) pour protéger les droits de SEIDO, les intérêts de SEIDO, sa sécurité ou ses biens, celle du Client ou celle d&apos;autres</span>
+          <span key="tiers"><LegalHighlight>Les éventuels autres tiers jugés nécessaires ou appropriés</LegalHighlight> : (a) en vertu de la loi applicable ; (b) pour se conformer à la procédure judiciaire ; (c) pour faire respecter les CGU ; (d) pour protéger les droits de SEIDO, les intérêts de SEIDO, sa sécurité ou ses biens, celle du Client ou celle d'autres</span>
         ]} />
         <LegalText>
-          En dehors des situations précitées, SEIDO demande l&apos;autorisation du Client, si nécessaire,
+          En dehors des situations précitées, SEIDO demande l'autorisation du Client, si nécessaire,
           afin de pouvoir utiliser et/ou partager ses données avec des tiers.
         </LegalText>
       </LegalSection>
@@ -134,7 +134,7 @@ export default function PrivacyPolicyPage() {
       {/* Droits des personnes concernées */}
       <LegalSection title="Droits des personnes concernées">
         <LegalText>
-          Le Client dispose d&apos;un droit d&apos;accès, de modification, de rectification et de suppression
+          Le Client dispose d'un droit d'accès, de modification, de rectification et de suppression
           des données qui le concernent. Ces informations ne seront aucunement communiquées à des tiers.
         </LegalText>
 
@@ -147,8 +147,8 @@ export default function PrivacyPolicyPage() {
 
         <LegalCard title="Recours auprès de l'autorité de contrôle :">
           <LegalText>
-            Le Client peut également contacter l&apos;Autorité de la Protection des Données pour toute
-            question relative à ses droits et/ou déposer plainte auprès de l&apos;Autorité de la Protection
+            Le Client peut également contacter l'Autorité de la Protection des Données pour toute
+            question relative à ses droits et/ou déposer plainte auprès de l'Autorité de la Protection
             des Données quant au traitement de ses données à caractère personnel par SEIDO :
           </LegalText>
           <LegalList items={[
@@ -163,10 +163,10 @@ export default function PrivacyPolicyPage() {
         <LegalText>
           Les données appartenant au Client et hébergées sur SEIDO (informations propriétaires,
           locataires, fournisseurs de service, contrats, informations financières, communications,
-          tickets d&apos;intervention, etc.) sont et demeurent la <LegalHighlight>propriété du Client</LegalHighlight>.
+          tickets d'intervention, etc.) sont et demeurent la <LegalHighlight>propriété du Client</LegalHighlight>.
         </LegalText>
         <LegalText>
-          <LegalHighlight>SEIDO s&apos;engage à :</LegalHighlight>
+          <LegalHighlight>SEIDO s'engage à :</LegalHighlight>
         </LegalText>
         <LegalList items={[
           "Garder ces données strictement confidentielles",
@@ -178,8 +178,8 @@ export default function PrivacyPolicyPage() {
       {/* Responsabilités du Client */}
       <LegalSection title="Responsabilités du Client">
         <LegalText>
-          Le Client est le seul responsable des données qu&apos;il transmet à SEIDO aux fins d&apos;hébergement
-          ou d&apos;utilisation de la Plateforme.
+          Le Client est le seul responsable des données qu'il transmet à SEIDO aux fins d'hébergement
+          ou d'utilisation de la Plateforme.
         </LegalText>
         <LegalText>
           <LegalHighlight>Le Client garantit :</LegalHighlight>
@@ -206,7 +206,7 @@ export default function PrivacyPolicyPage() {
           <span key="firewall"><LegalHighlight>Pare-feu logiciel</LegalHighlight> sur tous les serveurs</span>
         ]} />
         <LegalText>
-          Toutefois, aucun mécanisme n&apos;offrant une sécurité maximale, une part de risque est toujours
+          Toutefois, aucun mécanisme n'offrant une sécurité maximale, une part de risque est toujours
           présente lors de la transmission de données via Internet. SEIDO ne pourra être tenue
           responsable de la perte des données du Client, même en cas de défaillance de la Plateforme
           ou des serveurs.
@@ -219,7 +219,7 @@ export default function PrivacyPolicyPage() {
           Les données personnelles sont conservées pendant :
         </LegalText>
         <LegalList items={[
-          <span key="duree-util"><LegalHighlight>Durée d&apos;utilisation du service</LegalHighlight> pour les données nécessaires au fonctionnement de la Plateforme</span>,
+          <span key="duree-util"><LegalHighlight>Durée d'utilisation du service</LegalHighlight> pour les données nécessaires au fonctionnement de la Plateforme</span>,
           <span key="5ans"><LegalHighlight>Cinq (5) ans après la terminaison</LegalHighlight> du service pour les données de facturation et contractuelles</span>,
           <span key="legales"><LegalHighlight>Durées légales applicables</LegalHighlight> pour les données soumises à des obligations de conservation spécifiques</span>
         ]} />
@@ -228,8 +228,8 @@ export default function PrivacyPolicyPage() {
       {/* Transferts internationaux */}
       <LegalSection title="Transferts internationaux">
         <LegalText>
-          SEIDO s&apos;engage à ce que tous les transferts de données personnelles en dehors de l&apos;Union
-          européenne soient effectués conformément au RGPD et aux décisions d&apos;adéquation ou aux
+          SEIDO s'engage à ce que tous les transferts de données personnelles en dehors de l'Union
+          européenne soient effectués conformément au RGPD et aux décisions d'adéquation ou aux
           garanties appropriées prévues par la réglementation.
         </LegalText>
       </LegalSection>
@@ -239,7 +239,7 @@ export default function PrivacyPolicyPage() {
         <LegalText>
           Cette politique de confidentialité peut être modifiée à tout moment. En cas de modification
           significative, les utilisateurs en seront informés par email <LegalHighlight>quinze (15) jours</LegalHighlight> avant
-          l&apos;entrée en vigueur des modifications.
+          l'entrée en vigueur des modifications.
         </LegalText>
       </LegalSection>
     </LegalPageTemplate>

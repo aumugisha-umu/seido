@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck, Info, Building2, MapPin, Calendar, User, Archive, Edit as EditIcon, Trash2, Home } from "lucide-react"
+import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck, Info, Building2, MapPin, Calendar, User, Archive, Edit as EditIcon, Trash2, Home, ScrollText, Shield } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { determineAssignmentType } from '@/lib/services'
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
@@ -16,6 +16,8 @@ import { deleteLotAction } from './actions'
 import type { Lot } from '@/lib/services'
 import { LotStatsBadges } from './lot-stats-badges'
 import { LotContactsGridPreview } from '@/components/ui/lot-contacts-grid-preview'
+import { ContractsNavigator } from '@/components/contracts/contracts-navigator'
+import type { ContractWithRelations } from '@/lib/types/contract.types'
 
 // Helper function to get French label for lot category
 function getCategoryLabel(category: string): string {
@@ -89,6 +91,7 @@ interface LotDetailsClientProps {
   contacts: LotContact[]
   buildingContacts: LotContact[]
   interventionsWithDocs: Intervention[]
+  contracts: ContractWithRelations[]
   isOccupied: boolean
   teamId: string
 }
@@ -99,6 +102,7 @@ export default function LotDetailsClient({
   contacts: initialContacts,
   buildingContacts,
   interventionsWithDocs,
+  contracts,
   isOccupied: initialIsOccupied,
   teamId
 }: LotDetailsClientProps) {
@@ -302,6 +306,59 @@ export default function LotDetailsClient({
 
   const { buildingManagers, buildingTenants, buildingProviders, buildingOwners, buildingOthers } = transformBuildingContactsByRole()
 
+  // Extract contracts with their contacts (tenants and guarantors) grouped by contract
+  const getContractsWithContacts = () => {
+    // Only include active or a_venir contracts
+    const relevantContracts = contracts.filter(c =>
+      c.status === 'actif' || c.status === 'a_venir'
+    )
+
+    return relevantContracts.map((contract) => {
+      const tenants: Array<{
+        id: string
+        name: string
+        email: string | null
+        role: string
+      }> = []
+      const guarantors: Array<{
+        id: string
+        name: string
+        email: string | null
+        role: string
+      }> = []
+
+      if (contract.contacts && contract.contacts.length > 0) {
+        contract.contacts.forEach((contactEntry) => {
+          const contactInfo = {
+            id: contactEntry.user?.id || contactEntry.user_id,
+            name: contactEntry.user?.name || 'Inconnu',
+            email: contactEntry.user?.email || null,
+            role: contactEntry.role
+          }
+
+          if (contactEntry.role === 'locataire' || contactEntry.role === 'colocataire') {
+            tenants.push(contactInfo)
+          } else if (contactEntry.role === 'garant') {
+            guarantors.push(contactInfo)
+          }
+        })
+      }
+
+      return {
+        id: contract.id,
+        title: contract.title,
+        status: contract.status,
+        startDate: contract.start_date,
+        endDate: contract.end_date,
+        tenants,
+        guarantors
+      }
+    }).filter(c => c.tenants.length > 0 || c.guarantors.length > 0) // Only contracts with contacts
+  }
+
+  const contractsWithContacts = getContractsWithContacts()
+  const hasContractContacts = contractsWithContacts.length > 0
+
   // Create mapping of user_id to lot_contact_id for deletion
   const lotContactIds: Record<string, string> = {}
   contacts.forEach((contact) => {
@@ -310,6 +367,7 @@ export default function LotDetailsClient({
 
   const tabs = [
     { id: "overview", label: "Vue d'ensemble", icon: Eye },
+    { id: "contracts", label: "Contrats", icon: ScrollText, count: contracts.length },
     { id: "interventions", label: "Interventions", icon: Wrench, count: interventionStats.total },
     { id: "documents", label: "Documents", icon: FileText },
   ]
@@ -464,7 +522,7 @@ export default function LotDetailsClient({
               </div>
             )}
 
-            {/* Section 2: Contacts Preview - Grid Only */}
+            {/* Section 2: Contacts Preview - Grid Only (tenants hidden, they come from contracts) */}
             <div>
               <h3 className="text-sm font-semibold text-foreground mb-3 px-1">Contacts du lot</h3>
               <LotContactsGridPreview
@@ -482,8 +540,155 @@ export default function LotDetailsClient({
                 buildingOthers={buildingOthers}
                 lotContactIds={lotContactIds}
                 teamId={teamId}
+                hideTenants={true}
               />
             </div>
+
+            {/* Section 3: Contract Contacts - Grouped by Contract */}
+            {hasContractContacts && (
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3 px-1 flex items-center gap-2">
+                  <ScrollText className="h-4 w-4 text-primary" />
+                  Contacts liés aux contrats
+                </h3>
+                <div className="space-y-4">
+                  {contractsWithContacts.map((contract) => (
+                    <div
+                      key={contract.id}
+                      className="rounded-lg border border-border bg-card overflow-hidden"
+                    >
+                      {/* Contract Header */}
+                      <div
+                        className="flex items-center justify-between px-4 py-3 bg-muted/30 border-b border-border cursor-pointer hover:bg-muted/50 transition-colors"
+                        onClick={() => router.push(`/gestionnaire/contrats/${contract.id}`)}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <ScrollText className="h-4 w-4 text-primary flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {contract.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(contract.startDate).toLocaleDateString('fr-FR')} → {new Date(contract.endDate).toLocaleDateString('fr-FR')}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={
+                            contract.status === 'actif'
+                              ? 'bg-green-50 text-green-700 border-green-200'
+                              : 'bg-amber-50 text-amber-700 border-amber-200'
+                          }
+                        >
+                          {contract.status === 'actif' ? 'Actif' : 'À venir'}
+                        </Badge>
+                      </div>
+
+                      {/* Contract Contacts */}
+                      <div className="p-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Tenants */}
+                          {contract.tenants.length > 0 && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <Users className="h-3.5 w-3.5 text-green-600" />
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  Locataires ({contract.tenants.length})
+                                </span>
+                              </div>
+                              <div className="space-y-1.5">
+                                {contract.tenants.map((contact, idx) => (
+                                  <div
+                                    key={`${contact.id}-${idx}`}
+                                    className="flex items-center gap-2 p-2 rounded-md bg-muted/50"
+                                  >
+                                    <div className="flex-shrink-0 h-7 w-7 rounded-full bg-green-100 flex items-center justify-center">
+                                      <User className="h-3.5 w-3.5 text-green-600" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-medium text-foreground truncate">
+                                        {contact.name}
+                                      </p>
+                                      {contact.email && (
+                                        <p className="text-xs text-muted-foreground truncate">
+                                          {contact.email}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Guarantors */}
+                          {contract.guarantors.length > 0 && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <Shield className="h-3.5 w-3.5 text-blue-600" />
+                                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                                  Garants ({contract.guarantors.length})
+                                </span>
+                              </div>
+                              <div className="space-y-1.5">
+                                {contract.guarantors.map((contact, idx) => (
+                                  <div
+                                    key={`${contact.id}-${idx}`}
+                                    className="flex items-center gap-2 p-2 rounded-md bg-muted/50"
+                                  >
+                                    <div className="flex-shrink-0 h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center">
+                                      <Shield className="h-3.5 w-3.5 text-blue-600" />
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="text-sm font-medium text-foreground truncate">
+                                        {contact.name}
+                                      </p>
+                                      {contact.email && (
+                                        <p className="text-xs text-muted-foreground truncate">
+                                          {contact.email}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2 px-1">
+                  Ces contacts sont liés aux contrats actifs ou à venir de ce lot.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {activeTab === "contracts" && (
+          <div className="flex-1 flex flex-col min-h-0">
+            {contracts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <ScrollText className="h-12 w-12 text-muted-foreground/30 mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-1">Aucun contrat</h3>
+                <p className="text-sm text-muted-foreground max-w-md mb-4">
+                  Aucun contrat n'a été créé pour ce lot.
+                </p>
+                <Button onClick={() => router.push(`/gestionnaire/contrats/nouveau?lotId=${lot.id}`)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Créer un contrat
+                </Button>
+              </div>
+            ) : (
+              <ContractsNavigator
+                contracts={contracts}
+                loading={false}
+                className="border-0 shadow-none bg-transparent"
+              />
+            )}
           </div>
         )}
 

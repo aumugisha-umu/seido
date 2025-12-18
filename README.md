@@ -91,21 +91,131 @@
 
 | Métrique | Valeur | Détails |
 |----------|--------|---------|
-| **API Routes** | 86 routes | 100% authentifiées, 100% rate-limited |
-| **Composants UI** | 264 composants | 50+ shadcn/ui + 76 intervention workflow + 19 shared + dashboards |
+| **API Routes** | 94 routes | 100% authentifiées, 100% rate-limited |
+| **Composants UI** | 270+ composants | 50+ shadcn/ui + 76 intervention workflow + 19 shared + dashboards |
 | **Storybook Stories** | 19 stories | Documentation interactive composants intervention |
 | **Services** | 24 services | Domain services (business logic) |
 | **Repositories** | 21 repositories | Data access layer avec caching |
-| **Custom Hooks** | 53 hooks | Auth, data fetching, UI state, real-time, analytics |
+| **Custom Hooks** | 56 hooks | Auth, data fetching, UI state, real-time, analytics |
 | **Validation Schemas** | 59 schémas Zod | 780+ lignes, 95% routes validées |
 | **Email Templates** | 18 templates React Email | Auth, interventions, quotes |
-| **Migrations DB** | 85 migrations | Phases 1, 2, 3, 4 (contracts) appliquées |
+| **Migrations DB** | 87 migrations | Phases 1, 2, 3, 4 (contracts) + RLS fixes appliquées |
 | **Test Coverage** | 60% (unit) | Cible: 80% |
 | **Build Status** | ✅ 0 erreurs TS | Production ready |
 
 ---
 
 ## 🚀 Dernières Mises à Jour - Décembre 2025
+
+### 📥 Import Excel/CSV Biens (Dec 17, 2025)
+
+**Fonctionnalité d'import en masse** permettant aux gestionnaires d'importer leurs biens immobiliers depuis Excel ou CSV.
+
+**Fonctionnalités** :
+- 📊 **Template Excel multi-feuilles** - 4 onglets : Immeubles, Lots, Contacts, Baux
+- 🔄 **Mode Upsert intelligent** - Mise à jour si existe, création sinon (clé : nom immeuble, référence lot, email contact)
+- ✅ **Validation en temps réel** - Erreurs affichées avant import avec numéro de ligne
+- 📈 **Données d'exemple Belgique** - 3 immeubles, 15 lots, 10 contacts, 4 baux pré-remplis
+- 🌍 **Support multi-pays** - France, Belgique, Suisse, Luxembourg, Allemagne, Pays-Bas
+
+**Architecture** :
+| Composant | Description |
+|-----------|-------------|
+| `lib/import/` | Parser, validateurs, templates, types |
+| `app/api/import/` | 3 routes : template, validate, execute |
+| `components/import/` | Wizard 4 étapes avec drag & drop |
+| `lib/services/domain/import.service.ts` | Orchestration import |
+| `supabase/migrations/20251216000000_create_import_jobs.sql` | Table de tracking |
+
+**Workflow** :
+1. **Télécharger template** → Fichier Excel avec exemples
+2. **Upload fichier** → Drag & drop ou sélection
+3. **Validation** → Vérification format et références
+4. **Import** → Création/mise à jour en base
+
+---
+
+### 🔐 Impersonation Admin (Dec 16, 2025)
+
+**Fonctionnalité d'impersonation** permettant aux admins de se connecter en tant qu'un autre utilisateur pour debug et support.
+
+**Fonctionnalités** :
+- 👤 **Se connecter en tant que** - Menu action dans `/admin/users` pour chaque utilisateur
+- 🔗 **Magic Link sécurisé** - Utilise `auth.admin.generateLink()` de Supabase (flow PKCE standard)
+- 🍪 **Cookie JWT signé** - Stocke l'email admin pour restauration de session
+- 🟠 **Bandeau visuel** - Indicateur orange en bas de l'écran pendant l'impersonation
+- ↩️ **Retour admin** - Bouton "Revenir à mon compte" pour restaurer la session admin
+- 📍 **Mode minimisé** - Le bandeau peut être réduit en badge discret
+
+**Fichiers créés** :
+| Fichier | Rôle |
+|---------|------|
+| `lib/impersonation-jwt.ts` | Utilitaires JWT pour cookie d'impersonation |
+| `app/actions/impersonation-actions.ts` | Server Actions start/stop impersonation |
+| `app/auth/impersonate/callback/route.ts` | Callback OTP verification |
+| `components/impersonation-banner.tsx` | Bandeau visuel avec minimize |
+
+**Sécurité** :
+- ✅ Vérification admin obligatoire avant impersonation
+- ✅ JWT signé avec `SUPABASE_JWT_SECRET`
+- ✅ Expiration 4h du token
+- ✅ Logging complet des actions
+
+---
+
+### 👥 Gestion Utilisateurs Admin (Dec 16, 2025)
+
+**Page complète de gestion des utilisateurs** pour les administrateurs.
+
+**Fonctionnalités** :
+- 📋 **Liste paginée** - Tous les utilisateurs avec filtres (rôle, statut, recherche)
+- ➕ **Création** - Dialogue modal pour créer de nouveaux utilisateurs
+- ✏️ **Modification** - Édition des informations utilisateur
+- 🔄 **Changement de rôle** - Switch entre admin/gestionnaire/prestataire/locataire
+- 🔒 **Toggle statut** - Activer/désactiver un compte
+- 🗑️ **Suppression** - Avec protection contre suppression du dernier admin
+- 👤 **Impersonation** - Se connecter en tant que l'utilisateur
+
+**Fichiers créés** :
+| Fichier | Rôle |
+|---------|------|
+| `app/admin/(with-navbar)/users/page.tsx` | Server Component avec stats |
+| `app/admin/(with-navbar)/users/users-management-client.tsx` | Client Component table + dialogs |
+| `app/actions/user-admin-actions.ts` | Server Actions CRUD utilisateurs |
+
+---
+
+### 🔧 Corrections & Améliorations (Dec 8-15, 2025)
+
+**Fixes critiques et améliorations** :
+- 🔐 **Tenant RLS Fix** (Dec 15) - Accès locataire via `contract_contacts` pour isolation multi-tenant correcte
+- 👥 **Multi-provider Assignments** (Dec 8) - Support de plusieurs prestataires par intervention
+- 💬 **Intervention Detail UX** (Dec 9) - Amélioration des cartes commentaires et planning
+- ✉️ **Email Notification Service** (Dec 11) - Dispatcher notifications amélioré
+- 📇 **Contact Management** (Dec 11-12) - Service et repository contacts enrichis
+
+---
+
+### 📋 Documentation QA Complète (Dec 15, 2025)
+
+**Suite complète de documentation QA** basée sur ISO 29119, ISTQB et OWASP.
+
+**12 fichiers créés** dans [`docs/testing/QA/`](./docs/testing/QA/) :
+
+| Fichier | Description |
+|---------|-------------|
+| `00-plan-test-qa-complet.md` | Index et méthodologie (ISO 29119, ISTQB) |
+| `01-checklist-fonctionnel.md` | 63 pages testées exhaustivement |
+| `02-checklist-design-system.md` | Vérification Design System SEIDO |
+| `03-checklist-accessibilite.md` | Conformité WCAG 2.1 AA |
+| `04-checklist-securite.md` | Tests OWASP Top 10 |
+| `05-checklist-performance.md` | Core Web Vitals |
+| `06-10-parcours-*.md` | Parcours E2E par rôle (5 fichiers) |
+| `09-template-bug-report.md` | Template rapport de bug |
+
+**Couverture** : 63 pages, 5 rôles, 330+ tests, workflows E2E complets
+
+---
 
 ### 📝 Module Contrats/Baux (Dec 5, 2025)
 
@@ -563,9 +673,11 @@ seido-app/
 │       ├── quotes/               # 4 quote templates
 │       └── ...
 │
-├── supabase/migrations/          # 83 Database Migrations
+├── supabase/migrations/          # 87 Database Migrations
 ├── tests-new/                    # E2E Test Suite (Playwright)
 ├── docs/                         # Documentation
+│   ├── design/                   # Design System (8 fichiers)
+│   ├── testing/QA/               # Documentation QA (12 fichiers)
 │   ├── refacto/                  # Architecture docs
 │   ├── rapport-audit-complet-seido.md
 │   └── notification-migration-status.md
@@ -576,21 +688,23 @@ seido-app/
 
 ## 👥 Système Multi-Rôles
 
-SEIDO implémente 4 rôles distincts avec permissions granulaires et isolation multi-tenant via Row Level Security (RLS).
+SEIDO implémente **5 rôles distincts** avec permissions granulaires et isolation multi-tenant via Row Level Security (RLS).
 
 ### 🔑 Rôles et Permissions
 
 | Rôle | Permissions Clés | Dashboard | Pages | Cas d'usage |
 |------|------------------|-----------|-------|-------------|
-| **Admin** | Administration système complète, accès global | KPIs globaux, gestion users | 3 pages | Supervision plateforme |
-| **Gestionnaire** | Gestion patrimoine, contrats/baux, validation interventions, email client | Portfolio, contrats, interventions, emails | 16 pages | Gestion immobilière |
+| **Admin** | Administration système complète, accès global, impersonation | KPIs globaux, gestion users | 4 pages | Supervision plateforme |
+| **Gestionnaire** | Gestion patrimoine, contrats/baux, validation interventions, email client | Portfolio, contrats, interventions, emails | 27 pages | Gestion immobilière |
 | **Prestataire** | Exécution travaux, création devis, planning | Tâches assignées, planning | 5 pages | Maintenance & réparations |
-| **Locataire** | Création demandes, suivi interventions, validation | Mes demandes, historique | 4 pages | Vie quotidienne logement |
+| **Locataire** | Création demandes, suivi interventions, validation | Mes demandes, historique | 8 pages | Vie quotidienne logement |
+| **Proprietaire** | Consultation patrimoine et interventions (lecture seule) | Vue consolidée patrimoine | 3 pages | Suivi investissement |
 
 ### 📄 Pages par Rôle
 
-#### Admin (3 pages)
+#### Admin (4 pages)
 - `/admin/dashboard` - System KPIs with growth metrics
+- `/admin/users` - User management with CRUD + impersonation
 - `/admin/notifications` - System notifications
 - `/admin/profile` - Admin profile management
 
@@ -619,11 +733,22 @@ SEIDO implémente 4 rôles distincts avec permissions granulaires et isolation m
 - `/prestataire/profile` - Profile
 - `/prestataire/parametres` - Settings
 
-#### Locataire (4 pages)
+#### Locataire (8 pages)
 - `/locataire/dashboard` - My requests and status
 - `/locataire/interventions` - Interventions list
 - `/locataire/interventions/nouvelle-demande` - Create request
+- `/locataire/interventions/new` - Alternate create request
 - `/locataire/interventions/[id]` - Request details
+- `/locataire/notifications` - Notifications
+- `/locataire/parametres` - Settings
+- `/locataire/profile` - Profile
+
+#### Proprietaire (3 pages) - NOUVEAU
+- `/proprietaire/dashboard` - Vue consolidée du patrimoine
+- `/proprietaire/biens` - Consultation des biens (lecture seule)
+- `/proprietaire/interventions` - Suivi des interventions (lecture seule)
+
+> **Note**: Le rôle Proprietaire a un accès en **lecture seule** uniquement. Aucune action de création, modification ou suppression n'est possible.
 
 ---
 
@@ -633,11 +758,31 @@ Cette section détaille toutes les fonctionnalités de l'application sous forme 
 
 ### Admin Stories
 
+#### Supervision Système
+
 **US-A1**: En tant qu'admin, je veux visualiser les statistiques globales de la plateforme (total utilisateurs, bâtiments, interventions, revenus) afin de monitorer la santé et la croissance du système.
 
 **US-A2**: En tant qu'admin, je veux recevoir des notifications système sur les événements critiques afin de pouvoir répondre rapidement aux problèmes.
 
 **US-A3**: En tant qu'admin, je veux accéder à toutes les équipes et utilisateurs afin de fournir du support et résoudre les problèmes.
+
+#### Gestion des Utilisateurs
+
+**US-A4**: En tant qu'admin, je veux visualiser la liste de tous les utilisateurs avec filtres (rôle, statut, recherche) afin de gérer efficacement les comptes.
+
+**US-A5**: En tant qu'admin, je veux créer, modifier et supprimer des utilisateurs afin de gérer les accès à la plateforme.
+
+**US-A6**: En tant qu'admin, je veux changer le rôle d'un utilisateur (admin/gestionnaire/prestataire/locataire) afin d'adapter ses permissions.
+
+**US-A7**: En tant qu'admin, je veux activer ou désactiver un compte utilisateur afin de contrôler l'accès sans supprimer les données.
+
+#### Impersonation & Debug
+
+**US-A8**: En tant qu'admin, je veux me connecter en tant qu'un autre utilisateur (impersonation) afin de debugger des problèmes ou effectuer des opérations de support.
+
+**US-A9**: En tant qu'admin en mode impersonation, je veux voir un bandeau visuel indiquant que je suis connecté en tant qu'un autre utilisateur afin de ne pas confondre avec mon propre compte.
+
+**US-A10**: En tant qu'admin en mode impersonation, je veux pouvoir revenir à mon compte admin en un clic afin de terminer la session de debug rapidement.
 
 ---
 
@@ -1323,6 +1468,37 @@ function ClientComponent() {
   // Client-side logic
 }
 ```
+
+### Impersonation Security (Admin Only)
+
+L'impersonation permet aux admins de se connecter en tant qu'un autre utilisateur pour debug et support.
+
+**Flow sécurisé** :
+```
+1. Admin clique "Se connecter en tant que" sur /admin/users
+2. Server Action vérifie le rôle admin
+3. Magic link généré via supabaseAdmin.auth.admin.generateLink()
+4. Email admin stocké dans cookie JWT signé (4h expiration)
+5. Callback vérifie OTP et établit session utilisateur
+6. Bandeau orange visible pendant toute la session
+7. "Revenir à mon compte" restaure la session admin
+```
+
+**Mesures de sécurité** :
+| Mesure | Détails |
+|--------|---------|
+| **Auth vérification** | `getServerAuthContext('admin')` obligatoire |
+| **JWT signé** | Cookie signé avec `SUPABASE_JWT_SECRET` |
+| **Expiration** | Token valide 4 heures maximum |
+| **Audit trail** | Logging de start/stop impersonation |
+| **Visual indicator** | Bandeau orange permanent (non masquable) |
+| **RLS preserved** | L'admin voit exactement ce que voit l'utilisateur |
+
+**Fichiers** :
+- `lib/impersonation-jwt.ts` - Utilities JWT
+- `app/actions/impersonation-actions.ts` - Server Actions
+- `app/auth/impersonate/callback/route.ts` - OTP callback
+- `components/impersonation-banner.tsx` - Visual indicator
 
 ---
 

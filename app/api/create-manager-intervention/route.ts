@@ -106,6 +106,10 @@ export async function POST(request: NextRequest) {
       selectedManagerIds, // ✅ Nouveau format: array de gestionnaires
       selectedProviderIds,
 
+      // Multi-provider mode
+      assignmentMode,
+      providerInstructions,
+
       // Scheduling
       schedulingType,
       fixedDateTime,
@@ -326,7 +330,9 @@ export async function POST(request: NextRequest) {
       scheduled_date: scheduledDate,
       requires_quote: expectsQuote || false,
       scheduling_type: schedulingType,
-      specific_location: location
+      specific_location: location,
+      // Multi-provider mode
+      assignment_mode: assignmentMode || 'single'
     }
 
     // Add lot_id only if it exists (for lot-specific interventions)
@@ -416,6 +422,7 @@ export async function POST(request: NextRequest) {
       role: string,
       is_primary: boolean,
       notes?: string,
+      provider_instructions?: string, // ✅ Instructions spécifiques au prestataire (mode séparé)
       assigned_by: string
     }> = []
 
@@ -436,12 +443,17 @@ export async function POST(request: NextRequest) {
     if (selectedProviderIds && selectedProviderIds.length > 0) {
       selectedProviderIds.forEach((providerId: string, index: number) => {
         logger.info({ assignmentNumber: index + 1, providerId }, "🔧 Adding provider assignment")
+
+        // Get provider-specific instructions (if in separate mode)
+        const providerSpecificInstructions = providerInstructions?.[providerId] || undefined
+
         contactAssignments.push({
           intervention_id: intervention.id,
           user_id: providerId, // ✅ Correction: user_id
           role: 'prestataire',
           is_primary: false, // Les gestionnaires sont prioritaires pour is_primary
           notes: messageType === 'individual' ? individualMessages[providerId] : undefined,
+          provider_instructions: providerSpecificInstructions, // ✅ Instructions spécifiques au prestataire
           assigned_by: user.id
         })
       })
@@ -510,35 +522,25 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // ✅ NEW 2025-10-15: Auto-assign tenants from lot_contacts (if lot intervention)
+    // ✅ UPDATED 2025-12-10: Auto-assign tenants from ACTIVE CONTRACTS (not lot_contacts)
+    // Only contracts with status='actif' are considered (not 'a_venir')
     if (lotId) {
-      logger.info({}, "👤 Extracting and assigning tenants from lot_contacts...")
+      logger.info({}, "👤 Extracting and assigning tenants from active contracts...")
 
       try {
-        const { data: tenantContactsData, error: tenantsError } = await supabase
-          .from('lot_contacts')
-          .select(`
-            user_id,
-            is_primary,
-            users!inner (
-              id,
-              name,
-              email,
-              role
-            )
-          `)
-          .eq('lot_id', lotId)
-          .eq('users.role', 'locataire')
+        const { createServerContractService } = await import('@/lib/services')
+        const contractService = await createServerContractService()
+        const tenantsResult = await contractService.getActiveTenantsByLot(lotId)
 
-        if (tenantsError) {
-          logger.error({ error: tenantsError }, "⚠️ Error fetching tenants from lot_contacts")
-        } else if (tenantContactsData && tenantContactsData.length > 0) {
-          // Prepare tenant assignments
-          const tenantAssignments = tenantContactsData.map((contact: any, index: number) => ({
+        if (!tenantsResult.success) {
+          logger.error({ error: tenantsResult.error }, "⚠️ Error fetching tenants from active contracts")
+        } else if (tenantsResult.data.tenants.length > 0) {
+          // Prepare tenant assignments from active contracts
+          const tenantAssignments = tenantsResult.data.tenants.map((tenant, index) => ({
             intervention_id: intervention.id,
-            user_id: contact.user_id,
+            user_id: tenant.user_id,
             role: 'locataire',
-            is_primary: contact.is_primary || index === 0, // Use lot_contacts is_primary or first tenant
+            is_primary: tenant.is_primary || index === 0, // Use contract is_primary or first tenant
             assigned_by: user.id
           }))
 
@@ -550,10 +552,13 @@ export async function POST(request: NextRequest) {
           if (tenantAssignError) {
             logger.error({ error: tenantAssignError }, "⚠️ Error assigning tenants")
           } else {
-            logger.info({ count: tenantAssignments.length }, "✅ Tenants auto-assigned from lot_contacts")
+            logger.info({
+              count: tenantAssignments.length,
+              tenants: tenantsResult.data.tenants.map(t => ({ name: t.name, contract: t.contract_title }))
+            }, "✅ Tenants auto-assigned from active contracts")
           }
         } else {
-          logger.info({}, "ℹ️ No tenants found in lot_contacts for this lot")
+          logger.info({}, "ℹ️ No active tenants found in contracts for this lot")
         }
       } catch (error) {
         logger.error({ error }, "❌ Error in tenant auto-assignment")

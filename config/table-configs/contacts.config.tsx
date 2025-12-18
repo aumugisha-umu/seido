@@ -1,6 +1,7 @@
 import { Users, Mail, Phone, MapPin, Building2, Send, Edit, Eye, Archive, Trash2, RefreshCw, XCircle, CheckCircle } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { ContactCardCompact } from '@/components/contacts/contact-card-compact'
+import { CompanyCardCompact } from '@/components/contacts/company-card-compact'
 import type { DataTableConfig } from '@/components/data-navigator/types'
 
 // Contact type
@@ -27,6 +28,8 @@ export interface ContactData {
         city?: string | null
         country?: string | null
     } | null
+    // Invitation status (added from joined data)
+    invitationStatus?: string | null
 }
 
 // Invitation type
@@ -242,7 +245,12 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
     views: {
         card: {
             enabled: true,
-            component: ({ item }) => <ContactCardCompact contact={item} />,
+            component: ({ item }) => (
+                <ContactCardCompact
+                    contact={item}
+                    invitationStatus={item.invitationStatus || undefined}
+                />
+            ),
             compact: true
         },
         list: {
@@ -511,31 +519,7 @@ export const companiesTableConfig: DataTableConfig<CompanyData> = {
         card: {
             enabled: true,
             component: ({ item }) => (
-                <div className="p-4 border rounded-lg bg-white shadow-sm">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                            <Building2 className="h-5 w-5 text-purple-600" />
-                        </div>
-                        <div>
-                            <div className="font-medium">{item.name}</div>
-                            <div className="text-xs text-slate-500">{item.vat_number}</div>
-                        </div>
-                    </div>
-                    <div className="space-y-1 text-sm text-slate-600">
-                        {item.email && (
-                            <div className="flex items-center gap-2">
-                                <Mail className="h-3 w-3" />
-                                {item.email}
-                            </div>
-                        )}
-                        {item.city && (
-                            <div className="flex items-center gap-2">
-                                <MapPin className="h-3 w-3" />
-                                {item.city}
-                            </div>
-                        )}
-                    </div>
-                </div>
+                <CompanyCardCompact company={item} />
             ),
             compact: true
         },

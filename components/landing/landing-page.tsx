@@ -108,7 +108,7 @@ export function LandingPage() {
 
                         <FadeIn delay={200}>
                             <p className="landing-subtitle text-white/90 mb-6 md:mb-8 drop-shadow-lg max-w-2xl">
-                                Grâce au suivi des interventions techniques sur une plateforme unique : <span className="font-bold">demandes</span>, <span className="font-bold">devis</span>, <span className="font-bold">planning</span>, <span className="font-bold">photos</span> et <span className="font-bold">factures</span>, collaborez avec vos locataires et prestataires pour plus de transparence, efficacité et, et moins de relances.
+                                Grâce au suivi des interventions techniques sur une plateforme unique : <span className="font-bold">demandes</span>, <span className="font-bold">devis</span>, <span className="font-bold">planning</span>, <span className="font-bold">photos</span> et <span className="font-bold">factures</span>, collaborez avec vos locataires et prestataires pour plus de transparence, plus d'efficacité, et moins de relances.
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-8 md:mb-10 max-w-2xl">

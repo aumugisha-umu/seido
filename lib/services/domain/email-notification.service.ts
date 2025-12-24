@@ -19,7 +19,9 @@
  * @see lib/services/domain/email.service.ts
  */
 
+import * as React from 'react'
 import { logger } from '@/lib/logger'
+import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import type { NotificationRepository } from '@/lib/services/repositories/notification-repository'
 import type { EmailService } from '@/lib/services/domain/email.service'
 import type { InterventionRepository } from '@/lib/services/repositories/intervention-repository'
@@ -31,6 +33,8 @@ import { determineInterventionRecipients } from './notification-helpers'
 
 // React Email templates
 import InterventionCreatedEmail from '@/emails/templates/interventions/intervention-created'
+import InterventionAssignedPrestataireEmail from '@/emails/templates/interventions/intervention-assigned-prestataire'
+import InterventionAssignedLocataireEmail from '@/emails/templates/interventions/intervention-assigned-locataire'
 import InterventionApprovedEmail from '@/emails/templates/interventions/intervention-approved'
 import InterventionRejectedEmail from '@/emails/templates/interventions/intervention-rejected'
 import InterventionScheduledEmail from '@/emails/templates/interventions/intervention-scheduled'
@@ -39,11 +43,15 @@ import QuoteRequestEmail from '@/emails/templates/quotes/quote-request'
 
 import type {
   InterventionCreatedEmailProps,
+  InterventionAssignedPrestataireEmailProps,
+  InterventionAssignedLocataireEmailProps,
   InterventionApprovedEmailProps,
   InterventionRejectedEmailProps,
   InterventionScheduledEmailProps,
   InterventionCompletedEmailProps,
-  QuoteRequestEmailProps
+  QuoteRequestEmailProps,
+  EmailTimeSlot,
+  EmailQuoteInfo
 } from '@/emails/utils/types'
 
 import type { Intervention, User } from '../core/service-types'
@@ -185,6 +193,43 @@ export class EmailNotificationService {
         hasLot: !!lot
       }, '✅ [EMAIL-NOTIFICATION] Building and lot fetched')
 
+      // 4bis. Récupérer les créneaux proposés
+      // Note: On utilise le client service role pour bypasser RLS et voir TOUS les créneaux
+      // (la RLS filtre par provider_id ce qui exclut les slots des autres prestataires)
+      logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] Step 4bis: Fetching time slots')
+      const supabase = createServiceRoleSupabaseClient()
+      const { data: timeSlotsData } = await supabase
+        .from('intervention_time_slots')
+        .select('slot_date, start_time, end_time')
+        .eq('intervention_id', interventionId)
+        .order('slot_date', { ascending: true })
+
+      const timeSlots: EmailTimeSlot[] = (timeSlotsData || []).map(slot => ({
+        date: new Date(slot.slot_date),
+        startTime: slot.start_time,
+        endTime: slot.end_time,
+      }))
+
+      logger.info({ interventionId, timeSlotsCount: timeSlots.length }, '✅ [EMAIL-NOTIFICATION] Time slots fetched')
+
+      // 4ter. Récupérer les infos devis (si applicable)
+      logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] Step 4ter: Fetching quote info')
+      const { data: quotesData } = await supabase
+        .from('intervention_quotes')
+        .select('amount, valid_until')
+        .eq('intervention_id', interventionId)
+        .limit(1)
+        .maybeSingle()
+
+      // Construire quoteInfo seulement si requires_quote est true ou si un devis existe
+      const quoteInfo: EmailQuoteInfo | undefined = (intervention.requires_quote || quotesData) ? {
+        isRequired: intervention.requires_quote === true,
+        estimatedAmount: intervention.estimated_cost || quotesData?.amount || undefined,
+        deadline: quotesData?.valid_until ? new Date(quotesData.valid_until) : undefined,
+      } : undefined
+
+      logger.info({ interventionId, hasQuote: !!quoteInfo, requiresQuote: intervention.requires_quote }, '✅ [EMAIL-NOTIFICATION] Quote info fetched')
+
       // 5. Récupérer le créateur
       logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] Step 5: Fetching creator')
       const creatorResult = intervention.created_by
@@ -209,7 +254,11 @@ export class EmailNotificationService {
       logger.info({
         interventionId,
         recipientCount: recipientList.length,
-        recipients: recipientList.map(r => ({ userId: r.userId, isPersonal: r.isPersonal }))
+        recipients: recipientList.map(r => ({ userId: r.userId, isPersonal: r.isPersonal })),
+        assignedManagers: interventionWithManagers.interventionAssignedManagers?.length || 0,
+        assignedProviders: interventionWithManagers.interventionAssignedProviders?.length || 0,
+        assignedTenants: interventionWithManagers.interventionAssignedTenants?.length || 0,
+        assignedTenantIds: interventionWithManagers.interventionAssignedTenants || []
       }, '✅ [EMAIL-NOTIFICATION] Recipients determined')
 
       if (recipientList.length === 0) {
@@ -250,7 +299,14 @@ export class EmailNotificationService {
       logger.info({
         interventionId,
         recipientsWithEmail: recipients.length,
-        recipientsWithoutEmail: usersResult.data.length - recipients.length
+        recipientsWithoutEmail: usersResult.data.length - recipients.length,
+        recipientsByRole: recipients.reduce((acc, r) => {
+          acc[r.role] = (acc[r.role] || 0) + 1
+          return acc
+        }, {} as Record<string, number>),
+        recipientsWithoutEmailDetails: usersResult.data
+          .filter(user => !user.email)
+          .map(user => ({ userId: user.id, role: user.role, name: user.name }))
       }, '✅ [EMAIL-NOTIFICATION] Recipients filtered by email')
 
       if (recipients.length === 0) {
@@ -282,9 +338,14 @@ export class EmailNotificationService {
         'urgente': 'critique'
       }
 
+      // Nom du créateur (gestionnaire) pour les templates prestataire/locataire
+      const creatorName = creator
+        ? `${creator.first_name || ''} ${creator.last_name || ''}`.trim() || 'Le gestionnaire'
+        : 'Le gestionnaire'
+
       const emailsToSend = recipients.map((recipient) => {
-        // Construire les props pour le template React Email
-        const emailProps: InterventionCreatedEmailProps = {
+        // Props communes à tous les templates
+        const baseProps = {
           firstName: recipient.first_name || recipient.email.split('@')[0],
           interventionRef: intervention.reference || 'N/A',
           interventionType: intervention.type || 'Intervention',
@@ -292,18 +353,57 @@ export class EmailNotificationService {
           propertyAddress: building?.address || 'Adresse non disponible',
           lotReference: lot?.reference,
           interventionUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/${recipient.role}/interventions/${interventionId}`,
-          tenantName:
-            creator
-              ? `${creator.first_name || ''} ${creator.last_name || ''}`.trim()
-              : 'Créateur',
           urgency: urgencyMap[intervention.urgency || 'normale'] || 'moyenne',
           createdAt: new Date(intervention.created_at),
         }
 
+        // Dispatcher le template et le subject selon le rôle
+        let emailContent: React.ReactElement
+        let subject: string
+
+        switch (recipient.role) {
+          case 'prestataire':
+            // Template prestataire: "Vous avez été assigné à une intervention"
+            // Inclut les créneaux ET les infos devis
+            const prestataireProps: InterventionAssignedPrestataireEmailProps = {
+              ...baseProps,
+              managerName: creatorName,
+              timeSlots: timeSlots.length > 0 ? timeSlots : undefined,
+              quoteInfo: quoteInfo,
+            }
+            emailContent = InterventionAssignedPrestataireEmail(prestataireProps)
+            subject = `🔧 Nouvelle mission ${baseProps.interventionRef} - ${baseProps.interventionType}`
+            break
+
+          case 'locataire':
+            // Template locataire: "Une intervention est prévue pour votre logement"
+            // Inclut les créneaux mais PAS les infos devis
+            const locataireProps: InterventionAssignedLocataireEmailProps = {
+              ...baseProps,
+              managerName: creatorName,
+              timeSlots: timeSlots.length > 0 ? timeSlots : undefined,
+              // Note: Pas de quoteInfo pour le locataire
+            }
+            emailContent = InterventionAssignedLocataireEmail(locataireProps)
+            subject = `🏠 Intervention prévue ${baseProps.interventionRef} - ${baseProps.interventionType}`
+            break
+
+          case 'gestionnaire':
+          default:
+            // Template gestionnaire: "Nouvelle demande d'intervention" (existant)
+            const gestionnaireProps: InterventionCreatedEmailProps = {
+              ...baseProps,
+              tenantName: creatorName, // Dans ce cas, c'est le gestionnaire qui a créé
+            }
+            emailContent = InterventionCreatedEmail(gestionnaireProps)
+            subject = `📋 Nouvelle intervention ${baseProps.interventionRef} - ${baseProps.interventionType}`
+            break
+        }
+
         return {
           to: recipient.email,
-          subject: `🏠 Nouvelle intervention ${emailProps.interventionRef} - ${emailProps.interventionType}`,
-          react: InterventionCreatedEmail(emailProps),
+          subject,
+          react: emailContent,
           tags: [
             { name: 'type', value: 'intervention_created' },
             { name: 'intervention_id', value: interventionId },
@@ -312,9 +412,108 @@ export class EmailNotificationService {
         }
       })
 
-      // 9. Envoyer via Resend Batch API (1 seule requête pour tous les emails)
-      logger.info({ interventionId, emailCount: emailsToSend.length }, '📧 [EMAIL-NOTIFICATION] Step 9: Sending batch via Resend')
-      const batchResult = await this.emailService.sendBatch(emailsToSend)
+      // 9. Envoyer les emails avec throttling pour respecter le rate limit Resend (2 req/s)
+      // Note: On utilise send() au lieu de sendBatch() car l'API Resend Batch
+      // a des problèmes avec les pièces jointes CID (Content-ID) pour le logo.
+      // L'API send() individuelle fonctionne correctement avec les CID attachments.
+      // ⚠️ IMPORTANT: Resend limite à 2 requêtes par seconde, donc on envoie séquentiellement
+      // avec un délai de 500ms entre chaque email pour respecter la limite.
+      logger.info({ 
+        interventionId, 
+        emailCount: emailsToSend.length,
+        rateLimit: '2 req/s (Resend)',
+        strategy: 'sequential with 500ms delay + retry on 429'
+      }, '📧 [EMAIL-NOTIFICATION] Step 9: Sending emails with throttling')
+
+      const individualResults = []
+      const RESEND_RATE_LIMIT_DELAY_MS = 500 // 500ms = 2 req/s max
+      const MAX_RETRIES = 3
+      const RETRY_DELAY_MS = 1000 // 1 seconde entre les retries
+
+      for (let index = 0; index < emailsToSend.length; index++) {
+        const email = emailsToSend[index]
+        const recipient = recipients[index]
+
+        // Ajouter un délai entre les emails (sauf le premier) pour respecter le rate limit
+        if (index > 0) {
+          await new Promise(resolve => setTimeout(resolve, RESEND_RATE_LIMIT_DELAY_MS))
+        }
+
+        logger.info({
+          interventionId,
+          recipientId: recipient.id,
+          recipientEmail: recipient.email,
+          recipientRole: recipient.role,
+          subject: email.subject,
+          emailIndex: index + 1,
+          totalEmails: emailsToSend.length
+        }, '📧 [EMAIL-NOTIFICATION] Sending email to recipient')
+
+        // Envoyer avec retry automatique pour les erreurs 429 (rate limit)
+        let result = await this.emailService.send(email)
+        let retryCount = 0
+
+        // Retry automatique pour les erreurs 429 (rate limit)
+        while (!result.success && retryCount < MAX_RETRIES) {
+          const isRateLimit = result.error?.includes('429') || 
+                             result.error?.includes('rate_limit') || 
+                             result.error?.includes('Too many requests')
+
+          if (!isRateLimit) {
+            // Pas une erreur de rate limit, ne pas retry
+            break
+          }
+
+          retryCount++
+          const retryDelay = RETRY_DELAY_MS * retryCount // Backoff exponentiel
+          
+          logger.warn({
+            interventionId,
+            recipientId: recipient.id,
+            recipientEmail: recipient.email,
+            retryCount,
+            maxRetries: MAX_RETRIES,
+            retryDelay,
+            error: result.error
+          }, '⚠️ [EMAIL-NOTIFICATION] Rate limit hit, retrying...')
+
+          await new Promise(resolve => setTimeout(resolve, retryDelay))
+          result = await this.emailService.send(email)
+        }
+
+        if (!result.success) {
+          logger.error({
+            interventionId,
+            recipientId: recipient.id,
+            recipientEmail: recipient.email,
+            recipientRole: recipient.role,
+            error: result.error,
+            retryCount
+          }, '❌ [EMAIL-NOTIFICATION] Error sending email to recipient (after retries)')
+        } else {
+          logger.info({
+            interventionId,
+            recipientId: recipient.id,
+            recipientEmail: recipient.email,
+            recipientRole: recipient.role,
+            emailId: result.emailId,
+            retryCount
+          }, '✅ [EMAIL-NOTIFICATION] Email sent successfully to recipient')
+        }
+
+        individualResults.push({
+          index,
+          emailId: result.emailId,
+          error: result.success ? undefined : result.error,
+        })
+      }
+
+      const batchResult = {
+        success: individualResults.every(r => !r.error),
+        results: individualResults,
+        sentCount: individualResults.filter(r => !r.error).length,
+        failedCount: individualResults.filter(r => r.error).length,
+      }
 
       // 10. Mapper les résultats batch vers le format EmailRecipientResult
       const results: EmailRecipientResult[] = batchResult.results.map((result) => {
@@ -335,7 +534,7 @@ export class EmailNotificationService {
 
       logger.info(
         { interventionId, sentCount, failedCount, timing, totalEmails: recipients.length },
-        '✅ [EMAIL-NOTIFICATION] Batch email sending completed via Resend Batch API'
+        '✅ [EMAIL-NOTIFICATION] Email sending completed via individual send() calls'
       )
 
       return {

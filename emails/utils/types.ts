@@ -105,6 +105,30 @@ export interface SendEmailOptions {
  */
 
 /**
+ * Créneau horaire proposé pour l'intervention
+ */
+export interface EmailTimeSlot {
+  /** Date du créneau */
+  date: Date
+  /** Heure de début (format "HH:mm") */
+  startTime: string
+  /** Heure de fin (format "HH:mm") */
+  endTime: string
+}
+
+/**
+ * Informations sur le devis demandé (pour prestataire uniquement)
+ */
+export interface EmailQuoteInfo {
+  /** Devis obligatoire ou optionnel */
+  isRequired: boolean
+  /** Montant estimé (si fourni par le gestionnaire) */
+  estimatedAmount?: number
+  /** Date limite de soumission */
+  deadline?: Date
+}
+
+/**
  * Props communes pour tous les emails d'intervention
  */
 export interface BaseInterventionEmailProps extends BaseEmailProps {
@@ -133,6 +157,39 @@ export interface InterventionCreatedEmailProps extends BaseInterventionEmailProp
   urgency: 'faible' | 'moyenne' | 'haute' | 'critique'
   /** Date de création */
   createdAt: Date
+}
+
+/**
+ * Props pour le template "Intervention assignée au prestataire"
+ * Envoyé au prestataire quand un gestionnaire l'assigne à une intervention
+ */
+export interface InterventionAssignedPrestataireEmailProps extends BaseInterventionEmailProps {
+  /** Nom du gestionnaire qui a créé/assigné l'intervention */
+  managerName: string
+  /** Niveau d'urgence */
+  urgency: 'faible' | 'moyenne' | 'haute' | 'critique'
+  /** Date de création */
+  createdAt: Date
+  /** Créneaux proposés pour l'intervention */
+  timeSlots?: EmailTimeSlot[]
+  /** Informations sur le devis demandé (prestataire seulement) */
+  quoteInfo?: EmailQuoteInfo
+}
+
+/**
+ * Props pour le template "Intervention assignée au locataire"
+ * Envoyé au locataire quand une intervention est créée pour son logement
+ */
+export interface InterventionAssignedLocataireEmailProps extends BaseInterventionEmailProps {
+  /** Nom du gestionnaire qui a créé l'intervention */
+  managerName: string
+  /** Niveau d'urgence */
+  urgency: 'faible' | 'moyenne' | 'haute' | 'critique'
+  /** Date de création */
+  createdAt: Date
+  /** Créneaux proposés pour l'intervention */
+  timeSlots?: EmailTimeSlot[]
+  // Note: Pas de quoteInfo pour le locataire (info prestataire uniquement)
 }
 
 /**

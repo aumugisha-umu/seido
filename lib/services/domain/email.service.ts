@@ -8,6 +8,8 @@
  * - Support des templates interventions et devis
  */
 
+import fs from 'fs'
+import path from 'path'
 import { Resend } from 'resend'
 import { renderEmail } from '@/emails/utils/render'
 import type { ReactElement } from 'react'
@@ -54,6 +56,7 @@ export interface BatchEmailResult {
 export class EmailService {
   private resend: Resend
   private defaultFrom: string
+  private logoAttachment: { filename: string; content: Buffer; contentId: string; contentType: string } | undefined
 
   constructor() {
     const apiKey = process.env.RESEND_API_KEY
@@ -65,6 +68,36 @@ export class EmailService {
 
     this.resend = new Resend(apiKey)
     this.defaultFrom = process.env.RESEND_FROM_EMAIL || 'SEIDO <noreply@seido.app>'
+
+    // Charger le logo une seule fois au démarrage (CID attachment)
+    this.logoAttachment = this.loadLogoAttachment()
+  }
+
+  /**
+   * Charge le logo SEIDO comme pièce jointe CID (Content-ID)
+   * Le logo est attaché à chaque email et référencé via cid:logo@seido dans le header
+   */
+  private loadLogoAttachment(): typeof this.logoAttachment {
+    const logoPath = path.join(process.cwd(), 'public', 'images', 'Logo', 'Logo_Seido_White.png')
+
+    try {
+      if (fs.existsSync(logoPath)) {
+        const logoBuffer = fs.readFileSync(logoPath)
+        logger.info({ logoPath }, '✅ [EMAIL-SERVICE] Logo loaded for CID attachment')
+        return {
+          filename: 'logo.png',
+          content: logoBuffer,
+          contentId: 'logo@seido', // Référencé dans email-header.tsx via cid:logo@seido
+          contentType: 'image/png',
+        }
+      } else {
+        logger.warn({ logoPath }, '⚠️ [EMAIL-SERVICE] Logo file not found - emails will be sent without logo')
+        return undefined
+      }
+    } catch (error) {
+      logger.error({ error, logoPath }, '❌ [EMAIL-SERVICE] Error loading logo for email')
+      return undefined
+    }
   }
 
   /**
@@ -87,8 +120,8 @@ export class EmailService {
       logger.info({ to, subject }, '📧 [EMAIL-SERVICE] Rendering email template...')
       const { html, text } = await renderEmail(react)
 
-      // 3. Envoyer via Resend
-      logger.info({ to, subject }, '📧 [EMAIL-SERVICE] Sending email via Resend...')
+      // 3. Envoyer via Resend avec logo CID attaché
+      logger.info({ to, subject, hasLogo: !!this.logoAttachment }, '📧 [EMAIL-SERVICE] Sending email via Resend...')
       const { data, error } = await this.resend.emails.send({
         from: from || this.defaultFrom,
         to: Array.isArray(to) ? to : [to],
@@ -97,6 +130,8 @@ export class EmailService {
         text,
         reply_to: replyTo,
         tags,
+        // Attacher le logo avec CID (Content-ID) pour affichage inline
+        attachments: this.logoAttachment ? [this.logoAttachment] : undefined,
       })
 
       if (error) {
@@ -155,8 +190,8 @@ export class EmailService {
         throw new Error(`Batch size ${emails.length} exceeds Resend limit of 100 emails`)
       }
 
-      // 3. Préparer les emails pour Resend (render les templates React)
-      logger.info({ count: emails.length }, '📧 [EMAIL-SERVICE] Rendering email templates for batch...')
+      // 3. Préparer les emails pour Resend (render les templates React + logo CID)
+      logger.info({ count: emails.length, hasLogo: !!this.logoAttachment }, '📧 [EMAIL-SERVICE] Rendering email templates for batch...')
       const renderedEmails = await Promise.all(
         emails.map(async (email) => {
           const { html, text } = await renderEmail(email.react)
@@ -168,6 +203,8 @@ export class EmailService {
             text,
             reply_to: email.replyTo,
             tags: email.tags,
+            // Attacher le logo avec CID (Content-ID) pour affichage inline
+            attachments: this.logoAttachment ? [this.logoAttachment] : undefined,
           }
         })
       )

@@ -155,7 +155,9 @@ export async function POST(request: NextRequest) {
       lot_id,
       // ✅ tenant_id REMOVED - tenant relationship via intervention_assignments
       team_id: teamId,
-      status: 'demande' as Database['public']['Enums']['intervention_status']
+      status: 'demande' as Database['public']['Enums']['intervention_status'],
+      // ✅ FIX 2025-12-24: Ajout created_by pour exclure le créateur des notifications email
+      created_by: user.id
     }
 
     logger.info({ interventionData }, "📝 Creating intervention (step 1/3: INSERT only)")

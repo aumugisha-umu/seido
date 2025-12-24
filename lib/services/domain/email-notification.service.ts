@@ -29,7 +29,8 @@ import type { UserRepository } from '@/lib/services/repositories/user-repository
 import type { BuildingRepository } from '@/lib/services/repositories/building-repository'
 import type { LotRepository } from '@/lib/services/repositories/lot-repository'
 import type { Database } from '@/lib/database.types'
-import { determineInterventionRecipients } from './notification-helpers'
+import { determineInterventionRecipients, type RecipientFilterOptions } from './notification-helpers'
+import type { UserRole } from '@/lib/auth'
 
 // React Email templates
 import InterventionCreatedEmail from '@/emails/templates/interventions/intervention-created'
@@ -84,6 +85,57 @@ export interface EmailBatchResult {
   results: EmailRecipientResult[]
 }
 
+/**
+ * Options pour sendInterventionEmails - fonction unifiée
+ *
+ * Permet de contrôler quels utilisateurs reçoivent des emails selon le contexte.
+ *
+ * @example
+ * ```typescript
+ * // Création: tout le monde sauf le créateur
+ * await emailService.sendInterventionEmails({
+ *   interventionId,
+ *   eventType: 'created',
+ *   excludeUserId: creatorId
+ * })
+ *
+ * // Approbation: seulement locataire + prestataires assignés
+ * await emailService.sendInterventionEmails({
+ *   interventionId,
+ *   eventType: 'approved',
+ *   excludeUserId: managerId,
+ *   excludeRoles: ['gestionnaire'],
+ *   excludeNonPersonal: true
+ * })
+ * ```
+ */
+export interface InterventionEmailOptions {
+  /** ID de l'intervention */
+  interventionId: string
+
+  /** Type d'événement déclencheur */
+  eventType: 'created' | 'approved' | 'rejected' | 'scheduled' | 'status_changed' | 'completed'
+
+  /** ID de l'utilisateur à exclure (généralement le créateur/acteur) */
+  excludeUserId?: string | null
+
+  /** Rôles à exclure complètement des destinataires */
+  excludeRoles?: UserRole[]
+
+  /** Si défini, SEULEMENT ces rôles recevront des notifications */
+  onlyRoles?: UserRole[]
+
+  /** Si true, exclut les membres d'équipe non directement assignés */
+  excludeNonPersonal?: boolean
+
+  /** Contexte pour changement de statut */
+  statusChange?: {
+    oldStatus: string
+    newStatus: string
+    reason?: string
+  }
+}
+
 // ══════════════════════════════════════════════════════════════
 // EmailNotificationService
 // ══════════════════════════════════════════════════════════════
@@ -104,16 +156,106 @@ export class EmailNotificationService {
     private lotRepository: LotRepository
   ) { }
 
+  // ══════════════════════════════════════════════════════════════
+  // FONCTION UNIFIÉE - Réutilisable pour tous les événements
+  // ══════════════════════════════════════════════════════════════
+
+  /**
+   * Fonction unifiée pour envoyer des emails de notification d'intervention
+   *
+   * Permet de filtrer les destinataires par rôle selon le contexte.
+   *
+   * @param options - Options de configuration (interventionId, eventType, filtres)
+   * @returns Résultat de l'envoi batch
+   *
+   * @example
+   * ```typescript
+   * // Création: notifier tout le monde sauf le créateur
+   * await service.sendInterventionEmails({
+   *   interventionId,
+   *   eventType: 'created',
+   *   excludeUserId: creatorId
+   * })
+   *
+   * // Approbation: notifier seulement le locataire
+   * await service.sendInterventionEmails({
+   *   interventionId,
+   *   eventType: 'approved',
+   *   excludeUserId: managerId,
+   *   onlyRoles: ['locataire']
+   * })
+   *
+   * // Clôture par prestataire: notifier seulement les gestionnaires
+   * await service.sendInterventionEmails({
+   *   interventionId,
+   *   eventType: 'completed',
+   *   excludeUserId: providerId,
+   *   onlyRoles: ['gestionnaire']
+   * })
+   * ```
+   */
+  async sendInterventionEmails(options: InterventionEmailOptions): Promise<EmailBatchResult> {
+    const {
+      interventionId,
+      eventType,
+      excludeUserId,
+      excludeRoles,
+      onlyRoles,
+      excludeNonPersonal,
+      statusChange
+    } = options
+
+    const startTime = Date.now()
+    logger.info(
+      { interventionId, eventType, excludeUserId, excludeRoles, onlyRoles, excludeNonPersonal },
+      `📧 [EMAIL-NOTIFICATION] Starting intervention ${eventType} email batch`
+    )
+
+    // Pour l'instant, déléguer au batch existant pour 'created'
+    // Les autres eventTypes seront implémentés progressivement
+    if (eventType === 'created') {
+      return this.sendInterventionCreatedBatch(
+        interventionId,
+        'intervention',
+        { excludeUserId, excludeRoles, onlyRoles, excludeNonPersonal }
+      )
+    }
+
+    // TODO: Implémenter les autres eventTypes (approved, rejected, scheduled, completed)
+    logger.warn(
+      { interventionId, eventType },
+      `⚠️ [EMAIL-NOTIFICATION] Event type '${eventType}' not yet implemented in unified method`
+    )
+
+    return {
+      success: false,
+      sentCount: 0,
+      failedCount: 0,
+      results: []
+    }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // MÉTHODES LEGACY (backward compatible)
+  // ══════════════════════════════════════════════════════════════
+
   /**
    * Envoie les emails pour une intervention créée
    *
    * @param interventionId - ID de l'intervention
    * @param notificationType - Type de notification (doit être 'intervention')
+   * @param filterOptions - Options de filtrage des destinataires (optionnel)
    * @returns Résultat de l'envoi batch
    */
   async sendInterventionCreatedBatch(
     interventionId: string,
-    notificationType: NotificationType
+    notificationType: NotificationType,
+    filterOptions?: {
+      excludeUserId?: string | null
+      excludeRoles?: UserRole[]
+      onlyRoles?: UserRole[]
+      excludeNonPersonal?: boolean
+    }
   ): Promise<EmailBatchResult> {
     const startTime = Date.now()
     logger.info(
@@ -244,22 +386,32 @@ export class EmailNotificationService {
         creatorId: intervention.created_by
       }, '✅ [EMAIL-NOTIFICATION] Creator fetched')
 
-      // 6. Déterminer les destinataires avec le helper partagé
-      logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] Step 6: Determining recipients')
+      // 6. Déterminer les destinataires avec le helper partagé et options de filtrage
+      logger.info({ interventionId, filterOptions }, '📧 [EMAIL-NOTIFICATION] Step 6: Determining recipients with filters')
+
+      // Construire les options de filtrage
+      const recipientFilterOptions: RecipientFilterOptions = {
+        excludeUserId: filterOptions?.excludeUserId ?? interventionWithManagers.created_by,
+        excludeRoles: filterOptions?.excludeRoles,
+        onlyRoles: filterOptions?.onlyRoles,
+        excludeNonPersonal: filterOptions?.excludeNonPersonal
+      }
+
       const recipientList = determineInterventionRecipients(
         interventionWithManagers,
-        interventionWithManagers.created_by // Exclure le créateur
+        recipientFilterOptions
       )
 
       logger.info({
         interventionId,
         recipientCount: recipientList.length,
-        recipients: recipientList.map(r => ({ userId: r.userId, isPersonal: r.isPersonal })),
+        recipients: recipientList.map(r => ({ userId: r.userId, isPersonal: r.isPersonal, role: r.role })),
+        filtersApplied: recipientFilterOptions,
         assignedManagers: interventionWithManagers.interventionAssignedManagers?.length || 0,
         assignedProviders: interventionWithManagers.interventionAssignedProviders?.length || 0,
         assignedTenants: interventionWithManagers.interventionAssignedTenants?.length || 0,
         assignedTenantIds: interventionWithManagers.interventionAssignedTenants || []
-      }, '✅ [EMAIL-NOTIFICATION] Recipients determined')
+      }, '✅ [EMAIL-NOTIFICATION] Recipients determined with filters')
 
       if (recipientList.length === 0) {
         logger.warn(

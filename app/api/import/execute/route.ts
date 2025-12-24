@@ -99,6 +99,7 @@ export async function POST(request: NextRequest) {
       updated: result.updated,
       errors: result.errors,
       summary: result.summary,
+      createdContacts: result.createdContacts || [],
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';

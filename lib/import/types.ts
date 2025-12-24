@@ -251,6 +251,13 @@ export interface ImportOptions {
 // Import Result Types
 // ============================================================================
 
+export interface CreatedContactInfo {
+  id: string;
+  name: string;
+  email: string | null;
+  role: string;
+}
+
 export interface ImportResult {
   success: boolean;
   jobId: string;
@@ -258,6 +265,7 @@ export interface ImportResult {
   updated: ImportCreatedIds;
   errors: ImportRowError[];
   summary: ImportSummary;
+  createdContacts?: CreatedContactInfo[];
 }
 
 export interface ImportSummary {

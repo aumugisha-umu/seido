@@ -4,6 +4,7 @@
  */
 
 import { logger } from '@/lib/logger';
+import { createServerSupabaseClient } from '@/lib/services/core/supabase-client';
 import type {
   ParsedData,
   ParsedBuilding,
@@ -16,6 +17,7 @@ import type {
   ImportSummary,
   ImportOptions,
   ValidationResult,
+  CreatedContactInfo,
 } from '@/lib/import/types';
 import { ERROR_MESSAGES, SHEET_NAMES } from '@/lib/import/constants';
 import { validateAllData } from '@/lib/import/validators';
@@ -293,16 +295,18 @@ export class ImportService {
         created: contactResult.created.length,
         updated: contactResult.updated.length,
         errors: contactResult.errors.length,
+        contactsWithInfo: contactResult.createdContactsInfo.length,
       });
       if (contactResult.errors.length > 0) {
         errors.push(...contactResult.errors);
       }
       created.contacts = contactResult.created;
       updated.contacts = contactResult.updated;
+      const createdContactsInfo = contactResult.createdContactsInfo;
 
       // 2. Import Buildings (no dependencies)
       logger.info('[IMPORT-SERVICE] Step 2: Importing buildings...', { count: data.buildings.length });
-      const buildingResult = await this.importBuildings(data.buildings, teamId);
+      const buildingResult = await this.importBuildings(data.buildings, teamId, userId);
       logger.info('[IMPORT-SERVICE] Buildings imported', {
         created: buildingResult.created.length,
         updated: buildingResult.updated.length,
@@ -316,7 +320,7 @@ export class ImportService {
 
       // 3. Import Lots (depends on buildings)
       logger.info('[IMPORT-SERVICE] Step 3: Importing lots...', { count: data.lots.length });
-      const lotResult = await this.importLots(data.lots, teamId, buildingResult.nameToId);
+      const lotResult = await this.importLots(data.lots, teamId, userId, buildingResult.nameToId);
       logger.info('[IMPORT-SERVICE] Lots imported', {
         created: lotResult.created.length,
         updated: lotResult.updated.length,
@@ -403,6 +407,7 @@ export class ImportService {
         updated,
         errors,
         summary: this.createSummary(created, updated, errors, duration),
+        createdContacts: createdContactsInfo,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -463,9 +468,11 @@ export class ImportService {
     updated: string[];
     errors: ImportRowError[];
     emailToId: Map<string, string>;
+    createdContactsInfo: CreatedContactInfo[];
   }> {
     const errors: ImportRowError[] = [];
     const emailToId = new Map<string, string>();
+    const createdContactsInfo: CreatedContactInfo[] = [];
 
     // Convert to UserInsert format
     const usersToImport: (UserInsert & { _rowIndex: number })[] = contacts.map((c) => ({
@@ -490,17 +497,27 @@ export class ImportService {
         message: result.error.message,
         code: 'UNKNOWN',
       });
-      return { created: [], updated: [], errors, emailToId };
+      return { created: [], updated: [], errors, emailToId, createdContactsInfo };
     }
 
-    // Build email to ID map for contract linking
+    // Build email to ID map for contract linking AND collect created contact info
     for (const contact of contacts) {
       if (contact.email) {
         const userResult = await this.userRepo.findByEmailInTeam(contact.email, teamId);
         if (userResult.success && userResult.data) {
           emailToId.set(contact.email.toLowerCase(), userResult.data.id);
+
+          // Store contact info for invitation step
+          createdContactsInfo.push({
+            id: userResult.data.id,
+            name: contact.name,
+            email: contact.email,
+            role: contact.role,
+          });
         }
       }
+      // Contacts without email are not added to createdContactsInfo
+      // since they cannot receive invitations anyway
     }
 
     return {
@@ -508,6 +525,7 @@ export class ImportService {
       updated: result.updated,
       errors,
       emailToId,
+      createdContactsInfo,
     };
   }
 
@@ -516,7 +534,8 @@ export class ImportService {
    */
   private async importBuildings(
     buildings: ParsedBuilding[],
-    teamId: string
+    teamId: string,
+    userId: string
   ): Promise<{
     created: string[];
     updated: string[];
@@ -551,14 +570,36 @@ export class ImportService {
       return { created: [], updated: [], errors, nameToId };
     }
 
-    // Build name to ID map for lot linking
+    // Build name to ID map for lot linking AND assign gestionnaire as contact
+    const supabase = await createServerSupabaseClient();
     for (const building of buildings) {
       const buildingResult = await this.buildingRepo.findByNameAndTeam(
         building.name,
         teamId
       );
       if (buildingResult.success && buildingResult.data) {
-        nameToId.set(building.name.toLowerCase().trim(), buildingResult.data.id);
+        const buildingId = buildingResult.data.id;
+        nameToId.set(building.name.toLowerCase().trim(), buildingId);
+
+        // Assign the importing gestionnaire as primary contact for this building
+        if (userId) {
+          const { error: contactError } = await supabase
+            .from('building_contacts')
+            .upsert({
+              building_id: buildingId,
+              user_id: userId,
+              role: 'gestionnaire',
+              is_primary: true,
+            }, { onConflict: 'building_id,user_id' });
+
+          if (contactError) {
+            logger.warn('[IMPORT-SERVICE] Failed to assign gestionnaire to building', {
+              buildingId,
+              userId,
+              error: contactError.message,
+            });
+          }
+        }
       }
     }
 
@@ -576,6 +617,7 @@ export class ImportService {
   private async importLots(
     lots: ParsedLot[],
     teamId: string,
+    userId: string,
     buildingNameToId: Map<string, string>
   ): Promise<{
     created: string[];
@@ -645,11 +687,34 @@ export class ImportService {
       return { created: [], updated: [], errors, referenceToId };
     }
 
-    // Build reference to ID map for contract linking
+    // Build reference to ID map for contract linking AND assign gestionnaire to independent lots
+    const supabase = await createServerSupabaseClient();
     for (const lot of lots) {
       const lotResult = await this.lotRepo.findByReferenceAndTeam(lot.reference, teamId);
       if (lotResult.success && lotResult.data) {
-        referenceToId.set(lot.reference.toLowerCase().trim(), lotResult.data.id);
+        const lotId = lotResult.data.id;
+        referenceToId.set(lot.reference.toLowerCase().trim(), lotId);
+
+        // For INDEPENDENT lots (no building), assign the gestionnaire as primary contact
+        // Lots in buildings inherit the gestionnaire via building_contacts
+        if (userId && !lot.building_name) {
+          const { error: contactError } = await supabase
+            .from('lot_contacts')
+            .upsert({
+              lot_id: lotId,
+              user_id: userId,
+              role: 'gestionnaire',
+              is_primary: true,
+            }, { onConflict: 'lot_id,user_id' });
+
+          if (contactError) {
+            logger.warn('[IMPORT-SERVICE] Failed to assign gestionnaire to independent lot', {
+              lotId,
+              userId,
+              error: contactError.message,
+            });
+          }
+        }
       }
     }
 

@@ -158,6 +158,10 @@ export const LOT_TEMPLATE: TemplateConfig = {
     ['BXL-CTR-002', 'Bruxelles Centre', 'appartement', 1, '', '', '', 'belgique', 'T2 50m², idéal pied-à-terre'],
     ['BXL-CTR-003', 'Bruxelles Centre', 'appartement', 2, '', '', '', 'belgique', 'T3 65m², lumineux, rénové'],
     ['BXL-CTR-004', 'Bruxelles Centre', 'collocation', 3, '', '', '', 'belgique', 'Colocation 4 chambres, 120m²'],
+    // Lots indépendants (sans immeuble) - utilisent Rue/Ville/Code Postal au lieu de Nom Immeuble
+    ['MAISON-001', '', 'maison', '', '12 Rue des Lilas', 'Uccle', '1180', 'belgique', 'Maison individuelle 4 chambres avec jardin'],
+    ['PARKING-EXT-001', '', 'parking', '', '45 Avenue Louise', 'Bruxelles', '1050', 'belgique', 'Place de parking extérieure sécurisée'],
+    ['GARAGE-IND-001', '', 'garage', '', '8 Rue du Commerce', 'Bruxelles', '1000', 'belgique', 'Garage box fermé, accès 24h/24'],
   ],
   columnWidths: [15, 25, 18, 10, 30, 20, 15, 15, 40],
   requiredColumns: ['Référence*'],
@@ -176,18 +180,18 @@ export const CONTACT_TEMPLATE: TemplateConfig = {
   ],
   exampleRows: [
     // Locataires (utilisés dans les baux)
-    ['Marie Dubois', 'locataire1@email.com', '+32 470 12 34 56', 'locataire', '25 Rue de la Loi, 1000 Bruxelles', '', 'Locataire principal BXL-LEO-002'],
-    ['Pierre Martin', 'locataire2@email.com', '+32 470 78 90 12', 'locataire', '15 Avenue de Tervuren, 1040 Etterbeek', '', 'Colocataire'],
-    ['Sophie Lambert', 'sophie.lambert@email.com', '+32 470 33 44 55', 'locataire', '8 Place Flagey, 1050 Ixelles', '', 'Locataire BXL-SAB-002'],
-    ['Thomas Janssen', 'thomas.janssen@email.com', '+32 470 66 77 88', 'locataire', '12 Rue du Midi, 1000 Bruxelles', '', 'Locataire BXL-CTR-002'],
+    ['Marie Dubois', 'marie.dubois@seido.pm', '+32 470 12 34 56', 'locataire', '25 Rue de la Loi, 1000 Bruxelles', '', 'Locataire principal BXL-LEO-002'],
+    ['Pierre Martin', 'pierre.martin@seido.pm', '+32 470 78 90 12', 'locataire', '15 Avenue de Tervuren, 1040 Etterbeek', '', 'Colocataire'],
+    ['Sophie Lambert', 'sophie.lambert@seido.pm', '+32 470 33 44 55', 'locataire', '8 Place Flagey, 1050 Ixelles', '', 'Locataire BXL-SAB-002'],
+    ['Thomas Janssen', 'thomas.janssen@seido.pm', '+32 470 66 77 88', 'locataire', '12 Rue du Midi, 1000 Bruxelles', '', 'Locataire BXL-CTR-002'],
     // Garants (rôle locataire dans users, mais garant dans contract_contacts)
-    ['Jean-Paul Garant', 'garant@email.com', '+32 470 99 00 11', 'locataire', '100 Boulevard du Souverain, 1170 Watermael', '', 'Garant pour les locataires Marie et Pierre'],
-    ['Françoise Caution', 'francoise.caution@email.com', '+32 470 22 33 44', 'locataire', '5 Avenue des Nerviens, 1040 Etterbeek', '', 'Garante pour Sophie'],
+    ['Jean-Paul Garant', 'jeanpaul.garant@seido.pm', '+32 470 99 00 11', 'locataire', '100 Boulevard du Souverain, 1170 Watermael', '', 'Garant pour les locataires Marie et Pierre'],
+    ['Françoise Caution', 'francoise.caution@seido.pm', '+32 470 22 33 44', 'locataire', '5 Avenue des Nerviens, 1040 Etterbeek', '', 'Garante pour Sophie'],
     // Prestataires (spécialité = enum intervention_type: plomberie, electricite, chauffage, serrurerie, peinture, menage, jardinage, autre)
-    ['Plomberie Express', 'contact@plomberie-express.be', '+32 2 555 01 01', 'prestataire', '45 Rue de l\'Industrie, 1000 Bruxelles', 'plomberie', 'Intervention 24h/24'],
-    ['Électricité Pro', 'info@elec-pro.be', '+32 2 555 02 02', 'prestataire', '78 Avenue de la Toison d\'Or, 1060 Saint-Gilles', 'electricite', 'Agréé certificat RGIE'],
+    ['Plomberie Express', 'plomberie@seido.pm', '+32 2 555 01 01', 'prestataire', '45 Rue de l\'Industrie, 1000 Bruxelles', 'plomberie', 'Intervention 24h/24'],
+    ['Électricité Pro', 'electricite@seido.pm', '+32 2 555 02 02', 'prestataire', '78 Avenue de la Toison d\'Or, 1060 Saint-Gilles', 'electricite', 'Agréé certificat RGIE'],
     // Propriétaire
-    ['SCI Bruxelles Invest', 'gestion@bxl-invest.be', '+32 2 555 03 03', 'proprietaire', '1 Place de Brouckère, 1000 Bruxelles', '', 'Propriétaire des 3 immeubles'],
+    ['SCI Bruxelles Invest', 'sci.invest@seido.pm', '+32 2 555 03 03', 'proprietaire', '1 Place de Brouckère, 1000 Bruxelles', '', 'Propriétaire des 3 immeubles'],
   ],
   columnWidths: [25, 30, 18, 15, 35, 20, 30],
   requiredColumns: ['Nom*', 'Rôle*'],
@@ -210,11 +214,11 @@ export const CONTRACT_TEMPLATE: TemplateConfig = {
   ],
   exampleRows: [
     // Bail colocation avec 2 locataires et 1 garant
-    ['Bail Colocation Leopold', 'BXL-LEO-003', '2024-01-01', 36, 1200, 150, 'bail_habitation', 2400, 'locataire1@email.com, locataire2@email.com', 'garant@email.com', 'Colocation 2 personnes, garant solidaire'],
+    ['Bail Colocation Leopold', 'BXL-LEO-003', '2024-01-01', 36, 1200, 150, 'bail_habitation', 2400, 'marie.dubois@seido.pm, pierre.martin@seido.pm', 'jeanpaul.garant@seido.pm', 'Colocation 2 personnes, garant solidaire'],
     // Bail individuel avec garant
-    ['Bail Sablon T3', 'BXL-SAB-002', '2024-03-01', 36, 1100, 100, 'bail_habitation', 2200, 'sophie.lambert@email.com', 'francoise.caution@email.com', 'Bail classique, paiement le 1er'],
+    ['Bail Sablon T3', 'BXL-SAB-002', '2024-03-01', 36, 1100, 100, 'bail_habitation', 2200, 'sophie.lambert@seido.pm', 'francoise.caution@seido.pm', 'Bail classique, paiement le 1er'],
     // Bail meublé sans garant
-    ['Bail Meublé Centre', 'BXL-CTR-002', '2024-06-01', 12, 950, 80, 'bail_meuble', 1900, 'thomas.janssen@email.com', '', 'Bail meublé 1 an renouvelable'],
+    ['Bail Meublé Centre', 'BXL-CTR-002', '2024-06-01', 12, 950, 80, 'bail_meuble', 1900, 'thomas.janssen@seido.pm', '', 'Bail meublé 1 an renouvelable'],
     // Bail commercial
     ['Bail Commercial Rue Neuve', 'BXL-CTR-001', '2024-01-15', 108, 3500, 500, 'bail_habitation', 10500, '', '', 'Bail commercial 9 ans, révision triennale'],
   ],

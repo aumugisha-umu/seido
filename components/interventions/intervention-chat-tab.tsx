@@ -38,6 +38,10 @@ export interface InterventionChatTabProps {
   userRole: UserRole
   /** Type de thread à pré-sélectionner à l'ouverture */
   defaultThreadType?: string
+  /** Message initial à préremplir dans le champ de saisie */
+  initialMessage?: string
+  /** Callback appelé quand un message est envoyé (pour réinitialiser le message initial) */
+  onMessageSent?: () => void
 }
 
 // ============================================================================
@@ -169,7 +173,9 @@ export function InterventionChatTab({
   initialParticipantsByThread,
   currentUserId,
   userRole,
-  defaultThreadType
+  defaultThreadType,
+  initialMessage,
+  onMessageSent
 }: InterventionChatTabProps) {
   // Get role-specific configuration
   const config = roleBasedConfig[userRole]
@@ -225,6 +231,11 @@ export function InterventionChatTab({
       toast.error(result.error || 'Erreur lors de l\'envoi du message')
       throw new Error(result.error)
     }
+
+    // Réinitialiser le message initial après envoi
+    if (onMessageSent) {
+      onMessageSent()
+    }
   }
 
   // Empty state: no threads available
@@ -256,6 +267,7 @@ export function InterventionChatTab({
           initialMessages={initialMessagesByThread}
           initialParticipants={initialParticipantsByThread}
           onSendMessage={handleSendMessage}
+          initialMessage={initialMessage}
         />
       ) : (
         <Card className="flex-1">

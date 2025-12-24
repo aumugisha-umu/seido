@@ -10,6 +10,7 @@ export {
   createBrowserSupabaseClient,
   createServerSupabaseClient, // Read-only for Server Components
   createServerActionSupabaseClient, // Read-write for Server Actions
+  createServiceRoleSupabaseClient, // Bypass RLS for system operations (activity logs, notifications)
   supabase, // Legacy compatibility
   withRetry,
   getCurrentUserId,

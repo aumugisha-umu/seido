@@ -150,7 +150,7 @@ export function DataTable<T extends Record<string, any>>({
                             </TableHead>
                         ))}
                         {actions.length > 0 && (
-                            <TableHead className="w-[70px]">Actions</TableHead>
+                            <TableHead key="actions-header" className="w-[70px]">Actions</TableHead>
                         )}
                     </TableRow>
                 </TableHeader>
@@ -176,7 +176,7 @@ export function DataTable<T extends Record<string, any>>({
                                     )
                                 })}
                                 {actions.length > 0 && (
-                                    <TableCell>
+                                    <TableCell key={`${itemId}-actions`}>
                                         {visibleActions.length > 0 && (
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>

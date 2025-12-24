@@ -753,8 +753,17 @@ export async function POST(request: NextRequest) {
 
         // Update intervention has_attachments flag if any files were uploaded
         if (uploadedCount > 0) {
-          await interventionService.update(intervention.id, { has_attachments: true })
-          logger.info({ uploadedCount }, "✅ Files uploaded successfully")
+          try {
+            const updateResult = await interventionService.update(intervention.id, { has_attachments: true })
+            if (updateResult.success) {
+              logger.info({ uploadedCount }, "✅ Files uploaded successfully and has_attachments flag updated")
+            } else {
+              logger.warn({ error: updateResult.error }, "⚠️ Could not update intervention has_attachments flag (non-critical)")
+            }
+          } catch (error) {
+            logger.warn({ error }, "⚠️ Error updating intervention has_attachments flag (non-critical)")
+            // Don't fail the entire operation for this
+          }
         }
 
       } catch (error) {

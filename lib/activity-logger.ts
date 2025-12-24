@@ -1,4 +1,4 @@
-import { createServerSupabaseClient, type ServerSupabaseClient } from '@/lib/services'
+import { createServiceRoleSupabaseClient, type ServerSupabaseClient } from '@/lib/services'
 import type { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { generateActivityEntityName } from '@/lib/utils/activity-name-generator'
@@ -609,8 +609,9 @@ class ActivityLogger {
 }
 
 // Factory function for creating service instances (RECOMMENDED)
-export const createActivityLogger = async () => {
-  const supabase = await createServerSupabaseClient()
+// Uses service role client to bypass RLS - activity logs are system logs that all roles must be able to create
+export const createActivityLogger = () => {
+  const supabase = createServiceRoleSupabaseClient()
   return new ActivityLogger(supabase)
 }
 

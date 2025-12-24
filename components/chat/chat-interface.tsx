@@ -10,7 +10,6 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
   Send,
-  MoreVertical,
   Check,
   CheckCheck,
   AlertCircle,
@@ -39,7 +38,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 // Custom Components
 import { ChatFileAttachment } from './chat-file-attachment'
-import { AddParticipantButton } from './add-participant-button'
 import { MessageAttachments } from './message-attachments'
 
 // Hooks
@@ -106,6 +104,8 @@ interface ChatInterfaceProps {
   teamMembers?: TeamMember[]
   currentParticipantIds?: string[]
   className?: string
+  /** Message initial à préremplir dans le champ de saisie */
+  initialMessage?: string
 }
 
 // Message bubble component
@@ -392,12 +392,13 @@ export function ChatInterface({
   onSendMessage,
   teamMembers = [],
   currentParticipantIds = [],
-  className = ''
+  className = '',
+  initialMessage
 }: ChatInterfaceProps) {
   // Initialize with server-fetched data (Phase 2 optimization)
   const [messages, setMessages] = useState<Message[]>(initialMessages?.[threadId] || [])
   const [participants, setParticipants] = useState<Participant[]>(initialParticipants?.[threadId] || [])
-  const [newMessage, setNewMessage] = useState('')
+  const [newMessage, setNewMessage] = useState(initialMessage || '')
   const [isLoading, setIsLoading] = useState(!initialMessages?.[threadId] || !initialParticipants?.[threadId])
   const [isSending, setIsSending] = useState(false)
   const [thread, setThread] = useState<Thread | null>(null)
@@ -491,6 +492,17 @@ export function ChatInterface({
       }
     }
   }, [messages])
+
+  // Update newMessage when initialMessage changes (for pre-filling message)
+  useEffect(() => {
+    if (initialMessage) {
+      setNewMessage(initialMessage)
+      // Focus the input field after a short delay to ensure it's rendered
+      setTimeout(() => {
+        inputRef.current?.focus()
+      }, 100)
+    }
+  }, [initialMessage])
 
   // Handle sending message
   const handleSend = async () => {
@@ -638,17 +650,6 @@ export function ChatInterface({
                 </>
               )
             })()}
-          </div>
-          <div className="flex items-center gap-2">
-            <AddParticipantButton
-              threadId={threadId}
-              teamMembers={teamMembers}
-              currentParticipantIds={currentParticipantIds}
-              userRole={userRole}
-            />
-            <Button variant="ghost" size="icon">
-              <MoreVertical className="w-4 h-4" />
-            </Button>
           </div>
         </div>
       </CardHeader>

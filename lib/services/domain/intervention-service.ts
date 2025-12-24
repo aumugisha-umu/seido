@@ -2645,6 +2645,177 @@ export class InterventionService {
       })
     }
   }
+
+  /**
+   * Auto-assign relevant users to an intervention based on lot/building/team
+   * Assigns managers from:
+   * - lot_contacts (if lot_id provided)
+   * - building_contacts (if building_id provided or from lot.building_id)
+   * - team_members (if teamId provided)
+   * 
+   * Uses service role client to bypass RLS for assignment creation
+   * 
+   * @param interventionId - The intervention ID
+   * @param lotId - Optional lot ID
+   * @param buildingId - Optional building ID
+   * @param teamId - Optional team ID
+   * @returns Array of created assignment records
+   */
+  async autoAssignIntervention(
+    interventionId: string,
+    lotId?: string,
+    buildingId?: string,
+    teamId?: string
+  ): Promise<Array<{ id: string; user_id: string; role: string; is_primary: boolean }>> {
+    try {
+      const serviceRoleClient = createServiceRoleSupabaseClient()
+      const assignments: Array<{
+        intervention_id: string
+        user_id: string
+        role: string
+        is_primary: boolean
+        assigned_by: string | null
+      }> = []
+      const assignedUserIds = new Set<string>()
+
+      // 1. If lot_id provided, fetch lot with contacts and building
+      let resolvedBuildingId = buildingId
+      if (lotId) {
+        const { data: lot, error: lotError } = await serviceRoleClient
+          .from('lots')
+          .select(`
+            id,
+            building_id,
+            lot_contacts!lot_contacts_lot_id_fkey(
+              user_id,
+              is_primary,
+              user:user_id(id, role)
+            )
+          `)
+          .eq('id', lotId)
+          .single()
+
+        if (!lotError && lot) {
+          // Resolve building_id from lot if not provided
+          if (!resolvedBuildingId && lot.building_id) {
+            resolvedBuildingId = lot.building_id
+          }
+
+          // Add lot managers (gestionnaire or admin)
+          if (lot.lot_contacts) {
+            const lotManagers = lot.lot_contacts
+              .filter((lc: any) => lc.user && (lc.user.role === 'gestionnaire' || lc.user.role === 'admin'))
+              .sort((a: any, b: any) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)) // Primary first
+
+            for (const contact of lotManagers) {
+              if (contact.user_id && !assignedUserIds.has(contact.user_id)) {
+                assignments.push({
+                  intervention_id: interventionId,
+                  user_id: contact.user_id,
+                  role: 'gestionnaire',
+                  is_primary: assignments.length === 0 || contact.is_primary, // First assignment is primary
+                  assigned_by: null
+                })
+                assignedUserIds.add(contact.user_id)
+              }
+            }
+          }
+        }
+      }
+
+      // 2. If building_id available, fetch building contacts
+      if (resolvedBuildingId) {
+        const { data: building, error: buildingError } = await serviceRoleClient
+          .from('buildings')
+          .select(`
+            id,
+            building_contacts!building_contacts_building_id_fkey(
+              user_id,
+              is_primary,
+              user:user_id(id, role)
+            )
+          `)
+          .eq('id', resolvedBuildingId)
+          .single()
+
+        if (!buildingError && building && building.building_contacts) {
+          const buildingManagers = building.building_contacts
+            .filter((bc: any) => bc.user && (bc.user.role === 'gestionnaire' || bc.user.role === 'admin'))
+            .sort((a: any, b: any) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0)) // Primary first
+
+          for (const contact of buildingManagers) {
+            if (contact.user_id && !assignedUserIds.has(contact.user_id)) {
+              assignments.push({
+                intervention_id: interventionId,
+                user_id: contact.user_id,
+                role: 'gestionnaire',
+                is_primary: assignments.length === 0 || contact.is_primary, // First assignment is primary
+                assigned_by: null
+              })
+              assignedUserIds.add(contact.user_id)
+            }
+          }
+        }
+      }
+
+      // 3. If teamId provided and no managers assigned yet, fetch team managers
+      if (teamId && assignments.length === 0) {
+        const { data: teamMembers, error: teamError } = await serviceRoleClient
+          .from('team_members')
+          .select(`
+            user_id,
+            user:user_id(id, role)
+          `)
+          .eq('team_id', teamId)
+
+        if (!teamError && teamMembers) {
+          const teamManagers = teamMembers
+            .filter((tm: any) => tm.user && (tm.user.role === 'gestionnaire' || tm.user.role === 'admin'))
+
+          for (let i = 0; i < teamManagers.length; i++) {
+            const member = teamManagers[i]
+            if (member.user_id && !assignedUserIds.has(member.user_id)) {
+              assignments.push({
+                intervention_id: interventionId,
+                user_id: member.user_id,
+                role: 'gestionnaire',
+                is_primary: i === 0, // First team manager is primary
+                assigned_by: null
+              })
+              assignedUserIds.add(member.user_id)
+            }
+          }
+        }
+      }
+
+      // 4. Insert assignments using service role client (bypasses RLS)
+      if (assignments.length > 0) {
+        const { data: insertedAssignments, error: insertError } = await serviceRoleClient
+          .from('intervention_assignments')
+          .insert(assignments)
+          .select('id, user_id, role, is_primary')
+
+        if (insertError) {
+          logger.error({ error: insertError, interventionId }, '❌ Failed to insert auto-assignments')
+          throw insertError
+        }
+
+        logger.info({ 
+          interventionId, 
+          count: insertedAssignments?.length || 0 
+        }, '✅ Auto-assigned managers to intervention')
+
+        return insertedAssignments || []
+      }
+
+      logger.info({ interventionId }, 'ℹ️ No managers found for auto-assignment')
+      return []
+    } catch (error) {
+
+      logger.error({ error, interventionId }, '❌ Error in autoAssignIntervention')
+      throw error
+    }
+  }
 }
 
 // Factory functions for creating service instances

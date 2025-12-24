@@ -270,6 +270,165 @@ export async function getInterventionAction(
 }
 
 /**
+ * Update an existing intervention
+ * Handles updating basic info, participants (assignments), and time slots
+ */
+export async function updateInterventionAction(
+  interventionId: string,
+  data: {
+    title?: string
+    description?: string
+    type?: string
+    urgency?: string
+    instructions?: string
+    require_quote?: boolean
+    assignedManagerIds?: string[]
+    assignedProviderIds?: string[]
+    timeSlots?: Array<{
+      proposed_date: string
+      start_time: string
+      end_time: string
+    }>
+  }
+): Promise<ActionResult<Intervention>> {
+  try {
+    // Auth check
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Validate UUID format
+    if (!interventionId || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(interventionId)) {
+      return { success: false, error: 'Invalid intervention ID format' }
+    }
+
+    const supabase = await createServerActionSupabaseClient()
+
+    // Verify intervention exists and user has access
+    const { data: existingIntervention, error: fetchError } = await supabase
+      .from('interventions')
+      .select('*, team_id')
+      .eq('id', interventionId)
+      .single()
+
+    if (fetchError || !existingIntervention) {
+      return { success: false, error: 'Intervention not found' }
+    }
+
+    // Update basic intervention data
+    const updateData: Record<string, unknown> = {}
+    if (data.title !== undefined) updateData.title = data.title
+    if (data.description !== undefined) updateData.description = data.description
+    if (data.type !== undefined) updateData.type = data.type as InterventionType
+    if (data.urgency !== undefined) updateData.urgency = data.urgency as InterventionUrgency
+    if (data.instructions !== undefined) updateData.instructions = data.instructions
+    if (data.require_quote !== undefined) updateData.require_quote = data.require_quote
+    updateData.updated_at = new Date().toISOString()
+
+    const { data: updatedIntervention, error: updateError } = await supabase
+      .from('interventions')
+      .update(updateData)
+      .eq('id', interventionId)
+      .select()
+      .single()
+
+    if (updateError) {
+      logger.error({ error: updateError }, 'Failed to update intervention')
+      return { success: false, error: 'Failed to update intervention' }
+    }
+
+    // Update assignments if provided
+    if (data.assignedManagerIds !== undefined || data.assignedProviderIds !== undefined) {
+      // Get current assignments
+      const { data: currentAssignments } = await supabase
+        .from('intervention_assignments')
+        .select('id, user_id, role')
+        .eq('intervention_id', interventionId)
+
+      const allNewAssignments: Array<{ user_id: string; role: string }> = []
+
+      if (data.assignedManagerIds) {
+        data.assignedManagerIds.forEach(userId => {
+          allNewAssignments.push({ user_id: userId, role: 'gestionnaire' })
+        })
+      }
+
+      if (data.assignedProviderIds) {
+        data.assignedProviderIds.forEach(userId => {
+          allNewAssignments.push({ user_id: userId, role: 'prestataire' })
+        })
+      }
+
+      // Delete old assignments (except tenant assignments)
+      if (currentAssignments) {
+        const toDelete = currentAssignments.filter(a =>
+          a.role !== 'locataire' &&
+          !allNewAssignments.some(n => n.user_id === a.user_id && n.role === a.role)
+        )
+
+        if (toDelete.length > 0) {
+          await supabase
+            .from('intervention_assignments')
+            .delete()
+            .in('id', toDelete.map(a => a.id))
+        }
+      }
+
+      // Insert new assignments
+      const toInsert = allNewAssignments.filter(n =>
+        !currentAssignments?.some(c => c.user_id === n.user_id && c.role === n.role)
+      )
+
+      if (toInsert.length > 0) {
+        await supabase
+          .from('intervention_assignments')
+          .insert(toInsert.map(a => ({
+            intervention_id: interventionId,
+            user_id: a.user_id,
+            role: a.role,
+            assigned_by: user.id
+          })))
+      }
+    }
+
+    // Update time slots if provided
+    if (data.timeSlots !== undefined) {
+      // Delete existing pending time slots
+      await supabase
+        .from('intervention_time_slots')
+        .delete()
+        .eq('intervention_id', interventionId)
+        .eq('status', 'proposed')
+
+      // Insert new time slots
+      if (data.timeSlots.length > 0) {
+        await supabase
+          .from('intervention_time_slots')
+          .insert(data.timeSlots.map(slot => ({
+            intervention_id: interventionId,
+            proposed_date: slot.proposed_date,
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+            status: 'proposed',
+            proposed_by: user.id
+          })))
+      }
+    }
+
+    // Invalidate caches
+    revalidateInterventionCaches(interventionId, existingIntervention.team_id)
+
+    logger.info({ interventionId }, 'Intervention updated successfully')
+
+    return { success: true, data: updatedIntervention }
+  } catch (error) {
+    logger.error({ error }, 'Unexpected error in updateInterventionAction')
+    return { success: false, error: 'Erreur inattendue' }
+  }
+}
+
+/**
  * Get interventions with filters
  */
 export async function getInterventionsAction(

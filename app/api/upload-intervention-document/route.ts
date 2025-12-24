@@ -191,14 +191,17 @@ export async function POST(request: NextRequest) {
     logger.info({ data: document.id }, "✅ Document metadata stored:")
 
     // Update intervention to mark it as having attachments
+    // Note: This is handled automatically by database trigger, but we update it here for immediate consistency
     const { error: updateError } = await supabase
       .from('interventions')
       .update({ has_attachments: true })
       .eq('id', validatedData.interventionId)
 
     if (updateError) {
-      logger.warn({ updateError: updateError }, "⚠️ Warning: Could not update intervention has_attachments flag:")
-      // Don't fail the entire operation for this
+      logger.warn({ updateError: updateError }, "⚠️ Warning: Could not update intervention has_attachments flag (non-critical, trigger will handle it)")
+      // Don't fail the entire operation for this - the database trigger will update it automatically
+    } else {
+      logger.info({}, "✅ Updated intervention has_attachments flag")
     }
 
     logger.info({}, "🎉 Document upload completed successfully")

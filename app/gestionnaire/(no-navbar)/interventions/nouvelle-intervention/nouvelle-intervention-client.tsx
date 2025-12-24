@@ -1114,7 +1114,29 @@ export default function NouvelleInterventionClient({
 
         {/* Step 2: Formulaire de description */}
         {currentStep === 2 && selectedLogement && (
-          <Card>
+          <div className="space-y-6">
+            {/* Encadré Bien Concerné */}
+            <Card className="bg-blue-50 border-blue-200">
+              <CardContent className="p-4">
+                <div className="flex items-center space-x-2">
+                  <Home className="h-4 w-4 text-blue-600" />
+                  <span className="font-medium">
+                    {selectedLogement.type === 'lot'
+                      ? `Lot ${selectedLogement.name}`
+                      : selectedLogement.name}
+                  </span>
+                  {selectedLogement.address && (
+                    <>
+                      <span className="text-gray-400">•</span>
+                      <span className="text-sm text-gray-600">{selectedLogement.address}</span>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Détails de l'intervention */}
+            <Card>
             <CardContent className="p-0 flex flex-col gap-6">
               <div className="flex items-center space-x-2">
                 <Building2 className="h-5 w-5 text-orange-500" />
@@ -1244,6 +1266,7 @@ export default function NouvelleInterventionClient({
               </div>
             </CardContent>
           </Card>
+          </div>
         )}
 
         {currentStep === 3 && (

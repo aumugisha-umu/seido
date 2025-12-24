@@ -22,7 +22,9 @@ import {
   createServerBuildingRepository,
   createServerLotRepository
 } from '@/lib/services'
+import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import { NotificationService } from '@/lib/services/domain/notification.service'
+import { NotificationRepository } from '@/lib/services/repositories/notification-repository'
 import { EmailNotificationService } from '@/lib/services/domain/email-notification.service'
 import { EmailService } from '@/lib/services/domain/email.service'
 import { getServerAuthContext } from '@/lib/server-context'
@@ -31,36 +33,51 @@ import { logger } from '@/lib/logger'
 /**
  * Create notification for new intervention
  *
+ * Uses service role to work regardless of who creates the intervention
+ * (gestionnaire, locataire, or system)
+ *
  * @param interventionId - ID of the intervention
  * @returns Array of created notifications
  */
 export async function createInterventionNotification(interventionId: string) {
   try {
-    // 1. Authentication & context
-    const { user, profile, team } = await getServerAuthContext('gestionnaire')
+    // 1. Use service role client (works for any user role)
+    const supabase = createServiceRoleSupabaseClient()
+
+    // 2. Fetch intervention data to get team_id and created_by
+    const { data: intervention, error: interventionError } = await supabase
+      .from('interventions')
+      .select('id, team_id, created_by, title, status')
+      .eq('id', interventionId)
+      .single()
+
+    if (interventionError || !intervention) {
+      logger.error({
+        error: interventionError,
+        interventionId
+      }, '❌ [NOTIFICATION-ACTION] Intervention not found')
+      return {
+        success: false,
+        error: interventionError?.message || 'Intervention not found'
+      }
+    }
 
     logger.info({
       action: 'createInterventionNotification',
       interventionId,
-      userId: profile.id,
-      teamId: team.id
-    }, '📬 [NOTIFICATION-ACTION] Creating intervention notification')
+      teamId: intervention.team_id,
+      createdBy: intervention.created_by
+    }, '📬 [NOTIFICATION-ACTION] Creating intervention notification (service role)')
 
-    // 2. Dependency injection
-    const repository = await createServerNotificationRepository()
+    // 3. Create repository and service with service role client
+    const repository = new NotificationRepository(supabase)
     const service = new NotificationService(repository)
 
-    // 3. Business logic (via Domain Service)
-    logger.info({
-      interventionId,
-      teamId: team.id,
-      createdBy: profile.id
-    }, '🔍 [DEBUG] Before notifyInterventionCreated')
-
+    // 4. Business logic (via Domain Service)
     const notifications = await service.notifyInterventionCreated({
       interventionId,
-      teamId: team.id,
-      createdBy: profile.id
+      teamId: intervention.team_id,
+      createdBy: intervention.created_by
     })
 
     logger.info({

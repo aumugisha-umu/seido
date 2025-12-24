@@ -56,13 +56,14 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Building2, MapPin, User, Calendar, AlertCircle, Edit, XCircle, MoreVertical, UserCheck } from 'lucide-react'
+import { Building2, MapPin, User, Calendar, AlertCircle, Edit, XCircle, MoreVertical, UserCheck, CheckCircle, MessageSquare } from 'lucide-react'
 
 // Hooks
 import { useAuth } from '@/hooks/use-auth'
 import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
 import { useTeamStatus } from '@/hooks/use-team-status'
 import { useToast } from '@/hooks/use-toast'
+import { useInterventionApproval } from '@/hooks/use-intervention-approval'
 
 // Contact selector
 import { ContactSelector, type ContactSelectorRef } from '@/components/contact-selector'
@@ -72,12 +73,19 @@ import { assignUserAction, unassignUserAction } from '@/app/actions/intervention
 import { addInterventionComment } from '@/app/actions/intervention-comment-actions'
 
 // Modals
-import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
+// ProgrammingModal removed - using edit page instead
+// import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
 import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
 import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
 import { CancelQuoteRequestModal } from '@/components/intervention/modals/cancel-quote-request-modal'
 import { CancelQuoteConfirmModal } from '@/components/intervention/modals/cancel-quote-confirm-modal'
 import { FinalizationModalLive } from '@/components/intervention/finalization-modal-live'
+import dynamic from 'next/dynamic'
+
+// Dynamic imports for approval modals
+const ApprovalModal = dynamic(() => import("@/components/intervention/modals/approval-modal").then(mod => ({ default: mod.ApprovalModal })), { ssr: false })
+const ApproveConfirmationModal = dynamic(() => import("@/components/intervention/modals/approve-confirmation-modal").then(mod => ({ default: mod.ApproveConfirmationModal })), { ssr: false })
+const RejectConfirmationModal = dynamic(() => import("@/components/intervention/modals/reject-confirmation-modal").then(mod => ({ default: mod.RejectConfirmationModal })), { ssr: false })
 
 // Multi-provider components
 import { LinkedInterventionsSection, LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
@@ -207,8 +215,11 @@ export function InterventionDetailClient({
   // État pour la modale d'upload de documents
   const [isDocumentUploadOpen, setIsDocumentUploadOpen] = useState(false)
 
+  // État pour le message initial dans le chat
+  const [initialChatMessage, setInitialChatMessage] = useState<string | null>(null)
+
   // Helpers for button visibility based on intervention status
-  const canModifyOrCancel = !['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'].includes(intervention.status)
+  const canModifyOrCancel = !['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee', 'demande'].includes(intervention.status)
   const canFinalize = ['planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire'].includes(intervention.status)
 
   // State for cancel quote confirmation modal (from toggle)
@@ -470,6 +481,35 @@ export function InterventionDetailClient({
     providers.map(p => p.id),
     intervention.instructions || ''
   )
+
+  // Initialize approval hook for approve/reject actions
+  const approvalHook = useInterventionApproval()
+
+  // Prepare intervention data for approval hook
+  const interventionActionData = useMemo(() => {
+    const location = intervention.lot?.reference
+      ? `${intervention.lot.building?.name || intervention.building?.name || ''} - Lot ${intervention.lot.reference}`
+      : intervention.building?.name || 'Localisation non spécifiée'
+
+    return {
+      id: intervention.id,
+      type: intervention.type || '',
+      status: intervention.status,
+      title: intervention.title,
+      description: intervention.description,
+      urgency: intervention.urgency || 'normale',
+      reference: intervention.reference,
+      created_at: intervention.created_at,
+      created_by: intervention.created_by,
+      location,
+      lot: intervention.lot ? {
+        reference: intervention.lot.reference || '',
+        building: intervention.lot.building ? { name: intervention.lot.building.name } : undefined
+      } : undefined,
+      building: intervention.building ? { name: intervention.building.name } : undefined,
+      hasFiles: (documents?.length || 0) > 0
+    }
+  }, [intervention, documents])
 
   // Handle refresh
   const handleRefresh = () => {
@@ -734,59 +774,10 @@ export function InterventionDetailClient({
     return { pendingRequests, submittedQuotes }
   }
 
-  // Handle opening programming modal with existing data pre-filled
+  // Handle edit intervention - redirect to edit page
   const handleOpenProgrammingModalWithData = () => {
-    const interventionAction = {
-      id: intervention.id,
-      type: intervention.type || '',
-      status: intervention.status || '',
-      title: intervention.title || '',
-      description: intervention.description,
-      priority: intervention.priority,
-      urgency: intervention.urgency,
-      reference: intervention.reference,
-      created_at: intervention.created_at,
-      created_by: intervention.creator?.name || 'Utilisateur',
-      location: intervention.specific_location,
-      lot: intervention.lot ? {
-        reference: intervention.lot.reference || '',
-        building: intervention.lot.building ? {
-          name: intervention.lot.building.name || ''
-        } : undefined
-      } : undefined,
-      building: intervention.building ? {
-        name: intervention.building.name || ''
-      } : undefined
-    }
-
-    // Determine planning mode based on existing time slots
-    if (timeSlots.length === 0) {
-      // No slots + status "planification" = "organize" (flexible) mode was selected
-      // Pre-select "organize" option for edit mode
-      planning.setProgrammingOption('organize')
-      planning.openProgrammingModal(interventionAction)
-    } else if (timeSlots.length === 1) {
-      // Single slot - likely "direct" mode
-      const slot = timeSlots[0]
-      planning.setProgrammingOption('direct')
-      planning.setProgrammingDirectSchedule({
-        date: slot.slot_date,
-        startTime: slot.start_time,
-        endTime: slot.end_time
-      })
-      planning.openProgrammingModal(interventionAction)
-    } else {
-      // Multiple slots - "propose" mode
-      planning.setProgrammingOption('propose')
-      planning.setProgrammingProposedSlots(
-        timeSlots.map(slot => ({
-          date: slot.slot_date,
-          startTime: slot.start_time,
-          endTime: slot.end_time
-        }))
-      )
-      planning.openProgrammingModal(interventionAction)
-    }
+    // Redirect to the edit page instead of opening the modal
+    router.push(`/gestionnaire/interventions/modifier/${intervention.id}`)
   }
 
   // Handler pour approuver un slot proposé par le prestataire
@@ -930,6 +921,27 @@ export function InterventionDetailClient({
     setActiveTab('conversations')
   }
 
+  // Handler pour demander des détails (ouvre le chat avec message prérempli)
+  const handleRequestDetails = () => {
+    // Récupérer le prénom du locataire ayant fait la demande
+    const tenant = tenants.length > 0 ? tenants[0] : null
+    const tenantFirstName = tenant?.name?.split(' ')[0] || 'Monsieur/Madame'
+    
+    const message = `Bonjour ${tenantFirstName}, pourriez-vous nous fournir plus de détails sur cette demande afin que nous puissions l'analyser ?`
+    setInitialChatMessage(message)
+    setActiveTab('conversations')
+    setSelectedThreadType('group')
+  }
+
+  // Handler pour changement d'onglet avec réinitialisation du message initial si nécessaire
+  const handleTabChange = (tab: string) => {
+    setActiveTab(tab)
+    // Réinitialiser le message initial si on quitte l'onglet conversations
+    if (tab !== 'conversations') {
+      setInitialChatMessage(null)
+    }
+  }
+
   // Handler pour visualiser un document (ouvre dans un nouvel onglet)
   const handleViewDocument = async (documentId: string) => {
     const doc = documents.find(d => d.id === documentId)
@@ -1065,7 +1077,7 @@ export function InterventionDetailClient({
     return urgency !== 'normale' ? urgencyMap[urgency] || null : null
   }
 
-  const headerBadges: DetailPageHeaderBadge[] = [getStatusBadge(), getUrgencyBadge()].filter(Boolean) as DetailPageHeaderBadge[]
+  const headerBadges: DetailPageHeaderBadge[] = [getStatusBadge(), getUrgencyBadge()].filter(Boolean) as DetailPageHeaderBadge[];
 
   const headerMetadata: DetailPageHeaderMetadata[] = [
     intervention.building && {
@@ -1084,7 +1096,7 @@ export function InterventionDetailClient({
       icon: Calendar,
       text: new Date(intervention.created_at).toLocaleDateString('fr-FR')
     }
-  ].filter(Boolean) as DetailPageHeaderMetadata[]
+  ].filter(Boolean) as DetailPageHeaderMetadata[];
 
   // Helper function to check if action badge should be shown
   const shouldShowActionBadge = (
@@ -1096,15 +1108,15 @@ export function InterventionDetailClient({
       case 'approuvee':
       case 'cloturee_par_prestataire':
       case 'cloturee_par_locataire':
-        return true
+        return true;
 
       case 'demande_de_devis':
-        return quotes?.some(q => q.status === 'pending' || q.status === 'sent') ?? false
+        return quotes?.some(q => q.status === 'pending' || q.status === 'sent') ?? false;
 
       default:
-        return false
+        return false;
     }
-  }
+  };
 
   return (
     <div className="h-screen flex flex-col overflow-hidden">
@@ -1126,6 +1138,66 @@ export function InterventionDetailClient({
                     Action en attente
                   </span>
                 </div>
+              )}
+
+              {/* Boutons Approuver/Rejeter pour statut "demande" - gestionnaire uniquement */}
+              {intervention.status === 'demande' && serverUserRole === 'gestionnaire' && (
+                <>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => approvalHook.handleApprovalAction(interventionActionData, 'approve')}
+                          className="gap-2 min-h-[36px] bg-green-600 hover:bg-green-700 text-white border-green-600"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          <span>Approuver</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Approuver cette demande d'intervention</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => approvalHook.handleApprovalAction(interventionActionData, 'reject')}
+                          className="gap-2 min-h-[36px]"
+                        >
+                          <XCircle className="w-4 h-4" />
+                          <span>Rejeter</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Rejeter cette demande d'intervention</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRequestDetails}
+                          className="gap-2 min-h-[36px]"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          <span>Demander détails</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Demander plus de détails au locataire dans la conversation</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </>
               )}
 
               {/* Bouton Modifier avec tooltip - conditionnel */}
@@ -1219,6 +1291,39 @@ export function InterventionDetailClient({
                 </div>
               )}
 
+              {/* Boutons Approuver/Rejeter pour statut "demande" - gestionnaire uniquement */}
+              {intervention.status === 'demande' && serverUserRole === 'gestionnaire' && (
+                <>
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() => approvalHook.handleApprovalAction(interventionActionData, 'approve')}
+                    className="gap-1.5 min-h-[36px] bg-green-600 hover:bg-green-700 text-white border-green-600"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Approuver</span>
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => approvalHook.handleApprovalAction(interventionActionData, 'reject')}
+                    className="gap-1.5 min-h-[36px]"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    <span>Rejeter</span>
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRequestDetails}
+                    className="gap-1.5 min-h-[36px]"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Demander détails</span>
+                  </Button>
+                </>
+              )}
+
               {/* Bouton Modifier - conditionnel */}
               {canModifyOrCancel && (
                 <Button
@@ -1302,6 +1407,35 @@ export function InterventionDetailClient({
                     </>
                   )}
 
+                  {/* Boutons Approuver/Rejeter pour statut "demande" - gestionnaire uniquement */}
+                  {intervention.status === 'demande' && serverUserRole === 'gestionnaire' && (
+                    <>
+                      <DropdownMenuItem
+                        onClick={() => approvalHook.handleApprovalAction(interventionActionData, 'approve')}
+                        className="text-green-700 focus:text-green-800 focus:bg-green-50"
+                      >
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                        Approuver
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => approvalHook.handleApprovalAction(interventionActionData, 'reject')}
+                        className="text-red-700 focus:text-red-800 focus:bg-red-50"
+                      >
+                        <XCircle className="w-4 h-4 mr-2" />
+                        Rejeter
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+
+                  {/* Action Demander détails - conditionnelle */}
+                  {intervention.status === 'demande' && serverUserRole === 'gestionnaire' && (
+                    <DropdownMenuItem onClick={handleRequestDetails}>
+                      <MessageSquare className="w-4 h-4 mr-2" />
+                      Demander détails
+                    </DropdownMenuItem>
+                  )}
+
                   {/* Action Modifier - conditionnelle */}
                   {canModifyOrCancel && (
                     <DropdownMenuItem onSelect={handleOpenProgrammingModalWithData}>
@@ -1364,42 +1498,7 @@ export function InterventionDetailClient({
 
       <div className="layout-padding flex-1 min-h-0 bg-muted flex flex-col overflow-hidden">
 
-        {/* Programming Modal */}
-        <ProgrammingModal
-          isOpen={planning.programmingModal.isOpen}
-          onClose={planning.closeProgrammingModal}
-          intervention={planning.programmingModal.intervention}
-          programmingOption={planning.programmingOption}
-          onProgrammingOptionChange={planning.setProgrammingOption}
-          directSchedule={planning.programmingDirectSchedule}
-          onDirectScheduleChange={planning.setProgrammingDirectSchedule}
-          proposedSlots={planning.programmingProposedSlots}
-          onAddProposedSlot={planning.addProgrammingSlot}
-          onUpdateProposedSlot={planning.updateProgrammingSlot}
-          onRemoveProposedSlot={planning.removeProgrammingSlot}
-          managers={managers}
-          selectedManagers={managers.map(m => m.id)}
-          onManagerToggle={() => { }}
-          onOpenManagerModal={handleOpenManagerModal}
-          providers={providers}
-          selectedProviders={providers.map(p => p.id)}
-          onProviderToggle={() => { }}
-          onOpenProviderModal={handleOpenProviderModal}
-          tenants={tenants}
-          selectedTenants={tenants.map(t => t.id)}
-          onTenantToggle={() => { }}
-          onConfirm={planning.handleProgrammingConfirm}
-          isFormValid={planning.isProgrammingFormValid()}
-          quoteRequests={quotes}
-          onViewProvider={(providerId) => {
-            // Close modal and switch to Devis tab to view provider details
-            planning.closeProgrammingModal()
-            // TODO: Could add logic to highlight the specific provider in quotes tab
-          }}
-          onCancelQuoteRequest={handleCancelQuoteRequest}
-          requireQuote={requireQuote}
-          onRequireQuoteChange={handleToggleQuoteRequest}
-        />
+        {/* ProgrammingModal removed - redirects to /gestionnaire/interventions/modifier/[id] now */}
 
         {/* Cancel Slot Modal */}
         <CancelSlotModal
@@ -1466,7 +1565,7 @@ export function InterventionDetailClient({
           content={
             <InterventionTabs
               activeTab={activeTab}
-              onTabChange={setActiveTab}
+              onTabChange={handleTabChange}
               userRole="manager"
             >
               {/* TAB: GENERAL */}
@@ -1529,6 +1628,8 @@ export function InterventionDetailClient({
                   currentUserId={serverUserId}
                   userRole={serverUserRole as 'gestionnaire' | 'locataire' | 'prestataire' | 'admin'}
                   defaultThreadType={selectedThreadType}
+                  initialMessage={initialChatMessage || undefined}
+                  onMessageSent={() => setInitialChatMessage(null)}
                 />
               </TabsContent>
 
@@ -1618,6 +1719,48 @@ export function InterventionDetailClient({
             router.refresh()
           }}
         />
+
+        {/* Modals pour l'approbation/rejet */}
+        {approvalHook.approvalModal.isOpen && (
+          <ApprovalModal
+            isOpen={approvalHook.approvalModal.isOpen}
+            onClose={approvalHook.closeApprovalModal}
+            intervention={approvalHook.approvalModal.intervention}
+            action={approvalHook.approvalModal.action}
+            rejectionReason={approvalHook.rejectionReason}
+            internalComment={approvalHook.internalComment}
+            onRejectionReasonChange={approvalHook.setRejectionReason}
+            onInternalCommentChange={approvalHook.setInternalComment}
+            onActionChange={approvalHook.handleActionChange}
+            onConfirm={approvalHook.handleConfirmAction}
+          />
+        )}
+
+        {approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "approve" && (
+          <ApproveConfirmationModal
+            isOpen={true}
+            onClose={approvalHook.closeConfirmationModal}
+            onConfirm={approvalHook.handleFinalConfirmation}
+            intervention={approvalHook.confirmationModal.intervention}
+            internalComment={approvalHook.internalComment}
+            onInternalCommentChange={approvalHook.setInternalComment}
+            isLoading={approvalHook.isLoading}
+          />
+        )}
+
+        {approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "reject" && (
+          <RejectConfirmationModal
+            isOpen={true}
+            onClose={approvalHook.closeConfirmationModal}
+            onConfirm={approvalHook.handleFinalConfirmation}
+            intervention={approvalHook.confirmationModal.intervention}
+            rejectionReason={approvalHook.rejectionReason}
+            onRejectionReasonChange={approvalHook.setRejectionReason}
+            internalComment={approvalHook.internalComment}
+            onInternalCommentChange={approvalHook.setInternalComment}
+            isLoading={approvalHook.isLoading}
+          />
+        )}
       </div>
     </div>
   )

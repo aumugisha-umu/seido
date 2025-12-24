@@ -11,6 +11,7 @@ import type {
   RawLotRow,
   RawContactRow,
   RawContractRow,
+  RawCompanyRow,
 } from './types';
 import { SHEET_NAMES, FILE_CONSTRAINTS } from './constants';
 
@@ -62,12 +63,19 @@ export async function parseExcelFile(file: File): Promise<ParseResult> {
       findSheetName(workbook.SheetNames, SHEET_NAMES.CONTRACTS)
     );
 
+    const companies = parseSheet<RawCompanyRow>(
+      workbook,
+      SHEET_NAMES.COMPANIES,
+      findSheetName(workbook.SheetNames, SHEET_NAMES.COMPANIES)
+    );
+
     return {
       success: true,
       buildings,
       lots,
       contacts,
       contracts,
+      companies,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Erreur de lecture du fichier';
@@ -80,7 +88,7 @@ export async function parseExcelFile(file: File): Promise<ParseResult> {
  */
 export async function parseCsvFile(
   file: File,
-  entityType: 'building' | 'lot' | 'contact' | 'contract'
+  entityType: 'building' | 'lot' | 'contact' | 'contract' | 'company'
 ): Promise<ParseResult> {
   const validationError = validateFile(file);
   if (validationError) {
@@ -115,6 +123,9 @@ export async function parseCsvFile(
         break;
       case 'contract':
         result.contracts = parseSheet<RawContractRow>(workbook, SHEET_NAMES.CONTRACTS, sheetName);
+        break;
+      case 'company':
+        result.companies = parseSheet<RawCompanyRow>(workbook, SHEET_NAMES.COMPANIES, sheetName);
         break;
     }
 
@@ -274,6 +285,7 @@ function createEmptyResult(error?: string): ParseResult {
     lots: emptySheet<RawLotRow>(),
     contacts: emptySheet<RawContactRow>(),
     contracts: emptySheet<RawContractRow>(),
+    companies: emptySheet<RawCompanyRow>(),
     error,
   };
 }
@@ -291,11 +303,13 @@ export function getParseStats(result: ParseResult) {
     lots: result.lots.rows.length,
     contacts: result.contacts.rows.length,
     contracts: result.contracts.rows.length,
+    companies: result.companies.rows.length,
     total:
       result.buildings.rows.length +
       result.lots.rows.length +
       result.contacts.rows.length +
-      result.contracts.rows.length,
+      result.contracts.rows.length +
+      result.companies.rows.length,
   };
 }
 

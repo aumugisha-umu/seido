@@ -275,6 +275,8 @@ export const lotsTableConfig: DataTableConfig<LotData> = {
             }
         },
         {
+            id: 'details',
+            header: 'Détails',
             cell: (lot) => (
                 <div className="flex items-center gap-2 text-xs text-slate-600">
                     {lot.floor !== undefined && <span>Étage {lot.floor}</span>}

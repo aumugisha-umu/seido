@@ -20,6 +20,7 @@ export type ImportEntityType =
   | 'lot'
   | 'contact'
   | 'contract'
+  | 'company'
   | 'mixed';
 
 export type ImportMode = 'create_only' | 'upsert';
@@ -56,6 +57,7 @@ export interface RawContactRow {
   'Rôle': string;
   'Adresse'?: string;
   'Spécialité'?: string;
+  'Société'?: string;  // Référence au nom d'une société de l'onglet Sociétés
   'Notes'?: string;
 }
 
@@ -71,6 +73,20 @@ export interface RawContractRow {
   'Email Locataires'?: string;  // Plusieurs emails séparés par virgule
   'Email Garants'?: string;     // Plusieurs emails séparés par virgule
   'Commentaires'?: string;
+}
+
+export interface RawCompanyRow {
+  'Nom': string;
+  'Nom Légal'?: string;
+  'N° TVA'?: string;
+  'Rue'?: string;
+  'Numéro'?: string;
+  'Code Postal'?: string;
+  'Ville'?: string;
+  'Pays'?: string;
+  'Email'?: string;
+  'Téléphone'?: string;
+  'Site Web'?: string;
 }
 
 // ============================================================================
@@ -107,9 +123,11 @@ export interface ParsedContact {
   role: string;
   address?: string;
   speciality?: string;
+  company_name?: string;  // Référence au nom d'une société
   notes?: string;
   _rowIndex: number;
   _existingId?: string;  // For upsert
+  _resolvedCompanyId?: string;  // After resolution
 }
 
 export interface ParsedContract {
@@ -126,6 +144,22 @@ export interface ParsedContract {
   comments?: string;
   _rowIndex: number;
   _resolvedLotId?: string;
+}
+
+export interface ParsedCompany {
+  name: string;
+  legal_name?: string;
+  vat_number?: string;
+  street?: string;
+  street_number?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  _rowIndex: number;
+  _existingId?: string;  // For upsert
 }
 
 // ============================================================================
@@ -145,6 +179,7 @@ export interface ParseResult {
   lots: ParsedSheet<RawLotRow>;
   contacts: ParsedSheet<RawContactRow>;
   contracts: ParsedSheet<RawContractRow>;
+  companies: ParsedSheet<RawCompanyRow>;
   error?: string;
 }
 
@@ -153,6 +188,7 @@ export interface ParsedData {
   lots: ParsedLot[];
   contacts: ParsedContact[];
   contracts: ParsedContract[];
+  companies: ParsedCompany[];
 }
 
 // ============================================================================
@@ -219,6 +255,7 @@ export interface ImportCreatedIds {
   lots?: string[];
   contacts?: string[];
   contracts?: string[];
+  companies?: string[];
 }
 
 export interface ImportJobMetadata {
@@ -232,6 +269,7 @@ export interface ImportJobMetadata {
     lots?: number;
     contacts?: number;
     contracts?: number;
+    companies?: number;
   };
 }
 
@@ -246,6 +284,33 @@ export interface ImportOptions {
   teamId: string;
   userId: string;
 }
+
+// ============================================================================
+// Import Progress Types (for real-time streaming)
+// ============================================================================
+
+export type ImportPhase =
+  | 'companies'
+  | 'contacts'
+  | 'buildings'
+  | 'lots'
+  | 'contracts'
+  | 'completed';
+
+export interface ImportProgressEvent {
+  phase: ImportPhase;
+  phaseIndex: number;        // 0-4 for the 5 phases, 5 for completed
+  totalPhases: number;       // Always 5
+  phaseName: string;         // French label for display
+  phaseCount: number;        // Items in current phase
+  phaseCreated: number;      // Created in current phase
+  phaseUpdated: number;      // Updated in current phase
+  phaseErrors: number;       // Errors in current phase
+  totalProgress: number;     // 0-100 percentage overall
+  isComplete: boolean;
+}
+
+export type ImportProgressCallback = (event: ImportProgressEvent) => void;
 
 // ============================================================================
 // Import Result Types
@@ -273,6 +338,7 @@ export interface ImportSummary {
   lots: { created: number; updated: number; failed: number };
   contacts: { created: number; updated: number; failed: number };
   contracts: { created: number; updated: number; failed: number };
+  companies: { created: number; updated: number; failed: number };
   totalProcessed: number;
   totalSuccess: number;
   totalFailed: number;

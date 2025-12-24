@@ -12,6 +12,8 @@ import type {
   ImportResult,
   ImportRowError,
   ParsedData,
+  ImportProgressEvent,
+  ImportPhase,
 } from '@/lib/import/types';
 import { parseExcelFile, getParseStats } from '@/lib/import/excel-parser';
 import { validateAllData } from '@/lib/import/validators';
@@ -43,6 +45,15 @@ export interface CreatedContact {
   role: string;
 }
 
+export interface ImportProgress {
+  phase: ImportPhase;
+  phaseIndex: number;
+  totalPhases: number;
+  phaseName: string;
+  totalProgress: number;
+  isComplete: boolean;
+}
+
 export interface ImportWizardState {
   step: ImportWizardStep;
   file: File | null;
@@ -51,6 +62,8 @@ export interface ImportWizardState {
   importResult: ImportResult | null;
   isLoading: boolean;
   error: string | null;
+  // Import progress tracking (real-time)
+  importProgress: ImportProgress | null;
   // Invitation step state
   createdContacts: CreatedContact[];
   selectedContactIds: string[];
@@ -80,6 +93,8 @@ export interface UseImportWizardReturn {
   stats: ReturnType<typeof getParseStats> | null;
   errors: ImportRowError[];
   invitableContacts: CreatedContact[];
+  // Real-time import progress
+  importProgress: ImportProgress | null;
 }
 
 // ============================================================================
@@ -102,6 +117,7 @@ const initialState: ImportWizardState = {
   importResult: null,
   isLoading: false,
   error: null,
+  importProgress: null,
   createdContacts: [],
   selectedContactIds: [],
   invitationProgress: initialInvitationProgress,
@@ -240,7 +256,7 @@ export function useImportWizard(): UseImportWizardReturn {
     }
   }, [state.parseResult]);
 
-  // ---- Import ----
+  // ---- Import with Streaming ----
 
   const executeImport = useCallback(async () => {
     if (!state.validationResult?.data) {
@@ -253,10 +269,12 @@ export function useImportWizard(): UseImportWizardReturn {
       isLoading: true,
       error: null,
       step: 'progress',
+      importProgress: null,
     }));
 
     try {
-      const response = await fetch('/api/import/execute', {
+      // Use streaming API for real-time progress updates
+      const response = await fetch('/api/import/execute-stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -270,35 +288,96 @@ export function useImportWizard(): UseImportWizardReturn {
         }),
       });
 
-      const result = await response.json();
-
-      // Handle 400 responses with import errors - these still have a valid result structure
       if (!response.ok) {
-        // If we have a structured error response with errors array, use it as importResult
-        if (result.errors && Array.isArray(result.errors)) {
-          setState((prev) => ({
-            ...prev,
-            isLoading: false,
-            importResult: result,
-            step: 'result',
-          }));
-          return;
-        }
-        throw new Error(result.error || 'Erreur lors de l\'import');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Erreur lors de l\'import');
       }
 
-      setState((prev) => ({
-        ...prev,
-        isLoading: false,
-        importResult: result,
-        step: 'result',
-      }));
+      // Read the SSE stream
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error('Stream non disponible');
+      }
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let finalResult: ImportResult | null = null;
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        // Parse SSE events from buffer
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || ''; // Keep incomplete line in buffer
+
+        let eventType = '';
+        let eventData = '';
+
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim();
+          } else if (line.startsWith('data: ')) {
+            eventData = line.slice(6);
+
+            if (eventType && eventData) {
+              try {
+                const parsedData = JSON.parse(eventData);
+
+                if (eventType === 'progress') {
+                  // Update progress state
+                  const progressEvent = parsedData as ImportProgressEvent;
+                  setState((prev) => ({
+                    ...prev,
+                    importProgress: {
+                      phase: progressEvent.phase,
+                      phaseIndex: progressEvent.phaseIndex,
+                      totalPhases: progressEvent.totalPhases,
+                      phaseName: progressEvent.phaseName,
+                      totalProgress: progressEvent.totalProgress,
+                      isComplete: progressEvent.isComplete,
+                    },
+                  }));
+                } else if (eventType === 'result') {
+                  finalResult = parsedData as ImportResult;
+                } else if (eventType === 'error') {
+                  throw new Error(parsedData.error || 'Erreur d\'import');
+                }
+              } catch (parseError) {
+                // Skip invalid JSON
+                console.warn('Failed to parse SSE event:', parseError);
+              }
+
+              eventType = '';
+              eventData = '';
+            }
+          }
+        }
+      }
+
+      // Handle final result
+      if (finalResult) {
+        setState((prev) => ({
+          ...prev,
+          isLoading: false,
+          importResult: finalResult,
+          step: 'result',
+          importProgress: null,
+        }));
+      } else {
+        throw new Error('Aucun résultat reçu du serveur');
+      }
+
     } catch (error) {
       setState((prev) => ({
         ...prev,
         isLoading: false,
         error: error instanceof Error ? error.message : 'Erreur d\'import',
         step: 'result',
+        importProgress: null,
       }));
     }
   }, [state.validationResult?.data]);
@@ -496,5 +575,7 @@ export function useImportWizard(): UseImportWizardReturn {
     stats,
     errors,
     invitableContacts,
+    // Real-time import progress
+    importProgress: state.importProgress,
   };
 }

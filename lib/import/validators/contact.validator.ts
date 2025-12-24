@@ -60,6 +60,11 @@ export const contactImportSchema = z.object({
     .enum(INTERVENTION_TYPES as unknown as [string, ...string[]])
     .optional()
     .nullable(),
+  company_name: z
+    .string()
+    .max(200, 'Le nom de société ne doit pas dépasser 200 caractères')
+    .optional()
+    .nullable(),
   notes: z
     .string()
     .max(
@@ -94,6 +99,7 @@ export function validateContactRow(
     role: normalizeRole(row['Rôle'] || row['Rôle*']),
     address: row['Adresse'] ? String(row['Adresse']).trim() : undefined,
     speciality: normalizeSpeciality(row['Spécialité']),
+    company_name: row['Société'] ? String(row['Société']).trim() : undefined,
     notes: row['Notes'] ? String(row['Notes']).trim() : undefined,
   };
 
@@ -135,6 +141,7 @@ export function validateContactRow(
       role: result.data.role,
       address: result.data.address || undefined,
       speciality: result.data.speciality || undefined,
+      company_name: result.data.company_name || undefined,
       notes: result.data.notes || undefined,
       _rowIndex: rowIndex,
     },

@@ -44,9 +44,10 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     }
 
     if ('category' in data && data.category) {
+      // Must match database enum `lot_category` - see database.types.ts
       validateEnum(
         data.category,
-        ['appartement', 'collocation', 'maison', 'garage', 'local_commercial', 'parking', 'autre'] as const,
+        ['appartement', 'collocation', 'maison', 'garage', 'local_commercial', 'autre'] as const,
         'category'
       )
     }
@@ -72,8 +73,10 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
     }
 
     // For insert, validate required fields
+    // Note: building_id is OPTIONAL - lots can be independent (not attached to a building)
+    // Independent lots are linked directly to a team via team_id
     if (this.isInsertData(data)) {
-      validateRequired(data, ['reference', 'building_id', 'category'])
+      validateRequired(data, ['reference', 'category'])
     }
   }
 

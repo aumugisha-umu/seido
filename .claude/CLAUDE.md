@@ -2,6 +2,11 @@
 
 This file provides guidance to Claude Code when working with this repository.
 
+## 📋 Règle: Mise à jour du Rapport d'Audit
+
+**À chaque fois qu'on fait des tests sur l'application**, met à jour le fichier:
+`docs/rapport-audit-complet-seido.md`
+
 ## 🚫 RÈGLE STRICTE: Pas de Build Automatique
 
 **INTERDICTION ABSOLUE de lancer `npm run build` sans demande explicite de l'utilisateur.**
@@ -458,6 +463,55 @@ await notificationService.notifyInterventionCreated(...) // DON'T DO THIS
 - **Testable**: Dependency injection in Domain Service
 - **Performant**: JOIN queries instead of N+1
 - **Type-safe**: Strict TypeScript throughout
+
+### Magic Links for Email Notifications (NEW: 2025-12-24)
+
+**✅ Auto-Login via Email CTAs**
+
+Email notification buttons use Supabase magic links for automatic authentication + redirect.
+
+```typescript
+// ✅ CORRECT: Use magic link service for email URLs
+import { generateMagicLinksBatch } from '@/lib/services/domain/magic-link.service'
+
+// In batch email functions:
+const magicLinkRecipients = recipients.map(r => ({
+  email: r.email,
+  redirectTo: `/${r.role}/interventions/${intervention.id}`
+}))
+const magicLinksMap = await generateMagicLinksBatch(magicLinkRecipients)
+
+// Use magic link with fallback to direct URL
+const interventionUrl = magicLinksMap.get(recipient.email) || fallbackUrl
+```
+
+**Architecture Files**:
+- `lib/services/domain/magic-link.service.ts` - Batch magic link generation
+- `app/auth/email-callback/route.ts` - OTP verification + redirect callback
+
+**Key Functions**:
+- `generateNotificationMagicLink({ email, redirectTo })` - Single magic link
+- `generateMagicLinksBatch(recipients)` - Batch generation (max 10 concurrent)
+- `generateMagicLinkWithFallback(email, redirectTo)` - With direct URL fallback
+
+**Flow**:
+1. `email-notification.service.ts` calls `generateMagicLinksBatch()`
+2. Magic links point to `/auth/email-callback?token_hash=xxx&next=/path`
+3. Callback verifies OTP via `supabase.auth.verifyOtp()`
+4. Session established → redirect to `next` parameter
+
+**Security**:
+- ✅ Cryptographically secure tokens (Supabase Auth)
+- ✅ Open redirect protection via `validateNextParameter()`
+- ✅ Configurable expiration (7 days recommended via Supabase Dashboard)
+- ✅ Fallback to direct URL if generation fails
+
+**Batch Functions Using Magic Links**:
+- `sendInterventionCreatedBatch`
+- `sendInterventionScheduledBatch`
+- `sendInterventionCompletedBatch`
+- `sendInterventionStatusChangedBatch`
+- `sendTimeSlotsProposedBatch`
 
 ### Realtime Architecture (NEW: 2025-11-29)
 

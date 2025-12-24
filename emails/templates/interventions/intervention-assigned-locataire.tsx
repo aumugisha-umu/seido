@@ -11,11 +11,13 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EmailAttachments } from '@/emails/components/email-attachments'
 import type { InterventionAssignedLocataireEmailProps } from '@/emails/utils/types'
 
 export const InterventionAssignedLocataireEmail = ({
   firstName,
   interventionRef,
+  title,
   interventionType,
   description,
   propertyAddress,
@@ -25,6 +27,7 @@ export const InterventionAssignedLocataireEmail = ({
   urgency,
   createdAt,
   timeSlots,
+  attachments,
 }: InterventionAssignedLocataireEmailProps) => {
   // Couleurs et icones selon l'urgence
   const urgencyConfig = {
@@ -94,6 +97,12 @@ export const InterventionAssignedLocataireEmail = ({
                 <td className="text-gray-600 py-2 pr-4 font-medium">Reference :</td>
                 <td className="text-gray-900 py-2 font-semibold">{interventionRef}</td>
               </tr>
+              {title && (
+                <tr>
+                  <td className="text-gray-600 py-2 pr-4 font-medium">Titre :</td>
+                  <td className="text-gray-900 py-2">{title}</td>
+                </tr>
+              )}
               <tr>
                 <td className="text-gray-600 py-2 pr-4 font-medium">Type :</td>
                 <td className="text-gray-900 py-2">{interventionType}</td>
@@ -112,10 +121,6 @@ export const InterventionAssignedLocataireEmail = ({
                   <td className="text-gray-900 py-2">{lotReference}</td>
                 </tr>
               )}
-              <tr>
-                <td className="text-gray-600 py-2 pr-4 font-medium">Date de creation :</td>
-                <td className="text-gray-900 py-2">{formattedDate}</td>
-              </tr>
             </tbody>
           </table>
 
@@ -128,6 +133,11 @@ export const InterventionAssignedLocataireEmail = ({
             {description}
           </Text>
         </div>
+
+        {/* Pièces jointes */}
+        {attachments && attachments.length > 0 && (
+          <EmailAttachments attachments={attachments} />
+        )}
 
         {/* Section Créneaux proposés (locataire - pas de section devis) */}
         {timeSlots && timeSlots.length > 0 && (
@@ -182,6 +192,7 @@ export const InterventionAssignedLocataireEmail = ({
 InterventionAssignedLocataireEmail.PreviewProps = {
   firstName: 'Emma',
   interventionRef: 'INT-2024-042',
+  title: 'Fuite importante cuisine',
   interventionType: 'Plomberie',
   description:
     'Intervention de reparation suite a une fuite d\'eau sous l\'evier de la cuisine. Un plombier interviendra prochainement.',

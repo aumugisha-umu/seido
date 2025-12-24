@@ -11,11 +11,13 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EmailAttachments } from '@/emails/components/email-attachments'
 import type { InterventionAssignedPrestataireEmailProps } from '@/emails/utils/types'
 
 export const InterventionAssignedPrestataireEmail = ({
   firstName,
   interventionRef,
+  title,
   interventionType,
   description,
   propertyAddress,
@@ -26,6 +28,7 @@ export const InterventionAssignedPrestataireEmail = ({
   createdAt,
   timeSlots,
   quoteInfo,
+  attachments,
 }: InterventionAssignedPrestataireEmailProps) => {
   // Couleurs et icones selon l'urgence
   const urgencyConfig = {
@@ -95,6 +98,12 @@ export const InterventionAssignedPrestataireEmail = ({
                 <td className="text-gray-600 py-2 pr-4 font-medium">Reference :</td>
                 <td className="text-gray-900 py-2 font-semibold">{interventionRef}</td>
               </tr>
+              {title && (
+                <tr>
+                  <td className="text-gray-600 py-2 pr-4 font-medium">Titre :</td>
+                  <td className="text-gray-900 py-2">{title}</td>
+                </tr>
+              )}
               <tr>
                 <td className="text-gray-600 py-2 pr-4 font-medium">Type :</td>
                 <td className="text-gray-900 py-2">{interventionType}</td>
@@ -113,10 +122,6 @@ export const InterventionAssignedPrestataireEmail = ({
                   <td className="text-gray-900 py-2">{lotReference}</td>
                 </tr>
               )}
-              <tr>
-                <td className="text-gray-600 py-2 pr-4 font-medium">Date :</td>
-                <td className="text-gray-900 py-2">{formattedDate}</td>
-              </tr>
             </tbody>
           </table>
 
@@ -129,6 +134,11 @@ export const InterventionAssignedPrestataireEmail = ({
             {description}
           </Text>
         </div>
+
+        {/* Pièces jointes */}
+        {attachments && attachments.length > 0 && (
+          <EmailAttachments attachments={attachments} />
+        )}
 
         {/* Section Créneaux proposés */}
         {timeSlots && timeSlots.length > 0 && (
@@ -207,6 +217,7 @@ export const InterventionAssignedPrestataireEmail = ({
 InterventionAssignedPrestataireEmail.PreviewProps = {
   firstName: 'Marc',
   interventionRef: 'INT-2024-042',
+  title: 'Fuite importante cuisine',
   interventionType: 'Plomberie',
   description:
     'Fuite d\'eau importante sous l\'evier de la cuisine. L\'eau coule en continu depuis ce matin. J\'ai coupe l\'arrivee d\'eau en attendant.',

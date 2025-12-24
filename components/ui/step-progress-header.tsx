@@ -60,7 +60,7 @@ export const StepProgressHeader = ({
 
   return (
     <div className={`sticky ${topClass} z-50 bg-white border-b border-gray-200 shadow-sm`}>
-      <div className="content-max-width px-4 sm:px-6 h-16 grid grid-cols-3 items-center gap-4 relative">
+      <div className="content-max-width px-4 sm:px-6 h-16 grid grid-cols-3 items-center gap-4 relative overflow-hidden">
 
           {/* Left Column: Picto + Back Button */}
           <div className="flex items-center gap-3 sm:gap-4 justify-start">
@@ -104,7 +104,7 @@ export const StepProgressHeader = ({
           </div>
 
           {/* Right Column: Tab Navigation (Steps aligned right) */}
-          <div className="hidden lg:flex items-stretch overflow-x-auto scrollbar-hide gap-1 justify-end">
+          <div className="hidden lg:flex items-center gap-1 justify-end min-w-0">
             {steps.map((step, index) => {
               const stepNumber = index + 1
               const isComplete = currentStep > stepNumber
@@ -116,7 +116,8 @@ export const StepProgressHeader = ({
                 <div
                   key={index}
                   className={`
-                    relative flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3
+                    relative flex items-center gap-1.5 sm:gap-2
+                    ${index === 0 ? "pl-0 pr-2 sm:pr-3" : "px-2 sm:px-3"}
                     transition-all duration-300 cursor-default flex-shrink-0
                     ${isPending && "opacity-50"}
                   `}

@@ -71,15 +71,14 @@ export const useNotificationPopover = (
       userId: user?.id,
       teamId,
       limit,
-      hasUserId: !!user?.id,
-      hasTeamId: !!teamId
+      hasUserId: !!user?.id
     })
 
-    if (!user?.id || !teamId) {
-      console.log('❌ [USE-NOTIFICATION-POPOVER] Missing user ID or team ID, skipping fetch', {
-        userId: user?.id,
-        teamId
-      })
+    // Note: On ne requiert plus teamId car les prestataires/locataires peuvent recevoir
+    // des notifications d'équipes auxquelles ils ne font pas partie (via intervention assignments)
+    // La sécurité est assurée par RLS (user_id = get_current_user_id())
+    if (!user?.id) {
+      console.log('❌ [USE-NOTIFICATION-POPOVER] Missing user ID, skipping fetch')
       setLoading(false)
       return
     }
@@ -88,7 +87,7 @@ export const useNotificationPopover = (
       setError(null)
 
       console.log('📡 [USE-NOTIFICATION-POPOVER] Fetching notifications from repository...')
-      // Fetch notifications using repository
+      // Fetch notifications using repository - RLS filters by user_id automatically
       const result = await repository.findByUser(user.id, {
         archived: false,
         read: undefined // Get both read and unread
@@ -100,13 +99,11 @@ export const useNotificationPopover = (
 
       console.log('📦 [USE-NOTIFICATION-POPOVER] Repository returned:', result.data?.length, 'notifications')
 
-      // Filter by team if specified and limit results
+      // Note: On ne filtre plus par team_id côté client car:
+      // 1. La RLS assure déjà que l'utilisateur ne voit que SES notifications (user_id)
+      // 2. Les prestataires/locataires reçoivent des notifications d'autres équipes (cross-team)
+      // 3. Filtrer par team_id exclurait ces notifications légitimes
       let notifications = result.data || []
-      if (teamId) {
-        console.log('🔍 [USE-NOTIFICATION-POPOVER] Filtering by teamId:', teamId)
-        notifications = notifications.filter(n => n.team_id === teamId)
-        console.log('✅ [USE-NOTIFICATION-POPOVER] After team filter:', notifications.length, 'notifications')
-      }
       notifications = notifications.slice(0, limit)
 
       console.log('✅ [USE-NOTIFICATION-POPOVER] Final notifications count:', notifications.length)
@@ -118,7 +115,7 @@ export const useNotificationPopover = (
     } finally {
       setLoading(false)
     }
-  }, [user?.id, teamId, limit])
+  }, [user?.id, limit])
 
   // Fetch initial notifications
   useEffect(() => {
@@ -126,15 +123,14 @@ export const useNotificationPopover = (
   }, [fetchNotifications])
 
   // Realtime subscription for instant updates (v2 - uses RealtimeProvider context)
+  // Note: On ne filtre plus par team_id - toutes les notifications de l'utilisateur sont affichées
   useRealtimeNotificationsV2({
-    enabled: !!user?.id && !!teamId,
+    enabled: !!user?.id,
     onInsert: useCallback((notification) => {
       console.log('[NOTIFICATION-POPOVER] New notification received via Realtime v2')
-      // Add to top of list if it matches team filter
-      if (!teamId || notification.team_id === teamId) {
-        setNotifications(prev => [notification, ...prev].slice(0, limit))
-      }
-    }, [teamId, limit]),
+      // Add to top of list - no team_id filtering (RLS ensures security via user_id)
+      setNotifications(prev => [notification, ...prev].slice(0, limit))
+    }, [limit]),
     onUpdate: useCallback((notification) => {
       console.log('[NOTIFICATION-POPOVER] Notification updated via Realtime v2')
       // Update in list

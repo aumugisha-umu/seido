@@ -1,19 +1,20 @@
 import Link from "next/link"
-import { redirect } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Building2, CheckCircle } from "lucide-react"
+import { CheckCircle } from "lucide-react"
 import AuthLogo from "@/components/ui/auth-logo"
 import { LoginForm } from "./login-form"
-import { logger, logError } from '@/lib/logger'
-import { createServerSupabaseClient } from '@/lib/services'
+import { logger } from '@/lib/logger'
 /**
  * 🔐 PAGE LOGIN - SERVER COMPONENT (Migration Server Components)
  *
  * Architecture optimisée:
- * 1. Server Component: Structure statique, messages d'état depuis URL
- * 2. Client Component (LoginForm): Interactions et logique de formulaire
- * 3. Rendu côté serveur: SEO optimisé, chargement plus rapide
+ * 1. Middleware: Redirection automatique si session active (avant rendu)
+ * 2. Server Component: Structure statique, messages d'état depuis URL
+ * 3. Client Component (LoginForm): Interactions et logique de formulaire
+ * 4. Rendu côté serveur: SEO optimisé, chargement plus rapide
+ *
+ * Note: La redirection des utilisateurs connectés est gérée par le middleware
+ * pour éviter tout flash de contenu avant la redirection.
  */
 
 interface LoginPageProps {
@@ -33,31 +34,6 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const showEmailNotConfirmed = params.reason === 'email_not_confirmed'
   const showSessionExpired = params.reason === 'session_expired'
   const showConfirmationError = params.error && ['expired_token', 'invalid_token', 'confirmation_failed'].includes(params.error)
-
-  // 🔄 AUTO-REDIRECT: Si session active, rediriger vers le dashboard approprié
-  try {
-    const supabase = await createServerSupabaseClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (user) {
-      logger.info('🔄 [LOGIN-SERVER] Active session detected, redirecting to dashboard', { userId: user.id })
-
-      // Récupérer le profil pour obtenir le rôle
-      const { data: profile } = await supabase
-        .from('users')
-        .select('role')
-        .eq('auth_user_id', user.id)
-        .single()
-
-      if (profile?.role) {
-        // Redirection vers le dashboard approprié selon le rôle
-        redirect(`/${profile.role}/dashboard`)
-      }
-    }
-  } catch (error) {
-    // Si erreur lors de la vérification de session, continuer normalement vers le formulaire
-    logger.info('🔄 [LOGIN-SERVER] No active session, showing login form')
-  }
 
   logger.info('🔄 [LOGIN-SERVER] Login page rendered server-side', {
     confirmed: params.confirmed,

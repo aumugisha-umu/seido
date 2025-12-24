@@ -7,8 +7,19 @@ import { useRealtimeInterventions } from "@/hooks/use-realtime-interventions"
 import {
     Plus,
     FileText,
-    Upload
+    Upload,
+    Building2,
+    Home,
+    UserPlus,
+    Wrench,
+    ChevronDown
 } from "lucide-react"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
 import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
 import { UrgentInterventionsSection } from "@/components/dashboards/manager/urgent-interventions-section"
@@ -96,75 +107,75 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
             <div className="dashboard__container">
                 {/* Header Section */}
                 <div className="dashboard__header">
-                    <div className="flex flex-col xl:flex-row justify-between items-end xl:items-center gap-4">
+                    <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
                         {/* Title + Period Selector together */}
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
                             <h1 className="text-3xl font-bold text-foreground">Tableau de bord</h1>
-                            {/* Period Selector - Compact on mobile, full on desktop */}
-                            <div className="lg:hidden">
-                                <PeriodSelector
-                                    value={period.value}
-                                    onChange={setPeriod}
-                                    compact
-                                />
-                            </div>
-                            <div className="hidden lg:block">
-                                <PeriodSelector
-                                    value={period.value}
-                                    onChange={setPeriod}
-                                />
-                            </div>
+                            {/* Period Selector - Dropdown only */}
+                            <PeriodSelector
+                                value={period.value}
+                                onChange={setPeriod}
+                            />
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                            {/* Primary actions */}
-                            <Button
-                                onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
-                                className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 rounded-xl px-4"
-                            >
-                                <Plus className="h-4 w-4 mr-2" />
-                                <span className="hidden sm:inline">Créer une intervention</span>
-                                <span className="sm:hidden">Intervention</span>
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={() => router.push("/gestionnaire/contrats/nouveau")}
-                                className="bg-card border-border text-foreground rounded-xl"
-                            >
-                                <FileText className="h-4 w-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Créer un contrat</span>
-                            </Button>
+                        <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                            {/* Bouton Ajouter avec dropdown */}
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button
+                                        className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 rounded-xl px-4"
+                                    >
+                                        <Plus className="h-4 w-4 mr-2" />
+                                        <span>Ajouter</span>
+                                        <ChevronDown className="h-4 w-4 ml-2" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="start" className="w-44">
+                                    <DropdownMenuItem
+                                        onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
+                                        className="flex items-center gap-2 cursor-pointer"
+                                    >
+                                        <Wrench className="h-4 w-4" />
+                                        <span>Une intervention</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => router.push("/gestionnaire/contrats/nouveau")}
+                                        className="flex items-center gap-2 cursor-pointer"
+                                    >
+                                        <FileText className="h-4 w-4" />
+                                        <span>Un contrat</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => router.push("/gestionnaire/biens/immeubles/nouveau")}
+                                        className="flex items-center gap-2 cursor-pointer"
+                                    >
+                                        <Building2 className="h-4 w-4" />
+                                        <span>Un immeuble</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => router.push("/gestionnaire/biens/lots/nouveau")}
+                                        className="flex items-center gap-2 cursor-pointer"
+                                    >
+                                        <Home className="h-4 w-4" />
+                                        <span>Un lot</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={() => router.push("/gestionnaire/contacts/nouveau")}
+                                        className="flex items-center gap-2 cursor-pointer"
+                                    >
+                                        <UserPlus className="h-4 w-4" />
+                                        <span>Un contact</span>
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                            
+                            {/* Bouton Importer */}
                             <Button
                                 variant="outline"
                                 onClick={() => router.push("/gestionnaire/biens/import")}
                                 className="bg-card border-border text-foreground rounded-xl"
                             >
-                                <Upload className="h-4 w-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Importer</span>
-                            </Button>
-                            {/* Secondary actions */}
-                            <Button
-                                variant="outline"
-                                onClick={() => router.push("/gestionnaire/biens/immeubles/nouveau")}
-                                className="bg-card border-border text-foreground rounded-xl"
-                            >
-                                <Plus className="h-4 w-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Ajouter un immeuble</span>
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={() => router.push("/gestionnaire/biens/lots/nouveau")}
-                                className="bg-card border-border text-foreground rounded-xl"
-                            >
-                                <Plus className="h-4 w-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Ajouter un lot</span>
-                            </Button>
-                            <Button
-                                variant="outline"
-                                onClick={() => router.push("/gestionnaire/contacts/nouveau")}
-                                className="bg-card border-border text-foreground rounded-xl"
-                            >
-                                <Plus className="h-4 w-4 sm:mr-2" />
-                                <span className="hidden sm:inline">Ajouter un contact</span>
+                                <Upload className="h-4 w-4 mr-2" />
+                                <span>Importer</span>
                             </Button>
                         </div>
                     </div>

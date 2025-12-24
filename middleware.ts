@@ -76,6 +76,58 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // 🔄 REDIRECTION UTILISATEURS CONNECTÉS: login/signup → dashboard
+  // Ces pages ne doivent pas être accessibles si l'utilisateur a déjà une session active
+  // NOTE: Ne PAS inclure reset-password, update-password, set-password (flow mot de passe)
+  const AUTH_REDIRECT_IF_LOGGED_IN = ['/auth/login', '/auth/signup']
+
+  if (AUTH_REDIRECT_IF_LOGGED_IN.some(page => pathname === page || pathname.startsWith(page + '/'))) {
+    // Créer un client Supabase pour vérifier la session
+    let response = NextResponse.next({ request: { headers: request.headers } })
+
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              request.cookies.set(name, value)
+              response.cookies.set(name, value, options)
+            })
+          },
+        },
+      }
+    )
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (user) {
+        // Récupérer le rôle pour déterminer le dashboard cible
+        const { data: profile } = await supabase
+          .from('users')
+          .select('role')
+          .eq('auth_user_id', user.id)
+          .single()
+
+        if (profile?.role) {
+          console.log('🔄 [MIDDLEWARE] Redirecting logged-in user from', pathname, 'to', `/${profile.role}/dashboard`)
+          return NextResponse.redirect(new URL(`/${profile.role}/dashboard`, request.url))
+        }
+      }
+    } catch (error) {
+      // En cas d'erreur, laisser passer (l'utilisateur verra la page login)
+      console.log('⚠️ [MIDDLEWARE] Error checking session for auth redirect:', error)
+    }
+
+    // Pas de session active ou erreur → continuer vers la page login/signup
+    return response
+  }
+
   // Routes publiques (accessibles sans authentification)
   const publicRoutes = [
     '/auth/login',

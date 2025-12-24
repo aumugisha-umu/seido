@@ -304,7 +304,7 @@ export function SignupForm() {
               <div>
                 En créant mon compte, j'accepte les{" "}
                 <Link
-                  href="/terms"
+                  href="/conditions-generales"
                   className="text-brand-primary hover:text-brand-primary/80 underline decoration-brand-primary/60 underline-offset-2 font-medium transition-colors"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -314,7 +314,7 @@ export function SignupForm() {
               <div>
                 et la{" "}
                 <Link
-                  href="/privacy"
+                  href="/confidentialite"
                   className="text-brand-primary hover:text-brand-primary/80 underline decoration-brand-primary/60 underline-offset-2 font-medium transition-colors"
                   onClick={(e) => e.stopPropagation()}
                 >

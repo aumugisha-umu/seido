@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { selectSlotSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-
+import {
+  createServerNotificationRepository,
+  createServerUserRepository,
+  createServerBuildingRepository,
+  createServerLotRepository,
+  createServerInterventionRepository
+} from '@/lib/services'
+import { NotificationService } from '@/lib/services/domain/notification.service'
+import { EmailNotificationService } from '@/lib/services/domain/email-notification.service'
+import { EmailService } from '@/lib/services/domain/email.service'
 
 export async function PUT(
   request: NextRequest,
@@ -25,6 +34,24 @@ export async function PUT(
         error: 'Utilisateur non trouvé'
       }, { status: 404 })
     }
+
+    // Initialize notification services with repositories
+    const notificationRepository = await createServerNotificationRepository()
+    const interventionRepository = await createServerInterventionRepository()
+    const userRepository = await createServerUserRepository()
+    const buildingRepository = await createServerBuildingRepository()
+    const lotRepository = await createServerLotRepository()
+    const emailService = new EmailService()
+
+    const notificationService = new NotificationService(notificationRepository)
+    const emailNotificationService = new EmailNotificationService(
+      notificationRepository,
+      emailService,
+      interventionRepository,
+      userRepository,
+      buildingRepository,
+      lotRepository
+    )
 
     const interventionId = id
 
@@ -299,13 +326,34 @@ export async function PUT(
       )
     }
 
-    // Send all notifications
+    // Send all in-app notifications
     try {
       await Promise.all(notificationPromises)
-      logger.info({ notificationPromises: notificationPromises.length }, "✅ Sent notifications for slot selection")
+      logger.info({ notificationPromises: notificationPromises.length }, "✅ Sent in-app notifications for slot selection")
     } catch (notificationError) {
-      logger.warn({ notificationError: notificationError }, "⚠️ Some notifications failed to send:")
+      logger.warn({ notificationError: notificationError }, "⚠️ Some in-app notifications failed to send:")
       // Don't fail the API call for notification errors
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL NOTIFICATIONS: Créneau confirmé (intervention planifiée)
+    // ═══════════════════════════════════════════════════════════════════════════
+    try {
+      const emailResult = await emailNotificationService.sendInterventionEmails({
+        interventionId: intervention.id,
+        eventType: 'scheduled',
+        excludeUserId: user.id,  // L'utilisateur qui confirme ne reçoit pas d'email
+        excludeRoles: ['gestionnaire'],  // Exclure les gestionnaires (seuls locataire + prestataire reçoivent)
+        excludeNonPersonal: true  // Seulement les assignés directement
+      })
+
+      logger.info({
+        emailsSent: emailResult.sentCount,
+        emailsFailed: emailResult.failedCount
+      }, "📧 Scheduled intervention emails sent")
+    } catch (emailError) {
+      // Don't fail the API call for email errors
+      logger.warn({ emailError }, "⚠️ Could not send scheduling confirmation emails:")
     }
 
     return NextResponse.json({

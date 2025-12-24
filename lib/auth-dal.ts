@@ -118,8 +118,15 @@ export async function requireAuth(redirectTo: string = '/auth/login') {
 /**
  * ✅ PROTECTION RÔLE: Vérification role-based access (IMPLÉMENTÉE Phase 2.5)
  * Pour protéger selon les rôles utilisateur - utilise le profil DB réel
+ *
+ * @param allowedRoles - Un rôle (string) ou plusieurs rôles (string[]), optionnel
+ *                       Si non fourni, vérifie seulement que l'utilisateur est authentifié
+ * @param redirectTo - URL de redirection si accès refusé
  */
-export async function requireRole(allowedRoles: string[], redirectTo: string = '/auth/unauthorized') {
+export async function requireRole(
+  allowedRoles?: string | string[],
+  redirectTo: string = '/auth/unauthorized'
+) {
   // Récupérer profil complet avec rôle depuis DB
   const userProfile = await getUserProfile()
 
@@ -130,12 +137,18 @@ export async function requireRole(allowedRoles: string[], redirectTo: string = '
 
   const userRole = userProfile.profile.role
 
-  if (!allowedRoles.includes(userRole)) {
-    logger.info('🚫 [AUTH-DAL] Insufficient permissions. Required:', allowedRoles, 'Got:', userRole)
+  // 🔒 Normaliser allowedRoles: string → [string], string[] → string[], undefined → []
+  const roles = Array.isArray(allowedRoles)
+    ? allowedRoles
+    : (allowedRoles ? [allowedRoles] : [])
+
+  // Si des rôles sont requis, vérifier que l'utilisateur a un rôle autorisé
+  if (roles.length > 0 && !roles.includes(userRole)) {
+    logger.info('🚫 [AUTH-DAL] Insufficient permissions. Required:', roles, 'Got:', userRole)
     redirect(redirectTo)
   }
 
-  logger.info('✅ [AUTH-DAL] Role check passed:', { role: userRole, allowed: allowedRoles })
+  logger.info('✅ [AUTH-DAL] Role check passed:', { role: userRole, allowed: roles.length > 0 ? roles : 'any' })
   return { user: userProfile.supabaseUser, profile: userProfile.profile }
 }
 

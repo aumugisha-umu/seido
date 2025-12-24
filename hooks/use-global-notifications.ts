@@ -35,7 +35,10 @@ export const useGlobalNotifications = (options: UseGlobalNotificationsOptions = 
       userTeamId
     })
 
-    if (!user?.id || teamStatus !== 'verified' || !hasTeam || !userTeamId) {
+    // Note: On ne requiert plus userTeamId car les prestataires/locataires peuvent recevoir
+    // des notifications d'équipes auxquelles ils ne font pas partie (via intervention assignments)
+    // La sécurité est assurée par RLS (user_id = get_current_user_id())
+    if (!user?.id || teamStatus !== 'verified') {
       logger.info('❌ [GLOBAL-NOTIFICATIONS] Conditions not met, skipping fetch')
       setUnreadCount(0)
       setLoading(false)
@@ -46,49 +49,48 @@ export const useGlobalNotifications = (options: UseGlobalNotificationsOptions = 
       setError(null)
 
       // Récupérer les notifications personnelles non lues
+      // Note: On ne filtre plus par team_id pour les notifications personnelles
+      // car les prestataires/locataires reçoivent des notifs d'autres équipes
       const personalParams = new URLSearchParams({
         limit: '50',
-        team_id: userTeamId,
         scope: 'personal',
         read: 'false'
       })
 
-      // Récupérer les notifications d'équipe non lues
-      const teamParams = new URLSearchParams({
-        limit: '50',
-        team_id: userTeamId,
-        scope: 'team',
-        read: 'false'
+      logger.info('📡 [GLOBAL-NOTIFICATIONS] Fetching personal notifications:', {
+        personalUrl: `/api/notifications?${personalParams}`
       })
 
-      logger.info('📡 [GLOBAL-NOTIFICATIONS] Fetching notifications with params:', {
-        personalUrl: `/api/notifications?${personalParams}`,
-        teamUrl: `/api/notifications?${teamParams}`
-      })
+      // Fetch personal notifications (toujours)
+      const personalResponse = await fetch(`/api/notifications?${personalParams}`)
 
-      const [personalResponse, teamResponse] = await Promise.all([
-        fetch(`/api/notifications?${personalParams}`),
-        fetch(`/api/notifications?${teamParams}`)
-      ])
-
-      if (!personalResponse.ok || !teamResponse.ok) {
-        throw new Error('Failed to fetch notifications count')
+      if (!personalResponse.ok) {
+        throw new Error('Failed to fetch personal notifications count')
       }
 
-      const [personalResult, teamResult] = await Promise.all([
-        personalResponse.json(),
-        teamResponse.json()
-      ])
-
-      logger.info('📬 [GLOBAL-NOTIFICATIONS] API responses:', {
-        personalResult,
-        teamResult,
-        personalStatus: personalResponse.status,
-        teamStatus: teamResponse.status
-      })
-
+      const personalResult = await personalResponse.json()
       const personalCount = personalResult.success ? (personalResult.data || []).length : 0
-      const teamCount = teamResult.success ? (teamResult.data || []).length : 0
+
+      // Fetch team notifications seulement si l'utilisateur a une équipe
+      let teamCount = 0
+      if (hasTeam && userTeamId) {
+        const teamParams = new URLSearchParams({
+          limit: '50',
+          team_id: userTeamId,
+          scope: 'team',
+          read: 'false'
+        })
+
+        logger.info('📡 [GLOBAL-NOTIFICATIONS] Fetching team notifications:', {
+          teamUrl: `/api/notifications?${teamParams}`
+        })
+
+        const teamResponse = await fetch(`/api/notifications?${teamParams}`)
+        if (teamResponse.ok) {
+          const teamResult = await teamResponse.json()
+          teamCount = teamResult.success ? (teamResult.data || []).length : 0
+        }
+      }
 
       logger.info('📊 [GLOBAL-NOTIFICATIONS] Notification counts:', {
         personalCount,
@@ -109,16 +111,17 @@ export const useGlobalNotifications = (options: UseGlobalNotificationsOptions = 
 
 
   // Fetch unread count when all conditions are met
+  // Note: On ne requiert plus userTeamId pour les prestataires/locataires
   useEffect(() => {
-    if (user?.id && teamStatus === 'verified' && hasTeam && userTeamId) {
+    if (user?.id && teamStatus === 'verified') {
       fetchUnreadCount()
     }
-  }, [user?.id, teamStatus, hasTeam, userTeamId])
+  }, [user?.id, teamStatus, fetchUnreadCount])
 
   // Realtime subscription via centralized RealtimeProvider
-  // Note: userId/teamId are handled by RealtimeProvider in layout
+  // Note: On ne requiert plus userTeamId car les prestataires peuvent recevoir des notifs cross-team
   useRealtimeNotificationsV2({
-    enabled: teamStatus === 'verified' && hasTeam && !!userTeamId,
+    enabled: teamStatus === 'verified' && !!user?.id,
     onInsert: useCallback((notification) => {
       logger.info('[GLOBAL-NOTIFICATIONS] New notification received via Realtime v2')
       // Increment unread count if notification is unread

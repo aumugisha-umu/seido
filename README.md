@@ -1071,6 +1071,35 @@ SEIDO utilise **Resend** et **React Email** pour les emails transactionnels avec
 Server Actions → NotificationDispatcher → EmailNotificationService → Resend Batch API
 ```
 
+### 🔗 Magic Links pour Notifications Email (Dec 24, 2025)
+
+**Connexion automatique via liens email** - Les boutons CTA des emails de notification utilisent des magic links Supabase permettant une connexion automatique puis redirection vers la page cible.
+
+**Fonctionnement** :
+1. 📧 L'utilisateur reçoit un email de notification (ex: nouvelle intervention)
+2. 🔗 Le bouton CTA contient un **magic link** avec `token_hash` + `next` parameter
+3. ✅ Clic → Vérification OTP → Session établie → Redirection automatique
+4. 🔄 Fallback gracieux : si génération échoue, URL directe (connexion manuelle)
+
+**Architecture** :
+| Fichier | Rôle |
+|---------|------|
+| `lib/services/domain/magic-link.service.ts` | Génération batch des magic links |
+| `app/auth/email-callback/route.ts` | Callback OTP verification + redirection |
+
+**Sécurité** :
+- ✅ Tokens cryptographiquement sécurisés par Supabase
+- ✅ Validation `next` parameter contre open redirect
+- ✅ Expiration configurable (recommandé: 7 jours via Supabase Dashboard)
+- ✅ Batch generation avec chunking (max 10 concurrents)
+
+**Fonctions batch utilisant magic links** :
+- `sendInterventionCreatedBatch` - Nouvelle intervention
+- `sendInterventionScheduledBatch` - Intervention planifiée
+- `sendInterventionCompletedBatch` - Intervention terminée
+- `sendInterventionStatusChangedBatch` - Changement de statut
+- `sendTimeSlotsProposedBatch` - Créneaux proposés
+
 ---
 
 ## 🔌 API Routes Reference

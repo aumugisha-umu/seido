@@ -15,8 +15,16 @@
 
 'use server'
 
-import { createServerNotificationRepository } from '@/lib/services/repositories/notification-repository'
+import {
+  createServerNotificationRepository,
+  createServerInterventionRepository,
+  createServerUserRepository,
+  createServerBuildingRepository,
+  createServerLotRepository
+} from '@/lib/services'
 import { NotificationService } from '@/lib/services/domain/notification.service'
+import { EmailNotificationService } from '@/lib/services/domain/email-notification.service'
+import { EmailService } from '@/lib/services/domain/email.service'
 import { getServerAuthContext } from '@/lib/server-context'
 import { logger } from '@/lib/logger'
 
@@ -120,6 +128,48 @@ export async function notifyInterventionStatusChange({
       interventionId,
       notificationCount: notifications.length
     }, '✅ [NOTIFICATION-ACTION] Status change notifications created')
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL NOTIFICATIONS: Status change emails
+    // ═══════════════════════════════════════════════════════════════════════════
+    try {
+      const notificationRepository = await createServerNotificationRepository()
+      const interventionRepository = await createServerInterventionRepository()
+      const userRepository = await createServerUserRepository()
+      const buildingRepository = await createServerBuildingRepository()
+      const lotRepository = await createServerLotRepository()
+      const emailService = new EmailService()
+
+      const emailNotificationService = new EmailNotificationService(
+        notificationRepository,
+        emailService,
+        interventionRepository,
+        userRepository,
+        buildingRepository,
+        lotRepository
+      )
+
+      const emailResult = await emailNotificationService.sendInterventionEmails({
+        interventionId,
+        eventType: 'status_changed',
+        excludeUserId: profile.id,  // Don't notify the person who made the change
+        excludeNonPersonal: true,
+        statusChange: {
+          oldStatus,
+          newStatus,
+          reason
+        }
+      })
+
+      logger.info({
+        interventionId,
+        emailsSent: emailResult.sentCount,
+        emailsFailed: emailResult.failedCount
+      }, '📧 [NOTIFICATION-ACTION] Status change emails sent')
+    } catch (emailError) {
+      // Don't fail the action for email errors
+      logger.warn({ emailError, interventionId }, '⚠️ [NOTIFICATION-ACTION] Could not send status change emails')
+    }
 
     return { success: true, data: notifications }
   } catch (error) {

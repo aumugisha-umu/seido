@@ -157,20 +157,24 @@ export function DataTable<T extends Record<string, any>>({
                 <TableBody>
                     {sortedData.map((item, index) => {
                         const visibleActions = getVisibleActions(item)
-                        const itemId = item.id || index
+                        // Utiliser un identifiant unique : id si disponible, sinon index avec préfixe pour éviter les collisions
+                        const itemId = item.id || `row-${index}`
 
                         return (
                             <TableRow key={itemId}>
-                                {columns.map((column, colIndex) => (
-                                    <TableCell key={`${itemId}-${column.id}-${colIndex}`} className={column.className}>
-                                        {column.cell
-                                            ? column.cell(item)
-                                            : column.accessorKey
-                                                ? getNestedValue(item, column.accessorKey as string)
-                                                : null
-                                        }
-                                    </TableCell>
-                                ))}
+                                {columns.map((column, colIndex) => {
+                                    const cellKey = `${itemId}-col-${column.id}-${colIndex}`
+                                    return (
+                                        <TableCell key={cellKey} className={column.className}>
+                                            {column.cell
+                                                ? column.cell(item)
+                                                : column.accessorKey
+                                                    ? getNestedValue(item, column.accessorKey as string)
+                                                    : null
+                                            }
+                                        </TableCell>
+                                    )
+                                })}
                                 {actions.length > 0 && (
                                     <TableCell>
                                         {visibleActions.length > 0 && (
@@ -187,12 +191,14 @@ export function DataTable<T extends Record<string, any>>({
                                                 <DropdownMenuContent align="end">
                                                     {visibleActions.map((action, idx) => {
                                                         const Icon = action.icon
+                                                        const actionKey = action.id || `action-${idx}`
                                                         return (
-                                                            <div key={action.id}>
+                                                            <div key={actionKey}>
                                                                 {idx > 0 && visibleActions[idx - 1]?.variant === 'destructive' && action.variant !== 'destructive' && (
-                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuSeparator key={`separator-${actionKey}`} />
                                                                 )}
                                                                 <DropdownMenuItem
+                                                                    key={`item-${actionKey}`}
                                                                     onClick={() => action.onClick(item)}
                                                                     className={action.className}
                                                                 >

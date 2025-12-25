@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { buildingsTableConfig, lotsTableConfig, type BuildingData, type LotData } from '@/config/table-configs/patrimoine.config'
-import { useViewMode } from '@/hooks/use-view-mode'
+import { useDataNavigator } from '@/hooks/use-data-navigator'
 import { DataTable } from '@/components/ui/data-table/data-table'
 import { DataCards } from '@/components/ui/data-table/data-cards'
 import { Building2, Home, Search, Filter, LayoutGrid, List } from 'lucide-react'
@@ -36,34 +36,25 @@ export function PatrimoineNavigator({
     className
 }: PatrimoineNavigatorProps) {
     const [activeTab, setActiveTab] = useState<'buildings' | 'lots'>('buildings')
-    const [searchTerm, setSearchTerm] = useState('')
-
-    // View mode state
-    const { viewMode, setViewMode, mounted } = useViewMode({
-        defaultMode: 'cards',
-        syncWithUrl: false
-    })
 
     // Get current config and data based on active tab
     const currentConfig = activeTab === 'buildings' ? buildingsTableConfig : lotsTableConfig
     const currentData = activeTab === 'buildings' ? buildings : lots
 
-    // Apply search filter
-    const getNestedValue = (obj: any, path: string): any => {
-        return path.split('.').reduce((current, key) => current?.[key], obj)
-    }
-
-    const filteredData = useMemo(() => {
-        if (!searchTerm.trim()) return currentData
-
-        const searchLower = searchTerm.toLowerCase()
-        return currentData.filter(item => {
-            return currentConfig.searchConfig.searchableFields.some(field => {
-                const value = getNestedValue(item, field as string)
-                return value?.toString().toLowerCase().includes(searchLower)
-            })
-        })
-    }, [currentData, searchTerm, currentConfig])
+    // Use shared hook for search, view mode, and filtering
+    const {
+        searchTerm,
+        setSearchTerm,
+        viewMode,
+        setViewMode,
+        mounted,
+        filteredData,
+        createRowClickHandler
+    } = useDataNavigator({
+        data: currentData,
+        searchableFields: currentConfig.searchConfig.searchableFields as string[],
+        defaultView: 'cards'
+    })
 
     // Render content based on view mode
     const renderContent = (data: any[], config: typeof buildingsTableConfig | typeof lotsTableConfig) => {
@@ -90,6 +81,7 @@ export function PatrimoineNavigator({
                     actions={config.actions}
                     loading={loading}
                     emptyMessage={emptyConfig.description}
+                    onRowClick={createRowClickHandler(config.rowHref)}
                 />
             )
         }

@@ -106,15 +106,106 @@ export default async function ContactDetailsPage({ params }: PageProps) {
   // ============================================================================
   // ÉTAPE 3 : Fetch Related Data (Parallel pour performance)
   // ============================================================================
-  const [interventionsResult, buildingsResult, lotsResult] = await Promise.all([
+  const [interventionsResult, buildingsResult, lotsResult, contractContactsResult] = await Promise.all([
     supabase.from('interventions').select('*, lot(*, building(*))'),
     supabase.from('buildings').select('*'),
-    supabase.from('lots').select('*, building(*), lot_contacts(*, user(*))')
+    supabase.from('lots').select('*, building(*), lot_contacts(*, user(*))'),
+    // Fetch contracts where this contact is tenant/guarantor
+    supabase.from('contract_contacts').select(`
+      id,
+      role,
+      is_primary,
+      contract:contract_id(
+        id,
+        title,
+        status,
+        start_date,
+        end_date,
+        rent_amount,
+        charges_amount,
+        lot:lot_id(
+          id,
+          reference,
+          category,
+          street,
+          city,
+          building:building_id(id, name, address, city)
+        ),
+        contacts:contract_contacts(
+          id,
+          user_id,
+          role,
+          is_primary
+        )
+      )
+    `).eq('user_id', resolvedParams.id)
   ])
 
   const allInterventions = interventionsResult.data || []
   const allBuildings = buildingsResult.data || []
   const allLots = lotsResult.data || []
+  const contactContracts = contractContactsResult.data || []
+
+  // ============================================================================
+  // ÉTAPE 3.5 : Process Contracts (tenant/guarantor + owner via lots)
+  // ============================================================================
+  // 1. Contracts where contact is tenant/guarantor (from contract_contacts)
+  const tenantGuarantorContracts = contactContracts
+    .filter(cc => cc.contract) // Only if contract exists
+    .map(cc => ({
+      ...cc.contract,
+      contactRole: cc.role as string // Store the contact's role in this contract
+    }))
+
+  // 2. Find lots where contact is owner
+  const ownedLotIds = allLots
+    .filter(lot =>
+      lot.lot_contacts?.some(lc =>
+        lc.user?.id === resolvedParams.id && lc.type === 'owner'
+      )
+    )
+    .map(lot => lot.id)
+
+  // 3. Fetch contracts for owned lots (if any)
+  let ownerContracts: any[] = []
+  if (ownedLotIds.length > 0) {
+    const { data: ownerContractsData } = await supabase
+      .from('contracts')
+      .select(`
+        id,
+        title,
+        status,
+        start_date,
+        end_date,
+        rent_amount,
+        charges_amount,
+        lot:lot_id(
+          id,
+          reference,
+          category,
+          street,
+          city,
+          building:building_id(id, name, address, city)
+        ),
+        contacts:contract_contacts(
+          id,
+          user_id,
+          role,
+          is_primary
+        )
+      `)
+      .in('lot_id', ownedLotIds)
+      .is('deleted_at', null)
+
+    ownerContracts = (ownerContractsData || []).map(c => ({
+      ...c,
+      contactRole: 'owner' as string
+    }))
+  }
+
+  // 4. Merge and deduplicate contracts
+  const allContracts = [...tenantGuarantorContracts, ...ownerContracts]
+    .filter((c, i, arr) => arr.findIndex(x => x.id === c.id) === i) // Remove duplicates
 
   // ============================================================================
   // ÉTAPE 4 : Filter Data by Contact Role (Business Logic Server-side)
@@ -193,6 +284,7 @@ export default async function ContactDetailsPage({ params }: PageProps) {
       initialContact={contact}
       initialInterventions={interventions}
       initialProperties={properties}
+      initialContracts={allContracts}
       initialInvitationStatus={invitationStatus}
       currentUser={{
         id: currentUser.id,

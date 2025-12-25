@@ -20,6 +20,7 @@ import {
     DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu'
 import { MoreVertical, ArrowUpDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import type { ColumnDef, ActionConfig } from './types'
 
 interface DataTableProps<T = any> {
@@ -29,6 +30,8 @@ interface DataTableProps<T = any> {
     loading?: boolean
     emptyMessage?: string
     onSort?: (columnId: string, direction: 'asc' | 'desc') => void
+    /** Callback when a row is clicked - enables clickable rows with hover styling */
+    onRowClick?: (item: T) => void
 }
 
 export function DataTable<T extends Record<string, any>>({
@@ -37,7 +40,8 @@ export function DataTable<T extends Record<string, any>>({
     actions = [],
     loading = false,
     emptyMessage = 'Aucune donnée disponible',
-    onSort
+    onSort,
+    onRowClick
 }: DataTableProps<T>) {
     const [sortColumn, setSortColumn] = useState<string | null>(null)
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
@@ -161,7 +165,13 @@ export function DataTable<T extends Record<string, any>>({
                         const itemId = item.id || `row-${index}`
 
                         return (
-                            <TableRow key={itemId}>
+                            <TableRow
+                                key={itemId}
+                                className={cn(
+                                    onRowClick && "cursor-pointer hover:bg-slate-50 transition-colors"
+                                )}
+                                onClick={() => onRowClick?.(item)}
+                            >
                                 {columns.map((column, colIndex) => {
                                     const cellKey = `${itemId}-col-${column.id}-${colIndex}`
                                     return (
@@ -183,6 +193,7 @@ export function DataTable<T extends Record<string, any>>({
                                                     <Button
                                                         variant="ghost"
                                                         className="h-8 w-8 p-0"
+                                                        onClick={(e) => e.stopPropagation()}
                                                     >
                                                         <span className="sr-only">Ouvrir le menu</span>
                                                         <MoreVertical className="h-4 w-4" />

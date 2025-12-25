@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -12,11 +13,10 @@ import {
     type InvitationData,
     type CompanyData
 } from '@/config/table-configs/contacts.config'
-import { useViewMode } from '@/hooks/use-view-mode'
+import { useDataNavigator } from '@/hooks/use-data-navigator'
 import { DataTable } from '@/components/ui/data-table/data-table'
 import { DataCards } from '@/components/ui/data-table/data-cards'
 import { Users, Send, Building2, Search, Filter, LayoutGrid, List, UserPlus, Trash2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
 import {
     Popover,
     PopoverContent,
@@ -66,14 +66,6 @@ export function ContactsNavigator({
 }: ContactsNavigatorProps) {
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<'contacts' | 'invitations' | 'companies'>('contacts')
-    const [searchTerm, setSearchTerm] = useState('')
-    const [activeFilters, setActiveFilters] = useState<Record<string, string>>({})
-
-    // View mode state
-    const { viewMode, setViewMode, mounted } = useViewMode({
-        defaultMode: 'cards',
-        syncWithUrl: false
-    })
 
     // Get current config and data based on active tab
     const getCurrentConfig = () => {
@@ -120,55 +112,24 @@ export function ContactsNavigator({
     const currentConfig = getCurrentConfig()
     const currentData = getCurrentData()
 
-    // Apply search filter
-    const getNestedValue = (obj: any, path: string): any => {
-        return path.split('.').reduce((current: any, key: string) => current?.[key], obj)
-    }
-
-    const filteredData = useMemo(() => {
-        let data = currentData
-
-        // Apply search
-        if (searchTerm.trim()) {
-            const searchLower = searchTerm.toLowerCase()
-            data = data.filter((item: any) => {
-                return currentConfig.searchConfig.searchableFields.some(field => {
-                    const value = getNestedValue(item, field as string)
-                    return value?.toString().toLowerCase().includes(searchLower)
-                })
-            })
-        }
-
-        // Apply filters
-        if (currentConfig.filters) {
-            Object.entries(activeFilters).forEach(([filterId, filterValue]) => {
-                if (filterValue && filterValue !== 'all') {
-                    data = data.filter((item: any) => {
-                        const value = getNestedValue(item, filterId)
-                        return value === filterValue
-                    })
-                }
-            })
-        }
-
-        return data
-    }, [currentData, searchTerm, currentConfig, activeFilters])
-
-    // Count active filters
-    const activeFilterCount = Object.values(activeFilters).filter(v => v && v !== 'all').length
-
-    // Handle filter change
-    const handleFilterChange = (filterId: string, value: string) => {
-        setActiveFilters(prev => ({
-            ...prev,
-            [filterId]: value
-        }))
-    }
-
-    // Reset filters
-    const resetFilters = () => {
-        setActiveFilters({})
-    }
+    // Use shared hook for search, view mode, and filtering
+    const {
+        searchTerm,
+        setSearchTerm,
+        activeFilters,
+        handleFilterChange,
+        resetFilters,
+        activeFilterCount,
+        viewMode,
+        setViewMode,
+        mounted,
+        filteredData,
+        createRowClickHandler
+    } = useDataNavigator({
+        data: currentData,
+        searchableFields: currentConfig.searchConfig.searchableFields as string[],
+        defaultView: 'cards'
+    })
 
     // Render content based on view mode
     const renderContent = (data: any[], config: any) => {
@@ -195,6 +156,7 @@ export function ContactsNavigator({
                     actions={config.actions}
                     loading={loading}
                     emptyMessage={emptyConfig.description}
+                    onRowClick={createRowClickHandler(config.rowHref)}
                 />
             )
         }
@@ -214,8 +176,7 @@ export function ContactsNavigator({
     // Handle tab change
     const handleTabChange = (value: string) => {
         setActiveTab(value as 'contacts' | 'invitations' | 'companies')
-        setSearchTerm('') // Reset search when switching tabs
-        setActiveFilters({}) // Reset filters when switching tabs
+        resetFilters() // Reset search and filters when switching tabs
     }
 
     // ========================================

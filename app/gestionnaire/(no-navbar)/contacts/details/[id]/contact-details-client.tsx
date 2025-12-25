@@ -25,7 +25,8 @@ import {
   Archive,
   Edit as EditIcon,
   Trash2,
-  Send
+  Send,
+  ScrollText
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
@@ -44,11 +45,43 @@ import { useToast } from "@/hooks/use-toast"
 // TYPES & CONSTANTS
 // ============================================================================
 
+// Type for contracts passed from server
+interface LinkedContract {
+  id: string
+  title: string | null
+  status: string
+  start_date: string
+  end_date: string | null
+  rent_amount: number | null
+  charges_amount: number | null
+  contactRole: string // 'locataire' | 'colocataire' | 'garant' | 'owner' etc.
+  lot?: {
+    id: string
+    reference: string
+    category: string
+    street: string | null
+    city: string | null
+    building?: {
+      id: string
+      name: string
+      address: string | null
+      city: string | null
+    } | null
+  } | null
+  contacts?: Array<{
+    id: string
+    user_id: string
+    role: string
+    is_primary: boolean
+  }>
+}
+
 interface ContactDetailsClientProps {
   contactId: string
   initialContact: ContactType
   initialInterventions: InterventionType[]
   initialProperties: Array<(LotType & { type: 'lot' }) | (BuildingType & { type: 'building' })>
+  initialContracts?: LinkedContract[]
   initialInvitationStatus?: string | null
   currentUser: {
     id: string
@@ -90,6 +123,7 @@ export function ContactDetailsClient({
   initialContact,
   initialInterventions,
   initialProperties,
+  initialContracts = [],
   initialInvitationStatus,
   currentUser
 }: ContactDetailsClientProps) {
@@ -893,6 +927,82 @@ export function ContactDetailsClient({
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Contrats Liés - Full width, only if contracts exist */}
+                {initialContracts.length > 0 && (
+                  <Card className="lg:col-span-3">
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-foreground">
+                        <ScrollText className="h-5 w-5 text-muted-foreground" />
+                        <span>Contrats Liés ({initialContracts.length})</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {initialContracts.map(contract => (
+                          <div
+                            key={contract.id}
+                            className="flex items-center justify-between p-3 rounded-lg border border-border cursor-pointer hover:bg-muted/50 transition-colors"
+                            onClick={() => router.push(`/gestionnaire/contrats/${contract.id}`)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                                <ScrollText className="h-5 w-5 text-blue-600" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-foreground">
+                                  {contract.title || `Contrat ${contract.lot?.reference || ''}`}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {contract.lot?.reference && `${contract.lot.reference} • `}
+                                  {contract.lot?.building?.name || contract.lot?.city || 'Bien non spécifié'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {/* Role badge */}
+                              <Badge variant="outline" className={
+                                contract.contactRole === 'locataire' || contract.contactRole === 'colocataire'
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : contract.contactRole === 'garant'
+                                    ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                    : contract.contactRole === 'owner'
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                      : 'bg-gray-50 text-gray-700 border-gray-200'
+                              }>
+                                {contract.contactRole === 'locataire' ? 'Locataire' :
+                                 contract.contactRole === 'colocataire' ? 'Co-locataire' :
+                                 contract.contactRole === 'garant' ? 'Garant' :
+                                 contract.contactRole === 'owner' ? 'Propriétaire' :
+                                 contract.contactRole}
+                              </Badge>
+                              {/* Status badge */}
+                              <Badge variant={contract.status === 'actif' ? 'default' : 'secondary'} className={
+                                contract.status === 'actif'
+                                  ? 'bg-green-100 text-green-800'
+                                  : contract.status === 'a_venir'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-600'
+                              }>
+                                {contract.status === 'actif' ? 'Actif' :
+                                 contract.status === 'a_venir' ? 'À venir' :
+                                 contract.status === 'expire' ? 'Expiré' :
+                                 contract.status === 'resilie' ? 'Résilié' :
+                                 contract.status === 'brouillon' ? 'Brouillon' :
+                                 contract.status}
+                              </Badge>
+                              {/* Dates */}
+                              <span className="text-sm text-muted-foreground hidden sm:inline">
+                                {new Date(contract.start_date).toLocaleDateString('fr-FR')}
+                                {contract.end_date && ` → ${new Date(contract.end_date).toLocaleDateString('fr-FR')}`}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </TabsContent>
 

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck, Info, Building2, MapPin, Calendar, User, Archive, Edit as EditIcon, Trash2, Home, ScrollText, Shield } from "lucide-react"
+import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck, Info, Building2, MapPin, Calendar, Archive, Edit as EditIcon, Trash2, Home, ScrollText, Shield } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { determineAssignmentType } from '@/lib/services'
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
@@ -17,6 +17,7 @@ import type { Lot } from '@/lib/services'
 import { LotStatsBadges } from './lot-stats-badges'
 import { LotContactsGridPreview } from '@/components/ui/lot-contacts-grid-preview'
 import { ContractsNavigator } from '@/components/contracts/contracts-navigator'
+import { ContactCardCompact } from '@/components/contacts/contact-card-compact'
 import type { ContractWithRelations } from '@/lib/types/contract.types'
 
 // Helper function to get French label for lot category
@@ -599,24 +600,17 @@ export default function LotDetailsClient({
                               </div>
                               <div className="space-y-1.5">
                                 {contract.tenants.map((contact, idx) => (
-                                  <div
+                                  <ContactCardCompact
                                     key={`${contact.id}-${idx}`}
-                                    className="flex items-center gap-2 p-2 rounded-md bg-muted/50"
-                                  >
-                                    <div className="flex-shrink-0 h-7 w-7 rounded-full bg-green-100 flex items-center justify-center">
-                                      <User className="h-3.5 w-3.5 text-green-600" />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="text-sm font-medium text-foreground truncate">
-                                        {contact.name}
-                                      </p>
-                                      {contact.email && (
-                                        <p className="text-xs text-muted-foreground truncate">
-                                          {contact.email}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
+                                    contact={{
+                                      id: contact.id,
+                                      name: contact.name,
+                                      email: contact.email,
+                                      phone: contact.phone,
+                                      role: 'tenant'
+                                    }}
+                                    variant="inline"
+                                  />
                                 ))}
                               </div>
                             </div>
@@ -633,24 +627,17 @@ export default function LotDetailsClient({
                               </div>
                               <div className="space-y-1.5">
                                 {contract.guarantors.map((contact, idx) => (
-                                  <div
+                                  <ContactCardCompact
                                     key={`${contact.id}-${idx}`}
-                                    className="flex items-center gap-2 p-2 rounded-md bg-muted/50"
-                                  >
-                                    <div className="flex-shrink-0 h-7 w-7 rounded-full bg-blue-100 flex items-center justify-center">
-                                      <Shield className="h-3.5 w-3.5 text-blue-600" />
-                                    </div>
-                                    <div className="min-w-0 flex-1">
-                                      <p className="text-sm font-medium text-foreground truncate">
-                                        {contact.name}
-                                      </p>
-                                      {contact.email && (
-                                        <p className="text-xs text-muted-foreground truncate">
-                                          {contact.email}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
+                                    contact={{
+                                      id: contact.id,
+                                      name: contact.name,
+                                      email: contact.email,
+                                      phone: contact.phone,
+                                      role: 'other' // Garant n'est pas un rôle standard, utiliser 'other'
+                                    }}
+                                    variant="inline"
+                                  />
                                 ))}
                               </div>
                             </div>

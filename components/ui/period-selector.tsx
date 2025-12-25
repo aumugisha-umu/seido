@@ -142,7 +142,7 @@ export function PeriodSelector({
     // Full select for desktop
     return (
         <Select value={value} onValueChange={(v) => handleChange(v as PeriodValue)}>
-            <SelectTrigger className={cn("w-[160px] rounded-xl", className)}>
+            <SelectTrigger className={cn("w-[160px] rounded-xl bg-white border-input", className)}>
                 <Calendar className="h-4 w-4 mr-2 text-muted-foreground" />
                 <SelectValue placeholder="Période">
                     {selectedOption?.label}

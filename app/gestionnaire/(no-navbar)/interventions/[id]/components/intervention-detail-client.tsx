@@ -1123,7 +1123,7 @@ export function InterventionDetailClient({
       {/* Unified Detail Page Header */}
       <DetailPageHeader
         onBack={() => router.push('/gestionnaire/interventions')}
-        backButtonText="Retour aux interventions"
+        backButtonText="Retour"
         title={intervention.title}
         badges={headerBadges}
         metadata={headerMetadata}

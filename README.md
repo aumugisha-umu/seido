@@ -1852,13 +1852,29 @@ npm run build
 
 ### Statut des Migrations
 
-| Phase | Description | Migrations | Tables | Statut |
-|-------|-------------|------------|--------|--------|
-| **Phase 1** | Users, Teams, Companies, Invitations | 15 migrations | `users`, `teams`, `team_members`, `companies`, `user_invitations` | ✅ Appliquée |
-| **Phase 2** | Buildings, Lots, Property Documents | 18 migrations | `buildings`, `lots`, `building_contacts`, `lot_contacts`, `property_documents` | ✅ Appliquée |
-| **Phase 3** | Interventions, Quotes, Chat, Notifications | 50 migrations | `interventions`, `intervention_assignments`, `intervention_quotes`, `intervention_time_slots`, `time_slot_responses`, `intervention_documents`, `intervention_comments`, `conversation_threads`, `conversation_messages`, `notifications`, `activity_logs`, `push_subscriptions` | ✅ Appliquée |
-| **Phase 4** | Contracts, Contract Contacts, Contract Documents | 2 migrations | `contracts`, `contract_contacts`, `contract_documents` | ✅ Appliquée |
-| **TOTAL** | **4 phases complètes** | **85 migrations SQL** | **27 tables principales** | ✅ **Production** |
+| Phase | Description | Tables | Statut |
+|-------|-------------|--------|--------|
+| **Phase 1** | Users, Teams, Companies, Invitations | `users`, `teams`, `team_members`, `companies`, `user_invitations`, `company_members` | ✅ Appliquée |
+| **Phase 2** | Buildings, Lots, Property Documents | `buildings`, `lots`, `building_contacts`, `lot_contacts`, `property_documents` | ✅ Appliquée |
+| **Phase 3** | Interventions, Quotes, Chat, Notifications | `interventions`, `intervention_assignments`, `intervention_quotes`, `intervention_time_slots`, `time_slot_responses`, `intervention_documents`, `intervention_comments`, `intervention_links`, `conversation_threads`, `conversation_messages`, `notifications`, `activity_logs`, `push_subscriptions` | ✅ Appliquée |
+| **Phase 4** | Contracts, Contract Contacts, Contract Documents | `contracts`, `contract_contacts`, `contract_documents`, `import_jobs` | ✅ Appliquée |
+| **Optim** | Dénormalisation RLS + Vues _active | `*_active` views | ✅ Appliquée (2025-12-26) |
+| **TOTAL** | **4 phases + optimisations** | **35 tables + 4 vues** | ✅ **Production** |
+
+### Optimisations RLS (2025-12-26)
+
+| Optimisation | Description | Impact |
+|--------------|-------------|--------|
+| **Dénormalisation team_id** | Ajout de `team_id` sur 4 tables (`conversation_messages`, `building_contacts`, `lot_contacts`, `intervention_time_slots`) | Élimine 1-3 JOINs par requête RLS |
+| **Triggers automatiques** | Synchronisation `team_id` via triggers BEFORE INSERT | Transparence totale pour le code applicatif |
+| **Vues _active** | 4 vues pré-filtrées `WHERE deleted_at IS NULL` | Simplifie les requêtes, évite les oublis |
+| **147+ indexes** | Indexes partiels, composites, covering | Optimisation des politiques RLS |
+
+**Vues disponibles :**
+- `interventions_active` - Interventions non supprimées
+- `buildings_active` - Immeubles actifs
+- `lots_active` - Lots actifs
+- `contracts_active` - Contrats actifs
 
 ### Schéma Principal
 

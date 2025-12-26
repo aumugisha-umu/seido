@@ -359,7 +359,7 @@ export function EditContactClient({
             <StepProgressHeader
                 title="Modifier le contact"
                 subtitle={getStepSubtitle()}
-                backButtonText="Retour à la liste"
+                backButtonText="Retour"
                 onBack={() => router.push('/gestionnaire/contacts')}
                 steps={contactSteps}
                 currentStep={currentStep}

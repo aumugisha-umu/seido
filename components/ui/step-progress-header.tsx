@@ -81,15 +81,16 @@ export const StepProgressHeader = ({
               />
             </Link>
 
-            {/* Back Button (Material Design 3 "Leading" position) */}
+            {/* Back Button - Material Design 3 Leading Navigation */}
             <Button
               variant="ghost"
               size="default"
               onClick={onBack}
-              className="flex-shrink-0 hover:bg-gray-100"
+              className="flex-shrink-0 text-gray-700 hover:text-gray-900 hover:bg-gray-100/80 active:bg-gray-200/80 transition-colors duration-200 h-10 px-3 -ml-1"
+              aria-label={backButtonText}
             >
-              <ArrowLeft className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">{backButtonText}</span>
+              <ArrowLeft className="h-5 w-5 sm:mr-2" />
+              <span className="hidden sm:inline text-sm font-medium">{backButtonText}</span>
             </Button>
           </div>
 

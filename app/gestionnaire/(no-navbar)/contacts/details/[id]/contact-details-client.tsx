@@ -692,7 +692,7 @@ export function ContactDetailsClient({
       {/* Unified Detail Page Header */}
       <DetailPageHeader
         onBack={handleBack}
-        backButtonText="Retour aux contacts"
+        backButtonText="Retour"
         title={contact.name}
         badges={headerBadges}
         metadata={headerMetadata}

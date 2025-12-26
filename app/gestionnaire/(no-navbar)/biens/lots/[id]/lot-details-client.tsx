@@ -451,7 +451,7 @@ export default function LotDetailsClient({
       {/* Unified Detail Page Header */}
       <DetailPageHeader
         onBack={handleBack}
-        backButtonText="Retour aux biens"
+        backButtonText="Retour"
         title={lot.reference}
         subtitle={lot.surface_area || lot.rooms ? `${lot.surface_area ? lot.surface_area + ' m²' : ''} ${lot.surface_area && lot.rooms ? '·' : ''} ${lot.rooms ? lot.rooms + ' pièces' : ''}`.trim() : undefined}
         badges={headerBadges}

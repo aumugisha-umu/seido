@@ -204,6 +204,19 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
           id,
           is_primary,
           user:user_id(id, name, email, phone, role, provider_category)
+        ),
+        contracts(
+          id,
+          title,
+          status,
+          start_date,
+          end_date,
+          contacts:contract_contacts(
+            id,
+            role,
+            is_primary,
+            user:user_id(id, name, email, phone, role)
+          )
         )
       `)
       .eq('team_id', teamId)
@@ -222,13 +235,19 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
       const isOccupied = tenants.length > 0
 
+      // Filter only active contracts (status = 'actif' or 'a_venir')
+      const activeContracts = lot.contracts?.filter((contract: any) =>
+        contract.status === 'actif' || contract.status === 'a_venir'
+      ) || []
+
       return {
         ...lot,
         tenant: tenants.find((contact: LotContact) => contact.is_primary)?.user ||
           tenants[0]?.user || null,
         is_occupied: isOccupied,
         status: isOccupied ? 'occupied' : 'vacant', // Add status field for compatibility
-        tenants: tenants.map((contact: LotContact) => contact.user).filter((user): user is User => !!user)
+        tenants: tenants.map((contact: LotContact) => contact.user).filter((user): user is User => !!user),
+        contracts: activeContracts // Only include active contracts
       }
     })
 

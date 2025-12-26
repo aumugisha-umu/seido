@@ -1085,7 +1085,7 @@ export default function NouvelleInterventionClient({
       <StepProgressHeader
         title="Créer une intervention"
         subtitle={getHeaderSubtitle()}
-        backButtonText="Retour aux interventions"
+        backButtonText="Retour"
         onBack={() => router.back()}
         steps={interventionSteps}
         currentStep={currentStep}

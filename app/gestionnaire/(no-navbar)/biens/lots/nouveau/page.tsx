@@ -2334,7 +2334,7 @@ export default function NewLotPage() {
 
   // Déterminer le texte et la destination du bouton retour
   const buildingIdParam = searchParams.get("buildingId")
-  const backButtonText = buildingIdParam ? "Retour à l'immeuble" : "Retour aux biens"
+  const backButtonText = "Retour"
   const backDestination = buildingIdParam
     ? `/gestionnaire/biens/immeubles/${buildingIdParam}`
     : "/gestionnaire/biens"

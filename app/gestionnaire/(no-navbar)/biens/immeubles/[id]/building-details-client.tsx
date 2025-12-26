@@ -1,23 +1,21 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Eye, FileText, Wrench, Plus, Home, Info, Building2, MapPin, Calendar, User, Archive, Edit as EditIcon, Trash2 } from "lucide-react"
-import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
+import { Eye, FileText, Wrench, Plus, Home, Info, Building2, MapPin, Calendar, User, Archive, Edit as EditIcon } from "lucide-react"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
 import { BuildingContactsNavigator } from "@/components/contacts/building-contacts-navigator"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { logger } from '@/lib/logger'
-import { deleteBuildingAction } from './actions'
 import type { Building, Lot } from '@/lib/services'
 import { BuildingStatsBadges } from './building-stats-badges'
 import { ContactsGridPreview } from '@/components/ui/contacts-grid-preview'
-import { LotsWithContactsPreview } from '@/components/ui/lots-with-contacts-preview'
+import { BuildingLotsGrid } from '@/components/patrimoine/lot-card-unified'
 
 interface BuildingContact {
   id: string
@@ -50,6 +48,28 @@ interface LotContact {
   }
 }
 
+// ✅ 2025-12-26: Added contracts to show tenants/guarantors from active contracts
+interface ContractContact {
+  id: string
+  role: 'locataire' | 'colocataire' | 'garant' | 'representant_legal' | 'autre'
+  is_primary?: boolean
+  user: {
+    id: string
+    name: string
+    email: string | null
+    phone?: string | null
+  }
+}
+
+interface LotContract {
+  id: string
+  title: string
+  status: string
+  start_date: string
+  end_date: string
+  contacts: ContractContact[]
+}
+
 interface LotWithContacts {
   id: string
   reference: string
@@ -57,6 +77,7 @@ interface LotWithContacts {
   floor: number
   door_number: string
   lot_contacts: LotContact[]
+  contracts?: LotContract[]  // Contracts with their contacts (tenants, guarantors)
 }
 
 interface BuildingDetailsClientProps {
@@ -82,10 +103,11 @@ export default function BuildingDetailsClient({
 }: BuildingDetailsClientProps) {
   const [activeTab, setActiveTab] = useState("overview")
   const router = useRouter()
+  const searchParams = useSearchParams()
 
-  // Delete modal states
-  const [showDeleteModal, setShowDeleteModal] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
+  // Read expandLot param from URL (for return navigation from contract edit)
+  const expandLotId = searchParams.get('expandLot')
+
   const [error, setError] = useState<string | null>(null)
 
   // Contacts count state
@@ -170,31 +192,6 @@ export default function BuildingDetailsClient({
       totalInterventions,
       activeInterventions,
       interventionStats
-    }
-  }
-
-  const confirmDelete = async () => {
-    if (!building?.id) return
-
-    try {
-      setIsDeleting(true)
-      logger.info("🗑️ Deleting building:", building.id)
-
-      const deleteResult = await deleteBuildingAction(building.id)
-
-      if (!deleteResult.success) {
-        throw new Error(deleteResult.error?.message || 'Failed to delete building')
-      }
-
-      // Redirect to buildings list after successful deletion
-      router.push('/gestionnaire/biens')
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      logger.error("❌ Error deleting building:", errorMessage)
-      setError(`Erreur lors de la suppression de l'immeuble: ${errorMessage}`)
-      setIsDeleting(false)
-      setShowDeleteModal(false)
     }
   }
 
@@ -377,48 +374,35 @@ export default function BuildingDetailsClient({
     building.address && {
       icon: MapPin,
       text: `${building.address}, ${building.city || ''}`
-    },
-    building.created_at && {
-      icon: Calendar,
-      text: `Créé le ${new Date(building.created_at).toLocaleDateString('fr-FR')}`
-    },
-    (building as { manager?: { name: string } }).manager?.name && {
-      icon: User,
-      text: (building as { manager?: { name: string } }).manager?.name || ''
     }
   ].filter(Boolean) as DetailPageHeaderMetadata[]
 
   const primaryActions: DetailPageHeaderAction[] = [
     {
-      label: 'Modifier',
-      icon: EditIcon,
-      onClick: handleEdit,
-      variant: 'outline'
-    },
-    {
       label: 'Créer intervention',
       icon: Plus,
       onClick: () => handleCustomAction('add-intervention'),
+      variant: 'default'
+    }
+  ]
+
+  const dropdownActions: DetailPageHeaderAction[] = [
+    {
+      label: 'Modifier',
+      icon: EditIcon,
+      onClick: handleEdit,
       variant: 'default'
     },
     {
       label: 'Ajouter lot',
       icon: Home,
       onClick: () => handleCustomAction('add-lot'),
-      variant: 'outline'
-    }
-  ]
-
-  const dropdownActions: DetailPageHeaderAction[] = [
+      variant: 'default'
+    },
     {
       label: 'Archiver',
       icon: Archive,
       onClick: () => logger.info("Archive building:", building.id)
-    },
-    {
-      label: 'Supprimer',
-      icon: Trash2,
-      onClick: () => setShowDeleteModal(true)
     }
   ]
 
@@ -427,7 +411,7 @@ export default function BuildingDetailsClient({
       {/* Unified Detail Page Header */}
       <DetailPageHeader
         onBack={handleBack}
-        backButtonText="Retour aux biens"
+        backButtonText="Retour"
         title={building.name}
         badges={headerBadges}
         metadata={headerMetadata}
@@ -536,7 +520,7 @@ export default function BuildingDetailsClient({
                     minHeight: '200px'
                   }}
                 >
-                  <LotsWithContactsPreview
+                  <BuildingLotsGrid
                     buildingId={building.id}
                     lots={lotsWithContacts as any}
                     lotContactIdsMap={lotContactIdsMap}
@@ -546,6 +530,7 @@ export default function BuildingDetailsClient({
                     buildingProviders={providers}
                     buildingOwners={owners}
                     buildingOthers={others}
+                    initialExpandedLotId={expandLotId}
                   />
                 </div>
               </div>
@@ -597,19 +582,6 @@ export default function BuildingDetailsClient({
             </Tabs>
           </CardContent>
         </Card>
-
-        {/* Delete Confirmation Modal */}
-        <DeleteConfirmModal
-          isOpen={showDeleteModal}
-          onClose={() => setShowDeleteModal(false)}
-          onConfirm={confirmDelete}
-          title="Confirmer la suppression"
-          message="Êtes-vous sûr de vouloir supprimer cet immeuble ? Cette action supprimera également tous les lots associés et leurs données."
-          itemName={building?.name}
-          itemType="immeuble"
-          isLoading={isDeleting}
-          danger={true}
-        />
       </div>
     </>
   )

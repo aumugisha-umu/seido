@@ -1,7 +1,7 @@
 import { Building2, Home, MapPin, Users, AlertCircle, Eye, Edit, Archive } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { BuildingCardCompact } from '@/components/patrimoine/building-card-compact'
-import { LotCardCompact } from '@/components/patrimoine/lot-card-compact'
+import { LotCardWrapper } from '@/components/patrimoine/lot-card-unified'
 import { getLotCategoryConfig } from '@/lib/lot-types'
 import type { DataTableConfig } from '@/components/data-navigator/types'
 
@@ -28,7 +28,10 @@ export interface LotData {
     rooms?: number
     status?: string
     is_occupied?: boolean
-    lot_contacts?: Array<{ user?: { id: string; name: string; role: string } }>
+    lot_contacts?: Array<{
+        id?: string
+        user?: { id: string; name: string; email?: string; phone?: string; role: string }
+    }>
     building?: {
         id: string
         name: string
@@ -37,6 +40,20 @@ export interface LotData {
     }
     building_name?: string
     interventions_count?: number
+    // Contracts with contacts for expanded view
+    contracts?: Array<{
+        id: string
+        title: string
+        status: string
+        start_date?: string
+        end_date?: string
+        contacts?: Array<{
+            id: string
+            role: string
+            is_primary?: boolean
+            user: { id: string; name: string; email?: string; phone?: string; role?: string }
+        }>
+    }>
 }
 
 /**
@@ -381,7 +398,7 @@ export const lotsTableConfig: DataTableConfig<LotData> = {
     views: {
         card: {
             enabled: true,
-            component: LotCardCompact,
+            component: LotCardWrapper,
             compact: true
         },
         list: {

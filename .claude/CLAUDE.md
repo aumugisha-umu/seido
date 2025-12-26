@@ -240,21 +240,53 @@ lib/services/        # Repository Pattern architecture
 docs/refacto/Tests/  # E2E test infrastructure (helpers, fixtures, suites)
 ```
 
-### Database Migration Status (2025-10-11)
+### Database Migration Status (2025-12-26)
 - ✅ **Phase 1**: Users, Teams, Companies, Invitations **(Applied)**
 - ✅ **Phase 2**: Buildings, Lots, Property Documents **(Applied)**
-- ⏳ **Phase 3**: Interventions + Document Sharing **(Planned)**
+- ✅ **Phase 3**: Interventions, Chat, Notifications **(Applied)**
+- ✅ **Phase 4**: Contracts, Contract Documents **(Applied)**
+- ✅ **Optimisations RLS**: Dénormalisation team_id + Vues _active **(Applied 2025-12-26)**
 
-**Key Tables** (Phase 1+2):
-- `users`, `teams`, `team_members`, `companies`, `user_invitations`
-- `buildings`, `lots`, `building_contacts`, `lot_contacts`, `property_documents`
+**Statistiques DB :**
+- **35 tables** réparties en 4 phases
+- **31 enums** PostgreSQL
+- **59 fonctions RLS** (toutes SECURITY DEFINER)
+- **147+ indexes** (partiels, composites, covering)
+- **4 vues _active** pour données non-supprimées
+- **101+ migrations** SQL
 
-**Key Enums**:
-- `user_role`, `team_member_role`: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
-- `lot_category`: 'appartement' | 'collocation' | 'maison' | 'garage' | 'local_commercial' | 'parking' | 'autre'
-- `document_visibility_level`: 'equipe' | 'locataire' (Phase 3 ajoutera 'intervention')
+**Key Tables**:
+- Phase 1: `users`, `teams`, `team_members`, `companies`, `user_invitations`, `company_members`
+- Phase 2: `buildings`, `lots`, `building_contacts`, `lot_contacts`, `property_documents`
+- Phase 3: `interventions`, `intervention_assignments`, `intervention_quotes`, `intervention_time_slots`, `intervention_documents`, `intervention_comments`, `intervention_links`, `conversation_threads`, `conversation_messages`, `notifications`, `activity_logs`
+- Phase 4: `contracts`, `contract_contacts`, `contract_documents`, `import_jobs`
 
-**RLS Helper Functions**: `is_admin()`, `is_gestionnaire()`, `is_team_manager()`, `get_building_team_id()`, `get_lot_team_id()`, `is_tenant_of_lot()`, `can_view_building()`, `can_view_lot()`
+**RLS Helper Functions**: `is_admin()`, `is_gestionnaire()`, `is_team_manager()`, `get_building_team_id()`, `get_lot_team_id()`, `is_tenant_of_lot()`, `can_view_building()`, `can_view_lot()`, `get_current_user_id()`, `is_assigned_to_intervention()`
+
+### Dénormalisation team_id (Optimisation RLS)
+
+4 tables ont une colonne `team_id` dénormalisée pour éviter les JOINs dans les politiques RLS :
+
+| Table | Trigger | Synchronisation depuis |
+|-------|---------|------------------------|
+| `conversation_messages` | `tr_conversation_messages_team_id` | thread → intervention → team |
+| `building_contacts` | `tr_building_contacts_team_id` | building.team_id |
+| `lot_contacts` | `tr_lot_contacts_team_id` | lot → [building] → team_id |
+| `intervention_time_slots` | `tr_intervention_time_slots_team_id` | intervention.team_id |
+
+**Usage :** Les triggers synchronisent automatiquement `team_id` à l'insertion. Le code applicatif n'a pas besoin de fournir cette valeur.
+
+### Vues _active (Données Non-Supprimées)
+
+```typescript
+// Utiliser les vues _active pour éviter d'oublier le filtre deleted_at
+const { data } = await supabase.from('interventions_active').select('*')
+const { data } = await supabase.from('buildings_active').select('*')
+const { data } = await supabase.from('lots_active').select('*')
+const { data } = await supabase.from('contracts_active').select('*')
+```
+
+**Note :** Les vues héritent automatiquement des politiques RLS des tables sources.
 
 ### User Roles & Permissions
 - **Admin**: System administration
@@ -907,6 +939,6 @@ npm test -- --coverage                 # Coverage
 
 ---
 
-**Last Updated**: 2025-12-06
+**Last Updated**: 2025-12-26
 **Status**: ✅ Production Ready
-**Current Focus**: Design System alignment & UX guidelines
+**Current Focus**: DB Optimizations (RLS denormalization + _active views)

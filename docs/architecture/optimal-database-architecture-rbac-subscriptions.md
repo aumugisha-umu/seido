@@ -351,7 +351,2401 @@
 └─────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.5 Légende des Relations
+### 1.5 Schema SQL Complet
+
+Cette section regroupe tout le SQL necessaire pour creer l'architecture complete de la base de donnees SEIDO.
+
+#### 1.5.1 Enums PostgreSQL
+
+```sql
+-- ============================================================================
+-- ENUMS POSTGRESQL (37 types)
+-- Description: Types enumeres pour garantir l'integrite des donnees
+-- ============================================================================
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- PHASE 1: USERS & TEAMS
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TYPE user_role AS ENUM ('admin', 'gestionnaire', 'locataire', 'prestataire', 'proprietaire');
+CREATE TYPE team_member_role AS ENUM ('admin', 'gestionnaire', 'locataire', 'prestataire', 'proprietaire');
+CREATE TYPE invitation_status AS ENUM ('pending', 'accepted', 'expired', 'cancelled');
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- PHASE CRM: CONTACTS & ADDRESSES
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TYPE contact_type AS ENUM ('person', 'company');
+CREATE TYPE contact_category AS ENUM (
+  'locataire', 'proprietaire', 'prestataire', 'syndic',
+  'assurance', 'notaire', 'banque', 'administration', 'autre'
+);
+CREATE TYPE country AS ENUM ('belgique', 'france', 'allemagne', 'pays-bas', 'suisse', 'luxembourg', 'autre');
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- PHASE 2: PROPERTIES
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TYPE lot_category AS ENUM ('appartement', 'collocation', 'maison', 'garage', 'local_commercial', 'parking', 'autre');
+
+-- DEPRECATED: Utiliser document_type a la place
+CREATE TYPE property_document_type AS ENUM (
+  'bail', 'garantie', 'facture', 'diagnostic', 'photo_compteur',
+  'plan', 'reglement_copropriete', 'etat_des_lieux', 'certificat',
+  'manuel_utilisation', 'photo_generale', 'autre'
+);
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- DOCUMENTS CENTRALISES (NOUVEAU)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TYPE document_entity_type AS ENUM ('building', 'lot', 'intervention', 'contract', 'contact', 'company');
+
+CREATE TYPE document_type AS ENUM (
+  -- Contrats
+  'bail', 'avenant', 'etat_des_lieux_entree', 'etat_des_lieux_sortie', 'reglement_copropriete',
+  -- Financier
+  'facture', 'devis', 'quittance', 'bon_de_commande',
+  -- Technique
+  'diagnostic', 'plan', 'certificat', 'garantie', 'manuel_utilisation', 'rapport',
+  -- Administratif
+  'justificatif_identite', 'justificatif_revenus', 'attestation_assurance', 'caution_bancaire',
+  -- Photos
+  'photo_avant', 'photo_apres', 'photo_compteur', 'photo_generale',
+  -- Autre
+  'autre'
+);
+
+CREATE TYPE document_visibility_level AS ENUM ('prive', 'equipe', 'locataire', 'prestataire', 'public');
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- PHASE 3: INTERVENTIONS
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TYPE intervention_type AS ENUM (
+  'plomberie', 'electricite', 'chauffage', 'serrurerie', 'peinture',
+  'menage', 'jardinage', 'climatisation', 'vitrerie', 'toiture', 'autre'
+);
+
+CREATE TYPE intervention_urgency AS ENUM ('basse', 'normale', 'haute', 'urgente');
+
+CREATE TYPE intervention_status AS ENUM (
+  'demande', 'rejetee', 'approuvee', 'demande_de_devis', 'planification',
+  'planifiee', 'en_cours', 'cloturee_par_prestataire',
+  'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'
+);
+
+CREATE TYPE assignment_role AS ENUM ('gestionnaire', 'prestataire');
+CREATE TYPE time_slot_status AS ENUM ('pending', 'selected', 'rejected', 'cancelled');
+CREATE TYPE quote_status AS ENUM ('draft', 'sent', 'accepted', 'rejected', 'cancelled', 'expired');
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- PHASE 3: CHAT & COMMUNICATION
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TYPE conversation_thread_type AS ENUM ('group', 'tenant_to_managers', 'provider_to_managers');
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- PHASE 3: NOTIFICATIONS & AUDIT
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TYPE notification_type AS ENUM (
+  'intervention', 'chat', 'document', 'system', 'team_invite',
+  'assignment', 'status_change', 'reminder', 'deadline'
+);
+CREATE TYPE notification_priority AS ENUM ('low', 'normal', 'high', 'urgent');
+
+CREATE TYPE activity_action_type AS ENUM (
+  'create', 'update', 'delete', 'view', 'assign', 'unassign',
+  'approve', 'reject', 'upload', 'download', 'share', 'comment',
+  'status_change', 'send_notification', 'login', 'logout'
+);
+
+CREATE TYPE activity_entity_type AS ENUM (
+  'user', 'team', 'building', 'lot', 'intervention',
+  'document', 'contact', 'notification', 'message',
+  'quote', 'report', 'contract'
+);
+
+CREATE TYPE activity_status AS ENUM ('success', 'failure', 'pending');
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- PHASE 3: EMAIL SYSTEM
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TYPE email_direction AS ENUM ('received', 'sent');
+CREATE TYPE email_status AS ENUM ('unread', 'read', 'archived', 'deleted');
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- PHASE 4: CONTRACTS
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TYPE contract_type AS ENUM ('bail_habitation', 'bail_meuble');
+CREATE TYPE contract_status AS ENUM ('brouillon', 'actif', 'expire', 'resilie', 'renouvele');
+CREATE TYPE guarantee_type AS ENUM ('pas_de_garantie', 'compte_proprietaire', 'compte_bloque', 'e_depot', 'autre');
+CREATE TYPE payment_frequency AS ENUM ('mensuel', 'trimestriel', 'semestriel', 'annuel');
+CREATE TYPE contract_contact_role AS ENUM ('locataire', 'colocataire', 'garant', 'representant_legal', 'autre');
+
+-- DEPRECATED: Utiliser document_type a la place
+CREATE TYPE contract_document_type AS ENUM (
+  'bail', 'avenant', 'etat_des_lieux_entree', 'etat_des_lieux_sortie',
+  'attestation_assurance', 'justificatif_identite', 'justificatif_revenus',
+  'caution_bancaire', 'quittance', 'reglement_copropriete', 'diagnostic', 'autre'
+);
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- PHASE 4: IMPORT SYSTEM
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TYPE import_job_status AS ENUM ('pending', 'validating', 'importing', 'completed', 'failed', 'cancelled');
+CREATE TYPE import_entity_type AS ENUM ('building', 'lot', 'contact', 'contract', 'mixed');
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- SUBSCRIPTIONS & BILLING (STRIPE)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE TYPE subscription_status AS ENUM (
+  'trialing', 'active', 'incomplete', 'incomplete_expired',
+  'past_due', 'unpaid', 'canceled', 'paused'
+);
+
+CREATE TYPE pricing_type AS ENUM ('one_time', 'recurring');
+CREATE TYPE pricing_interval AS ENUM ('day', 'week', 'month', 'year');
+CREATE TYPE invoice_status AS ENUM ('draft', 'open', 'paid', 'uncollectible', 'void');
+```
+
+#### 1.5.2 Phase 1: Users & Teams
+
+```sql
+-- ============================================================================
+-- TABLE: users
+-- Description: Utilisateurs authentifies uniquement (peuvent se connecter)
+-- ============================================================================
+CREATE TABLE users (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  -- Authentification Supabase (OBLIGATOIRE)
+  auth_user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+
+  -- Informations de base
+  email VARCHAR(255) NOT NULL UNIQUE,
+  first_name VARCHAR(255),
+  last_name VARCHAR(255),
+  phone VARCHAR(50),
+  avatar_url TEXT,
+
+  -- Role global (pour l'application)
+  role user_role NOT NULL DEFAULT 'gestionnaire',
+
+  -- Equipe principale (pour performance)
+  primary_team_id UUID REFERENCES teams(id),
+
+  -- Statut
+  is_active BOOLEAN DEFAULT TRUE,
+  password_set BOOLEAN DEFAULT FALSE,
+  last_login_at TIMESTAMP WITH TIME ZONE,
+
+  -- Soft delete
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by UUID REFERENCES users(id),
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Index
+CREATE UNIQUE INDEX idx_users_auth_user_id ON users(auth_user_id);
+CREATE UNIQUE INDEX idx_users_email ON users(email) WHERE deleted_at IS NULL;
+CREATE INDEX idx_users_primary_team ON users(primary_team_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_users_role ON users(role) WHERE deleted_at IS NULL;
+
+-- RLS
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+
+COMMENT ON TABLE users IS 'Utilisateurs authentifies uniquement. Chaque user DOIT avoir un auth_user_id.';
+
+-- ============================================================================
+-- TABLE: teams
+-- Description: Equipes/agences - Unite d'isolation multi-tenant
+-- ============================================================================
+CREATE TABLE teams (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+
+  -- Configuration
+  settings JSONB DEFAULT '{}',
+
+  -- Createur (devient team_owner)
+  created_by UUID REFERENCES users(id),
+
+  -- Soft delete
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by UUID REFERENCES users(id),
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS
+ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
+
+COMMENT ON TABLE teams IS 'Equipes/agences - Toutes les donnees metier sont scopees par team_id';
+
+-- ============================================================================
+-- TABLE: team_members
+-- Description: Appartenance utilisateur-equipe avec permissions
+-- Pattern: Soft delete via left_at (pas de DELETE physique)
+-- ============================================================================
+CREATE TABLE team_members (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+  -- Role dans l'equipe
+  role team_member_role NOT NULL DEFAULT 'gestionnaire',
+
+  -- Permissions granulaires
+  permissions TEXT[] DEFAULT NULL,  -- NULL = utiliser defauts du role
+  is_team_owner BOOLEAN DEFAULT FALSE,  -- Createur de l'equipe
+
+  -- Dates d'appartenance
+  joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  -- Soft delete membership (desactivation)
+  left_at TIMESTAMP WITH TIME ZONE,
+  left_by UUID REFERENCES users(id),  -- Qui a desactive le membre
+  left_reason TEXT,  -- Raison de la desactivation (optionnel)
+
+  -- Contraintes
+  CONSTRAINT unique_team_user UNIQUE (team_id, user_id),
+  CONSTRAINT valid_left CHECK (
+    (left_at IS NULL AND left_by IS NULL) OR
+    (left_at IS NOT NULL AND left_by IS NOT NULL)
+  )
+);
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- INDEX team_members
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Index critique pour RLS
+CREATE INDEX idx_team_members_user_team_role ON team_members(user_id, team_id, role) WHERE left_at IS NULL;
+
+-- Index GIN pour permissions
+CREATE INDEX idx_team_members_permissions ON team_members USING GIN(permissions) WHERE permissions IS NOT NULL;
+
+-- Index pour team owners
+CREATE INDEX idx_team_members_owner ON team_members(team_id) WHERE is_team_owner = TRUE;
+
+-- Index pour filtrer les membres actifs (tres frequent)
+CREATE INDEX idx_team_members_active ON team_members(team_id, user_id) WHERE left_at IS NULL;
+
+-- Index pour historique des membres
+CREATE INDEX idx_team_members_history ON team_members(team_id, left_at DESC) WHERE left_at IS NOT NULL;
+
+-- Index pour recherche par utilisateur (multi-equipes)
+CREATE INDEX idx_team_members_user_active ON team_members(user_id, team_id) WHERE left_at IS NULL;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- TRIGGERS team_members
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Trigger pour empecher la suppression physique (force soft delete)
+CREATE OR REPLACE FUNCTION prevent_team_member_delete()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Si left_at n'est pas defini, c'est une suppression non autorisee
+  IF OLD.left_at IS NULL THEN
+    RAISE EXCEPTION 'Suppression physique interdite. Utilisez UPDATE left_at = NOW()';
+  END IF;
+  RETURN OLD;
+END;
+$$;
+
+CREATE TRIGGER tr_prevent_team_member_delete
+BEFORE DELETE ON team_members
+FOR EACH ROW
+EXECUTE FUNCTION prevent_team_member_delete();
+
+-- Trigger pour auto-remplir left_by lors de la desactivation
+CREATE OR REPLACE FUNCTION set_team_member_left_by()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.left_at IS NOT NULL AND OLD.left_at IS NULL THEN
+    IF NEW.left_by IS NULL THEN
+      NEW.left_by := get_current_user_id();
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER tr_set_team_member_left_by
+BEFORE UPDATE ON team_members
+FOR EACH ROW
+EXECUTE FUNCTION set_team_member_left_by();
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- RLS team_members
+-- ═══════════════════════════════════════════════════════════════════════════
+
+ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+
+-- Politique: Membres actifs visibles par les membres de l'equipe
+CREATE POLICY "team_members_active_select" ON team_members
+FOR SELECT USING (
+  is_admin() OR
+  (
+    user_belongs_to_team_v2(team_id) AND
+    left_at IS NULL
+  )
+);
+
+-- Politique: Historique visible par les gestionnaires de l'equipe
+CREATE POLICY "team_members_history_select" ON team_members
+FOR SELECT USING (
+  is_admin() OR
+  (
+    is_team_manager(team_id) AND
+    left_at IS NOT NULL
+  )
+);
+
+-- Politique: Seuls les admins/gestionnaires peuvent desactiver
+CREATE POLICY "team_members_deactivate" ON team_members
+FOR UPDATE USING (
+  is_admin() OR
+  can_deactivate_member(team_id, user_id)
+)
+WITH CHECK (
+  is_admin() OR
+  can_deactivate_member(team_id, user_id)
+);
+
+COMMENT ON TABLE team_members IS 'Appartenance utilisateur-equipe. Utilise soft delete via left_at.';
+COMMENT ON COLUMN team_members.permissions IS 'Override des permissions. NULL = permissions par defaut du role.';
+COMMENT ON COLUMN team_members.is_team_owner IS 'TRUE = createur de l''equipe, a TOUTES les permissions.';
+COMMENT ON COLUMN team_members.left_at IS 'Date de desactivation. NULL = membre actif.';
+COMMENT ON COLUMN team_members.left_by IS 'Utilisateur qui a desactive ce membre.';
+COMMENT ON COLUMN team_members.left_reason IS 'Raison de la desactivation (optionnel).';
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- VUE: team_members_active
+-- Description: Membres actifs avec informations utilisateur et equipe
+-- ═══════════════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE VIEW team_members_active AS
+SELECT
+  tm.id,
+  tm.team_id,
+  tm.user_id,
+  tm.role,
+  tm.permissions,
+  tm.is_team_owner,
+  tm.joined_at,
+  u.email,
+  u.first_name,
+  u.last_name,
+  u.role as user_role,
+  t.name as team_name
+FROM team_members tm
+JOIN users u ON u.id = tm.user_id
+JOIN teams t ON t.id = tm.team_id
+WHERE tm.left_at IS NULL
+  AND u.deleted_at IS NULL
+  AND t.deleted_at IS NULL;
+
+COMMENT ON VIEW team_members_active IS 'Membres actifs avec informations utilisateur et equipe. Herite des RLS de team_members.';
+
+-- ============================================================================
+-- TABLE: companies
+-- Description: Entreprises (prestataires, syndics, etc.)
+-- ============================================================================
+CREATE TABLE companies (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+
+  -- Informations legales
+  name VARCHAR(255) NOT NULL,
+  legal_name VARCHAR(255),
+  vat_number VARCHAR(50),
+  registration_number VARCHAR(50),  -- SIRET/BCE
+
+  -- Coordonnees
+  address_id UUID REFERENCES addresses(id) ON DELETE SET NULL,
+  phone VARCHAR(50),
+  email VARCHAR(255),
+  website VARCHAR(255),
+
+  -- Metadonnees
+  logo_url TEXT,
+  notes TEXT,
+
+  -- Soft delete
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by UUID REFERENCES users(id),
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_companies_team ON companies(team_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_companies_vat ON companies(vat_number) WHERE vat_number IS NOT NULL;
+
+-- RLS
+ALTER TABLE companies ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- TABLE: company_members
+-- Description: Membres d'une entreprise (contacts employes)
+-- ============================================================================
+CREATE TABLE company_members (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+
+  -- Role dans l'entreprise
+  role VARCHAR(50),  -- 'owner', 'admin', 'employee', 'contractor'
+  job_title VARCHAR(100),
+  is_primary BOOLEAN DEFAULT FALSE,
+
+  notes TEXT,
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT unique_company_contact UNIQUE (company_id, contact_id)
+);
+
+-- RLS
+ALTER TABLE company_members ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- TABLE: user_invitations
+-- Description: Invitations en attente pour rejoindre une equipe
+-- ============================================================================
+CREATE TABLE user_invitations (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  -- Contact invite
+  email VARCHAR(255) NOT NULL,
+  contact_id UUID REFERENCES contacts(id),  -- Lien vers le contact
+
+  -- Equipe cible
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+
+  -- User cree (apres acceptation)
+  user_id UUID REFERENCES users(id),
+
+  -- Invitant
+  invited_by UUID NOT NULL REFERENCES users(id),
+
+  -- Configuration
+  role user_role NOT NULL DEFAULT 'gestionnaire',
+  provider_category VARCHAR(50),  -- Si prestataire
+
+  -- Pre-remplissage
+  first_name VARCHAR(255),
+  last_name VARCHAR(255),
+
+  -- Token et statut
+  invitation_token VARCHAR(255),
+  status invitation_status NOT NULL DEFAULT 'pending',
+
+  -- Dates
+  invited_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '7 days'),
+  accepted_at TIMESTAMP WITH TIME ZONE,
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT unique_pending_invitation UNIQUE (email, team_id)
+);
+
+CREATE INDEX idx_user_invitations_email ON user_invitations(email);
+CREATE INDEX idx_user_invitations_team ON user_invitations(team_id);
+CREATE INDEX idx_user_invitations_status ON user_invitations(status);
+CREATE INDEX idx_user_invitations_contact ON user_invitations(contact_id) WHERE contact_id IS NOT NULL;
+
+-- RLS
+ALTER TABLE user_invitations ENABLE ROW LEVEL SECURITY;
+```
+
+#### 1.5.3 Phase CRM: Contacts & Addresses
+
+```sql
+-- ============================================================================
+-- TABLE: addresses
+-- Description: Adresses normalisees reutilisables (buildings, lots, contacts, companies)
+-- ============================================================================
+CREATE TABLE addresses (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+
+  -- Libelle optionnel
+  label VARCHAR(100),  -- "Siege social", "Adresse facturation", "Adresse principale"
+
+  -- Adresse structuree
+  street_line_1 TEXT NOT NULL,        -- Numero + rue
+  street_line_2 TEXT,                  -- Complement (batiment, etage, boite, etc.)
+  postal_code VARCHAR(20) NOT NULL,
+  city VARCHAR(100) NOT NULL,
+  state_province VARCHAR(100),         -- Region, province, canton (optionnel)
+  country country NOT NULL DEFAULT 'belgique',
+
+  -- Geocodage (optionnel, pour cartes/calcul distances)
+  latitude DECIMAL(10, 8),
+  longitude DECIMAL(11, 8),
+  is_geocoded BOOLEAN DEFAULT FALSE,
+
+  -- Validation
+  is_verified BOOLEAN DEFAULT FALSE,   -- Adresse verifiee manuellement
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Index de base
+CREATE INDEX idx_addresses_team ON addresses(team_id);
+CREATE INDEX idx_addresses_city ON addresses(team_id, city);
+CREATE INDEX idx_addresses_postal ON addresses(team_id, postal_code);
+
+-- Index geographique (pour recherche par proximite)
+CREATE INDEX idx_addresses_geo ON addresses(latitude, longitude)
+  WHERE latitude IS NOT NULL AND longitude IS NOT NULL;
+
+-- Full-text search
+CREATE INDEX idx_addresses_search ON addresses USING GIN (
+  to_tsvector('french',
+    COALESCE(street_line_1, '') || ' ' ||
+    COALESCE(city, '') || ' ' ||
+    COALESCE(postal_code, '')
+  )
+);
+
+-- RLS
+ALTER TABLE addresses ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "addresses_team_isolation" ON addresses
+  FOR ALL USING (is_team_manager(team_id) OR is_admin());
+
+COMMENT ON TABLE addresses IS 'Table centralisee des adresses. Utilisee par buildings, lots (standalone), contacts, companies.';
+COMMENT ON COLUMN addresses.label IS 'Libelle optionnel: Siege social, Adresse facturation, etc.';
+COMMENT ON COLUMN addresses.is_geocoded IS 'TRUE si latitude/longitude ont ete calculees via API de geocodage.';
+
+-- ============================================================================
+-- TABLE: contacts
+-- Description: Table CRM principale - Tous les contacts (personnes et entreprises)
+-- ============================================================================
+CREATE TABLE contacts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  -- Association equipe (multi-tenant)
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+
+  -- Type de contact
+  contact_type contact_type NOT NULL DEFAULT 'person',  -- 'person' | 'company'
+
+  -- Informations de base
+  email VARCHAR(255),                    -- Nullable (certains contacts n'ont pas d'email)
+  first_name VARCHAR(255),               -- Pour les personnes
+  last_name VARCHAR(255),                -- Pour les personnes
+  display_name VARCHAR(255),             -- Nom affiche (calcule ou override)
+  phone VARCHAR(50),
+  mobile_phone VARCHAR(50),
+
+  -- Adresse (FK vers table centralisee)
+  address_id UUID REFERENCES addresses(id) ON DELETE SET NULL,
+
+  -- Informations entreprise (si contact_type = 'company')
+  company_name VARCHAR(255),             -- Nom de l'entreprise
+  vat_number VARCHAR(50),                -- Numero TVA
+  registration_number VARCHAR(50),       -- SIRET/BCE
+
+  -- Association a une entreprise (si contact_type = 'person')
+  company_id UUID REFERENCES companies(id),
+
+  -- Categorisation CRM
+  category contact_category NOT NULL DEFAULT 'autre',
+
+  speciality intervention_type,          -- Si prestataire
+  provider_rating DECIMAL(3,2) DEFAULT 0.00,
+  total_interventions INTEGER DEFAULT 0,
+
+  -- Lien optionnel vers utilisateur (si invite a l'app)
+  user_id UUID REFERENCES users(id),     -- NULL si pas invite
+
+  -- Metadonnees
+  notes TEXT,
+  is_active BOOLEAN DEFAULT TRUE,
+  source VARCHAR(50),                    -- 'manual', 'import', 'api'
+
+  -- Soft delete
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by UUID REFERENCES users(id),
+
+  -- Audit
+  created_by UUID REFERENCES users(id),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  -- Contraintes
+  CONSTRAINT valid_contact_type CHECK (
+    (contact_type = 'person' AND (first_name IS NOT NULL OR last_name IS NOT NULL))
+    OR
+    (contact_type = 'company' AND company_name IS NOT NULL)
+  ),
+  CONSTRAINT unique_email_per_team UNIQUE (team_id, email)
+);
+
+-- Index
+CREATE INDEX idx_contacts_team_id ON contacts(team_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_contacts_email ON contacts(team_id, email) WHERE email IS NOT NULL AND deleted_at IS NULL;
+CREATE INDEX idx_contacts_category ON contacts(team_id, category) WHERE deleted_at IS NULL;
+CREATE INDEX idx_contacts_user_id ON contacts(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX idx_contacts_company_id ON contacts(company_id) WHERE company_id IS NOT NULL;
+
+-- Full-text search
+CREATE INDEX idx_contacts_search ON contacts USING GIN (
+  to_tsvector('french', COALESCE(first_name, '') || ' ' || COALESCE(last_name, '') || ' ' || COALESCE(company_name, '') || ' ' || COALESCE(email, ''))
+) WHERE deleted_at IS NULL;
+
+-- RLS
+ALTER TABLE contacts ENABLE ROW LEVEL SECURITY;
+
+COMMENT ON TABLE contacts IS 'Table CRM principale. Contient tous les contacts (personnes et entreprises). Peut etre lie a un user si invite a l''app.';
+COMMENT ON COLUMN contacts.user_id IS 'FK vers users si le contact a ete invite et a acces a l''application. NULL sinon.';
+```
+
+#### 1.5.4 Phase 2: Properties
+
+```sql
+-- ============================================================================
+-- TABLE: buildings
+-- Description: Immeubles - Peuvent contenir plusieurs lots
+-- ============================================================================
+CREATE TABLE buildings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+
+  -- Identification
+  name TEXT NOT NULL,
+  reference VARCHAR(50),  -- Reference interne
+
+  -- Adresse (via table centralisee)
+  address_id UUID NOT NULL REFERENCES addresses(id) ON DELETE RESTRICT,
+
+  -- Description
+  description TEXT,
+
+  -- Compteurs (maintenus par trigger)
+  total_lots INTEGER DEFAULT 0,
+  occupied_lots INTEGER DEFAULT 0,
+  vacant_lots INTEGER DEFAULT 0,
+  total_interventions INTEGER DEFAULT 0,
+  active_interventions INTEGER DEFAULT 0,
+
+  -- Metadonnees
+  metadata JSONB DEFAULT '{}',
+
+  -- Soft delete
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by UUID REFERENCES users(id),
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT valid_lots_count CHECK (occupied_lots + vacant_lots = total_lots)
+);
+
+CREATE INDEX idx_buildings_team ON buildings(team_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_buildings_address ON buildings(address_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_buildings_search ON buildings USING GIN (to_tsvector('french', name)) WHERE deleted_at IS NULL;
+
+-- RLS
+ALTER TABLE buildings ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- TABLE: lots
+-- Description: Lots/appartements - Standalone ou dans un building
+-- ============================================================================
+CREATE TABLE lots (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  building_id UUID REFERENCES buildings(id) ON DELETE SET NULL,  -- NULL = standalone
+
+  -- Identification
+  reference TEXT NOT NULL,
+  category lot_category NOT NULL DEFAULT 'appartement',
+
+  -- Localisation dans l'immeuble
+  floor INTEGER,  -- -5 a 100
+  apartment_number TEXT,
+
+  -- Adresse (si standalone, sinon herite via building.address_id)
+  address_id UUID REFERENCES addresses(id) ON DELETE SET NULL,
+
+  -- Description
+  description TEXT,
+
+  -- Compteurs
+  total_interventions INTEGER DEFAULT 0,
+  active_interventions INTEGER DEFAULT 0,
+
+  -- Metadonnees
+  metadata JSONB DEFAULT '{}',
+
+  -- Soft delete
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by UUID REFERENCES users(id),
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT unique_reference_per_team UNIQUE (team_id, reference) DEFERRABLE INITIALLY DEFERRED,
+  CONSTRAINT valid_floor CHECK (floor >= -5 AND floor <= 100)
+);
+
+CREATE INDEX idx_lots_team ON lots(team_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_lots_building ON lots(building_id) WHERE building_id IS NOT NULL AND deleted_at IS NULL;
+CREATE INDEX idx_lots_standalone ON lots(team_id) WHERE building_id IS NULL AND deleted_at IS NULL;
+
+-- RLS
+ALTER TABLE lots ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- TABLE: building_contacts
+-- Description: Contacts associes aux immeubles
+-- ============================================================================
+CREATE TABLE building_contacts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  building_id UUID NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,
+  contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+  team_id UUID NOT NULL,  -- Denormalise pour RLS
+
+  -- Role
+  role TEXT,  -- 'syndic', 'proprietaire', 'gardien', etc.
+  is_primary BOOLEAN DEFAULT FALSE,
+
+  notes TEXT,
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT unique_building_contact UNIQUE (building_id, contact_id)
+);
+
+-- RLS
+ALTER TABLE building_contacts ENABLE ROW LEVEL SECURITY;
+
+-- Trigger pour synchroniser team_id
+CREATE TRIGGER tr_building_contacts_team_id
+BEFORE INSERT ON building_contacts
+FOR EACH ROW EXECUTE FUNCTION sync_building_contact_team_id();
+
+-- ============================================================================
+-- TABLE: lot_contacts
+-- Description: Contacts associes aux lots (locataires, proprietaires)
+-- ============================================================================
+CREATE TABLE lot_contacts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  lot_id UUID NOT NULL REFERENCES lots(id) ON DELETE CASCADE,
+  contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+  team_id UUID NOT NULL,  -- Denormalise pour RLS
+
+  -- Role
+  role TEXT,  -- 'locataire', 'proprietaire', 'garant', etc.
+  is_primary BOOLEAN DEFAULT FALSE,
+
+  notes TEXT,
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT unique_lot_contact UNIQUE (lot_id, contact_id)
+);
+
+-- RLS
+ALTER TABLE lot_contacts ENABLE ROW LEVEL SECURITY;
+
+-- Trigger pour synchroniser team_id
+CREATE TRIGGER tr_lot_contacts_team_id
+BEFORE INSERT ON lot_contacts
+FOR EACH ROW EXECUTE FUNCTION sync_lot_contact_team_id();
+
+-- ============================================================================
+-- TABLE: property_documents (DEPRECATED - Utiliser 'documents' a la place)
+-- Description: Documents attaches aux immeubles ou lots
+-- Migration: -> documents (entity_type = 'building' | 'lot')
+-- ============================================================================
+CREATE TABLE property_documents (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  -- Relation polymorphique
+  building_id UUID REFERENCES buildings(id) ON DELETE CASCADE,
+  lot_id UUID REFERENCES lots(id) ON DELETE CASCADE,
+  team_id UUID NOT NULL,
+
+  -- Type et categorie
+  document_type property_document_type NOT NULL DEFAULT 'autre',
+  category TEXT,
+
+  -- Fichier
+  filename TEXT NOT NULL,
+  original_filename TEXT NOT NULL,
+  file_size BIGINT NOT NULL,
+  mime_type TEXT NOT NULL,
+  storage_path TEXT NOT NULL,
+  storage_bucket TEXT DEFAULT 'property-documents',
+
+  -- Metadonnees
+  title TEXT,
+  description TEXT,
+  tags TEXT[] DEFAULT '{}',
+  expiry_date DATE,
+  document_date DATE,
+
+  -- Visibilite
+  visibility_level document_visibility_level DEFAULT 'equipe',
+  is_archived BOOLEAN DEFAULT FALSE,
+
+  -- Upload
+  uploaded_by UUID NOT NULL REFERENCES users(id),
+  uploaded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  -- Soft delete
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by UUID REFERENCES users(id),
+
+  -- Audit
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  -- Contrainte polymorphique
+  CONSTRAINT valid_property_reference CHECK (
+    (building_id IS NOT NULL AND lot_id IS NULL) OR
+    (building_id IS NULL AND lot_id IS NOT NULL)
+  )
+);
+
+-- RLS
+ALTER TABLE property_documents ENABLE ROW LEVEL SECURITY;
+
+COMMENT ON TABLE property_documents IS 'DEPRECATED: Utiliser la table documents avec entity_type = building ou lot';
+```
+
+#### 1.5.5 Phase 3: Interventions
+
+```sql
+-- ============================================================================
+-- TABLE: interventions
+-- Description: Demandes d'intervention - Coeur du workflow metier
+-- ============================================================================
+CREATE TABLE interventions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  -- Identification
+  reference VARCHAR(20) NOT NULL UNIQUE,  -- INT-YYYYMMDD-XXX
+
+  -- Relation polymorphique vers bien
+  building_id UUID REFERENCES buildings(id),
+  lot_id UUID REFERENCES lots(id),
+  team_id UUID NOT NULL REFERENCES teams(id),
+
+  -- Demandeur (contact)
+  tenant_contact_id UUID REFERENCES contacts(id),  -- Contact qui a fait la demande
+
+  -- Description
+  title TEXT NOT NULL,
+  description TEXT,
+  type intervention_type NOT NULL DEFAULT 'autre',
+  urgency intervention_urgency NOT NULL DEFAULT 'normale',
+
+  -- Statut
+  status intervention_status NOT NULL DEFAULT 'demande',
+
+  -- Dates
+  requested_date TIMESTAMP WITH TIME ZONE,
+  scheduled_date TIMESTAMP WITH TIME ZONE,
+  completed_date TIMESTAMP WITH TIME ZONE,
+
+  -- Couts
+  estimated_cost DECIMAL(10,2),
+  final_cost DECIMAL(10,2),
+
+  -- Metadonnees
+  is_contested BOOLEAN DEFAULT FALSE,
+  scheduling_method TEXT,  -- 'direct', 'slots', 'flexible'
+  provider_guidelines TEXT,
+  has_attachments BOOLEAN DEFAULT FALSE,
+  metadata JSONB DEFAULT '{}',
+
+  -- Createur
+  created_by UUID REFERENCES users(id),
+
+  -- Soft delete
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by UUID REFERENCES users(id),
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_interventions_team_status ON interventions(team_id, status) WHERE deleted_at IS NULL;
+CREATE INDEX idx_interventions_lot ON interventions(lot_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_interventions_building ON interventions(building_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_interventions_reference ON interventions(reference);
+
+-- RLS
+ALTER TABLE interventions ENABLE ROW LEVEL SECURITY;
+
+-- Trigger pour generer la reference
+CREATE TRIGGER tr_intervention_reference
+BEFORE INSERT ON interventions
+FOR EACH ROW EXECUTE FUNCTION generate_intervention_reference();
+
+-- ============================================================================
+-- TABLE: intervention_assignments
+-- Description: Assignations de gestionnaires et prestataires aux interventions
+-- ============================================================================
+CREATE TABLE intervention_assignments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  intervention_id UUID NOT NULL REFERENCES interventions(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id),  -- Utilisateur assigne (doit avoir acces app)
+
+  -- Configuration
+  role assignment_role NOT NULL DEFAULT 'gestionnaire',  -- 'gestionnaire' | 'prestataire'
+  is_primary BOOLEAN DEFAULT FALSE,
+
+  -- Notification
+  notified BOOLEAN DEFAULT FALSE,
+  notes TEXT,
+
+  -- Assignation
+  assigned_by UUID REFERENCES users(id),
+  assigned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT unique_intervention_user_role UNIQUE (intervention_id, user_id, role)
+);
+
+-- RLS
+ALTER TABLE intervention_assignments ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- TABLE: intervention_time_slots
+-- Description: Creneaux horaires proposes pour la planification
+-- ============================================================================
+CREATE TABLE intervention_time_slots (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  intervention_id UUID NOT NULL REFERENCES interventions(id) ON DELETE CASCADE,
+  team_id UUID NOT NULL,  -- Denormalise pour RLS
+
+  -- Creneau
+  slot_date DATE NOT NULL,
+  start_time TIME NOT NULL,
+  end_time TIME NOT NULL,
+
+  -- Statut
+  is_selected BOOLEAN DEFAULT FALSE,
+  status time_slot_status DEFAULT 'pending',
+
+  -- Proposant
+  proposed_by UUID NOT NULL REFERENCES users(id),
+  notes TEXT,
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT unique_slot UNIQUE (intervention_id, slot_date, start_time, end_time),
+  CONSTRAINT valid_time_range CHECK (start_time < end_time)
+);
+
+-- RLS
+ALTER TABLE intervention_time_slots ENABLE ROW LEVEL SECURITY;
+
+-- Trigger synchronisation team_id
+CREATE TRIGGER tr_time_slots_team_id
+BEFORE INSERT ON intervention_time_slots
+FOR EACH ROW EXECUTE FUNCTION sync_intervention_time_slot_team_id();
+
+-- ============================================================================
+-- TABLE: intervention_quotes
+-- Description: Devis et factures pour les interventions
+-- ============================================================================
+CREATE TABLE intervention_quotes (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  intervention_id UUID NOT NULL REFERENCES interventions(id) ON DELETE CASCADE,
+  provider_id UUID NOT NULL REFERENCES users(id),  -- Prestataire
+  team_id UUID NOT NULL,
+
+  -- Type
+  quote_type TEXT NOT NULL DEFAULT 'estimation',  -- 'estimation' | 'final'
+
+  -- Montants
+  amount DECIMAL(10,2) NOT NULL,
+  currency TEXT DEFAULT 'EUR',
+
+  -- Detail
+  description TEXT,
+  line_items JSONB DEFAULT '[]',  -- [{description, quantity, unit, unit_price, total}]
+
+  -- Statut
+  status quote_status NOT NULL DEFAULT 'draft',
+  valid_until DATE,
+
+  -- Validation
+  validated_by UUID REFERENCES users(id),
+  validated_at TIMESTAMP WITH TIME ZONE,
+  rejection_reason TEXT,
+
+  -- Createur
+  created_by UUID REFERENCES users(id),
+
+  -- Soft delete
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by UUID REFERENCES users(id),
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS
+ALTER TABLE intervention_quotes ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- TABLES ADDITIONNELLES INTERVENTIONS
+-- intervention_reports: Rapports textuels
+-- intervention_documents: DEPRECATED -> Utiliser 'documents' (entity_type = 'intervention')
+-- intervention_comments: Commentaires threades
+-- intervention_links: Liens entre interventions
+-- time_slot_responses: Reponses aux creneaux
+-- ============================================================================
+```
+
+#### 1.5.6 Phase 3: Chat & Communication
+
+```sql
+-- ============================================================================
+-- TABLE: conversation_threads
+-- Description: Fils de discussion lies aux interventions
+-- ============================================================================
+CREATE TABLE conversation_threads (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  intervention_id UUID NOT NULL REFERENCES interventions(id) ON DELETE CASCADE,
+  team_id UUID NOT NULL,  -- Denormalise
+
+  -- Type de fil
+  thread_type conversation_thread_type NOT NULL DEFAULT 'group',
+  title TEXT,
+
+  -- Compteurs
+  message_count INTEGER DEFAULT 0,
+  last_message_at TIMESTAMP WITH TIME ZONE,
+
+  -- Createur
+  created_by UUID NOT NULL REFERENCES users(id),
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT unique_thread_per_intervention UNIQUE (intervention_id, thread_type)
+);
+
+-- RLS
+ALTER TABLE conversation_threads ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- TABLE: conversation_messages
+-- Description: Messages dans les fils de discussion
+-- ============================================================================
+CREATE TABLE conversation_messages (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  thread_id UUID NOT NULL REFERENCES conversation_threads(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id),  -- Nullable si user supprime
+  team_id UUID NOT NULL,  -- Denormalise pour RLS
+
+  -- Contenu
+  content TEXT NOT NULL,
+  metadata JSONB DEFAULT '{}',  -- mentions, reactions, attachments
+
+  -- Soft delete
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by UUID REFERENCES users(id),
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS
+ALTER TABLE conversation_messages ENABLE ROW LEVEL SECURITY;
+
+-- Trigger synchronisation team_id
+CREATE TRIGGER tr_messages_team_id
+BEFORE INSERT ON conversation_messages
+FOR EACH ROW EXECUTE FUNCTION sync_conversation_message_team_id();
+
+-- ============================================================================
+-- TABLE: conversation_participants
+-- Description: Participants aux fils de discussion avec suivi de lecture
+-- ============================================================================
+CREATE TABLE conversation_participants (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  thread_id UUID NOT NULL REFERENCES conversation_threads(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+  -- Suivi de lecture
+  last_read_message_id UUID REFERENCES conversation_messages(id),
+  last_read_at TIMESTAMP WITH TIME ZONE,
+
+  -- Date d'ajout
+  joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT unique_participant UNIQUE (thread_id, user_id)
+);
+
+-- RLS
+ALTER TABLE conversation_participants ENABLE ROW LEVEL SECURITY;
+```
+
+#### 1.5.7 Phase 3: Notifications & Audit
+
+```sql
+-- ============================================================================
+-- TABLE: notifications
+-- Description: Notifications in-app temps reel
+-- ============================================================================
+CREATE TABLE notifications (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  team_id UUID REFERENCES teams(id),
+  created_by UUID REFERENCES users(id),
+
+  -- Type et priorite
+  type notification_type NOT NULL DEFAULT 'system',
+  priority notification_priority NOT NULL DEFAULT 'normal',
+
+  -- Contenu
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  metadata JSONB DEFAULT '{}',
+
+  -- Entite liee (polymorphique)
+  related_entity_type TEXT,  -- 'intervention', 'contract', 'building', etc.
+  related_entity_id UUID,
+
+  -- Statut
+  read BOOLEAN DEFAULT FALSE,
+  read_at TIMESTAMP WITH TIME ZONE,
+  archived BOOLEAN DEFAULT FALSE,
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_notifications_user_unread ON notifications(user_id, read, created_at DESC)
+WHERE archived = FALSE;
+
+-- RLS
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- TABLE: activity_logs
+-- Description: Journal d'audit complet
+-- ============================================================================
+CREATE TABLE activity_logs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  team_id UUID NOT NULL REFERENCES teams(id),
+  user_id UUID NOT NULL REFERENCES users(id),
+
+  -- Action
+  action_type activity_action_type NOT NULL,
+  entity_type activity_entity_type NOT NULL,
+  entity_id UUID NOT NULL,
+  entity_name TEXT,
+
+  -- Resultat
+  status activity_status NOT NULL DEFAULT 'success',
+  description TEXT,
+  error_message TEXT,
+
+  -- Details
+  metadata JSONB DEFAULT '{}',  -- old_values, new_values, etc.
+
+  -- Contexte
+  ip_address INET,
+  user_agent TEXT,
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_activity_logs_team_date ON activity_logs(team_id, created_at DESC);
+CREATE INDEX idx_activity_logs_entity ON activity_logs(entity_type, entity_id);
+
+-- RLS
+ALTER TABLE activity_logs ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- TABLE: push_subscriptions
+-- Description: Abonnements notifications push (PWA)
+-- ============================================================================
+CREATE TABLE push_subscriptions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+
+  endpoint TEXT NOT NULL UNIQUE,
+  keys JSONB NOT NULL,  -- { p256dh, auth }
+  user_agent TEXT,
+
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+```
+
+#### 1.5.8 Phase 3: Email System
+
+```sql
+-- ============================================================================
+-- TABLE: team_email_connections
+-- Description: Configuration des connexions email IMAP/SMTP par equipe
+-- ============================================================================
+CREATE TABLE team_email_connections (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+
+  -- Provider
+  provider VARCHAR(50) NOT NULL,  -- 'gmail', 'outlook', 'ovh', 'custom'
+  email_address VARCHAR(255) NOT NULL,
+
+  -- IMAP
+  imap_host VARCHAR(255) NOT NULL,
+  imap_port INTEGER DEFAULT 993,
+  imap_use_ssl BOOLEAN DEFAULT TRUE,
+  imap_username VARCHAR(255) NOT NULL,
+  imap_password_encrypted TEXT NOT NULL,
+
+  -- SMTP
+  smtp_host VARCHAR(255) NOT NULL,
+  smtp_port INTEGER DEFAULT 587,
+  smtp_use_tls BOOLEAN DEFAULT TRUE,
+  smtp_username VARCHAR(255) NOT NULL,
+  smtp_password_encrypted TEXT NOT NULL,
+
+  -- Synchronisation
+  last_uid BIGINT,
+  last_sync_at TIMESTAMP WITH TIME ZONE,
+  last_error TEXT,
+
+  -- Statut
+  is_active BOOLEAN DEFAULT TRUE,
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT unique_team_email UNIQUE (team_id, email_address)
+);
+
+-- RLS
+ALTER TABLE team_email_connections ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- TABLE: emails
+-- Description: Emails recus et envoyes avec recherche full-text
+-- ============================================================================
+CREATE TABLE emails (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  email_connection_id UUID REFERENCES team_email_connections(id),
+
+  -- Direction
+  direction email_direction NOT NULL DEFAULT 'received',
+  status email_status NOT NULL DEFAULT 'unread',
+
+  -- Headers
+  message_id TEXT,
+  in_reply_to UUID REFERENCES emails(id),
+  references_header TEXT,
+
+  -- Adresses
+  from_address TEXT NOT NULL,
+  to_addresses TEXT[] DEFAULT '{}',
+  cc_addresses TEXT[] DEFAULT '{}',
+  bcc_addresses TEXT[] DEFAULT '{}',
+
+  -- Contenu
+  subject TEXT,
+  body_text TEXT,
+  body_html TEXT,
+
+  -- Liens optionnels
+  building_id UUID REFERENCES buildings(id),
+  lot_id UUID REFERENCES lots(id),
+  intervention_id UUID REFERENCES interventions(id),
+
+  -- Dates
+  received_at TIMESTAMP WITH TIME ZONE,
+  sent_at TIMESTAMP WITH TIME ZONE,
+
+  -- Recherche
+  search_vector TSVECTOR GENERATED ALWAYS AS (
+    setweight(to_tsvector('french', COALESCE(subject, '')), 'A') ||
+    setweight(to_tsvector('french', COALESCE(body_text, '')), 'B') ||
+    setweight(to_tsvector('french', COALESCE(from_address, '')), 'C')
+  ) STORED,
+
+  -- Soft delete
+  deleted_at TIMESTAMP WITH TIME ZONE,
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_emails_search_vector ON emails USING GIN (search_vector);
+CREATE INDEX idx_emails_team_status ON emails(team_id, status) WHERE deleted_at IS NULL;
+
+-- RLS
+ALTER TABLE emails ENABLE ROW LEVEL SECURITY;
+```
+
+#### 1.5.9 Phase 4: Contracts & Import
+
+```sql
+-- ============================================================================
+-- TABLE: contracts
+-- Description: Baux et contrats de location
+-- ============================================================================
+CREATE TABLE contracts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  lot_id UUID NOT NULL REFERENCES lots(id) ON DELETE RESTRICT,
+
+  -- Informations
+  title TEXT,
+  contract_type contract_type NOT NULL DEFAULT 'bail_habitation',
+  status contract_status NOT NULL DEFAULT 'brouillon',
+
+  -- Dates
+  start_date DATE NOT NULL,
+  duration_months INTEGER NOT NULL DEFAULT 12,
+  end_date DATE GENERATED ALWAYS AS (start_date + (duration_months || ' months')::interval) STORED,
+  signed_date DATE,
+
+  -- Paiement
+  payment_frequency payment_frequency NOT NULL DEFAULT 'mensuel',
+  payment_frequency_value INTEGER DEFAULT 1,
+  rent_amount DECIMAL(10,2) NOT NULL,
+  charges_amount DECIMAL(10,2) DEFAULT 0,
+
+  -- Garantie
+  guarantee_type guarantee_type NOT NULL DEFAULT 'pas_de_garantie',
+  guarantee_amount DECIMAL(10,2),
+  guarantee_notes TEXT,
+
+  -- Metadonnees
+  comments TEXT,
+  metadata JSONB DEFAULT '{}',
+
+  -- Chaine de renouvellement
+  renewed_from_id UUID REFERENCES contracts(id),
+  renewed_to_id UUID REFERENCES contracts(id),
+
+  -- Createur
+  created_by UUID REFERENCES users(id),
+
+  -- Soft delete
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by UUID REFERENCES users(id),
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT valid_duration CHECK (duration_months >= 0 AND duration_months <= 120),
+  CONSTRAINT valid_payment_frequency CHECK (payment_frequency_value >= 1 AND payment_frequency_value <= 12)
+);
+
+CREATE INDEX idx_contracts_team ON contracts(team_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_contracts_lot ON contracts(lot_id) WHERE deleted_at IS NULL;
+CREATE INDEX idx_contracts_status ON contracts(team_id, status) WHERE deleted_at IS NULL;
+
+-- RLS
+ALTER TABLE contracts ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- TABLE: contract_contacts
+-- Description: Contacts parties au contrat
+-- ============================================================================
+CREATE TABLE contract_contacts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  contract_id UUID NOT NULL REFERENCES contracts(id) ON DELETE CASCADE,
+  contact_id UUID NOT NULL REFERENCES contacts(id) ON DELETE CASCADE,
+
+  -- Role
+  role contract_contact_role NOT NULL DEFAULT 'locataire',
+  is_primary BOOLEAN DEFAULT FALSE,
+
+  notes TEXT,
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+
+  CONSTRAINT unique_contract_contact_role UNIQUE (contract_id, contact_id, role)
+);
+
+-- RLS
+ALTER TABLE contract_contacts ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- TABLE: contract_documents (DEPRECATED - Utiliser 'documents' a la place)
+-- Migration: -> documents (entity_type = 'contract')
+-- ============================================================================
+-- DEPRECATED: Utiliser 'documents' avec entity_type = 'contract'
+
+-- ============================================================================
+-- TABLE: import_jobs
+-- Description: Suivi des imports Excel/CSV
+-- ============================================================================
+CREATE TABLE import_jobs (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id),
+
+  -- Type et statut
+  entity_type import_entity_type NOT NULL DEFAULT 'mixed',
+  status import_job_status NOT NULL DEFAULT 'pending',
+
+  -- Fichier source
+  filename VARCHAR(255) NOT NULL,
+
+  -- Progression
+  total_rows INTEGER DEFAULT 0,
+  processed_rows INTEGER DEFAULT 0,
+  success_count INTEGER DEFAULT 0,
+  error_count INTEGER DEFAULT 0,
+
+  -- Details
+  errors JSONB DEFAULT '[]',
+  created_ids JSONB DEFAULT '{}',
+  updated_ids JSONB DEFAULT '{}',
+  metadata JSONB DEFAULT '{}',
+
+  -- Dates
+  started_at TIMESTAMP WITH TIME ZONE,
+  completed_at TIMESTAMP WITH TIME ZONE,
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS
+ALTER TABLE import_jobs ENABLE ROW LEVEL SECURITY;
+```
+
+#### 1.5.10 Documents Centralises
+
+```sql
+-- ============================================================================
+-- TABLE: documents
+-- Description: Documents centralises avec relation polymorphe
+-- Remplace: property_documents, intervention_documents, contract_documents
+-- ============================================================================
+CREATE TABLE documents (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+
+  -- ══════════════════════════════════════════════════════════════════════════
+  -- RELATION POLYMORPHE
+  -- ══════════════════════════════════════════════════════════════════════════
+  entity_type document_entity_type NOT NULL,
+  entity_id UUID NOT NULL,
+  -- Note: Pas de FK car polymorphe - integrite via trigger ou applicatif
+
+  -- ══════════════════════════════════════════════════════════════════════════
+  -- CLASSIFICATION
+  -- ══════════════════════════════════════════════════════════════════════════
+  document_type document_type NOT NULL DEFAULT 'autre',
+  category TEXT,                          -- Categorie libre pour tri/filtrage
+  tags TEXT[] DEFAULT '{}',               -- Tags pour recherche full-text
+
+  -- ══════════════════════════════════════════════════════════════════════════
+  -- FICHIER
+  -- ══════════════════════════════════════════════════════════════════════════
+  filename TEXT NOT NULL,                 -- Nom stocke (UUID ou slugifie)
+  original_filename TEXT NOT NULL,        -- Nom original uploade
+  file_size BIGINT NOT NULL CHECK (file_size > 0),
+  mime_type TEXT NOT NULL,                -- ex: application/pdf, image/jpeg
+  storage_path TEXT NOT NULL,             -- Chemin dans Supabase Storage
+  storage_bucket TEXT NOT NULL DEFAULT 'documents',
+
+  -- ══════════════════════════════════════════════════════════════════════════
+  -- METADONNEES
+  -- ══════════════════════════════════════════════════════════════════════════
+  title TEXT,                             -- Titre libre
+  description TEXT,                       -- Description detaillee
+  document_date DATE,                     -- Date du document (ex: date facture)
+  expiry_date DATE,                       -- Date d'expiration (ex: diagnostic)
+  visibility_level document_visibility_level NOT NULL DEFAULT 'equipe',
+  is_archived BOOLEAN NOT NULL DEFAULT FALSE,
+
+  -- ══════════════════════════════════════════════════════════════════════════
+  -- VALIDATION WORKFLOW (optionnel)
+  -- ══════════════════════════════════════════════════════════════════════════
+  is_validated BOOLEAN NOT NULL DEFAULT FALSE,
+  validated_by UUID REFERENCES users(id),
+  validated_at TIMESTAMP WITH TIME ZONE,
+
+  -- ══════════════════════════════════════════════════════════════════════════
+  -- LIEN CHAT (pour pieces jointes conversation)
+  -- ══════════════════════════════════════════════════════════════════════════
+  message_id UUID REFERENCES conversation_messages(id) ON DELETE SET NULL,
+
+  -- ══════════════════════════════════════════════════════════════════════════
+  -- AUDIT COMPLET
+  -- ══════════════════════════════════════════════════════════════════════════
+  uploaded_by UUID NOT NULL REFERENCES users(id),
+  uploaded_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+  deleted_at TIMESTAMP WITH TIME ZONE,
+  deleted_by UUID REFERENCES users(id),
+
+  -- ══════════════════════════════════════════════════════════════════════════
+  -- CONTRAINTES
+  -- ══════════════════════════════════════════════════════════════════════════
+  CONSTRAINT valid_expiry CHECK (expiry_date IS NULL OR expiry_date >= document_date),
+  CONSTRAINT valid_validation CHECK (
+    (is_validated = FALSE AND validated_by IS NULL AND validated_at IS NULL) OR
+    (is_validated = TRUE AND validated_by IS NOT NULL AND validated_at IS NOT NULL)
+  )
+);
+
+-- ══════════════════════════════════════════════════════════════════════════════
+-- INDEXES
+-- ══════════════════════════════════════════════════════════════════════════════
+
+-- Index principal: recherche par entite
+CREATE INDEX idx_documents_entity ON documents(entity_type, entity_id) WHERE deleted_at IS NULL;
+
+-- Index team pour isolation multi-tenant
+CREATE INDEX idx_documents_team ON documents(team_id) WHERE deleted_at IS NULL;
+
+-- Index par type de document
+CREATE INDEX idx_documents_type ON documents(team_id, document_type) WHERE deleted_at IS NULL;
+
+-- Index pour documents building
+CREATE INDEX idx_documents_building ON documents(entity_id) WHERE entity_type = 'building' AND deleted_at IS NULL;
+
+-- Index pour documents lot
+CREATE INDEX idx_documents_lot ON documents(entity_id) WHERE entity_type = 'lot' AND deleted_at IS NULL;
+
+-- Index pour documents intervention
+CREATE INDEX idx_documents_intervention ON documents(entity_id) WHERE entity_type = 'intervention' AND deleted_at IS NULL;
+
+-- Index pour documents contract
+CREATE INDEX idx_documents_contract ON documents(entity_id) WHERE entity_type = 'contract' AND deleted_at IS NULL;
+
+-- Index pour expiration (rappels)
+CREATE INDEX idx_documents_expiry ON documents(expiry_date) WHERE expiry_date IS NOT NULL AND deleted_at IS NULL;
+
+-- Index archives
+CREATE INDEX idx_documents_archived ON documents(team_id, is_archived) WHERE deleted_at IS NULL;
+
+-- Index validation
+CREATE INDEX idx_documents_validation ON documents(team_id, is_validated) WHERE deleted_at IS NULL;
+
+-- Index chat messages
+CREATE INDEX idx_documents_message ON documents(message_id) WHERE message_id IS NOT NULL AND deleted_at IS NULL;
+
+-- Full-text search
+CREATE INDEX idx_documents_search ON documents USING GIN (
+  to_tsvector('french',
+    COALESCE(title, '') || ' ' ||
+    COALESCE(description, '') || ' ' ||
+    COALESCE(original_filename, '') || ' ' ||
+    COALESCE(array_to_string(tags, ' '), '')
+  )
+) WHERE deleted_at IS NULL;
+
+-- ══════════════════════════════════════════════════════════════════════════════
+-- RLS POLICIES
+-- ══════════════════════════════════════════════════════════════════════════════
+
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+
+-- Admin: acces total
+CREATE POLICY "documents_admin_all" ON documents
+  FOR ALL TO authenticated
+  USING (is_admin());
+
+-- Team managers: acces aux documents de leur equipe
+CREATE POLICY "documents_team_manager" ON documents
+  FOR ALL TO authenticated
+  USING (is_team_manager(team_id));
+
+-- Prestataires: acces aux documents des interventions assignees
+CREATE POLICY "documents_prestataire_intervention" ON documents
+  FOR SELECT TO authenticated
+  USING (
+    entity_type = 'intervention' AND
+    is_assigned_to_intervention(entity_id) AND
+    visibility_level IN ('prestataire', 'public')
+  );
+
+-- Locataires: acces aux documents de leurs lots avec visibilite appropriee
+CREATE POLICY "documents_locataire_lot" ON documents
+  FOR SELECT TO authenticated
+  USING (
+    entity_type = 'lot' AND
+    is_tenant_of_lot(entity_id) AND
+    visibility_level IN ('locataire', 'public')
+  );
+
+COMMENT ON TABLE documents IS 'Table centralisee pour tous les documents (polymorphe via entity_type/entity_id).';
+```
+
+#### 1.5.11 Subscriptions & Billing (Stripe)
+
+```sql
+-- ============================================================================
+-- TABLE: stripe_customers
+-- Description: Mapping entre equipes SEIDO et clients Stripe
+-- ============================================================================
+CREATE TABLE stripe_customers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  -- References
+  team_id UUID NOT NULL UNIQUE REFERENCES teams(id) ON DELETE CASCADE,
+  stripe_customer_id TEXT NOT NULL UNIQUE,  -- cus_xxx (ID Stripe)
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_stripe_customers_team ON stripe_customers(team_id);
+CREATE INDEX idx_stripe_customers_stripe ON stripe_customers(stripe_customer_id);
+
+-- RLS: Gestionnaires de l'equipe uniquement
+ALTER TABLE stripe_customers ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "stripe_customers_select" ON stripe_customers
+  FOR SELECT USING (is_admin() OR is_team_manager(team_id));
+
+CREATE POLICY "stripe_customers_all" ON stripe_customers
+  FOR ALL USING (is_admin());
+
+-- ============================================================================
+-- TABLE: stripe_products
+-- Description: Catalogue de produits synchronise depuis Stripe Dashboard
+-- ============================================================================
+CREATE TABLE stripe_products (
+  id TEXT PRIMARY KEY,  -- prod_xxx (ID Stripe comme PK)
+
+  -- Informations produit
+  active BOOLEAN DEFAULT TRUE,
+  name TEXT NOT NULL,
+  description TEXT,
+  image TEXT,
+  metadata JSONB DEFAULT '{}',
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- RLS: Lecture publique (catalogue visible par tous les utilisateurs authentifies)
+ALTER TABLE stripe_products ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "stripe_products_public_read" ON stripe_products
+  FOR SELECT USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "stripe_products_admin_write" ON stripe_products
+  FOR ALL USING (is_admin());
+
+-- Realtime pour mise a jour catalogue
+ALTER PUBLICATION supabase_realtime ADD TABLE stripe_products;
+
+-- ============================================================================
+-- TABLE: stripe_prices
+-- Description: Plans tarifaires synchronises depuis Stripe Dashboard
+-- ============================================================================
+CREATE TABLE stripe_prices (
+  id TEXT PRIMARY KEY,  -- price_xxx (ID Stripe comme PK)
+
+  -- Reference produit
+  product_id TEXT NOT NULL REFERENCES stripe_products(id) ON DELETE CASCADE,
+
+  -- Informations prix
+  active BOOLEAN DEFAULT TRUE,
+  description TEXT,
+  unit_amount INTEGER,  -- En centimes (999 = 9.99EUR)
+  currency TEXT DEFAULT 'eur',
+
+  -- Type de facturation
+  type pricing_type DEFAULT 'recurring',
+  interval pricing_interval DEFAULT 'month',
+  interval_count INTEGER DEFAULT 1,
+  trial_period_days INTEGER,
+
+  -- Metadonnees Stripe
+  metadata JSONB DEFAULT '{}',
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_stripe_prices_product ON stripe_prices(product_id);
+CREATE INDEX idx_stripe_prices_active ON stripe_prices(active) WHERE active = TRUE;
+
+-- RLS: Lecture publique
+ALTER TABLE stripe_prices ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "stripe_prices_public_read" ON stripe_prices
+  FOR SELECT USING (auth.uid() IS NOT NULL);
+
+CREATE POLICY "stripe_prices_admin_write" ON stripe_prices
+  FOR ALL USING (is_admin());
+
+-- Realtime pour mise a jour tarifs
+ALTER PUBLICATION supabase_realtime ADD TABLE stripe_prices;
+
+-- ============================================================================
+-- TABLE: subscriptions
+-- Description: Abonnements actifs synchronises depuis Stripe
+-- ============================================================================
+CREATE TABLE subscriptions (
+  id TEXT PRIMARY KEY,  -- sub_xxx (ID Stripe comme PK)
+
+  -- References
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+  stripe_customer_id TEXT NOT NULL,
+  price_id TEXT REFERENCES stripe_prices(id),
+
+  -- Statut
+  status subscription_status NOT NULL DEFAULT 'trialing',
+
+  -- Periodes (synchronisees depuis Stripe)
+  current_period_start TIMESTAMP WITH TIME ZONE,
+  current_period_end TIMESTAMP WITH TIME ZONE,
+  trial_start TIMESTAMP WITH TIME ZONE,
+  trial_end TIMESTAMP WITH TIME ZONE,
+
+  -- Annulation
+  cancel_at_period_end BOOLEAN DEFAULT FALSE,
+  cancel_at TIMESTAMP WITH TIME ZONE,
+  canceled_at TIMESTAMP WITH TIME ZONE,
+  ended_at TIMESTAMP WITH TIME ZONE,
+
+  -- SEIDO Specifique: Compteur de biens facturables
+  -- (buildings.count + lots.count WHERE building_id IS NULL)
+  billable_properties INTEGER NOT NULL DEFAULT 0,
+
+  -- Quantite (pour tarification par unite)
+  quantity INTEGER DEFAULT 1,
+
+  -- Metadonnees
+  metadata JSONB DEFAULT '{}',
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes pour lookups frequents
+CREATE INDEX idx_subscriptions_team ON subscriptions(team_id);
+CREATE INDEX idx_subscriptions_status ON subscriptions(status);
+CREATE INDEX idx_subscriptions_customer ON subscriptions(stripe_customer_id);
+CREATE INDEX idx_subscriptions_active ON subscriptions(team_id, status)
+  WHERE status IN ('trialing', 'active', 'past_due');
+
+-- RLS: Gestionnaires de l'equipe uniquement
+ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "subscriptions_select" ON subscriptions
+  FOR SELECT USING (is_admin() OR is_team_manager(team_id));
+
+CREATE POLICY "subscriptions_all" ON subscriptions
+  FOR ALL USING (is_admin());
+
+-- ============================================================================
+-- TABLE: stripe_invoices
+-- Description: Historique des factures synchronisees depuis Stripe
+-- ============================================================================
+CREATE TABLE stripe_invoices (
+  id TEXT PRIMARY KEY,  -- in_xxx (ID Stripe comme PK)
+
+  -- References
+  subscription_id TEXT REFERENCES subscriptions(id) ON DELETE SET NULL,
+  team_id UUID NOT NULL REFERENCES teams(id),
+  stripe_customer_id TEXT NOT NULL,
+
+  -- Montants (en centimes)
+  amount_due INTEGER NOT NULL,
+  amount_paid INTEGER DEFAULT 0,
+  amount_remaining INTEGER DEFAULT 0,
+  currency TEXT DEFAULT 'eur',
+
+  -- Statut
+  status invoice_status NOT NULL DEFAULT 'draft',
+
+  -- URLs Stripe (pour paiement/telechargement)
+  hosted_invoice_url TEXT,
+  invoice_pdf TEXT,
+
+  -- Periodes
+  period_start TIMESTAMP WITH TIME ZONE,
+  period_end TIMESTAMP WITH TIME ZONE,
+  due_date TIMESTAMP WITH TIME ZONE,
+  paid_at TIMESTAMP WITH TIME ZONE,
+
+  -- Metadonnees SEIDO
+  property_count INTEGER,  -- Nombre de biens factures sur cette periode
+
+  -- Audit
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_stripe_invoices_team ON stripe_invoices(team_id);
+CREATE INDEX idx_stripe_invoices_subscription ON stripe_invoices(subscription_id);
+CREATE INDEX idx_stripe_invoices_status ON stripe_invoices(status);
+CREATE INDEX idx_stripe_invoices_date ON stripe_invoices(created_at DESC);
+
+-- RLS: Gestionnaires de l'equipe uniquement
+ALTER TABLE stripe_invoices ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "stripe_invoices_select" ON stripe_invoices
+  FOR SELECT USING (is_admin() OR is_team_manager(team_id));
+
+CREATE POLICY "stripe_invoices_all" ON stripe_invoices
+  FOR ALL USING (is_admin());
+
+-- ============================================================================
+-- TRIGGER: Maintenir billable_properties synchronise
+-- Description: Compte automatiquement buildings + lots standalone
+-- ============================================================================
+CREATE OR REPLACE FUNCTION update_subscription_property_count()
+RETURNS TRIGGER AS $$
+DECLARE
+  v_team_id UUID;
+  v_count INTEGER;
+BEGIN
+  -- Determiner l'equipe concernee
+  IF TG_OP = 'DELETE' THEN
+    v_team_id := OLD.team_id;
+  ELSE
+    v_team_id := NEW.team_id;
+  END IF;
+
+  -- Compter les biens facturables:
+  -- - Tous les buildings actifs
+  -- - Tous les lots standalone (sans building_id) actifs
+  SELECT
+    COALESCE((SELECT COUNT(*) FROM buildings WHERE team_id = v_team_id AND deleted_at IS NULL), 0) +
+    COALESCE((SELECT COUNT(*) FROM lots WHERE team_id = v_team_id AND building_id IS NULL AND deleted_at IS NULL), 0)
+  INTO v_count;
+
+  -- Mettre a jour l'abonnement de l'equipe
+  UPDATE subscriptions
+  SET billable_properties = v_count, updated_at = NOW()
+  WHERE team_id = v_team_id;
+
+  RETURN COALESCE(NEW, OLD);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger sur buildings
+CREATE TRIGGER tr_buildings_subscription_count
+AFTER INSERT OR UPDATE OF deleted_at OR DELETE ON buildings
+FOR EACH ROW EXECUTE FUNCTION update_subscription_property_count();
+
+-- Trigger sur lots (pour les lots standalone)
+CREATE TRIGGER tr_lots_subscription_count
+AFTER INSERT OR UPDATE OF building_id, deleted_at OR DELETE ON lots
+FOR EACH ROW EXECUTE FUNCTION update_subscription_property_count();
+```
+
+#### 1.5.12 RBAC & Permissions
+
+```sql
+-- ============================================================================
+-- TABLE: permissions
+-- Description: Definitions des permissions (table systeme)
+-- ============================================================================
+CREATE TABLE permissions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  code VARCHAR(50) UNIQUE NOT NULL,
+  name VARCHAR(100) NOT NULL,
+  description TEXT,
+  category VARCHAR(50) NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  is_admin_only BOOLEAN DEFAULT FALSE,
+  is_system BOOLEAN DEFAULT FALSE,
+
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX idx_permissions_code ON permissions(code);
+CREATE INDEX idx_permissions_category ON permissions(category);
+
+-- RLS
+ALTER TABLE permissions ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- TABLE: role_default_permissions
+-- Description: Permissions par defaut par role
+-- ============================================================================
+CREATE TABLE role_default_permissions (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+
+  role user_role NOT NULL,
+  permission_id UUID NOT NULL REFERENCES permissions(id) ON DELETE CASCADE,
+
+  UNIQUE(role, permission_id)
+);
+
+CREATE INDEX idx_role_permissions_role ON role_default_permissions(role);
+
+-- RLS
+ALTER TABLE role_default_permissions ENABLE ROW LEVEL SECURITY;
+
+-- ============================================================================
+-- SEED DATA: 28 Permissions
+-- ============================================================================
+INSERT INTO permissions (code, name, description, category, sort_order, is_system) VALUES
+-- PERMISSIONS EQUIPE (6)
+('team.view', 'Voir l''equipe', 'Voir les parametres', 'team', 1, true),
+('team.manage', 'Gerer l''equipe', 'Modifier les parametres', 'team', 2, false),
+('team.managers_invite', 'Inviter gestionnaires', 'Creer des comptes gestionnaire', 'team', 3, false),
+('team.managers_manage', 'Gerer gestionnaires', 'Modifier permissions gestionnaires', 'team', 4, false),
+('team.members_invite', 'Inviter membres', 'Inviter prestataires/locataires/proprietaires', 'team', 5, false),
+('team.members_manage', 'Gerer membres', 'Modifier permissions autres membres', 'team', 6, false),
+
+-- PERMISSIONS OPERATIONNELLES (17)
+-- Properties (4)
+('properties.view', 'Voir les biens', 'Consulter immeubles/lots', 'properties', 10, true),
+('properties.create', 'Creer des biens', 'Ajouter immeubles/lots', 'properties', 11, false),
+('properties.manage', 'Gerer les biens', 'Modifier/supprimer', 'properties', 12, false),
+('properties.documents', 'Gerer documents', 'Upload/supprimer docs', 'properties', 13, false),
+
+-- Contracts (3)
+('contracts.view', 'Voir les contrats', 'Consulter les baux', 'contracts', 20, true),
+('contracts.create', 'Creer des contrats', 'Ajouter des baux', 'contracts', 21, false),
+('contracts.manage', 'Gerer les contrats', 'Modifier/resilier', 'contracts', 22, false),
+
+-- Interventions (4)
+('interventions.view', 'Voir les interventions', 'Consulter la liste', 'interventions', 30, true),
+('interventions.create', 'Creer des interventions', 'Creer des demandes', 'interventions', 31, false),
+('interventions.manage', 'Gerer les interventions', 'Approuver/assigner', 'interventions', 32, false),
+('interventions.close', 'Cloturer', 'Finaliser interventions', 'interventions', 33, false),
+
+-- Contacts (3)
+('contacts.view', 'Voir les contacts', 'Consulter la liste', 'contacts', 40, true),
+('contacts.create', 'Creer des contacts', 'Ajouter contacts', 'contacts', 41, false),
+('contacts.manage', 'Gerer les contacts', 'Modifier/supprimer', 'contacts', 42, false),
+
+-- Reports (3)
+('reports.view', 'Voir les rapports', 'Acces dashboard', 'reports', 50, true),
+('reports.export', 'Exporter', 'Export CSV/Excel', 'reports', 51, false),
+('reports.analytics', 'Analytics', 'Analytics avances', 'reports', 52, false),
+
+-- PERMISSIONS FACTURATION (5)
+('billing.subscription_view', 'Voir l''abonnement', 'Consulter statut et plan actuel', 'billing', 60, false),
+('billing.subscription_manage', 'Gerer l''abonnement', 'Modifier le plan, annuler', 'billing', 61, false),
+('billing.invoices_view', 'Voir les factures', 'Consulter l''historique des factures', 'billing', 62, false),
+('billing.invoices_download', 'Telecharger factures', 'Exporter les factures PDF', 'billing', 63, false),
+('billing.payment_method', 'Gerer le paiement', 'Modifier carte bancaire ou IBAN', 'billing', 64, false);
+```
+
+#### 1.5.13 Fonctions RLS
+
+```sql
+-- ============================================================================
+-- FONCTIONS IDENTITE
+-- ============================================================================
+
+-- Retourne l'ID du profil utilisateur connecte
+CREATE OR REPLACE FUNCTION get_current_user_id()
+RETURNS UUID
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$ SELECT id FROM users WHERE auth_user_id = auth.uid(); $$;
+
+-- Retourne le role de l'utilisateur
+CREATE OR REPLACE FUNCTION get_current_user_role()
+RETURNS user_role
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$ SELECT role FROM users WHERE auth_user_id = auth.uid(); $$;
+
+-- Verifie si admin
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$ SELECT EXISTS (SELECT 1 FROM users WHERE auth_user_id = auth.uid() AND role = 'admin'); $$;
+
+-- Verifie si gestionnaire
+CREATE OR REPLACE FUNCTION is_gestionnaire()
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$ SELECT EXISTS (SELECT 1 FROM users WHERE auth_user_id = auth.uid() AND role IN ('admin', 'gestionnaire')); $$;
+
+-- ============================================================================
+-- FONCTIONS EQUIPE
+-- ============================================================================
+
+-- Retourne toutes les equipes de l'utilisateur
+CREATE OR REPLACE FUNCTION get_user_teams_v2()
+RETURNS TABLE(team_id UUID)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT tm.team_id
+  FROM team_members tm
+  INNER JOIN users u ON tm.user_id = u.id
+  WHERE u.auth_user_id = auth.uid() AND tm.left_at IS NULL;
+$$;
+
+-- Verifie l'appartenance a une equipe
+CREATE OR REPLACE FUNCTION user_belongs_to_team_v2(p_team_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$ SELECT EXISTS (SELECT 1 FROM get_user_teams_v2() WHERE team_id = p_team_id); $$;
+
+-- Verifie si gestionnaire de l'equipe
+CREATE OR REPLACE FUNCTION is_team_manager(p_team_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM team_members tm
+    INNER JOIN users u ON tm.user_id = u.id
+    WHERE u.auth_user_id = auth.uid()
+      AND tm.team_id = p_team_id
+      AND tm.role IN ('admin', 'gestionnaire')
+      AND tm.left_at IS NULL
+  );
+$$;
+
+-- Verifie si l'utilisateur est membre actif d'une equipe
+CREATE OR REPLACE FUNCTION is_active_team_member(p_team_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM team_members
+    WHERE team_id = p_team_id
+      AND user_id = get_current_user_id()
+      AND left_at IS NULL
+  );
+$$;
+
+-- Verifie si l'utilisateur peut desactiver un membre
+CREATE OR REPLACE FUNCTION can_deactivate_member(p_team_id UUID, p_target_user_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_current_user_id UUID;
+  v_current_role team_member_role;
+  v_target_role team_member_role;
+  v_is_owner BOOLEAN;
+  v_admin_count INT;
+BEGIN
+  v_current_user_id := get_current_user_id();
+
+  -- Admin systeme peut tout faire
+  IF is_admin() THEN RETURN TRUE; END IF;
+
+  -- Recuperer le role de l'utilisateur courant dans l'equipe
+  SELECT role, is_team_owner INTO v_current_role, v_is_owner
+  FROM team_members
+  WHERE team_id = p_team_id AND user_id = v_current_user_id AND left_at IS NULL;
+
+  IF NOT FOUND THEN RETURN FALSE; END IF;
+
+  -- Team owner peut desactiver tout le monde sauf lui-meme
+  IF v_is_owner AND p_target_user_id != v_current_user_id THEN
+    RETURN TRUE;
+  END IF;
+
+  -- Gestionnaire/admin equipe peut desactiver les non-gestionnaires
+  IF v_current_role IN ('admin', 'gestionnaire') THEN
+    SELECT role INTO v_target_role
+    FROM team_members
+    WHERE team_id = p_team_id AND user_id = p_target_user_id AND left_at IS NULL;
+
+    IF v_target_role NOT IN ('admin', 'gestionnaire') THEN
+      RETURN TRUE;
+    END IF;
+  END IF;
+
+  -- Empecher la desactivation du dernier admin/gestionnaire
+  IF v_current_user_id = p_target_user_id THEN
+    SELECT COUNT(*) INTO v_admin_count
+    FROM team_members
+    WHERE team_id = p_team_id
+      AND role IN ('admin', 'gestionnaire')
+      AND left_at IS NULL;
+
+    IF v_admin_count <= 1 THEN RETURN FALSE; END IF;
+  END IF;
+
+  RETURN FALSE;
+END;
+$$;
+
+-- Compte les membres actifs d'une equipe
+CREATE OR REPLACE FUNCTION get_active_member_count(p_team_id UUID)
+RETURNS INT
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT COUNT(*)::INT
+  FROM team_members
+  WHERE team_id = p_team_id AND left_at IS NULL;
+$$;
+
+-- ============================================================================
+-- FONCTIONS PERMISSIONS
+-- ============================================================================
+
+-- Verifie une permission specifique dans une equipe
+CREATE OR REPLACE FUNCTION has_permission(p_team_id UUID, p_permission_code TEXT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_user_role user_role;
+  v_member_permissions TEXT[];
+  v_is_team_owner BOOLEAN;
+BEGIN
+  SELECT id, role INTO v_user_id, v_user_role
+  FROM users WHERE auth_user_id = auth.uid();
+
+  IF v_user_id IS NULL THEN RETURN FALSE; END IF;
+  IF v_user_role = 'admin' THEN RETURN TRUE; END IF;
+
+  SELECT permissions, is_team_owner INTO v_member_permissions, v_is_team_owner
+  FROM team_members
+  WHERE user_id = v_user_id AND team_id = p_team_id AND left_at IS NULL;
+
+  IF NOT FOUND THEN RETURN FALSE; END IF;
+  IF v_is_team_owner = TRUE THEN RETURN TRUE; END IF;
+
+  IF v_member_permissions IS NOT NULL THEN
+    RETURN p_permission_code = ANY(v_member_permissions);
+  END IF;
+
+  RETURN EXISTS (
+    SELECT 1 FROM role_default_permissions rdp
+    INNER JOIN permissions p ON rdp.permission_id = p.id
+    WHERE rdp.role = v_user_role AND p.code = p_permission_code
+  );
+END;
+$$;
+
+-- Retourne toutes les permissions de l'utilisateur dans une equipe
+CREATE OR REPLACE FUNCTION get_user_permissions(p_team_id UUID)
+RETURNS TEXT[]
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_user_id UUID;
+  v_user_role user_role;
+  v_member_permissions TEXT[];
+  v_is_team_owner BOOLEAN;
+BEGIN
+  SELECT id, role INTO v_user_id, v_user_role
+  FROM users WHERE auth_user_id = auth.uid();
+
+  IF v_user_id IS NULL THEN RETURN ARRAY[]::TEXT[]; END IF;
+  IF v_user_role = 'admin' THEN
+    RETURN (SELECT array_agg(code ORDER BY sort_order) FROM permissions);
+  END IF;
+
+  SELECT permissions, is_team_owner INTO v_member_permissions, v_is_team_owner
+  FROM team_members
+  WHERE user_id = v_user_id AND team_id = p_team_id AND left_at IS NULL;
+
+  IF NOT FOUND THEN RETURN ARRAY[]::TEXT[]; END IF;
+  IF v_is_team_owner THEN
+    RETURN (SELECT array_agg(code ORDER BY sort_order) FROM permissions);
+  END IF;
+
+  IF v_member_permissions IS NOT NULL THEN RETURN v_member_permissions; END IF;
+
+  RETURN (
+    SELECT array_agg(p.code ORDER BY p.sort_order)
+    FROM role_default_permissions rdp
+    INNER JOIN permissions p ON rdp.permission_id = p.id
+    WHERE rdp.role = v_user_role
+  );
+END;
+$$;
+
+-- ============================================================================
+-- FONCTIONS PROPRIETES ET CONTACTS
+-- ============================================================================
+
+-- Recupere le team_id d'un immeuble
+CREATE OR REPLACE FUNCTION get_building_team_id(p_building_id UUID)
+RETURNS UUID
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$ SELECT team_id FROM buildings WHERE id = p_building_id; $$;
+
+-- Recupere le team_id d'un lot
+CREATE OR REPLACE FUNCTION get_lot_team_id(p_lot_id UUID)
+RETURNS UUID
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT COALESCE(l.team_id, b.team_id)
+  FROM lots l
+  LEFT JOIN buildings b ON l.building_id = b.id
+  WHERE l.id = p_lot_id;
+$$;
+
+-- Verifie si l'utilisateur est locataire d'un lot (via contacts + contracts)
+CREATE OR REPLACE FUNCTION is_tenant_of_lot(p_lot_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM contracts c
+    INNER JOIN contract_contacts cc ON cc.contract_id = c.id
+    INNER JOIN contacts co ON cc.contact_id = co.id
+    WHERE c.lot_id = p_lot_id
+      AND c.status IN ('actif', 'brouillon')
+      AND c.deleted_at IS NULL
+      AND cc.role IN ('locataire', 'colocataire')
+      AND co.user_id = (SELECT id FROM users WHERE auth_user_id = auth.uid())
+  );
+$$;
+
+-- Verifie si proprietaire d'un lot
+CREATE OR REPLACE FUNCTION is_proprietaire_of_lot(p_lot_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM lot_contacts lc
+    INNER JOIN contacts c ON lc.contact_id = c.id
+    WHERE lc.lot_id = p_lot_id
+      AND (c.category = 'proprietaire' OR lc.role = 'proprietaire')
+      AND c.user_id = (SELECT id FROM users WHERE auth_user_id = auth.uid())
+  );
+$$;
+
+-- Verifie si l'utilisateur est assigne a une intervention
+CREATE OR REPLACE FUNCTION is_assigned_to_intervention(p_intervention_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM intervention_assignments ia
+    INNER JOIN users u ON ia.user_id = u.id
+    WHERE ia.intervention_id = p_intervention_id
+      AND u.auth_user_id = auth.uid()
+  );
+$$;
+
+-- ============================================================================
+-- FONCTIONS SUBSCRIPTION (Stripe)
+-- ============================================================================
+
+-- Verifie si l'equipe a un abonnement actif
+CREATE OR REPLACE FUNCTION has_active_subscription(p_team_id UUID)
+RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM subscriptions
+    WHERE team_id = p_team_id
+    AND status IN ('trialing', 'active', 'past_due')
+  );
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- Retourne le statut d'abonnement actuel de l'equipe
+CREATE OR REPLACE FUNCTION get_subscription_status(p_team_id UUID)
+RETURNS subscription_status AS $$
+  SELECT status FROM subscriptions
+  WHERE team_id = p_team_id
+  ORDER BY created_at DESC
+  LIMIT 1;
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- Verifie si l'abonnement permet l'acces aux fonctionnalites
+CREATE OR REPLACE FUNCTION is_subscription_valid(p_team_id UUID)
+RETURNS BOOLEAN AS $$
+DECLARE
+  v_status subscription_status;
+BEGIN
+  SELECT status INTO v_status
+  FROM subscriptions
+  WHERE team_id = p_team_id
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  -- Statuts permettant l'acces
+  RETURN v_status IN ('trialing', 'active', 'past_due');
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+```
+
+---
+
+### 1.6 Legende des Relations
 
 | Symbole | Signification |
 |---------|---------------|
@@ -365,7 +2759,7 @@
 
 ---
 
-### 1.6 Matrice d'Accès par Rôle et par Table
+### 1.7 Matrice d'Accès par Rôle et par Table
 
 Cette matrice définit les permissions **RLS (Row Level Security)** pour chaque table selon le rôle de l'utilisateur.
 
@@ -393,6 +2787,17 @@ Cette matrice définit les permissions **RLS (Row Level Security)** pour chaque 
 | `role_default_permissions` | ✅ CRUD | 📖 R | 📖 R | 📖 R | 📖 R | public |
 | `subscriptions` | ✅ CRUD | ✏️ RU 🔑 | ❌ | ❌ | ❌ | `team_id` |
 | `subscription_invoices` | ✅ CRUD | 📖 R | ❌ | ❌ | ❌ | via `subscriptions` |
+
+**Détail des actions `team_members` (soft delete avec `left_at`) :**
+
+| Action | Admin | Gestionnaire | Prestataire | Locataire | Propriétaire |
+|--------|:-----:|:------------:|:-----------:|:---------:|:------------:|
+| Voir membres actifs | ✅ | ✅ team | 📖 R self | 📖 R self | 📖 R self |
+| Voir historique membres | ✅ | ✅ team | ❌ | ❌ | ❌ |
+| Désactiver membre | ✅ | ✅ non-managers* | ❌ | ❌ | ❌ |
+| Réactiver membre | ✅ | ✅ team | ❌ | ❌ | ❌ |
+
+*\* Gestionnaires peuvent désactiver uniquement les membres avec rôle prestataire/locataire, pas les autres gestionnaires. Le team owner peut désactiver tous les membres sauf lui-même. La désactivation du dernier admin/gestionnaire est interdite.*
 
 #### Phase CRM: Contacts
 
@@ -486,7 +2891,7 @@ CREATE POLICY "prestataire_documents_select" ON documents
 
 ---
 
-### 1.7 Explication Détaillée des Accès par Rôle
+### 1.8 Explication Détaillée des Accès par Rôle
 
 Cette section explique en détail la logique d'accès pour chaque rôle utilisateur dans SEIDO.
 
@@ -735,7 +3140,106 @@ $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
 ---
 
-### 1.8 Logique RBAC et Résolution des Permissions
+#### 📋 Workflow: Désactivation d'un Membre d'Équipe
+
+Ce workflow décrit le processus de **soft delete** des membres d'équipe via le champ `left_at`.
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                    WORKFLOW: DÉSACTIVATION D'UN MEMBRE                       │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  ÉTAPE 1: Vérification des Permissions                                       │
+│  ─────────────────────────────────────                                       │
+│  → can_deactivate_member(team_id, target_user_id)                            │
+│  → Vérifie: admin système, team owner, ou gestionnaire vs non-gestionnaire   │
+│  → Empêche: désactivation du dernier admin/gestionnaire                      │
+│                                                                              │
+│  ÉTAPE 2: Désactivation (Soft Delete)                                        │
+│  ────────────────────────────────────                                        │
+│  → UPDATE team_members SET                                                   │
+│      left_at = NOW(),                                                        │
+│      left_by = current_user_id,                                              │
+│      left_reason = 'Raison optionnelle'                                      │
+│    WHERE team_id = X AND user_id = Y AND left_at IS NULL                     │
+│                                                                              │
+│  ⚠️ La suppression physique (DELETE) est bloquée par le trigger             │
+│     prevent_team_member_delete()                                             │
+│                                                                              │
+│  ÉTAPE 3: Effets Automatiques                                                │
+│  ────────────────────────────                                                │
+│  → Trigger set_team_member_left_by() renseigne left_by si absent             │
+│  → Les fonctions RLS filtrent automatiquement (WHERE left_at IS NULL)        │
+│  → L'utilisateur perd immédiatement l'accès aux données de l'équipe          │
+│                                                                              │
+│  ÉTAPE 4: Notifications                                                      │
+│  ─────────────────────                                                       │
+│  → Notifier le membre désactivé                                              │
+│  → Logger l'action dans activity_logs                                        │
+│                                                                              │
+│  ÉTAPE 5: Réactivation (si nécessaire)                                       │
+│  ─────────────────────────────────────                                       │
+│  → UPDATE team_members SET                                                   │
+│      left_at = NULL,                                                         │
+│      left_by = NULL,                                                         │
+│      left_reason = NULL                                                      │
+│    WHERE team_id = X AND user_id = Y AND left_at IS NOT NULL                 │
+│                                                                              │
+│  → L'utilisateur retrouve immédiatement son accès                            │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Fonctions RLS impliquées :**
+- `is_active_team_member(team_id)` - Vérifie si l'utilisateur courant est actif
+- `can_deactivate_member(team_id, user_id)` - Vérifie les permissions de désactivation
+- `get_active_member_count(team_id)` - Compte les membres actifs
+
+**Vue de commodité :**
+- `team_members_active` - Pré-filtrée avec `left_at IS NULL`
+
+**Exemple d'appel depuis le service :**
+```typescript
+// Dans team.repository.ts
+async deactivateMember(teamId: string, userId: string, reason?: string) {
+  // ⚠️ Utiliser UPDATE, pas DELETE
+  const { data, error } = await supabase
+    .from('team_members')
+    .update({
+      left_at: new Date().toISOString(),
+      left_reason: reason || null
+      // left_by est rempli automatiquement par le trigger
+    })
+    .eq('team_id', teamId)
+    .eq('user_id', userId)
+    .is('left_at', null)  // Seulement si membre actif
+    .select()
+    .single()
+
+  return { data, error }
+}
+
+async reactivateMember(teamId: string, userId: string) {
+  const { data, error } = await supabase
+    .from('team_members')
+    .update({
+      left_at: null,
+      left_by: null,
+      left_reason: null
+    })
+    .eq('team_id', teamId)
+    .eq('user_id', userId)
+    .not('left_at', 'is', null)  // Seulement si membre désactivé
+    .select()
+    .single()
+
+  return { data, error }
+}
+```
+
+---
+
+### 1.9 Logique RBAC et Résolution des Permissions
 
 #### Ordre de Vérification des Permissions
 

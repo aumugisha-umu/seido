@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useRef, useEffect } from "react"
 import { Card, CardHeader, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { LotCardHeader, LotCardBadges, calculateOccupancy, countContacts } from "./lot-card-header"
@@ -48,6 +48,8 @@ export function LotCardUnified({
 }: LotCardUnifiedProps) {
   // Internal expansion state (only used if not controlled)
   const [internalExpanded, setInternalExpanded] = useState(defaultExpanded)
+  const cardRef = useRef<HTMLDivElement>(null)
+  const previousExpandedRef = useRef(controlledExpanded ?? defaultExpanded)
 
   // Determine if we're in controlled or uncontrolled mode
   const isControlled = controlledExpanded !== undefined
@@ -74,6 +76,22 @@ export function LotCardUnified({
   )
 
   const lotInterventions = interventions.filter(i => i.lot_id === lot.id)
+
+  // Focus and scroll to card when it's expanded
+  useEffect(() => {
+    if (variant === "expandable" && expanded && !previousExpandedRef.current && cardRef.current) {
+      // Card was just opened - scroll into view and focus
+      setTimeout(() => {
+        cardRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'nearest',
+          inline: 'nearest'
+        })
+        cardRef.current?.focus()
+      }, 100) // Small delay to ensure DOM is updated
+    }
+    previousExpandedRef.current = expanded
+  }, [expanded, variant])
 
   // Handle card click (for selection mode or expand)
   const handleCardClick = useCallback((e: React.MouseEvent) => {
@@ -109,21 +127,28 @@ export function LotCardUnified({
   }, [mode, onSelect, isSelected, lot.id, lot.building?.id, variant, handleToggleExpand])
 
   return (
-    <Card
+    <div 
+      ref={cardRef} 
+      tabIndex={-1} 
       className={cn(
-        BLOCK,
-        "group hover:shadow-md hover:border-primary/30 transition-all duration-200",
-        isOccupied ? "border-l-4 border-l-green-500" : "border-l-4 border-l-gray-300",
-        mode === "select" && "cursor-pointer",
-        isSelected && "ring-2 ring-blue-500 bg-blue-50",
-        expanded && variant === "expandable" && "md:col-span-2 lg:col-span-4",
-        className
+        "outline-none w-full h-full",
+        expanded && variant === "expandable" && "col-span-full"
       )}
-      onClick={handleCardClick}
-      role={mode === "select" || variant === "expandable" ? "button" : undefined}
-      tabIndex={mode === "select" || variant === "expandable" ? 0 : undefined}
-      onKeyDown={mode === "select" || variant === "expandable" ? handleKeyDown : undefined}
     >
+      <Card
+        className={cn(
+          BLOCK,
+          "group hover:shadow-md hover:border-primary/30 transition-all duration-200 h-full bg-white p-0",
+          isOccupied ? "border-l-4 border-l-green-500" : "border-l-4 border-l-gray-300",
+          mode === "select" && "cursor-pointer",
+          isSelected && "ring-2 ring-blue-500 bg-blue-50",
+          className
+        )}
+        onClick={handleCardClick}
+        role={mode === "select" || variant === "expandable" ? "button" : undefined}
+        tabIndex={mode === "select" || variant === "expandable" ? 0 : undefined}
+        onKeyDown={mode === "select" || variant === "expandable" ? handleKeyDown : undefined}
+      >
       {/* Card Header - Always visible */}
       <CardHeader
         className={cn(
@@ -167,7 +192,7 @@ export function LotCardUnified({
 
       {/* Expanded Content - Contact sections + Contracts */}
       {variant === "expandable" && expanded && (
-        <CardContent className={cn(`${BLOCK}__expanded`, "pt-0 pb-4")}>
+        <CardContent className={cn(`${BLOCK}__expanded`, "pt-0 pb-3 px-3")}>
           <LotCardExpandedContent
             lot={lot}
             buildingContext={buildingContext}
@@ -179,7 +204,8 @@ export function LotCardUnified({
           />
         </CardContent>
       )}
-    </Card>
+      </Card>
+    </div>
   )
 }
 

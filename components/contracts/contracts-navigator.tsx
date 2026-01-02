@@ -315,18 +315,18 @@ export function ContractsNavigator({
               {/* View switcher */}
               <div className={viewSwitcherClass}>
                 <button
-                  onClick={() => setViewMode('cards')}
-                  className={getViewBtnClass(viewMode === 'cards')}
-                  aria-label="Vue grille"
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </button>
-                <button
                   onClick={() => setViewMode('list')}
                   className={getViewBtnClass(viewMode === 'list')}
                   aria-label="Vue liste"
                 >
                   <List className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('cards')}
+                  className={getViewBtnClass(viewMode === 'cards')}
+                  aria-label="Vue grille"
+                >
+                  <LayoutGrid className="h-4 w-4" />
                 </button>
               </div>
             </div>

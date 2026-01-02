@@ -118,18 +118,26 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                             />
                         </div>
                         <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                            {/* Bouton Importer */}
+                            <Button
+                                variant="outline"
+                                onClick={() => router.push("/gestionnaire/biens/import")}
+                                className="bg-card border-border text-foreground rounded-xl"
+                            >
+                                <Upload className="h-4 w-4 mr-2" />
+                                <span>Importer</span>
+                            </Button>
+
                             {/* Bouton Ajouter avec dropdown */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button
-                                        className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 rounded-xl px-4"
-                                    >
+                                    <Button className="rounded-xl px-4">
                                         <Plus className="h-4 w-4 mr-2" />
                                         <span>Ajouter</span>
                                         <ChevronDown className="h-4 w-4 ml-2" />
                                     </Button>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start" className="w-44">
+                                <DropdownMenuContent align="end" className="w-44">
                                     <DropdownMenuItem
                                         onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
                                         className="flex items-center gap-2 cursor-pointer"
@@ -167,16 +175,6 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
-                            
-                            {/* Bouton Importer */}
-                            <Button
-                                variant="outline"
-                                onClick={() => router.push("/gestionnaire/biens/import")}
-                                className="bg-card border-border text-foreground rounded-xl"
-                            >
-                                <Upload className="h-4 w-4 mr-2" />
-                                <span>Importer</span>
-                            </Button>
                         </div>
                     </div>
                 </div>

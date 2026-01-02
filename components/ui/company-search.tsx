@@ -86,7 +86,7 @@ export function CompanySearch({
     ? 'Tapez le nom de l\'entreprise...'
     : 'BE 0123.456.789'
 
-  // Recherche avec debounce pour nom, immédiate pour TVA
+  // Recherche avec debounce uniforme
   useEffect(() => {
     // Reset si champ vide
     if (!searchValue || searchValue.trim().length < 2) {
@@ -111,8 +111,9 @@ export function CompanySearch({
 
     setIsSearching(true)
 
-    // Debounce pour nom (500ms), immédiat pour TVA
-    const delay = searchType === 'name' ? 500 : 100
+    // Debounce uniforme pour les deux types de recherche
+    const delay = 500
+
     const timeoutId = setTimeout(async () => {
       try {
         const response = await fetch('/api/company/lookup', {

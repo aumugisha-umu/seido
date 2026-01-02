@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import {
   Plus,
-  Loader2,
   AlertTriangle,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -169,14 +168,10 @@ export function InterventionsPageClient({
                 <Button
                   className="flex items-center space-x-2"
                   onClick={() => navigate("/gestionnaire/interventions/nouvelle-intervention")}
-                  disabled={isNavigating}
+                  isLoading={isNavigating}
                 >
-                  {isNavigating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  <span>Créer une intervention</span>
+                  <Plus className="h-4 w-4" />
+                  <span>Nouvelle intervention</span>
                 </Button>
               </div>
             </div>

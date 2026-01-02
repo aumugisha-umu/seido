@@ -245,18 +245,18 @@ export function PatrimoineNavigator({
                             {mounted && (
                                 <div className={viewSwitcherClass}>
                                     <button
-                                        onClick={() => setViewMode('cards')}
-                                        className={getViewBtnClass(viewMode === 'cards')}
-                                        title="Vue cartes"
-                                    >
-                                        <LayoutGrid className="h-4 w-4" />
-                                    </button>
-                                    <button
                                         onClick={() => setViewMode('list')}
                                         className={getViewBtnClass(viewMode === 'list')}
                                         title="Vue liste"
                                     >
                                         <List className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => setViewMode('cards')}
+                                        className={getViewBtnClass(viewMode === 'cards')}
+                                        title="Vue cartes"
+                                    >
+                                        <LayoutGrid className="h-4 w-4" />
                                     </button>
                                 </div>
                             )}

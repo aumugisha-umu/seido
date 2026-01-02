@@ -159,10 +159,38 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
             )
         },
         {
+            id: 'invitationStatus',
+            header: 'Statut',
+            accessorKey: 'invitationStatus',
+            cell: (contact) => {
+                const status = contact.invitationStatus
+                const statusConfig: Record<string, { label: string; className: string }> = {
+                    'accepted': { label: 'Actif', className: 'bg-green-100 text-green-800 border-green-200' },
+                    'pending': { label: 'En attente', className: 'bg-blue-100 text-blue-800 border-blue-200' },
+                    'expired': { label: 'Expiré', className: 'bg-amber-100 text-amber-800 border-amber-200' },
+                    'cancelled': { label: 'Annulé', className: 'bg-red-100 text-red-800 border-red-200' }
+                }
+                if (!status || !statusConfig[status]) {
+                    return (
+                        <Badge variant="outline" className="text-xs text-slate-500 border-slate-300">
+                            Pas de compte
+                        </Badge>
+                    )
+                }
+                const config = statusConfig[status]
+                return (
+                    <Badge variant="secondary" className={`${config.className} text-xs font-medium`}>
+                        {config.label}
+                    </Badge>
+                )
+            }
+        },
+        {
             id: 'company',
             header: 'Société',
             cell: (contact) => {
-                if (contact.is_company && contact.company) {
+                // Affiche la société liée si elle existe (relation company)
+                if (contact.company) {
                     return (
                         <div className="flex items-center gap-1 text-sm text-slate-600">
                             <Building2 className="h-3 w-3" />
@@ -170,7 +198,8 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
                         </div>
                     )
                 }
-                if (!contact.is_company && contact.companyLegacy) {
+                // Fallback pour les données legacy (companyLegacy string)
+                if (contact.companyLegacy) {
                     return <span className="text-sm text-slate-600">{contact.companyLegacy}</span>
                 }
                 return <span className="text-sm text-slate-400">-</span>
@@ -217,10 +246,10 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
             label: 'Rôle',
             options: [
                 { value: 'all', label: 'Tous' },
-                { value: 'tenant', label: 'Locataire' },
-                { value: 'owner', label: 'Propriétaire' },
-                { value: 'provider', label: 'Prestataire' },
-                { value: 'manager', label: 'Gestionnaire' }
+                { value: 'locataire', label: 'Locataire' },
+                { value: 'proprietaire', label: 'Propriétaire' },
+                { value: 'prestataire', label: 'Prestataire' },
+                { value: 'gestionnaire', label: 'Gestionnaire' }
             ],
             defaultValue: 'all'
         },
@@ -245,10 +274,11 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
     views: {
         card: {
             enabled: true,
-            component: ({ item }) => (
+            component: ({ item, actions }) => (
                 <ContactCardCompact
                     contact={item}
                     invitationStatus={item.invitationStatus || undefined}
+                    actions={actions}
                 />
             ),
             compact: true
@@ -282,14 +312,6 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
             icon: Eye,
             onClick: (contact) => {
                 window.location.href = `/gestionnaire/contacts/details/${contact.id}`
-            }
-        },
-        {
-            id: 'email',
-            label: 'Envoyer un email',
-            icon: Mail,
-            onClick: (contact) => {
-                window.open(`mailto:${contact.email}`, '_blank')
             }
         }
     ],

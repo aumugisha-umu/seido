@@ -2,9 +2,17 @@
 
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Mail, Phone, MapPin, Building2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Mail, Phone, MapPin, Building2, MoreVertical } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import type { ActionConfig } from '@/components/ui/data-table/types'
 
 interface ContactCardCompactProps {
     contact: {
@@ -23,6 +31,7 @@ interface ContactCardCompactProps {
             id: string
             name: string
         } | null
+        invitationStatus?: string
     }
     invitationStatus?: string
     isCurrentUser?: boolean
@@ -33,11 +42,22 @@ interface ContactCardCompactProps {
      * - 'inline': Compact inline style without address, smaller padding (for embedded lists)
      */
     variant?: 'default' | 'inline'
+    /**
+     * Optional actions to display in a dropdown menu
+     */
+    actions?: ActionConfig<any>[]
 }
 
-export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, onClick, variant = 'default' }: ContactCardCompactProps) {
+export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, onClick, variant = 'default', actions = [] }: ContactCardCompactProps) {
     const router = useRouter()
     const isInline = variant === 'inline'
+
+    // Filter visible actions based on show predicate
+    const getVisibleActions = () => {
+        return actions.filter(action => !action.show || action.show(contact))
+    }
+
+    const visibleActions = getVisibleActions()
 
     const handleCardClick = () => {
         if (onClick) {
@@ -218,6 +238,42 @@ export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, o
                         </p>
                     )}
                 </div>
+
+                {/* Actions dropdown menu */}
+                {!isInline && visibleActions.length > 0 && (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0 flex-shrink-0"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <span className="sr-only">Ouvrir le menu</span>
+                                <MoreVertical className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {visibleActions.map((action) => {
+                                const Icon = action.icon
+                                return (
+                                    <DropdownMenuItem
+                                        key={action.id}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            action.onClick(contact)
+                                        }}
+                                        className={cn(
+                                            action.variant === 'destructive' && "text-red-600 focus:text-red-600"
+                                        )}
+                                    >
+                                        {Icon && <Icon className="mr-2 h-4 w-4" />}
+                                        <span>{action.label}</span>
+                                    </DropdownMenuItem>
+                                )
+                            })}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
             </div>
 
             {/* Détails - only show in default variant */}

@@ -16,7 +16,7 @@ import {
 import { useDataNavigator } from '@/hooks/use-data-navigator'
 import { DataTable } from '@/components/ui/data-table/data-table'
 import { DataCards } from '@/components/ui/data-table/data-cards'
-import { Users, Send, Building2, Search, Filter, LayoutGrid, List, UserPlus, Trash2 } from 'lucide-react'
+import { Users, Send, Building2, Search, Filter, LayoutGrid, List, Archive, Mail, RefreshCw, XCircle, UserX } from 'lucide-react'
 import {
     Popover,
     PopoverContent,
@@ -47,9 +47,16 @@ interface ContactsNavigatorProps {
     companies: CompanyData[]
     loading?: boolean
     onRefresh?: () => void
+    // Invitation tab actions
     onResendInvitation?: (id: string) => void
     onCancelInvitation?: (id: string) => void
-    onDeleteContact?: (id: string) => void
+    // Contact actions
+    onArchiveContact?: (id: string) => void
+    // Contact invitation actions (based on invitationStatus)
+    onSendContactInvitation?: (contact: ContactData) => void
+    onResendContactInvitation?: (contact: ContactData) => void
+    onCancelContactInvitation?: (contact: ContactData) => void
+    onRevokeContactAccess?: (contact: ContactData) => void
     className?: string
 }
 
@@ -61,7 +68,11 @@ export function ContactsNavigator({
     onRefresh,
     onResendInvitation,
     onCancelInvitation,
-    onDeleteContact,
+    onArchiveContact,
+    onSendContactInvitation,
+    onResendContactInvitation,
+    onCancelContactInvitation,
+    onRevokeContactAccess,
     className
 }: ContactsNavigatorProps) {
     const router = useRouter()
@@ -75,12 +86,47 @@ export function ContactsNavigator({
                     ...contactsTableConfig,
                     actions: [
                         ...(contactsTableConfig.actions || []),
+                        // Action "Inviter" - visible si pas d'invitation ou annulée
                         {
-                            id: 'delete',
-                            label: 'Supprimer',
-                            icon: Trash2,
+                            id: 'invite',
+                            label: 'Inviter',
+                            icon: Mail,
+                            show: (contact: ContactData) => !contact.invitationStatus || contact.invitationStatus === 'cancelled',
+                            onClick: (contact: ContactData) => onSendContactInvitation?.(contact)
+                        },
+                        // Action "Relancer" - visible si pending ou expired
+                        {
+                            id: 'resend-contact',
+                            label: 'Relancer invitation',
+                            icon: RefreshCw,
+                            show: (contact: ContactData) => contact.invitationStatus === 'pending' || contact.invitationStatus === 'expired',
+                            onClick: (contact: ContactData) => onResendContactInvitation?.(contact)
+                        },
+                        // Action "Annuler invitation" - visible si pending ou expired
+                        {
+                            id: 'cancel-contact-invite',
+                            label: 'Annuler invitation',
+                            icon: XCircle,
                             variant: 'destructive' as const,
-                            onClick: (contact: ContactData) => onDeleteContact?.(contact.id)
+                            show: (contact: ContactData) => contact.invitationStatus === 'pending' || contact.invitationStatus === 'expired',
+                            onClick: (contact: ContactData) => onCancelContactInvitation?.(contact)
+                        },
+                        // Action "Retirer l'accès" - visible si accepted
+                        {
+                            id: 'revoke',
+                            label: "Retirer l'accès",
+                            icon: UserX,
+                            variant: 'destructive' as const,
+                            show: (contact: ContactData) => contact.invitationStatus === 'accepted',
+                            onClick: (contact: ContactData) => onRevokeContactAccess?.(contact)
+                        },
+                        // Action "Archiver"
+                        {
+                            id: 'archive',
+                            label: 'Archiver',
+                            icon: Archive,
+                            variant: 'destructive' as const,
+                            onClick: (contact: ContactData) => onArchiveContact?.(contact.id)
                         }
                     ]
                 }
@@ -255,11 +301,6 @@ export function ContactsNavigator({
             : "text-slate-600 hover:bg-slate-200/60"
     )
 
-    const addBtnClass = cn(
-        "contacts-section__add-btn",
-        "ml-2"
-    )
-
     const dataClass = cn(
         "contacts-section__data",
         "flex-1 mt-4 overflow-y-auto"
@@ -344,7 +385,7 @@ export function ContactsNavigator({
                                         </div>
 
                                         {currentConfig.filters && currentConfig.filters.length > 0 ? (
-                                            <div className="space-y-3">
+                                            <div className="grid grid-cols-2 gap-3">
                                                 {currentConfig.filters.map((filter) => (
                                                     <div key={filter.id} className="space-y-1.5">
                                                         <Label className="text-xs text-slate-500">{filter.label}</Label>
@@ -391,30 +432,21 @@ export function ContactsNavigator({
                             {mounted && (
                                 <div className={viewSwitcherClass}>
                                     <button
-                                        onClick={() => setViewMode('cards')}
-                                        className={getViewBtnClass(viewMode === 'cards')}
-                                        title="Vue cartes"
-                                    >
-                                        <LayoutGrid className="h-4 w-4" />
-                                    </button>
-                                    <button
                                         onClick={() => setViewMode('list')}
                                         className={getViewBtnClass(viewMode === 'list')}
                                         title="Vue liste"
                                     >
                                         <List className="h-4 w-4" />
                                     </button>
+                                    <button
+                                        onClick={() => setViewMode('cards')}
+                                        className={getViewBtnClass(viewMode === 'cards')}
+                                        title="Vue cartes"
+                                    >
+                                        <LayoutGrid className="h-4 w-4" />
+                                    </button>
                                 </div>
                             )}
-
-                            {/* Add Button */}
-                            <Button
-                                onClick={() => router.push('/gestionnaire/contacts/nouveau')}
-                                className={addBtnClass}
-                            >
-                                <UserPlus className="h-4 w-4 mr-2" />
-                                Ajouter
-                            </Button>
                         </div>
                     </div>
 

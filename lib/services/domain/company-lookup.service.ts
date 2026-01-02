@@ -16,15 +16,15 @@ import { logger, logError } from '@/lib/logger'
 
 /**
  * Configuration for CBEAPI
- * Optimized timeouts: 3s for direct lookup (fast), 6s for search (slower)
- * Reduced retries: 1 retry max (2 attempts total) for faster failure feedback
+ * Unified timeout: 6s for all requests (CBEAPI has similar response times for search and direct lookup)
+ * Retries: 1 retry max (2 attempts total) for faster failure feedback
  */
 const CBEAPI_CONFIG = {
   baseUrl: process.env.CBEAPI_URL || 'https://cbeapi.be/api/v1',
   apiKey: process.env.CBEAPI_KEY || '',
   timeouts: {
-    directLookup: 3000,   // 3 seconds for /company/{id} (should be fast)
-    search: 6000          // 6 seconds for /company/search (can be slower)
+    directLookup: 6000,   // 6 seconds - aligned with search (CBEAPI has similar response times)
+    search: 6000          // 6 seconds for /company/search
   },
   maxRetries: 1,          // 2 attempts total (1 initial + 1 retry) instead of 3
   retryDelay: 300         // 300ms between retries (reduced from 1000ms)
@@ -58,7 +58,18 @@ export class CompanyLookupService {
         logger.warn('[COMPANY-LOOKUP] Redis URL not configured, caching disabled')
         return null
       }
-      return new Redis(process.env.REDIS_URL)
+      return new Redis(process.env.REDIS_URL, {
+        lazyConnect: true,
+        maxRetriesPerRequest: 2,
+        retryStrategy: (times) => {
+          if (times > 2) return null
+          return Math.min(times * 100, 500)
+        },
+        connectTimeout: 3000,
+        commandTimeout: 1000, // 1 second timeout for commands
+        enableOfflineQueue: false,
+        reconnectOnError: () => false
+      })
     } catch (error) {
       logError(error, '[COMPANY-LOOKUP] Failed to create Redis client')
       return null
@@ -477,13 +488,20 @@ export class CompanyLookupService {
   }
 
   /**
-   * Get data from cache
+   * Get data from cache with timeout
    */
   private async getFromCache(key: string): Promise<CompanyLookupResult | null> {
     if (!this.redis) return null
 
     try {
-      const cached = await this.redis.get(key)
+      // Add timeout wrapper to prevent blocking (max 1 second)
+      const cachePromise = this.redis.get(key)
+      const timeoutPromise = new Promise<null>((resolve) => {
+        setTimeout(() => resolve(null), 1000)
+      })
+
+      const cached = await Promise.race([cachePromise, timeoutPromise])
+      
       if (cached) {
         return JSON.parse(cached) as CompanyLookupResult
       }
@@ -495,13 +513,19 @@ export class CompanyLookupService {
   }
 
   /**
-   * Set data in cache
+   * Set data in cache with timeout
    */
   private async setInCache(key: string, data: CompanyLookupResult): Promise<void> {
     if (!this.redis) return
 
     try {
-      await this.redis.setex(key, CACHE_CONFIG.ttl, JSON.stringify(data))
+      // Add timeout wrapper to prevent blocking (max 1 second)
+      const setPromise = this.redis.setex(key, CACHE_CONFIG.ttl, JSON.stringify(data))
+      const timeoutPromise = new Promise<void>((resolve) => {
+        setTimeout(() => resolve(), 1000)
+      })
+
+      await Promise.race([setPromise, timeoutPromise])
     } catch (error) {
       logError(error, '[COMPANY-LOOKUP] Cache write error')
       // Don't throw - caching is optional

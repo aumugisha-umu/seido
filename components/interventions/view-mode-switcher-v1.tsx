@@ -1,7 +1,7 @@
 "use client"
 
 import { LayoutGrid, List, Calendar } from 'lucide-react'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { cn } from '@/lib/utils'
 import type { ViewMode } from '@/hooks/use-view-mode'
 
 /**
@@ -9,26 +9,9 @@ import type { ViewMode } from '@/hooks/use-view-mode'
  *
  * **Design Philosophy:**
  * - Compact icon-only buttons for space efficiency
- * - ToggleGroup for mutually exclusive selection
+ * - Consistent styling with other navigators (patrimoine, contacts, contracts)
  * - Clear visual states (active/inactive)
  * - Material Design 3 principles
- *
- * **Pros:**
- * ✅ Space-efficient (ideal for toolbar placement)
- * ✅ Clean visual hierarchy
- * ✅ International (no text translation needed)
- * ✅ Fast interaction (single click)
- * ✅ Clear active state
- *
- * **Cons:**
- * ❌ Less explicit for new users (icons need learning)
- * ❌ No text labels (accessibility relies on tooltips)
- *
- * **Best for:**
- * - Users familiar with view switching patterns
- * - Toolbar/header placement next to search
- * - Mobile-first responsive designs
- * - Clean, minimal interfaces
  *
  * @example
  * ```tsx
@@ -57,68 +40,70 @@ export function ViewModeSwitcherV1({
   className,
   disabled = false
 }: ViewModeSwitcherV1Props) {
-  return (
-    <ToggleGroup
-      type="single"
-      value={value}
-      onValueChange={(newValue) => {
-        // ToggleGroup returns empty string if same value clicked
-        // Prevent deselection by only updating if newValue exists
-        if (newValue) {
-          onChange(newValue as ViewMode)
-        }
-      }}
-      className={className}
-      disabled={disabled}
-    >
-      {/* CARDS VIEW */}
-      <ToggleGroupItem
-        value="cards"
-        aria-label="Vue en cartes"
-        className="h-8 w-8 p-0 data-[state=on]:bg-blue-100 data-[state=on]:text-blue-700 hover:bg-slate-100 transition-colors"
-      >
-        <LayoutGrid className="h-4 w-4" aria-hidden="true" />
-      </ToggleGroupItem>
+  // Style cohérent avec les autres navigateurs (contacts, patrimoine, contracts)
+  const containerClass = cn(
+    "inline-flex h-10 bg-slate-100 rounded-md p-1",
+    className
+  )
 
+  const getButtonClass = (isActive: boolean) => cn(
+    "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-all",
+    isActive
+      ? "bg-white text-slate-900 shadow-sm"
+      : "text-slate-600 hover:bg-slate-200/60",
+    disabled && "opacity-50 cursor-not-allowed"
+  )
+
+  return (
+    <div className={containerClass}>
       {/* LIST VIEW */}
-      <ToggleGroupItem
-        value="list"
+      <button
+        onClick={() => !disabled && onChange('list')}
+        className={getButtonClass(value === 'list')}
+        title="Vue liste"
+        disabled={disabled}
         aria-label="Vue en liste"
-        className="h-8 w-8 p-0 data-[state=on]:bg-blue-100 data-[state=on]:text-blue-700 hover:bg-slate-100 transition-colors"
       >
         <List className="h-4 w-4" aria-hidden="true" />
-      </ToggleGroupItem>
+      </button>
+
+      {/* CARDS VIEW */}
+      <button
+        onClick={() => !disabled && onChange('cards')}
+        className={getButtonClass(value === 'cards')}
+        title="Vue cartes"
+        disabled={disabled}
+        aria-label="Vue en cartes"
+      >
+        <LayoutGrid className="h-4 w-4" aria-hidden="true" />
+      </button>
 
       {/* CALENDAR VIEW */}
-      <ToggleGroupItem
-        value="calendar"
+      <button
+        onClick={() => !disabled && onChange('calendar')}
+        className={getButtonClass(value === 'calendar')}
+        title="Vue calendrier"
+        disabled={disabled}
         aria-label="Vue calendrier"
-        className="h-8 w-8 p-0 data-[state=on]:bg-blue-100 data-[state=on]:text-blue-700 hover:bg-slate-100 transition-colors"
       >
         <Calendar className="h-4 w-4" aria-hidden="true" />
-      </ToggleGroupItem>
-    </ToggleGroup>
+      </button>
+    </div>
   )
 }
 
 /**
  * ✶ Insight ─────────────────────────────────────
  *
- * **ToggleGroup Pattern Benefits:**
- * - Built-in ARIA roles and keyboard navigation (WCAG 2.1 AA)
- * - Prevents deselection (always one active mode)
- * - Radix UI primitives ensure accessibility
+ * **Design System Consistency:**
+ * - Same visual pattern as patrimoine, contacts, and contracts navigators
+ * - Container: bg-slate-100 rounded-md for pill-shaped background
+ * - Active button: bg-white shadow-sm for elevated "selected" appearance
+ * - Inactive: text-slate-600 with hover state for discoverability
  *
- * **Active State Design:**
- * - Blue background (100 shade) for clear contrast
- * - Blue text (700 shade) matches brand colors
- * - Hover state for all buttons improves discoverability
- *
- * **Why Icon-Only Works Here:**
- * - View switching is a common pattern (users learn quickly)
- * - Icons are universal (LayoutGrid = cards, List = table, Calendar = dates)
- * - Space efficiency allows placement next to search bar
- * - Tooltip fallback via title attribute for accessibility
+ * **Interventions-specific:**
+ * - Includes 3 modes: list, cards, calendar (vs 2 for other navigators)
+ * - Calendar icon for date-based intervention planning
  *
  * ─────────────────────────────────────────────────
  */

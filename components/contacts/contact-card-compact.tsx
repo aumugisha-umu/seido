@@ -13,6 +13,12 @@ import { Mail, Phone, MapPin, Building2, MoreVertical } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { ActionConfig } from '@/components/ui/data-table/types'
+import {
+    getContactTypeLabel,
+    getContactTypeBadgeStyle,
+    getSpecialityLabel,
+    getSpecialityBadgeStyle
+} from '@/config/table-configs/contacts.config'
 
 interface ContactCardCompactProps {
     contact: {
@@ -65,58 +71,6 @@ export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, o
         } else {
             router.push(`/gestionnaire/contacts/details/${contact.id}`)
         }
-    }
-
-    const getContactTypeLabel = () => {
-        if (!contact.role) return 'Non défini'
-
-        const types: Record<string, string> = {
-            // English values (expected)
-            'tenant': 'Locataire',
-            'owner': 'Propriétaire',
-            'provider': 'Prestataire',
-            'manager': 'Gestionnaire',
-            'other': 'Autre',
-            // French values (fallback for legacy data)
-            'locataire': 'Locataire',
-            'proprietaire': 'Propriétaire',
-            'prestataire': 'Prestataire',
-            'gestionnaire': 'Gestionnaire',
-            'autre': 'Autre'
-        }
-        return types[contact.role] || 'Non défini'
-    }
-
-    const getContactTypeBadgeStyle = () => {
-        const styles: Record<string, string> = {
-            // English values (expected)
-            'tenant': 'bg-blue-100 text-blue-800',
-            'owner': 'bg-emerald-100 text-emerald-800',
-            'provider': 'bg-green-100 text-green-800',
-            'manager': 'bg-purple-100 text-purple-800',
-            'other': 'bg-gray-100 text-gray-600',
-            // French values (fallback for legacy data)
-            'locataire': 'bg-blue-100 text-blue-800',
-            'proprietaire': 'bg-emerald-100 text-emerald-800',
-            'prestataire': 'bg-green-100 text-green-800',
-            'gestionnaire': 'bg-purple-100 text-purple-800',
-            'autre': 'bg-gray-100 text-gray-600'
-        }
-        return styles[contact.role || 'other'] || 'bg-gray-100 text-gray-600'
-    }
-
-    const getSpecialityLabel = (speciality: string) => {
-        const specialities: Record<string, string> = {
-            'plomberie': 'Plomberie',
-            'electricite': 'Électricité',
-            'chauffage': 'Chauffage',
-            'serrurerie': 'Serrurerie',
-            'peinture': 'Peinture',
-            'menage': 'Ménage',
-            'jardinage': 'Jardinage',
-            'autre': 'Autre'
-        }
-        return specialities[speciality] || speciality
     }
 
     const getInvitationBadge = () => {
@@ -189,11 +143,11 @@ export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, o
                                 variant="secondary"
                                 className={cn(
                                     `${blockClass}__role`,
-                                    getContactTypeBadgeStyle(),
+                                    getContactTypeBadgeStyle(contact.role),
                                     "text-xs font-medium"
                                 )}
                             >
-                                {getContactTypeLabel()}
+                                {getContactTypeLabel(contact.role)}
                             </Badge>
                         )}
                         {!isInline && contact.company && (
@@ -225,7 +179,8 @@ export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, o
                         {!isInline && contact.speciality && (
                             <Badge variant="secondary" className={cn(
                                 `${blockClass}__speciality`,
-                                "bg-green-100 text-green-800 text-xs"
+                                getSpecialityBadgeStyle(contact.speciality),
+                                "text-xs"
                             )}>
                                 {getSpecialityLabel(contact.speciality)}
                             </Badge>

@@ -66,7 +66,7 @@ export interface CompanyData {
 }
 
 // Helper functions
-const getContactTypeLabel = (role?: string) => {
+export const getContactTypeLabel = (role?: string) => {
     const types: Record<string, string> = {
         // English values (expected)
         'tenant': 'Locataire',
@@ -84,7 +84,7 @@ const getContactTypeLabel = (role?: string) => {
     return types[role || 'other'] || 'Non défini'
 }
 
-const getContactTypeBadgeStyle = (role?: string) => {
+export const getContactTypeBadgeStyle = (role?: string) => {
     const styles: Record<string, string> = {
         // English values (expected)
         'tenant': 'bg-blue-100 text-blue-800',
@@ -102,7 +102,7 @@ const getContactTypeBadgeStyle = (role?: string) => {
     return styles[role || 'other'] || 'bg-gray-100 text-gray-600'
 }
 
-const getSpecialityLabel = (speciality?: string) => {
+export const getSpecialityLabel = (speciality?: string) => {
     if (!speciality) return null
     const specialities: Record<string, string> = {
         'plomberie': 'Plomberie',
@@ -115,6 +115,20 @@ const getSpecialityLabel = (speciality?: string) => {
         'autre': 'Autre'
     }
     return specialities[speciality] || speciality
+}
+
+export const getSpecialityBadgeStyle = (speciality?: string) => {
+    const styles: Record<string, string> = {
+        'plomberie': 'bg-blue-100 text-blue-800',
+        'electricite': 'bg-yellow-100 text-yellow-800',
+        'chauffage': 'bg-orange-100 text-orange-800',
+        'serrurerie': 'bg-slate-100 text-slate-800',
+        'peinture': 'bg-purple-100 text-purple-800',
+        'menage': 'bg-cyan-100 text-cyan-800',
+        'jardinage': 'bg-green-100 text-green-800',
+        'autre': 'bg-gray-100 text-gray-600'
+    }
+    return styles[speciality || 'autre'] || 'bg-gray-100 text-gray-600'
 }
 
 /**
@@ -159,9 +173,25 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
             )
         },
         {
+            id: 'speciality',
+            header: 'Spécialité',
+            accessorKey: 'speciality',
+            sortable: true,
+            cell: (contact) => {
+                const label = getSpecialityLabel(contact.speciality)
+                if (!label) return <span className="text-sm text-slate-400">-</span>
+                return (
+                    <Badge variant="secondary" className={`${getSpecialityBadgeStyle(contact.speciality)} text-xs`}>
+                        {label}
+                    </Badge>
+                )
+            }
+        },
+        {
             id: 'invitationStatus',
             header: 'Statut',
             accessorKey: 'invitationStatus',
+            sortable: true,
             cell: (contact) => {
                 const status = contact.invitationStatus
                 const statusConfig: Record<string, { label: string; className: string }> = {
@@ -188,6 +218,8 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
         {
             id: 'company',
             header: 'Société',
+            accessorKey: 'company',
+            sortable: true,
             cell: (contact) => {
                 // Affiche la société liée si elle existe (relation company)
                 if (contact.company) {
@@ -206,23 +238,10 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
             }
         },
         {
-            id: 'speciality',
-            header: 'Spécialité',
-            accessorKey: 'speciality',
-            cell: (contact) => {
-                const label = getSpecialityLabel(contact.speciality)
-                if (!label) return <span className="text-sm text-slate-400">-</span>
-                return (
-                    <Badge variant="secondary" className="bg-green-50 text-green-700 border-green-200 text-xs">
-                        {label}
-                    </Badge>
-                )
-            }
-        },
-        {
             id: 'phone',
             header: 'Téléphone',
             accessorKey: 'phone',
+            sortable: true,
             cell: (contact) => {
                 if (!contact.phone) return <span className="text-sm text-slate-400">-</span>
                 return (

@@ -30,41 +30,86 @@ export async function getTeamContactsAction(teamId: string) {
     // Create server-side Supabase client (faster RLS evaluation)
     const supabase = await createServerActionSupabaseClient()
 
-    // Optimized query: essential columns + company data
-    const { data, error } = await supabase
-      .from('team_members')
-      .select(`
-        user:user_id (
-          id,
-          name,
-          email,
-          phone,
-          role,
-          provider_category,
-          speciality,
-          is_company,
-          company_id,
-          company:company_id (
+    // Parallel fetch: contacts + invitations
+    const [contactsResult, invitationsResult] = await Promise.all([
+      // Contacts query
+      supabase
+        .from('team_members')
+        .select(`
+          user:user_id (
             id,
             name,
-            vat_number
+            email,
+            phone,
+            role,
+            provider_category,
+            speciality,
+            is_company,
+            company_id,
+            auth_user_id,
+            company:company_id (
+              id,
+              name,
+              vat_number
+            )
           )
-        )
-      `)
-      .eq('team_id', teamId)
-      .is('left_at', null)  // Only active members
-      .order('joined_at', { ascending: false })
+        `)
+        .eq('team_id', teamId)
+        .is('left_at', null)  // Only active members
+        .order('joined_at', { ascending: false }),
 
-    if (error) {
-      logger.error('[SERVER-ACTION] Error fetching team contacts:', error)
-      throw new Error(`Failed to fetch team contacts: ${error.message}`)
+      // Invitations query
+      supabase
+        .from('user_invitations')
+        .select('email, status, expires_at')
+        .eq('team_id', teamId)
+        .in('status', ['pending', 'expired', 'cancelled'])
+    ])
+
+    if (contactsResult.error) {
+      logger.error('[SERVER-ACTION] Error fetching team contacts:', contactsResult.error)
+      throw new Error(`Failed to fetch team contacts: ${contactsResult.error.message}`)
     }
 
-    // Extract users and filter out nulls
-    const contacts = data?.map(tm => tm.user).filter(Boolean) || []
+    // Build invitation status map by email
+    const invitationStatusMap: Record<string, string> = {}
+    const now = new Date()
+
+    if (!invitationsResult.error && invitationsResult.data) {
+      for (const invitation of invitationsResult.data) {
+        if (invitation.email) {
+          const emailLower = invitation.email.toLowerCase()
+          // Check if pending invitation is expired
+          if (invitation.status === 'pending' && invitation.expires_at) {
+            const expiresAt = new Date(invitation.expires_at)
+            invitationStatusMap[emailLower] = now > expiresAt ? 'expired' : 'pending'
+          } else {
+            invitationStatusMap[emailLower] = invitation.status || 'pending'
+          }
+        }
+      }
+    }
+
+    // Extract users, filter nulls, and add invitationStatus
+    const contacts = (contactsResult.data?.map(tm => tm.user).filter(Boolean) || []).map((contact: any) => {
+      const emailLower = contact.email?.toLowerCase()
+      let invitationStatus: string | null = null
+
+      // If contact has auth_user_id, they have an active account
+      if (contact.auth_user_id) {
+        invitationStatus = 'accepted'
+      } else if (emailLower && invitationStatusMap[emailLower]) {
+        invitationStatus = invitationStatusMap[emailLower]
+      }
+
+      return {
+        ...contact,
+        invitationStatus
+      }
+    })
 
     const loadTime = Date.now() - startTime
-    logger.info(`[SERVER-ACTION] Fetched ${contacts.length} contacts in ${loadTime}ms`)
+    logger.info(`[SERVER-ACTION] Fetched ${contacts.length} contacts with invitation status in ${loadTime}ms`)
 
     return {
       success: true as const,

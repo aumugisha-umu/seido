@@ -86,7 +86,7 @@ export function DataTable<T extends Record<string, any>>({
 
     if (loading) {
         return (
-            <div className="rounded-md border">
+            <div className="rounded-md border max-h-[calc(100vh-280px)] overflow-auto">
                 <Table>
                     <TableHeader>
                         <TableRow>
@@ -128,7 +128,7 @@ export function DataTable<T extends Record<string, any>>({
     }
 
     return (
-        <div className="rounded-md border">
+        <div className="rounded-md border max-h-[calc(100vh-280px)] overflow-auto">
             <Table>
                 <TableHeader>
                     <TableRow>

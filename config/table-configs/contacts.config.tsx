@@ -268,6 +268,19 @@ export const contactsTableConfig: DataTableConfig<ContactData> = {
                 { value: 'autre', label: 'Autre' }
             ],
             defaultValue: 'all'
+        },
+        {
+            id: 'invitationStatus',
+            label: 'Statut invitation',
+            options: [
+                { value: 'all', label: 'Tous' },
+                { value: 'none', label: 'Pas de compte' },
+                { value: 'pending', label: 'En attente' },
+                { value: 'accepted', label: 'Actif' },
+                { value: 'expired', label: 'Expiré' },
+                { value: 'cancelled', label: 'Annulé' }
+            ],
+            defaultValue: 'all'
         }
     ],
 

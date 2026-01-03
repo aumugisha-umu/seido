@@ -107,6 +107,10 @@ export function useDataNavigator<T>({
             if (filterValue && filterValue !== 'all') {
                 result = result.filter((item: any) => {
                     const value = getNestedValue(item, filterId)
+                    // Special case: 'none' matches null/undefined values
+                    if (filterValue === 'none') {
+                        return value === null || value === undefined
+                    }
                     return value === filterValue
                 })
             }

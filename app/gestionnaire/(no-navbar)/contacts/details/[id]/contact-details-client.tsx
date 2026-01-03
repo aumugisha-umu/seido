@@ -653,66 +653,71 @@ export function ContactDetailsClient({
     return statusMap[invitationStatus] || null
   }
 
-  const headerBadges: DetailPageHeaderBadge[] = [getRoleBadge(), getInvitationBadge()].filter(Boolean) as DetailPageHeaderBadge[]
-
-  const headerMetadata: DetailPageHeaderMetadata[] = [
-    contact.email && {
-      icon: Mail,
-      text: contact.email
-    },
-    contact.speciality && contact.role === 'prestataire' && {
-      icon: Wrench,
-      text: specialities.find(s => s.value === contact.speciality)?.label || contact.speciality
-    },
-    contact.created_at && {
-      icon: Calendar,
-      text: `Créé le ${new Date(contact.created_at).toLocaleDateString('fr-FR')}`
+  // Badge spécialité (pour prestataires)
+  const getSpecialityBadge = (): DetailPageHeaderBadge | null => {
+    if (!contact.speciality || contact.role !== 'prestataire') return null
+    const spec = specialities.find(s => s.value === contact.speciality)
+    return {
+      label: spec?.label || contact.speciality,
+      color: 'bg-green-50 text-green-700 border-green-200'
     }
-  ].filter(Boolean) as DetailPageHeaderMetadata[]
+  }
 
-  const primaryActions: DetailPageHeaderAction[] = [
+  const headerBadges: DetailPageHeaderBadge[] = [
+    getRoleBadge(),
+    getSpecialityBadge(),
+    getInvitationBadge()
+  ].filter(Boolean) as DetailPageHeaderBadge[]
+
+  // Metadata vide (email et date retirés du header)
+  const headerMetadata: DetailPageHeaderMetadata[] = []
+
+  // Actions primaires vides (tout dans le dropdown)
+  const primaryActions: DetailPageHeaderAction[] = []
+
+  // Actions dropdown (même pattern que la vue liste)
+  const dropdownActions: DetailPageHeaderAction[] = [
+    // Modifier (toujours visible)
     {
       label: 'Modifier',
       icon: EditIcon,
-      onClick: handleEdit,
-      variant: 'outline'
-    }
-  ]
-
-  // Add invitation action if applicable
-  if (!invitationStatus || invitationStatus === 'expired' || invitationStatus === 'revoked') {
-    primaryActions.push({
+      onClick: handleEdit
+    },
+    // Inviter (si pas d'invitation ou annulée)
+    ...(!invitationStatus || invitationStatus === 'cancelled' ? [{
       label: 'Inviter',
       icon: Send,
-      onClick: () => setShowInviteModal(true),
-      variant: 'default'
-    })
-  } else if (invitationStatus === 'pending') {
-    primaryActions.push({
-      label: invitationLoading ? 'Envoi...' : 'Renvoyer invitation',
-      icon: invitationLoading ? Loader2 : RefreshCw,
-      onClick: () => handleInvitationAction('resend'),
-      variant: 'default',
-      disabled: invitationLoading
-    })
-  }
-
-  const dropdownActions: DetailPageHeaderAction[] = [
+      onClick: () => setShowInviteModal(true)
+    }] : []),
+    // Relancer/Annuler invitation (si pending ou expired)
+    ...(invitationStatus === 'pending' || invitationStatus === 'expired' ? [
+      {
+        label: 'Relancer invitation',
+        icon: RefreshCw,
+        onClick: () => handleInvitationAction('resend')
+      },
+      {
+        label: 'Annuler invitation',
+        icon: X,
+        onClick: () => handleInvitationAction('cancel'),
+        variant: 'destructive' as const
+      }
+    ] : []),
+    // Retirer l'accès (si accepted)
+    ...(invitationStatus === 'accepted' ? [{
+      label: "Retirer l'accès",
+      icon: UserX,
+      onClick: () => setShowRevokeModal(true),
+      variant: 'destructive' as const
+    }] : []),
+    // Archiver (toujours visible)
     {
       label: 'Archiver',
       icon: Archive,
-      onClick: handleArchive
+      onClick: handleArchive,
+      variant: 'destructive' as const
     }
   ]
-
-  // Add revoke access if invitation accepted
-  if (invitationStatus === 'accepted') {
-    dropdownActions.push({
-      label: 'Retirer l\'accès',
-      icon: UserX,
-      onClick: () => setShowRevokeModal(true)
-    })
-  }
 
   return (
     <>

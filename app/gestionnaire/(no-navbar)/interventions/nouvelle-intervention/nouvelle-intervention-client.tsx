@@ -678,8 +678,15 @@ export default function NouvelleInterventionClient({
       return
     }
 
-    // Optimistic minimal selection
-    setSelectedLogement({ type: "building", id: buildingId })
+    // ✅ Utiliser les données initiales pour l'état optimiste (évite "Immeuble undefined")
+    const buildingFromInitial = initialBuildingsData.buildings.find(b => String(b.id) === buildingId)
+    setSelectedLogement({
+      type: "building",
+      id: buildingId,
+      name: buildingFromInitial?.name || `Immeuble ${buildingId.slice(0, 8)}`,
+      building: buildingFromInitial?.name,
+      address: buildingFromInitial?.address || ""
+    })
 
     if (!services) {
       logger.info("⏳ Services not ready, cannot load building details")
@@ -701,7 +708,25 @@ export default function NouvelleInterventionClient({
       }
     } catch (err) {
       logger.error("❌ Error loading building data:", err)
+      // Fallback déjà défini par l'état optimiste avec données initiales
     }
+  }
+
+  // Helper pour trouver un lot dans les données initiales (évite "Lot undefined")
+  const findLotInInitialData = (lotId: string, buildingId?: string) => {
+    // 1. Chercher dans les lots indépendants
+    const independentLot = initialBuildingsData.lots.find(l => String(l.id) === lotId)
+    if (independentLot) return independentLot
+
+    // 2. Chercher dans les lots des immeubles
+    for (const building of initialBuildingsData.buildings) {
+      const lot = building.lots?.find(l => String(l.id) === lotId)
+      if (lot) {
+        return { ...lot, building: { id: building.id, name: building.name, address: building.address } }
+      }
+    }
+
+    return null
   }
 
   const handleLotSelect = async (lotId: string | null, buildingId?: string) => {
@@ -717,7 +742,16 @@ export default function NouvelleInterventionClient({
     setSelectedLotId(lotIdStr)
     if (buildingIdStr) setSelectedBuildingId(buildingIdStr)
     // Align behavior with building selection: always set current selection to the lot
-    setSelectedLogement({ type: "lot", id: lotIdStr, buildingId: buildingIdStr })
+    // ✅ Utiliser les données initiales pour l'état optimiste (évite "Lot undefined")
+    const lotFromInitial = findLotInInitialData(lotIdStr, buildingIdStr)
+    setSelectedLogement({
+      type: "lot",
+      id: lotIdStr,
+      buildingId: buildingIdStr,
+      name: lotFromInitial?.reference || `Lot ${lotIdStr.slice(0, 8)}`,
+      building: lotFromInitial?.building?.name,
+      address: lotFromInitial?.building?.address
+    })
 
     if (!services) {
       logger.info("⏳ Services not ready, cannot load lot details")
@@ -781,17 +815,31 @@ export default function NouvelleInterventionClient({
         setSelectedLotId(String(lotData.id))
         setSelectedBuildingId(lotData.building_id ? String(lotData.building_id) : (lotData.building?.id ? String(lotData.building.id) : undefined))
       } else {
-        // Fallback to minimal data if lot not found
+        // Fallback to minimal data if lot not found (utilise données initiales)
         setSelectedLotId(lotIdStr)
         setSelectedBuildingId(buildingIdStr)
-        setSelectedLogement({ type: "lot", id: lotIdStr, buildingId: buildingIdStr })
+        setSelectedLogement({
+          type: "lot",
+          id: lotIdStr,
+          buildingId: buildingIdStr,
+          name: lotFromInitial?.reference || `Lot ${lotIdStr.slice(0, 8)}`,
+          building: lotFromInitial?.building?.name,
+          address: lotFromInitial?.building?.address
+        })
       }
     } catch (error) {
       logger.error("❌ Error loading lot data:", error)
-      // Fallback to minimal data
+      // Fallback to minimal data (utilise données initiales)
       setSelectedLotId(lotIdStr)
       setSelectedBuildingId(buildingIdStr)
-      setSelectedLogement({ type: "lot", id: lotIdStr, buildingId: buildingIdStr })
+      setSelectedLogement({
+        type: "lot",
+        id: lotIdStr,
+        buildingId: buildingIdStr,
+        name: lotFromInitial?.reference || `Lot ${lotIdStr.slice(0, 8)}`,
+        building: lotFromInitial?.building?.name,
+        address: lotFromInitial?.building?.address
+      })
     }
   }
 
@@ -1122,7 +1170,9 @@ export default function NouvelleInterventionClient({
                   <Home className="h-4 w-4 text-blue-600" />
                   <span className="font-medium">
                     {selectedLogement.type === 'lot'
-                      ? `Lot ${selectedLogement.name}`
+                      ? (selectedLogement.building
+                          ? `${selectedLogement.building} › Lot ${selectedLogement.name}`
+                          : `Lot ${selectedLogement.name}`)
                       : selectedLogement.name}
                   </span>
                   {selectedLogement.address && (

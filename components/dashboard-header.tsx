@@ -185,6 +185,10 @@ export default function DashboardHeader({
     router.push(`/${role}/profile`)
   }
 
+  const handleSettings = () => {
+    router.push(`/${role}/parametres`)
+  }
+
   // Fermer le menu mobile lors du changement de route
   useEffect(() => {
     setIsMobileMenuOpen(false)
@@ -390,6 +394,10 @@ export default function DashboardHeader({
                   </button>
 
                   <button
+                    onClick={() => {
+                      handleSettings()
+                      setIsMobileMenuOpen(false)
+                    }}
                     className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px] text-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border"
                   >
                     <Settings className="h-6 w-6" />

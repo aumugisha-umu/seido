@@ -433,10 +433,17 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     }
 
     // Étape 4: Filtrer par statut d'invitation
+    // Logique basée sur la table user_invitations :
+    // - null = pas d'invitation pour ce contact
+    // - 'pending' = invitation envoyée, pas encore acceptée
+    // - 'accepted' = compte créé (auth_user_id existe)
+    // - 'expired' / 'cancelled' = invitation expirée ou annulée
     if (invitationStatusFilter !== 'all') {
       if (invitationStatusFilter === 'none') {
+        // "Pas de compte" = contacts sans aucune invitation (invitationStatus est null)
         result = result.filter(contact => !contact.invitationStatus)
       } else {
+        // Autres filtres = correspondance directe avec le statut de l'invitation
         result = result.filter(contact => contact.invitationStatus === invitationStatusFilter)
       }
     }

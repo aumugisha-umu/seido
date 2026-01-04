@@ -9,6 +9,7 @@
 
 import { createServerActionSupabaseClient } from '@/lib/services/core/supabase-client'
 import { logger } from '@/lib/logger'
+import { buildInvitationStatusMap } from '@/lib/utils/invitation-status'
 
 /**
  * Get team contacts - Server Action (optimized)
@@ -32,38 +33,38 @@ export async function getTeamContactsAction(teamId: string) {
 
     // Parallel fetch: contacts + invitations
     const [contactsResult, invitationsResult] = await Promise.all([
-      // Contacts query
+      // Contacts query - utilise users directement (comme la page Contacts)
+      // Cela garantit que les emails matchent avec les invitations
       supabase
-        .from('team_members')
+        .from('users')
         .select(`
-          user:user_id (
+          id,
+          name,
+          email,
+          phone,
+          role,
+          provider_category,
+          speciality,
+          is_company,
+          company_id,
+          auth_user_id,
+          company:company_id (
             id,
             name,
-            email,
-            phone,
-            role,
-            provider_category,
-            speciality,
-            is_company,
-            company_id,
-            auth_user_id,
-            company:company_id (
-              id,
-              name,
-              vat_number
-            )
+            vat_number
           )
         `)
         .eq('team_id', teamId)
-        .is('left_at', null)  // Only active members
-        .order('joined_at', { ascending: false }),
+        .eq('is_active', true)
+        .order('created_at', { ascending: false }),
 
-      // Invitations query
+      // Invitations query - récupérer TOUTES les invitations pour mapper le statut complet
+      // Note: Contacts page only fetches pending, but we fetch all to match the mapping logic
       supabase
         .from('user_invitations')
-        .select('email, status, expires_at')
+        .select('email, status, expires_at, created_at')
         .eq('team_id', teamId)
-        .in('status', ['pending', 'expired', 'cancelled'])
+        .order('created_at', { ascending: false })
     ])
 
     if (contactsResult.error) {
@@ -71,36 +72,18 @@ export async function getTeamContactsAction(teamId: string) {
       throw new Error(`Failed to fetch team contacts: ${contactsResult.error.message}`)
     }
 
-    // Build invitation status map by email
-    const invitationStatusMap: Record<string, string> = {}
-    const now = new Date()
+    // ✅ Build invitation status map using unified utility
+    // This function checks expires_at for pending invitations and returns 'expired' if needed
+    // Source of truth: user_invitations table only (no auth_user_id fallback)
+    const invitationStatusMap = !invitationsResult.error && invitationsResult.data
+      ? buildInvitationStatusMap(invitationsResult.data)
+      : {}
 
-    if (!invitationsResult.error && invitationsResult.data) {
-      for (const invitation of invitationsResult.data) {
-        if (invitation.email) {
-          const emailLower = invitation.email.toLowerCase()
-          // Check if pending invitation is expired
-          if (invitation.status === 'pending' && invitation.expires_at) {
-            const expiresAt = new Date(invitation.expires_at)
-            invitationStatusMap[emailLower] = now > expiresAt ? 'expired' : 'pending'
-          } else {
-            invitationStatusMap[emailLower] = invitation.status || 'pending'
-          }
-        }
-      }
-    }
-
-    // Extract users, filter nulls, and add invitationStatus
-    const contacts = (contactsResult.data?.map(tm => tm.user).filter(Boolean) || []).map((contact: any) => {
+    // Add invitationStatus to each contact
+    // Source of truth: user_invitations table only
+    const contacts = (contactsResult.data || []).map((contact: any) => {
       const emailLower = contact.email?.toLowerCase()
-      let invitationStatus: string | null = null
-
-      // If contact has auth_user_id, they have an active account
-      if (contact.auth_user_id) {
-        invitationStatus = 'accepted'
-      } else if (emailLower && invitationStatusMap[emailLower]) {
-        invitationStatus = invitationStatusMap[emailLower]
-      }
+      const invitationStatus = emailLower ? invitationStatusMap[emailLower] || null : null
 
       return {
         ...contact,

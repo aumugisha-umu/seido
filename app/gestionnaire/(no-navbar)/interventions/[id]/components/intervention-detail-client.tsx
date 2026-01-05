@@ -56,7 +56,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Building2, MapPin, User, Calendar, AlertCircle, Edit, XCircle, MoreVertical, UserCheck, CheckCircle, MessageSquare } from 'lucide-react'
+import { Building2, MapPin, User, AlertCircle, Edit, XCircle, MoreVertical, UserCheck, CheckCircle, MessageSquare } from 'lucide-react'
 
 // Hooks
 import { useAuth } from '@/hooks/use-auth'
@@ -71,6 +71,9 @@ import { ContactSelector, type ContactSelectorRef } from '@/components/contact-s
 // Actions
 import { assignUserAction, unassignUserAction } from '@/app/actions/intervention-actions'
 import { addInterventionComment } from '@/app/actions/intervention-comment-actions'
+
+// Intervention type icons and utils
+import { getTypeIcon } from '@/components/interventions/intervention-type-icon'
 
 // Modals
 // ProgrammingModal removed - using edit page instead
@@ -97,7 +100,9 @@ import { createBrowserSupabaseClient } from '@/lib/services'
 
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
   building?: Database['public']['Tables']['buildings']['Row']
-  lot?: Database['public']['Tables']['lots']['Row']
+  lot?: Database['public']['Tables']['lots']['Row'] & {
+    building?: Database['public']['Tables']['buildings']['Row']
+  }
   tenant?: Database['public']['Tables']['users']['Row']
   creator?: {
     id: string
@@ -164,6 +169,32 @@ interface InterventionDetailClientProps {
   isParentIntervention?: boolean
   isChildIntervention?: boolean
   providerCount?: number
+}
+
+// ============================================================================
+// Type Badge Constants (same as interventions-list-view-v1.tsx)
+// ============================================================================
+
+const TYPE_TO_CATEGORY: Record<string, 'bien' | 'bail' | 'locataire'> = {
+  // Bien (Property)
+  'plomberie': 'bien', 'electricite': 'bien', 'chauffage': 'bien', 'serrurerie': 'bien',
+  'menuiserie': 'bien', 'peinture': 'bien', 'espaces_verts': 'bien', 'nettoyage': 'bien',
+  'renovation': 'bien', 'travaux_structurels': 'bien', 'toiture_facade': 'bien',
+  'ascenseur': 'bien', 'securite_incendie': 'bien', 'autre_technique': 'bien',
+  // Bail (Lease)
+  'etat_des_lieux_entree': 'bail', 'etat_des_lieux_sortie': 'bail', 'regularisation_charges': 'bail',
+  'revision_loyer': 'bail', 'renouvellement_bail': 'bail', 'resiliation_bail': 'bail',
+  'quittancement': 'bail', 'contentieux_loyer': 'bail', 'autre_administratif': 'bail',
+  // Locataire (Tenant)
+  'nuisances': 'locataire', 'sinistre': 'locataire', 'demande_autorisation': 'locataire',
+  'reclamation': 'locataire', 'probleme_voisinage': 'locataire', 'assurance': 'locataire',
+  'autre_locataire': 'locataire',
+}
+
+const CATEGORY_BADGE_STYLES: Record<string, string> = {
+  bien: 'bg-blue-100 text-blue-700 border-blue-200',
+  bail: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  locataire: 'bg-orange-100 text-orange-700 border-orange-200',
 }
 
 export function InterventionDetailClient({
@@ -1077,26 +1108,31 @@ export function InterventionDetailClient({
     return urgency !== 'normale' ? urgencyMap[urgency] || null : null
   }
 
-  const headerBadges: DetailPageHeaderBadge[] = [getStatusBadge(), getUrgencyBadge()].filter(Boolean) as DetailPageHeaderBadge[];
+  const getTypeBadge = (): DetailPageHeaderBadge | null => {
+    const typeCode = intervention.type
+    if (!typeCode) return null
 
-  const headerMetadata: DetailPageHeaderMetadata[] = [
-    intervention.building && {
-      icon: Building2,
-      text: intervention.building.name || 'Immeuble'
-    },
-    intervention.lot && {
-      icon: MapPin,
-      text: intervention.lot.reference || 'Lot'
-    },
-    intervention.creator && {
-      icon: User,
-      text: intervention.creator.name
-    },
-    intervention.created_at && {
-      icon: Calendar,
-      text: new Date(intervention.created_at).toLocaleDateString('fr-FR')
+    const categoryCode = TYPE_TO_CATEGORY[typeCode] || 'bien'
+    const badgeStyle = CATEGORY_BADGE_STYLES[categoryCode] || CATEGORY_BADGE_STYLES.bien
+    const TypeIcon = getTypeIcon(typeCode)
+
+    // Format label: capitalize first letter and replace underscores with spaces
+    const label = typeCode
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+
+    return {
+      label,
+      color: badgeStyle,
+      dotColor: '', // No dot for type badge, we use icon
+      icon: TypeIcon
     }
-  ].filter(Boolean) as DetailPageHeaderMetadata[];
+  }
+
+  const headerBadges: DetailPageHeaderBadge[] = [getTypeBadge(), getStatusBadge(), getUrgencyBadge()].filter(Boolean) as DetailPageHeaderBadge[];
+
+  // Metadata moved to InterventionDetailsCard (below Planning et Devis section)
+  const headerMetadata: DetailPageHeaderMetadata[] = [];
 
   // Helper function to check if action badge should be shown
   const shouldShowActionBadge = (
@@ -1577,6 +1613,20 @@ export function InterventionDetailClient({
                       title={intervention.title}
                       description={intervention.description || undefined}
                       instructions={intervention.instructions || undefined}
+                      locationDetails={{
+                        buildingName: intervention.lot?.building?.name || intervention.building?.name || null,
+                        lotReference: intervention.lot?.reference || null,
+                        fullAddress: (() => {
+                          const building = intervention.lot?.building || intervention.building
+                          if (!building) return null
+                          const parts: string[] = []
+                          if (building.address) parts.push(building.address)
+                          if (building.postal_code || building.city) {
+                            parts.push([building.postal_code, building.city].filter(Boolean).join(' '))
+                          }
+                          return parts.length > 0 ? parts.join(', ') : null
+                        })()
+                      }}
                       planning={{
                         scheduledDate,
                         status: planningStatus,
@@ -1585,6 +1635,8 @@ export function InterventionDetailClient({
                         quotesStatus,
                         selectedQuoteAmount
                       }}
+                      createdBy={intervention.creator?.name || null}
+                      createdAt={intervention.created_at || null}
                       onNavigateToPlanning={() => setActiveTab('planning')}
                     />
                   </div>

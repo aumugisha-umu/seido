@@ -177,7 +177,7 @@ export default function ContractFormContainer({
   const stepParam = searchParams.get('step')
   const returnToParam = searchParams.get('returnTo')
 
-  const [currentStep, setCurrentStep] = useState(() => {
+  const [currentStep, setCurrentStepState] = useState(() => {
     if (stepParam) {
       const step = parseInt(stepParam, 10)
       if (!isNaN(step) && step >= 0 && step <= 3) {
@@ -186,6 +186,32 @@ export default function ContractFormContainer({
     }
     return 0
   })
+  const [maxStepReached, setMaxStepReached] = useState(() => {
+    // En mode edit, toutes les étapes sont accessibles dès le départ
+    if (mode === 'edit') return 3
+    // Sinon, utiliser le step initial depuis URL ou 0
+    if (stepParam) {
+      const step = parseInt(stepParam, 10)
+      if (!isNaN(step) && step >= 0 && step <= 3) {
+        return step
+      }
+    }
+    return 0
+  })
+
+  // Wrapper pour setCurrentStep qui met aussi à jour maxStepReached
+  // Supporte les deux signatures: setCurrentStep(number) et setCurrentStep(prev => number)
+  const setCurrentStep = useCallback((stepOrFn: number | ((prev: number) => number)) => {
+    setCurrentStepState(prev => {
+      const newStep = typeof stepOrFn === 'function' ? stepOrFn(prev) : stepOrFn
+      const clampedStep = Math.max(0, Math.min(newStep, 3)) // 0-3 pour les contrats
+      // Update maxStepReached si nécessaire (en mode create uniquement)
+      if (clampedStep > maxStepReached && mode === 'create') {
+        setMaxStepReached(clampedStep)
+      }
+      return clampedStep
+    })
+  }, [maxStepReached, mode])
   const [returnTo] = useState<string | null>(() => {
     return returnToParam ? decodeURIComponent(returnToParam) : null
   })
@@ -384,15 +410,19 @@ export default function ContractFormContainer({
 
   const handlePrevious = useCallback(() => {
     setCurrentStep(prev => Math.max(prev - 1, 0))
-  }, [])
+  }, [setCurrentStep])
 
   const handleStepClick = useCallback((index: number) => {
-    if (index < currentStep) {
+    // En mode edit, toutes les étapes sont cliquables
+    if (mode === 'edit') {
       setCurrentStep(index)
-    } else if (index === currentStep + 1 && validateStep(currentStep)) {
+      return
+    }
+    // En mode create, permettre la navigation vers les étapes déjà visitées
+    if (index <= maxStepReached) {
       setCurrentStep(index)
     }
-  }, [currentStep, validateStep])
+  }, [mode, maxStepReached, setCurrentStep])
 
   // Sync contacts for edit mode
   const syncContacts = useCallback(async (contractId: string) => {
@@ -939,6 +969,8 @@ export default function ContractFormContainer({
           }
         }}
         onStepClick={handleStepClick}
+        allowFutureSteps={mode === 'edit'}
+        maxReachableStep={maxStepReached}
       />
 
       {/* MAIN CONTENT */}

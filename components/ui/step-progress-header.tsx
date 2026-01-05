@@ -21,6 +21,12 @@ interface StepProgressHeaderProps {
   steps: StepConfig[]
   currentStep: number
   hasGlobalNav?: boolean // true = top-16 (with DashboardHeader), false = top-0 (no navbar)
+  /** Callback when a step is clicked - enables step navigation */
+  onStepClick?: (stepNumber: number) => void
+  /** If true, all steps are clickable. If false, only completed steps are clickable. Default: false */
+  allowFutureSteps?: boolean
+  /** Maximum step the user can navigate to (for create wizard "memory" of reached steps) */
+  maxReachableStep?: number
 }
 
 /**
@@ -48,6 +54,9 @@ export const StepProgressHeader = ({
   steps,
   currentStep,
   hasGlobalNav = false,
+  onStepClick,
+  allowFutureSteps = false,
+  maxReachableStep,
 }: StepProgressHeaderProps) => {
   const progressPercentage = ((currentStep - 1) / (steps.length - 1)) * 100
   const pathname = usePathname()
@@ -108,19 +117,40 @@ export const StepProgressHeader = ({
           <div className="hidden lg:flex items-center gap-1 justify-end min-w-0">
             {steps.map((step, index) => {
               const stepNumber = index + 1
-              const isComplete = currentStep > stepNumber
               const isCurrent = currentStep === stepNumber
-              const isPending = currentStep < stepNumber
               const StepIcon = step.icon
+
+              // Visual state: use maxReachableStep if provided, otherwise fall back to currentStep
+              // This ensures steps remain "completed" visually even when navigating back
+              const effectiveMaxStep = maxReachableStep ?? currentStep
+              const isComplete = !isCurrent && stepNumber < effectiveMaxStep
+              const isPending = stepNumber > effectiveMaxStep
+
+              // Step is clickable if onStepClick is provided AND:
+              // - allowFutureSteps (edit mode: all clickable)
+              // - OR stepNumber <= maxReachableStep (create mode: up to max reached)
+              // - OR step is before current (always allow going back)
+              const isClickable = !!onStepClick && (
+                allowFutureSteps ||
+                stepNumber <= effectiveMaxStep
+              )
 
               return (
                 <div
                   key={index}
+                  onClick={isClickable ? () => onStepClick(stepNumber) : undefined}
+                  role={isClickable ? "button" : undefined}
+                  tabIndex={isClickable ? 0 : undefined}
+                  onKeyDown={isClickable ? (e) => e.key === 'Enter' && onStepClick(stepNumber) : undefined}
                   className={`
                     relative flex items-center gap-1.5 sm:gap-2
                     ${index === 0 ? "pl-0 pr-2 sm:pr-3" : "px-2 sm:px-3"}
-                    transition-all duration-300 cursor-default flex-shrink-0
+                    transition-all duration-300 flex-shrink-0
                     ${isPending && "opacity-50"}
+                    ${isClickable
+                      ? "cursor-pointer hover:bg-gray-100 rounded-lg py-1 -my-1"
+                      : "cursor-default"
+                    }
                   `}
                 >
                   {/* Icon/Check */}

@@ -123,6 +123,7 @@ export async function POST(request: NextRequest) {
 
       // Options
       expectsQuote,
+      includeTenants,
     } = validation.data
 
     // Fields not in schema validation (passed through from body)
@@ -132,18 +133,18 @@ export async function POST(request: NextRequest) {
       teamId
     } = body
 
-    // Validate required fields
+    // Validate required fields (description is optional per Zod schema)
     logger.info({
       title: !!title,
-      description: !!description,
+      hasDescription: !!description,
       selectedManagerIds: selectedManagerIds?.length || 0,
       hasLogement: !!(selectedBuildingId || selectedLotId)
     }, "🔍 Validating required fields")
 
-    if (!title || !description || (!selectedBuildingId && !selectedLotId)) {
+    if (!title || (!selectedBuildingId && !selectedLotId)) {
       return NextResponse.json({
         success: false,
-        error: 'Champs requis manquants (titre, description, logement)'
+        error: 'Champs requis manquants (titre, logement)'
       }, { status: 400 })
     }
 
@@ -528,8 +529,9 @@ export async function POST(request: NextRequest) {
 
     // ✅ UPDATED 2025-12-10: Auto-assign tenants from ACTIVE CONTRACTS (not lot_contacts)
     // Only contracts with status='actif' are considered (not 'a_venir')
-    if (lotId) {
-      logger.info({}, "👤 Extracting and assigning tenants from active contracts...")
+    // ✅ UPDATED 2026-01-05: Respect includeTenants toggle from wizard
+    if (lotId && includeTenants !== false) {
+      logger.info({ includeTenants }, "👤 Extracting and assigning tenants from active contracts...")
 
       try {
         const { createServerContractService } = await import('@/lib/services')
@@ -568,6 +570,8 @@ export async function POST(request: NextRequest) {
         logger.error({ error }, "❌ Error in tenant auto-assignment")
         // Don't fail the entire operation for tenant assignment errors
       }
+    } else if (lotId && includeTenants === false) {
+      logger.info({}, "ℹ️ Tenant auto-assignment skipped (includeTenants=false)")
     }
 
     // Handle scheduling slots if provided (flexible/slots = multiple slots)

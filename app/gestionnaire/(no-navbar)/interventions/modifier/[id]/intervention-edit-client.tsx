@@ -7,16 +7,18 @@
 
 import React, { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, CheckCircle, Building2, AlertTriangle, Home } from "lucide-react"
+import { ArrowLeft, CheckCircle, Building2, AlertTriangle, Home, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { useToast } from "@/hooks/use-toast"
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { interventionSteps } from "@/lib/step-configurations"
-import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
+import { URGENCY_LEVELS } from "@/lib/intervention-data"
+import { InterventionTypeCombobox } from "@/components/intervention/intervention-type-combobox"
 import { AssignmentSectionV2 } from "@/components/intervention/assignment-section-v2"
 import { InterventionConfirmationSummary, type InterventionConfirmationData } from "@/components/interventions/intervention-confirmation-summary"
 import { InterventionFileAttachment } from "@/components/intervention/intervention-file-attachment"
@@ -139,6 +141,10 @@ export default function InterventionEditClient({
   const fileUpload = useInterventionUpload({
     interventionId: initialData.intervention.id,
   })
+
+  // Derived: tenant assignments for read-only display
+  const tenantAssignments = initialData.assignments.filter((a: Assignment) => a.role === 'locataire')
+  const hasTenantAssignments = tenantAssignments.length > 0
 
   // Managers and providers from team members
   const managers = teamMembers.managers.map(m => ({
@@ -340,43 +346,64 @@ export default function InterventionEditClient({
         onBack={() => router.back()}
         steps={interventionSteps}
         currentStep={currentStep}
+        onStepClick={(step) => setCurrentStep(step)}
+        allowFutureSteps={true}
       />
 
       {/* Main Content with horizontal padding and bottom space for footer */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pb-10 bg-background">
         <main className="content-max-width w-full pt-10">
-          {/* Step 2: Formulaire de description (first step - location is shown in blue info box) */}
+          {/* Step 2: Formulaire de description (location integrated into Détails card) */}
           {currentStep === 2 && (
             <div className="space-y-6">
-              {/* Encadré Bien Concerné (lecture seule) */}
-              <Card className="bg-blue-50 border-blue-200">
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Home className="h-4 w-4 text-blue-600" />
-                      <span className="font-medium">
+              {/* Détails de l'intervention - avec localisation intégrée */}
+              <Card>
+              <CardContent className="p-0 flex flex-col gap-6">
+                {/* Header avec titre + localisation compacte */}
+                <div className="flex flex-col gap-3">
+                  {/* Titre de la card */}
+                  <div className="flex items-center space-x-2">
+                    <Building2 className="h-5 w-5 text-orange-500" />
+                    <h3 className="text-lg font-medium">Détails de l'intervention</h3>
+                  </div>
+
+                  {/* Localisation compacte (lecture seule) */}
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Home className="h-4 w-4 text-muted-foreground" />
+                      <span className="font-medium text-sm">
                         {initialData.lot
-                          ? `Lot ${initialData.lot.reference}`
+                          ? (initialData.building?.name
+                              ? `${initialData.building.name} › Lot ${initialData.lot.reference}`
+                              : `Lot ${initialData.lot.reference}`)
                           : initialData.building?.name || 'Non défini'}
                       </span>
                       {initialData.building?.address && (
                         <>
-                          <span className="text-gray-400">•</span>
-                          <span className="text-sm text-gray-600">{initialData.building.address}</span>
+                          <span className="text-muted-foreground">•</span>
+                          <span className="text-sm text-muted-foreground">{initialData.building.address}</span>
                         </>
+                      )}
+
+                      {/* Badge occupation (lots uniquement) */}
+                      {initialData.lot && (
+                        <Badge variant={initialData.lot.is_occupied ? "default" : "secondary"} className="ml-1">
+                          {initialData.lot.is_occupied ? "Occupé" : "Vacant"}
+                        </Badge>
                       )}
                     </div>
                     <span className="text-xs text-muted-foreground">Non modifiable</span>
                   </div>
-                </CardContent>
-              </Card>
 
-              {/* Détails de l'intervention */}
-              <Card>
-              <CardContent className="p-0 flex flex-col gap-6">
-                <div className="flex items-center space-x-2">
-                  <Building2 className="h-5 w-5 text-orange-500" />
-                  <h3 className="text-lg font-medium">Détails de l'intervention</h3>
+                  {/* Indicateur locataires (lecture seule) */}
+                  {hasTenantAssignments && (
+                    <div className="flex items-center gap-2 px-3 py-2 text-sm text-muted-foreground bg-muted/30 rounded-lg">
+                      <Users className="h-4 w-4" />
+                      <span>
+                        {tenantAssignments.length} locataire{tenantAssignments.length > 1 ? 's' : ''} inclus
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-col gap-4 flex-1">
@@ -397,22 +424,13 @@ export default function InterventionEditClient({
                     {/* Type + Urgence */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="min-w-0">
-                        <label className="block text-sm font-medium text-foreground mb-2">Type de problème</label>
-                        <Select
+                        <label className="block text-sm font-medium text-foreground mb-2">Type d'intervention</label>
+                        <InterventionTypeCombobox
                           value={formData.type}
                           onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
-                        >
-                          <SelectTrigger className="border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20 w-full">
-                            <SelectValue placeholder="Sélectionnez le type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {PROBLEM_TYPES.map((type) => (
-                              <SelectItem key={type.value} value={type.value}>
-                                {type.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Sélectionnez le type"
+                          className="border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20 w-full"
+                        />
                       </div>
 
                       <div className="min-w-0">

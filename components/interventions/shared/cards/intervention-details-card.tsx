@@ -28,10 +28,13 @@ import {
   FileText,
   ListChecks,
   MapPin,
+  Building2,
+  Home,
   Calendar,
   CheckCircle2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  User
 } from 'lucide-react'
 import { InterventionDetailsCardProps } from '../types'
 import { formatDate, formatAmount } from '../utils/helpers'
@@ -257,11 +260,15 @@ export const InterventionDetailsCard = ({
   description,
   instructions,
   location,
+  locationDetails,
   planning,
+  createdBy,
+  createdAt,
   onNavigateToPlanning,
   className
 }: InterventionDetailsCardProps) => {
-  const hasContent = description || instructions || location || planning
+  const hasLocationDetails = locationDetails?.buildingName || locationDetails?.lotReference || locationDetails?.fullAddress
+  const hasContent = description || instructions || location || hasLocationDetails || planning || createdBy || createdAt
 
   if (!hasContent) {
     return null
@@ -269,12 +276,6 @@ export const InterventionDetailsCard = ({
 
   return (
     <Card className={cn('w-full', className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <FileText className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-          {title || "Détails de l'intervention"}
-        </CardTitle>
-      </CardHeader>
 
       <CardContent className="space-y-4">
         {/* Description */}
@@ -287,10 +288,55 @@ export const InterventionDetailsCard = ({
           </div>
         )}
 
+        {/* Localisation détaillée (immeuble, lot, adresse) */}
+        {hasLocationDetails && (
+          <>
+            {description && <Separator />}
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
+                <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
+                Localisation
+              </h4>
+              {/* Desktop: une ligne | Mobile: plusieurs lignes */}
+              <div className="flex items-center gap-1.5 text-sm flex-wrap">
+                {/* Immeuble */}
+                {locationDetails?.buildingName && (
+                  <div className="flex items-center gap-1.5">
+                    <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+                    <span className="font-medium">{locationDetails.buildingName}</span>
+                  </div>
+                )}
+                {/* Séparateur */}
+                {locationDetails?.buildingName && locationDetails?.lotReference && (
+                  <span className="text-muted-foreground">›</span>
+                )}
+                {/* Lot */}
+                {locationDetails?.lotReference && (
+                  <div className="flex items-center gap-1.5">
+                    <Home className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
+                    <span>Lot {locationDetails.lotReference}</span>
+                  </div>
+                )}
+                {/* Séparateur adresse */}
+                {(locationDetails?.buildingName || locationDetails?.lotReference) && locationDetails?.fullAddress && (
+                  <span className="text-muted-foreground hidden sm:inline">•</span>
+                )}
+                {/* Adresse complète */}
+                {locationDetails?.fullAddress && (
+                  <div className="flex items-center gap-1.5 text-muted-foreground w-full sm:w-auto">
+                    <MapPin className="h-4 w-4 flex-shrink-0 sm:hidden" aria-hidden="true" />
+                    <span>{locationDetails.fullAddress}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Instructions pour le prestataire */}
         {instructions && (
           <>
-            {description && <Separator />}
+            {(description || hasLocationDetails) && <Separator />}
             <div className="space-y-1.5">
               <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
                 <ListChecks className="h-3.5 w-3.5" aria-hidden="true" />
@@ -301,8 +347,8 @@ export const InterventionDetailsCard = ({
           </>
         )}
 
-        {/* Localisation */}
-        {location && (
+        {/* Localisation simple (fallback si pas de locationDetails) */}
+        {location && !hasLocationDetails && (
           <>
             {(description || instructions) && <Separator />}
             <div className="space-y-1.5">
@@ -318,11 +364,31 @@ export const InterventionDetailsCard = ({
         {/* Section Planification */}
         {planning && (
           <>
-            {(description || instructions || location) && <Separator />}
+            {(description || hasLocationDetails || instructions || location) && <Separator />}
             <PlanningStatusSection
               planning={planning}
               onNavigateToPlanning={onNavigateToPlanning}
             />
+          </>
+        )}
+
+        {/* Section Créateur et Date */}
+        {(createdBy || createdAt) && (
+          <>
+            {(description || hasLocationDetails || instructions || location || planning) && <Separator />}
+            <div className="flex items-center gap-1 text-sm text-muted-foreground flex-wrap">
+              <User className="h-3.5 w-3.5" aria-hidden="true" />
+              <span>Créé par</span>
+              {createdBy && (
+                <span className="font-medium text-foreground">{createdBy}</span>
+              )}
+              {createdAt && (
+                <>
+                  <span>le</span>
+                  <span className="font-medium text-foreground">{formatDate(createdAt)}</span>
+                </>
+              )}
+            </div>
           </>
         )}
       </CardContent>

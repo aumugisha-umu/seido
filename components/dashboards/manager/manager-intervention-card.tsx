@@ -35,6 +35,7 @@ import {
     getPriorityLabel
 } from "@/lib/intervention-utils"
 import { shouldShowAlertBadge } from "@/lib/intervention-alert-utils"
+import { formatInterventionLocation } from "@/lib/utils/intervention-location"
 import { InterventionTypeIcon } from "@/components/interventions/intervention-type-icon"
 
 interface ManagerInterventionCardProps {
@@ -390,20 +391,23 @@ export function ManagerInterventionCard({
                 </Badge>
             </div>
 
+
+
             {/* Description */}
             <p className="text-muted-foreground text-sm mb-4 line-clamp-2 flex-1">
                 {intervention.description || "Aucune description disponible."}
             </p>
 
+        
+            {/* Location - above description */}
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-2" title={formatInterventionLocation(intervention).address || undefined}>
+                <MapPin className="h-4 w-4 flex-shrink-0" />
+                <span>{formatInterventionLocation(intervention).primary}</span>
+            </div>
+
             {/* Footer */}
-            <div className="flex items-center justify-between pt-4 border-t border-border text-sm text-muted-foreground mt-auto gap-2">
-                <div className="flex items-center gap-1.5 min-w-0">
-                    <MapPin className="h-4 w-4 flex-shrink-0" />
-                    <span className="truncate">
-                        {intervention.lot?.building?.name || intervention.lot?.building?.address}
-                    </span>
-                </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
+            <div className="pt-4 border-t border-border text-sm text-muted-foreground mt-auto flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
                     <Calendar className="h-4 w-4" />
                     <span>Créé le {new Date(intervention.created_at).toLocaleDateString('fr-FR')}</span>
                 </div>

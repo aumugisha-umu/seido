@@ -150,12 +150,25 @@ export const URGENCY_TO_PRIORITY: Record<string, string> = {
 // ============================================================================
 
 /**
- * Map frontend intervention type to database enum
- * @param frontendType - Type from frontend form (English or French)
- * @returns Database enum value
+ * Map frontend intervention type to database value
+ * @param frontendType - Type from frontend form
+ * @returns Database value (VARCHAR since migration 20260105)
+ *
+ * Note: Since migration 20260105000000_intervention_types_categories.sql,
+ * the column is VARCHAR(50), not ENUM. We pass through values directly,
+ * only mapping legacy codes for backward compatibility.
  */
-export const mapInterventionType = (frontendType: string): InterventionType => {
-  return INTERVENTION_TYPE_TO_DB[frontendType?.toLowerCase()] || 'autre'
+export const mapInterventionType = (frontendType: string): string => {
+  const normalized = frontendType?.toLowerCase() || ''
+
+  // Only legacy mappings needed (old codes → new codes)
+  const legacyMapping: Record<string, string> = {
+    'jardinage': 'espaces_verts',
+    'menage': 'nettoyage',
+    'autre': 'autre_technique',
+  }
+
+  return legacyMapping[normalized] || normalized || 'autre_technique'
 }
 
 /**

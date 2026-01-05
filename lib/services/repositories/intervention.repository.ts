@@ -379,8 +379,9 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         *,
         lot:lot_id(
           id, reference,
-          building:building_id(id, name, address, team_id)
+          building:building_id(id, name, address, city, postal_code, team_id)
         ),
+        building:building_id(id, name, address, city, postal_code, team_id),
         intervention_assignments(
           role,
           is_primary,

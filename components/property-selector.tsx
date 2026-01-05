@@ -872,7 +872,8 @@ function PropertySelectorView({
           <div className="divide-y divide-slate-200">
             {filteredIndividualLots.map((lot) => {
               const isSelected = selectedLotId === lot.id?.toString()
-              const isOccupied = (lot as any).is_occupied || lot.status === "occupied" || ((lot as any).lot_contacts?.filter((c: any) => c.user?.role === 'locataire')?.length > 0)
+              // ✅ Utiliser uniquement is_occupied/status (basés sur contrats actifs, pas lot_contacts)
+              const isOccupied = (lot as any).is_occupied || lot.status === "occupied"
               return (
                 <div
                   key={lot.id}

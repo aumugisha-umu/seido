@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { User, Building2 } from "lucide-react"
+import { InterventionTypeCombobox } from "@/components/intervention/intervention-type-combobox"
 
 interface Step1TypeProps {
   contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre'
@@ -62,21 +63,12 @@ export function Step1Type({
             <Label htmlFor="specialty" className="text-base font-medium">
               Spécialité <span className="text-red-500">*</span>
             </Label>
-            <Select value={specialty || ''} onValueChange={onSpecialtyChange}>
-              <SelectTrigger id="specialty" className="w-full">
-                <SelectValue placeholder="Sélectionnez une spécialité" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="plomberie">Plomberie</SelectItem>
-                <SelectItem value="electricite">Électricité</SelectItem>
-                <SelectItem value="chauffage">Chauffage</SelectItem>
-                <SelectItem value="serrurerie">Serrurerie</SelectItem>
-                <SelectItem value="peinture">Peinture et revêtements</SelectItem>
-                <SelectItem value="menage">Ménage et nettoyage</SelectItem>
-                <SelectItem value="jardinage">Jardinage et espaces verts</SelectItem>
-                <SelectItem value="autre">Autre</SelectItem>
-              </SelectContent>
-            </Select>
+            <InterventionTypeCombobox
+              value={specialty || ''}
+              onValueChange={onSpecialtyChange}
+              placeholder="Sélectionnez une spécialité"
+              categoryFilter="bien"
+            />
           </div>
         )}
 

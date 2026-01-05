@@ -1,3 +1,7 @@
+/**
+ * @deprecated Use `useInterventionTypes()` hook instead for dynamic types from DB
+ * This is kept as fallback if the database query fails
+ */
 export const PROBLEM_TYPES = [
   { value: "plomberie", label: "Plomberie" },
   { value: "electricite", label: "Électricité" },
@@ -8,6 +12,12 @@ export const PROBLEM_TYPES = [
   { value: "jardinage", label: "Jardinage" },
   { value: "autre", label: "Autre" },
 ]
+
+/**
+ * Fallback data for useInterventionTypes hook when DB is unavailable
+ * Maps to the old static types for backwards compatibility
+ */
+export const PROBLEM_TYPES_FALLBACK = PROBLEM_TYPES
 
 export const URGENCY_LEVELS = [
   {

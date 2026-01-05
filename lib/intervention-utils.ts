@@ -1,10 +1,16 @@
 import { type InterventionAction } from "./intervention-actions-service"
 
 export const getInterventionLocationText = (intervention: InterventionAction): string => {
-  if (intervention.lot?.reference) {
-    return `Lot ${intervention.lot.reference}`
-  } else if (intervention.building?.name) {
-    return `Bâtiment entier - ${intervention.building.name}`
+  const buildingName = intervention.lot?.building?.name || intervention.building?.name
+  const lotReference = intervention.lot?.reference
+
+  if (lotReference && buildingName) {
+    // Both lot and building: "Building › Lot REF"
+    return `${buildingName} › Lot ${lotReference}`
+  } else if (lotReference) {
+    return `Lot ${lotReference}`
+  } else if (buildingName) {
+    return buildingName
   } else if (intervention.location) {
     return intervention.location
   }

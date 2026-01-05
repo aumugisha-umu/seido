@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { User, Building2, Mail, Phone, FileText, MapPin, CheckCircle, UserX } from "lucide-react"
+import { getTypeLabel } from "@/components/interventions/intervention-type-icon"
 
 interface Company {
   id: string
@@ -72,20 +73,8 @@ export function Step4Confirmation({
     return labels[contactType]
   }
 
-  // Helper pour formater la spécialité
-  const getSpecialtyLabel = (value: string) => {
-    const labels: Record<string, string> = {
-      plomberie: 'Plomberie',
-      electricite: 'Électricité',
-      chauffage: 'Chauffage',
-      serrurerie: 'Serrurerie',
-      peinture: 'Peinture et revêtements',
-      menage: 'Ménage et nettoyage',
-      jardinage: 'Jardinage et espaces verts',
-      autre: 'Autre'
-    }
-    return labels[value] || value
-  }
+  // Helper pour formater la spécialité - utilise le mapping centralisé
+  const getSpecialtyLabel = (value: string) => getTypeLabel(value)
 
   // Trouver le nom de la société si existante
   const selectedCompany = companyId ? companies.find(c => c.id === companyId) : null

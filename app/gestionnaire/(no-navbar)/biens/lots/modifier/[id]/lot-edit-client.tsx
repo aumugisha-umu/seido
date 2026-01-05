@@ -51,6 +51,12 @@ export default function LotEditClient({
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState(1)
+
+  // Handler pour le clic sur une étape dans le header (mode edit = toutes étapes cliquables)
+  const handleStepClick = (step: number) => {
+    setCurrentStep(step)
+  }
+
   const [error, setError] = useState("")
   const [success, setSuccess] = useState("")
   const [saving, setSaving] = useState(false)
@@ -318,6 +324,8 @@ export default function LotEditClient({
         onBack={() => router.push(`/gestionnaire/biens/lots/${lotId}`)}
         steps={lotSteps}
         currentStep={currentStep}
+        onStepClick={handleStepClick}
+        allowFutureSteps={true}
       />
 
       {/* Scrollable Content Area */}

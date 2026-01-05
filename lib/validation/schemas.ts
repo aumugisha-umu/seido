@@ -357,7 +357,7 @@ export const createInterventionSchema = z.object({
   title: z.string().min(1).max(200).trim(),
   description: z.string().min(1).max(5000).trim(),
   urgency: urgencyEnum.optional(), // Optional - defaults applied in service layer
-  type: z.string().min(1).max(100).trim().optional(),
+  type: z.string().min(1, "Le type d'intervention est obligatoire").max(100).trim(),
 })
 
 /**
@@ -367,8 +367,8 @@ export const createInterventionSchema = z.object({
 export const createManagerInterventionSchema = z.object({
   // Basic intervention data
   title: z.string().min(1).max(200).trim(),
-  description: z.string().min(1).max(5000).trim(),
-  type: z.string().min(1).max(100).trim().optional(),
+  description: z.string().max(5000).trim().optional(),
+  type: z.string().min(1, "Le type d'intervention est obligatoire").max(100).trim(),
   urgency: urgencyEnum.optional().default('normale'),
   location: z.string().max(500).trim().optional(),
 
@@ -398,6 +398,7 @@ export const createManagerInterventionSchema = z.object({
 
   // Options
   expectsQuote: z.boolean().optional(),
+  includeTenants: z.boolean().optional().default(true),
 
   // Messages
   messageType: z.enum(['none', 'global', 'individual']).optional(),

@@ -19,7 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
+import { URGENCY_LEVELS } from "@/lib/intervention-data"
+import { InterventionTypeCombobox } from "@/components/intervention/intervention-type-combobox"
 import { generateId, generateInterventionId } from "@/lib/id-utils"
 import { useAuth } from "@/hooks/use-auth"
 import { logger, logError } from '@/lib/logger'
@@ -201,7 +202,7 @@ export default function NouvelleDemandePage() {
       const interventionData = {
         title: formData.titre,
         description: formData.description,
-        type: formData.type || null,
+        type: formData.type, // ✅ Obligatoire
         urgency: formData.urgence || 'normale',
         lot_id: selectedLogement, // Use the selected lot ID
         teamId: user?.team_id  // ✅ Pass teamId from user profile (same pattern as manager)
@@ -305,7 +306,7 @@ export default function NouvelleDemandePage() {
   // Helper pour savoir si on peut passer à l'étape suivante
   const canProceedToNextStep = () => {
     if (currentStep === 1) return selectedLogement !== null
-    if (currentStep === 2) return formData.titre && formData.description
+    if (currentStep === 2) return formData.titre && formData.description && formData.type
     if (currentStep === 3) return !isCreating
     return false
   }
@@ -397,20 +398,16 @@ export default function NouvelleDemandePage() {
 
             <div>
               <Label htmlFor="type" className="text-sm font-medium text-gray-700">
-                Type de problème
+                Type de problème <span className="text-red-500">*</span>
               </Label>
-              <Select value={formData.type} onValueChange={(value) => handleInputChange("type", value)}>
-                <SelectTrigger className="mt-2 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
-                  <SelectValue placeholder="Sélectionnez le type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PROBLEM_TYPES.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="mt-2">
+                <InterventionTypeCombobox
+                  value={formData.type}
+                  onValueChange={(value) => handleInputChange("type", value)}
+                  placeholder="Sélectionnez le type de problème"
+                  categoryFilter="bien"
+                />
+              </div>
             </div>
 
             <div>

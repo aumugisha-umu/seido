@@ -137,8 +137,9 @@ export function useViewMode(options?: {
       console.warn('[useViewMode] Failed to read from localStorage:', error)
     }
 
-    // 3️⃣ Fallback to default mode
-    setViewModeState(defaultMode)
+    // 3️⃣ Fallback to responsive default (list on desktop, cards on mobile)
+    const responsiveDefault: ViewMode = window.innerWidth < MOBILE_BREAKPOINT ? 'cards' : 'list'
+    setViewModeState(defaultMode !== 'cards' ? defaultMode : responsiveDefault)
   }, [defaultMode, storageKey, syncWithUrl, searchParams])
 
   /**

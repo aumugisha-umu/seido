@@ -193,7 +193,7 @@ export class NotificationService {
     const assignmentMap = await this.getAssignedUsersWithRoles(interventionId)
 
     // 3. Déterminer les destinataires (business logic) - EXCLUT le créateur
-    const recipients = determineInterventionRecipients(intervention, createdBy)
+    const recipients = determineInterventionRecipients(intervention, { excludeUserId: createdBy })
 
     // 4. Créer les notifications avec titre amélioré et messages adaptés par rôle
     const notifications = await Promise.all(
@@ -263,7 +263,7 @@ export class NotificationService {
     const assignmentMap = await this.getAssignedUsersWithRoles(interventionId)
 
     // 3. Determine recipients
-    const recipients = this.determineInterventionRecipients(intervention, changedBy)
+    const recipients = determineInterventionRecipients(intervention, { excludeUserId: changedBy })
 
     // 4. Create role-adapted notifications
     const notifications = await Promise.all(

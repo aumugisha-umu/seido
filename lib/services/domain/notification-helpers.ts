@@ -7,10 +7,12 @@
  * Architecture:
  * - Ces helpers sont PURS (pas d'effets de bord, pas d'appels DB)
  * - Input: Données enrichies (intervention + managers, building + managers, etc.)
- * - Output: Liste de recipients avec métadonnées (userId, isPersonal)
+ * - Output: Liste de recipients avec métadonnées (userId, isPersonal, role)
  *
  * @module notification-helpers
  */
+
+import type { UserRole } from '@/lib/auth'
 
 /**
  * Recipient pour une notification
@@ -18,6 +20,42 @@
 export interface NotificationRecipient {
   userId: string
   isPersonal: boolean // true = notification personnelle, false = notification d'équipe
+  role: UserRole      // Rôle de l'utilisateur pour filtrage contextuel
+}
+
+/**
+ * Options de filtrage pour determineInterventionRecipients
+ *
+ * Permet d'exclure ou d'inclure des catégories d'utilisateurs selon le contexte.
+ *
+ * @example
+ * ```typescript
+ * // Exclure le créateur et ne notifier que les prestataires
+ * const options: RecipientFilterOptions = {
+ *   excludeUserId: creatorId,
+ *   onlyRoles: ['prestataire']
+ * }
+ *
+ * // Notifier tout le monde sauf les gestionnaires d'équipe
+ * const options: RecipientFilterOptions = {
+ *   excludeUserId: creatorId,
+ *   excludeRoles: ['gestionnaire'],
+ *   excludeNonPersonal: true
+ * }
+ * ```
+ */
+export interface RecipientFilterOptions {
+  /** ID de l'utilisateur à exclure (généralement le créateur/acteur) */
+  excludeUserId?: string | null
+
+  /** Rôles à exclure complètement des destinataires */
+  excludeRoles?: UserRole[]
+
+  /** Si défini, SEULEMENT ces rôles recevront des notifications (mutuellement exclusif avec excludeRoles) */
+  onlyRoles?: UserRole[]
+
+  /** Si true, exclut les membres d'équipe non directement assignés (isPersonal: false) */
+  excludeNonPersonal?: boolean
 }
 
 /**
@@ -97,59 +135,114 @@ export interface ContactWithManagers {
  * Logique métier:
  * 1. Utilisateurs assignés directement (gestionnaires, prestataires, locataires) → Notification PERSONNELLE
  * 2. Gestionnaires d'équipe non assignés → Notification D'ÉQUIPE
+ * 3. Filtrage optionnel par rôle (excludeRoles/onlyRoles)
  *
  * @param intervention - Intervention enrichie avec managers et assignations
- * @param excludeUserId - ID de l'utilisateur à exclure (généralement le créateur)
- * @returns Liste de recipients avec flag isPersonal
+ * @param options - Options de filtrage (excludeUserId, excludeRoles, onlyRoles, excludeNonPersonal)
+ * @returns Liste de recipients avec flag isPersonal et role
  *
  * @example
  * ```typescript
- * const recipients = determineInterventionRecipients(intervention, creatorId)
- * // [
- * //   { userId: 'manager-1', isPersonal: true },   // Assigné directement
- * //   { userId: 'manager-2', isPersonal: false },  // Gestionnaire d'équipe
- * //   { userId: 'provider-1', isPersonal: true }   // Prestataire assigné
- * // ]
+ * // Création: notifier tout le monde sauf le créateur
+ * const recipients = determineInterventionRecipients(intervention, { excludeUserId: creatorId })
+ *
+ * // Approbation: notifier seulement locataire + prestataires assignés
+ * const recipients = determineInterventionRecipients(intervention, {
+ *   excludeUserId: managerId,
+ *   excludeRoles: ['gestionnaire'],
+ *   excludeNonPersonal: true
+ * })
+ *
+ * // Clôture: notifier seulement les gestionnaires
+ * const recipients = determineInterventionRecipients(intervention, {
+ *   excludeUserId: providerId,
+ *   onlyRoles: ['gestionnaire']
+ * })
  * ```
  */
 export function determineInterventionRecipients(
   intervention: InterventionWithManagers,
-  excludeUserId: string
+  options: RecipientFilterOptions = {}
 ): NotificationRecipient[] {
-  const recipients: NotificationRecipient[] = []
+  const { excludeUserId, excludeRoles, onlyRoles, excludeNonPersonal } = options
+  let recipients: NotificationRecipient[] = []
   const processedUserIds = new Set<string>()
 
-  // 1. Ajouter tous les utilisateurs directement assignés à l'intervention (gestionnaires, prestataires, locataires)
-  const directlyAssignedIds = [
-    ...intervention.interventionAssignedManagers,
-    ...intervention.interventionAssignedProviders,
-    ...intervention.interventionAssignedTenants
-  ]
+  // Helper: Vérifier si un userId doit être exclu
+  const shouldExcludeUser = (userId: string): boolean => {
+    return excludeUserId ? userId === excludeUserId : false
+  }
 
-  directlyAssignedIds.forEach(userId => {
-    if (userId !== excludeUserId && !processedUserIds.has(userId)) {
+  // 1. Ajouter les gestionnaires directement assignés (PERSONNELLE)
+  intervention.interventionAssignedManagers.forEach(userId => {
+    if (!shouldExcludeUser(userId) && !processedUserIds.has(userId)) {
       recipients.push({
         userId,
-        isPersonal: true // Assigné directement = notification personnelle
+        isPersonal: true,
+        role: 'gestionnaire'
       })
       processedUserIds.add(userId)
     }
   })
 
-  // 2. Ajouter les gestionnaires de l'équipe non encore inclus (notification d'équipe)
+  // 2. Ajouter les prestataires directement assignés (PERSONNELLE)
+  intervention.interventionAssignedProviders.forEach(userId => {
+    if (!shouldExcludeUser(userId) && !processedUserIds.has(userId)) {
+      recipients.push({
+        userId,
+        isPersonal: true,
+        role: 'prestataire'
+      })
+      processedUserIds.add(userId)
+    }
+  })
+
+  // 3. Ajouter les locataires directement assignés (PERSONNELLE)
+  intervention.interventionAssignedTenants.forEach(userId => {
+    if (!shouldExcludeUser(userId) && !processedUserIds.has(userId)) {
+      recipients.push({
+        userId,
+        isPersonal: true,
+        role: 'locataire'
+      })
+      processedUserIds.add(userId)
+    }
+  })
+
+  // 4. Ajouter les gestionnaires de l'équipe non encore inclus (D'ÉQUIPE)
   intervention.teamMembers
     .filter(member =>
       member.role === 'gestionnaire' &&
-      member.id !== excludeUserId &&
+      !shouldExcludeUser(member.id) &&
       !processedUserIds.has(member.id)
     )
     .forEach(manager => {
       recipients.push({
         userId: manager.id,
-        isPersonal: false // Gestionnaire d'équipe = notification d'équipe
+        isPersonal: false,
+        role: 'gestionnaire'
       })
       processedUserIds.add(manager.id)
     })
+
+  // ══════════════════════════════════════════════════════════════
+  // PHASE DE FILTRAGE
+  // ══════════════════════════════════════════════════════════════
+
+  // 5. Appliquer excludeNonPersonal si demandé
+  if (excludeNonPersonal) {
+    recipients = recipients.filter(r => r.isPersonal)
+  }
+
+  // 6. Appliquer excludeRoles si défini
+  if (excludeRoles && excludeRoles.length > 0) {
+    recipients = recipients.filter(r => !excludeRoles.includes(r.role))
+  }
+
+  // 7. Appliquer onlyRoles si défini (mutuellement exclusif avec excludeRoles)
+  if (onlyRoles && onlyRoles.length > 0 && (!excludeRoles || excludeRoles.length === 0)) {
+    recipients = recipients.filter(r => onlyRoles.includes(r.role))
+  }
 
   return recipients
 }
@@ -158,18 +251,18 @@ export function determineInterventionRecipients(
  * Détermine les destinataires pour un changement de statut d'intervention
  *
  * Utilise la même logique que determineInterventionRecipients()
- * car les mêmes personnes doivent être notifiées.
+ * mais permet des options de filtrage spécifiques au changement de statut.
  *
  * @param intervention - Intervention enrichie avec managers et assignations
- * @param excludeUserId - ID de l'utilisateur à exclure
- * @returns Liste de recipients avec flag isPersonal
+ * @param options - Options de filtrage
+ * @returns Liste de recipients avec flag isPersonal et role
  */
 export function determineInterventionStatusChangeRecipients(
   intervention: InterventionWithManagers,
-  excludeUserId: string
+  options: RecipientFilterOptions = {}
 ): NotificationRecipient[] {
   // Pour un changement de statut, les destinataires sont les mêmes que pour la création
-  return determineInterventionRecipients(intervention, excludeUserId)
+  return determineInterventionRecipients(intervention, options)
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -201,7 +294,8 @@ export function determineBuildingRecipients(
 
   return allManagers.map(manager => ({
     userId: manager.id,
-    isPersonal: directResponsibles.has(manager.id)
+    isPersonal: directResponsibles.has(manager.id),
+    role: 'gestionnaire' as const
   }))
 }
 
@@ -240,7 +334,8 @@ export function determineLotRecipients(
 
   return allManagers.map(manager => ({
     userId: manager.id,
-    isPersonal: directResponsibles.has(manager.id)
+    isPersonal: directResponsibles.has(manager.id),
+    role: 'gestionnaire' as const
   }))
 }
 
@@ -273,7 +368,8 @@ export function determineContactRecipients(
 
   return allManagers.map(manager => ({
     userId: manager.id,
-    isPersonal: directResponsibles.has(manager.id)
+    isPersonal: directResponsibles.has(manager.id),
+    role: 'gestionnaire' as const
   }))
 }
 

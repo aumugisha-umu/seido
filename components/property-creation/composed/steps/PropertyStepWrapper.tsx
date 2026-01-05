@@ -115,7 +115,7 @@ export function PropertyStepWrapper({
       {showProgress && (
         <StepProgressHeader
           title={formData.mode === 'building' ? "Ajouter un immeuble" : "Ajouter un lot"}
-          backButtonText="Retour aux biens"
+          backButtonText="Retour"
           onBack={() => window.history.back()} // This would be replaced with proper navigation
           steps={steps}
           currentStep={navigation.currentStep}

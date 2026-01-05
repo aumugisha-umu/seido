@@ -6,10 +6,12 @@ import { createQuoteRequestsForProviders } from './create-quote-requests'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { createManagerInterventionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 import { mapInterventionType, mapUrgencyLevel } from '@/lib/utils/intervention-mappers'
-import { createServerNotificationRepository } from '@/lib/services'
+import { createServerNotificationRepository, createServerUserRepository, createServerBuildingRepository, createServerLotRepository, createServerInterventionRepository } from '@/lib/services'
 import { NotificationService } from '@/lib/services/domain/notification.service'
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import { NotificationRepository } from '@/lib/services/repositories/notification-repository'
+import { EmailNotificationService } from '@/lib/services/domain/email-notification.service'
+import { EmailService } from '@/lib/services/domain/email.service'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "🔧 create-manager-intervention API route called")
@@ -332,7 +334,9 @@ export async function POST(request: NextRequest) {
       scheduling_type: schedulingType,
       specific_location: location,
       // Multi-provider mode
-      assignment_mode: assignmentMode || 'single'
+      assignment_mode: assignmentMode || 'single',
+      // ✅ FIX 2025-12-24: Ajout created_by pour exclure le créateur des notifications email
+      created_by: user.id
     }
 
     // Add lot_id only if it exists (for lot-specific interventions)
@@ -749,8 +753,17 @@ export async function POST(request: NextRequest) {
 
         // Update intervention has_attachments flag if any files were uploaded
         if (uploadedCount > 0) {
-          await interventionService.update(intervention.id, { has_attachments: true })
-          logger.info({ uploadedCount }, "✅ Files uploaded successfully")
+          try {
+            const updateResult = await interventionService.update(intervention.id, { has_attachments: true })
+            if (updateResult.success) {
+              logger.info({ uploadedCount }, "✅ Files uploaded successfully and has_attachments flag updated")
+            } else {
+              logger.warn({ error: updateResult.error }, "⚠️ Could not update intervention has_attachments flag (non-critical)")
+            }
+          } catch (error) {
+            logger.warn({ error }, "⚠️ Error updating intervention has_attachments flag (non-critical)")
+            // Don't fail the entire operation for this
+          }
         }
 
       } catch (error) {
@@ -815,6 +828,52 @@ export async function POST(request: NextRequest) {
 
     } catch (error) {
       logger.error(error, "⚠️ [API] Failed to create notifications")
+    }
+
+    // ✅ EMAILS: Send email notifications to assigned users
+    try {
+      logger.info({ interventionId: intervention.id }, "📧 [API] Sending email notifications")
+
+      // Use Service Role client for email notification service
+      const serviceRoleClient = createServiceRoleSupabaseClient()
+
+      // Create all required repositories
+      const emailNotificationRepository = new NotificationRepository(serviceRoleClient)
+      const emailService = new EmailService()
+      const interventionRepository = await createServerInterventionRepository()
+      const userRepository = await createServerUserRepository()
+      const buildingRepository = await createServerBuildingRepository()
+      const lotRepository = await createServerLotRepository()
+
+      // Create the EmailNotificationService
+      const emailNotificationService = new EmailNotificationService(
+        emailNotificationRepository,
+        emailService,
+        interventionRepository,
+        userRepository,
+        buildingRepository,
+        lotRepository
+      )
+
+      // Send batch emails (non-blocking, graceful degradation)
+      const emailResult = await emailNotificationService.sendInterventionCreatedBatch(
+        intervention.id,
+        'intervention'
+      )
+
+      logger.info({
+        interventionId: intervention.id,
+        sentCount: emailResult.sentCount,
+        failedCount: emailResult.failedCount,
+        success: emailResult.success
+      }, "📧 [API] Email notifications sent")
+
+    } catch (error) {
+      // Non-blocking: log error but don't fail the intervention creation
+      logger.error({
+        error: error instanceof Error ? error.message : 'Unknown error',
+        interventionId: intervention.id
+      }, "⚠️ [API] Failed to send email notifications (non-blocking)")
     }
 
     // ⚡ NO-CACHE: Mutations ne doivent pas être cachées

@@ -11,6 +11,7 @@ import { ImportStepPreview } from './import-step-preview';
 import { ImportStepConfirm } from './import-step-confirm';
 import { ImportStepProgress } from './import-step-progress';
 import { ImportStepResult } from './import-step-result';
+import { ImportStepInvitation } from './import-step-invitation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, X } from 'lucide-react';
@@ -29,20 +30,22 @@ export function ImportWizard({ onClose }: ImportWizardProps) {
   };
 
   // Step titles
-  const stepTitles = {
+  const stepTitles: Record<string, string> = {
     upload: 'Importer des données',
     preview: 'Prévisualisation',
     confirm: 'Confirmation',
     progress: 'Import en cours',
     result: 'Résultat',
+    invitation: 'Invitations',
   };
 
-  const stepDescriptions = {
+  const stepDescriptions: Record<string, string> = {
     upload: 'Téléchargez un fichier Excel ou CSV contenant vos données',
     preview: 'Vérifiez vos données avant l\'import',
     confirm: 'Confirmez les données à importer',
     progress: 'Veuillez patienter pendant l\'import...',
     result: 'L\'import est terminé',
+    invitation: 'Invitez les contacts créés sur l\'application',
   };
 
   // Can go back?
@@ -128,6 +131,9 @@ export function ImportWizard({ onClose }: ImportWizardProps) {
         {state.step === 'progress' && <ImportStepProgress wizard={wizard} />}
         {state.step === 'result' && (
           <ImportStepResult wizard={wizard} onClose={handleClose} />
+        )}
+        {state.step === 'invitation' && (
+          <ImportStepInvitation wizard={wizard} onClose={handleClose} />
         )}
       </CardContent>
     </Card>

@@ -13,7 +13,8 @@ import { useNotificationPopover } from "@/hooks/use-notification-popover"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import NotificationPopover from "@/components/notification-popover"
-import { InstallPWAHeaderButton } from "@/components/install-pwa-header-button"
+import { usePWABannerOptional, PWA_BANNER_HEIGHT } from "@/contexts/pwa-banner-context"
+import { cn } from "@/lib/utils"
 import { logger, logError } from '@/lib/logger'
 interface NavigationItem {
   href: string
@@ -86,6 +87,7 @@ export default function DashboardHeader({
 
   const config = roleConfigs[role] || roleConfigs.gestionnaire
   const { user, signOut } = useAuth()
+  const { isBannerVisible } = usePWABannerOptional()
   const pathname = usePathname()
   const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
@@ -159,19 +161,32 @@ export default function DashboardHeader({
       setIsLoggingOut(true)
       setIsMobileMenuOpen(false) // Fermer le menu mobile immédiatement
       logger.info('👤 [DASHBOARD-HEADER] Logout button clicked')
-      await signOut()
+      
+      // Effectuer la déconnexion avec timeout pour éviter les hangs
+      const signOutPromise = signOut()
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('SignOut timeout')), 3000)
+      )
+      
+      await Promise.race([signOutPromise, timeoutPromise])
       logger.info('👤 [DASHBOARD-HEADER] Sign out completed, redirecting to login')
-      router.push("/auth/login")
     } catch (error) {
       logger.error('❌ [DASHBOARD-HEADER] Error during logout:', error)
-      router.push("/auth/login")
+      // Continuer quand même avec la redirection
     } finally {
-      // Ne pas réinitialiser isLoggingOut car on redirige
+      // Utiliser window.location.href pour forcer une navigation complète
+      // Cela évite les problèmes de router.push() qui peut ne pas fonctionner après signOut
+      logger.info('🔄 [DASHBOARD-HEADER] Executing navigation with window.location.href...')
+      window.location.href = "/auth/login"
     }
   }
 
   const handleProfile = () => {
     router.push(`/${role}/profile`)
+  }
+
+  const handleSettings = () => {
+    router.push(`/${role}/parametres`)
   }
 
   // Fermer le menu mobile lors du changement de route
@@ -194,11 +209,17 @@ export default function DashboardHeader({
 
   return (
     <>
-      <header className="header">
+      <header 
+        className={cn(
+          "header",
+          "transition-[top] duration-300 ease-in-out"
+        )}
+        style={{ top: isBannerVisible ? PWA_BANNER_HEIGHT : 0 }}
+      >
         <div className="header__container">
           <nav className="header__nav">
             {/* Logo à gauche */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
               <div className="flex items-center">
                 {/* Logo SEIDO - Cliquable vers dashboard */}
                 <div className="header__logo">
@@ -208,19 +229,17 @@ export default function DashboardHeader({
                       alt="SEIDO"
                       width={140}
                       height={38}
-                      className="header__logo-image"
+                      className="header__logo-image h-8 sm:h-10 w-auto"
+                      priority
                     />
                   </Link>
                 </div>
               </div>
-
-              {/* Bouton installation PWA - visible uniquement si non installé */}
-              <InstallPWAHeaderButton />
             </div>
 
             {/* Navigation desktop - cachée sur mobile et tablet - affichée seulement si navigation existe */}
             {config.navigation.length > 0 && (
-              <div className="hidden lg:flex items-center space-x-1">
+              <div className="hidden lg:flex items-center space-x-1 flex-1 justify-center max-w-4xl mx-4">
                 {config.navigation.map((item) => {
                   const Icon = item.icon
                   const isActive = isActivePage(item.href)
@@ -230,15 +249,15 @@ export default function DashboardHeader({
                       key={item.href}
                       href={item.href}
                       className={`
-                        flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 font-medium group border
+                        flex items-center space-x-2 px-3 xl:px-4 py-2 rounded-lg transition-all duration-200 font-medium group border text-sm xl:text-base
                         ${isActive
                           ? 'bg-primary/10 text-primary border-primary/20 shadow-sm'
                           : 'text-muted-foreground border-transparent hover:text-foreground hover:bg-muted hover:border-border hover:scale-[1.02] hover:shadow-sm'
                         }
                       `}
                     >
-                      <Icon className={`h-5 w-5 transition-all duration-200 ${isActive ? 'text-primary' : 'group-hover:text-foreground'}`} />
-                      <span className="transition-all duration-200">{item.label}</span>
+                      <Icon className={`h-4 w-4 xl:h-5 xl:w-5 transition-all duration-200 flex-shrink-0 ${isActive ? 'text-primary' : 'group-hover:text-foreground'}`} />
+                      <span className="transition-all duration-200 whitespace-nowrap">{item.label}</span>
                     </Link>
                   )
                 })}
@@ -246,7 +265,7 @@ export default function DashboardHeader({
             )}
 
             {/* Éléments droite */}
-            <div className="header__actions">
+            <div className="header__actions flex items-center gap-1 sm:gap-2 flex-shrink-0">
               {/* Notifications Popover - toujours visible */}
               {config.showUserElements && (
                 <Popover open={isNotificationPopoverOpen} onOpenChange={setIsNotificationPopoverOpen}>
@@ -260,13 +279,13 @@ export default function DashboardHeader({
                     >
                       <Bell className="h-5 w-5" />
                       {globalUnreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center font-medium shadow-sm">
+                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center font-medium shadow-sm px-1">
                           {globalUnreadCount > 99 ? '99+' : globalUnreadCount}
                         </span>
                       )}
                     </button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-[400px] p-0" align="end" sideOffset={8}>
+                  <PopoverContent className="w-[90vw] sm:w-[400px] max-w-[400px] p-0" align="end" sideOffset={8}>
                     <NotificationPopover
                       notifications={popoverNotifications}
                       loading={loadingPopoverNotifications}
@@ -282,9 +301,9 @@ export default function DashboardHeader({
                 </Popover>
               )}
 
-              {/* Menu utilisateur - caché sur mobile, visible sur desktop */}
+              {/* Menu utilisateur - caché sur mobile, visible sur tablet et desktop */}
               {config.showUserElements && (
-                <div className="hidden lg:block">
+                <div className="hidden md:block">
                   <UserMenu
                     userName={displayName}
                     userInitial={displayInitial}
@@ -296,7 +315,7 @@ export default function DashboardHeader({
               {/* Bouton hamburger - mobile et tablet uniquement */}
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden flex items-center justify-center header__button header__button--inactive"
+                className="header__button header__button--inactive lg:!hidden"
                 aria-label="Menu de navigation"
                 aria-expanded={isMobileMenuOpen}
               >
@@ -321,8 +340,11 @@ export default function DashboardHeader({
           />
 
           {/* Menu panel */}
-          <div className="fixed top-16 inset-x-0 bottom-0 bg-background border-b border-border shadow-lg">
-            <div className="flex flex-col h-full content-max-width px-5 sm:px-6 lg:px-10 py-4">
+          <div 
+            className="fixed inset-x-0 bottom-0 bg-background border-t border-border shadow-lg overflow-y-auto"
+            style={{ top: isBannerVisible ? `calc(4rem + ${PWA_BANNER_HEIGHT}px)` : '4rem' }}
+          >
+            <div className="flex flex-col h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
 
               {/* Navigation principale - affichée seulement si navigation existe */}
               {config.navigation.length > 0 && (
@@ -372,6 +394,10 @@ export default function DashboardHeader({
                   </button>
 
                   <button
+                    onClick={() => {
+                      handleSettings()
+                      setIsMobileMenuOpen(false)
+                    }}
                     className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px] text-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border"
                   >
                     <Settings className="h-6 w-6" />

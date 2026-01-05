@@ -41,7 +41,8 @@ import { InterventionActionPanelHeader } from '@/components/intervention/interve
 import { ChatTab } from './chat-tab'
 
 // Modals
-import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
+// ProgrammingModal removed - locataires don't need to program interventions
+// import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
 import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
 import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
 
@@ -305,58 +306,8 @@ export function LocataireInterventionDetailClient({
     router.refresh()
   }
 
-  // Handle opening programming modal with existing data pre-filled
-  const handleOpenProgrammingModalWithData = () => {
-    const interventionAction = {
-      id: intervention.id,
-      type: intervention.type || '',
-      status: intervention.status || '',
-      title: intervention.title || '',
-      description: intervention.description,
-      priority: intervention.priority,
-      urgency: intervention.urgency,
-      reference: intervention.reference || '',
-      created_at: intervention.created_at,
-      created_by: intervention.creator?.name || 'Utilisateur',
-      location: intervention.specific_location,
-      lot: intervention.lot ? {
-        reference: intervention.lot.reference || '',
-        building: intervention.lot.building ? {
-          name: intervention.lot.building.name || ''
-        } : undefined
-      } : undefined,
-      building: intervention.building ? {
-        name: intervention.building.name || ''
-      } : undefined
-    }
-
-    // Determine planning mode based on existing time slots
-    if (timeSlots.length === 0) {
-      // No slots yet - open with default mode
-      planning.openProgrammingModal(interventionAction)
-    } else if (timeSlots.length === 1) {
-      // Single slot - likely "direct" mode
-      const slot = timeSlots[0]
-      planning.setProgrammingOption('direct')
-      planning.setProgrammingDirectSchedule({
-        date: slot.slot_date,
-        startTime: slot.start_time,
-        endTime: slot.end_time
-      })
-      planning.openProgrammingModal(interventionAction)
-    } else {
-      // Multiple slots - "propose" mode
-      planning.setProgrammingOption('propose')
-      planning.setProgrammingProposedSlots(
-        timeSlots.map(slot => ({
-          date: slot.slot_date,
-          startTime: slot.start_time,
-          endTime: slot.end_time
-        }))
-      )
-      planning.openProgrammingModal(interventionAction)
-    }
-  }
+  // NOTE: ProgrammingModal functionality removed - locataires don't program interventions
+  // Gestionnaires use /gestionnaire/interventions/modifier/[id] page instead
 
   // Helper functions for DetailPageHeader
   const getStatusBadge = (): DetailPageHeaderBadge => {
@@ -452,31 +403,7 @@ export function LocataireInterventionDetailClient({
       />
 
       <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
-        {/* Modals */}
-        <ProgrammingModal
-          isOpen={planning.programmingModal.isOpen}
-          onClose={planning.closeProgrammingModal}
-          intervention={planning.programmingModal.intervention}
-          programmingOption={planning.programmingOption}
-          onProgrammingOptionChange={planning.setProgrammingOption}
-          directSchedule={planning.programmingDirectSchedule}
-          onDirectScheduleChange={planning.setProgrammingDirectSchedule}
-          proposedSlots={planning.programmingProposedSlots}
-          onAddProposedSlot={planning.addProgrammingSlot}
-          onUpdateProposedSlot={planning.updateProgrammingSlot}
-          onRemoveProposedSlot={planning.removeProgrammingSlot}
-          managers={managers}
-          selectedManagers={managers.map(m => m.id)}
-          onManagerToggle={() => {}}
-          providers={providers}
-          selectedProviders={providers.map(p => p.id)}
-          onProviderToggle={() => {}}
-          tenants={tenants}
-          selectedTenants={tenants.map(t => t.id)}
-          onTenantToggle={() => {}}
-          onConfirm={planning.handleProgrammingConfirm}
-          isFormValid={planning.isProgrammingFormValid()}
-        />
+        {/* ProgrammingModal removed - locataires don't program interventions */}
 
         {/* Cancel Slot Modal */}
         <CancelSlotModal

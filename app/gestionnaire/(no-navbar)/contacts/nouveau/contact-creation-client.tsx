@@ -453,7 +453,7 @@ export function ContactCreationClient({
       <StepProgressHeader
         title="Créer un contact"
         subtitle={getStepSubtitle()}
-        backButtonText={returnUrl ? "Annuler" : "Retour à la liste"}
+        backButtonText={returnUrl ? "Annuler" : "Retour"}
         onBack={() => {
           if (returnUrl) {
             // Retour au formulaire d'origine sans créer de contact

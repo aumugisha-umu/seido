@@ -18,8 +18,10 @@ import {
   AlertTriangle,
   Download,
   RefreshCw,
+  Mail,
 } from 'lucide-react';
 import type { UseImportWizardReturn } from '@/hooks/use-import-wizard';
+import type { CreatedContactInfo } from '@/lib/import/types';
 import { SHEET_NAMES } from '@/lib/import/constants';
 
 interface ImportStepResultProps {
@@ -28,10 +30,22 @@ interface ImportStepResultProps {
 }
 
 export function ImportStepResult({ wizard, onClose }: ImportStepResultProps) {
-  const { state, reset } = wizard;
+  const { state, reset, goToInvitationStep, setCreatedContacts } = wizard;
   const { importResult, error } = state;
 
   const isSuccess = importResult?.success && !error;
+
+  // Extract created contacts with emails for invitation
+  const createdContactsWithEmail = (importResult?.createdContacts || []).filter(
+    (c: CreatedContactInfo) => c.email && c.email.trim() !== ''
+  );
+
+  const handleGoToInvitations = () => {
+    // Set the created contacts in the wizard state
+    setCreatedContacts(importResult?.createdContacts || []);
+    // Navigate to invitation step
+    goToInvitationStep();
+  };
 
   // Get stats from result
   const summary = importResult?.summary;
@@ -206,6 +220,12 @@ export function ImportStepResult({ wizard, onClose }: ImportStepResultProps) {
           <RefreshCw className="h-4 w-4 mr-2" />
           Nouvel import
         </Button>
+        {isSuccess && createdContactsWithEmail.length > 0 && (
+          <Button variant="outline" onClick={handleGoToInvitations}>
+            <Mail className="h-4 w-4 mr-2" />
+            Inviter les contacts ({createdContactsWithEmail.length})
+          </Button>
+        )}
         {onClose && (
           <Button onClick={onClose}>
             {isSuccess ? 'Fermer' : 'Retour'}

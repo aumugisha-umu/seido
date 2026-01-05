@@ -466,8 +466,8 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
         }
       }
 
-      // Create new user - exclude internal fields like _rowIndex, _existingId
-      const { _rowIndex, _existingId, ...userDataForDb } = user as typeof user & { _rowIndex?: number };
+      // Create new user - exclude internal fields like _rowIndex, _existingId, _companyId
+      const { _rowIndex, _existingId, _companyId, ...userDataForDb } = user as typeof user & { _rowIndex?: number; _companyId?: string };
       const createResult = await this.create({
         ...userDataForDb,
         email: user.email?.toLowerCase().trim() || null,

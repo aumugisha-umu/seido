@@ -105,6 +105,46 @@ export interface SendEmailOptions {
  */
 
 /**
+ * Créneau horaire proposé pour l'intervention
+ */
+export interface EmailTimeSlot {
+  /** Date du créneau */
+  date: Date
+  /** Heure de début (format "HH:mm") */
+  startTime: string
+  /** Heure de fin (format "HH:mm") */
+  endTime: string
+}
+
+/**
+ * Informations sur le devis demandé (pour prestataire uniquement)
+ */
+export interface EmailQuoteInfo {
+  /** Devis obligatoire ou optionnel */
+  isRequired: boolean
+  /** Montant estimé (si fourni par le gestionnaire) */
+  estimatedAmount?: number
+  /** Date limite de soumission */
+  deadline?: Date
+}
+
+/**
+ * Pièce jointe d'une intervention pour l'email
+ */
+export interface EmailAttachment {
+  /** Nom du fichier original */
+  filename: string
+  /** Type MIME (ex: "image/jpeg", "application/pdf") */
+  mimeType: string
+  /** Taille du fichier en octets */
+  fileSize: number
+  /** URL de téléchargement (signée ou publique) */
+  downloadUrl: string
+  /** Type de document (photo, facture, etc.) */
+  documentType?: string
+}
+
+/**
  * Props communes pour tous les emails d'intervention
  */
 export interface BaseInterventionEmailProps extends BaseEmailProps {
@@ -133,6 +173,49 @@ export interface InterventionCreatedEmailProps extends BaseInterventionEmailProp
   urgency: 'faible' | 'moyenne' | 'haute' | 'critique'
   /** Date de création */
   createdAt: Date
+  /** Pièces jointes de l'intervention */
+  attachments?: EmailAttachment[]
+}
+
+/**
+ * Props pour le template "Intervention assignée au prestataire"
+ * Envoyé au prestataire quand un gestionnaire l'assigne à une intervention
+ */
+export interface InterventionAssignedPrestataireEmailProps extends BaseInterventionEmailProps {
+  /** Titre de l'intervention (affiché sous la référence) */
+  title?: string
+  /** Nom du gestionnaire qui a créé/assigné l'intervention */
+  managerName: string
+  /** Niveau d'urgence */
+  urgency: 'faible' | 'moyenne' | 'haute' | 'critique'
+  /** Date de création */
+  createdAt: Date
+  /** Créneaux proposés pour l'intervention */
+  timeSlots?: EmailTimeSlot[]
+  /** Informations sur le devis demandé (prestataire seulement) */
+  quoteInfo?: EmailQuoteInfo
+  /** Pièces jointes de l'intervention */
+  attachments?: EmailAttachment[]
+}
+
+/**
+ * Props pour le template "Intervention assignée au locataire"
+ * Envoyé au locataire quand une intervention est créée pour son logement
+ */
+export interface InterventionAssignedLocataireEmailProps extends BaseInterventionEmailProps {
+  /** Titre de l'intervention (affiché sous la référence) */
+  title?: string
+  /** Nom du gestionnaire qui a créé l'intervention */
+  managerName: string
+  /** Niveau d'urgence */
+  urgency: 'faible' | 'moyenne' | 'haute' | 'critique'
+  /** Date de création */
+  createdAt: Date
+  /** Créneaux proposés pour l'intervention */
+  timeSlots?: EmailTimeSlot[]
+  /** Pièces jointes de l'intervention */
+  attachments?: EmailAttachment[]
+  // Note: Pas de quoteInfo pour le locataire (info prestataire uniquement)
 }
 
 /**
@@ -177,6 +260,23 @@ export interface InterventionScheduledEmailProps extends BaseInterventionEmailPr
   /** Durée estimée (en minutes) */
   estimatedDuration?: number
   /** Nom du destinataire (locataire ou prestataire) */
+  recipientRole: 'locataire' | 'prestataire'
+}
+
+/**
+ * Props pour le template "Créneaux proposés"
+ * Envoyé au locataire ET au prestataire quand le gestionnaire propose des créneaux
+ */
+export interface TimeSlotsProposedEmailProps extends BaseInterventionEmailProps {
+  /** Nom du gestionnaire qui propose les créneaux */
+  managerName: string
+  /** Type de planification */
+  planningType: 'direct' | 'propose' | 'organize'
+  /** Créneaux proposés */
+  proposedSlots: EmailTimeSlot[]
+  /** Date limite pour répondre (optionnel) */
+  responseDeadline?: Date
+  /** Rôle du destinataire */
   recipientRole: 'locataire' | 'prestataire'
 }
 

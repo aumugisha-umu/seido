@@ -121,8 +121,7 @@ export const useInterventionApproval = () => {
     try {
       if (confirmationModal.action === "approve") {
         await interventionActionsService.approveIntervention(
-          confirmationModal.intervention, 
-          approvalData
+          confirmationModal.intervention
         )
 
         setSuccessModal({
@@ -138,9 +137,13 @@ export const useInterventionApproval = () => {
         }, 2000)
 
       } else if (confirmationModal.action === "reject") {
+        if (!rejectionReason) {
+          throw new Error('Le motif de rejet est requis')
+        }
+
         await interventionActionsService.rejectIntervention(
-          confirmationModal.intervention, 
-          approvalData
+          confirmationModal.intervention,
+          rejectionReason
         )
 
         setSuccessModal({

@@ -4,7 +4,6 @@ import { useState, useEffect } from "react"
 import dynamic from "next/dynamic"
 import {
   Plus,
-  Loader2,
   AlertTriangle,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -25,7 +24,8 @@ const RejectConfirmationModal = dynamic(() => import("@/components/intervention/
 const SuccessModal = dynamic(() => import("@/components/intervention/modals/success-modal").then(mod => ({ default: mod.SuccessModal })), { ssr: false })
 const QuoteRequestModal = dynamic(() => import("@/components/intervention/modals/quote-request-modal").then(mod => ({ default: mod.QuoteRequestModal })), { ssr: false })
 const QuoteRequestSuccessModal = dynamic(() => import("@/components/intervention/modals/quote-request-success-modal").then(mod => ({ default: mod.QuoteRequestSuccessModal })), { ssr: false })
-const ProgrammingModal = dynamic(() => import("@/components/intervention/modals/programming-modal").then(mod => ({ default: mod.ProgrammingModal })), { ssr: false })
+// ProgrammingModal removed - redirects to /gestionnaire/interventions/modifier/[id] now
+// const ProgrammingModal = dynamic(() => import("@/components/intervention/modals/programming-modal").then(mod => ({ default: mod.ProgrammingModal })), { ssr: false })
 const CancelQuoteRequestModal = dynamic(() => import("@/components/intervention/modals/cancel-quote-request-modal").then(mod => ({ default: mod.CancelQuoteRequestModal })), { ssr: false })
 
 import { InterventionCancellationManager } from "@/components/intervention/intervention-cancellation-manager"
@@ -168,14 +168,10 @@ export function InterventionsPageClient({
                 <Button
                   className="flex items-center space-x-2"
                   onClick={() => navigate("/gestionnaire/interventions/nouvelle-intervention")}
-                  disabled={isNavigating}
+                  isLoading={isNavigating}
                 >
-                  {isNavigating ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Plus className="h-4 w-4" />
-                  )}
-                  <span>Créer une intervention</span>
+                  <Plus className="h-4 w-4" />
+                  <span>Nouvelle intervention</span>
                 </Button>
               </div>
             </div>
@@ -292,26 +288,7 @@ export function InterventionsPageClient({
           />
         )}
 
-        {planningHook.programmingModal.isOpen && (
-          <ProgrammingModal
-            isOpen={true}
-            onClose={planningHook.closeProgrammingModal}
-            intervention={planningHook.programmingModal.intervention}
-            programmingOption={planningHook.planningOption}
-            onProgrammingOptionChange={planningHook.setPlanningOption}
-            directSchedule={planningHook.directSchedule}
-            onDirectScheduleChange={planningHook.setDirectSchedule}
-            proposedSlots={planningHook.proposedSlots}
-            onAddProposedSlot={planningHook.addProposedSlot}
-            onUpdateProposedSlot={planningHook.updateProposedSlot}
-            onRemoveProposedSlot={planningHook.removeProposedSlot}
-            onSubmit={planningHook.handleSubmit}
-            isLoading={planningHook.isSubmitting}
-            quoteRequests={quoteRequests}
-            onViewProvider={(providerId) => navigate(`/gestionnaire/contacts?highlight=${providerId}`)}
-            onCancelQuoteRequest={handleCancelQuoteRequest}
-          />
-        )}
+        {/* ProgrammingModal removed - users edit via /gestionnaire/interventions/modifier/[id] */}
 
         {cancelQuoteModal.isOpen && (
           <CancelQuoteRequestModal

@@ -530,7 +530,7 @@ export default function NouvelleDemandePage() {
       <StepProgressHeader
         title="Déclarer un sinistre"
         subtitle={getHeaderSubtitle()}
-        backButtonText="Retour au tableau de bord"
+        backButtonText="Retour"
         onBack={() => router.push("/locataire/dashboard")}
         steps={steps}
         currentStep={shouldSkipStepOne ? currentStep - 1 : currentStep}

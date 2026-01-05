@@ -28,7 +28,7 @@ import { LandingHeader } from './landing-header'
  */
 
 function FadeIn({ children, delay = 0, className = "" }: { children: React.ReactNode, delay?: number, className?: string }) {
-    const [isVisible, setIsVisible] = useState(true)
+    const [isVisible, setIsVisible] = useState(false)
     const ref = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
@@ -39,7 +39,7 @@ function FadeIn({ children, delay = 0, className = "" }: { children: React.React
                     observer.disconnect()
                 }
             },
-            { threshold: 0.1 }
+            { threshold: 0.1, rootMargin: '50px' }
         )
 
         if (ref.current) {
@@ -77,18 +77,24 @@ export function LandingPage() {
 
             {/* Hero Section - Background Video with Overlay */}
             <section className="relative z-10 min-h-[600px] md:min-h-[calc(100vh-73px)] flex items-center justify-start overflow-hidden">
-                {/* Background Video */}
+                {/* Background Video - Desktop only, Image on mobile */}
                 <div className="absolute inset-0 z-0 bg-[#131426]">
+                    {/* Mobile: Static gradient background */}
+                    <div className="block md:hidden absolute inset-0 bg-gradient-to-br from-[#0f1629] via-[#1a1f3a] to-[#0f172a]" />
+                    
+                    {/* Desktop: Video background */}
                     <video
                         autoPlay
                         loop
                         muted
                         playsInline
                         preload="none"
-                        className="w-full h-full object-cover"
+                        poster="/images/preview_image.webp"
+                        className="hidden md:block w-full h-full object-cover"
                     >
                         <source src="/videos/hero-video.webm" type="video/webm" />
                     </video>
+                    
                     {/* Gradient Overlay - Darker on left for text readability, transparent on right to show video */}
                     <div className="absolute inset-0 bg-gradient-to-r from-[#131426]/95 via-[#131426]/70 md:via-[#131426]/60 to-[#131426]/80 md:to-transparent" />
                     <div className="absolute inset-0 bg-gradient-to-b from-[#131426]/40 via-transparent to-[#131426]/60" />
@@ -106,40 +112,36 @@ export function LandingPage() {
                             </span>
                         </h1>
 
-                        <FadeIn delay={200}>
-                            <p className="landing-subtitle text-white/90 mb-6 md:mb-8 drop-shadow-lg max-w-2xl">
-                                Grâce au suivi des interventions techniques sur une plateforme unique : <span className="font-bold">demandes</span>, <span className="font-bold">devis</span>, <span className="font-bold">planning</span>, <span className="font-bold">photos</span> et <span className="font-bold">factures</span>, collaborez avec vos locataires et prestataires pour plus de transparence, plus d'efficacité, et moins de relances.
-                            </p>
+                        <p className="landing-subtitle text-white/90 mb-6 md:mb-8 drop-shadow-lg max-w-2xl">
+                            Grâce au suivi des interventions techniques sur une plateforme unique : <span className="font-bold">demandes</span>, <span className="font-bold">devis</span>, <span className="font-bold">planning</span>, <span className="font-bold">photos</span> et <span className="font-bold">factures</span>, collaborez avec vos locataires et prestataires pour plus de transparence, plus d'efficacité, et moins de relances.
+                        </p>
 
-                            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-8 md:mb-10 max-w-2xl">
-                                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
-                                    <CheckCircle2 className="h-4 w-4 text-blue-300" />
-                                    <span className="landing-caption text-white/80">Traçabilité complète</span>
-                                </div>
-                                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
-                                    <CheckCircle2 className="h-4 w-4 text-blue-300" />
-                                    <span className="landing-caption text-white/80">Suivi temps réel</span>
-                                </div>
-                                <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
-                                    <CheckCircle2 className="h-4 w-4 text-blue-300" />
-                                    <span className="landing-caption text-white/80">Moins d’appels & relances</span>
-                                </div>
+                        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-8 md:mb-10 max-w-2xl">
+                            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
+                                <CheckCircle2 className="h-4 w-4 text-blue-300" />
+                                <span className="landing-caption text-white/80">Traçabilité complète</span>
                             </div>
-                        </FadeIn>
+                            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
+                                <CheckCircle2 className="h-4 w-4 text-blue-300" />
+                                <span className="landing-caption text-white/80">Suivi temps réel</span>
+                            </div>
+                            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
+                                <CheckCircle2 className="h-4 w-4 text-blue-300" />
+                                <span className="landing-caption text-white/80">Moins d'appels & relances</span>
+                            </div>
+                        </div>
 
-                        <FadeIn delay={300}>
-                            <div className="flex flex-col sm:flex-row gap-4">
-                                <Link href="/auth/signup">
-                                    <Button size="lg" className="w-full sm:w-auto h-12 md:h-14 px-8 md:px-10 text-base md:text-lg bg-white text-black hover:bg-white/90 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all hover:scale-105">
-                                        Essai gratuit 1 mois
-                                    </Button>
-                                </Link>
-                                <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 md:h-14 px-8 md:px-10 text-base md:text-lg border-white/30 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all hover:scale-105" onClick={() => setShowDemoModal(true)}>
-                                    <Mail className="w-4 md:w-5 h-4 md:h-5 mr-2 md:mr-3" />
-                                    Demander une démo
+                        <div className="flex flex-col sm:flex-row gap-4">
+                            <Link href="/auth/signup">
+                                <Button size="lg" className="w-full sm:w-auto h-12 md:h-14 px-8 md:px-10 text-base md:text-lg bg-white text-black hover:bg-white/90 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all hover:scale-105">
+                                    Essai gratuit 1 mois
                                 </Button>
-                            </div>
-                        </FadeIn>
+                            </Link>
+                            <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 md:h-14 px-8 md:px-10 text-base md:text-lg border-white/30 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all hover:scale-105" onClick={() => setShowDemoModal(true)}>
+                                <Mail className="w-4 md:w-5 h-4 md:h-5 mr-2 md:mr-3" />
+                                Demander une démo
+                            </Button>
+                        </div>
                     </div>
                 </div>
             </section>

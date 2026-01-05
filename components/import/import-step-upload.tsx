@@ -75,10 +75,11 @@ export function ImportStepUpload({ wizard }: ImportStepUploadProps) {
         <div className="flex items-start gap-3">
           <FileText className="h-5 w-5 text-muted-foreground mt-0.5" />
           <div className="flex-1">
-            <h4 className="font-medium">Besoin d&apos;un modèle ?</h4>
+            <h4 className="font-medium text-orange-600">⚠️ Utilisation du template obligatoire</h4>
             <p className="text-sm text-muted-foreground">
-              Téléchargez notre template Excel avec les bons en-têtes et exemples
-              pour remplir vos données facilement.
+              Téléchargez notre template Excel avec les bons en-têtes. 
+              L&apos;utilisation de ce template est obligatoire pour garantir 
+              la compatibilité des données lors de l&apos;import.
             </p>
           </div>
         </div>
@@ -150,13 +151,25 @@ export function ImportStepUpload({ wizard }: ImportStepUploadProps) {
 
       {/* Instructions */}
       <div className="text-sm text-muted-foreground space-y-2">
-        <p className="font-medium">Le fichier doit contenir les onglets suivants :</p>
+        <p className="font-medium">Onglets disponibles (au moins un requis) :</p>
         <ul className="list-disc list-inside space-y-1 ml-2">
           <li><strong>Immeubles</strong> - Nom, Adresse, Ville, Code Postal</li>
           <li><strong>Lots</strong> - Référence, Nom Immeuble, Catégorie, Étage</li>
           <li><strong>Contacts</strong> - Nom, Email, Téléphone, Rôle</li>
           <li><strong>Baux</strong> - Titre, Réf Lot, Date Début, Durée, Loyer</li>
         </ul>
+        <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+          <p className="text-xs font-medium text-blue-900 dark:text-blue-100 mb-1">
+            💡 Règle importante : Respectez les dépendances
+          </p>
+          <p className="text-xs text-blue-800 dark:text-blue-200">
+            Certaines données nécessitent d&apos;autres données pour être créées. 
+            Par exemple : un contrat (Baux) nécessite un lot existant ainsi que 
+            les contacts (locataire, garant). Un immeuble doit contenir au moins 1 lot. 
+            Note : un lot peut être indépendant (maison, parking) ou rattaché à un immeuble. 
+            Assurez-vous d&apos;inclure toutes les données liées dans votre fichier.
+          </p>
+        </div>
       </div>
 
       {/* Action buttons */}

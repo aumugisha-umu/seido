@@ -19,7 +19,6 @@ import { useNotificationPopover } from "@/hooks/use-notification-popover"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import UserMenu from "@/components/user-menu"
 import NotificationPopover from "@/components/notification-popover"
-import { InstallPWAHeaderButton } from "@/components/install-pwa-header-button"
 import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
 import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
 
@@ -176,9 +175,6 @@ export default function LocataireDashboardHybrid({
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
-
-              {/* Download Button - Moved to right of selector */}
-              <InstallPWAHeaderButton />
             </div>
 
             {/* Right: Notifications + User Menu */}

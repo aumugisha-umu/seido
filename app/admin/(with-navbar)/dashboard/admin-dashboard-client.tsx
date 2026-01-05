@@ -4,8 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Settings, RefreshCw } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeout"
-import { PWADashboardPrompt } from "@/components/pwa/pwa-dashboard-prompt"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 interface AdminDashboardClientProps {
   userId?: string
 }
@@ -34,30 +33,27 @@ export function AdminDashboardClient({ userId }: AdminDashboardClientProps) {
   }
 
   return (
-    <>
-      <PWADashboardPrompt />
-      <div className="flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefreshData}
-          className="flex items-center gap-2"
-        >
-          <RefreshCw className="w-4 h-4" />
-          Actualiser
-        </Button>
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleRefreshData}
+        className="flex items-center gap-2"
+      >
+        <RefreshCw className="w-4 h-4" />
+        Actualiser
+      </Button>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleSystemSettings}
-          className="flex items-center gap-2"
-        >
-          <Settings className="w-4 h-4" />
-          Paramètres
-        </Button>
-      </div>
-    </>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleSystemSettings}
+        className="flex items-center gap-2"
+      >
+        <Settings className="w-4 h-4" />
+        Paramètres
+      </Button>
+    </div>
   )
 }
 

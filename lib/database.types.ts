@@ -87,6 +87,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "activity_logs_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "activity_logs_intervention_id_fkey"
             columns: ["intervention_id"]
             isOneToOne: false
@@ -94,10 +101,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "activity_logs_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "activity_logs_lot_id_fkey"
             columns: ["lot_id"]
             isOneToOne: false
             referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
             referencedColumns: ["id"]
           },
           {
@@ -131,6 +152,7 @@ export type Database = {
           is_primary: boolean | null
           notes: string | null
           role: string | null
+          team_id: string | null
           updated_at: string
           user_id: string
         }
@@ -141,6 +163,7 @@ export type Database = {
           is_primary?: boolean | null
           notes?: string | null
           role?: string | null
+          team_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -151,6 +174,7 @@ export type Database = {
           is_primary?: boolean | null
           notes?: string | null
           role?: string | null
+          team_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -160,6 +184,20 @@ export type Database = {
             columns: ["building_id"]
             isOneToOne: false
             referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "building_contacts_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "building_contacts_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
@@ -434,6 +472,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "contract_contacts_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "contract_contacts_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -509,6 +554,13 @@ export type Database = {
             columns: ["contract_id"]
             isOneToOne: false
             referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contract_documents_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts_active"
             referencedColumns: ["id"]
           },
           {
@@ -645,6 +697,13 @@ export type Database = {
             foreignKeyName: "contracts_lot_id_fkey"
             columns: ["lot_id"]
             isOneToOne: false
+            referencedRelation: "lots_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
             referencedRelation: "lots_with_contacts"
             referencedColumns: ["id"]
           },
@@ -656,10 +715,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "contracts_renewed_from_id_fkey"
+            columns: ["renewed_from_id"]
+            isOneToOne: false
+            referencedRelation: "contracts_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "contracts_renewed_to_id_fkey"
             columns: ["renewed_to_id"]
             isOneToOne: false
             referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_renewed_to_id_fkey"
+            columns: ["renewed_to_id"]
+            isOneToOne: false
+            referencedRelation: "contracts_active"
             referencedColumns: ["id"]
           },
           {
@@ -679,6 +752,7 @@ export type Database = {
           deleted_by: string | null
           id: string
           metadata: Json | null
+          team_id: string | null
           thread_id: string
           user_id: string
         }
@@ -689,6 +763,7 @@ export type Database = {
           deleted_by?: string | null
           id?: string
           metadata?: Json | null
+          team_id?: string | null
           thread_id: string
           user_id: string
         }
@@ -699,6 +774,7 @@ export type Database = {
           deleted_by?: string | null
           id?: string
           metadata?: Json | null
+          team_id?: string | null
           thread_id?: string
           user_id?: string
         }
@@ -708,6 +784,13 @@ export type Database = {
             columns: ["deleted_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_messages_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
@@ -825,6 +908,13 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_threads_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -1004,6 +1094,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "emails_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "emails_email_connection_id_fkey"
             columns: ["email_connection_id"]
             isOneToOne: false
@@ -1025,10 +1122,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "emails_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "emails_lot_id_fkey"
             columns: ["lot_id"]
             isOneToOne: false
             referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emails_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
             referencedColumns: ["id"]
           },
           {
@@ -1043,6 +1154,84 @@ export type Database = {
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          created_ids: Json | null
+          entity_type: Database["public"]["Enums"]["import_entity_type"]
+          error_count: number
+          errors: Json | null
+          filename: string
+          id: string
+          metadata: Json | null
+          processed_rows: number
+          started_at: string | null
+          status: Database["public"]["Enums"]["import_job_status"]
+          success_count: number
+          team_id: string
+          total_rows: number
+          updated_at: string | null
+          updated_ids: Json | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_ids?: Json | null
+          entity_type: Database["public"]["Enums"]["import_entity_type"]
+          error_count?: number
+          errors?: Json | null
+          filename: string
+          id?: string
+          metadata?: Json | null
+          processed_rows?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["import_job_status"]
+          success_count?: number
+          team_id: string
+          total_rows?: number
+          updated_at?: string | null
+          updated_ids?: Json | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          created_ids?: Json | null
+          entity_type?: Database["public"]["Enums"]["import_entity_type"]
+          error_count?: number
+          errors?: Json | null
+          filename?: string
+          id?: string
+          metadata?: Json | null
+          processed_rows?: number
+          started_at?: string | null
+          status?: Database["public"]["Enums"]["import_job_status"]
+          success_count?: number
+          team_id?: string
+          total_rows?: number
+          updated_at?: string | null
+          updated_ids?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_jobs_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "import_jobs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
         ]
@@ -1106,6 +1295,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "intervention_assignments_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "intervention_assignments_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -1148,6 +1344,13 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_comments_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -1242,6 +1445,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "intervention_documents_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "intervention_documents_message_id_fkey"
             columns: ["message_id"]
             isOneToOne: false
@@ -1308,6 +1518,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "intervention_links_child_intervention_id_fkey"
+            columns: ["child_intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "intervention_links_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -1319,6 +1536,13 @@ export type Database = {
             columns: ["parent_intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_links_parent_intervention_id_fkey"
+            columns: ["parent_intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -1417,6 +1641,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "intervention_quotes_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "intervention_quotes_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
@@ -1508,6 +1739,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "intervention_reports_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "intervention_reports_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
@@ -1537,6 +1775,7 @@ export type Database = {
           slot_date: string
           start_time: string
           status: Database["public"]["Enums"]["time_slot_status"]
+          team_id: string | null
         }
         Insert: {
           cancelled_at?: string | null
@@ -1558,6 +1797,7 @@ export type Database = {
           slot_date: string
           start_time: string
           status?: Database["public"]["Enums"]["time_slot_status"]
+          team_id?: string | null
         }
         Update: {
           cancelled_at?: string | null
@@ -1579,6 +1819,7 @@ export type Database = {
           slot_date?: string
           start_time?: string
           status?: Database["public"]["Enums"]["time_slot_status"]
+          team_id?: string | null
         }
         Relationships: [
           {
@@ -1596,6 +1837,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "intervention_time_slots_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "intervention_time_slots_proposed_by_fkey"
             columns: ["proposed_by"]
             isOneToOne: false
@@ -1607,6 +1855,13 @@ export type Database = {
             columns: ["provider_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_time_slots_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
@@ -1623,6 +1878,7 @@ export type Database = {
           description: string
           estimated_cost: number | null
           final_cost: number | null
+          has_attachments: boolean
           id: string
           is_contested: boolean | null
           lot_id: string | null
@@ -1654,6 +1910,7 @@ export type Database = {
           description: string
           estimated_cost?: number | null
           final_cost?: number | null
+          has_attachments?: boolean
           id?: string
           is_contested?: boolean | null
           lot_id?: string | null
@@ -1685,6 +1942,7 @@ export type Database = {
           description?: string
           estimated_cost?: number | null
           final_cost?: number | null
+          has_attachments?: boolean
           id?: string
           is_contested?: boolean | null
           lot_id?: string | null
@@ -1714,6 +1972,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "interventions_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "interventions_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -1732,6 +1997,13 @@ export type Database = {
             columns: ["lot_id"]
             isOneToOne: false
             referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
             referencedColumns: ["id"]
           },
           {
@@ -1765,6 +2037,7 @@ export type Database = {
           lot_id: string
           notes: string | null
           role: string | null
+          team_id: string | null
           updated_at: string
           user_id: string
         }
@@ -1775,6 +2048,7 @@ export type Database = {
           lot_id: string
           notes?: string | null
           role?: string | null
+          team_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1785,6 +2059,7 @@ export type Database = {
           lot_id?: string
           notes?: string | null
           role?: string | null
+          team_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1800,7 +2075,21 @@ export type Database = {
             foreignKeyName: "lot_contacts_lot_id_fkey"
             columns: ["lot_id"]
             isOneToOne: false
+            referencedRelation: "lots_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lot_contacts_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
             referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lot_contacts_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
           {
@@ -1882,6 +2171,13 @@ export type Database = {
             columns: ["building_id"]
             isOneToOne: false
             referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lots_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
             referencedColumns: ["id"]
           },
           {
@@ -2064,6 +2360,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "property_documents_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "property_documents_deleted_by_fkey"
             columns: ["deleted_by"]
             isOneToOne: false
@@ -2075,6 +2378,13 @@ export type Database = {
             columns: ["lot_id"]
             isOneToOne: false
             referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "property_documents_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
             referencedColumns: ["id"]
           },
           {
@@ -2600,6 +2910,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "activity_logs_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "activity_logs_intervention_id_fkey"
             columns: ["intervention_id"]
             isOneToOne: false
@@ -2607,10 +2924,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "activity_logs_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "activity_logs_lot_id_fkey"
             columns: ["lot_id"]
             isOneToOne: false
             referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_logs_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
             referencedColumns: ["id"]
           },
           {
@@ -2632,6 +2963,516 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      buildings_active: {
+        Row: {
+          active_interventions: number | null
+          address: string | null
+          city: string | null
+          country: Database["public"]["Enums"]["country"] | null
+          created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          id: string | null
+          metadata: Json | null
+          name: string | null
+          occupied_lots: number | null
+          postal_code: string | null
+          team_id: string | null
+          total_interventions: number | null
+          total_lots: number | null
+          updated_at: string | null
+          vacant_lots: number | null
+        }
+        Insert: {
+          active_interventions?: number | null
+          address?: string | null
+          city?: string | null
+          country?: Database["public"]["Enums"]["country"] | null
+          created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string | null
+          metadata?: Json | null
+          name?: string | null
+          occupied_lots?: number | null
+          postal_code?: string | null
+          team_id?: string | null
+          total_interventions?: number | null
+          total_lots?: number | null
+          updated_at?: string | null
+          vacant_lots?: number | null
+        }
+        Update: {
+          active_interventions?: number | null
+          address?: string | null
+          city?: string | null
+          country?: Database["public"]["Enums"]["country"] | null
+          created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          id?: string | null
+          metadata?: Json | null
+          name?: string | null
+          occupied_lots?: number | null
+          postal_code?: string | null
+          team_id?: string | null
+          total_interventions?: number | null
+          total_lots?: number | null
+          updated_at?: string | null
+          vacant_lots?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "buildings_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "buildings_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts_active: {
+        Row: {
+          charges_amount: number | null
+          comments: string | null
+          contract_type: Database["public"]["Enums"]["contract_type"] | null
+          created_at: string | null
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          duration_months: number | null
+          end_date: string | null
+          guarantee_amount: number | null
+          guarantee_notes: string | null
+          guarantee_type: Database["public"]["Enums"]["guarantee_type"] | null
+          id: string | null
+          lot_id: string | null
+          metadata: Json | null
+          payment_frequency:
+            | Database["public"]["Enums"]["payment_frequency"]
+            | null
+          payment_frequency_value: number | null
+          renewed_from_id: string | null
+          renewed_to_id: string | null
+          rent_amount: number | null
+          signed_date: string | null
+          start_date: string | null
+          status: Database["public"]["Enums"]["contract_status"] | null
+          team_id: string | null
+          title: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          charges_amount?: number | null
+          comments?: string | null
+          contract_type?: Database["public"]["Enums"]["contract_type"] | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          duration_months?: number | null
+          end_date?: string | null
+          guarantee_amount?: number | null
+          guarantee_notes?: string | null
+          guarantee_type?: Database["public"]["Enums"]["guarantee_type"] | null
+          id?: string | null
+          lot_id?: string | null
+          metadata?: Json | null
+          payment_frequency?:
+            | Database["public"]["Enums"]["payment_frequency"]
+            | null
+          payment_frequency_value?: number | null
+          renewed_from_id?: string | null
+          renewed_to_id?: string | null
+          rent_amount?: number | null
+          signed_date?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["contract_status"] | null
+          team_id?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          charges_amount?: number | null
+          comments?: string | null
+          contract_type?: Database["public"]["Enums"]["contract_type"] | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          duration_months?: number | null
+          end_date?: string | null
+          guarantee_amount?: number | null
+          guarantee_notes?: string | null
+          guarantee_type?: Database["public"]["Enums"]["guarantee_type"] | null
+          id?: string | null
+          lot_id?: string | null
+          metadata?: Json | null
+          payment_frequency?:
+            | Database["public"]["Enums"]["payment_frequency"]
+            | null
+          payment_frequency_value?: number | null
+          renewed_from_id?: string | null
+          renewed_to_id?: string | null
+          rent_amount?: number | null
+          signed_date?: string | null
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["contract_status"] | null
+          team_id?: string | null
+          title?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_renewed_from_id_fkey"
+            columns: ["renewed_from_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_renewed_from_id_fkey"
+            columns: ["renewed_from_id"]
+            isOneToOne: false
+            referencedRelation: "contracts_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_renewed_to_id_fkey"
+            columns: ["renewed_to_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_renewed_to_id_fkey"
+            columns: ["renewed_to_id"]
+            isOneToOne: false
+            referencedRelation: "contracts_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "contracts_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interventions_active: {
+        Row: {
+          assignment_mode: Database["public"]["Enums"]["assignment_mode"] | null
+          building_id: string | null
+          completed_date: string | null
+          created_at: string | null
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          estimated_cost: number | null
+          final_cost: number | null
+          has_attachments: boolean | null
+          id: string | null
+          is_contested: boolean | null
+          lot_id: string | null
+          metadata: Json | null
+          provider_guidelines: string | null
+          reference: string | null
+          requested_date: string | null
+          requires_quote: boolean | null
+          scheduled_date: string | null
+          scheduling_method: string | null
+          scheduling_type:
+            | Database["public"]["Enums"]["intervention_scheduling_type"]
+            | null
+          selected_slot_id: string | null
+          specific_location: string | null
+          status: Database["public"]["Enums"]["intervention_status"] | null
+          team_id: string | null
+          title: string | null
+          type: Database["public"]["Enums"]["intervention_type"] | null
+          updated_at: string | null
+          urgency: Database["public"]["Enums"]["intervention_urgency"] | null
+        }
+        Insert: {
+          assignment_mode?:
+            | Database["public"]["Enums"]["assignment_mode"]
+            | null
+          building_id?: string | null
+          completed_date?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          estimated_cost?: number | null
+          final_cost?: number | null
+          has_attachments?: boolean | null
+          id?: string | null
+          is_contested?: boolean | null
+          lot_id?: string | null
+          metadata?: Json | null
+          provider_guidelines?: string | null
+          reference?: string | null
+          requested_date?: string | null
+          requires_quote?: boolean | null
+          scheduled_date?: string | null
+          scheduling_method?: string | null
+          scheduling_type?:
+            | Database["public"]["Enums"]["intervention_scheduling_type"]
+            | null
+          selected_slot_id?: string | null
+          specific_location?: string | null
+          status?: Database["public"]["Enums"]["intervention_status"] | null
+          team_id?: string | null
+          title?: string | null
+          type?: Database["public"]["Enums"]["intervention_type"] | null
+          updated_at?: string | null
+          urgency?: Database["public"]["Enums"]["intervention_urgency"] | null
+        }
+        Update: {
+          assignment_mode?:
+            | Database["public"]["Enums"]["assignment_mode"]
+            | null
+          building_id?: string | null
+          completed_date?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          estimated_cost?: number | null
+          final_cost?: number | null
+          has_attachments?: boolean | null
+          id?: string | null
+          is_contested?: boolean | null
+          lot_id?: string | null
+          metadata?: Json | null
+          provider_guidelines?: string | null
+          reference?: string | null
+          requested_date?: string | null
+          requires_quote?: boolean | null
+          scheduled_date?: string | null
+          scheduling_method?: string | null
+          scheduling_type?:
+            | Database["public"]["Enums"]["intervention_scheduling_type"]
+            | null
+          selected_slot_id?: string | null
+          specific_location?: string | null
+          status?: Database["public"]["Enums"]["intervention_status"] | null
+          team_id?: string | null
+          title?: string | null
+          type?: Database["public"]["Enums"]["intervention_type"] | null
+          updated_at?: string | null
+          urgency?: Database["public"]["Enums"]["intervention_urgency"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interventions_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_selected_slot_id_fkey"
+            columns: ["selected_slot_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_time_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lots_active: {
+        Row: {
+          active_interventions: number | null
+          apartment_number: string | null
+          building_id: string | null
+          category: Database["public"]["Enums"]["lot_category"] | null
+          city: string | null
+          country: Database["public"]["Enums"]["country"] | null
+          created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          floor: number | null
+          id: string | null
+          metadata: Json | null
+          postal_code: string | null
+          reference: string | null
+          street: string | null
+          team_id: string | null
+          total_interventions: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          active_interventions?: number | null
+          apartment_number?: string | null
+          building_id?: string | null
+          category?: Database["public"]["Enums"]["lot_category"] | null
+          city?: string | null
+          country?: Database["public"]["Enums"]["country"] | null
+          created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          floor?: number | null
+          id?: string | null
+          metadata?: Json | null
+          postal_code?: string | null
+          reference?: string | null
+          street?: string | null
+          team_id?: string | null
+          total_interventions?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          active_interventions?: number | null
+          apartment_number?: string | null
+          building_id?: string | null
+          category?: Database["public"]["Enums"]["lot_category"] | null
+          city?: string | null
+          country?: Database["public"]["Enums"]["country"] | null
+          created_at?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          floor?: number | null
+          id?: string | null
+          metadata?: Json | null
+          postal_code?: string | null
+          reference?: string | null
+          street?: string | null
+          team_id?: string | null
+          total_interventions?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lots_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lots_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lots_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lots_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
@@ -2674,6 +3515,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "lots_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "lots_deleted_by_fkey"
             columns: ["deleted_by"]
             isOneToOne: false
@@ -2691,6 +3539,14 @@ export type Database = {
       }
     }
     Functions: {
+      add_user_to_team: {
+        Args: {
+          p_role: Database["public"]["Enums"]["team_member_role"]
+          p_team_id: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       can_manage_contract: { Args: { contract_uuid: string }; Returns: boolean }
       can_manage_intervention: {
         Args: { p_intervention_id: string }
@@ -2905,12 +3761,7 @@ export type Database = {
         | "reglement_copropriete"
         | "diagnostic"
         | "autre"
-      contract_status:
-        | "brouillon"
-        | "actif"
-        | "expire"
-        | "resilie"
-        | "renouvele"
+      contract_status: "a_venir" | "actif" | "expire" | "resilie" | "renouvele"
       contract_type: "bail_habitation" | "bail_meuble"
       conversation_thread_type:
         | "group"
@@ -2933,6 +3784,14 @@ export type Database = {
         | "compte_bloque"
         | "e_depot"
         | "autre"
+      import_entity_type: "building" | "lot" | "contact" | "contract" | "mixed"
+      import_job_status:
+        | "pending"
+        | "validating"
+        | "importing"
+        | "completed"
+        | "failed"
+        | "cancelled"
       intervention_document_type:
         | "rapport"
         | "photo_avant"
@@ -3200,7 +4059,7 @@ export const Constants = {
         "diagnostic",
         "autre",
       ],
-      contract_status: ["brouillon", "actif", "expire", "resilie", "renouvele"],
+      contract_status: ["a_venir", "actif", "expire", "resilie", "renouvele"],
       contract_type: ["bail_habitation", "bail_meuble"],
       conversation_thread_type: [
         "group",
@@ -3225,6 +4084,15 @@ export const Constants = {
         "compte_bloque",
         "e_depot",
         "autre",
+      ],
+      import_entity_type: ["building", "lot", "contact", "contract", "mixed"],
+      import_job_status: [
+        "pending",
+        "validating",
+        "importing",
+        "completed",
+        "failed",
+        "cancelled",
       ],
       intervention_document_type: [
         "rapport",

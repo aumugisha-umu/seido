@@ -11,6 +11,7 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EmailAttachments } from '@/emails/components/email-attachments'
 import type { InterventionCreatedEmailProps } from '@/emails/utils/types'
 
 export const InterventionCreatedEmail = ({
@@ -24,6 +25,7 @@ export const InterventionCreatedEmail = ({
   tenantName,
   urgency,
   createdAt,
+  attachments,
 }: InterventionCreatedEmailProps) => {
   // Couleurs et icônes selon l'urgence
   const urgencyConfig = {
@@ -118,6 +120,11 @@ export const InterventionCreatedEmail = ({
           </Text>
         </div>
 
+        {/* Pièces jointes */}
+        {attachments && attachments.length > 0 && (
+          <EmailAttachments attachments={attachments} />
+        )}
+
         {/* Actions requises */}
         <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg mb-6">
           <Text className="text-gray-900 font-semibold text-base mb-3 mt-0">
@@ -166,6 +173,22 @@ InterventionCreatedEmail.PreviewProps = {
   tenantName: 'Marie Dupont',
   urgency: 'haute',
   createdAt: new Date(),
+  attachments: [
+    {
+      filename: 'photo_fuite_evier.jpg',
+      mimeType: 'image/jpeg',
+      fileSize: 1536000,
+      downloadUrl: 'https://seido.app/api/download-intervention-document/abc123',
+      documentType: 'Photo'
+    },
+    {
+      filename: 'plan_installation.pdf',
+      mimeType: 'application/pdf',
+      fileSize: 245760,
+      downloadUrl: 'https://seido.app/api/download-intervention-document/def456',
+      documentType: 'Document'
+    }
+  ]
 } as InterventionCreatedEmailProps
 
 export default InterventionCreatedEmail

@@ -172,7 +172,23 @@ export default function ContractFormContainer({
 }: ContractFormContainerProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [currentStep, setCurrentStep] = useState(0)
+
+  // Read step and returnTo from URL params (for deep linking from lot card)
+  const stepParam = searchParams.get('step')
+  const returnToParam = searchParams.get('returnTo')
+
+  const [currentStep, setCurrentStep] = useState(() => {
+    if (stepParam) {
+      const step = parseInt(stepParam, 10)
+      if (!isNaN(step) && step >= 0 && step <= 3) {
+        return step
+      }
+    }
+    return 0
+  })
+  const [returnTo] = useState<string | null>(() => {
+    return returnToParam ? decodeURIComponent(returnToParam) : null
+  })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
 
@@ -480,7 +496,8 @@ export default function ContractFormContainer({
         await createContractNotification(contractId)
 
         toast.success('Bail créé avec succès')
-        router.push(`/gestionnaire/contrats/${contractId}`)
+        // Navigate to returnTo if provided, otherwise to contract details
+        router.push(returnTo || `/gestionnaire/contrats/${contractId}`)
       } else {
         // EDIT MODE
         const contractId = existingContract!.id
@@ -514,7 +531,8 @@ export default function ContractFormContainer({
         }
 
         toast.success('Contrat mis à jour avec succès')
-        router.push(`/gestionnaire/contrats/${contractId}`)
+        // Navigate to returnTo if provided, otherwise to contract details
+        router.push(returnTo || `/gestionnaire/contrats/${contractId}`)
       }
     } catch (error) {
       logger.error(`Error ${mode === 'create' ? 'creating' : 'updating'} contract:`, error)
@@ -911,7 +929,10 @@ export default function ContractFormContainer({
         title={pageTitle}
         backButtonText="Retour"
         onBack={() => {
-          if (mode === 'create') {
+          // Use returnTo if provided, otherwise default navigation
+          if (returnTo) {
+            router.push(returnTo)
+          } else if (mode === 'create') {
             router.push('/gestionnaire/contrats')
           } else {
             router.push(`/gestionnaire/contrats/${existingContract?.id}`)

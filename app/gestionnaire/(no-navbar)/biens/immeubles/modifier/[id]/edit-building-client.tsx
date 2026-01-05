@@ -526,7 +526,7 @@ export default function EditBuildingClient({
       {/* Header */}
       <StepProgressHeader
         title="Modifier l'immeuble"
-        backButtonText="Retour à l'immeuble"
+        backButtonText="Retour"
         onBack={() => router.push(`/gestionnaire/biens/immeubles/${buildingId}`)}
         steps={buildingSteps}
         currentStep={currentStep}

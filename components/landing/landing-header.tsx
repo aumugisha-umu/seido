@@ -47,92 +47,94 @@ export function LandingHeader({
         className
       )}
     >
-      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-        {/* Logo */}
-        <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
-          <Image
-            src="/images/Logo/Logo_Seido_White.png"
-            alt="SEIDO"
-            width={96}
-            height={36}
-            sizes="96px"
-            className="h-9 w-auto"
-            priority
-          />
-        </Link>
-
-        {/* Navigation - Landing page */}
-        {showNav && (
-          <nav className="hidden md:flex items-center gap-8">
-            <a
-              href="#features"
-              className="text-sm font-medium text-white/70 hover:text-white transition-colors"
-            >
-              Fonctionnalités
-            </a>
-            <a
-              href="#pricing"
-              className="text-sm font-medium text-white/70 hover:text-white transition-colors"
-            >
-              Tarifs
-            </a>
-            <a
-              href="#contact"
-              className="text-sm font-medium text-white/70 hover:text-white transition-colors"
-            >
-              Contact
-            </a>
-            <a
-              href="#faq"
-              className="text-sm font-medium text-white/70 hover:text-white transition-colors"
-            >
-              FAQ
-            </a>
-          </nav>
-        )}
-
-        {/* Navigation - Legal pages */}
-        {showLegalNav && (
-          <nav className="hidden md:flex items-center gap-6">
-            {legalNavItems.map((item) => {
-              const isActive = pathname === item.href
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    'text-sm font-medium transition-colors',
-                    isActive
-                      ? 'text-white border-b-2 border-blue-500 pb-1'
-                      : 'text-white/70 hover:text-white'
-                  )}
-                >
-                  {item.label}
-                </Link>
-              )
-            })}
-          </nav>
-        )}
-
-        {/* Auth Buttons */}
-        <div className="flex gap-3">
-          <Link href="/auth/login">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-white hover:bg-white/10 hover:text-white"
-            >
-              Se connecter
-            </Button>
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center justify-between gap-4">
+          {/* Logo */}
+          <Link href="/" className="flex items-center hover:opacity-80 transition-opacity flex-shrink-0">
+            <Image
+              src="/images/Logo/Logo_Seido_White.png"
+              alt="SEIDO"
+              width={96}
+              height={36}
+              sizes="96px"
+              className="h-9 w-auto"
+              priority
+            />
           </Link>
-          <Link href="/auth/signup">
-            <Button
-              size="sm"
-              className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border-0 shadow-lg shadow-blue-500/25"
-            >
-              Commencer <Sparkles className="w-3 h-3 ml-2" />
-            </Button>
-          </Link>
+
+          {/* Navigation - Landing page */}
+          {showNav && (
+            <nav className="hidden md:flex items-center gap-6 lg:gap-8 flex-1 justify-center">
+              <a
+                href="#features"
+                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+              >
+                Fonctionnalités
+              </a>
+              <a
+                href="#pricing"
+                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+              >
+                Tarifs
+              </a>
+              <a
+                href="#contact"
+                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+              >
+                Contact
+              </a>
+              <a
+                href="#faq"
+                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+              >
+                FAQ
+              </a>
+            </nav>
+          )}
+
+          {/* Navigation - Legal pages */}
+          {showLegalNav && (
+            <nav className="hidden md:flex items-center gap-6 flex-1 justify-center">
+              {legalNavItems.map((item) => {
+                const isActive = pathname === item.href
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      'text-sm font-medium transition-colors whitespace-nowrap leading-9',
+                      isActive
+                        ? 'text-white border-b-2 border-blue-500 pb-1'
+                        : 'text-white/70 hover:text-white'
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                )
+              })}
+            </nav>
+          )}
+
+          {/* Auth Buttons */}
+          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+            <Link href="/auth/login" className="flex items-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-white hover:bg-white/10 hover:text-white"
+              >
+                Se connecter
+              </Button>
+            </Link>
+            <Link href="/auth/signup" className="flex items-center">
+              <Button
+                size="sm"
+                className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border-0 shadow-lg shadow-blue-500/25"
+              >
+                Commencer <Sparkles className="w-3 h-3 ml-2" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </header>

@@ -27,6 +27,25 @@ export interface User {
   updated_at: string
 }
 
+/**
+ * Computed status for admin dashboard display
+ * - 'active': User has auth_user_id AND has logged in at least once
+ * - 'pending': User has a pending invitation
+ * - 'expired': User's invitation has expired
+ * - 'not_invited': User exists but has no invitation
+ * - 'inactive': User was manually deactivated (is_active = false)
+ */
+export type UserComputedStatus = 'active' | 'pending' | 'expired' | 'not_invited' | 'inactive'
+
+/**
+ * Extended User type for admin dashboard with computed status and auth data
+ */
+export interface UserWithStatus extends User {
+  computed_status: UserComputedStatus
+  last_sign_in_at: string | null
+  invitation_status?: 'pending' | 'accepted' | 'expired' | 'cancelled' | null
+}
+
 export interface UserInsert {
   auth_user_id?: string | null
   email?: string | null

@@ -25,7 +25,13 @@ import {
   Archive,
   Edit as EditIcon,
   Trash2,
-  Send
+  Send,
+  ScrollText,
+  Building2,
+  Phone,
+  MapPin,
+  Globe,
+  ExternalLink
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import {
@@ -37,18 +43,72 @@ import {
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { PropertiesNavigator } from "@/components/properties/properties-navigator"
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
+import { StatsCard } from "@/components/dashboards/shared/stats-card"
 import { logger } from '@/lib/logger'
 import { useToast } from "@/hooks/use-toast"
+import { Clock, CheckCircle2 } from "lucide-react"
 
 // ============================================================================
 // TYPES & CONSTANTS
 // ============================================================================
 
+// Type for company data from Supabase join
+interface CompanyData {
+  id: string
+  name: string
+  vat_number?: string | null
+  street?: string | null
+  street_number?: string | null
+  postal_code?: string | null
+  city?: string | null
+  country?: string | null
+  email?: string | null
+  phone?: string | null
+  is_active?: boolean
+}
+
+// Type for contracts passed from server
+interface LinkedContract {
+  id: string
+  title: string | null
+  status: string
+  start_date: string
+  end_date: string | null
+  rent_amount: number | null
+  charges_amount: number | null
+  contactRole: string // 'locataire' | 'colocataire' | 'garant' | 'owner' etc.
+  lot?: {
+    id: string
+    reference: string
+    category: string
+    street: string | null
+    city: string | null
+    building?: {
+      id: string
+      name: string
+      address: string | null
+      city: string | null
+    } | null
+  } | null
+  contacts?: Array<{
+    id: string
+    user_id: string
+    role: string
+    is_primary: boolean
+  }>
+}
+
+// Extended contact type with company data
+type ContactWithCompany = ContactType & {
+  company?: CompanyData | null
+}
+
 interface ContactDetailsClientProps {
   contactId: string
-  initialContact: ContactType
+  initialContact: ContactWithCompany
   initialInterventions: InterventionType[]
   initialProperties: Array<(LotType & { type: 'lot' }) | (BuildingType & { type: 'building' })>
+  initialContracts?: LinkedContract[]
   initialInvitationStatus?: string | null
   currentUser: {
     id: string
@@ -90,6 +150,7 @@ export function ContactDetailsClient({
   initialContact,
   initialInterventions,
   initialProperties,
+  initialContracts = [],
   initialInvitationStatus,
   currentUser
 }: ContactDetailsClientProps) {
@@ -592,73 +653,78 @@ export function ContactDetailsClient({
     return statusMap[invitationStatus] || null
   }
 
-  const headerBadges: DetailPageHeaderBadge[] = [getRoleBadge(), getInvitationBadge()].filter(Boolean) as DetailPageHeaderBadge[]
-
-  const headerMetadata: DetailPageHeaderMetadata[] = [
-    contact.email && {
-      icon: Mail,
-      text: contact.email
-    },
-    contact.speciality && contact.role === 'prestataire' && {
-      icon: Wrench,
-      text: specialities.find(s => s.value === contact.speciality)?.label || contact.speciality
-    },
-    contact.created_at && {
-      icon: Calendar,
-      text: `Créé le ${new Date(contact.created_at).toLocaleDateString('fr-FR')}`
+  // Badge spécialité (pour prestataires)
+  const getSpecialityBadge = (): DetailPageHeaderBadge | null => {
+    if (!contact.speciality || contact.role !== 'prestataire') return null
+    const spec = specialities.find(s => s.value === contact.speciality)
+    return {
+      label: spec?.label || contact.speciality,
+      color: 'bg-green-50 text-green-700 border-green-200'
     }
-  ].filter(Boolean) as DetailPageHeaderMetadata[]
+  }
 
-  const primaryActions: DetailPageHeaderAction[] = [
+  const headerBadges: DetailPageHeaderBadge[] = [
+    getRoleBadge(),
+    getSpecialityBadge(),
+    getInvitationBadge()
+  ].filter(Boolean) as DetailPageHeaderBadge[]
+
+  // Metadata vide (email et date retirés du header)
+  const headerMetadata: DetailPageHeaderMetadata[] = []
+
+  // Actions primaires vides (tout dans le dropdown)
+  const primaryActions: DetailPageHeaderAction[] = []
+
+  // Actions dropdown (même pattern que la vue liste)
+  const dropdownActions: DetailPageHeaderAction[] = [
+    // Modifier (toujours visible)
     {
       label: 'Modifier',
       icon: EditIcon,
-      onClick: handleEdit,
-      variant: 'outline'
-    }
-  ]
-
-  // Add invitation action if applicable
-  if (!invitationStatus || invitationStatus === 'expired' || invitationStatus === 'revoked') {
-    primaryActions.push({
+      onClick: handleEdit
+    },
+    // Inviter (si pas d'invitation ou annulée)
+    ...(!invitationStatus || invitationStatus === 'cancelled' ? [{
       label: 'Inviter',
       icon: Send,
-      onClick: () => setShowInviteModal(true),
-      variant: 'default'
-    })
-  } else if (invitationStatus === 'pending') {
-    primaryActions.push({
-      label: invitationLoading ? 'Envoi...' : 'Renvoyer invitation',
-      icon: invitationLoading ? Loader2 : RefreshCw,
-      onClick: () => handleInvitationAction('resend'),
-      variant: 'default',
-      disabled: invitationLoading
-    })
-  }
-
-  const dropdownActions: DetailPageHeaderAction[] = [
+      onClick: () => setShowInviteModal(true)
+    }] : []),
+    // Relancer/Annuler invitation (si pending ou expired)
+    ...(invitationStatus === 'pending' || invitationStatus === 'expired' ? [
+      {
+        label: 'Relancer invitation',
+        icon: RefreshCw,
+        onClick: () => handleInvitationAction('resend')
+      },
+      {
+        label: 'Annuler invitation',
+        icon: X,
+        onClick: () => handleInvitationAction('cancel'),
+        variant: 'destructive' as const
+      }
+    ] : []),
+    // Retirer l'accès (si accepted)
+    ...(invitationStatus === 'accepted' ? [{
+      label: "Retirer l'accès",
+      icon: UserX,
+      onClick: () => setShowRevokeModal(true),
+      variant: 'destructive' as const
+    }] : []),
+    // Archiver (toujours visible)
     {
       label: 'Archiver',
       icon: Archive,
-      onClick: handleArchive
+      onClick: handleArchive,
+      variant: 'destructive' as const
     }
   ]
-
-  // Add revoke access if invitation accepted
-  if (invitationStatus === 'accepted') {
-    dropdownActions.push({
-      label: 'Retirer l\'accès',
-      icon: UserX,
-      onClick: () => setShowRevokeModal(true)
-    })
-  }
 
   return (
     <>
       {/* Unified Detail Page Header */}
       <DetailPageHeader
         onBack={handleBack}
-        backButtonText="Retour aux contacts"
+        backButtonText="Retour"
         title={contact.name}
         badges={headerBadges}
         metadata={headerMetadata}
@@ -695,59 +761,124 @@ export function ContactDetailsClient({
           <div className="py-8">
             {/* Overview Tab */}
             <TabsContent value="overview" className="mt-0">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Informations Personnelles */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-foreground">
-                      <User className="h-5 w-5 text-muted-foreground" />
-                      <span>Informations Personnelles</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-sm">Nom complet</span>
-                      <span className="font-medium text-foreground">{contact.name}</span>
-                    </div>
-                    {contact.first_name && (
+              <div className="space-y-8">
+                {/* ROW 1: Stats Cards (juste sous les tabs) - Design Dashboard */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                  {/* Total Interventions */}
+                  <StatsCard
+                    id="total-interventions"
+                    label="Total"
+                    value={stats.interventionStats.total}
+                    sublabel="interventions"
+                    icon={Wrench}
+                    iconColor="text-blue-600"
+                    variant="default"
+                    onClick={() => setActiveTab('interventions')}
+                  />
+
+                  {/* En Attente */}
+                  <StatsCard
+                    id="pending-interventions"
+                    label="En attente"
+                    value={stats.interventionStats.pending}
+                    sublabel={stats.interventionStats.pending > 0 ? "à traiter" : ""}
+                    icon={Clock}
+                    iconColor="text-amber-500"
+                    variant={stats.interventionStats.pending > 0 ? "warning" : "default"}
+                    onClick={() => setActiveTab('interventions')}
+                  />
+
+                  {/* En Cours */}
+                  <StatsCard
+                    id="active-interventions"
+                    label="En cours"
+                    value={stats.interventionStats.inProgress}
+                    sublabel="actives"
+                    icon={Wrench}
+                    iconColor="text-indigo-600"
+                    variant="default"
+                    onClick={() => setActiveTab('interventions')}
+                  />
+
+                  {/* Terminées */}
+                  <StatsCard
+                    id="completed-interventions"
+                    label="Terminées"
+                    value={stats.interventionStats.completed}
+                    sublabel="clôturées"
+                    icon={CheckCircle2}
+                    iconColor="text-emerald-600"
+                    variant={stats.interventionStats.completed > 0 ? "success" : "default"}
+                    onClick={() => setActiveTab('interventions')}
+                  />
+
+                  {/* Biens Liés */}
+                  <StatsCard
+                    id="linked-properties"
+                    label="Biens liés"
+                    value={stats.totalProperties}
+                    sublabel={stats.totalLots > 0 ? `${stats.totalLots} lots` : ""}
+                    icon={Home}
+                    iconColor="text-violet-600"
+                    variant="default"
+                    onClick={() => setActiveTab('properties')}
+                  />
+                </div>
+
+                {/* ROW 2: Informations Cards (Informations + Société + Statut) */}
+                <div className={`grid grid-cols-1 ${contact.company ? 'lg:grid-cols-3' : 'lg:grid-cols-2'} gap-8`}>
+                  {/* Informations Personnelles */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-foreground">
+                        <User className="h-5 w-5 text-muted-foreground" />
+                        <span>Informations Personnelles</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground text-sm">Prénom</span>
-                        <span className="font-medium text-foreground">{contact.first_name}</span>
+                        <span className="text-muted-foreground text-sm">Nom complet</span>
+                        <span className="font-medium text-foreground">{contact.name}</span>
                       </div>
-                    )}
-                    {contact.last_name && (
+                      {contact.first_name && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground text-sm">Prénom</span>
+                          <span className="font-medium text-foreground">{contact.first_name}</span>
+                        </div>
+                      )}
+                      {contact.last_name && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground text-sm">Nom de famille</span>
+                          <span className="font-medium text-foreground">{contact.last_name}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground text-sm">Nom de famille</span>
-                        <span className="font-medium text-foreground">{contact.last_name}</span>
+                        <span className="text-muted-foreground text-sm">Email</span>
+                        <span className="font-medium text-foreground text-sm">{contact.email}</span>
                       </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-sm">Email</span>
-                      <span className="font-medium text-foreground text-sm">{contact.email}</span>
-                    </div>
-                    {contact.phone && (
+                      {contact.phone && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground text-sm">Téléphone</span>
+                          <span className="font-medium text-foreground">{contact.phone}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground text-sm">Téléphone</span>
-                        <span className="font-medium text-foreground">{contact.phone}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-sm">Rôle</span>
-                      <Badge variant="secondary" className={getRoleConfig(contact.role).color}>
-                        {getRoleConfig(contact.role).label}
-                      </Badge>
-                    </div>
-                    {contact.provider_category && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground text-sm">Catégorie</span>
-                        <Badge variant="outline" className="text-xs bg-muted text-foreground border-border">
-                          {getProviderCategoryLabel(contact.provider_category)}
+                        <span className="text-muted-foreground text-sm">Rôle</span>
+                        <Badge variant="secondary" className={getRoleConfig(contact.role).color}>
+                          {getRoleConfig(contact.role).label}
                         </Badge>
                       </div>
-                    )}
-                    {contact.speciality && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground text-sm">Spécialité</span>
+                      {contact.provider_category && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground text-sm">Catégorie</span>
+                          <Badge variant="outline" className="text-xs bg-muted text-foreground border-border">
+                            {getProviderCategoryLabel(contact.provider_category)}
+                          </Badge>
+                        </div>
+                      )}
+                      {contact.speciality && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground text-sm">Spécialité</span>
                         <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/20">
                           {getSpecialityLabel(contact.speciality)}
                         </Badge>
@@ -759,10 +890,112 @@ export function ContactDetailsClient({
                         <p className="text-sm font-medium mt-1 text-foreground">{contact.notes}</p>
                       </div>
                     )}
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
 
-                {/* Statut d'Accès */}
+                  {/* Société - Placée APRÈS Informations Personnelles */}
+                  {contact.company && (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-foreground">
+                          <Building2 className="h-5 w-5 text-muted-foreground" />
+                          <span>Société</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Company name with link */}
+                        <div
+                          className="flex items-center gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-muted/50 transition-colors"
+                          onClick={() => router.push(`/gestionnaire/contacts/societes/${contact.company!.id}`)}
+                        >
+                          <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                            <Building2 className="h-5 w-5 text-purple-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-foreground">{contact.company.name}</p>
+                            {contact.company.vat_number && (
+                              <p className="text-sm text-muted-foreground">TVA: {contact.company.vat_number}</p>
+                            )}
+                          </div>
+                          <ExternalLink className="h-4 w-4 text-muted-foreground" />
+                        </div>
+
+                        {/* Company details */}
+                        {contact.company.email && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground text-sm flex items-center gap-2">
+                              <Mail className="h-4 w-4" />
+                              Email
+                            </span>
+                            <a
+                              href={`mailto:${contact.company.email}`}
+                              className="text-sm font-medium text-primary hover:underline"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {contact.company.email}
+                            </a>
+                          </div>
+                        )}
+
+                        {contact.company.phone && (
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground text-sm flex items-center gap-2">
+                              <Phone className="h-4 w-4" />
+                              Téléphone
+                            </span>
+                            <a
+                              href={`tel:${contact.company.phone}`}
+                              className="text-sm font-medium text-foreground hover:text-primary"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              {contact.company.phone}
+                            </a>
+                          </div>
+                        )}
+
+                        {(contact.company.street || contact.company.city) && (
+                          <div className="flex justify-between items-start">
+                            <span className="text-muted-foreground text-sm flex items-center gap-2">
+                              <MapPin className="h-4 w-4" />
+                              Adresse
+                            </span>
+                            <div className="text-sm font-medium text-foreground text-right max-w-[60%]">
+                              {contact.company.street && (
+                                <p>
+                                  {contact.company.street_number && `${contact.company.street_number} `}
+                                  {contact.company.street}
+                                </p>
+                              )}
+                              {(contact.company.postal_code || contact.company.city) && (
+                                <p className="text-muted-foreground">
+                                  {contact.company.postal_code && `${contact.company.postal_code} `}
+                                  {contact.company.city}
+                                </p>
+                              )}
+                              {contact.company.country && (
+                                <p className="text-muted-foreground">{contact.company.country}</p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* View company button */}
+                        <div className="pt-2 border-t border-border">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => router.push(`/gestionnaire/contacts/societes/${contact.company!.id}`)}
+                          >
+                            <Building2 className="h-4 w-4 mr-2" />
+                            Voir la fiche société
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Statut d'Accès */}
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-foreground">
@@ -817,82 +1050,85 @@ export function ContactDetailsClient({
                     )}
 
                     {getAccessActions()}
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                </div>
 
-                {/* Activité */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-foreground">
-                      <Wrench className="h-5 w-5 text-muted-foreground" />
-                      <span>Activité</span>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-sm">Interventions totales</span>
-                      <span className="font-medium text-foreground">{stats.interventionStats.total}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-sm">En attente</span>
-                      <span className="font-medium text-amber-600">{stats.interventionStats.pending}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-sm">En cours</span>
-                      <span className="font-medium text-primary">{stats.interventionStats.inProgress}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground text-sm">Terminées</span>
-                      <span className="font-medium text-emerald-600">{stats.interventionStats.completed}</span>
-                    </div>
-
-                    <div className="pt-2 border-t border-border">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground text-sm">Biens liés</span>
-                        <span className="font-medium text-foreground">{stats.totalProperties}</span>
-                      </div>
-                      {stats.totalLots > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">• Lots</span>
-                          <span className="text-foreground">{stats.totalLots}</span>
-                        </div>
-                      )}
-                      {stats.totalBuildings > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">• Immeubles</span>
-                          <span className="text-foreground">{stats.totalBuildings}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {(stats.interventionStats.total > 0 || stats.totalProperties > 0) && (
-                      <div className="pt-2 border-t border-border space-y-2">
-                        {stats.interventionStats.total > 0 && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => setActiveTab('interventions')}
+                {/* ROW 3: Contrats Liés (full width) */}
+                {initialContracts.length > 0 && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2 text-lg font-semibold text-foreground">
+                        <ScrollText className="h-5 w-5 text-muted-foreground" />
+                        <span>Contrats Liés ({initialContracts.length})</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {initialContracts.map(contract => (
+                          <div
+                            key={contract.id}
+                            className="flex items-center justify-between p-3 rounded-lg border border-border cursor-pointer hover:bg-muted/50 transition-colors"
+                            onClick={() => router.push(`/gestionnaire/contrats/${contract.id}`)}
                           >
-                            <Wrench className="h-4 w-4 mr-2" />
-                            Voir les interventions
-                          </Button>
-                        )}
-                        {stats.totalProperties > 0 && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            onClick={() => setActiveTab('properties')}
-                          >
-                            <Home className="h-4 w-4 mr-2" />
-                            Voir les biens
-                          </Button>
-                        )}
+                            <div className="flex items-center gap-3">
+                              <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                                <ScrollText className="h-5 w-5 text-blue-600" />
+                              </div>
+                              <div>
+                                <p className="font-medium text-foreground">
+                                  {contract.title || `Contrat ${contract.lot?.reference || ''}`}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                  {contract.lot?.reference && `${contract.lot.reference} • `}
+                                  {contract.lot?.building?.name || contract.lot?.city || 'Bien non spécifié'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {/* Role badge */}
+                              <Badge variant="outline" className={
+                                contract.contactRole === 'locataire' || contract.contactRole === 'colocataire'
+                                  ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                  : contract.contactRole === 'garant'
+                                    ? 'bg-purple-50 text-purple-700 border-purple-200'
+                                    : contract.contactRole === 'owner'
+                                      ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                      : 'bg-gray-50 text-gray-700 border-gray-200'
+                              }>
+                                {contract.contactRole === 'locataire' ? 'Locataire' :
+                                 contract.contactRole === 'colocataire' ? 'Co-locataire' :
+                                 contract.contactRole === 'garant' ? 'Garant' :
+                                 contract.contactRole === 'owner' ? 'Propriétaire' :
+                                 contract.contactRole}
+                              </Badge>
+                              {/* Status badge */}
+                              <Badge variant={contract.status === 'actif' ? 'default' : 'secondary'} className={
+                                contract.status === 'actif'
+                                  ? 'bg-green-100 text-green-800'
+                                  : contract.status === 'a_venir'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-gray-100 text-gray-600'
+                              }>
+                                {contract.status === 'actif' ? 'Actif' :
+                                 contract.status === 'a_venir' ? 'À venir' :
+                                 contract.status === 'expire' ? 'Expiré' :
+                                 contract.status === 'resilie' ? 'Résilié' :
+                                 contract.status === 'brouillon' ? 'Brouillon' :
+                                 contract.status}
+                              </Badge>
+                              {/* Dates */}
+                              <span className="text-sm text-muted-foreground hidden sm:inline">
+                                {new Date(contract.start_date).toLocaleDateString('fr-FR')}
+                                {contract.end_date && ` → ${new Date(contract.end_date).toLocaleDateString('fr-FR')}`}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    )}
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </TabsContent>
 

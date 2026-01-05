@@ -314,7 +314,7 @@ export default function LotEditClient({
       <StepProgressHeader
         title="Modifier le lot"
         subtitle={`Lot "${lotInfo.reference}"`}
-        backButtonText="Retour au lot"
+        backButtonText="Retour"
         onBack={() => router.push(`/gestionnaire/biens/lots/${lotId}`)}
         steps={lotSteps}
         currentStep={currentStep}

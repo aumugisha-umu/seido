@@ -166,14 +166,21 @@ export default async function DashboardGestionnaire() {
     dashLogger.info('  - allLots length:', allLots?.length || 0)
     dashLogger.info('  - interventions length:', interventions?.length || 0)
 
-    // Phase 2: Occupancy determined by tenant_id presence
-    const occupiedLots = allLots.filter(lot => (lot as any).tenant_id || (lot as any).tenant)
+    // Phase 4: Occupancy determined by active contracts with tenants
+    const occupiedLotIdsResult = await contractService.getOccupiedLotIdsByTeam(team.id)
+    let occupiedLotsCount = 0
+    if (occupiedLotIdsResult.success) {
+      occupiedLotsCount = occupiedLotIdsResult.data.size
+      dashLogger.info('✅ [DASHBOARD] Occupied lots (from contracts):', occupiedLotsCount)
+    } else {
+      dashLogger.error('❌ [DASHBOARD] Error getting occupied lots:', occupiedLotIdsResult.error)
+    }
 
     stats = {
       buildingsCount: (buildings as any[])?.length || 0,
       lotsCount: allLots?.length || 0,
-      occupiedLotsCount: occupiedLots?.length || 0,
-      occupancyRate: allLots.length > 0 ? Math.round((occupiedLots.length / allLots.length) * 100) : 0,
+      occupiedLotsCount: occupiedLotsCount,
+      occupancyRate: allLots.length > 0 ? Math.round((occupiedLotsCount / allLots.length) * 100) : 0,
       interventionsCount: interventions?.length || 0
     }
 

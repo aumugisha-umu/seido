@@ -1,15 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
-import { createServerInterventionService } from '@/lib/services'
+import {
+  createServerInterventionService,
+  createServerNotificationRepository,
+  createServerUserRepository,
+  createServerBuildingRepository,
+  createServerLotRepository,
+  createServerInterventionRepository
+} from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { interventionScheduleSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { NotificationService } from '@/lib/services/domain/notification.service'
+import { EmailNotificationService } from '@/lib/services/domain/email-notification.service'
+import { EmailService } from '@/lib/services/domain/email.service'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "📅 intervention-schedule API route called")
 
   // Initialize services
   const interventionService = await createServerInterventionService()
+
+  // Initialize notification services with repositories
+  const notificationRepository = await createServerNotificationRepository()
+  const interventionRepository = await createServerInterventionRepository()
+  const userRepository = await createServerUserRepository()
+  const buildingRepository = await createServerBuildingRepository()
+  const lotRepository = await createServerLotRepository()
+  const emailService = new EmailService()
+
+  const notificationService = new NotificationService(notificationRepository)
+  const emailNotificationService = new EmailNotificationService(
+    notificationRepository,
+    emailService,
+    interventionRepository,
+    userRepository,
+    buildingRepository,
+    lotRepository
+  )
 
   try {
     // ✅ AUTH + ROLE CHECK: 83 lignes → 3 lignes! (gestionnaire required)
@@ -221,21 +249,40 @@ export async function POST(request: NextRequest) {
 
     logger.info({}, "✅ Intervention scheduled successfully")
 
-    // Create notification for tenant if exists
-    if (intervention.tenant_id && intervention.team_id) {
-      try {
-        const notificationTitle = planningType === 'organize'
-          ? 'Planification autonome'
-          : 'Nouveau créneau proposé'
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NOTIFICATIONS: In-App + Email pour locataires et prestataires assignés
+    // ═══════════════════════════════════════════════════════════════════════════
 
+    // Extract assigned users from intervention_assignments (already fetched in query)
+    const assignments = intervention.intervention_assignments || []
+    const assignedLocataires = assignments
+      .filter((a: any) => a.role === 'locataire' && a.user?.id)
+      .map((a: any) => a.user)
+    const assignedPrestataires = assignments
+      .filter((a: any) => a.role === 'prestataire' && a.user?.id)
+      .map((a: any) => a.user)
+
+    const notificationTitle = planningType === 'organize'
+      ? 'Planification autonome'
+      : 'Nouveau créneau proposé'
+
+    const recipientCount = assignedLocataires.length + assignedPrestataires.length
+    logger.info({
+      locatairesCount: assignedLocataires.length,
+      prestatairesCount: assignedPrestataires.length
+    }, `📧 Sending scheduling notifications to ${recipientCount} recipients`)
+
+    // Send notifications to locataires
+    for (const locataire of assignedLocataires) {
+      try {
         await notificationService.createNotification({
-          userId: intervention.tenant_id,
-          teamId: intervention.team_id,
+          userId: locataire.id,
+          teamId: intervention.team_id!,
           createdBy: user.id,
           type: 'intervention',
           title: notificationTitle,
           message: notificationMessage,
-          isPersonal: true, // Locataire toujours personnel
+          isPersonal: true,
           metadata: {
             interventionId: intervention.id,
             interventionTitle: intervention.title,
@@ -247,52 +294,87 @@ export async function POST(request: NextRequest) {
           relatedEntityType: 'intervention',
           relatedEntityId: intervention.id
         })
-        logger.info({}, "📧 Scheduling notification sent to tenant")
+        logger.info({ locataireId: locataire.id }, "📧 Scheduling notification sent to locataire")
       } catch (notifError) {
-        logger.warn({ notifError: notifError }, "⚠️ Could not send notification to tenant:")
-        // Don't fail the scheduling for notification errors
+        logger.warn({ locataireName: locataire.name, notifError }, "⚠️ Could not send notification to locataire:")
       }
     }
 
-    // Notify assigned providers from intervention_assignments
-    try {
-      const { data: assignedProviders } = await supabase
-        .from('intervention_assignments')
-        .select('user:users!user_id(id, name), is_primary')
-        .eq('intervention_id', intervention.id)
-        .eq('role', 'prestataire')
-
-      for (const assignment of assignedProviders || []) {
-        if (!assignment.user) continue
-
-        try {
-          const notificationTitle = planningType === 'organize'
-            ? 'Planification autonome'
-            : 'Nouveau créneau proposé'
-
-          await notificationService.createNotification({
-            userId: assignment.user.id,
-            teamId: intervention.team_id!,
-            createdBy: user.id,
-            type: 'intervention',
-            title: notificationTitle,
-            message: notificationMessage,
-            isPersonal: true, // Prestataire assigné toujours personnel
-            metadata: {
-              interventionId: intervention.id,
-              interventionTitle: intervention.title,
-              scheduledBy: user.name,
-              planningType: planningType
-            },
-            relatedEntityType: 'intervention',
-            relatedEntityId: intervention.id
-          })
-        } catch (notifError) {
-          logger.warn({ provider: assignment.user.name, notifError }, "⚠️ Could not send notification to provider:")
-        }
+    // Send notifications to prestataires
+    for (const prestataire of assignedPrestataires) {
+      try {
+        await notificationService.createNotification({
+          userId: prestataire.id,
+          teamId: intervention.team_id!,
+          createdBy: user.id,
+          type: 'intervention',
+          title: notificationTitle,
+          message: notificationMessage,
+          isPersonal: true,
+          metadata: {
+            interventionId: intervention.id,
+            interventionTitle: intervention.title,
+            scheduledBy: user.name,
+            planningType: planningType
+          },
+          relatedEntityType: 'intervention',
+          relatedEntityId: intervention.id
+        })
+        logger.info({ prestataireId: prestataire.id }, "📧 Scheduling notification sent to prestataire")
+      } catch (notifError) {
+        logger.warn({ prestataireName: prestataire.name, notifError }, "⚠️ Could not send notification to prestataire:")
       }
-    } catch (queryError) {
-      logger.warn({ queryError }, "⚠️ Could not fetch assigned providers")
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL NOTIFICATIONS: Utilise le service unifié avec filtrage
+    // ═══════════════════════════════════════════════════════════════════════════
+    try {
+      // Construire la liste des créneaux proposés pour l'email
+      let emailSlots: Array<{ date: string; startTime: string; endTime: string }> = []
+
+      if (planningType === 'direct' && directSchedule) {
+        // Un seul créneau fixé
+        const [hours, minutes] = directSchedule.startTime.split(':').map(Number)
+        const endHours = (hours + 1) % 24
+        const endTime = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+
+        emailSlots = [{
+          date: directSchedule.date,
+          startTime: directSchedule.startTime,
+          endTime: endTime
+        }]
+      } else if (planningType === 'propose' && proposedSlots) {
+        // Plusieurs créneaux proposés
+        emailSlots = proposedSlots.map(slot => ({
+          date: slot.date,
+          startTime: slot.startTime,
+          endTime: slot.endTime
+        }))
+      }
+      // Note: planningType === 'organize' n'a pas de créneaux prédéfinis
+
+      const emailResult = await emailNotificationService.sendInterventionEmails({
+        interventionId: intervention.id,
+        eventType: 'time_slots_proposed',
+        excludeUserId: user.id,  // Le gestionnaire qui planifie ne reçoit pas d'email
+        excludeRoles: ['gestionnaire'],  // Exclure tous les gestionnaires des emails de planification
+        excludeNonPersonal: true,  // Seulement les assignés directement
+        schedulingContext: {
+          planningType,
+          managerName: user.name || `${user.first_name} ${user.last_name}`,
+          proposedSlots: emailSlots
+        }
+      })
+
+      logger.info({
+        emailsSent: emailResult.sentCount,
+        emailsFailed: emailResult.failedCount,
+        planningType
+      }, "📧 Time slots proposed emails sent")
+    } catch (emailError) {
+      // Don't fail the scheduling for email errors
+      logger.warn({ emailError }, "⚠️ Could not send scheduling emails:")
     }
 
     return NextResponse.json({

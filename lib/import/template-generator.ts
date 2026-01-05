@@ -9,6 +9,7 @@ import {
   LOT_TEMPLATE,
   CONTACT_TEMPLATE,
   CONTRACT_TEMPLATE,
+  COMPANY_TEMPLATE,
   LOT_CATEGORY_LABELS,
   CONTACT_ROLE_LABELS,
   CONTRACT_TYPE_LABELS,
@@ -32,6 +33,7 @@ export function generateFullTemplate(includeExamples: boolean = true): Blob {
   addTemplateSheet(workbook, LOT_TEMPLATE, includeExamples);
   addTemplateSheet(workbook, CONTACT_TEMPLATE, includeExamples);
   addTemplateSheet(workbook, CONTRACT_TEMPLATE, includeExamples);
+  addTemplateSheet(workbook, COMPANY_TEMPLATE, includeExamples);
 
   // Add instructions sheet
   addInstructionsSheet(workbook);
@@ -52,7 +54,7 @@ export function generateFullTemplate(includeExamples: boolean = true): Blob {
  * Generate a single-entity template
  */
 export function generateEntityTemplate(
-  entityType: 'building' | 'lot' | 'contact' | 'contract',
+  entityType: 'building' | 'lot' | 'contact' | 'contract' | 'company',
   includeExamples: boolean = true
 ): Blob {
   const workbook = XLSX.utils.book_new();
@@ -62,6 +64,7 @@ export function generateEntityTemplate(
     lot: LOT_TEMPLATE,
     contact: CONTACT_TEMPLATE,
     contract: CONTRACT_TEMPLATE,
+    company: COMPANY_TEMPLATE,
   };
 
   const config = configs[entityType];
@@ -122,7 +125,7 @@ function addInstructionsSheet(workbook: XLSX.WorkBook): void {
   const instructions = [
     ['INSTRUCTIONS D\'IMPORT'],
     [''],
-    ['Ce fichier contient 4 onglets pour importer vos données:'],
+    ['Ce fichier contient 5 onglets pour importer vos données:'],
     [''],
     ['1. IMMEUBLES'],
     ['   - Nom* : Nom de l\'immeuble (obligatoire)'],
@@ -145,6 +148,7 @@ function addInstructionsSheet(workbook: XLSX.WorkBook): void {
     ['   - Téléphone : Numéro de téléphone'],
     ['   - Rôle* : ' + Object.values(CONTACT_ROLE_LABELS).join(', ')],
     ['   - Spécialité : Pour les prestataires (' + Object.keys(INTERVENTION_TYPE_LABELS).join(', ') + ')'],
+    ['   - Société : Nom de la société (doit exister dans l\'onglet Sociétés)'],
     [''],
     ['4. BAUX (Contrats)'],
     ['   - Titre* : Nom du contrat'],
@@ -158,11 +162,25 @@ function addInstructionsSheet(workbook: XLSX.WorkBook): void {
     ['   - Email Locataires : Emails des locataires séparés par virgule'],
     ['   - Email Garants : Emails des garants séparés par virgule'],
     [''],
+    ['5. SOCIÉTÉS'],
+    ['   - Nom* : Nom de la société (obligatoire)'],
+    ['   - Nom Légal : Raison sociale officielle'],
+    ['   - N° TVA : Numéro de TVA intracommunautaire'],
+    ['   - Rue : Adresse de la société'],
+    ['   - Numéro : Numéro de rue'],
+    ['   - Code Postal : Code postal'],
+    ['   - Ville : Ville'],
+    ['   - Pays : Pays (belgique, france, etc.)'],
+    ['   - Email : Email de contact'],
+    ['   - Téléphone : Téléphone de contact'],
+    ['   - Site Web : Site internet'],
+    [''],
     ['NOTES IMPORTANTES:'],
     ['- Les champs marqués * sont obligatoires'],
-    ['- L\'ordre d\'import: Contacts → Immeubles → Lots → Baux'],
+    ['- L\'ordre d\'import: Sociétés → Contacts → Immeubles → Lots → Baux'],
     ['- Les lots sont liés aux immeubles par "Nom Immeuble"'],
     ['- Les baux sont liés aux lots par "Réf Lot"'],
+    ['- Les contacts peuvent être liés à des sociétés par "Société"'],
     ['- Les locataires/garants sont liés par leurs emails (ex: "a@test.com, b@test.com")'],
     [''],
     ['VALEURS AUTORISÉES:'],
@@ -219,7 +237,7 @@ export function downloadFullTemplate(): void {
  * Generate and download a single-entity template
  */
 export function downloadEntityTemplate(
-  entityType: 'building' | 'lot' | 'contact' | 'contract'
+  entityType: 'building' | 'lot' | 'contact' | 'contract' | 'company'
 ): void {
   const blob = generateEntityTemplate(entityType, true);
   const names: Record<string, string> = {
@@ -227,6 +245,7 @@ export function downloadEntityTemplate(
     lot: 'template_lots.xlsx',
     contact: 'template_contacts.xlsx',
     contract: 'template_baux.xlsx',
+    company: 'template_societes.xlsx',
   };
   downloadBlob(blob, names[entityType] || 'template.xlsx');
 }
@@ -239,7 +258,7 @@ export function downloadEntityTemplate(
  * Generate template as Buffer (for server-side)
  */
 export function generateTemplateBuffer(
-  type: 'full' | 'building' | 'lot' | 'contact' | 'contract' = 'full',
+  type: 'full' | 'building' | 'lot' | 'contact' | 'contract' | 'company' = 'full',
   includeExamples: boolean = true
 ): Buffer {
   const workbook = XLSX.utils.book_new();
@@ -249,6 +268,7 @@ export function generateTemplateBuffer(
     addTemplateSheet(workbook, LOT_TEMPLATE, includeExamples);
     addTemplateSheet(workbook, CONTACT_TEMPLATE, includeExamples);
     addTemplateSheet(workbook, CONTRACT_TEMPLATE, includeExamples);
+    addTemplateSheet(workbook, COMPANY_TEMPLATE, includeExamples);
     addInstructionsSheet(workbook);
   } else {
     const configs: Record<string, TemplateConfig> = {
@@ -256,6 +276,7 @@ export function generateTemplateBuffer(
       lot: LOT_TEMPLATE,
       contact: CONTACT_TEMPLATE,
       contract: CONTRACT_TEMPLATE,
+      company: COMPANY_TEMPLATE,
     };
     addTemplateSheet(workbook, configs[type], includeExamples);
   }

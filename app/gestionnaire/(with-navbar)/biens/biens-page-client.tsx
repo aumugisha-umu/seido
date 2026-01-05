@@ -143,14 +143,14 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
                 onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}
               >
                 <Plus className="h-4 w-4" />
-                <span>Lot</span>
+                <span>Nouveau lot</span>
               </Button>
               <Button
                 className="flex items-center space-x-2"
                 onClick={() => router.push('/gestionnaire/biens/immeubles/nouveau')}
               >
                 <Plus className="h-4 w-4" />
-                <span>Immeuble</span>
+                <span>Nouvel immeuble</span>
               </Button>
             </div>
           </div>

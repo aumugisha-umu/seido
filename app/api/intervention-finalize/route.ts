@@ -1,15 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
-import { createServerInterventionService } from '@/lib/services'
+import {
+  createServerInterventionService,
+  createServerNotificationRepository,
+  createServerUserRepository,
+  createServerBuildingRepository,
+  createServerLotRepository,
+  createServerInterventionRepository
+} from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { interventionFinalizeSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { NotificationService } from '@/lib/services/domain/notification.service'
+import { EmailNotificationService } from '@/lib/services/domain/email-notification.service'
+import { EmailService } from '@/lib/services/domain/email.service'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "🏁 intervention-finalize API route called")
 
   // Initialize services
   const interventionService = await createServerInterventionService()
+
+  // Initialize notification services
+  const notificationRepository = await createServerNotificationRepository()
+  const interventionRepository = await createServerInterventionRepository()
+  const userRepository = await createServerUserRepository()
+  const buildingRepository = await createServerBuildingRepository()
+  const lotRepository = await createServerLotRepository()
+  const emailService = new EmailService()
+
+  const notificationService = new NotificationService(notificationRepository)
+  const emailNotificationService = new EmailNotificationService(
+    notificationRepository,
+    emailService,
+    interventionRepository,
+    userRepository,
+    buildingRepository,
+    lotRepository
+  )
 
   try {
     // ✅ AUTH + ROLE CHECK: 68 lignes → 3 lignes! (gestionnaire required)
@@ -170,8 +198,99 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // TODO: Add notifications later via Server Actions pattern
-    // See: app/actions/notification-actions.ts
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NOTIFICATIONS IN-APP: Locataires + Prestataires
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    const assignments = intervention.intervention_assignments || []
+    const assignedLocataires = assignments
+      .filter((a: any) => a.role === 'locataire' && a.user?.id)
+      .map((a: any) => a.user)
+    const assignedPrestataires = assignments
+      .filter((a: any) => a.role === 'prestataire' && a.user?.id)
+      .map((a: any) => a.user)
+
+    const notificationTitle = 'Intervention finalisée'
+    const notificationMessage = `L'intervention "${intervention.title}" a été finalisée par le gestionnaire ${user.name}. Clôture administrative terminée.`
+
+    // Notify locataires
+    for (const locataire of assignedLocataires) {
+      try {
+        await notificationService.createNotification({
+          userId: locataire.id,
+          teamId: intervention.team_id!,
+          createdBy: user.id,
+          type: 'intervention',
+          title: notificationTitle,
+          message: notificationMessage,
+          isPersonal: true,
+          metadata: {
+            interventionId: intervention.id,
+            interventionTitle: intervention.title,
+            finalizedBy: user.name,
+            finalCost: updateData.final_cost || null,
+            lotReference: intervention.lot?.reference,
+            buildingName: intervention.lot?.building?.name
+          },
+          relatedEntityType: 'intervention',
+          relatedEntityId: intervention.id
+        })
+        logger.info({ locataireId: locataire.id }, "📧 Finalization notification sent to locataire")
+      } catch (notifError) {
+        logger.warn({ locataireName: locataire.name, notifError }, "⚠️ Could not send notification to locataire:")
+      }
+    }
+
+    // Notify prestataires
+    for (const prestataire of assignedPrestataires) {
+      try {
+        await notificationService.createNotification({
+          userId: prestataire.id,
+          teamId: intervention.team_id!,
+          createdBy: user.id,
+          type: 'intervention',
+          title: notificationTitle,
+          message: `L'intervention "${intervention.title}" a été finalisée administrativement. Merci pour votre intervention.`,
+          isPersonal: true,
+          metadata: {
+            interventionId: intervention.id,
+            interventionTitle: intervention.title,
+            finalizedBy: user.name,
+            finalCost: updateData.final_cost || null
+          },
+          relatedEntityType: 'intervention',
+          relatedEntityId: intervention.id
+        })
+        logger.info({ prestataireId: prestataire.id }, "📧 Finalization notification sent to prestataire")
+      } catch (notifError) {
+        logger.warn({ prestataireName: prestataire.name, notifError }, "⚠️ Could not send notification to prestataire:")
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL NOTIFICATIONS: Finalisation intervention
+    // ═══════════════════════════════════════════════════════════════════════════
+    try {
+      const emailResult = await emailNotificationService.sendInterventionEmails({
+        interventionId: intervention.id,
+        eventType: 'status_changed',
+        excludeUserId: user.id,
+        onlyRoles: ['locataire', 'prestataire'],
+        excludeNonPersonal: true,
+        statusChange: {
+          oldStatus: intervention.status,
+          newStatus: 'cloturee_par_gestionnaire',
+          reason: finalizationComment
+        }
+      })
+
+      logger.info({
+        emailsSent: emailResult.sentCount,
+        emailsFailed: emailResult.failedCount
+      }, "📧 Finalization emails sent")
+    } catch (emailError) {
+      logger.warn({ emailError }, "⚠️ Could not send finalization emails:")
+    }
 
     // Create activity log entry for closure
     try {

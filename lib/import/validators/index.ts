@@ -31,6 +31,13 @@ export {
   type ContractImportData,
 } from './contract.validator';
 
+export {
+  companyImportSchema,
+  validateCompanyRow,
+  validateCompanyRows,
+  type CompanyImportData,
+} from './company.validator';
+
 import type {
   ParseResult,
   ParsedData,
@@ -41,6 +48,7 @@ import { validateBuildingRows } from './building.validator';
 import { validateLotRows } from './lot.validator';
 import { validateContactRows } from './contact.validator';
 import { validateContractRows } from './contract.validator';
+import { validateCompanyRows } from './company.validator';
 
 /**
  * Validate all parsed data
@@ -54,19 +62,22 @@ export function validateAllData(parseResult: ParseResult): ValidationResult {
   const lotResult = validateLotRows(parseResult.lots.rows);
   const contactResult = validateContactRows(parseResult.contacts.rows);
   const contractResult = validateContractRows(parseResult.contracts.rows);
+  const companyResult = validateCompanyRows(parseResult.companies.rows);
 
   // Collect all errors
   errors.push(...buildingResult.errors);
   errors.push(...lotResult.errors);
   errors.push(...contactResult.errors);
   errors.push(...contractResult.errors);
+  errors.push(...companyResult.errors);
 
   // Cross-validate references
   const crossValidationErrors = validateCrossReferences(
     lotResult.data,
     buildingResult.data,
     contractResult.data,
-    contactResult.data
+    contactResult.data,
+    companyResult.data
   );
   errors.push(...crossValidationErrors);
 
@@ -75,6 +86,7 @@ export function validateAllData(parseResult: ParseResult): ValidationResult {
     lots: lotResult.data,
     contacts: contactResult.data,
     contracts: contractResult.data,
+    companies: companyResult.data,
   };
 
   return {
@@ -92,7 +104,8 @@ function validateCrossReferences(
   lots: ParsedData['lots'],
   buildings: ParsedData['buildings'],
   contracts: ParsedData['contracts'],
-  contacts: ParsedData['contacts']
+  contacts: ParsedData['contacts'],
+  companies: ParsedData['companies']
 ): ImportRowError[] {
   const errors: ImportRowError[] = [];
 
@@ -105,6 +118,9 @@ function validateCrossReferences(
   );
   const contactEmails = new Set(
     contacts.filter((c) => c.email).map((c) => c.email!.toLowerCase().trim())
+  );
+  const companyNames = new Set(
+    companies.map((c) => c.name.toLowerCase().trim())
   );
 
   // Validate lot → building references
@@ -169,6 +185,23 @@ function validateCrossReferences(
             code: 'REFERENCE_NOT_FOUND',
           });
         }
+      }
+    }
+  }
+
+  // Validate contact → company references
+  for (const contact of contacts) {
+    if (contact.company_name) {
+      const normalizedCompanyName = contact.company_name.toLowerCase().trim();
+      if (!companyNames.has(normalizedCompanyName)) {
+        errors.push({
+          row: contact._rowIndex + 2,
+          sheet: 'Contacts',
+          field: 'company_name',
+          value: contact.company_name,
+          message: `Société "${contact.company_name}" non trouvée dans l'onglet Sociétés. Vérifiez le nom ou ajoutez la société.`,
+          code: 'REFERENCE_NOT_FOUND',
+        });
       }
     }
   }

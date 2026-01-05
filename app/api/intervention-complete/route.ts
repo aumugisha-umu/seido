@@ -1,15 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
-import { logger, logError } from '@/lib/logger'
-import { createServerInterventionService } from '@/lib/services'
+import { logger } from '@/lib/logger'
+import {
+  createServerInterventionService,
+  createServerNotificationRepository,
+  createServerUserRepository,
+  createServerBuildingRepository,
+  createServerLotRepository,
+  createServerInterventionRepository
+} from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { interventionCompleteSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { NotificationService } from '@/lib/services/domain/notification.service'
+import { EmailNotificationService } from '@/lib/services/domain/email-notification.service'
+import { EmailService } from '@/lib/services/domain/email.service'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "✅ intervention-complete API route called")
 
   // Initialize services
   const interventionService = await createServerInterventionService()
+
+  // Initialize notification services
+  const notificationRepository = await createServerNotificationRepository()
+  const interventionRepository = await createServerInterventionRepository()
+  const userRepository = await createServerUserRepository()
+  const buildingRepository = await createServerBuildingRepository()
+  const lotRepository = await createServerLotRepository()
+  const emailService = new EmailService()
+
+  const notificationService = new NotificationService(notificationRepository)
+  const emailNotificationService = new EmailNotificationService(
+    notificationRepository,
+    emailService,
+    interventionRepository,
+    userRepository,
+    buildingRepository,
+    lotRepository
+  )
 
   try {
     // ✅ AUTH: 71 lignes → 8 lignes! (gestionnaire OR prestataire)
@@ -198,20 +226,33 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Create notifications
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NOTIFICATIONS IN-APP: Locataires + Gestionnaires (si complété par prestataire)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // Extract locataires from intervention_assignments
+    const assignments = intervention.intervention_assignments || []
+    const assignedLocataires = assignments
+      .filter((a: any) => a.role === 'locataire' && a.user?.id)
+      .map((a: any) => a.user)
+    const assignedGestionnaires = assignments
+      .filter((a: any) => a.role === 'gestionnaire' && a.user?.id)
+
     const notificationMessage = `L'intervention "${intervention.title}" a été terminée par ${user.name}. Elle est maintenant en attente de votre validation.`
 
-    // Notify tenant for validation
-    if (intervention.tenant_id && intervention.team_id) {
+    // Notify locataires for validation
+    for (const locataire of assignedLocataires) {
+      if (locataire.id === user.id) continue // Don't notify self
+
       try {
         await notificationService.createNotification({
-          userId: intervention.tenant_id,
-          teamId: intervention.team_id,
+          userId: locataire.id,
+          teamId: intervention.team_id!,
           createdBy: user.id,
           type: 'intervention',
           title: 'Intervention terminée - Validation demandée',
           message: notificationMessage,
-          isPersonal: true, // Locataire toujours personnel
+          isPersonal: true,
           metadata: {
             interventionId: intervention.id,
             interventionTitle: intervention.title,
@@ -225,28 +266,27 @@ export async function POST(request: NextRequest) {
           relatedEntityType: 'intervention',
           relatedEntityId: intervention.id
         })
-        logger.info({}, "📧 Completion notification sent to tenant for validation")
+        logger.info({ locataireId: locataire.id }, "📧 Completion notification sent to locataire for validation")
       } catch (notifError) {
-        logger.warn({ notifError: notifError }, "⚠️ Could not send notification to tenant:")
+        logger.warn({ locataireName: locataire.name, notifError }, "⚠️ Could not send notification to locataire:")
       }
     }
 
     // Notify gestionnaires if completed by prestataire
     if (user.role === 'prestataire') {
-      const managers = intervention.intervention_assignments?.filter(ic =>
-        ic.role === 'gestionnaire'
-      ) || []
+      for (const assignment of assignedGestionnaires) {
+        const manager = assignment.user
+        if (!manager?.id) continue
 
-      for (const manager of managers) {
         try {
           await notificationService.createNotification({
-            userId: manager.user.id,
+            userId: manager.id,
             teamId: intervention.team_id!,
             createdBy: user.id,
             type: 'intervention',
             title: 'Intervention terminée par prestataire',
             message: `L'intervention "${intervention.title}" a été terminée par ${user.name}. En attente de validation par le locataire.`,
-            isPersonal: manager.is_primary ?? false, // Basé sur assignation
+            isPersonal: assignment.is_primary ?? false,
             metadata: {
               interventionId: intervention.id,
               interventionTitle: intervention.title,
@@ -256,10 +296,32 @@ export async function POST(request: NextRequest) {
             relatedEntityType: 'intervention',
             relatedEntityId: intervention.id
           })
+          logger.info({ managerId: manager.id }, "📧 Completion notification sent to gestionnaire")
         } catch (notifError) {
-          logger.warn({ manager: manager.user.name, notifError }, "⚠️ Could not send notification to manager:")
+          logger.warn({ managerName: manager.name, notifError }, "⚠️ Could not send notification to manager:")
         }
       }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL NOTIFICATIONS: Intervention terminée
+    // ═══════════════════════════════════════════════════════════════════════════
+    try {
+      const emailResult = await emailNotificationService.sendInterventionEmails({
+        interventionId: intervention.id,
+        eventType: 'completed',
+        excludeUserId: user.id,  // L'utilisateur qui complète ne reçoit pas d'email
+        onlyRoles: ['locataire', 'gestionnaire'],  // Locataire pour validation + gestionnaires info
+        excludeNonPersonal: true
+      })
+
+      logger.info({
+        emailsSent: emailResult.sentCount,
+        emailsFailed: emailResult.failedCount
+      }, "📧 Completion emails sent")
+    } catch (emailError) {
+      // Don't fail for email errors
+      logger.warn({ emailError }, "⚠️ Could not send completion emails:")
     }
 
     return NextResponse.json({

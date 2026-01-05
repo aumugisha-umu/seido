@@ -1,0 +1,2139 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<!-- ╔══════════════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║                    SEIDO - Real Estate Management Platform                    ║ -->
+<!-- ║                         Database Schema Diagram                               ║ -->
+<!-- ║                                                                               ║ -->
+<!-- ║  Generated: 2025-12-26                                                        ║ -->
+<!-- ║  Tables: 35 | Enums: 31 | RLS Functions: 59                                   ║ -->
+<!-- ║                                                                               ║ -->
+<!-- ║  ARCHITECTURE:                                                                ║ -->
+<!-- ║  - Multi-tenant via team_id on all data tables                               ║ -->
+<!-- ║  - Soft delete pattern: deleted_at + deleted_by                              ║ -->
+<!-- ║  - RLS (Row Level Security) for data isolation                               ║ -->
+<!-- ║  - Polymorphic relations for interventions (building OR lot)                 ║ -->
+<!-- ║                                                                               ║ -->
+<!-- ║  PHASES:                                                                      ║ -->
+<!-- ║  Phase 1: Users, Teams, Companies (x=50-400)                                 ║ -->
+<!-- ║  Phase 2: Buildings, Lots, Property Documents (x=450-800)                    ║ -->
+<!-- ║  Phase 3: Interventions, Chat, Notifications (x=850-1400)                    ║ -->
+<!-- ║  Phase 4: Contracts, Import (x=1450-1700)                                    ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════════════╝ -->
+
+<sql>
+<datatypes db="postgresql">
+  <group label="Numeric" color="rgb(238,238,170)">
+    <type label="Integer" length="0" sql="INTEGER" re="INT" quote=""/>
+    <type label="Small Integer" length="0" sql="SMALLINT" quote=""/>
+    <type label="Big Integer" length="0" sql="BIGINT" quote=""/>
+    <type label="Decimal" length="1" sql="DECIMAL" re="numeric" quote=""/>
+    <type label="Serial" length="0" sql="SERIAL" re="SERIAL4" fk="Integer" quote=""/>
+    <type label="Big Serial" length="0" sql="BIGSERIAL" re="SERIAL8" fk="Big Integer" quote=""/>
+    <type label="Real" length="0" sql="REAL" quote=""/>
+    <type label="Single precision" length="0" sql="FLOAT" quote=""/>
+    <type label="Double precision" length="0" sql="DOUBLE PRECISION" re="DOUBLE" quote=""/>
+  </group>
+
+  <group label="Character" color="rgb(255,200,200)">
+    <type label="Char" length="1" sql="CHAR" quote="'"/>
+    <type label="Varchar" length="1" sql="VARCHAR" re="CHARACTER VARYING" quote="'"/>
+    <type label="Text" length="0" sql="TEXT" quote="'"/>
+    <type label="Binary" length="1" sql="BYTEA" quote="'"/>
+    <type label="Boolean" length="0" sql="BOOLEAN" quote="'"/>
+  </group>
+
+  <group label="Date &amp; Time" color="rgb(200,255,200)">
+    <type label="Date" length="0" sql="DATE" quote="'"/>
+    <type label="Time" length="1" sql="TIME" quote="'"/>
+    <type label="Time w/ TZ" length="0" sql="TIME WITH TIME ZONE" quote="'"/>
+    <type label="Interval" length="1" sql="INTERVAL" quote="'"/>
+    <type label="Timestamp" length="1" sql="TIMESTAMP" quote="'"/>
+    <type label="Timestamp w/ TZ" length="0" sql="TIMESTAMP WITH TIME ZONE" quote="'"/>
+    <type label="Timestamp wo/ TZ" length="0" sql="TIMESTAMP WITHOUT TIME ZONE" quote="'"/>
+  </group>
+
+  <group label="Miscellaneous" color="rgb(200,200,255)">
+    <type label="UUID" length="0" sql="UUID" quote="'"/>
+    <type label="JSON" length="0" sql="JSON" quote="'"/>
+    <type label="JSONB" length="0" sql="JSONB" quote="'"/>
+    <type label="Inet Host Addr" length="0" sql="INET" quote="'"/>
+    <type label="Text Array" length="0" sql="TEXT[]" quote="'"/>
+    <type label="TSVector" length="0" sql="TSVECTOR" quote="'"/>
+  </group>
+</datatypes>
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║                          PHASE 1: USERS & TEAMS                              ║ -->
+<!-- ║  Core identity and multi-tenant foundation                                   ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════════════╝ -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: users                                                                    -->
+<!-- Central user table for ALL roles (admin, gestionnaire, locataire, prestataire) -->
+<!-- Can exist without auth (contacts) or with auth (logged-in users)               -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="50" y="50" name="users">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="auth_user_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default></row>
+<row name="email" null="0" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="name" null="1" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="first_name" null="1" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="last_name" null="1" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="phone" null="1" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>NULL</default></row>
+<row name="avatar_url" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="address" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="company" null="1" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="company_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="companies" row="id" />
+</row>
+<row name="role" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'gestionnaire'</default></row>
+<row name="speciality" null="1" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>NULL</default></row>
+<row name="provider_category" null="1" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>NULL</default></row>
+<row name="provider_rating" null="1" autoincrement="0">
+<datatype>DECIMAL(3,2)</datatype>
+<default>0.00</default></row>
+<row name="total_interventions" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="notes" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="is_active" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>true</default></row>
+<row name="password_set" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="team_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="deleted_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Central user table for ALL roles.
+ENUMS:
+- role: admin | gestionnaire | locataire | prestataire | proprietaire
+- speciality: plomberie | electricite | chauffage | serrurerie | peinture | menage | jardinage | climatisation | vitrerie | toiture | autre
+- provider_category: prestataire | autre
+
+auth_user_id links to Supabase auth.users (nullable for non-authenticated contacts)
+team_id is the PRIMARY team (users can belong to multiple teams via team_members)</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: teams                                                                    -->
+<!-- Multi-tenant isolation unit - all data is scoped to a team                     -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="300" y="50" name="teams">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="name" null="0" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="description" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="created_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="settings" null="1" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>{}</default></row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="deleted_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Multi-tenant isolation unit.
+ALL data tables have team_id FK for RLS isolation.
+settings JSONB can store team-specific configuration.</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: team_members                                                             -->
+<!-- Many-to-many: users can belong to multiple teams with different roles          -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="175" y="280" name="team_members">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="user_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="role" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'gestionnaire'</default></row>
+<row name="joined_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="left_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Multi-team membership with per-team roles.
+ENUM role: admin | gestionnaire | locataire | prestataire | proprietaire
+left_at is set for soft-delete of membership (user left team).
+UNIQUE(team_id, user_id) - one membership per user per team.</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: companies                                                                -->
+<!-- Provider companies - groups multiple prestataires under one company            -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="50" y="450" name="companies">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="name" null="0" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="legal_name" null="1" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="registration_number" null="1" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>NULL</default></row>
+<row name="address" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="city" null="1" autoincrement="0">
+<datatype>VARCHAR(100)</datatype>
+<default>NULL</default></row>
+<row name="postal_code" null="1" autoincrement="0">
+<datatype>VARCHAR(20)</datatype>
+<default>NULL</default></row>
+<row name="country" null="1" autoincrement="0">
+<datatype>VARCHAR(100)</datatype>
+<default>NULL</default></row>
+<row name="phone" null="1" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>NULL</default></row>
+<row name="email" null="1" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="website" null="1" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="notes" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="logo_url" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="deleted_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Provider companies (entreprises prestataires).
+Groups multiple prestataire users under one company.
+registration_number = SIRET/SIREN in France.</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: user_invitations                                                         -->
+<!-- Pending invitations to join a team                                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="300" y="450" name="user_invitations">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="email" null="0" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="user_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="invited_by" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="role" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'gestionnaire'</default></row>
+<row name="provider_category" null="1" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>NULL</default></row>
+<row name="first_name" null="1" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="last_name" null="1" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="invitation_token" null="1" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="status" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'pending'</default></row>
+<row name="invited_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="expires_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW() + interval '7 days'</default></row>
+<row name="accepted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Pending invitations to join a team.
+ENUM status: pending | accepted | expired | cancelled
+user_id is pre-created profile (nullable until user registers).
+UNIQUE(email, team_id) - one invitation per email per team.</comment>
+</table>
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║                         PHASE 2: PROPERTIES                                  ║ -->
+<!-- ║  Buildings, Lots (apartments), and property documents                        ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════════════╝ -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: buildings                                                                -->
+<!-- Immeubles - can contain multiple lots                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="500" y="50" name="buildings">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="name" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="address" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="city" null="0" autoincrement="0">
+<datatype>VARCHAR(100)</datatype>
+<default>NULL</default></row>
+<row name="postal_code" null="0" autoincrement="0">
+<datatype>VARCHAR(20)</datatype>
+<default>NULL</default></row>
+<row name="country" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'belgique'</default></row>
+<row name="description" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="total_lots" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="occupied_lots" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="vacant_lots" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="total_interventions" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="active_interventions" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="metadata" null="1" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>{}</default></row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="deleted_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Immeubles - contains multiple lots.
+ENUM country: belgique | france | allemagne | pays-bas | suisse | luxembourg | autre
+CONSTRAINT: occupied_lots + vacant_lots = total_lots
+Counters (total_lots, interventions) are maintained by triggers.</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: lots                                                                     -->
+<!-- Lots/Appartements - can be standalone or linked to a building                  -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="500" y="320" name="lots">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="building_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="buildings" row="id" />
+</row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="reference" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="category" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'appartement'</default></row>
+<row name="floor" null="1" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="apartment_number" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="description" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="street" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="city" null="1" autoincrement="0">
+<datatype>VARCHAR(100)</datatype>
+<default>NULL</default></row>
+<row name="postal_code" null="1" autoincrement="0">
+<datatype>VARCHAR(20)</datatype>
+<default>NULL</default></row>
+<row name="country" null="1" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>NULL</default></row>
+<row name="total_interventions" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="active_interventions" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="metadata" null="1" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>{}</default></row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="deleted_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Lots/Appartements - standalone OR linked to a building.
+ENUM category: appartement | collocation | maison | garage | local_commercial | parking | autre
+building_id is NULL for standalone lots (maison, etc.)
+street/city/postal_code used for standalone lots.
+UNIQUE(team_id, reference) - reference must be unique per team.
+CONSTRAINT: floor between -5 and 100.</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: building_contacts                                                        -->
+<!-- Many-to-many: buildings <-> users (syndic, proprietaire, gardien, etc.)        -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="700" y="50" name="building_contacts">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="building_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="buildings" row="id" />
+</row>
+<row name="user_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="is_primary" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="role" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="notes" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Building contacts - many-to-many users <-> buildings.
+role is free text: syndic, proprietaire, gardien, concierge, etc.
+UNIQUE(building_id, user_id).</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: lot_contacts                                                             -->
+<!-- Many-to-many: lots <-> users (locataire, proprietaire, garant, etc.)           -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="700" y="320" name="lot_contacts">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="lot_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="lots" row="id" />
+</row>
+<row name="user_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="is_primary" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="role" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="notes" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Lot contacts - many-to-many users <-> lots.
+role is free text: locataire, proprietaire, garant, colocataire, etc.
+UNIQUE(lot_id, user_id).</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: property_documents                                                       -->
+<!-- Documents attached to buildings OR lots (polymorphic)                          -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="500" y="580" name="property_documents">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="building_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="buildings" row="id" />
+</row>
+<row name="lot_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="lots" row="id" />
+</row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="document_type" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'autre'</default></row>
+<row name="category" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="filename" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="original_filename" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="file_size" null="0" autoincrement="0">
+<datatype>BIGINT</datatype>
+<default>NULL</default></row>
+<row name="mime_type" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="storage_path" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="storage_bucket" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>'property-documents'</default></row>
+<row name="title" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="description" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="tags" null="1" autoincrement="0">
+<datatype>TEXT[]</datatype>
+<default>{}</default></row>
+<row name="expiry_date" null="1" autoincrement="0">
+<datatype>DATE</datatype>
+<default>NULL</default></row>
+<row name="document_date" null="1" autoincrement="0">
+<datatype>DATE</datatype>
+<default>NULL</default></row>
+<row name="visibility_level" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'equipe'</default></row>
+<row name="is_archived" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="uploaded_by" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="uploaded_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="deleted_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>POLYMORPHIC: Documents for buildings OR lots.
+CONSTRAINT: (building_id IS NOT NULL) XOR (lot_id IS NOT NULL)
+
+ENUM document_type: bail | garantie | facture | diagnostic | photo_compteur | plan | reglement_copropriete | etat_des_lieux | certificat | manuel_utilisation | photo_generale | autre
+
+ENUM visibility_level: equipe | locataire | intervention
+
+Storage: Supabase Storage bucket 'property-documents' (10MB max).</comment>
+</table>
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║                       PHASE 3: INTERVENTIONS                                 ║ -->
+<!-- ║  Core intervention workflow with assignments, quotes, and scheduling        ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════════════╝ -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: interventions                                                            -->
+<!-- Core intervention requests with complete workflow                              -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="900" y="50" name="interventions">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="reference" null="0" autoincrement="0">
+<datatype>VARCHAR(20)</datatype>
+<default>NULL</default></row>
+<row name="building_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="buildings" row="id" />
+</row>
+<row name="lot_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="lots" row="id" />
+</row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="tenant_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="title" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="description" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="type" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'autre'</default></row>
+<row name="urgency" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'normale'</default></row>
+<row name="status" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'demande'</default></row>
+<row name="requested_date" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="scheduled_date" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="completed_date" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="estimated_cost" null="1" autoincrement="0">
+<datatype>DECIMAL(10,2)</datatype>
+<default>NULL</default></row>
+<row name="final_cost" null="1" autoincrement="0">
+<datatype>DECIMAL(10,2)</datatype>
+<default>NULL</default></row>
+<row name="is_contested" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="scheduling_method" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="created_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="provider_guidelines" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="has_attachments" null="1" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>NULL</default></row>
+<row name="metadata" null="1" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>{}</default></row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="deleted_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>POLYMORPHIC: Interventions for buildings OR lots.
+CONSTRAINT: (building_id IS NOT NULL) XOR (lot_id IS NOT NULL)
+
+reference: Auto-generated INT-YYYYMMDD-XXX (UNIQUE)
+
+ENUM type: plomberie | electricite | chauffage | serrurerie | peinture | menage | jardinage | climatisation | vitrerie | toiture | autre
+
+ENUM urgency: basse | normale | haute | urgente
+
+ENUM status (11 statuses):
+- demande (initial request)
+- rejetee (rejected by manager)
+- approuvee (approved, needs provider)
+- demande_de_devis (quote requested)
+- planification (finding time slot)
+- planifiee (slot confirmed)
+- en_cours (in progress)
+- cloturee_par_prestataire (provider finished)
+- cloturee_par_locataire (tenant validated)
+- cloturee_par_gestionnaire (manager finalized)
+- annulee (cancelled)
+
+scheduling_method: direct | slots | flexible</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: intervention_assignments                                                 -->
+<!-- Many-to-many: interventions <-> users (gestionnaire + prestataire)             -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1100" y="50" name="intervention_assignments">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="intervention_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="interventions" row="id" />
+</row>
+<row name="user_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="is_primary" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="role" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>'gestionnaire'</default></row>
+<row name="notes" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="notified" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="assigned_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="assigned_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Intervention assignments - users assigned to interventions.
+role: gestionnaire | prestataire
+UNIQUE(intervention_id, user_id, role)
+CONSTRAINT: role IN ('gestionnaire', 'prestataire')</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: intervention_time_slots                                                  -->
+<!-- Time slots proposed for scheduling an intervention                             -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1100" y="280" name="intervention_time_slots">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="intervention_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="interventions" row="id" />
+</row>
+<row name="slot_date" null="0" autoincrement="0">
+<datatype>DATE</datatype>
+<default>NULL</default></row>
+<row name="start_time" null="0" autoincrement="0">
+<datatype>TIME</datatype>
+<default>NULL</default></row>
+<row name="end_time" null="0" autoincrement="0">
+<datatype>TIME</datatype>
+<default>NULL</default></row>
+<row name="is_selected" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="proposed_by" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="notes" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Time slots for intervention scheduling.
+Provider proposes slots, tenant/manager selects one.
+UNIQUE(intervention_id, slot_date, start_time, end_time)
+CONSTRAINT: start_time &lt; end_time</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: intervention_quotes                                                      -->
+<!-- Devis and final invoices for interventions                                     -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1100" y="480" name="intervention_quotes">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="intervention_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="interventions" row="id" />
+</row>
+<row name="provider_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="quote_type" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>'estimation'</default></row>
+<row name="amount" null="0" autoincrement="0">
+<datatype>DECIMAL(10,2)</datatype>
+<default>NULL</default></row>
+<row name="currency" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>'EUR'</default></row>
+<row name="description" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="line_items" null="1" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>[]</default></row>
+<row name="status" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>'draft'</default></row>
+<row name="valid_until" null="1" autoincrement="0">
+<datatype>DATE</datatype>
+<default>NULL</default></row>
+<row name="validated_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="validated_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="rejection_reason" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="created_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="deleted_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Quotes (devis) and final invoices.
+quote_type: estimation | final
+status: draft | sent | accepted | rejected | cancelled | expired
+
+line_items JSONB structure:
+[{ description, quantity, unit_price, total }]</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: intervention_reports                                                     -->
+<!-- Text reports from tenant, provider, or manager                                 -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="900" y="480" name="intervention_reports">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="intervention_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="interventions" row="id" />
+</row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="report_type" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>'general_note'</default></row>
+<row name="title" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="content" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="metadata" null="1" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>{}</default></row>
+<row name="is_internal" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="created_by" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="deleted_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Text reports for interventions.
+report_type: tenant_report | provider_report | manager_report | general_note
+content supports markdown.
+is_internal = true means only team managers can see.</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: intervention_documents                                                   -->
+<!-- Documents attached to interventions or chat messages                           -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="900" y="700" name="intervention_documents">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="intervention_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="interventions" row="id" />
+</row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="message_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="conversation_messages" row="id" />
+</row>
+<row name="document_type" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'autre'</default></row>
+<row name="filename" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="original_filename" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="file_size" null="0" autoincrement="0">
+<datatype>BIGINT</datatype>
+<default>NULL</default></row>
+<row name="mime_type" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="storage_path" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="storage_bucket" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>'intervention-documents'</default></row>
+<row name="description" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="is_validated" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="validated_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="validated_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="uploaded_by" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="uploaded_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="deleted_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Documents for interventions AND chat attachments.
+message_id links to chat message (if attachment).
+
+ENUM document_type: rapport | photo_avant | photo_apres | facture | devis | plan | certificat | garantie | bon_de_commande | autre
+
+is_validated = manager approved the document.</comment>
+</table>
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║                          PHASE 3: CHAT SYSTEM                                ║ -->
+<!-- ║  Conversation threads for intervention communication                         ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════════════╝ -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: conversation_threads                                                     -->
+<!-- Chat threads - one per intervention per type                                   -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1300" y="50" name="conversation_threads">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="intervention_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="interventions" row="id" />
+</row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="thread_type" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'group'</default></row>
+<row name="title" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="message_count" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="last_message_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="created_by" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Chat threads for interventions.
+ENUM thread_type: group | tenant_to_managers | provider_to_managers
+UNIQUE(intervention_id, thread_type)
+
+team_id is DENORMALIZED for RLS performance.
+message_count updated by trigger.</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: conversation_messages                                                    -->
+<!-- Chat messages - immutable (soft delete only)                                   -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1300" y="280" name="conversation_messages">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="thread_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="conversation_threads" row="id" />
+</row>
+<row name="user_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="content" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="deleted_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="metadata" null="1" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>{}</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Chat messages - IMMUTABLE (no editing, soft delete only).
+user_id can be NULL if user was deleted.
+metadata can store: mentions, reactions, etc.</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: conversation_participants                                                -->
+<!-- Explicit membership in conversation threads                                    -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1300" y="480" name="conversation_participants">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="thread_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="conversation_threads" row="id" />
+</row>
+<row name="user_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="last_read_message_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="conversation_messages" row="id" />
+</row>
+<row name="last_read_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="joined_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Thread participants with read tracking.
+UNIQUE(thread_id, user_id)
+last_read_message_id for unread count calculation.</comment>
+</table>
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║                      PHASE 3: SYSTEM NOTIFICATIONS                           ║ -->
+<!-- ║  In-app notifications and activity logging                                   ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════════════╝ -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: notifications                                                            -->
+<!-- Real-time in-app notifications                                                 -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1500" y="50" name="notifications">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="user_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="team_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="created_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="type" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'system'</default></row>
+<row name="priority" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'normal'</default></row>
+<row name="title" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="message" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="read" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="archived" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="metadata" null="1" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>{}</default></row>
+<row name="related_entity_type" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="related_entity_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="read_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>In-app notifications with Supabase Realtime.
+ENUM type: intervention | chat | document | system | team_invite | assignment | status_change | reminder | deadline
+ENUM priority: low | normal | high | urgent
+
+POLYMORPHIC: related_entity_type + related_entity_id
+Examples: intervention, building, lot, contract, etc.</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: activity_logs                                                            -->
+<!-- Complete audit trail of all actions                                            -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1500" y="320" name="activity_logs">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="user_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="action_type" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>NULL</default></row>
+<row name="entity_type" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>NULL</default></row>
+<row name="entity_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default></row>
+<row name="entity_name" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="status" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'success'</default></row>
+<row name="description" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="error_message" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="metadata" null="1" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>{}</default></row>
+<row name="ip_address" null="1" autoincrement="0">
+<datatype>INET</datatype>
+<default>NULL</default></row>
+<row name="user_agent" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Complete audit trail.
+ENUM action_type: create | update | delete | view | assign | unassign | approve | reject | upload | download | share | comment | status_change | send_notification | login | logout
+
+ENUM entity_type: user | team | building | lot | intervention | document | contact | notification | message | quote | report
+
+ENUM status: success | failure | pending</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: push_subscriptions                                                       -->
+<!-- PWA push notification subscriptions                                            -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1500" y="580" name="push_subscriptions">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="user_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="endpoint" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="keys" null="0" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>NULL</default></row>
+<row name="user_agent" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>PWA push notification subscriptions.
+endpoint: UNIQUE - one subscription per browser.
+keys JSONB: { p256dh, auth } for Web Push encryption.</comment>
+</table>
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║                         PHASE 3: EMAIL SYSTEM                                ║ -->
+<!-- ║  IMAP/SMTP integration for email management                                  ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════════════╝ -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: team_email_connections                                                   -->
+<!-- IMAP/SMTP connection configurations per team                                   -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1700" y="50" name="team_email_connections">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="provider" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>NULL</default></row>
+<row name="email_address" null="0" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="imap_host" null="0" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="imap_port" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>993</default></row>
+<row name="imap_use_ssl" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>true</default></row>
+<row name="imap_username" null="0" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="imap_password_encrypted" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="smtp_host" null="0" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="smtp_port" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>587</default></row>
+<row name="smtp_use_tls" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>true</default></row>
+<row name="smtp_username" null="0" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="smtp_password_encrypted" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="last_uid" null="1" autoincrement="0">
+<datatype>BIGINT</datatype>
+<default>NULL</default></row>
+<row name="last_sync_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="is_active" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>true</default></row>
+<row name="last_error" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>IMAP/SMTP email connection configurations.
+provider: gmail | outlook | yahoo | ovh | custom
+Passwords are encrypted in database.
+last_uid tracks IMAP sync position.
+UNIQUE(team_id, email_address)</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: emails                                                                   -->
+<!-- Received and sent emails                                                       -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1700" y="320" name="emails">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="email_connection_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="team_email_connections" row="id" />
+</row>
+<row name="direction" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'received'</default></row>
+<row name="status" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'unread'</default></row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="message_id" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="in_reply_to" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="emails" row="id" />
+</row>
+<row name="references" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="from_address" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="to_addresses" null="0" autoincrement="0">
+<datatype>TEXT[]</datatype>
+<default>{}</default></row>
+<row name="cc_addresses" null="1" autoincrement="0">
+<datatype>TEXT[]</datatype>
+<default>{}</default></row>
+<row name="bcc_addresses" null="1" autoincrement="0">
+<datatype>TEXT[]</datatype>
+<default>{}</default></row>
+<row name="subject" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="body_text" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="body_html" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="building_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="buildings" row="id" />
+</row>
+<row name="lot_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="lots" row="id" />
+</row>
+<row name="intervention_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="interventions" row="id" />
+</row>
+<row name="received_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="sent_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="search_vector" null="1" autoincrement="0">
+<datatype>TSVECTOR</datatype>
+<default>NULL</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Received and sent emails.
+ENUM direction: received | sent
+ENUM status: unread | read | archived | deleted
+
+Can be linked to building, lot, or intervention.
+search_vector: GENERATED for French full-text search.
+in_reply_to: self-referential for email threading.</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: email_attachments                                                        -->
+<!-- Email file attachments                                                         -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1700" y="620" name="email_attachments">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="email_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="emails" row="id" />
+</row>
+<row name="filename" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="content_type" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="size_bytes" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>NULL</default></row>
+<row name="storage_path" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Email attachments stored in Supabase Storage.
+Storage bucket: email-attachments</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: email_blacklist                                                          -->
+<!-- Blocked email senders per team                                                 -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1700" y="760" name="email_blacklist">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="sender_email" null="0" autoincrement="0">
+<datatype>VARCHAR(500)</datatype>
+<default>NULL</default></row>
+<row name="sender_domain" null="1" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="reason" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="blocked_by_user_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Blocked email senders per team.
+Can block by email or by domain.
+UNIQUE(team_id, sender_email)
+RLS helper: is_sender_blacklisted()</comment>
+</table>
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║                          PHASE 4: CONTRACTS                                  ║ -->
+<!-- ║  Lease contracts (baux) with tenants and guarantors                          ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════════════╝ -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: contracts                                                                -->
+<!-- Lease contracts for lots                                                       -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="50" y="700" name="contracts">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="lot_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="lots" row="id" />
+</row>
+<row name="created_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="title" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="contract_type" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'bail_habitation'</default></row>
+<row name="status" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'brouillon'</default></row>
+<row name="start_date" null="0" autoincrement="0">
+<datatype>DATE</datatype>
+<default>NULL</default></row>
+<row name="duration_months" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>12</default></row>
+<row name="end_date" null="0" autoincrement="0">
+<datatype>DATE</datatype>
+<default>NULL</default></row>
+<row name="signed_date" null="1" autoincrement="0">
+<datatype>DATE</datatype>
+<default>NULL</default></row>
+<row name="payment_frequency" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'mensuel'</default></row>
+<row name="payment_frequency_value" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>1</default></row>
+<row name="rent_amount" null="0" autoincrement="0">
+<datatype>DECIMAL(10,2)</datatype>
+<default>NULL</default></row>
+<row name="charges_amount" null="0" autoincrement="0">
+<datatype>DECIMAL(10,2)</datatype>
+<default>0</default></row>
+<row name="guarantee_type" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'pas_de_garantie'</default></row>
+<row name="guarantee_amount" null="1" autoincrement="0">
+<datatype>DECIMAL(10,2)</datatype>
+<default>NULL</default></row>
+<row name="guarantee_notes" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="comments" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="metadata" null="1" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>{}</default></row>
+<row name="renewed_from_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="contracts" row="id" />
+</row>
+<row name="renewed_to_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="contracts" row="id" />
+</row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="deleted_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Lease contracts (baux).
+ENUM contract_type: bail_habitation | bail_meuble
+ENUM status: brouillon | actif | expire | resilie | renouvele
+ENUM payment_frequency: mensuel | trimestriel | semestriel | annuel
+ENUM guarantee_type: pas_de_garantie | compte_proprietaire | compte_bloque | e_depot | autre
+
+end_date is GENERATED from start_date + duration_months.
+renewed_from_id/renewed_to_id: self-referential for renewal chains.
+CONSTRAINT: duration_months between 0 and 120.</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: contract_contacts                                                        -->
+<!-- Many-to-many: contracts <-> users (locataire, garant, etc.)                    -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="250" y="700" name="contract_contacts">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="contract_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="contracts" row="id" />
+</row>
+<row name="user_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="role" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'locataire'</default></row>
+<row name="is_primary" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="notes" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Contract contacts (locataires, garants, etc.)
+ENUM role: locataire | colocataire | garant | representant_legal | autre
+UNIQUE(contract_id, user_id, role)</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: contract_documents                                                       -->
+<!-- Documents attached to contracts                                                -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="250" y="920" name="contract_documents">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="contract_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="contracts" row="id" />
+</row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="document_type" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'autre'</default></row>
+<row name="filename" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="original_filename" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="file_size" null="0" autoincrement="0">
+<datatype>BIGINT</datatype>
+<default>NULL</default></row>
+<row name="mime_type" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="storage_path" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="storage_bucket" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>'contract-documents'</default></row>
+<row name="title" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="description" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="uploaded_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="uploaded_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="deleted_by" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Contract documents.
+ENUM document_type: bail | avenant | etat_des_lieux_entree | etat_des_lieux_sortie | attestation_assurance | justificatif_identite | justificatif_revenus | caution_bancaire | quittance | reglement_copropriete | diagnostic | autre
+
+Storage bucket: contract-documents (50MB max)</comment>
+</table>
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║                         PHASE 4: IMPORT SYSTEM                               ║ -->
+<!-- ║  Excel/CSV import job tracking                                               ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════════════╝ -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: import_jobs                                                              -->
+<!-- Track import jobs from Excel/CSV files                                         -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="50" y="920" name="import_jobs">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="team_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="teams" row="id" />
+</row>
+<row name="user_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="entity_type" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'mixed'</default></row>
+<row name="status" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'pending'</default></row>
+<row name="filename" null="0" autoincrement="0">
+<datatype>VARCHAR(255)</datatype>
+<default>NULL</default></row>
+<row name="total_rows" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="processed_rows" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="success_count" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="error_count" null="0" autoincrement="0">
+<datatype>INTEGER</datatype>
+<default>0</default></row>
+<row name="errors" null="1" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>[]</default></row>
+<row name="created_ids" null="1" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>{}</default></row>
+<row name="updated_ids" null="1" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>{}</default></row>
+<row name="metadata" null="1" autoincrement="0">
+<datatype>JSONB</datatype>
+<default>{}</default></row>
+<row name="started_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="completed_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Import job tracking for Excel/CSV imports.
+ENUM entity_type: building | lot | contact | contract | mixed
+ENUM status: pending | validating | importing | completed | failed | cancelled
+
+created_ids JSONB: { buildings: [...], lots: [...], contacts: [...] }
+errors JSONB: [{ row, column, message, value }]
+
+Progress can be streamed via SSE.</comment>
+</table>
+
+<!-- ╔══════════════════════════════════════════════════════════════════════════════╗ -->
+<!-- ║              TABLES ADDITIONNELLES (Vérification 2025-12-26)                 ║ -->
+<!-- ║  4 tables manquantes identifiées lors de l'audit                            ║ -->
+<!-- ╚══════════════════════════════════════════════════════════════════════════════╝ -->
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: company_members                                                          -->
+<!-- Membership table linking users to companies                                     -->
+<!-- Phase 1 - Extends companies management                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="50" y="650" name="company_members">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="company_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="companies" row="id" />
+</row>
+<row name="user_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="role" null="1" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>NULL</default></row>
+<row name="is_primary" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="joined_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="left_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Company membership for prestataires.
+Maps users (role=prestataire) to their companies.
+is_primary: Contact principal de l'entreprise.
+UNIQUE(company_id, user_id) - Un user ne peut être membre qu'une fois par entreprise.
+Similar to team_members but for provider companies.</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: intervention_comments                                                    -->
+<!-- Threaded comments on interventions                                              -->
+<!-- Phase 3 - Extends intervention communication                                    -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1100" y="250" name="intervention_comments">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="intervention_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="interventions" row="id" />
+</row>
+<row name="user_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="parent_id" null="1" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="intervention_comments" row="id" />
+</row>
+<row name="content" null="0" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="is_internal" null="0" autoincrement="0">
+<datatype>BOOLEAN</datatype>
+<default>false</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="updated_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="deleted_at" null="1" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NULL</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Threaded comments on interventions.
+parent_id: Self-referential FK for threading (replies to comments).
+is_internal: true = Only visible to team managers (notes internes).
+Supports markdown content.
+Indexed: (intervention_id, created_at) for efficient pagination.</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: time_slot_responses                                                      -->
+<!-- Granular responses to proposed time slots                                       -->
+<!-- Phase 3 - Extends time slot workflow                                            -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1300" y="350" name="time_slot_responses">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="time_slot_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="intervention_time_slots" row="id" />
+</row>
+<row name="user_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="response_type" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'pending'</default></row>
+<row name="notes" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="responded_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Granular responses to time slots.
+ENUM response_type: accepted | rejected | pending
+Allows tracking individual responses from multiple parties.
+UNIQUE(time_slot_id, user_id) - One response per user per slot.
+Used for multi-provider scheduling coordination.</comment>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<!-- TABLE: intervention_links                                                       -->
+<!-- Links between related interventions                                             -->
+<!-- Phase 3 - Extends intervention management                                       -->
+<!-- ═══════════════════════════════════════════════════════════════════════════════ -->
+<table x="1300" y="100" name="intervention_links">
+<row name="id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>gen_random_uuid()</default></row>
+<row name="source_intervention_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="interventions" row="id" />
+</row>
+<row name="target_intervention_id" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="interventions" row="id" />
+</row>
+<row name="link_type" null="0" autoincrement="0">
+<datatype>VARCHAR(50)</datatype>
+<default>'related'</default></row>
+<row name="notes" null="1" autoincrement="0">
+<datatype>TEXT</datatype>
+<default>NULL</default></row>
+<row name="created_by" null="0" autoincrement="0">
+<datatype>UUID</datatype>
+<default>NULL</default><relation table="users" row="id" />
+</row>
+<row name="created_at" null="0" autoincrement="0">
+<datatype>TIMESTAMP WITH TIME ZONE</datatype>
+<default>NOW()</default></row>
+<key type="PRIMARY" name="">
+<part>id</part>
+</key>
+<comment>Links between related interventions.
+ENUM link_type: related | follow_up | duplicate | blocked_by | depends_on
+UNIQUE(source_intervention_id, target_intervention_id) - Prevent duplicate links.
+CONSTRAINT: source_intervention_id != target_intervention_id (no self-links).
+Enables intervention chaining and dependency tracking.</comment>
+</table>
+
+</sql>

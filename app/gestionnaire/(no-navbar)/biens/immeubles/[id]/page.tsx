@@ -4,6 +4,7 @@ import {
   createServerBuildingService,
   createServerLotService,
   createServerInterventionService,
+  createServerContractService,
   createServerSupabaseClient
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
@@ -98,23 +99,83 @@ export default async function BuildingDetailsPage({
       elapsed: `${Date.now() - startTime}ms`
     })
 
-    // Transform lots to include contacts (Step 2 already loads lot_contacts relation)
-    const lotsWithContacts = lots.map((lot: any) => ({
-      id: lot.id,
-      reference: lot.reference,
-      category: lot.category,
-      floor: lot.floor || 0,
-      door_number: lot.door_number || lot.apartment_number || '',
-      lot_contacts: lot.lot_contacts || []
+    // ✅ 2025-12-26: Get occupied lot IDs from ACTIVE CONTRACTS (not lot_contacts)
+    // This ensures consistent occupation calculation across all pages
+    const contractService = await createServerContractService()
+    let occupiedLotIds = new Set<string>()
+    try {
+      const occupiedResult = await contractService.getOccupiedLotIdsByTeam(team.id)
+      if (occupiedResult.success) {
+        occupiedLotIds = occupiedResult.data
+        logger.info('✅ [BUILDING-PAGE-SERVER] Occupied lots from contracts:', {
+          occupiedCount: occupiedLotIds.size,
+          elapsed: `${Date.now() - startTime}ms`
+        })
+      }
+    } catch (error) {
+      logger.warn('⚠️ [BUILDING-PAGE-SERVER] Could not get occupied lots from contracts')
+    }
+
+    // Apply occupation status from contracts to lots
+    const lotsWithOccupation = lots.map((lot: any) => ({
+      ...lot,
+      is_occupied: occupiedLotIds.has(lot.id)
     }))
-    logger.info('✅ [BUILDING-PAGE-SERVER] Lots with contacts transformed', {
-      lotsWithContactsCount: lotsWithContacts.length,
+
+    // ✅ 2025-12-26: Load contracts for each lot to display tenants/guarantors
+    logger.info('📍 [BUILDING-PAGE-SERVER] Step 2.5: Loading contracts for lots...')
+    const lotsWithContracts = await Promise.all(
+      lots.map(async (lot: any) => {
+        try {
+          const contractsResult = await contractService.getByLot(lot.id, { includeExpired: false })
+          const contracts = contractsResult.success ? (contractsResult.data || []) : []
+          // Only keep active or upcoming contracts
+          const relevantContracts = contracts.filter((c: any) =>
+            c.status === 'actif' || c.status === 'a_venir'
+          )
+          return {
+            id: lot.id,
+            reference: lot.reference,
+            category: lot.category,
+            floor: lot.floor || 0,
+            door_number: lot.door_number || lot.apartment_number || '',
+            lot_contacts: lot.lot_contacts || [],
+            contracts: relevantContracts.map((contract: any) => ({
+              id: contract.id,
+              title: contract.title,
+              status: contract.status,
+              start_date: contract.start_date,
+              end_date: contract.end_date,
+              contacts: contract.contacts || []
+            }))
+          }
+        } catch (error) {
+          logger.warn(`⚠️ [BUILDING-PAGE-SERVER] Could not load contracts for lot ${lot.id}`)
+          return {
+            id: lot.id,
+            reference: lot.reference,
+            category: lot.category,
+            floor: lot.floor || 0,
+            door_number: lot.door_number || lot.apartment_number || '',
+            lot_contacts: lot.lot_contacts || [],
+            contracts: []
+          }
+        }
+      })
+    )
+    const totalContractContacts = lotsWithContracts.reduce(
+      (sum, lot) => sum + lot.contracts.reduce((s: number, c: any) => s + (c.contacts?.length || 0), 0),
+      0
+    )
+    logger.info('✅ [BUILDING-PAGE-SERVER] Lots with contracts loaded', {
+      lotsCount: lotsWithContracts.length,
+      totalContractContacts,
       elapsed: `${Date.now() - startTime}ms`
     })
 
     // Generate lot contact IDs lookup map (like building contacts pattern)
     const lotContactIdsMap: Record<string, { lotId: string; lotContactId: string; lotReference: string }> = {}
-    lotsWithContacts.forEach(lot => {
+    lotsWithContracts.forEach(lot => {
       lot.lot_contacts.forEach((lc: any) => {
         if (lc.user?.id) {
           lotContactIdsMap[lc.user.id] = {
@@ -218,14 +279,15 @@ export default async function BuildingDetailsPage({
     })
 
     // Pass data to Client Component
+    // ✅ 2025-12-26: Use lotsWithOccupation for correct occupation status from contracts
     return (
       <BuildingDetailsClient
         building={building}
-        lots={lots}
+        lots={lotsWithOccupation}
         interventions={interventions}
         interventionsWithDocs={interventionsWithDocs}
         buildingContacts={buildingContacts}
-        lotsWithContacts={lotsWithContacts}
+        lotsWithContacts={lotsWithContracts}
         lotContactIdsMap={lotContactIdsMap}
         teamId={team.id}
       />

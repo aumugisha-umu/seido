@@ -60,7 +60,7 @@ export const StepProgressHeader = ({
 
   return (
     <div className={`sticky ${topClass} z-50 bg-white border-b border-gray-200 shadow-sm`}>
-      <div className="content-max-width px-4 sm:px-6 h-16 grid grid-cols-3 items-center gap-4 relative">
+      <div className="content-max-width px-4 sm:px-6 h-16 grid grid-cols-3 items-center gap-4 relative overflow-hidden">
 
           {/* Left Column: Picto + Back Button */}
           <div className="flex items-center gap-3 sm:gap-4 justify-start">
@@ -81,15 +81,16 @@ export const StepProgressHeader = ({
               />
             </Link>
 
-            {/* Back Button (Material Design 3 "Leading" position) */}
+            {/* Back Button - Material Design 3 Leading Navigation */}
             <Button
               variant="ghost"
               size="default"
               onClick={onBack}
-              className="flex-shrink-0 hover:bg-gray-100"
+              className="flex-shrink-0 text-gray-700 hover:text-gray-900 hover:bg-gray-100/80 active:bg-gray-200/80 transition-colors duration-200 h-10 px-3 -ml-1"
+              aria-label={backButtonText}
             >
-              <ArrowLeft className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">{backButtonText}</span>
+              <ArrowLeft className="h-5 w-5 sm:mr-2" />
+              <span className="hidden sm:inline text-sm font-medium">{backButtonText}</span>
             </Button>
           </div>
 
@@ -104,7 +105,7 @@ export const StepProgressHeader = ({
           </div>
 
           {/* Right Column: Tab Navigation (Steps aligned right) */}
-          <div className="hidden lg:flex items-stretch overflow-x-auto scrollbar-hide gap-1 justify-end">
+          <div className="hidden lg:flex items-center gap-1 justify-end min-w-0">
             {steps.map((step, index) => {
               const stepNumber = index + 1
               const isComplete = currentStep > stepNumber
@@ -116,7 +117,8 @@ export const StepProgressHeader = ({
                 <div
                   key={index}
                   className={`
-                    relative flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3
+                    relative flex items-center gap-1.5 sm:gap-2
+                    ${index === 0 ? "pl-0 pr-2 sm:pr-3" : "px-2 sm:px-3"}
                     transition-all duration-300 cursor-default flex-shrink-0
                     ${isPending && "opacity-50"}
                   `}

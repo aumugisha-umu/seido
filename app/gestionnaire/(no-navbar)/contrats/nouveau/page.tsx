@@ -2,7 +2,8 @@ import { getServerAuthContext } from '@/lib/server-context'
 import {
   createServerLotService,
   createServerContactService,
-  createServerBuildingService
+  createServerBuildingService,
+  createServerContractService
 } from '@/lib/services'
 import ContractFormContainer from '@/components/contract/contract-form-container'
 import { logger } from '@/lib/logger'
@@ -55,14 +56,27 @@ export default async function NewContractPage({
   const buildingsResult = await buildingService.getBuildingsByTeam(team.id)
   let buildings = buildingsResult.success ? (buildingsResult.data || []) : []
 
+  // ✅ 2025-12-26: Get occupied lot IDs from ACTIVE CONTRACTS (not lot_contacts)
+  let occupiedLotIds = new Set<string>()
+  try {
+    const contractService = await createServerContractService()
+    const occupiedResult = await contractService.getOccupiedLotIdsByTeam(team.id)
+    if (occupiedResult.success) {
+      occupiedLotIds = occupiedResult.data
+      logger.info('✅ [NEW-CONTRACT-PAGE] Occupied lots from contracts:', {
+        count: occupiedLotIds.size
+      })
+    }
+  } catch (error) {
+    logger.warn('⚠️ [NEW-CONTRACT-PAGE] Could not get occupied lots from contracts')
+  }
+
   // Transform buildings lots to add status field
   buildings = buildings.map((building: any) => ({
     ...building,
     lots: (building.lots || []).map((lot: any) => {
-      const tenants = lot.lot_contacts?.filter((contact: any) =>
-        contact.user?.role === 'locataire'
-      ) || []
-      const isOccupied = tenants.length > 0
+      // ✅ 2025-12-26: Use contracts-based occupation instead of lot_contacts
+      const isOccupied = occupiedLotIds.has(lot.id)
       return {
         ...lot,
         is_occupied: isOccupied,
@@ -78,10 +92,12 @@ export default async function NewContractPage({
   const rawLots = lotsResult.success ? (lotsResult.data || []) : []
 
   // Transform lots to add status and building_name
+  // ✅ 2025-12-26: Use contracts-based occupation instead of lot.is_occupied
   const transformedLots = rawLots.map((lot: any) => {
-    const isOccupied = lot.is_occupied || false
+    const isOccupied = occupiedLotIds.has(lot.id)
     return {
       ...lot,
+      is_occupied: isOccupied,
       status: isOccupied ? "occupied" : "vacant",
       building_name: buildings.find((b: any) => b.id === lot.building_id)?.name || null
     }

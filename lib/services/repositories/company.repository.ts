@@ -195,6 +195,90 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
   }
 
   /**
+   * Find company by name and team (for import linking)
+   */
+  async findByNameAndTeam(name: string, teamId: string) {
+    try {
+      const { data, error } = await this.supabase
+        .from(this.tableName)
+        .select('*')
+        .ilike('name', name)
+        .eq('team_id', teamId)
+        .is('deleted_at', null)
+        .maybeSingle()
+
+      if (error) {
+        logger.error('[COMPANY-REPO] Error finding company by name:', error)
+        return createErrorResponse(handleError(error, `${this.tableName}:query`))
+      }
+
+      return { success: true as const, data }
+    } catch (error) {
+      logger.error('[COMPANY-REPO] Exception in findByNameAndTeam:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Upsert many companies for bulk import
+   */
+  async upsertMany(
+    companies: CompanyInsert[],
+    teamId: string
+  ): Promise<{
+    success: true;
+    created: string[];
+    updated: string[];
+  } | {
+    success: false;
+    error: { message: string };
+  }> {
+    const created: string[] = []
+    const updated: string[] = []
+
+    try {
+      for (const company of companies) {
+        // Check if company already exists by name
+        const existingResult = await this.findByNameAndTeam(company.name, teamId)
+
+        if (existingResult.success && existingResult.data) {
+          // Update existing company
+          const updateResult = await this.update(existingResult.data.id, {
+            ...company,
+            team_id: teamId,
+          })
+          if (updateResult.success) {
+            updated.push(existingResult.data.id)
+          }
+        } else {
+          // Create new company
+          const createResult = await this.create({
+            ...company,
+            team_id: teamId,
+            is_active: true,
+          })
+          if (createResult.success) {
+            created.push(createResult.data.id)
+          }
+        }
+      }
+
+      logger.info(`[COMPANY-REPO] Upserted ${companies.length} companies`, {
+        created: created.length,
+        updated: updated.length,
+      })
+
+      return { success: true, created, updated }
+    } catch (error) {
+      logger.error('[COMPANY-REPO] Exception in upsertMany:', error)
+      return {
+        success: false,
+        error: { message: error instanceof Error ? error.message : 'Unknown error' },
+      }
+    }
+  }
+
+  /**
    * Deactivate a company (soft deactivation)
    */
   async deactivate(companyId: string) {

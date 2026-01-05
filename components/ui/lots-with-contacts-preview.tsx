@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-import { ChevronDown, ChevronUp, Home, Users, Eye } from "lucide-react"
+import { ChevronDown, ChevronUp, Home, Users, Eye, ScrollText, Shield } from "lucide-react"
 import { ContactSection } from "@/components/ui/contact-section"
 import { ContactDeleteConfirmModal } from "@/components/ui/contact-delete-confirm-modal"
 import { useToast } from "@/components/ui/use-toast"
@@ -30,6 +30,28 @@ interface LotContact {
   }
 }
 
+// ✅ 2025-12-26: Added contracts to show tenants/guarantors from active contracts
+interface ContractContact {
+  id: string
+  role: 'locataire' | 'colocataire' | 'garant' | 'representant_legal' | 'autre'
+  is_primary?: boolean
+  user: {
+    id: string
+    name: string
+    email: string | null
+    phone?: string | null
+  }
+}
+
+interface LotContract {
+  id: string
+  title: string
+  status: string
+  start_date: string
+  end_date: string
+  contacts: ContractContact[]
+}
+
 interface LotWithContacts {
   id: string
   reference: string
@@ -37,6 +59,7 @@ interface LotWithContacts {
   floor: number
   door_number: string
   lot_contacts: LotContact[]
+  contracts?: LotContract[]  // Contracts with their contacts (tenants, guarantors)
 }
 
 interface LotsWithContactsPreviewProps {
@@ -383,7 +406,12 @@ export function LotsWithContactsPreview({
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
       {lots.map((lot, index) => {
         const isExpanded = expandedLots[lot.id] || false
-        const contactsCount = lot.lot_contacts?.length || 0
+        // ✅ 2025-12-26: Count both lot_contacts AND contract contacts (tenants, guarantors)
+        const lotContactsCount = lot.lot_contacts?.length || 0
+        const contractContactsCount = lot.contracts?.reduce(
+          (sum, contract) => sum + (contract.contacts?.length || 0), 0
+        ) || 0
+        const contactsCount = lotContactsCount + contractContactsCount
         const { managers, tenants, providers, owners, others } = transformContactsByRole(lot.lot_contacts || [])
 
         return (
@@ -564,6 +592,99 @@ export function LotsWithContactsPreview({
                       showInheritedSummary={true}
                     />
                   </div>
+
+                  {/* ✅ 2025-12-26: Contract contacts section (tenants, guarantors from active contracts) */}
+                  {lot.contracts && lot.contracts.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <h4 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                        <ScrollText className="h-4 w-4" />
+                        Contacts liés aux contrats
+                      </h4>
+                      <div className="space-y-3">
+                        {lot.contracts.map((contract) => {
+                          const contractTenants = contract.contacts?.filter(
+                            c => c.role === 'locataire' || c.role === 'colocataire'
+                          ) || []
+                          const contractGuarantors = contract.contacts?.filter(
+                            c => c.role === 'garant'
+                          ) || []
+
+                          if (contractTenants.length === 0 && contractGuarantors.length === 0) {
+                            return null
+                          }
+
+                          return (
+                            <div key={contract.id} className="bg-gray-50 rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-xs font-medium text-gray-700">
+                                  {contract.title}
+                                </span>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    contract.status === 'actif'
+                                      ? 'text-green-700 border-green-300 bg-green-50'
+                                      : 'text-amber-700 border-amber-300 bg-amber-50'
+                                  }
+                                >
+                                  {contract.status === 'actif' ? 'Actif' : 'À venir'}
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                {/* Tenants column */}
+                                {contractTenants.length > 0 && (
+                                  <div>
+                                    <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                                      <Users className="h-3 w-3" />
+                                      Locataires ({contractTenants.length})
+                                    </div>
+                                    <div className="space-y-1">
+                                      {contractTenants.map((contact) => (
+                                        <div
+                                          key={contact.id}
+                                          className="text-xs bg-white rounded px-2 py-1 border border-blue-100"
+                                        >
+                                          <span className="font-medium text-blue-700">
+                                            {contact.user.name}
+                                          </span>
+                                          {contact.role === 'colocataire' && (
+                                            <Badge variant="outline" className="ml-1 text-[10px] px-1 py-0">
+                                              Coloc
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                                {/* Guarantors column */}
+                                {contractGuarantors.length > 0 && (
+                                  <div>
+                                    <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
+                                      <Shield className="h-3 w-3" />
+                                      Garants ({contractGuarantors.length})
+                                    </div>
+                                    <div className="space-y-1">
+                                      {contractGuarantors.map((contact) => (
+                                        <div
+                                          key={contact.id}
+                                          className="text-xs bg-white rounded px-2 py-1 border border-amber-100"
+                                        >
+                                          <span className="font-medium text-amber-700">
+                                            {contact.user.name}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               )}
             </Card>

@@ -155,7 +155,9 @@ export async function POST(request: NextRequest) {
       lot_id,
       // ✅ tenant_id REMOVED - tenant relationship via intervention_assignments
       team_id: teamId,
-      status: 'demande' as Database['public']['Enums']['intervention_status']
+      status: 'demande' as Database['public']['Enums']['intervention_status'],
+      // ✅ FIX 2025-12-24: Ajout created_by pour exclure le créateur des notifications email
+      created_by: user.id
     }
 
     logger.info({ interventionData }, "📝 Creating intervention (step 1/3: INSERT only)")
@@ -273,6 +275,9 @@ export async function POST(request: NextRequest) {
       logger.warn({ userId: user.id }, "⚠️ No teamId available, skipping activity log creation")
     }
 
+    // ✅ FIX: Initialize effectiveTeamId BEFORE auto-assignment (so notifications work even if auto-assignment fails)
+    let effectiveTeamId = teamId
+
     // Auto-assign relevant users to the intervention
     try {
       logger.info({}, "👥 Auto-assigning users to intervention...")
@@ -284,8 +289,7 @@ export async function POST(request: NextRequest) {
       )
       logger.info({ assignmentCount: assignments?.length || 0 }, "✅ Auto-assignment completed")
 
-      // ✅ FIX: Get effective team ID from auto-assignment if original teamId was null
-      let effectiveTeamId = teamId
+      // Get effective team ID from auto-assignment if original teamId was null
       let shouldUpdateInterventionTeam = false
       if (!effectiveTeamId && assignments && assignments.length > 0) {
         // Try to get team from assigned intervention
@@ -326,30 +330,34 @@ export async function POST(request: NextRequest) {
       // ✅ NOTE: Tenant assignment already created BEFORE (step 2/3, line 210-241)
       // This ensures RLS allows SELECT immediately after INSERT
 
-      // Create notifications for assigned users and team members
-      if (effectiveTeamId) {
-        try {
-          const { createInterventionNotification } = await import('@/app/actions/notification-actions')
-
-          logger.info({ interventionId: intervention.id }, '📬 [CREATE-INTERVENTION] Creating intervention notifications via Server Action')
-
-          const notifResult = await createInterventionNotification(intervention.id)
-
-          if (notifResult.success) {
-            logger.info({
-              count: notifResult.data?.length || 0
-            }, "✅ Intervention notifications created successfully")
-          } else {
-            logger.error({ error: notifResult.error }, "❌ Failed to create notifications (intervention still created)")
-          }
-        } catch (notificationError) {
-          logger.error({ error: notificationError }, "❌ Error creating notifications (intervention still created)")
-        }
-      }
-
     } catch (assignmentError) {
       logger.error({ error: assignmentError }, "❌ Error during auto-assignment (intervention still created)")
       // Don't fail the whole creation if assignment fails - the intervention was created successfully
+    }
+
+    // ✅ NOTIFICATIONS: Now OUTSIDE the auto-assignment try-catch block
+    // This ensures notifications are sent even if auto-assignment fails
+    if (effectiveTeamId) {
+      // Create in-app notifications for gestionnaires
+      try {
+        const { createInterventionNotification } = await import('@/app/actions/notification-actions')
+
+        logger.info({ interventionId: intervention.id }, '📬 [CREATE-INTERVENTION] Creating intervention notifications via Server Action')
+
+        const notifResult = await createInterventionNotification(intervention.id)
+
+        if (notifResult.success) {
+          logger.info({
+            count: notifResult.data?.length || 0
+          }, "✅ Intervention notifications created successfully")
+        } else {
+          logger.error({ error: notifResult.error }, "❌ Failed to create notifications (intervention still created)")
+        }
+      } catch (notificationError) {
+        logger.error({ error: notificationError }, "❌ Error creating notifications (intervention still created)")
+      }
+    } else {
+      logger.warn({ interventionId: intervention.id }, "⚠️ [CREATE-INTERVENTION] No teamId available, skipping notifications")
     }
 
     // Handle file uploads if provided
@@ -406,10 +414,19 @@ export async function POST(request: NextRequest) {
 
         if (filesUploaded > 0) {
           // Update intervention to mark it as having attachments
-          await interventionService.update(intervention.id, {
-            has_attachments: true
-          })
-          logger.info({}, "✅ Updated intervention to mark has_attachments = true")
+          try {
+            const updateResult = await interventionService.update(intervention.id, {
+              has_attachments: true
+            })
+            if (updateResult.success) {
+              logger.info({}, "✅ Updated intervention to mark has_attachments = true")
+            } else {
+              logger.warn({ error: updateResult.error }, "⚠️ Could not update intervention has_attachments flag (non-critical)")
+            }
+          } catch (error) {
+            logger.warn({ error }, "⚠️ Error updating intervention has_attachments flag (non-critical)")
+            // Don't fail the entire operation for this
+          }
         }
 
         if (fileErrors.length > 0) {
@@ -423,6 +440,55 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // ✅ SEND EMAIL NOTIFICATIONS to gestionnaires and prestataires
+    // NOTE: This is done AFTER file uploads so that attachments are included in the emails
+    if (effectiveTeamId) {
+      try {
+        const { EmailNotificationService } = await import('@/lib/services/domain/email-notification.service')
+        const { EmailService } = await import('@/lib/services/domain/email.service')
+        const {
+          createServerNotificationRepository,
+          createServerInterventionRepository,
+          createServerUserRepository,
+          createServerBuildingRepository,
+          createServerLotRepository
+        } = await import('@/lib/services')
+
+        // Use factory functions (same pattern as notifyInterventionStatusChange)
+        const notificationRepo = await createServerNotificationRepository()
+        const interventionRepo = await createServerInterventionRepository()
+        const userRepo = await createServerUserRepository()
+        const buildingRepo = await createServerBuildingRepository()
+        const lotRepo = await createServerLotRepository()
+        const emailService = new EmailService()
+
+        const emailNotificationService = new EmailNotificationService(
+          notificationRepo,
+          emailService,
+          interventionRepo,
+          userRepo,
+          buildingRepo,
+          lotRepo
+        )
+
+        logger.info({ interventionId: intervention.id }, '📧 [CREATE-INTERVENTION] Sending email notifications')
+
+        const emailResult = await emailNotificationService.sendInterventionEmails({
+          interventionId: intervention.id,
+          eventType: 'created',
+          excludeUserId: user.id  // Don't email the creator (locataire)
+        })
+
+        logger.info({
+          interventionId: intervention.id,
+          emailsSent: emailResult.sentCount,
+          emailsFailed: emailResult.failedCount
+        }, '✅ Intervention email notifications sent')
+      } catch (emailError) {
+        // Don't fail the creation if emails fail
+        logger.error({ error: emailError }, '❌ Error sending email notifications (intervention still created)')
+      }
+    }
 
     logger.info({}, "🎉 Intervention creation completed successfully")
 

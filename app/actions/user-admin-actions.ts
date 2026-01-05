@@ -11,7 +11,7 @@ import { getSupabaseAdmin, isAdminConfigured } from '@/lib/services/core/supabas
 import { getServerAuthContext } from '@/lib/server-context'
 import { revalidatePath } from 'next/cache'
 import { logger } from '@/lib/logger'
-import type { User, UserInsert, UserUpdate } from '@/lib/services/core/service-types'
+import type { User, UserInsert, UserUpdate, UserWithStatus, UserComputedStatus } from '@/lib/services/core/service-types'
 
 // Type for action results
 interface ActionResult<T = unknown> {
@@ -41,7 +41,7 @@ async function getAdminContext() {
 }
 
 /**
- * Get all users (admin only)
+ * Get all users (admin only) - Basic version without status computation
  */
 export async function getAllUsersAction(): Promise<ActionResult<User[]>> {
   try {
@@ -63,6 +63,146 @@ export async function getAllUsersAction(): Promise<ActionResult<User[]>> {
     return { success: true, data: data as User[] }
   } catch (error) {
     logger.error('[ADMIN-USERS] Exception in getAllUsersAction:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }
+  }
+}
+
+/**
+ * Compute the real status of a user based on auth_user_id, password_set, and invitation status
+ */
+const computeUserStatus = (
+  user: User,
+  invitationStatus: string | null,
+  lastSignInAt: string | null
+): UserComputedStatus => {
+  // If manually deactivated, show as inactive
+  if (!user.is_active) {
+    return 'inactive'
+  }
+
+  // If user has auth_user_id AND has logged in → active
+  if (user.auth_user_id && lastSignInAt) {
+    return 'active'
+  }
+
+  // If invitation accepted but not yet logged in (account created but not activated)
+  if (invitationStatus === 'accepted') {
+    return 'active'
+  }
+
+  // If invitation is pending
+  if (invitationStatus === 'pending') {
+    return 'pending'
+  }
+
+  // If invitation expired
+  if (invitationStatus === 'expired') {
+    return 'expired'
+  }
+
+  // If invitation cancelled or no invitation exists
+  return 'not_invited'
+}
+
+/**
+ * Get all users with computed status (admin only)
+ * Includes invitation status and last sign in from auth.users
+ */
+export async function getAllUsersWithStatusAction(): Promise<ActionResult<UserWithStatus[]>> {
+  try {
+    const { supabase } = await getAdminContext()
+    logger.info('[ADMIN-USERS] Fetching all users with status')
+
+    // 1. Fetch all users
+    const { data: users, error: usersError } = await supabase
+      .from('users')
+      .select('*')
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+
+    if (usersError) {
+      logger.error('[ADMIN-USERS] Error fetching users:', usersError)
+      return { success: false, error: usersError.message }
+    }
+
+    if (!users || users.length === 0) {
+      return { success: true, data: [] }
+    }
+
+    // 2. Fetch invitations for all users' emails (get the most recent invitation per email)
+    const emails = users.map(u => u.email).filter(Boolean) as string[]
+    const { data: invitations, error: invitationsError } = await supabase
+      .from('user_invitations')
+      .select('email, status, expires_at')
+      .in('email', emails)
+      .order('created_at', { ascending: false })
+
+    if (invitationsError) {
+      logger.warn('[ADMIN-USERS] Error fetching invitations:', invitationsError)
+    }
+
+    // Create a map of email -> most recent invitation status
+    const invitationMap = new Map<string, { status: string; expires_at: string | null }>()
+    if (invitations) {
+      for (const inv of invitations) {
+        // Only store if not already present (first one is most recent due to ordering)
+        if (!invitationMap.has(inv.email)) {
+          // Check if pending invitation has expired
+          let status = inv.status
+          if (status === 'pending' && inv.expires_at) {
+            const now = new Date()
+            const expiresAt = new Date(inv.expires_at)
+            if (now > expiresAt) {
+              status = 'expired'
+            }
+          }
+          invitationMap.set(inv.email, { status, expires_at: inv.expires_at })
+        }
+      }
+    }
+
+    // 3. Fetch auth users to get last_sign_in_at
+    // Using Supabase admin API to list all users
+    const authUsersMap = new Map<string, string | null>()
+    try {
+      const { data: authData, error: authError } = await supabase.auth.admin.listUsers({
+        perPage: 1000
+      })
+
+      if (authError) {
+        logger.warn('[ADMIN-USERS] Error fetching auth users:', authError)
+      } else if (authData?.users) {
+        for (const authUser of authData.users) {
+          authUsersMap.set(authUser.id, authUser.last_sign_in_at || null)
+        }
+      }
+    } catch (authException) {
+      logger.warn('[ADMIN-USERS] Exception fetching auth users:', authException)
+    }
+
+    // 4. Merge data and compute status
+    const usersWithStatus: UserWithStatus[] = users.map(user => {
+      const invitation = user.email ? invitationMap.get(user.email) : null
+      const invitationStatus = invitation?.status as UserWithStatus['invitation_status'] || null
+      const lastSignInAt = user.auth_user_id ? authUsersMap.get(user.auth_user_id) || null : null
+      
+      const computedStatus = computeUserStatus(user as User, invitationStatus, lastSignInAt)
+
+      return {
+        ...user,
+        computed_status: computedStatus,
+        last_sign_in_at: lastSignInAt,
+        invitation_status: invitationStatus,
+      } as UserWithStatus
+    })
+
+    logger.info(`[ADMIN-USERS] Fetched ${usersWithStatus.length} users with status`)
+    return { success: true, data: usersWithStatus }
+  } catch (error) {
+    logger.error('[ADMIN-USERS] Exception in getAllUsersWithStatusAction:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Erreur inconnue'

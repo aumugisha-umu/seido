@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -12,11 +13,10 @@ import {
     type InvitationData,
     type CompanyData
 } from '@/config/table-configs/contacts.config'
-import { useViewMode } from '@/hooks/use-view-mode'
+import { useDataNavigator } from '@/hooks/use-data-navigator'
 import { DataTable } from '@/components/ui/data-table/data-table'
 import { DataCards } from '@/components/ui/data-table/data-cards'
-import { Users, Send, Building2, Search, Filter, LayoutGrid, List, UserPlus, Trash2 } from 'lucide-react'
-import { useRouter } from 'next/navigation'
+import { Users, Send, Building2, Search, Filter, LayoutGrid, List, Archive, Mail, RefreshCw, XCircle, UserX } from 'lucide-react'
 import {
     Popover,
     PopoverContent,
@@ -47,9 +47,16 @@ interface ContactsNavigatorProps {
     companies: CompanyData[]
     loading?: boolean
     onRefresh?: () => void
+    // Invitation tab actions
     onResendInvitation?: (id: string) => void
     onCancelInvitation?: (id: string) => void
-    onDeleteContact?: (id: string) => void
+    // Contact actions
+    onArchiveContact?: (id: string) => void
+    // Contact invitation actions (based on invitationStatus)
+    onSendContactInvitation?: (contact: ContactData) => void
+    onResendContactInvitation?: (contact: ContactData) => void
+    onCancelContactInvitation?: (contact: ContactData) => void
+    onRevokeContactAccess?: (contact: ContactData) => void
     className?: string
 }
 
@@ -61,19 +68,15 @@ export function ContactsNavigator({
     onRefresh,
     onResendInvitation,
     onCancelInvitation,
-    onDeleteContact,
+    onArchiveContact,
+    onSendContactInvitation,
+    onResendContactInvitation,
+    onCancelContactInvitation,
+    onRevokeContactAccess,
     className
 }: ContactsNavigatorProps) {
     const router = useRouter()
     const [activeTab, setActiveTab] = useState<'contacts' | 'invitations' | 'companies'>('contacts')
-    const [searchTerm, setSearchTerm] = useState('')
-    const [activeFilters, setActiveFilters] = useState<Record<string, string>>({})
-
-    // View mode state
-    const { viewMode, setViewMode, mounted } = useViewMode({
-        defaultMode: 'cards',
-        syncWithUrl: false
-    })
 
     // Get current config and data based on active tab
     const getCurrentConfig = () => {
@@ -83,12 +86,47 @@ export function ContactsNavigator({
                     ...contactsTableConfig,
                     actions: [
                         ...(contactsTableConfig.actions || []),
+                        // Action "Inviter" - visible si pas d'invitation ou annulée
                         {
-                            id: 'delete',
-                            label: 'Supprimer',
-                            icon: Trash2,
+                            id: 'invite',
+                            label: 'Inviter',
+                            icon: Mail,
+                            show: (contact: ContactData) => !contact.invitationStatus || contact.invitationStatus === 'cancelled',
+                            onClick: (contact: ContactData) => onSendContactInvitation?.(contact)
+                        },
+                        // Action "Relancer" - visible si pending ou expired
+                        {
+                            id: 'resend-contact',
+                            label: 'Relancer invitation',
+                            icon: RefreshCw,
+                            show: (contact: ContactData) => contact.invitationStatus === 'pending' || contact.invitationStatus === 'expired',
+                            onClick: (contact: ContactData) => onResendContactInvitation?.(contact)
+                        },
+                        // Action "Annuler invitation" - visible si pending ou expired
+                        {
+                            id: 'cancel-contact-invite',
+                            label: 'Annuler invitation',
+                            icon: XCircle,
                             variant: 'destructive' as const,
-                            onClick: (contact: ContactData) => onDeleteContact?.(contact.id)
+                            show: (contact: ContactData) => contact.invitationStatus === 'pending' || contact.invitationStatus === 'expired',
+                            onClick: (contact: ContactData) => onCancelContactInvitation?.(contact)
+                        },
+                        // Action "Retirer l'accès" - visible si accepted
+                        {
+                            id: 'revoke',
+                            label: "Retirer l'accès",
+                            icon: UserX,
+                            variant: 'destructive' as const,
+                            show: (contact: ContactData) => contact.invitationStatus === 'accepted',
+                            onClick: (contact: ContactData) => onRevokeContactAccess?.(contact)
+                        },
+                        // Action "Archiver"
+                        {
+                            id: 'archive',
+                            label: 'Archiver',
+                            icon: Archive,
+                            variant: 'destructive' as const,
+                            onClick: (contact: ContactData) => onArchiveContact?.(contact.id)
                         }
                     ]
                 }
@@ -120,55 +158,24 @@ export function ContactsNavigator({
     const currentConfig = getCurrentConfig()
     const currentData = getCurrentData()
 
-    // Apply search filter
-    const getNestedValue = (obj: any, path: string): any => {
-        return path.split('.').reduce((current: any, key: string) => current?.[key], obj)
-    }
-
-    const filteredData = useMemo(() => {
-        let data = currentData
-
-        // Apply search
-        if (searchTerm.trim()) {
-            const searchLower = searchTerm.toLowerCase()
-            data = data.filter((item: any) => {
-                return currentConfig.searchConfig.searchableFields.some(field => {
-                    const value = getNestedValue(item, field as string)
-                    return value?.toString().toLowerCase().includes(searchLower)
-                })
-            })
-        }
-
-        // Apply filters
-        if (currentConfig.filters) {
-            Object.entries(activeFilters).forEach(([filterId, filterValue]) => {
-                if (filterValue && filterValue !== 'all') {
-                    data = data.filter((item: any) => {
-                        const value = getNestedValue(item, filterId)
-                        return value === filterValue
-                    })
-                }
-            })
-        }
-
-        return data
-    }, [currentData, searchTerm, currentConfig, activeFilters])
-
-    // Count active filters
-    const activeFilterCount = Object.values(activeFilters).filter(v => v && v !== 'all').length
-
-    // Handle filter change
-    const handleFilterChange = (filterId: string, value: string) => {
-        setActiveFilters(prev => ({
-            ...prev,
-            [filterId]: value
-        }))
-    }
-
-    // Reset filters
-    const resetFilters = () => {
-        setActiveFilters({})
-    }
+    // Use shared hook for search, view mode, and filtering
+    const {
+        searchTerm,
+        setSearchTerm,
+        activeFilters,
+        handleFilterChange,
+        resetFilters,
+        activeFilterCount,
+        viewMode,
+        setViewMode,
+        mounted,
+        filteredData,
+        createRowClickHandler
+    } = useDataNavigator({
+        data: currentData,
+        searchableFields: currentConfig.searchConfig.searchableFields as string[],
+        defaultView: 'cards'
+    })
 
     // Render content based on view mode
     const renderContent = (data: any[], config: any) => {
@@ -195,6 +202,7 @@ export function ContactsNavigator({
                     actions={config.actions}
                     loading={loading}
                     emptyMessage={emptyConfig.description}
+                    onRowClick={createRowClickHandler(config.rowHref)}
                 />
             )
         }
@@ -214,8 +222,7 @@ export function ContactsNavigator({
     // Handle tab change
     const handleTabChange = (value: string) => {
         setActiveTab(value as 'contacts' | 'invitations' | 'companies')
-        setSearchTerm('') // Reset search when switching tabs
-        setActiveFilters({}) // Reset filters when switching tabs
+        resetFilters() // Reset search and filters when switching tabs
     }
 
     // ========================================
@@ -292,11 +299,6 @@ export function ContactsNavigator({
         isActive
             ? "contacts-section__view-btn--active bg-white text-slate-900 shadow-sm"
             : "text-slate-600 hover:bg-slate-200/60"
-    )
-
-    const addBtnClass = cn(
-        "contacts-section__add-btn",
-        "ml-2"
     )
 
     const dataClass = cn(
@@ -383,7 +385,7 @@ export function ContactsNavigator({
                                         </div>
 
                                         {currentConfig.filters && currentConfig.filters.length > 0 ? (
-                                            <div className="space-y-3">
+                                            <div className="grid grid-cols-2 gap-3">
                                                 {currentConfig.filters.map((filter) => (
                                                     <div key={filter.id} className="space-y-1.5">
                                                         <Label className="text-xs text-slate-500">{filter.label}</Label>
@@ -430,30 +432,21 @@ export function ContactsNavigator({
                             {mounted && (
                                 <div className={viewSwitcherClass}>
                                     <button
-                                        onClick={() => setViewMode('cards')}
-                                        className={getViewBtnClass(viewMode === 'cards')}
-                                        title="Vue cartes"
-                                    >
-                                        <LayoutGrid className="h-4 w-4" />
-                                    </button>
-                                    <button
                                         onClick={() => setViewMode('list')}
                                         className={getViewBtnClass(viewMode === 'list')}
                                         title="Vue liste"
                                     >
                                         <List className="h-4 w-4" />
                                     </button>
+                                    <button
+                                        onClick={() => setViewMode('cards')}
+                                        className={getViewBtnClass(viewMode === 'cards')}
+                                        title="Vue cartes"
+                                    >
+                                        <LayoutGrid className="h-4 w-4" />
+                                    </button>
                                 </div>
                             )}
-
-                            {/* Add Button */}
-                            <Button
-                                onClick={() => router.push('/gestionnaire/contacts/nouveau')}
-                                className={addBtnClass}
-                            >
-                                <UserPlus className="h-4 w-4 mr-2" />
-                                Ajouter
-                            </Button>
                         </div>
                     </div>
 

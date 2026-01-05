@@ -891,7 +891,7 @@ export default function NewImmeubleePage({
       {/* Header */}
       <StepProgressHeader
         title="Ajouter un immeuble"
-        backButtonText="Retour aux biens"
+        backButtonText="Retour"
         onBack={() => router.push("/gestionnaire/biens")}
         steps={buildingSteps}
         currentStep={currentStep}

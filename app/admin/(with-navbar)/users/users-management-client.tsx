@@ -61,9 +61,9 @@ import {
   RefreshCw,
   LogIn,
 } from 'lucide-react'
-import type { User, UserInsert, UserUpdate } from '@/lib/services/core/service-types'
+import type { User, UserInsert, UserUpdate, UserWithStatus, UserComputedStatus } from '@/lib/services/core/service-types'
 import {
-  getAllUsersAction,
+  getAllUsersWithStatusAction,
   createUserAction,
   updateUserAction,
   deleteUserAction,
@@ -73,7 +73,7 @@ import {
 import { startImpersonationAction } from '@/app/actions/impersonation-actions'
 
 interface UsersManagementClientProps {
-  initialUsers: User[]
+  initialUsers: UserWithStatus[]
   currentUserId: string
 }
 
@@ -86,6 +86,15 @@ const ROLES: { value: UserRole; label: string; color: string }[] = [
   { value: 'locataire', label: 'Locataire', color: 'bg-green-100 text-green-800' },
 ]
 
+// Status configuration for computed status display
+const STATUS_CONFIG: Record<UserComputedStatus, { label: string; color: string }> = {
+  active: { label: 'Actif', color: 'bg-emerald-100 text-emerald-800' },
+  pending: { label: 'En attente', color: 'bg-amber-100 text-amber-800' },
+  expired: { label: 'Expiré', color: 'bg-red-100 text-red-800' },
+  not_invited: { label: 'Non invité', color: 'bg-slate-100 text-slate-600' },
+  inactive: { label: 'Désactivé', color: 'bg-slate-200 text-slate-700' },
+}
+
 export function UsersManagementClient({
   initialUsers,
   currentUserId,
@@ -94,7 +103,7 @@ export function UsersManagementClient({
   const router = useRouter()
 
   // State
-  const [users, setUsers] = useState<User[]>(initialUsers)
+  const [users, setUsers] = useState<UserWithStatus[]>(initialUsers)
   const [isLoading, setIsLoading] = useState(false)
   const [impersonatingUserId, setImpersonatingUserId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -106,7 +115,7 @@ export function UsersManagementClient({
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false)
-  const [selectedUser, setSelectedUser] = useState<User | null>(null)
+  const [selectedUser, setSelectedUser] = useState<UserWithStatus | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Form state
@@ -130,9 +139,7 @@ export function UsersManagementClient({
 
       const matchesRole = roleFilter === 'all' || user.role === roleFilter
       const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'active' && user.is_active) ||
-        (statusFilter === 'inactive' && !user.is_active)
+        statusFilter === 'all' || user.computed_status === statusFilter
 
       return matchesSearch && matchesRole && matchesStatus
     })
@@ -142,7 +149,7 @@ export function UsersManagementClient({
   const refreshUsers = async () => {
     setIsLoading(true)
     try {
-      const result = await getAllUsersAction()
+      const result = await getAllUsersWithStatusAction()
       if (result.success && result.data) {
         setUsers(result.data)
       }
@@ -172,17 +179,18 @@ export function UsersManagementClient({
     try {
       const result = await createUserAction(formData as UserInsert)
       if (result.success && result.data) {
-        setUsers(prev => [result.data!, ...prev])
+        // Refetch all users to get computed status
+        await refreshUsers()
         setIsCreateDialogOpen(false)
         resetForm()
         toast({
-          title: 'Utilisateur cree',
-          description: `${result.data.name} a ete ajoute avec succes`,
+          title: 'Utilisateur créé',
+          description: `${result.data.name} a été ajouté avec succès`,
         })
       } else {
         toast({
           title: 'Erreur',
-          description: result.error || 'Impossible de creer l\'utilisateur',
+          description: result.error || 'Impossible de créer l\'utilisateur',
           variant: 'destructive',
         })
       }
@@ -212,15 +220,21 @@ export function UsersManagementClient({
 
       const result = await updateUserAction(selectedUser.id, updates)
       if (result.success && result.data) {
+        // Update locally with preserved computed fields
         setUsers(prev =>
-          prev.map(u => (u.id === selectedUser.id ? result.data! : u))
+          prev.map(u => (u.id === selectedUser.id ? {
+            ...result.data!,
+            computed_status: u.computed_status,
+            last_sign_in_at: u.last_sign_in_at,
+            invitation_status: u.invitation_status,
+          } as UserWithStatus : u))
         )
         setIsEditDialogOpen(false)
         setSelectedUser(null)
         resetForm()
         toast({
-          title: 'Utilisateur modifie',
-          description: `${result.data.name} a ete mis a jour`,
+          title: 'Utilisateur modifié',
+          description: `${result.data.name} a été mis à jour`,
         })
       } else {
         toast({
@@ -282,18 +296,23 @@ export function UsersManagementClient({
       const result = await changeUserRoleAction(selectedUser.id, newRole)
       if (result.success && result.data) {
         setUsers(prev =>
-          prev.map(u => (u.id === selectedUser.id ? result.data! : u))
+          prev.map(u => (u.id === selectedUser.id ? {
+            ...result.data!,
+            computed_status: u.computed_status,
+            last_sign_in_at: u.last_sign_in_at,
+            invitation_status: u.invitation_status,
+          } as UserWithStatus : u))
         )
         setIsRoleDialogOpen(false)
         setSelectedUser(null)
         toast({
-          title: 'Role modifie',
-          description: `Le role de ${result.data.name} a ete change`,
+          title: 'Rôle modifié',
+          description: `Le rôle de ${result.data.name} a été changé`,
         })
       } else {
         toast({
           title: 'Erreur',
-          description: result.error || 'Impossible de changer le role',
+          description: result.error || 'Impossible de changer le rôle',
           variant: 'destructive',
         })
       }
@@ -308,15 +327,16 @@ export function UsersManagementClient({
     }
   }
 
-  // Toggle status
-  const handleToggleStatus = async (user: User) => {
+  // Toggle status (manual activation/deactivation)
+  const handleToggleStatus = async (user: UserWithStatus) => {
     try {
       const result = await toggleUserStatusAction(user.id)
       if (result.success && result.data) {
-        setUsers(prev => prev.map(u => (u.id === user.id ? result.data! : u)))
+        // Refetch to get updated computed status
+        await refreshUsers()
         toast({
-          title: result.data.is_active ? 'Utilisateur active' : 'Utilisateur desactive',
-          description: `${result.data.name} a ete ${result.data.is_active ? 'active' : 'desactive'}`,
+          title: result.data.is_active ? 'Utilisateur activé' : 'Utilisateur désactivé',
+          description: `${result.data.name} a été ${result.data.is_active ? 'activé' : 'désactivé'}`,
         })
       } else {
         toast({
@@ -335,11 +355,11 @@ export function UsersManagementClient({
   }
 
   // Impersonate user
-  const handleImpersonate = async (user: User) => {
+  const handleImpersonate = async (user: UserWithStatus) => {
     if (!user.email) {
       toast({
         title: 'Erreur',
-        description: 'Cet utilisateur n\'a pas d\'email configure',
+        description: 'Cet utilisateur n\'a pas d\'email configuré',
         variant: 'destructive',
       })
       return
@@ -383,7 +403,7 @@ export function UsersManagementClient({
     })
   }
 
-  const openEditDialog = (user: User) => {
+  const openEditDialog = (user: UserWithStatus) => {
     setSelectedUser(user)
     setFormData({
       name: user.name,
@@ -395,13 +415,13 @@ export function UsersManagementClient({
     setIsEditDialogOpen(true)
   }
 
-  const openRoleDialog = (user: User) => {
+  const openRoleDialog = (user: UserWithStatus) => {
     setSelectedUser(user)
     setNewRole(user.role)
     setIsRoleDialogOpen(true)
   }
 
-  const openDeleteDialog = (user: User) => {
+  const openDeleteDialog = (user: UserWithStatus) => {
     setSelectedUser(user)
     setIsDeleteDialogOpen(true)
   }
@@ -421,6 +441,43 @@ export function UsersManagementClient({
       month: '2-digit',
       year: 'numeric',
     })
+  }
+
+  const formatLastLogin = (dateString: string | null) => {
+    if (!dateString) return null
+    
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+    
+    if (diffDays === 0) {
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
+      if (diffHours === 0) {
+        const diffMinutes = Math.floor(diffMs / (1000 * 60))
+        if (diffMinutes < 5) return "À l'instant"
+        return `Il y a ${diffMinutes} min`
+      }
+      return `Il y a ${diffHours}h`
+    }
+    if (diffDays === 1) return 'Hier'
+    if (diffDays < 7) return `Il y a ${diffDays} jours`
+    if (diffDays < 30) return `Il y a ${Math.floor(diffDays / 7)} sem.`
+    
+    return date.toLocaleDateString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+  }
+
+  const getStatusBadge = (status: UserComputedStatus) => {
+    const config = STATUS_CONFIG[status]
+    return (
+      <Badge className={config.color}>
+        {config.label}
+      </Badge>
+    )
   }
 
   return (
@@ -461,7 +518,10 @@ export function UsersManagementClient({
           <SelectContent>
             <SelectItem value="all">Tous</SelectItem>
             <SelectItem value="active">Actifs</SelectItem>
-            <SelectItem value="inactive">Inactifs</SelectItem>
+            <SelectItem value="pending">En attente</SelectItem>
+            <SelectItem value="expired">Expirés</SelectItem>
+            <SelectItem value="not_invited">Non invités</SelectItem>
+            <SelectItem value="inactive">Désactivés</SelectItem>
           </SelectContent>
         </Select>
 
@@ -497,15 +557,16 @@ export function UsersManagementClient({
               <TableHead>Telephone</TableHead>
               <TableHead>Role</TableHead>
               <TableHead>Statut</TableHead>
-              <TableHead>Cree le</TableHead>
+              <TableHead>Dernière connexion</TableHead>
+              <TableHead>Créé le</TableHead>
               <TableHead className="w-[70px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                  Aucun utilisateur trouve
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  Aucun utilisateur trouvé
                 </TableCell>
               </TableRow>
             ) : (
@@ -525,16 +586,16 @@ export function UsersManagementClient({
                   <TableCell>{user.phone || '-'}</TableCell>
                   <TableCell>{getRoleBadge(user.role)}</TableCell>
                   <TableCell>
-                    <Badge
-                      variant={user.is_active ? 'default' : 'secondary'}
-                      className={
-                        user.is_active
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-slate-100 text-slate-600'
-                      }
-                    >
-                      {user.is_active ? 'Actif' : 'Inactif'}
-                    </Badge>
+                    {getStatusBadge(user.computed_status)}
+                  </TableCell>
+                  <TableCell>
+                    {user.computed_status === 'active' && user.last_sign_in_at ? (
+                      <span className="text-sm text-slate-600" title={new Date(user.last_sign_in_at).toLocaleString('fr-FR')}>
+                        {formatLastLogin(user.last_sign_in_at)}
+                      </span>
+                    ) : (
+                      <span className="text-sm text-slate-400">-</span>
+                    )}
                   </TableCell>
                   <TableCell>{formatDate(user.created_at)}</TableCell>
                   <TableCell>
@@ -557,7 +618,7 @@ export function UsersManagementClient({
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => handleImpersonate(user)}
-                          disabled={user.id === currentUserId || !user.email || !user.is_active || impersonatingUserId === user.id}
+                          disabled={user.id === currentUserId || !user.email || user.computed_status !== 'active' || impersonatingUserId === user.id}
                         >
                           {impersonatingUserId === user.id ? (
                             <>

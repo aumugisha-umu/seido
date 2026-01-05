@@ -25,6 +25,16 @@ export default function UpdatePasswordPage() {
   const [error, setError] = useState("")
   const [isValidSession, setIsValidSession] = useState(false)
 
+  // Validation de complexité du mot de passe
+  const passwordRequirements = [
+    { text: "Au moins 8 caractères", met: newPassword.length >= 8 },
+    { text: "Une majuscule", met: /[A-Z]/.test(newPassword) },
+    { text: "Une minuscule", met: /[a-z]/.test(newPassword) },
+    { text: "Un chiffre", met: /\d/.test(newPassword) },
+  ]
+
+  const isPasswordValid = passwordRequirements.every(req => req.met)
+
   const router = useRouter()
 
   useEffect(() => {
@@ -171,8 +181,8 @@ export default function UpdatePasswordPage() {
       return
     }
 
-    if (newPassword.length < 8) {
-      setError("Le mot de passe doit contenir au moins 8 caractères")
+    if (!isPasswordValid) {
+      setError("Le mot de passe ne respecte pas tous les critères requis")
       setIsLoading(false)
       return
     }
@@ -362,9 +372,24 @@ export default function UpdatePasswordPage() {
               )}
             </Button>
           </div>
-          <p className="text-xs text-white/50">
-            Le mot de passe doit contenir au moins 8 caractères
-          </p>
+          
+          {/* Indicateurs de complexité du mot de passe */}
+          {newPassword && (
+            <div className="bg-white/5 border border-white/10 rounded-lg p-3 space-y-2">
+              {passwordRequirements.map((req, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  {req.met ? (
+                    <CheckCircle className="h-4 w-4 text-green-400 flex-shrink-0" />
+                  ) : (
+                    <AlertCircle className="h-4 w-4 text-white/40 flex-shrink-0" />
+                  )}
+                  <span className={`text-xs ${req.met ? 'text-green-400' : 'text-white/60'}`}>
+                    {req.text}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="space-y-2">

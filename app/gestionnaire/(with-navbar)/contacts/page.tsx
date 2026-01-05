@@ -6,6 +6,7 @@ import {
 import { createServerCompanyRepository } from '@/lib/services/repositories/company.repository'
 import { logger } from '@/lib/logger'
 import { getServerAuthContext } from '@/lib/server-context'
+import { buildInvitationStatusMap } from '@/lib/utils/invitation-status'
 
 // ✅ Force dynamic rendering - cette page dépend toujours de la session
 export const dynamic = 'force-dynamic'
@@ -37,18 +38,19 @@ export default async function ContactsPage() {
 
     // ✅ Parallel data fetching (Dashboard pattern)
     let contacts: any[] = []
-    let pendingInvitations: any[] = []
+    let allInvitations: any[] = []
     let companies: any[] = []
 
     const supabase = await createServerSupabaseClient()
 
     const [contactsResult, invitationsResult, companiesResult] = await Promise.allSettled([
       contactService.getContactsByTeam(team.id, undefined, profile.id), // ✅ Exclude current user (using profile.id from users table)
+      // ✅ Fetch ALL invitations (not just pending) for proper status mapping
+      // This ensures expired invitations are correctly detected
       supabase
         .from('user_invitations')
         .select('*')
         .eq('team_id', team.id)
-        .eq('status', 'pending')
         .order('created_at', { ascending: false }),
       companyRepository.findByTeam(team.id)
     ])
@@ -64,8 +66,8 @@ export default async function ContactsPage() {
 
     // Process invitations result
     if (invitationsResult.status === 'fulfilled' && !invitationsResult.value.error) {
-      pendingInvitations = invitationsResult.value.data || []
-      logger.info(`✅ [CONTACTS-PAGE] Loaded ${pendingInvitations.length} invitations`)
+      allInvitations = invitationsResult.value.data || []
+      logger.info(`✅ [CONTACTS-PAGE] Loaded ${allInvitations.length} invitations (all statuses)`)
     } else {
       const errorDetail = invitationsResult.status === 'rejected'
         ? invitationsResult.reason
@@ -89,25 +91,15 @@ export default async function ContactsPage() {
         companiesResult.status === 'rejected' ? companiesResult.reason : 'No data')
     }
 
-    // ✅ Build invitation status map
-    const contactsInvitationStatus: Record<string, string> = {}
+    // ✅ Build invitation status map using unified utility (checks expires_at)
+    // Source of truth: user_invitations table only (no auth_user_id fallback)
+    const contactsInvitationStatus = buildInvitationStatusMap(allInvitations)
 
-    // Map all invitations by email
-    for (const invitation of pendingInvitations) {
-      if (invitation.email) {
-        contactsInvitationStatus[invitation.email.toLowerCase()] = invitation.status || 'pending'
-      }
-    }
+    // ✅ Filter pending invitations for the Invitations tab display
+    // Note: The utility already checks expires_at, but for the tab we want DB status='pending'
+    const pendingInvitations = allInvitations.filter((inv: any) => inv.status === 'pending')
 
-    // Also check contacts with user_id (they have accounts)
-    for (const contact of contacts) {
-      if (contact.email && contact.user_id) {
-        // Contact has an active account
-        contactsInvitationStatus[contact.email.toLowerCase()] = 'accepted'
-      }
-    }
-
-    logger.info(`📊 [CONTACTS-PAGE] Server data ready - Contacts: ${contacts.length}, Invitations: ${pendingInvitations.length}, Companies: ${companies.length}`)
+    logger.info(`📊 [CONTACTS-PAGE] Server data ready - Contacts: ${contacts.length}, All Invitations: ${allInvitations.length}, Pending: ${pendingInvitations.length}, Companies: ${companies.length}`)
 
     // ✅ Pass data to Client Component
     return (

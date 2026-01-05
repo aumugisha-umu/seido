@@ -2,9 +2,23 @@
 
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Mail, Phone, MapPin, Building2 } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Mail, Phone, MapPin, Building2, MoreVertical } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import type { ActionConfig } from '@/components/ui/data-table/types'
+import {
+    getContactTypeLabel,
+    getContactTypeBadgeStyle,
+    getSpecialityLabel,
+    getSpecialityBadgeStyle
+} from '@/config/table-configs/contacts.config'
 
 interface ContactCardCompactProps {
     contact: {
@@ -23,14 +37,33 @@ interface ContactCardCompactProps {
             id: string
             name: string
         } | null
+        invitationStatus?: string
     }
     invitationStatus?: string
     isCurrentUser?: boolean
     onClick?: () => void
+    /**
+     * Display variant:
+     * - 'default': Full card with all details (email, phone, address)
+     * - 'inline': Compact inline style without address, smaller padding (for embedded lists)
+     */
+    variant?: 'default' | 'inline'
+    /**
+     * Optional actions to display in a dropdown menu
+     */
+    actions?: ActionConfig<any>[]
 }
 
-export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, onClick }: ContactCardCompactProps) {
+export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, onClick, variant = 'default', actions = [] }: ContactCardCompactProps) {
     const router = useRouter()
+    const isInline = variant === 'inline'
+
+    // Filter visible actions based on show predicate
+    const getVisibleActions = () => {
+        return actions.filter(action => !action.show || action.show(contact))
+    }
+
+    const visibleActions = getVisibleActions()
 
     const handleCardClick = () => {
         if (onClick) {
@@ -38,58 +71,6 @@ export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, o
         } else {
             router.push(`/gestionnaire/contacts/details/${contact.id}`)
         }
-    }
-
-    const getContactTypeLabel = () => {
-        if (!contact.role) return 'Non défini'
-
-        const types: Record<string, string> = {
-            // English values (expected)
-            'tenant': 'Locataire',
-            'owner': 'Propriétaire',
-            'provider': 'Prestataire',
-            'manager': 'Gestionnaire',
-            'other': 'Autre',
-            // French values (fallback for legacy data)
-            'locataire': 'Locataire',
-            'proprietaire': 'Propriétaire',
-            'prestataire': 'Prestataire',
-            'gestionnaire': 'Gestionnaire',
-            'autre': 'Autre'
-        }
-        return types[contact.role] || 'Non défini'
-    }
-
-    const getContactTypeBadgeStyle = () => {
-        const styles: Record<string, string> = {
-            // English values (expected)
-            'tenant': 'bg-blue-100 text-blue-800',
-            'owner': 'bg-emerald-100 text-emerald-800',
-            'provider': 'bg-green-100 text-green-800',
-            'manager': 'bg-purple-100 text-purple-800',
-            'other': 'bg-gray-100 text-gray-600',
-            // French values (fallback for legacy data)
-            'locataire': 'bg-blue-100 text-blue-800',
-            'proprietaire': 'bg-emerald-100 text-emerald-800',
-            'prestataire': 'bg-green-100 text-green-800',
-            'gestionnaire': 'bg-purple-100 text-purple-800',
-            'autre': 'bg-gray-100 text-gray-600'
-        }
-        return styles[contact.role || 'other'] || 'bg-gray-100 text-gray-600'
-    }
-
-    const getSpecialityLabel = (speciality: string) => {
-        const specialities: Record<string, string> = {
-            'plomberie': 'Plomberie',
-            'electricite': 'Électricité',
-            'chauffage': 'Chauffage',
-            'serrurerie': 'Serrurerie',
-            'peinture': 'Peinture',
-            'menage': 'Ménage',
-            'jardinage': 'Jardinage',
-            'autre': 'Autre'
-        }
-        return specialities[speciality] || speciality
     }
 
     const getInvitationBadge = () => {
@@ -118,9 +99,11 @@ export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, o
         <Card
             className={cn(
                 blockClass,
-                "p-4 flex flex-col h-full cursor-pointer",
+                "flex flex-col cursor-pointer",
+                // Variant-specific padding and sizing
+                isInline ? "p-2.5" : "p-4 h-full",
                 // Hover
-                "hover:shadow-md hover:border-primary/30",
+                isInline ? "hover:bg-muted" : "hover:shadow-md hover:border-primary/30",
                 // Transition
                 "transition-all duration-200",
                 // Focus visible (WCAG 2.1 AA)
@@ -140,18 +123,19 @@ export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, o
             }}
         >
             {/* Header avec avatar, nom et badges */}
-            <div className={cn(`${blockClass}__header`, "flex items-start gap-2 mb-2")}>
+            <div className={cn(`${blockClass}__header`, "flex items-start gap-2", !isInline && "mb-2")}>
                 <div className={cn(
                     `${blockClass}__avatar`,
-                    "w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0"
+                    "bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0",
+                    isInline ? "w-8 h-8" : "w-9 h-9"
                 )}>
-                    <span className="text-blue-600 font-semibold text-sm">
+                    <span className={cn("text-blue-600 font-semibold", isInline ? "text-xs" : "text-sm")}>
                         {contact.name?.charAt(0)?.toUpperCase() || '?'}
                     </span>
                 </div>
                 <div className={cn(`${blockClass}__info`, "flex-1 min-w-0")}>
                     <div className="flex items-center gap-1.5 flex-wrap">
-                        <h3 className={cn(`${blockClass}__name`, "font-medium text-slate-900 text-base truncate")}>
+                        <h3 className={cn(`${blockClass}__name`, "font-medium text-slate-900 truncate", isInline ? "text-sm" : "text-base")}>
                             {contact.name}
                         </h3>
                         {contact.role && (
@@ -159,14 +143,14 @@ export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, o
                                 variant="secondary"
                                 className={cn(
                                     `${blockClass}__role`,
-                                    getContactTypeBadgeStyle(),
+                                    getContactTypeBadgeStyle(contact.role),
                                     "text-xs font-medium"
                                 )}
                             >
-                                {getContactTypeLabel()}
+                                {getContactTypeLabel(contact.role)}
                             </Badge>
                         )}
-                        {contact.company && (
+                        {!isInline && contact.company && (
                             <Badge variant="secondary" className={cn(
                                 `${blockClass}__company`,
                                 "bg-purple-100 text-purple-800 text-xs flex items-center gap-1"
@@ -183,8 +167,8 @@ export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, o
                                 Vous
                             </Badge>
                         )}
-                        {getInvitationBadge()}
-                        {!contact.is_company && contact.companyLegacy && (
+                        {!isInline && getInvitationBadge()}
+                        {!isInline && !contact.is_company && contact.companyLegacy && (
                             <Badge variant="secondary" className={cn(
                                 `${blockClass}__company-legacy`,
                                 "bg-gray-100 text-gray-800 text-xs"
@@ -192,37 +176,82 @@ export function ContactCardCompact({ contact, invitationStatus, isCurrentUser, o
                                 {contact.companyLegacy}
                             </Badge>
                         )}
-                        {contact.speciality && (
+                        {!isInline && contact.speciality && (
                             <Badge variant="secondary" className={cn(
                                 `${blockClass}__speciality`,
-                                "bg-green-100 text-green-800 text-xs"
+                                getSpecialityBadgeStyle(contact.speciality),
+                                "text-xs"
                             )}>
                                 {getSpecialityLabel(contact.speciality)}
                             </Badge>
                         )}
                     </div>
+                    {/* Inline variant: show email directly under name */}
+                    {isInline && (
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            {contact.email}
+                        </p>
+                    )}
                 </div>
+
+                {/* Actions dropdown menu */}
+                {!isInline && visibleActions.length > 0 && (
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                className="h-8 w-8 p-0 flex-shrink-0"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <span className="sr-only">Ouvrir le menu</span>
+                                <MoreVertical className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            {visibleActions.map((action) => {
+                                const Icon = action.icon
+                                return (
+                                    <DropdownMenuItem
+                                        key={action.id}
+                                        onClick={(e) => {
+                                            e.stopPropagation()
+                                            action.onClick(contact)
+                                        }}
+                                        className={cn(
+                                            action.variant === 'destructive' && "text-red-600 focus:text-red-600"
+                                        )}
+                                    >
+                                        {Icon && <Icon className="mr-2 h-4 w-4" />}
+                                        <span>{action.label}</span>
+                                    </DropdownMenuItem>
+                                )
+                            })}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                )}
             </div>
 
-            {/* Détails */}
-            <div className={cn(`${blockClass}__details`, "space-y-1.5 text-sm text-slate-600 flex-1")}>
-                <div className={cn(`${blockClass}__detail`, "flex items-center gap-2")}>
-                    <Mail className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                    <span className="truncate">{contact.email}</span>
-                </div>
-                {contact.phone && (
+            {/* Détails - only show in default variant */}
+            {!isInline && (
+                <div className={cn(`${blockClass}__details`, "space-y-1.5 text-sm text-slate-600 flex-1")}>
                     <div className={cn(`${blockClass}__detail`, "flex items-center gap-2")}>
-                        <Phone className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                        <span>{contact.phone}</span>
+                        <Mail className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                        <span className="truncate">{contact.email}</span>
                     </div>
-                )}
-                {!contact.is_company && contact.address && (
-                    <div className={cn(`${blockClass}__detail`, "flex items-start gap-2")}>
-                        <MapPin className="h-4 w-4 text-slate-400 flex-shrink-0 mt-0.5" />
-                        <span className="text-slate-500 line-clamp-2">{contact.address}</span>
-                    </div>
-                )}
-            </div>
+                    {contact.phone && (
+                        <div className={cn(`${blockClass}__detail`, "flex items-center gap-2")}>
+                            <Phone className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                            <span>{contact.phone}</span>
+                        </div>
+                    )}
+                    {!contact.is_company && contact.address && (
+                        <div className={cn(`${blockClass}__detail`, "flex items-start gap-2")}>
+                            <MapPin className="h-4 w-4 text-slate-400 flex-shrink-0 mt-0.5" />
+                            <span className="text-slate-500 line-clamp-2">{contact.address}</span>
+                        </div>
+                    )}
+                </div>
+            )}
         </Card>
     )
 }

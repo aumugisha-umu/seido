@@ -9,6 +9,7 @@
 
 import { createServerActionSupabaseClient } from '@/lib/services/core/supabase-client'
 import { logger } from '@/lib/logger'
+import { buildInvitationStatusMap } from '@/lib/utils/invitation-status'
 
 /**
  * Get team contacts - Server Action (optimized)
@@ -30,11 +31,13 @@ export async function getTeamContactsAction(teamId: string) {
     // Create server-side Supabase client (faster RLS evaluation)
     const supabase = await createServerActionSupabaseClient()
 
-    // Optimized query: essential columns + company data
-    const { data, error } = await supabase
-      .from('team_members')
-      .select(`
-        user:user_id (
+    // Parallel fetch: contacts + invitations
+    const [contactsResult, invitationsResult] = await Promise.all([
+      // Contacts query - utilise users directement (comme la page Contacts)
+      // Cela garantit que les emails matchent avec les invitations
+      supabase
+        .from('users')
+        .select(`
           id,
           name,
           email,
@@ -44,27 +47,52 @@ export async function getTeamContactsAction(teamId: string) {
           speciality,
           is_company,
           company_id,
+          auth_user_id,
           company:company_id (
             id,
             name,
             vat_number
           )
-        )
-      `)
-      .eq('team_id', teamId)
-      .is('left_at', null)  // Only active members
-      .order('joined_at', { ascending: false })
+        `)
+        .eq('team_id', teamId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false }),
 
-    if (error) {
-      logger.error('[SERVER-ACTION] Error fetching team contacts:', error)
-      throw new Error(`Failed to fetch team contacts: ${error.message}`)
+      // Invitations query - récupérer TOUTES les invitations pour mapper le statut complet
+      // Note: Contacts page only fetches pending, but we fetch all to match the mapping logic
+      supabase
+        .from('user_invitations')
+        .select('email, status, expires_at, created_at')
+        .eq('team_id', teamId)
+        .order('created_at', { ascending: false })
+    ])
+
+    if (contactsResult.error) {
+      logger.error('[SERVER-ACTION] Error fetching team contacts:', contactsResult.error)
+      throw new Error(`Failed to fetch team contacts: ${contactsResult.error.message}`)
     }
 
-    // Extract users and filter out nulls
-    const contacts = data?.map(tm => tm.user).filter(Boolean) || []
+    // ✅ Build invitation status map using unified utility
+    // This function checks expires_at for pending invitations and returns 'expired' if needed
+    // Source of truth: user_invitations table only (no auth_user_id fallback)
+    const invitationStatusMap = !invitationsResult.error && invitationsResult.data
+      ? buildInvitationStatusMap(invitationsResult.data)
+      : {}
+
+    // Add invitationStatus to each contact
+    // Source of truth: user_invitations table only
+    const contacts = (contactsResult.data || []).map((contact: any) => {
+      const emailLower = contact.email?.toLowerCase()
+      const invitationStatus = emailLower ? invitationStatusMap[emailLower] || null : null
+
+      return {
+        ...contact,
+        invitationStatus
+      }
+    })
 
     const loadTime = Date.now() - startTime
-    logger.info(`[SERVER-ACTION] Fetched ${contacts.length} contacts in ${loadTime}ms`)
+    logger.info(`[SERVER-ACTION] Fetched ${contacts.length} contacts with invitation status in ${loadTime}ms`)
 
     return {
       success: true as const,

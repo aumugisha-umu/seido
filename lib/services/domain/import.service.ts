@@ -4,18 +4,24 @@
  */
 
 import { logger } from '@/lib/logger';
+import { createServerSupabaseClient } from '@/lib/services/core/supabase-client';
 import type {
   ParsedData,
   ParsedBuilding,
   ParsedLot,
   ParsedContact,
   ParsedContract,
+  ParsedCompany,
   ImportResult,
   ImportRowError,
   ImportCreatedIds,
   ImportSummary,
   ImportOptions,
   ValidationResult,
+  CreatedContactInfo,
+  ImportProgressCallback,
+  ImportProgressEvent,
+  ImportPhase,
 } from '@/lib/import/types';
 import { ERROR_MESSAGES, SHEET_NAMES } from '@/lib/import/constants';
 import { validateAllData } from '@/lib/import/validators';
@@ -42,7 +48,14 @@ import {
   createServerActionContractRepository,
   createServerActionContractContactRepository,
 } from '../repositories/contract.repository';
+import {
+  CompanyRepository,
+  createServerActionCompanyRepository,
+} from '../repositories/company.repository';
 import type { BuildingInsert, LotInsert, UserInsert } from '../core/service-types';
+import type { Database } from '@/lib/database.types';
+
+type CompanyInsert = Database['public']['Tables']['companies']['Insert'];
 import type { ContractInsert, ContractContactInsert } from '@/lib/types/contract.types';
 
 // ============================================================================
@@ -56,7 +69,8 @@ export class ImportService {
     private userRepo: UserRepository,
     private importJobRepo: ImportJobRepository,
     private contractRepo: ContractRepository,
-    private contractContactRepo: ContractContactRepository
+    private contractContactRepo: ContractContactRepository,
+    private companyRepo: CompanyRepository
   ) {}
 
   /**
@@ -74,6 +88,7 @@ export class ImportService {
       lotsCount: parsedData.lots.length,
       contactsCount: parsedData.contacts.length,
       contractsCount: parsedData.contracts.length,
+      companiesCount: parsedData.companies.length,
     });
 
     // Run validators
@@ -83,6 +98,7 @@ export class ImportService {
       lots: { name: SHEET_NAMES.LOTS, headers: [], rows: parsedData.lots as unknown as never[], rawRows: [] },
       contacts: { name: SHEET_NAMES.CONTACTS, headers: [], rows: parsedData.contacts as unknown as never[], rawRows: [] },
       contracts: { name: SHEET_NAMES.CONTRACTS, headers: [], rows: parsedData.contracts as unknown as never[], rawRows: [] },
+      companies: { name: SHEET_NAMES.COMPANIES, headers: [], rows: parsedData.companies as unknown as never[], rawRows: [] },
     });
 
     // Additional database validation
@@ -167,12 +183,59 @@ export class ImportService {
    * Execute the full import
    * Order: Contacts → Buildings → Lots → Contracts
    */
+  /**
+   * Execute the import with optional progress callback for streaming
+   * @param data - Parsed data to import
+   * @param options - Import options
+   * @param onProgress - Optional callback called after each phase completes
+   */
   async executeImport(
     data: ParsedData,
-    options: ImportOptions
+    options: ImportOptions,
+    onProgress?: ImportProgressCallback
   ): Promise<ImportResult> {
     const startTime = Date.now();
     const { teamId, userId, dryRun } = options;
+
+    // Phase labels for progress reporting
+    const PHASE_LABELS: Record<ImportPhase, string> = {
+      companies: 'Création des sociétés',
+      contacts: 'Création des contacts',
+      buildings: 'Création des immeubles',
+      lots: 'Création des lots',
+      contracts: 'Création des baux',
+      completed: 'Import terminé',
+    };
+
+    // Helper to emit progress
+    const emitProgress = (
+      phase: ImportPhase,
+      phaseIndex: number,
+      phaseCount: number,
+      phaseCreated: number,
+      phaseUpdated: number,
+      phaseErrors: number
+    ) => {
+      if (!onProgress) return;
+
+      const totalPhases = 5;
+      const totalProgress = Math.round(((phaseIndex + 1) / totalPhases) * 100);
+
+      const event: ImportProgressEvent = {
+        phase,
+        phaseIndex,
+        totalPhases,
+        phaseName: PHASE_LABELS[phase],
+        phaseCount,
+        phaseCreated,
+        phaseUpdated,
+        phaseErrors,
+        totalProgress: phase === 'completed' ? 100 : totalProgress,
+        isComplete: phase === 'completed',
+      };
+
+      onProgress(event);
+    };
 
     logger.info('[IMPORT-SERVICE] Starting import', {
       teamId,
@@ -195,7 +258,8 @@ export class ImportService {
           data.buildings.length +
           data.lots.length +
           data.contacts.length +
-          data.contracts.length,
+          data.contracts.length +
+          data.companies.length,
         metadata: {
           import_mode: options.mode,
           error_mode: options.errorMode,
@@ -204,6 +268,7 @@ export class ImportService {
             lots: data.lots.length,
             contacts: data.contacts.length,
             contracts: data.contracts.length,
+            companies: data.companies.length,
           },
         },
       });
@@ -277,32 +342,54 @@ export class ImportService {
       lots: [],
       contacts: [],
       contracts: [],
+      companies: [],
     };
     const updated: ImportCreatedIds = {
       buildings: [],
       lots: [],
       contacts: [],
       contracts: [],
+      companies: [],
     };
 
     try {
-      // 1. Import Contacts first (no dependencies)
-      logger.info('[IMPORT-SERVICE] Step 1: Importing contacts...', { count: data.contacts.length });
-      const contactResult = await this.importContacts(data.contacts, teamId);
+      // 1. Import Companies first (no dependencies)
+      logger.info('[IMPORT-SERVICE] Step 1: Importing companies...', { count: data.companies.length });
+      const companyResult = await this.importCompanies(data.companies, teamId);
+      logger.info('[IMPORT-SERVICE] Companies imported', {
+        created: companyResult.created.length,
+        updated: companyResult.updated.length,
+        errors: companyResult.errors.length,
+      });
+      if (companyResult.errors.length > 0) {
+        errors.push(...companyResult.errors);
+      }
+      created.companies = companyResult.created;
+      updated.companies = companyResult.updated;
+      // Emit progress after companies
+      emitProgress('companies', 0, data.companies.length, companyResult.created.length, companyResult.updated.length, companyResult.errors.length);
+
+      // 2. Import Contacts (depends on companies for linking)
+      logger.info('[IMPORT-SERVICE] Step 2: Importing contacts...', { count: data.contacts.length });
+      const contactResult = await this.importContacts(data.contacts, teamId, companyResult.nameToId);
       logger.info('[IMPORT-SERVICE] Contacts imported', {
         created: contactResult.created.length,
         updated: contactResult.updated.length,
         errors: contactResult.errors.length,
+        contactsWithInfo: contactResult.createdContactsInfo.length,
       });
       if (contactResult.errors.length > 0) {
         errors.push(...contactResult.errors);
       }
       created.contacts = contactResult.created;
       updated.contacts = contactResult.updated;
+      const createdContactsInfo = contactResult.createdContactsInfo;
+      // Emit progress after contacts
+      emitProgress('contacts', 1, data.contacts.length, contactResult.created.length, contactResult.updated.length, contactResult.errors.length);
 
-      // 2. Import Buildings (no dependencies)
-      logger.info('[IMPORT-SERVICE] Step 2: Importing buildings...', { count: data.buildings.length });
-      const buildingResult = await this.importBuildings(data.buildings, teamId);
+      // 3. Import Buildings (no dependencies)
+      logger.info('[IMPORT-SERVICE] Step 3: Importing buildings...', { count: data.buildings.length });
+      const buildingResult = await this.importBuildings(data.buildings, teamId, userId);
       logger.info('[IMPORT-SERVICE] Buildings imported', {
         created: buildingResult.created.length,
         updated: buildingResult.updated.length,
@@ -313,10 +400,12 @@ export class ImportService {
       }
       created.buildings = buildingResult.created;
       updated.buildings = buildingResult.updated;
+      // Emit progress after buildings
+      emitProgress('buildings', 2, data.buildings.length, buildingResult.created.length, buildingResult.updated.length, buildingResult.errors.length);
 
-      // 3. Import Lots (depends on buildings)
-      logger.info('[IMPORT-SERVICE] Step 3: Importing lots...', { count: data.lots.length });
-      const lotResult = await this.importLots(data.lots, teamId, buildingResult.nameToId);
+      // 4. Import Lots (depends on buildings)
+      logger.info('[IMPORT-SERVICE] Step 4: Importing lots...', { count: data.lots.length });
+      const lotResult = await this.importLots(data.lots, teamId, userId, buildingResult.nameToId);
       logger.info('[IMPORT-SERVICE] Lots imported', {
         created: lotResult.created.length,
         updated: lotResult.updated.length,
@@ -327,9 +416,11 @@ export class ImportService {
       }
       created.lots = lotResult.created;
       updated.lots = lotResult.updated;
+      // Emit progress after lots
+      emitProgress('lots', 3, data.lots.length, lotResult.created.length, lotResult.updated.length, lotResult.errors.length);
 
-      // 4. Import Contracts (depends on lots and contacts)
-      logger.info('[IMPORT-SERVICE] Step 4: Importing contracts...', { count: data.contracts.length });
+      // 5. Import Contracts (depends on lots and contacts)
+      logger.info('[IMPORT-SERVICE] Step 5: Importing contracts...', { count: data.contracts.length });
       const contractResult = await this.importContracts(
         data.contracts,
         teamId,
@@ -347,6 +438,8 @@ export class ImportService {
       }
       created.contracts = contractResult.created;
       updated.contracts = contractResult.updated;
+      // Emit progress after contracts
+      emitProgress('contracts', 4, data.contracts.length, contractResult.created.length, contractResult.updated.length, contractResult.errors.length);
 
       // All-or-nothing: if errors and mode is all_or_nothing, rollback
       if (errors.length > 0 && options.errorMode === 'all_or_nothing') {
@@ -379,10 +472,12 @@ export class ImportService {
           (created.lots?.length || 0) +
           (created.contacts?.length || 0) +
           (created.contracts?.length || 0) +
+          (created.companies?.length || 0) +
           (updated.buildings?.length || 0) +
           (updated.lots?.length || 0) +
           (updated.contacts?.length || 0) +
-          (updated.contracts?.length || 0),
+          (updated.contracts?.length || 0) +
+          (updated.companies?.length || 0),
         error_count: errors.length,
         completed_at: new Date().toISOString(),
       });
@@ -396,6 +491,9 @@ export class ImportService {
         errorCount: errors.length,
       });
 
+      // Emit final completed event
+      emitProgress('completed', 5, 0, 0, 0, errors.length);
+
       return {
         success: errors.length === 0,
         jobId,
@@ -403,6 +501,7 @@ export class ImportService {
         updated,
         errors,
         summary: this.createSummary(created, updated, errors, duration),
+        createdContacts: createdContactsInfo,
       };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -457,27 +556,53 @@ export class ImportService {
    */
   private async importContacts(
     contacts: ParsedContact[],
-    teamId: string
+    teamId: string,
+    companyNameToId: Map<string, string>
   ): Promise<{
     created: string[];
     updated: string[];
     errors: ImportRowError[];
     emailToId: Map<string, string>;
+    createdContactsInfo: CreatedContactInfo[];
   }> {
     const errors: ImportRowError[] = [];
     const emailToId = new Map<string, string>();
+    const createdContactsInfo: CreatedContactInfo[] = [];
 
-    // Convert to UserInsert format
-    const usersToImport: (UserInsert & { _rowIndex: number })[] = contacts.map((c) => ({
-      name: c.name,
-      email: c.email || null,
-      phone: c.phone,
-      role: c.role as 'locataire' | 'prestataire' | 'proprietaire',
-      address: c.address,
-      speciality: c.speciality,
-      notes: c.notes,
-      _rowIndex: c._rowIndex,
-    }));
+    // Resolve company references and convert to UserInsert format
+    const usersToImport: (UserInsert & { _rowIndex: number; _companyId?: string })[] = contacts.map((c) => {
+      let companyId: string | undefined;
+
+      // Resolve company_name to company_id
+      if (c.company_name) {
+        const normalizedName = c.company_name.toLowerCase().trim();
+        companyId = companyNameToId.get(normalizedName);
+
+        if (!companyId) {
+          errors.push({
+            row: c._rowIndex + 2,
+            sheet: SHEET_NAMES.CONTACTS,
+            field: 'company_name',
+            value: c.company_name,
+            message: ERROR_MESSAGES.REFERENCE_NOT_FOUND('Société', c.company_name),
+            code: 'REFERENCE_NOT_FOUND',
+          });
+        }
+      }
+
+      return {
+        name: c.name,
+        email: c.email || null,
+        phone: c.phone,
+        role: c.role as 'locataire' | 'prestataire' | 'proprietaire',
+        address: c.address,
+        speciality: c.speciality,
+        notes: c.notes,
+        company_id: companyId || null,
+        _rowIndex: c._rowIndex,
+        _companyId: companyId,
+      };
+    });
 
     const result = await this.userRepo.upsertMany(usersToImport, teamId);
 
@@ -490,17 +615,27 @@ export class ImportService {
         message: result.error.message,
         code: 'UNKNOWN',
       });
-      return { created: [], updated: [], errors, emailToId };
+      return { created: [], updated: [], errors, emailToId, createdContactsInfo };
     }
 
-    // Build email to ID map for contract linking
+    // Build email to ID map for contract linking AND collect created contact info
     for (const contact of contacts) {
       if (contact.email) {
         const userResult = await this.userRepo.findByEmailInTeam(contact.email, teamId);
         if (userResult.success && userResult.data) {
           emailToId.set(contact.email.toLowerCase(), userResult.data.id);
+
+          // Store contact info for invitation step
+          createdContactsInfo.push({
+            id: userResult.data.id,
+            name: contact.name,
+            email: contact.email,
+            role: contact.role,
+          });
         }
       }
+      // Contacts without email are not added to createdContactsInfo
+      // since they cannot receive invitations anyway
     }
 
     return {
@@ -508,7 +643,109 @@ export class ImportService {
       updated: result.updated,
       errors,
       emailToId,
+      createdContactsInfo,
     };
+  }
+
+  /**
+   * Import companies
+   */
+  private async importCompanies(
+    companies: ParsedCompany[],
+    teamId: string
+  ): Promise<{
+    created: string[];
+    updated: string[];
+    errors: ImportRowError[];
+    nameToId: Map<string, string>;
+  }> {
+    const errors: ImportRowError[] = [];
+    const nameToId = new Map<string, string>();
+
+    if (companies.length === 0) {
+      return { created: [], updated: [], errors, nameToId };
+    }
+
+    // Convert to CompanyInsert format
+    const companiesToImport: CompanyInsert[] = companies.map((c) => ({
+      name: c.name,
+      legal_name: c.legal_name || null,
+      vat_number: c.vat_number || null,
+      street: c.street || null,
+      street_number: c.street_number || null,
+      postal_code: c.postal_code || null,
+      city: c.city || null,
+      country: this.normalizeCountryCode(c.country),
+      email: c.email || null,
+      phone: c.phone || null,
+      website: c.website || null,
+      team_id: teamId,
+      is_active: true,
+    }));
+
+    const result = await this.companyRepo.upsertMany(companiesToImport, teamId);
+
+    if (!result.success) {
+      errors.push({
+        row: 0,
+        sheet: SHEET_NAMES.COMPANIES,
+        field: '',
+        value: '',
+        message: result.error.message,
+        code: 'UNKNOWN',
+      });
+      return { created: [], updated: [], errors, nameToId };
+    }
+
+    // Build name to ID map for contact linking
+    for (const company of companies) {
+      const companyResult = await this.companyRepo.findByNameAndTeam(company.name, teamId);
+      if (companyResult.success && companyResult.data) {
+        nameToId.set(company.name.toLowerCase().trim(), companyResult.data.id);
+      }
+    }
+
+    logger.info('[IMPORT-SERVICE] Companies imported with name map', {
+      created: result.created.length,
+      updated: result.updated.length,
+      nameMapSize: nameToId.size,
+    });
+
+    return {
+      created: result.created,
+      updated: result.updated,
+      errors,
+      nameToId,
+    };
+  }
+
+  /**
+   * Normalize country name to ISO code for company table
+   */
+  private normalizeCountryCode(country?: string): string {
+    if (!country) return 'BE';
+
+    const mappings: Record<string, string> = {
+      'belgique': 'BE',
+      'belgium': 'BE',
+      'be': 'BE',
+      'france': 'FR',
+      'fr': 'FR',
+      'suisse': 'CH',
+      'switzerland': 'CH',
+      'ch': 'CH',
+      'luxembourg': 'LU',
+      'lu': 'LU',
+      'allemagne': 'DE',
+      'germany': 'DE',
+      'de': 'DE',
+      'pays-bas': 'NL',
+      'netherlands': 'NL',
+      'nl': 'NL',
+    };
+
+    const normalized = country.toLowerCase().trim();
+    return mappings[normalized] || 'BE';
   }
 
   /**
@@ -516,7 +753,8 @@ export class ImportService {
    */
   private async importBuildings(
     buildings: ParsedBuilding[],
-    teamId: string
+    teamId: string,
+    userId: string
   ): Promise<{
     created: string[];
     updated: string[];
@@ -551,14 +789,36 @@ export class ImportService {
       return { created: [], updated: [], errors, nameToId };
     }
 
-    // Build name to ID map for lot linking
+    // Build name to ID map for lot linking AND assign gestionnaire as contact
+    const supabase = await createServerSupabaseClient();
     for (const building of buildings) {
       const buildingResult = await this.buildingRepo.findByNameAndTeam(
         building.name,
         teamId
       );
       if (buildingResult.success && buildingResult.data) {
-        nameToId.set(building.name.toLowerCase().trim(), buildingResult.data.id);
+        const buildingId = buildingResult.data.id;
+        nameToId.set(building.name.toLowerCase().trim(), buildingId);
+
+        // Assign the importing gestionnaire as primary contact for this building
+        if (userId) {
+          const { error: contactError } = await supabase
+            .from('building_contacts')
+            .upsert({
+              building_id: buildingId,
+              user_id: userId,
+              role: 'gestionnaire',
+              is_primary: true,
+            }, { onConflict: 'building_id,user_id' });
+
+          if (contactError) {
+            logger.warn('[IMPORT-SERVICE] Failed to assign gestionnaire to building', {
+              buildingId,
+              userId,
+              error: contactError.message,
+            });
+          }
+        }
       }
     }
 
@@ -576,6 +836,7 @@ export class ImportService {
   private async importLots(
     lots: ParsedLot[],
     teamId: string,
+    userId: string,
     buildingNameToId: Map<string, string>
   ): Promise<{
     created: string[];
@@ -645,11 +906,34 @@ export class ImportService {
       return { created: [], updated: [], errors, referenceToId };
     }
 
-    // Build reference to ID map for contract linking
+    // Build reference to ID map for contract linking AND assign gestionnaire to independent lots
+    const supabase = await createServerSupabaseClient();
     for (const lot of lots) {
       const lotResult = await this.lotRepo.findByReferenceAndTeam(lot.reference, teamId);
       if (lotResult.success && lotResult.data) {
-        referenceToId.set(lot.reference.toLowerCase().trim(), lotResult.data.id);
+        const lotId = lotResult.data.id;
+        referenceToId.set(lot.reference.toLowerCase().trim(), lotId);
+
+        // For INDEPENDENT lots (no building), assign the gestionnaire as primary contact
+        // Lots in buildings inherit the gestionnaire via building_contacts
+        if (userId && !lot.building_name) {
+          const { error: contactError } = await supabase
+            .from('lot_contacts')
+            .upsert({
+              lot_id: lotId,
+              user_id: userId,
+              role: 'gestionnaire',
+              is_primary: true,
+            }, { onConflict: 'lot_id,user_id' });
+
+          if (contactError) {
+            logger.warn('[IMPORT-SERVICE] Failed to assign gestionnaire to independent lot', {
+              lotId,
+              userId,
+              error: contactError.message,
+            });
+          }
+        }
       }
     }
 
@@ -864,6 +1148,7 @@ export class ImportService {
       lots: { created: 0, updated: 0, failed: 0 },
       contacts: { created: 0, updated: 0, failed: 0 },
       contracts: { created: 0, updated: 0, failed: 0 },
+      companies: { created: 0, updated: 0, failed: 0 },
       totalProcessed: 0,
       totalSuccess: 0,
       totalFailed: 0,
@@ -884,6 +1169,7 @@ export class ImportService {
     const lotErrors = errors.filter((e) => e.sheet === SHEET_NAMES.LOTS).length;
     const contactErrors = errors.filter((e) => e.sheet === SHEET_NAMES.CONTACTS).length;
     const contractErrors = errors.filter((e) => e.sheet === SHEET_NAMES.CONTRACTS).length;
+    const companyErrors = errors.filter((e) => e.sheet === SHEET_NAMES.COMPANIES).length;
 
     const summary: ImportSummary = {
       buildings: {
@@ -906,6 +1192,11 @@ export class ImportService {
         updated: updated.contracts?.length || 0,
         failed: contractErrors,
       },
+      companies: {
+        created: created.companies?.length || 0,
+        updated: updated.companies?.length || 0,
+        failed: companyErrors,
+      },
       totalProcessed: 0,
       totalSuccess: 0,
       totalFailed: errors.length,
@@ -920,7 +1211,9 @@ export class ImportService {
       summary.contacts.created +
       summary.contacts.updated +
       summary.contracts.created +
-      summary.contracts.updated;
+      summary.contracts.updated +
+      summary.companies.created +
+      summary.companies.updated;
 
     summary.totalProcessed = summary.totalSuccess + summary.totalFailed;
 
@@ -939,6 +1232,7 @@ export const createServerActionImportService = async () => {
   const importJobRepo = await createServerActionImportJobRepository();
   const contractRepo = await createServerActionContractRepository();
   const contractContactRepo = await createServerActionContractContactRepository();
+  const companyRepo = await createServerActionCompanyRepository();
 
-  return new ImportService(buildingRepo, lotRepo, userRepo, importJobRepo, contractRepo, contractContactRepo);
+  return new ImportService(buildingRepo, lotRepo, userRepo, importJobRepo, contractRepo, contractContactRepo, companyRepo);
 };

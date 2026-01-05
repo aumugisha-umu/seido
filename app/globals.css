@@ -328,6 +328,7 @@ input[autocomplete="cc-number"],
 .header__nav {
   @apply flex items-center justify-between;
   height: var(--header-height-desktop);
+  gap: 0.5rem;
 }
 
 .header__logo {
@@ -338,7 +339,7 @@ input[autocomplete="cc-number"],
 }
 
 .header__logo-image {
-  @apply h-10 w-auto hover:opacity-80 transition-opacity duration-200;
+  @apply h-8 sm:h-10 w-auto hover:opacity-80 transition-opacity duration-200;
 }
 
 .header__title {
@@ -352,13 +353,25 @@ input[autocomplete="cc-number"],
 }
 
 .header__actions {
-  @apply flex items-center gap-2;
+  @apply flex items-center gap-1 sm:gap-2;
+  flex-shrink: 0;
 }
 
 .header__button {
-  @apply relative p-2 rounded-lg transition-all duration-200 border;
-  min-width: var(--header-touch-target);
-  min-height: var(--header-touch-target);
+  @apply relative p-2 rounded-lg transition-all duration-200 border flex items-center justify-center;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+@media (min-width: 640px) {
+  .header__button {
+    min-width: var(--header-touch-target);
+    min-height: var(--header-touch-target);
+    width: auto;
+    height: auto;
+  }
 }
 
 .header__button--active {
@@ -369,9 +382,20 @@ input[autocomplete="cc-number"],
   @apply text-slate-600 border-transparent hover:text-slate-900 hover:bg-slate-100 hover:border-slate-300;
 }
 
-@media (max-width: 640px) {
+/* Force hide hamburger menu on desktop (lg breakpoint and above) */
+@media (min-width: 1024px) {
+  .header__button[aria-label="Menu de navigation"] {
+    display: none !important;
+  }
+}
+
+@media (max-width: 639px) {
   .header__nav {
     height: var(--header-height-mobile);
+  }
+  
+  .header__container {
+    @apply px-3;
   }
 }
 

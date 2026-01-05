@@ -28,6 +28,17 @@ import {
 import { determineAssignmentType } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { useTeamContacts } from '@/hooks/use-team-contacts'
+import {
+    getSpecialityLabel,
+    getSpecialityBadgeStyle
+} from '@/config/table-configs/contacts.config'
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select'
 
 // Types de contacts avec leurs configurations visuelles
 const contactTypes = [
@@ -132,6 +143,10 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
 
   // État pour le chargement lors de la confirmation
   const [isConfirming, setIsConfirming] = useState(false)
+
+  // États pour les filtres
+  const [specialityFilter, setSpecialityFilter] = useState<string>('all')
+  const [invitationStatusFilter, setInvitationStatusFilter] = useState<string>('all')
 
   // Router pour navigation vers wizard
   const router = useRouter()
@@ -356,6 +371,8 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   const cleanContactContext = () => {
     setSelectedContactType("")
     setExternalLotId(undefined) // Nettoyer le contexte lot pour éviter les assignations incorrectes
+    setSpecialityFilter('all') // Reset le filtre spécialité
+    setInvitationStatusFilter('all') // Reset le filtre statut d'invitation
   }
 
   // ✅ Filtrer les contacts depuis le cache SWR selon le type et le terme de recherche
@@ -397,17 +414,41 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     })
 
     // Étape 2: Filtrer par terme de recherche
-    if (!searchTerm.trim()) return contactsByType
+    let result = contactsByType
+    if (searchTerm.trim()) {
+      result = result.filter(contact =>
+        contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (contact.phone && contact.phone.includes(searchTerm)) ||
+        // Recherche dans le nom de la société
+        (contact.is_company && contact.company?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        // Recherche dans le numéro de TVA
+        (contact.is_company && contact.company?.vat_number?.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+    }
 
-    return contactsByType.filter(contact =>
-      contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contact.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (contact.phone && contact.phone.includes(searchTerm)) ||
-      // Recherche dans le nom de la société
-      (contact.is_company && contact.company?.name?.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      // Recherche dans le numéro de TVA
-      (contact.is_company && contact.company?.vat_number?.toLowerCase().includes(searchTerm.toLowerCase()))
-    )
+    // Étape 3: Filtrer par spécialité
+    if (specialityFilter !== 'all') {
+      result = result.filter(contact => contact.speciality === specialityFilter)
+    }
+
+    // Étape 4: Filtrer par statut d'invitation
+    // Logique basée sur la table user_invitations :
+    // - null = pas d'invitation pour ce contact
+    // - 'pending' = invitation envoyée, pas encore acceptée
+    // - 'accepted' = compte créé (auth_user_id existe)
+    // - 'expired' / 'cancelled' = invitation expirée ou annulée
+    if (invitationStatusFilter !== 'all') {
+      if (invitationStatusFilter === 'none') {
+        // "Pas de compte" = contacts sans aucune invitation (invitationStatus est null)
+        result = result.filter(contact => !contact.invitationStatus)
+      } else {
+        // Autres filtres = correspondance directe avec le statut de l'invitation
+        result = result.filter(contact => contact.invitationStatus === invitationStatusFilter)
+      }
+    }
+
+    return result
   }
 
   // Obtenir les informations du type de contact sélectionné
@@ -645,14 +686,52 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
           </DialogHeader>
 
           <div className="space-y-4">
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
-              <Input
-                placeholder={`Rechercher un ${getSelectedContactTypeInfo().label.toLowerCase()} par nom, email, téléphone...`}
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
+            {/* Recherche + Filtres sur la même ligne */}
+            <div className="flex gap-2 flex-wrap items-center">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                <Input
+                  placeholder={`Rechercher par nom, email, téléphone...`}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+
+              {/* Filtre spécialité - uniquement pour prestataires */}
+              {selectedContactType === 'provider' && (
+                <Select value={specialityFilter} onValueChange={setSpecialityFilter}>
+                  <SelectTrigger className="w-[150px] h-10">
+                    <SelectValue placeholder="Spécialité" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Toutes spécialités</SelectItem>
+                    <SelectItem value="plomberie">Plomberie</SelectItem>
+                    <SelectItem value="electricite">Électricité</SelectItem>
+                    <SelectItem value="chauffage">Chauffage</SelectItem>
+                    <SelectItem value="serrurerie">Serrurerie</SelectItem>
+                    <SelectItem value="peinture">Peinture</SelectItem>
+                    <SelectItem value="menage">Ménage</SelectItem>
+                    <SelectItem value="jardinage">Jardinage</SelectItem>
+                    <SelectItem value="autre">Autre</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+
+              {/* Filtre statut invitation */}
+              <Select value={invitationStatusFilter} onValueChange={setInvitationStatusFilter}>
+                <SelectTrigger className="w-[140px] h-10">
+                  <SelectValue placeholder="Statut" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Tous statuts</SelectItem>
+                  <SelectItem value="none">Pas de compte</SelectItem>
+                  <SelectItem value="pending">En attente</SelectItem>
+                  <SelectItem value="accepted">Actif</SelectItem>
+                  <SelectItem value="expired">Expiré</SelectItem>
+                  <SelectItem value="cancelled">Annulé</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Loading state */}
@@ -746,9 +825,9 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                               <div className="text-xs text-gray-400">{contact.phone}</div>
                             )}
                             {contact.speciality && (
-                              <div className="text-xs text-green-600 capitalize mt-1">
-                                {contact.speciality}
-                              </div>
+                              <Badge variant="secondary" className={`${getSpecialityBadgeStyle(contact.speciality)} text-xs mt-1`}>
+                                {getSpecialityLabel(contact.speciality)}
+                              </Badge>
                             )}
                           </div>
                           {/* NOUVEAU : Checkbox pour multi-select, Radio pour single-select */}

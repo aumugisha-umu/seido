@@ -1,15 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Database } from '@/lib/database.types'
-import { logger, logError } from '@/lib/logger'
-import { createServerInterventionService } from '@/lib/services'
+import { logger } from '@/lib/logger'
+import {
+  createServerInterventionService,
+  createServerNotificationRepository,
+  createServerUserRepository,
+  createServerBuildingRepository,
+  createServerLotRepository,
+  createServerInterventionRepository
+} from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { interventionValidateTenantSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { NotificationService } from '@/lib/services/domain/notification.service'
+import { EmailNotificationService } from '@/lib/services/domain/email-notification.service'
+import { EmailService } from '@/lib/services/domain/email.service'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "👍 intervention-validate-tenant API route called")
 
   // Initialize services
   const interventionService = await createServerInterventionService()
+
+  // Initialize notification services
+  const notificationRepository = await createServerNotificationRepository()
+  const interventionRepository = await createServerInterventionRepository()
+  const userRepository = await createServerUserRepository()
+  const buildingRepository = await createServerBuildingRepository()
+  const lotRepository = await createServerLotRepository()
+  const emailService = new EmailService()
+
+  const notificationService = new NotificationService(notificationRepository)
+  const emailNotificationService = new EmailNotificationService(
+    notificationRepository,
+    emailService,
+    interventionRepository,
+    userRepository,
+    buildingRepository,
+    lotRepository
+  )
 
   try {
     // ✅ AUTH + ROLE CHECK: 74 lignes → 3 lignes! (locataire required)
@@ -165,57 +193,58 @@ export async function POST(request: NextRequest) {
 
     logger.info({ validationStatus }, "✅ Intervention by tenant successfully")
 
-    // Create notifications for stakeholders
-    const priority = validationStatus === 'contested' ? 'high' : 'normal'
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NOTIFICATIONS IN-APP: Gestionnaires + Prestataires
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // Extract gestionnaires and prestataires from intervention_assignments
+    const assignments = intervention.intervention_assignments || []
+    const assignedGestionnaires = assignments
+      .filter((a: any) => a.role === 'gestionnaire' && a.user?.id)
+    const assignedPrestataires = assignments
+      .filter((a: any) => a.role === 'prestataire' && a.user?.id)
 
     // Notify gestionnaires
-    if (intervention.team_id) {
-      const managers = intervention.intervention_contacts?.filter(ic => 
-        ic.role === 'gestionnaire'
-      ) || []
-
-      for (const manager of managers) {
-        try {
-          await notificationService.createNotification({
-            userId: manager.user.id,
-            teamId: intervention.team_id,
-            createdBy: user.id,
-            type: 'intervention',
-            title: notificationTitle,
-            message: notificationMessage,
-            isPersonal: manager.is_primary ?? false, // ✅ Basé sur assignation
-            metadata: {
-              interventionId: intervention.id,
-              interventionTitle: intervention.title,
-              validatedBy: user.name,
-              validationStatus: validationStatus,
-              contestReason: contestReason || null,
-              satisfactionRating: satisfactionRating || null,
-              lotReference: intervention.lot?.reference,
-              buildingName: intervention.lot?.building?.name
-            },
-            relatedEntityType: 'intervention',
-            relatedEntityId: intervention.id
-          })
-        } catch (notifError) {
-          logger.warn({ manager: manager.user.name, notifError }, "⚠️ Could not send notification to manager:")
-        }
-      }
-    }
-
-    // Notify prestataires from intervention_assignments
-    const { data: assignedProviders } = await supabase
-      .from('intervention_assignments')
-      .select('user:users!user_id(id, name), is_primary')
-      .eq('intervention_id', intervention.id)
-      .eq('role', 'prestataire')
-
-    for (const assignment of assignedProviders || []) {
-      if (!assignment.user) continue
+    for (const assignment of assignedGestionnaires) {
+      const manager = assignment.user
+      if (!manager?.id) continue
 
       try {
         await notificationService.createNotification({
-          userId: assignment.user.id,
+          userId: manager.id,
+          teamId: intervention.team_id!,
+          createdBy: user.id,
+          type: 'intervention',
+          title: notificationTitle,
+          message: notificationMessage,
+          isPersonal: assignment.is_primary ?? false,
+          metadata: {
+            interventionId: intervention.id,
+            interventionTitle: intervention.title,
+            validatedBy: user.name,
+            validationStatus: validationStatus,
+            contestReason: contestReason || null,
+            satisfactionRating: satisfactionRating || null,
+            lotReference: intervention.lot?.reference,
+            buildingName: intervention.lot?.building?.name
+          },
+          relatedEntityType: 'intervention',
+          relatedEntityId: intervention.id
+        })
+        logger.info({ managerId: manager.id }, "📧 Validation notification sent to gestionnaire")
+      } catch (notifError) {
+        logger.warn({ managerName: manager.name, notifError }, "⚠️ Could not send notification to manager:")
+      }
+    }
+
+    // Notify prestataires
+    for (const assignment of assignedPrestataires) {
+      const provider = assignment.user
+      if (!provider?.id) continue
+
+      try {
+        await notificationService.createNotification({
+          userId: provider.id,
           teamId: intervention.team_id!,
           createdBy: user.id,
           type: 'intervention',
@@ -223,7 +252,7 @@ export async function POST(request: NextRequest) {
           message: validationStatus === 'approved' ?
             `L'intervention "${intervention.title}" a été validée par le locataire.` :
             `L'intervention "${intervention.title}" a été contestée par le locataire. Des corrections peuvent être nécessaires.`,
-          isPersonal: true, // Prestataire assigné toujours personnel
+          isPersonal: true,
           metadata: {
             interventionId: intervention.id,
             interventionTitle: intervention.title,
@@ -233,9 +262,36 @@ export async function POST(request: NextRequest) {
           relatedEntityType: 'intervention',
           relatedEntityId: intervention.id
         })
+        logger.info({ providerId: provider.id }, "📧 Validation notification sent to prestataire")
       } catch (notifError) {
-        logger.warn({ provider: provider.user.name, notifError }, "⚠️ Could not send notification to provider:")
+        logger.warn({ providerName: provider.name, notifError }, "⚠️ Could not send notification to provider:")
       }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL NOTIFICATIONS: Validation locataire
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Note: Email 'status_changed' not yet implemented - will be logged as warning
+    try {
+      const emailResult = await emailNotificationService.sendInterventionEmails({
+        interventionId: intervention.id,
+        eventType: 'status_changed',
+        excludeUserId: user.id,
+        onlyRoles: ['gestionnaire', 'prestataire'],
+        excludeNonPersonal: true,
+        statusChange: {
+          oldStatus: 'cloturee_par_prestataire',
+          newStatus: newStatus,
+          reason: contestReason
+        }
+      })
+
+      logger.info({
+        emailsSent: emailResult.sentCount,
+        emailsFailed: emailResult.failedCount
+      }, "📧 Validation emails sent")
+    } catch (emailError) {
+      logger.warn({ emailError }, "⚠️ Could not send validation emails:")
     }
 
     return NextResponse.json({

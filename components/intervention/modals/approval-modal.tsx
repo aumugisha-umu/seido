@@ -140,7 +140,7 @@ export const ApprovalModal = ({
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <span className="text-sm font-medium text-slate-700">Type d'intervention:</span>
+                  <span className="text-sm font-medium text-slate-700">Catégorie d'intervention:</span>
                   <p className="text-base text-slate-900 leading-normal mt-1">{intervention.type}</p>
                 </div>
                 {intervention.precise_location && (

@@ -190,32 +190,48 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   /**
    * Get interventions by tenant (user who requested)
    * ✅ FIX 2025-10-15: Query via intervention_assignments instead of tenant_id column
+   * ✅ FIX 2026-01-06: Two-step approach to avoid nested relation filter issues
+   *    - Includes building-level interventions where tenant is assigned
    */
   async findByTenant(tenantId: string, teamId?: string) {
-    // Build query with tenant filter
-    let query = this.supabase
+    // Step 1: Get intervention IDs where tenant is assigned
+    const { data: assignments, error: assignmentError } = await this.supabase
       .from('intervention_assignments')
-      .select(`
-        intervention_id,
-        intervention:intervention_id(
-          *,
-          lot:lot_id(
-            id, reference,
-            building:building_id(id, name, address, team_id)
-          ),
-          intervention_assignments(
-            role,
-            is_primary,
-            user:user_id(id, name, email, role, provider_category)
-          )
-        )
-      `)
+      .select('intervention_id')
       .eq('user_id', tenantId)
       .eq('role', 'locataire')
 
-    // ✅ SECURITY: Multi-tenant isolation - filter by team_id
+    if (assignmentError) {
+      return createErrorResponse(handleError(assignmentError, 'intervention:findByTenant:assignments'))
+    }
+
+    if (!assignments || assignments.length === 0) {
+      return { success: true as const, data: [] }
+    }
+
+    const interventionIds = assignments.map(a => a.intervention_id)
+
+    // Step 2: Query interventions directly with IDs (using _active view)
+    let query = this.supabase
+      .from('interventions_active')
+      .select(`
+        *,
+        lot:lot_id(
+          id, reference,
+          building:building_id(id, name, address, team_id)
+        ),
+        building:building_id(id, name, address, team_id),
+        intervention_assignments(
+          role,
+          is_primary,
+          user:user_id(id, name, email, role, provider_category)
+        )
+      `)
+      .in('id', interventionIds)
+
+    // ✅ SECURITY: Multi-tenant isolation - direct filter on interventions table
     if (teamId) {
-      query = query.eq('intervention.team_id', teamId)
+      query = query.eq('team_id', teamId)
     }
 
     const { data, error } = await query.order('created_at', { ascending: false })
@@ -224,12 +240,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       return createErrorResponse(handleError(error, 'intervention:findByTenant'))
     }
 
-    // Extract interventions from the assignment relationships
-    const interventions = (data || [])
-      .map(item => item.intervention)
-      .filter(Boolean)
-
-    return { success: true as const, data: interventions }
+    return { success: true as const, data: data || [] }
   }
 
   /**

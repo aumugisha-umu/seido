@@ -424,11 +424,11 @@ export default function InterventionEditClient({
                     {/* Type + Urgence */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="min-w-0">
-                        <label className="block text-sm font-medium text-foreground mb-2">Type d'intervention</label>
+                        <label className="block text-sm font-medium text-foreground mb-2">Catégorie d'intervention</label>
                         <InterventionTypeCombobox
                           value={formData.type}
                           onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
-                          placeholder="Sélectionnez le type"
+                          placeholder="Sélectionnez la catégorie"
                           className="border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20 w-full"
                         />
                       </div>

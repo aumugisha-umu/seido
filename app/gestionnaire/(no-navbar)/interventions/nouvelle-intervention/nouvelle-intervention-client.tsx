@@ -46,7 +46,7 @@ import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { interventionSteps } from "@/lib/step-configurations"
 import { logger, logError } from '@/lib/logger'
 import { getTeamContactsAction } from '@/app/actions/contacts'
-import { getActiveTenantsByLotAction } from '@/app/actions/contract-actions'
+import { getActiveTenantsByLotAction, getActiveTenantsByBuildingAction, type BuildingTenantsResult } from '@/app/actions/contract-actions'
 import { AssignmentSectionV2 } from "@/components/intervention/assignment-section-v2"
 import { useInterventionUpload, DOCUMENT_TYPES } from "@/hooks/use-intervention-upload"
 import { InterventionFileAttachment } from "@/components/intervention/intervention-file-attachment"
@@ -147,6 +147,26 @@ export default function NouvelleInterventionClient({
 
   // Toggle pour inclure les locataires (lots occupés uniquement)
   const [includeTenants, setIncludeTenants] = useState<boolean>(true)
+
+  // État pour les locataires d'un immeuble (groupés par lot)
+  const [buildingTenants, setBuildingTenants] = useState<BuildingTenantsResult | null>(null)
+  const [loadingBuildingTenants, setLoadingBuildingTenants] = useState(false)
+
+  // État pour les lots exclus (sélection granulaire par lot)
+  const [excludedLotIds, setExcludedLotIds] = useState<Set<string>>(new Set())
+
+  // Handler pour toggle un lot
+  const handleLotToggle = (lotId: string) => {
+    setExcludedLotIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(lotId)) {
+        newSet.delete(lotId)
+      } else {
+        newSet.add(lotId)
+      }
+      return newSet
+    })
+  }
 
   // États pour les données réelles
   const [managers, setManagers] = useState<unknown[]>([])
@@ -681,8 +701,11 @@ export default function NouvelleInterventionClient({
   const handleBuildingSelect = async (buildingId: string | null) => {
     setSelectedBuildingId(buildingId || undefined)
     setSelectedLotId(undefined)
-    // Reset toggle locataires pour les immeubles (pas applicable)
+    // Reset building tenants and excluded lots when changing selection
+    setBuildingTenants(null)
+    setExcludedLotIds(new Set())
     setIncludeTenants(false)
+
     if (!buildingId) {
       setSelectedLogement(null)
       return
@@ -726,6 +749,26 @@ export default function NouvelleInterventionClient({
           }))
         }
       }
+
+      // 🆕 Charger les locataires de tous les lots de l'immeuble
+      setLoadingBuildingTenants(true)
+      try {
+        const tenantsResult = await getActiveTenantsByBuildingAction(buildingId)
+        if (tenantsResult.success && tenantsResult.data) {
+          setBuildingTenants(tenantsResult.data)
+          // Activer le toggle si des locataires existent
+          setIncludeTenants(tenantsResult.data.hasActiveTenants)
+          logger.info('✅ Building tenants loaded:', {
+            buildingId,
+            totalCount: tenantsResult.data.totalCount,
+            occupiedLotsCount: tenantsResult.data.occupiedLotsCount
+          })
+        }
+      } catch (tenantError) {
+        logger.warn("Could not load building tenants:", tenantError)
+      } finally {
+        setLoadingBuildingTenants(false)
+      }
     } catch (err) {
       logger.error("❌ Error loading building data:", err)
       // Fallback déjà défini par l'état optimiste avec données initiales
@@ -750,6 +793,9 @@ export default function NouvelleInterventionClient({
   }
 
   const handleLotSelect = async (lotId: string | null, buildingId?: string) => {
+    // Reset building tenants when switching to lot selection
+    setBuildingTenants(null)
+
     if (!lotId) {
       setSelectedLotId(undefined)
       setSelectedBuildingId(buildingId || undefined)
@@ -1076,9 +1122,16 @@ export default function NouvelleInterventionClient({
 
         // Options
         expectsQuote,
-        includeTenants: selectedLogement?.type === 'lot' && selectedLogement?.is_occupied
+        // Include tenants for lots OR buildings
+        includeTenants: (selectedLogement?.type === 'lot' && selectedLogement?.is_occupied)
           ? includeTenants
-          : false,
+          : (selectedLogement?.type === 'building' && buildingTenants?.hasActiveTenants)
+            ? includeTenants
+            : false,
+        // Excluded lots (for building interventions with granular selection)
+        excludedLotIds: selectedLogement?.type === 'building' && includeTenants
+          ? Array.from(excludedLotIds)
+          : [],
 
         // Team context
         teamId: currentUserTeam?.id || initialBuildingsData.teamId
@@ -1288,12 +1341,12 @@ export default function NouvelleInterventionClient({
                     <div className="grid grid-cols-2 gap-4">
                       <div className="min-w-0">
                         <label className="block text-sm font-medium text-foreground mb-2">
-                          Type d'intervention <span className="text-red-500">*</span>
+                          Catégorie d'intervention <span className="text-red-500">*</span>
                         </label>
                         <InterventionTypeCombobox
                           value={formData.type}
                           onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
-                          placeholder="Sélectionnez le type"
+                          placeholder="Sélectionnez la catégorie"
                           className="border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20 w-full"
                         />
                       </div>
@@ -1435,10 +1488,19 @@ export default function NouvelleInterventionClient({
                     [providerId]: instructions
                   }))
                 }}
-                // Tenant toggle props (for occupied lots)
-                showTenantsSection={selectedLogement?.type === 'lot' && selectedLogement?.is_occupied === true}
+                // Tenant toggle props (for occupied lots OR buildings with tenants)
+                showTenantsSection={
+                  (selectedLogement?.type === 'lot' && selectedLogement?.is_occupied === true) ||
+                  (selectedLogement?.type === 'building' && buildingTenants?.hasActiveTenants === true)
+                }
                 includeTenants={includeTenants}
                 onIncludeTenantsChange={setIncludeTenants}
+                // Building tenants (grouped by lot)
+                buildingTenants={selectedLogement?.type === 'building' ? buildingTenants : null}
+                loadingBuildingTenants={loadingBuildingTenants}
+                // Lots selection (for granular control)
+                excludedLotIds={excludedLotIds}
+                onLotToggle={handleLotToggle}
               />
             </Card>
           </div>
@@ -1494,6 +1556,19 @@ export default function NouvelleInterventionClient({
                       phone: selectedLogement.tenantPhone || undefined,
                       isCurrentUser: false,
                     }]
+                  : []),
+                // 🆕 Ajouter les locataires d'immeuble (depuis buildingTenants)
+                ...(buildingTenants && includeTenants
+                  ? buildingTenants.byLot
+                      .filter(lot => !excludedLotIds.has(lot.lotId))
+                      .flatMap(lot => lot.tenants.map((tenant, index) => ({
+                        id: `building-tenant-${lot.lotId}-${index}`,
+                        name: tenant.name,
+                        role: 'Locataire',
+                        email: tenant.email || undefined,
+                        phone: tenant.phone || undefined,
+                        isCurrentUser: false,
+                      })))
                   : [])
               ],
               scheduling: schedulingType === 'slots' && timeSlots.length > 0

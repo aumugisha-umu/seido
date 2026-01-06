@@ -86,11 +86,21 @@ export default function LocataireDashboardHybrid({
   if (!tenantData) return null
 
   // Filter interventions based on selected property
+  // Includes building-level interventions when the selected lot is in the same building
   const filteredInterventions = selectedPropertyId === 'all'
     ? tenantInterventions
     : tenantInterventions.filter(i => {
       const interventionLotId = i.lot?.id || (i as any).lot_id
-      return interventionLotId === selectedPropertyId
+
+      // Cas 1: Intervention au niveau lot - lot_id doit matcher
+      if (interventionLotId) {
+        return interventionLotId === selectedPropertyId
+      }
+
+      // Cas 2: Intervention au niveau immeuble - vérifier si le lot sélectionné est dans le même immeuble
+      const selectedProperty = tenantProperties.find(p => p.id === selectedPropertyId)
+      const interventionBuildingId = i.building?.id || (i as any).building_id
+      return interventionBuildingId && selectedProperty?.building?.id === interventionBuildingId
     })
 
   // Sort by date desc

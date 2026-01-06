@@ -33,7 +33,6 @@ export function ProviderDashboardV2({ stats, interventions, pendingCount }: Prov
                             icon={AlertTriangle}
                             iconColor="text-amber-500"
                             variant="warning"
-                            href="/prestataire/interventions?filter=pending"
                             className="w-full"
                         />
                     </div>

@@ -246,7 +246,7 @@ export function ContactSection({
   const showMinRequiredWarning = minRequired !== undefined && contacts.length < minRequired
 
   return (
-    <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col">
+    <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col h-full">
       {/* Header with icon and label */}
       <div className={`w-full flex items-center gap-2 p-2.5 ${colorScheme.header}`}>
         <Icon className={`w-4 h-4 ${colorScheme.iconColor}`} />
@@ -368,9 +368,9 @@ export function ContactSection({
         )}
       </div>
 
-      {/* Add/Edit button - only visible if not in readOnly mode */}
+      {/* Add/Edit button - sticky at bottom, only visible if not in readOnly mode */}
       {!readOnly && onAddContact && (
-        <div className="p-2 pt-0 bg-white border-t border-slate-100">
+        <div className="p-2 pt-0 bg-white border-t border-slate-100 mt-auto">
           <Button
             variant="outline"
             size="sm"

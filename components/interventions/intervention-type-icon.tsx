@@ -2,6 +2,12 @@
 
 import { cn } from "@/lib/utils"
 import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
     // Catégorie BIEN
     Droplets,           // plomberie
     Zap,                // electricite
@@ -64,6 +70,8 @@ interface InterventionTypeIconProps {
     showBackground?: boolean
     /** Show label next to icon */
     showLabel?: boolean
+    /** Show tooltip on hover with type label */
+    showTooltip?: boolean
     /** Additional className */
     className?: string
 }
@@ -452,6 +460,7 @@ export function InterventionTypeIcon({
     size = 'md',
     showBackground = true,
     showLabel = false,
+    showTooltip = true,
     className
 }: InterventionTypeIconProps) {
     // Resolve the type, preferring intervention_type over type
@@ -460,8 +469,9 @@ export function InterventionTypeIcon({
     const Icon = config.icon
     const sizeConfig = SIZE_CONFIG[size]
 
+    // Icon without background
     if (!showBackground) {
-        return (
+        const iconElement = (
             <span className={cn("inline-flex items-center gap-2", className)}>
                 <Icon
                     className={cn(sizeConfig.icon, config.textColor)}
@@ -472,9 +482,27 @@ export function InterventionTypeIcon({
                 )}
             </span>
         )
+
+        if (showTooltip && !showLabel) {
+            return (
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            {iconElement}
+                        </TooltipTrigger>
+                        <TooltipContent side="top">
+                            <p className="text-sm font-medium">{config.label}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+            )
+        }
+
+        return iconElement
     }
 
-    return (
+    // Icon with background
+    const iconWithBackground = (
         <span className={cn("inline-flex items-center gap-2", className)}>
             <div
                 className={cn(
@@ -491,4 +519,22 @@ export function InterventionTypeIcon({
             )}
         </span>
     )
+
+    // Wrap with tooltip if enabled and label not already shown
+    if (showTooltip && !showLabel) {
+        return (
+            <TooltipProvider>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        {iconWithBackground}
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                        <p className="text-sm font-medium">{config.label}</p>
+                    </TooltipContent>
+                </Tooltip>
+            </TooltipProvider>
+        )
+    }
+
+    return iconWithBackground
 }

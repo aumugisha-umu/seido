@@ -18,8 +18,9 @@
 import { cn } from '@/lib/utils'
 import { Separator } from '@/components/ui/separator'
 import { InterventionSidebarProps } from '../types'
-import { ParticipantsList } from './participants-list'
+import { ParticipantsList, GroupConversationButton } from './participants-list'
 import { ProgressionTimeline } from './progression-timeline'
+import { permissions } from '../utils'
 
 /**
  * Sidebar complète pour la prévisualisation d'intervention
@@ -45,19 +46,36 @@ export const InterventionSidebar = ({
         className
       )}
     >
-      {/* Section Participants - hauteur fixe */}
-      <div className="flex-shrink-0 p-6 pb-0">
-        <ParticipantsList
-          participants={participants}
-          currentUserRole={currentUserRole}
-          currentUserId={currentUserId}
-          showConversationButtons={showConversationButtons}
-          activeConversation={activeConversation}
-          onConversationClick={onConversationClick}
-          onGroupConversationClick={onGroupConversationClick}
-          assignmentMode={assignmentMode}
-          unreadCounts={unreadCounts}
-        />
+      {/* Section Participants - max 50% de hauteur avec scroll */}
+      <div className="flex-shrink-0 max-h-[50%] flex flex-col p-6 pb-2">
+        {/* Liste scrollable des participants */}
+        <div className="overflow-y-auto min-h-0 flex-1">
+          <ParticipantsList
+            participants={participants}
+            currentUserRole={currentUserRole}
+            currentUserId={currentUserId}
+            showConversationButtons={showConversationButtons}
+            activeConversation={activeConversation}
+            onConversationClick={onConversationClick}
+            onGroupConversationClick={onGroupConversationClick}
+            assignmentMode={assignmentMode}
+            unreadCounts={unreadCounts}
+            hideGroupConversationButton={true}
+          />
+        </div>
+
+        {/* Bouton Discussion générale - toujours visible (hors scroll) */}
+        {showConversationButtons &&
+         permissions.canViewGroupConversation(currentUserRole) &&
+         onGroupConversationClick && (
+          <div className="flex-shrink-0 pt-2 mt-2 border-t border-slate-200">
+            <GroupConversationButton
+              isActive={activeConversation === 'group'}
+              onClick={onGroupConversationClick}
+              unreadCount={unreadCounts?.['group'] || 0}
+            />
+          </div>
+        )}
       </div>
 
       {/* Section Progression - prend l'espace restant avec scroll */}

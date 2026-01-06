@@ -250,6 +250,41 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
   }
 
   /**
+   * Get active contracts for all lots in a building
+   * Returns contracts with lot info for grouping by lot
+   */
+  async findActiveByBuilding(buildingId: string) {
+    try {
+      const { data, error } = await this.supabase
+        .from(this.tableName)
+        .select(`
+          *,
+          lot:lot_id(id, reference, category, building_id),
+          contacts:contract_contacts(
+            id, user_id, role, is_primary,
+            user:user_id(id, name, email, phone)
+          )
+        `)
+        .eq('lot.building_id', buildingId)
+        .eq('status', 'actif')
+        .is('deleted_at', null)
+        .order('lot_id')
+
+      if (error) {
+        return createErrorResponse(handleError(error, 'contract:findActiveByBuilding'))
+      }
+
+      // Filter out null results (contracts where lot.building_id didn't match)
+      const filteredData = (data || []).filter(contract => contract.lot !== null)
+
+      return { success: true as const, data: filteredData as ContractWithRelations[] }
+    } catch (error) {
+      logger.error({ error, buildingId }, '❌ [CONTRACT-REPO] findActiveByBuilding error')
+      return createErrorResponse(handleError(error as Error, 'contract:findActiveByBuilding'))
+    }
+  }
+
+  /**
    * Get contracts expiring within X days
    */
   async findExpiringSoon(teamId: string, days: number = 30) {

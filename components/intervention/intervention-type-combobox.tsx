@@ -163,7 +163,7 @@ export function InterventionTypeCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          aria-label="Sélectionner un type d'intervention"
+          aria-label="Sélectionner une catégorie d'intervention"
           disabled={disabled}
           className={cn(
             "w-full justify-between font-normal",

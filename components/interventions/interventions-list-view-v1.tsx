@@ -270,20 +270,30 @@ export function InterventionsListViewV1({
   }
 
   /**
-   * 🎨 Render type badge with icon and category color
+   * 🎨 Render type badge with icon, category color, and tooltip
    */
   const renderTypeBadge = (_type: string) => {
     const TypeIcon = getTypeIcon(_type)
     const badgeStyle = getTypeBadgeStyle(_type)
+    const fullLabel = getTypeLabel(_type)
 
     return (
-      <Badge
-        variant="outline"
-        className={cn("flex items-center gap-1 text-xs", badgeStyle)}
-      >
-        <TypeIcon className="h-3 w-3" />
-        <span className="truncate max-w-[80px]">{getTypeLabel(_type)}</span>
-      </Badge>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge
+              variant="outline"
+              className={cn("flex items-center gap-1 text-xs cursor-default", badgeStyle)}
+            >
+              <TypeIcon className="h-3 w-3" />
+              <span className="truncate max-w-[80px]">{fullLabel}</span>
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <p className="text-sm font-medium">{fullLabel}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     )
   }
 
@@ -330,7 +340,7 @@ export function InterventionsListViewV1({
                 </Button>
               </TableHead>
 
-              {/* Type Column - Sortable */}
+              {/* Catégorie Column - Sortable */}
               <TableHead className="w-[120px]">
                 <Button
                   variant="ghost"
@@ -338,7 +348,7 @@ export function InterventionsListViewV1({
                   className="h-8 px-2 hover:bg-slate-100 font-semibold"
                   onClick={() => handleSort('type')}
                 >
-                  Type
+                  Catégorie
                   {renderSortIcon('type')}
                 </Button>
               </TableHead>

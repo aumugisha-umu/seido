@@ -55,6 +55,7 @@ interface Invitation {
   provider_category?: string
   role?: string
   status?: string
+  effectiveStatus?: string
   created_at: string
 }
 
@@ -92,6 +93,7 @@ interface ContactsPageClientProps {
   initialInvitations: Invitation[]
   initialCompanies: Company[]
   initialContactsInvitationStatus: Record<string, string>
+  pendingInvitationsCount: number
   userTeam: UserTeam
   user: User
 }
@@ -101,6 +103,7 @@ export function ContactsPageClient({
   initialInvitations,
   initialCompanies,
   initialContactsInvitationStatus,
+  pendingInvitationsCount,
   userTeam,
   user
 }: ContactsPageClientProps) {
@@ -108,7 +111,7 @@ export function ContactsPageClient({
 
   // État local initialisé avec les props
   const [contacts, setContacts] = useState<Contact[]>(initialContacts)
-  const [pendingInvitations, setPendingInvitations] = useState<Invitation[]>(initialInvitations)
+  const [invitations, setInvitations] = useState<Invitation[]>(initialInvitations)
   const [companies, setCompanies] = useState<Company[]>(initialCompanies)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -116,13 +119,14 @@ export function ContactsPageClient({
   // États pour les modales de confirmation d'invitation
   const [invitationModalOpen, setInvitationModalOpen] = useState(false)
   const [invitationModalAction, setInvitationModalAction] = useState<'send' | 'resend' | 'cancel' | 'revoke' | null>(null)
-  const [invitationModalContact, setInvitationModalContact] = useState<(Contact & { invitationStatus?: string }) | null>(null)
+  // invitationId is set when action comes from Invitations tab (direct invitation)
+  const [invitationModalContact, setInvitationModalContact] = useState<(Contact & { invitationStatus?: string; invitationId?: string }) | null>(null)
   const [invitationLoading, setInvitationLoading] = useState(false)
 
   // Synchroniser les états locaux avec les props quand elles changent
   useEffect(() => {
     setContacts(initialContacts)
-    setPendingInvitations(initialInvitations)
+    setInvitations(initialInvitations)
     setCompanies(initialCompanies)
   }, [initialContacts, initialInvitations, initialCompanies])
 
@@ -152,62 +156,16 @@ export function ContactsPageClient({
     }
   }
 
-  const loadPendingInvitations = async (teamId: string) => {
+  const loadInvitations = async (teamId: string) => {
     try {
       logger.info(`📧 Loading invitations for team: ${teamId}`)
+      // Note: This still uses getPendingInvitations but the table filter handles display
+      // A full refresh is done via router.refresh() for complete reload
       const contactInvitationServiceLocal = createContactInvitationService()
-      const invitations = await contactInvitationServiceLocal.getPendingInvitations(teamId)
-      setPendingInvitations(invitations)
+      const loadedInvitations = await contactInvitationServiceLocal.getPendingInvitations(teamId)
+      setInvitations(loadedInvitations)
     } catch (invitationError) {
       logger.error("❌ Error loading invitations:", invitationError)
-    }
-  }
-
-  const handleResendInvitation = async (contactId: string) => {
-    try {
-      logger.info(`🔄 [CONTACTS-UI] Resending invitation for contact: ${contactId}`)
-      const result = await contactInvitationService.resendInvitation(contactId)
-
-      if (result.success) {
-        logger.info("✅ [CONTACTS-UI] Invitation resent successfully!")
-        // Note: Success feedback is handled by global toast or alert in a real app, 
-        // here we might want to add a toast notification system later.
-      } else {
-        logger.error(`❌ [CONTACTS-UI] Failed to resend invitation: ${result.error}`)
-        setError(`Erreur lors du renvoi de l'invitation: ${result.error}`)
-      }
-    } catch (error) {
-      logger.error("❌ [CONTACTS-UI] Exception in resend:", error)
-      setError("Erreur lors du renvoi de l'invitation")
-    }
-  }
-
-  const handleCancelInvitation = async (invitationId: string) => {
-    try {
-      logger.info(`🚫 [CONTACTS-UI] Cancelling invitation: ${invitationId}`)
-      const response = await fetch('/api/cancel-invitation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invitationId })
-      })
-
-      const result = await response.json()
-
-      if (response.ok && result.success) {
-        logger.info("✅ [CONTACTS-UI] Invitation cancelled successfully!")
-        if (userTeam?.id) {
-          loadPendingInvitations(userTeam.id)
-        }
-        setError(null)
-      } else {
-        const errorMessage = result.error || `Erreur HTTP ${response.status}`
-        logger.error(`❌ [CONTACTS-UI] Failed to cancel invitation: ${errorMessage}`)
-        setError(`Erreur lors de l'annulation: ${errorMessage}`)
-      }
-    } catch (error: unknown) {
-      logger.error("❌ [CONTACTS-UI] Exception in cancel:", error)
-      const errorMessage = (error as any)?.message || "Erreur inconnue"
-      setError(`Erreur lors de l'annulation de l'invitation: ${errorMessage}`)
     }
   }
 
@@ -300,10 +258,12 @@ export function ContactsPageClient({
   }
 
   // Exécuter le renvoi d'invitation
-  const executeResendInvitation = async (contact: Contact & { invitationStatus?: string }) => {
+  const executeResendInvitation = async (contact: Contact & { invitationStatus?: string; invitationId?: string }) => {
     try {
-      logger.info(`🔄 Resending invitation for contact: ${contact.id}`)
-      const result = await contactInvitationService.resendInvitation(contact.id)
+      // Use invitationId if available (from Invitations tab), otherwise use contact.id
+      const idToUse = contact.invitationId || contact.id
+      logger.info(`🔄 Resending invitation for: ${idToUse}`)
+      const result = await contactInvitationService.resendInvitation(idToUse)
       if (result.success) {
         toast.success("Invitation relancée avec succès")
         router.refresh()
@@ -317,27 +277,29 @@ export function ContactsPageClient({
   }
 
   // Exécuter l'annulation d'invitation
-  const executeCancelInvitation = async (contact: Contact & { invitationStatus?: string }) => {
-    const invitation = pendingInvitations.find(
-      inv => inv.email?.toLowerCase() === contact.email?.toLowerCase()
-    )
-    if (!invitation) {
-      toast.error("Invitation non trouvée")
-      return
+  const executeCancelInvitation = async (contact: Contact & { invitationStatus?: string; invitationId?: string }) => {
+    // Use invitationId if available (from Invitations tab), otherwise find by email
+    let invitationIdToUse = contact.invitationId
+    if (!invitationIdToUse) {
+      const invitation = invitations.find(
+        inv => inv.email?.toLowerCase() === contact.email?.toLowerCase()
+      )
+      if (!invitation) {
+        toast.error("Invitation non trouvée")
+        return
+      }
+      invitationIdToUse = invitation.id
     }
     try {
-      logger.info(`🚫 Cancelling invitation for contact: ${contact.email}`)
+      logger.info(`🚫 Cancelling invitation: ${invitationIdToUse}`)
       const response = await fetch('/api/cancel-invitation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invitationId: invitation.id })
+        body: JSON.stringify({ invitationId: invitationIdToUse })
       })
       const result = await response.json()
       if (response.ok && result.success) {
         toast.success("Invitation annulée avec succès")
-        if (userTeam?.id) {
-          loadPendingInvitations(userTeam.id)
-        }
         router.refresh()
       } else {
         toast.error(result.error || "Erreur lors de l'annulation")
@@ -370,11 +332,32 @@ export function ContactsPageClient({
     }
   }
 
-  // Handlers passés au navigator (ouvrent la modale)
+  // Handlers passés au navigator (ouvrent la modale) - pour l'onglet Contacts
   const handleSendContactInvitation = (contact: Contact & { invitationStatus?: string }) => openInvitationModal('send', contact)
   const handleResendContactInvitation = (contact: Contact & { invitationStatus?: string }) => openInvitationModal('resend', contact)
   const handleCancelContactInvitation = (contact: Contact & { invitationStatus?: string }) => openInvitationModal('cancel', contact)
   const handleRevokeContactAccess = (contact: Contact & { invitationStatus?: string }) => openInvitationModal('revoke', contact)
+
+  // Handlers pour l'onglet Invitations (convertit l'invitation en format contact avec invitationId)
+  const handleResendInvitationModal = (invitation: Invitation) => {
+    const contactLike = {
+      id: invitation.id,
+      name: invitation.name || invitation.email,
+      email: invitation.email,
+      invitationId: invitation.id, // Store the invitation ID for direct use
+    } as Contact & { invitationStatus?: string; invitationId?: string }
+    openInvitationModal('resend', contactLike)
+  }
+
+  const handleCancelInvitationModal = (invitation: Invitation) => {
+    const contactLike = {
+      id: invitation.id,
+      name: invitation.name || invitation.email,
+      email: invitation.email,
+      invitationId: invitation.id, // Store the invitation ID for direct use
+    } as Contact & { invitationStatus?: string; invitationId?: string }
+    openInvitationModal('cancel', contactLike)
+  }
 
   // Configuration des modales par action
   const getInvitationModalConfig = () => {
@@ -454,13 +437,14 @@ export function ContactsPageClient({
             <div className="flex-1 flex flex-col min-h-0 p-4">
               <ContactsNavigator
                 contacts={contactsWithInvitationStatus as any}
-                invitations={pendingInvitations as any}
+                invitations={invitations as any}
                 companies={companies as any}
+                pendingInvitationsCount={pendingInvitationsCount}
                 loading={loading}
                 onRefresh={refetchContacts}
-                // Invitation tab actions
-                onResendInvitation={handleResendInvitation}
-                onCancelInvitation={handleCancelInvitation}
+                // Invitation tab actions (with confirmation modal)
+                onResendInvitationModal={handleResendInvitationModal as any}
+                onCancelInvitationModal={handleCancelInvitationModal as any}
                 // Contact actions
                 onArchiveContact={handleArchiveContact}
                 // Contact invitation actions

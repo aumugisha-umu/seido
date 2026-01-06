@@ -24,7 +24,7 @@ import { InterventionTypeCombobox } from "@/components/intervention/intervention
 import { generateId, generateInterventionId } from "@/lib/id-utils"
 import { useAuth } from "@/hooks/use-auth"
 import { logger, logError } from '@/lib/logger'
-import { getTenantLots } from '@/app/locataire/(with-navbar)/interventions/actions'
+import { getTenantLots } from './actions'
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { tenantInterventionSteps } from "@/lib/step-configurations"
 import { InterventionConfirmationSummary, type InterventionConfirmationData } from "@/components/interventions/intervention-confirmation-summary"

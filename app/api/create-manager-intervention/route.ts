@@ -130,7 +130,8 @@ export async function POST(request: NextRequest) {
     const {
       managerAvailabilities,
       individualMessages,
-      teamId
+      teamId,
+      excludedLotIds = [] // For building interventions: lots to exclude from tenant assignment
     } = body
 
     // Validate required fields (description is optional per Zod schema)
@@ -530,7 +531,9 @@ export async function POST(request: NextRequest) {
     // ✅ UPDATED 2025-12-10: Auto-assign tenants from ACTIVE CONTRACTS (not lot_contacts)
     // Only contracts with status='actif' are considered (not 'a_venir')
     // ✅ UPDATED 2026-01-05: Respect includeTenants toggle from wizard
+    // ✅ UPDATED 2026-01-06: Support building-level tenant assignment
     if (lotId && includeTenants !== false) {
+      // LOT-LEVEL: Assign tenants from the lot's active contracts
       logger.info({ includeTenants }, "👤 Extracting and assigning tenants from active contracts...")
 
       try {
@@ -570,7 +573,68 @@ export async function POST(request: NextRequest) {
         logger.error({ error }, "❌ Error in tenant auto-assignment")
         // Don't fail the entire operation for tenant assignment errors
       }
-    } else if (lotId && includeTenants === false) {
+    } else if (buildingId && !lotId && includeTenants !== false) {
+      // 🆕 BUILDING-LEVEL: Assign tenants from selected lots in the building
+      const excludedLotIdsSet = new Set(excludedLotIds as string[])
+      logger.info({ includeTenants, buildingId, excludedLotsCount: excludedLotIdsSet.size }, "👤 Extracting and assigning tenants from building's lots...")
+
+      try {
+        const { createServerContractService } = await import('@/lib/services')
+        const contractService = await createServerContractService()
+        const tenantsResult = await contractService.getActiveTenantsByBuilding(buildingId)
+
+        if (!tenantsResult.success) {
+          logger.error({ error: tenantsResult.error }, "⚠️ Error fetching tenants from building's active contracts")
+        } else if (tenantsResult.data.tenants.length > 0) {
+          // Filter out tenants from excluded lots, then deduplicate by user_id
+          const uniqueTenants = new Map<string, typeof tenantsResult.data.tenants[0]>()
+          for (const tenant of tenantsResult.data.tenants) {
+            // Skip tenants from excluded lots
+            if (excludedLotIdsSet.has(tenant.lot_id)) {
+              continue
+            }
+            // Keep first occurrence (already sorted by lot reference, then primary)
+            if (!uniqueTenants.has(tenant.user_id)) {
+              uniqueTenants.set(tenant.user_id, tenant)
+            }
+          }
+
+          if (uniqueTenants.size > 0) {
+            // Prepare tenant assignments
+            const tenantAssignments = Array.from(uniqueTenants.values()).map((tenant, index) => ({
+              intervention_id: intervention.id,
+              user_id: tenant.user_id,
+              role: 'locataire',
+              is_primary: index === 0, // First tenant is primary for building-level
+              assigned_by: user.id
+            }))
+
+            // Insert tenant assignments
+            const { error: tenantAssignError } = await supabase
+              .from('intervention_assignments')
+              .insert(tenantAssignments)
+
+            if (tenantAssignError) {
+              logger.error({ error: tenantAssignError }, "⚠️ Error assigning building tenants")
+            } else {
+              logger.info({
+                count: tenantAssignments.length,
+                uniqueCount: uniqueTenants.size,
+                excludedLots: excludedLotIdsSet.size,
+                fromLots: tenantsResult.data.occupiedLotsCount - excludedLotIdsSet.size
+              }, "✅ Building tenants auto-assigned from active contracts")
+            }
+          } else {
+            logger.info({ buildingId, excludedLotsCount: excludedLotIdsSet.size }, "ℹ️ No tenants to assign (all lots excluded or no active tenants)")
+          }
+        } else {
+          logger.info({ buildingId }, "ℹ️ No active tenants found in building's lots")
+        }
+      } catch (error) {
+        logger.error({ error }, "❌ Error in building tenant auto-assignment")
+        // Don't fail the entire operation for tenant assignment errors
+      }
+    } else if ((lotId || buildingId) && includeTenants === false) {
       logger.info({}, "ℹ️ Tenant auto-assignment skipped (includeTenants=false)")
     }
 

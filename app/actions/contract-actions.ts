@@ -35,6 +35,35 @@ interface ActionResult<T> {
   error?: string
 }
 
+/**
+ * Building tenant info (for intervention creation)
+ */
+export interface BuildingTenant {
+  id: string
+  user_id: string
+  name: string
+  email: string | null
+  phone: string | null
+  is_primary: boolean
+  lot_id: string
+  lot_reference: string
+}
+
+/**
+ * Result structure for building tenants grouped by lot
+ */
+export interface BuildingTenantsResult {
+  tenants: BuildingTenant[]
+  byLot: Array<{
+    lotId: string
+    lotReference: string
+    tenants: Array<Omit<BuildingTenant, 'lot_id' | 'lot_reference'>>
+  }>
+  totalCount: number
+  occupiedLotsCount: number
+  hasActiveTenants: boolean
+}
+
 // ============================================================================
 // AUTH HELPERS
 // ============================================================================
@@ -1228,6 +1257,80 @@ export async function getActiveTenantsByLotAction(
 
   } catch (error) {
     logger.error('❌ [CONTRACT-ACTION] Error getting active tenants:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
+}
+
+/**
+ * Get all active tenants from all lots in a building
+ * Used when creating an intervention for an entire building
+ *
+ * @param buildingId - Building ID
+ * @returns Tenants grouped by lot with totals
+ */
+export async function getActiveTenantsByBuildingAction(
+  buildingId: string
+): Promise<ActionResult<BuildingTenantsResult>> {
+  try {
+    logger.info('🏢 [CONTRACT-ACTION] Getting active tenants for building:', { buildingId })
+
+    // Verify auth
+    const auth = await getAuthContext()
+    if (!auth.success) {
+      return { success: false, error: auth.error }
+    }
+
+    // Get active tenants via service
+    const service = await createServerActionContractService()
+    const result = await service.getActiveTenantsByBuilding(buildingId)
+
+    if (result.success) {
+      logger.info('✅ [CONTRACT-ACTION] Active tenants for building retrieved:', {
+        buildingId,
+        tenantsCount: result.data.totalCount,
+        occupiedLotsCount: result.data.occupiedLotsCount,
+        hasActiveTenants: result.data.hasActiveTenants
+      })
+
+      return {
+        success: true,
+        data: {
+          tenants: result.data.tenants.map(t => ({
+            id: t.id,
+            user_id: t.user_id,
+            name: t.name,
+            email: t.email,
+            phone: t.phone,
+            is_primary: t.is_primary,
+            lot_id: t.lot_id,
+            lot_reference: t.lot_reference
+          })),
+          byLot: result.data.byLot.map(group => ({
+            lotId: group.lotId,
+            lotReference: group.lotReference,
+            tenants: group.tenants.map(t => ({
+              id: t.id,
+              user_id: t.user_id,
+              name: t.name,
+              email: t.email,
+              phone: t.phone,
+              is_primary: t.is_primary
+            }))
+          })),
+          totalCount: result.data.totalCount,
+          occupiedLotsCount: result.data.occupiedLotsCount,
+          hasActiveTenants: result.data.hasActiveTenants
+        }
+      }
+    }
+
+    return { success: false, error: result.error.message }
+
+  } catch (error) {
+    logger.error('❌ [CONTRACT-ACTION] Error getting active tenants for building:', error)
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'

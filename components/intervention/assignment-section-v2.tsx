@@ -43,6 +43,7 @@ import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { AssignmentModeSelector, type AssignmentMode } from "./assignment-mode-selector"
 import { ProviderInstructionsInput } from "./provider-instructions-input"
+import type { BuildingTenantsResult } from "@/app/actions/contract-actions"
 
 interface Contact {
   id: string
@@ -91,10 +92,16 @@ interface AssignmentSectionV2Props {
   onAssignmentModeChange?: (mode: AssignmentMode) => void
   providerInstructions?: Record<string, string>
   onProviderInstructionsChange?: (providerId: string, instructions: string) => void
-  // Tenant toggle props (for occupied lots)
+  // Tenant toggle props (for occupied lots OR buildings)
   showTenantsSection?: boolean
   includeTenants?: boolean
   onIncludeTenantsChange?: (include: boolean) => void
+  // Building tenants (grouped by lot)
+  buildingTenants?: BuildingTenantsResult | null
+  loadingBuildingTenants?: boolean
+  // Lots selection (for granular control)
+  excludedLotIds?: Set<string>
+  onLotToggle?: (lotId: string) => void
 }
 
 // Helper pour formater la date des créneaux
@@ -319,7 +326,13 @@ export function AssignmentSectionV2({
   // Tenant toggle
   showTenantsSection = false,
   includeTenants = true,
-  onIncludeTenantsChange
+  onIncludeTenantsChange,
+  // Building tenants
+  buildingTenants = null,
+  loadingBuildingTenants = false,
+  // Lots selection
+  excludedLotIds = new Set(),
+  onLotToggle
 }: AssignmentSectionV2Props) {
   const [expandedSections, setExpandedSections] = useState({
     contacts: true,
@@ -396,59 +409,148 @@ export function AssignmentSectionV2({
                   customLabel="Prestataires (optionnel)"
                 />
 
-                {/* Tenants Card - Only for occupied lots */}
+                {/* Tenants Card - For occupied lots OR buildings with tenants */}
                 {showTenantsSection && (
-                  <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col">
+                  <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col h-full">
                     {/* Header with toggle */}
                     <div className="w-full flex items-center justify-between gap-2 p-2.5 bg-blue-50">
                       <div className="flex items-center gap-2">
                         <Users className="w-4 h-4 text-blue-600" />
                         <span className="font-semibold text-sm text-blue-900">Locataires</span>
-                        {tenants.length > 0 && (
-                          <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-600 text-white">
-                            {tenants.length}
-                          </span>
+                        {/* Badge count - shows included tenants only */}
+                        {buildingTenants ? (
+                          (() => {
+                            const includedCount = buildingTenants.byLot
+                              .filter(lot => !excludedLotIds?.has(lot.lotId))
+                              .reduce((sum, lot) => sum + lot.tenants.length, 0)
+                            const includedLotsCount = buildingTenants.byLot
+                              .filter(lot => !excludedLotIds?.has(lot.lotId)).length
+                            return includedCount > 0 && (
+                              <>
+                                <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-600 text-white">
+                                  {includedCount}
+                                </span>
+                                <span className="text-xs text-blue-600">
+                                  sur {includedLotsCount} lot{includedLotsCount > 1 ? 's' : ''}
+                                </span>
+                              </>
+                            )
+                          })()
+                        ) : (
+                          tenants.length > 0 && (
+                            <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-600 text-white">
+                              {tenants.length}
+                            </span>
+                          )
                         )}
                       </div>
                       <Switch
                         checked={includeTenants}
                         onCheckedChange={onIncludeTenantsChange}
                         className="data-[state=checked]:bg-blue-600"
+                        disabled={loadingBuildingTenants}
                       />
                     </div>
 
                     {/* Content */}
                     <div className="p-2 bg-white flex-1">
-                      {includeTenants && tenants.length > 0 ? (
-                        <div className="space-y-1.5">
-                          {tenants.map((tenant, index) => (
-                            <div
-                              key={tenant.id || `tenant-${index}`}
-                              className="flex items-center gap-2 p-2 bg-blue-50/50 rounded border border-blue-100"
-                            >
-                              <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
-                                <User className="w-4 h-4 text-blue-700" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="font-medium text-sm truncate">{tenant.name}</div>
-                                {tenant.email && (
-                                  <div className="text-xs text-gray-500 truncate">{tenant.email}</div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                          {/* Info message */}
-                          <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200 mt-2">
-                            <Info className="h-3.5 w-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
-                            <p className="text-xs text-blue-700">
-                              {tenants.length > 1 ? 'Ils pourront' : 'Il pourra'} suivre l'intervention et interagir dans le chat
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
+                      {loadingBuildingTenants ? (
                         <div className="p-3 text-center text-xs text-gray-500">
-                          {includeTenants ? 'Aucun locataire' : 'Les locataires ne seront pas notifiés'}
+                          Chargement des locataires...
                         </div>
+                      ) : buildingTenants ? (
+                        /* Building tenants - grouped by lot with individual switches */
+                        includeTenants && buildingTenants.byLot.length > 0 ? (
+                          <div className="space-y-3 max-h-60 overflow-y-auto">
+                            {buildingTenants.byLot.map((lotGroup) => {
+                              const isLotIncluded = !excludedLotIds?.has(lotGroup.lotId)
+
+                              return (
+                                <div key={lotGroup.lotId}>
+                                  {/* Lot header with switch */}
+                                  <div className="flex items-center justify-between mb-1.5 px-1">
+                                    <span className="text-xs font-medium text-slate-600">
+                                      {lotGroup.lotReference}
+                                      <span className="text-slate-400 ml-1">
+                                        ({lotGroup.tenants.length})
+                                      </span>
+                                    </span>
+                                    <Switch
+                                      checked={isLotIncluded}
+                                      onCheckedChange={() => onLotToggle?.(lotGroup.lotId)}
+                                      className="scale-75 data-[state=checked]:bg-blue-600"
+                                    />
+                                  </div>
+                                  {/* Tenants in this lot (greyed out if excluded) */}
+                                  <div className={cn("space-y-1", !isLotIncluded && "opacity-40")}>
+                                    {lotGroup.tenants.map((tenant, index) => (
+                                      <div
+                                        key={tenant.id || `tenant-${lotGroup.lotId}-${index}`}
+                                        className="flex items-center gap-2 p-2 bg-blue-50/50 rounded border border-blue-100"
+                                      >
+                                        <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                                          <User className="w-4 h-4 text-blue-700" />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="font-medium text-sm truncate">{tenant.name}</div>
+                                          {tenant.email && (
+                                            <div className="text-xs text-gray-500 truncate">{tenant.email}</div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                            {/* Info message for building */}
+                            <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200 mt-2">
+                              <Info className="h-3.5 w-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
+                              <p className="text-xs text-blue-700">
+                                {buildingTenants.byLot.filter(lot => !excludedLotIds?.has(lot.lotId)).reduce((sum, lot) => sum + lot.tenants.length, 0) > 1
+                                  ? 'Ils pourront'
+                                  : 'Il pourra'} suivre l'intervention et interagir dans le chat
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-3 text-center text-xs text-gray-500">
+                            {includeTenants ? 'Aucun locataire dans cet immeuble' : 'Les locataires ne seront pas notifiés'}
+                          </div>
+                        )
+                      ) : (
+                        /* Lot tenants - simple list */
+                        includeTenants && tenants.length > 0 ? (
+                          <div className="space-y-1.5">
+                            {tenants.map((tenant, index) => (
+                              <div
+                                key={tenant.id || `tenant-${index}`}
+                                className="flex items-center gap-2 p-2 bg-blue-50/50 rounded border border-blue-100"
+                              >
+                                <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                                  <User className="w-4 h-4 text-blue-700" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-medium text-sm truncate">{tenant.name}</div>
+                                  {tenant.email && (
+                                    <div className="text-xs text-gray-500 truncate">{tenant.email}</div>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                            {/* Info message for lot */}
+                            <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200 mt-2">
+                              <Info className="h-3.5 w-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
+                              <p className="text-xs text-blue-700">
+                                {tenants.length > 1 ? 'Ils pourront' : 'Il pourra'} suivre l'intervention et interagir dans le chat
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="p-3 text-center text-xs text-gray-500">
+                            {includeTenants ? 'Aucun locataire' : 'Les locataires ne seront pas notifiés'}
+                          </div>
+                        )
                       )}
                     </div>
                   </div>

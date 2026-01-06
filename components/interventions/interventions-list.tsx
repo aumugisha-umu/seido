@@ -2,12 +2,10 @@
 
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { InterventionCard } from "@/components/intervention/intervention-card"
 import { ManagerInterventionCard } from "@/components/dashboards/manager/manager-intervention-card"
 import { InterventionsEmptyState } from "./interventions-empty-state"
 import type { InterventionWithRelations } from "@/lib/services"
-import { logger, logError } from '@/lib/logger'
-import { useAuth } from "@/hooks/use-auth"
+import { logger } from '@/lib/logger'
 
 interface EmptyStateConfig {
   title: string
@@ -23,24 +21,6 @@ interface ContactContext {
   contactRole?: 'gestionnaire' | 'prestataire' | 'locataire'
 }
 
-interface ActionHooks {
-  approvalHook?: {
-    handleApprovalAction?: (intervention: unknown, action: string) => void
-  }
-  quotingHook?: {
-    handleQuoteRequest?: (intervention: unknown) => void
-  }
-  planningHook?: {
-    handleProgrammingModal?: (intervention: unknown) => void
-  }
-  executionHook?: {
-    handleExecutionModal?: (intervention: unknown, type: string) => void
-  }
-  finalizationHook?: {
-    handleFinalizeModal?: (intervention: unknown) => void
-  }
-}
-
 interface InterventionsListProps {
   interventions: InterventionWithRelations[]
   loading?: boolean
@@ -50,7 +30,6 @@ interface InterventionsListProps {
   showStatusActions?: boolean
   contactContext?: ContactContext
   className?: string
-  actionHooks?: ActionHooks
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
   horizontal?: boolean
 }
@@ -64,12 +43,10 @@ export function InterventionsList({
   showStatusActions = true,
   contactContext,
   className = "",
-  actionHooks,
   userContext = 'gestionnaire',
   horizontal = false
 }: InterventionsListProps) {
   const router = useRouter()
-  const { user } = useAuth()
 
   // Limit interventions if maxItems is specified
   const displayedInterventions = maxItems ? interventions.slice(0, maxItems) : interventions
@@ -118,14 +95,13 @@ export function InterventionsList({
     return (
       <div className={`space-y-3 ${className}`}>
         {displayedInterventions.map((intervention) => (
-          <InterventionCard
+          <ManagerInterventionCard
             key={intervention.id}
             intervention={intervention}
             userContext={userContext}
             compact={true}
             showStatusActions={showStatusActions}
             contactContext={contactContext}
-            actionHooks={actionHooks as any}
             onActionComplete={handleActionComplete}
           />
         ))}
@@ -220,17 +196,13 @@ export function InterventionsList({
       <div className={`flex gap-3 overflow-x-auto overflow-y-hidden pb-2 ${className}`}>
         {displayedInterventions.map((intervention) => (
           <div key={intervention.id} className="min-w-[320px] max-w-[320px] lg:min-w-[360px] lg:max-w-[360px] flex-shrink-0">
-            <div>
-              <InterventionCard
-                intervention={intervention}
-                userContext={userContext}
-                compact={false}
-                showStatusActions={showStatusActions}
-                contactContext={contactContext}
-                actionHooks={actionHooks as any}
-                onActionComplete={handleActionComplete}
-              />
-            </div>
+            <ManagerInterventionCard
+              intervention={intervention}
+              userContext={userContext}
+              showStatusActions={showStatusActions}
+              contactContext={contactContext}
+              onActionComplete={handleActionComplete}
+            />
           </div>
         ))}
       </div>

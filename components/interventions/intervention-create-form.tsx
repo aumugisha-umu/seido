@@ -278,14 +278,14 @@ export function InterventionCreateForm({
                 name="type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Type</FormLabel>
+                    <FormLabel>Catégorie</FormLabel>
                     <Select
                       onValueChange={field.onChange}
                       defaultValue={field.value}
                     >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Type d'intervention" />
+                          <SelectValue placeholder="Catégorie d'intervention" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>

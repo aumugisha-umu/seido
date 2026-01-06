@@ -26,6 +26,7 @@ export default async function ContactsPage() {
           initialInvitations={[]}
           initialCompanies={[]}
           initialContactsInvitationStatus={{}}
+          pendingInvitationsCount={0}
           userTeam={{ id: '', name: '' }}
           user={{ id: user?.id ?? '', email: user?.email ?? '' }}
         />
@@ -95,19 +96,33 @@ export default async function ContactsPage() {
     // Source of truth: user_invitations table only (no auth_user_id fallback)
     const contactsInvitationStatus = buildInvitationStatusMap(allInvitations)
 
-    // ✅ Filter pending invitations for the Invitations tab display
-    // Note: The utility already checks expires_at, but for the tab we want DB status='pending'
-    const pendingInvitations = allInvitations.filter((inv: any) => inv.status === 'pending')
+    // ✅ Normalize invitations with effectiveStatus (accounts for expires_at)
+    // An invitation with status='pending' but expires_at in the past is effectively 'expired'
+    const now = new Date()
+    const invitationsWithEffectiveStatus = allInvitations.map((inv: any) => {
+      let effectiveStatus = inv.status
+      if (inv.status === 'pending' && inv.expires_at && new Date(inv.expires_at) < now) {
+        effectiveStatus = 'expired'
+      }
+      return { ...inv, effectiveStatus }
+    })
 
-    logger.info(`📊 [CONTACTS-PAGE] Server data ready - Contacts: ${contacts.length}, All Invitations: ${allInvitations.length}, Pending: ${pendingInvitations.length}, Companies: ${companies.length}`)
+    // ✅ Count pending invitations (not expired) for badge display
+    const pendingInvitationsCount = invitationsWithEffectiveStatus.filter(
+      (inv: any) => inv.effectiveStatus === 'pending'
+    ).length
+
+    logger.info(`📊 [CONTACTS-PAGE] Server data ready - Contacts: ${contacts.length}, All Invitations: ${allInvitations.length}, Pending: ${pendingInvitationsCount}, Companies: ${companies.length}`)
 
     // ✅ Pass data to Client Component
+    // Now passing ALL invitations with effectiveStatus + pending count for badge
     return (
       <ContactsPageClient
         initialContacts={contacts}
-        initialInvitations={pendingInvitations}
+        initialInvitations={invitationsWithEffectiveStatus}
         initialCompanies={companies}
         initialContactsInvitationStatus={contactsInvitationStatus}
+        pendingInvitationsCount={pendingInvitationsCount}
         userTeam={{
           id: team.id,
           name: team.name
@@ -138,6 +153,7 @@ export default async function ContactsPage() {
         initialInvitations={[]}
         initialCompanies={[]}
         initialContactsInvitationStatus={{}}
+        pendingInvitationsCount={0}
         userTeam={{ id: '' }}
         user={{ id: '' }}
       />

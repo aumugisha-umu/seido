@@ -38,7 +38,7 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
       interventionId: id,
       userId: userData.id
     })
-    redirect('/prestataire/interventions')
+    redirect('/prestataire/dashboard')
   }
 
   // Get assignment mode for filtering

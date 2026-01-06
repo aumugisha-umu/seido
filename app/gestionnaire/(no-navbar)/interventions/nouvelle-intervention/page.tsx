@@ -2,7 +2,8 @@
 import {
   createServerBuildingService,
   createServerLotService,
-  createServerContractService
+  createServerContractService,
+  createServerSupabaseClient
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
 import NouvelleInterventionClient from './nouvelle-intervention-client'
@@ -151,12 +152,27 @@ export default async function NouvelleInterventionPage() {
       } : null
     })
 
+    // ✅ Count existing interventions for default title numbering
+    let interventionCount = 0
+    try {
+      const supabase = await createServerSupabaseClient()
+      const { count } = await supabase
+        .from('interventions')
+        .select('*', { count: 'exact', head: true })
+        .eq('team_id', team.id)
+        .is('deleted_at', null)
+      interventionCount = count || 0
+    } catch (countError) {
+      logger.warn('⚠️ Could not count interventions:', countError)
+    }
+
     // Prepare data for client component
     const buildingsData = {
       buildings,
       lots: transformedLots,
       teamId: team.id,
-      userId: profile.id  // ✅ Passer userId pour pré-sélection gestionnaire
+      userId: profile.id,  // ✅ Passer userId pour pré-sélection gestionnaire
+      interventionCount     // ✅ Pour numérotation titre par défaut
     }
 
     logger.info('🎉 [INTERVENTION-PAGE-SERVER] All data loaded successfully', {

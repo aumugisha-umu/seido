@@ -11,23 +11,14 @@ import {
     LayoutGrid,
     List,
     Calendar as CalendarIcon,
-    Calendar,
-    MoreHorizontal,
     X,
-    ArrowUpDown,
-    ChevronDown
+    ArrowUpDown
 } from "lucide-react"
 import { ManagerInterventionCard } from "@/components/dashboards/manager/manager-intervention-card"
 import { InterventionsCalendarView } from "@/components/interventions/interventions-calendar-view"
 import { InterventionsEmptyState } from "@/components/interventions/interventions-empty-state"
-import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
-} from "@/components/ui/table"
+import { InterventionsListViewV1 } from "@/components/interventions/interventions-list-view-v1"
+import { useAuth } from "@/hooks/use-auth"
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -149,6 +140,9 @@ export function DashboardInterventionsSection({
     title = "Interventions",
     onCreateIntervention
 }: DashboardInterventionsSectionProps) {
+    // Auth for userId (needed for alert badges in list view)
+    const { user } = useAuth()
+
     // View mode persisted in localStorage
     const [viewMode, setViewMode] = useLocalStorage<ViewMode>('dashboard-view-mode', 'grid')
 
@@ -491,62 +485,11 @@ export function DashboardInterventionsSection({
                         )}
 
                         {viewMode === 'list' && (
-                            <Card className="border-border shadow-sm overflow-hidden">
-                                <div className="overflow-x-auto">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow className="bg-muted/50 hover:bg-muted/50">
-                                                <TableHead className="w-[300px]">Intervention</TableHead>
-                                                <TableHead>Lieu</TableHead>
-                                                <TableHead>Statut</TableHead>
-                                                <TableHead>Date</TableHead>
-                                                <TableHead className="text-right">Actions</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {filteredAndSortedInterventions.map((intervention) => (
-                                                <TableRow key={intervention.id} className="group hover:bg-muted/50">
-                                                    <TableCell>
-                                                        <div className="flex flex-col gap-1">
-                                                            <span className="font-medium text-foreground">{intervention.title}</span>
-                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                                <span className="capitalize">{intervention.type || intervention.intervention_type}</span>
-                                                                {(intervention.priority === 'urgente' || intervention.urgency === 'urgente') && (
-                                                                    <Badge variant="outline" className="border-red-200 text-red-700 bg-red-50 h-5 px-1.5">
-                                                                        Urgent
-                                                                    </Badge>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex flex-col text-sm">
-                                                            <span className="text-foreground">{intervention.lot?.building?.name || intervention.lot?.name}</span>
-                                                            <span className="text-muted-foreground text-xs">{intervention.lot?.building?.address}</span>
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Badge variant="secondary" className="font-medium">
-                                                            {intervention.status.replace(/_/g, ' ')}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                                            <Calendar className="h-4 w-4 text-muted-foreground/70" />
-                                                            {new Date(intervention.created_at).toLocaleDateString('fr-FR')}
-                                                        </div>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                                            <MoreHorizontal className="h-4 w-4 text-muted-foreground/70 group-hover:text-muted-foreground" />
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </div>
-                            </Card>
+                            <InterventionsListViewV1
+                                interventions={filteredAndSortedInterventions}
+                                userContext={userContext}
+                                userId={user?.id}
+                            />
                         )}
 
                         {viewMode === 'calendar' && (

@@ -2915,3 +2915,40 @@ export async function getAssignmentModeAction(
     }
   }
 }
+
+/**
+ * Get intervention count for a property (lot or building)
+ * Used for generating default intervention titles
+ */
+export async function getInterventionCountByPropertyAction(
+  propertyType: 'lot' | 'building',
+  propertyId: string
+): Promise<ActionResult<number>> {
+  try {
+    const { supabase, user } = await createServerActionSupabaseClient()
+
+    if (!user) {
+      return { success: false, error: 'Non authentifié' }
+    }
+
+    const column = propertyType === 'lot' ? 'lot_id' : 'building_id'
+    const { count, error } = await supabase
+      .from('interventions')
+      .select('*', { count: 'exact', head: true })
+      .eq(column, propertyId)
+      .is('deleted_at', null)
+
+    if (error) {
+      logger.error('❌ [SERVER-ACTION] Error counting interventions:', error)
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, data: count || 0 }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error counting interventions:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }
+  }
+}

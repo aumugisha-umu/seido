@@ -556,6 +556,184 @@ export class ContractService {
   }
 
   /**
+   * Get all active tenants from all lots in a building
+   * Groups tenants by lot for UI display
+   *
+   * @param buildingId - Building ID
+   * @returns Tenants grouped by lot with totals
+   */
+  async getActiveTenantsByBuilding(buildingId: string): Promise<{
+    success: true
+    data: {
+      tenants: Array<{
+        id: string
+        user_id: string
+        name: string
+        email: string | null
+        phone: string | null
+        role: ContractContactRole
+        is_primary: boolean
+        lot_id: string
+        lot_reference: string
+      }>
+      byLot: Array<{
+        lotId: string
+        lotReference: string
+        tenants: Array<{
+          id: string
+          user_id: string
+          name: string
+          email: string | null
+          phone: string | null
+          role: ContractContactRole
+          is_primary: boolean
+        }>
+      }>
+      totalCount: number
+      occupiedLotsCount: number
+      hasActiveTenants: boolean
+    }
+  } | { success: false; error: { code: string; message: string } }> {
+    try {
+      // Get all active contracts for lots in this building
+      const contractsResult = await this.contractRepository.findActiveByBuilding(buildingId)
+
+      if (isErrorResponse(contractsResult)) {
+        logger.error({ buildingId, error: contractsResult.error }, 'Failed to get contracts for building')
+        return { success: false, error: contractsResult.error }
+      }
+
+      const activeContracts = contractsResult.data || []
+
+      // Extract tenants grouped by lot
+      const tenantsByLot = new Map<string, {
+        lotId: string
+        lotReference: string
+        tenants: Array<{
+          id: string
+          user_id: string
+          name: string
+          email: string | null
+          phone: string | null
+          role: ContractContactRole
+          is_primary: boolean
+        }>
+      }>()
+
+      // All tenants flat list (with lot info)
+      const allTenants: Array<{
+        id: string
+        user_id: string
+        name: string
+        email: string | null
+        phone: string | null
+        role: ContractContactRole
+        is_primary: boolean
+        lot_id: string
+        lot_reference: string
+      }> = []
+
+      // Track user_ids per lot to avoid duplicates within same lot
+      const seenUserIdsByLot = new Map<string, Set<string>>()
+
+      for (const contract of activeContracts) {
+        const lot = contract.lot as { id: string; reference: string } | null
+        if (!lot) continue
+
+        const lotId = lot.id
+        const lotReference = lot.reference || `Lot ${lotId.slice(0, 8)}`
+
+        // Initialize lot group if not exists
+        if (!tenantsByLot.has(lotId)) {
+          tenantsByLot.set(lotId, {
+            lotId,
+            lotReference,
+            tenants: []
+          })
+          seenUserIdsByLot.set(lotId, new Set())
+        }
+
+        const lotGroup = tenantsByLot.get(lotId)!
+        const seenInLot = seenUserIdsByLot.get(lotId)!
+
+        if (contract.contacts && Array.isArray(contract.contacts)) {
+          for (const contact of contract.contacts) {
+            // Only include tenants (locataire, colocataire)
+            if (contact.role === 'locataire' || contact.role === 'colocataire') {
+              // Avoid duplicates within same lot
+              if (seenInLot.has(contact.user_id)) continue
+              seenInLot.add(contact.user_id)
+
+              const tenantData = {
+                id: contact.id,
+                user_id: contact.user_id,
+                name: contact.user?.name || 'Unknown',
+                email: contact.user?.email || null,
+                phone: (contact.user as any)?.phone || null,
+                role: contact.role,
+                is_primary: contact.is_primary
+              }
+
+              lotGroup.tenants.push(tenantData)
+              allTenants.push({
+                ...tenantData,
+                lot_id: lotId,
+                lot_reference: lotReference
+              })
+            }
+          }
+        }
+      }
+
+      // Sort tenants within each lot: primary first, then by name
+      for (const lotGroup of tenantsByLot.values()) {
+        lotGroup.tenants.sort((a, b) => {
+          if (a.is_primary !== b.is_primary) return a.is_primary ? -1 : 1
+          return a.name.localeCompare(b.name)
+        })
+      }
+
+      // Convert to array and sort by lot reference
+      const byLot = Array.from(tenantsByLot.values()).sort((a, b) =>
+        a.lotReference.localeCompare(b.lotReference)
+      )
+
+      // Sort all tenants: by lot reference, then primary, then name
+      allTenants.sort((a, b) => {
+        const lotCompare = a.lot_reference.localeCompare(b.lot_reference)
+        if (lotCompare !== 0) return lotCompare
+        if (a.is_primary !== b.is_primary) return a.is_primary ? -1 : 1
+        return a.name.localeCompare(b.name)
+      })
+
+      logger.info({
+        buildingId,
+        activeContractsCount: activeContracts.length,
+        occupiedLotsCount: byLot.length,
+        totalTenantsCount: allTenants.length
+      }, 'Active tenants retrieved for building')
+
+      return {
+        success: true,
+        data: {
+          tenants: allTenants,
+          byLot,
+          totalCount: allTenants.length,
+          occupiedLotsCount: byLot.length,
+          hasActiveTenants: allTenants.length > 0
+        }
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
+      logger.error({ buildingId, error: errorMessage }, 'Error getting active tenants for building')
+      return {
+        success: false,
+        error: { code: 'FETCH_ERROR', message: errorMessage }
+      }
+    }
+  }
+
+  /**
    * Récupère la liste des lot_id qui sont occupés (ont un contrat actif avec locataire)
    * Optimisé pour éviter N+1 queries dans la liste des biens
    *

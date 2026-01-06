@@ -67,6 +67,11 @@ export function EditContactClient({
     const [currentStep, setCurrentStep] = useState(1)
     const [isSaving, setIsSaving] = useState(false)
 
+    // Handler pour le clic sur une étape dans le header (mode edit = toutes étapes cliquables)
+    const handleStepClick = (step: number) => {
+        setCurrentStep(step)
+    }
+
     // Note: La DB utilise les termes français (prestataire, locataire, gestionnaire, etc.)
     // Les valeurs UI et DB sont identiques, pas de mapping nécessaire
     // On garde ces helpers pour clarté et compatibilité avec l'ancien code
@@ -363,6 +368,8 @@ export function EditContactClient({
                 onBack={() => router.push('/gestionnaire/contacts')}
                 steps={contactSteps}
                 currentStep={currentStep}
+                onStepClick={handleStepClick}
+                allowFutureSteps={true}
             />
 
             {/* Contenu principal */}

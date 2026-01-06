@@ -18,8 +18,9 @@
  * />
  */
 
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
-import { Users, MessageSquare, ChevronRight } from 'lucide-react'
+import { Users, MessageSquare, ChevronRight, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -88,6 +89,8 @@ const ParticipantGroup = ({
   unreadCount = 0,
   currentUserId
 }: ParticipantGroupProps) => {
+  const [isExpanded, setIsExpanded] = useState(true)
+
   if (participants.length === 0) return null
 
   const colors = AVATAR_COLORS[role]
@@ -99,111 +102,132 @@ const ParticipantGroup = ({
     assignmentMode !== 'single'
 
   return (
-    <div className="space-y-3">
-      {/* Label du groupe + Assignment mode badge */}
-      <div className="flex items-center gap-2">
-        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-          {label}
-        </p>
+    <div className="space-y-2">
+      {/* Header du groupe - cliquable pour toggle */}
+      <button
+        type="button"
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full flex items-center justify-between gap-2 hover:bg-slate-50 rounded -mx-1 px-1 py-0.5 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            {label}
+          </p>
+          {/* Compteur de participants */}
+          <span className="text-xs font-medium text-slate-500">
+            ({participants.length})
+          </span>
 
-        {showAssignmentBadge && assignmentMode && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="cursor-help">
-                  <SeidoBadge
-                    type="mode"
-                    value={assignmentMode}
-                    size="md"
-                    showIcon
-                  />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="right" className="max-w-[280px] p-3">
-                <p className="text-sm leading-relaxed">
-                  {assignmentMode === 'separate'
-                    ? 'Chaque prestataire voit uniquement ses propres informations. Des interventions individuelles seront créées à la clôture.'
-                    : 'Tous les prestataires voient les mêmes informations (créneaux, instructions, devis).'
-                  }
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
-      </div>
-
-      {/* Liste des participants */}
-      <div className="space-y-3">
-        {participants.map((participant) => (
-          <div
-            key={participant.id}
-            className={cn(
-              'flex items-center gap-3',
-              showConversationButtons && 'group'
-            )}
-          >
-            {/* Avatar */}
-            <Avatar className="h-8 w-8 border border-slate-200 flex-shrink-0">
-              <AvatarFallback className={cn('text-xs font-medium', colors.bg, colors.text)}>
-                {getInitials(participant.name)}
-              </AvatarFallback>
-            </Avatar>
-
-            {/* Nom et email */}
-            <div className="flex-1 min-w-0 overflow-hidden">
-              <p className="text-sm font-medium text-slate-700 truncate">
-                {participant.name}
-              </p>
-              {participant.email && (
-                <p className="text-xs text-slate-500 truncate">
-                  {participant.email}
-                </p>
-              )}
-            </div>
-
-            {/* Bouton de conversation individuelle avec pastille */}
-            {/* Masqué pour l'utilisateur connecté (on ne peut pas s'envoyer un message à soi-même) */}
-            {showConversationButtons && onConversationClick && participant.id !== currentUserId && (
-              <div className="relative flex-shrink-0">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn(
-                    'h-7 w-7 text-slate-400 hover:text-blue-600',
-                    activeConversation === participant.id && 'bg-blue-100 text-blue-600'
-                  )}
-                  onClick={() => onConversationClick(participant.id)}
-                  aria-label={`Ouvrir la conversation avec ${participant.name}`}
-                  aria-pressed={activeConversation === participant.id}
-                >
-                  <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
-                </Button>
-                {/* Pastille de messages non lus */}
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                    {unreadCount > 9 ? '9+' : unreadCount}
+          {showAssignmentBadge && assignmentMode && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <span className="cursor-help" onClick={(e) => e.stopPropagation()}>
+                    <SeidoBadge
+                      type="mode"
+                      value={assignmentMode}
+                      size="md"
+                      showIcon
+                    />
                   </span>
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-[280px] p-3">
+                  <p className="text-sm leading-relaxed">
+                    {assignmentMode === 'separate'
+                      ? 'Chaque prestataire voit uniquement ses propres informations. Des interventions individuelles seront créées à la clôture.'
+                      : 'Tous les prestataires voient les mêmes informations (créneaux, instructions, devis).'
+                    }
+                  </p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+
+        {/* Chevron toggle */}
+        <ChevronDown
+          className={cn(
+            'w-4 h-4 text-slate-400 transition-transform duration-200',
+            !isExpanded && '-rotate-90'
+          )}
+        />
+      </button>
+
+      {/* Liste des participants - collapsible */}
+      {isExpanded && (
+        <div className="space-y-3 pl-1">
+          {participants.map((participant) => (
+            <div
+              key={participant.id}
+              className={cn(
+                'flex items-center gap-3',
+                showConversationButtons && 'group'
+              )}
+            >
+              {/* Avatar */}
+              <Avatar className="h-8 w-8 border border-slate-200 flex-shrink-0">
+                <AvatarFallback className={cn('text-xs font-medium', colors.bg, colors.text)}>
+                  {getInitials(participant.name)}
+                </AvatarFallback>
+              </Avatar>
+
+              {/* Nom et email */}
+              <div className="flex-1 min-w-0 overflow-hidden">
+                <p className="text-sm font-medium text-slate-700 truncate">
+                  {participant.name}
+                </p>
+                {participant.email && (
+                  <p className="text-xs text-slate-500 truncate">
+                    {participant.email}
+                  </p>
                 )}
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+
+              {/* Bouton de conversation individuelle avec pastille */}
+              {/* Masqué pour l'utilisateur connecté (on ne peut pas s'envoyer un message à soi-même) */}
+              {showConversationButtons && onConversationClick && participant.id !== currentUserId && (
+                <div className="relative flex-shrink-0">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      'h-7 w-7 text-slate-400 hover:text-blue-600',
+                      activeConversation === participant.id && 'bg-blue-100 text-blue-600'
+                    )}
+                    onClick={() => onConversationClick(participant.id)}
+                    aria-label={`Ouvrir la conversation avec ${participant.name}`}
+                    aria-pressed={activeConversation === participant.id}
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
+                  </Button>
+                  {/* Pastille de messages non lus */}
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                      {unreadCount > 9 ? '9+' : unreadCount}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
 
 /**
  * Bouton de discussion générale
+ * Exporté pour pouvoir être utilisé en dehors de ParticipantsList
  */
-interface GroupConversationButtonProps {
+export interface GroupConversationButtonProps {
   isActive: boolean
   onClick: () => void
   /** Compteur de messages non lus */
   unreadCount?: number
 }
 
-const GroupConversationButton = ({ isActive, onClick, unreadCount = 0 }: GroupConversationButtonProps) => {
+export const GroupConversationButton = ({ isActive, onClick, unreadCount = 0 }: GroupConversationButtonProps) => {
   return (
     <button
       onClick={onClick}
@@ -248,6 +272,8 @@ interface ExtendedParticipantsListProps extends ParticipantsListProps {
   assignmentMode?: AssignmentMode
   /** Compteurs de messages non lus par type de thread */
   unreadCounts?: Record<string, number>
+  /** Masquer le bouton de discussion générale (pour l'afficher ailleurs) */
+  hideGroupConversationButton?: boolean
 }
 
 /**
@@ -263,6 +289,7 @@ export const ParticipantsList = ({
   showConversationButtons = false,
   assignmentMode,
   unreadCounts = {},
+  hideGroupConversationButton = false,
   className
 }: ExtendedParticipantsListProps) => {
   // Détermine quels rôles sont visibles selon le rôle de l'utilisateur courant
@@ -347,8 +374,8 @@ export const ParticipantsList = ({
         )}
       </div>
 
-      {/* Bouton de discussion générale (visible uniquement pour les rôles autorisés) */}
-      {canShowGroupConversation && onGroupConversationClick && (
+      {/* Bouton de discussion générale (visible uniquement pour les rôles autorisés, sauf si masqué) */}
+      {canShowGroupConversation && onGroupConversationClick && !hideGroupConversationButton && (
         <>
           <Separator />
           <GroupConversationButton

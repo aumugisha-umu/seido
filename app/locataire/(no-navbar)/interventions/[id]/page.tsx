@@ -37,7 +37,7 @@ export default async function LocataireInterventionDetailPage({ params }: PagePr
     .single()
 
   if (!assignment) {
-    redirect('/locataire/interventions')
+    redirect('/locataire/dashboard')
   }
 
   // Load additional data for tenant view
@@ -142,10 +142,17 @@ export default async function LocataireInterventionDetailPage({ params }: PagePr
       email: firstAssignment.user.email,
       role: firstAssignment.user.role
     } : undefined,
-    // Assignments needed for action buttons (validate/contest work)
+    // Assignments with full user data for participants display
     assignments: assignments?.map(a => ({
       role: a.role,
-      user_id: a.user?.id || a.user_id
+      user_id: a.user?.id || a.user_id,
+      user: a.user ? {
+        id: a.user.id,
+        name: a.user.name,
+        email: a.user.email,
+        phone: a.user.phone,
+        role: a.user.role
+      } : undefined
     })) || []
   }
 

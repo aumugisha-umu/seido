@@ -328,6 +328,18 @@ export interface CommentsCardProps {
 }
 
 /**
+ * Détails de localisation pour une intervention
+ */
+export interface LocationDetails {
+  /** Nom de l'immeuble */
+  buildingName?: string | null
+  /** Référence du lot */
+  lotReference?: string | null
+  /** Adresse complète (rue, code postal, ville) */
+  fullAddress?: string | null
+}
+
+/**
  * Props pour InterventionDetailsCard
  */
 export interface InterventionDetailsCardProps {
@@ -335,6 +347,8 @@ export interface InterventionDetailsCardProps {
   description?: string
   instructions?: string
   location?: string
+  /** Détails de localisation (immeuble, lot, adresse) - affiché en entier */
+  locationDetails?: LocationDetails
   /** Infos de planification (optionnel) */
   planning?: {
     /** Date planifiée */
@@ -350,6 +364,10 @@ export interface InterventionDetailsCardProps {
     /** Montant du devis validé */
     selectedQuoteAmount?: number | null
   }
+  /** Nom du créateur de l'intervention */
+  createdBy?: string | null
+  /** Date de création (ISO string) */
+  createdAt?: string | null
   /** Callback pour naviguer vers l'onglet Planning */
   onNavigateToPlanning?: () => void
   className?: string

@@ -122,8 +122,8 @@ export function InterventionRequestForm({
         if (onSuccess) {
           onSuccess(result.data.id)
         } else {
-          // Redirect to intervention list
-          router.push('/locataire/interventions')
+          // Redirect to dashboard
+          router.push('/locataire/dashboard')
         }
       } else {
         toast.error(result.error || 'Erreur lors de la création de l\'intervention')
@@ -189,14 +189,14 @@ export function InterventionRequestForm({
             name="type"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Type d'intervention</FormLabel>
+                <FormLabel>Catégorie d'intervention</FormLabel>
                 <Select
                   onValueChange={field.onChange}
                   defaultValue={field.value}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Sélectionnez un type" />
+                      <SelectValue placeholder="Sélectionnez une catégorie" />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>

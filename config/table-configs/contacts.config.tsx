@@ -42,6 +42,8 @@ export interface InvitationData {
     provider_category?: string
     role?: string
     status?: string
+    /** Effective status accounting for expires_at (pending invitation past expiry = 'expired') */
+    effectiveStatus?: string
     created_at: string
 }
 
@@ -402,15 +404,17 @@ export const invitationsTableConfig: DataTableConfig<InvitationData> = {
         {
             id: 'status',
             header: 'Statut',
-            accessorKey: 'status',
+            accessorKey: 'effectiveStatus', // Use effectiveStatus for filtering (accounts for expires_at)
             cell: (invitation) => {
+                // Display effectiveStatus which accounts for expires_at
+                const status = (invitation as any).effectiveStatus || invitation.status || 'pending'
                 const configs: Record<string, { label: string; class: string }> = {
                     pending: { label: 'En attente', class: 'bg-orange-100 text-orange-800' },
                     accepted: { label: 'Acceptée', class: 'bg-green-100 text-green-800' },
                     expired: { label: 'Expirée', class: 'bg-gray-100 text-gray-800' },
                     cancelled: { label: 'Annulée', class: 'bg-red-100 text-red-800' }
                 }
-                const config = configs[invitation.status || 'pending'] || configs.pending
+                const config = configs[status] || configs.pending
                 return (
                     <Badge variant="secondary" className={`${config.class} text-xs`}>
                         {config.label}
@@ -434,13 +438,14 @@ export const invitationsTableConfig: DataTableConfig<InvitationData> = {
 
     filters: [
         {
-            id: 'status',
+            id: 'effectiveStatus', // Filter on effectiveStatus (accounts for expires_at)
             label: 'Statut',
             options: [
                 { value: 'all', label: 'Tous' },
                 { value: 'pending', label: 'En attente' },
                 { value: 'accepted', label: 'Acceptée' },
-                { value: 'expired', label: 'Expirée' }
+                { value: 'expired', label: 'Expirée' },
+                { value: 'cancelled', label: 'Annulée' }
             ],
             defaultValue: 'all'
         }
@@ -449,22 +454,37 @@ export const invitationsTableConfig: DataTableConfig<InvitationData> = {
     views: {
         card: {
             enabled: true,
-            component: ({ item }) => (
-                <div className="p-4 border rounded-lg bg-white shadow-sm">
-                    <div className="flex justify-between items-start mb-2">
-                        <div className="font-medium">{item.email}</div>
-                        <Badge variant="secondary" className="text-xs">
-                            {item.status === 'pending' ? 'En attente' : item.status}
-                        </Badge>
+            component: ({ item }) => {
+                const status = item.effectiveStatus || item.status || 'pending'
+                const statusLabels: Record<string, string> = {
+                    pending: 'En attente',
+                    accepted: 'Acceptée',
+                    expired: 'Expirée',
+                    cancelled: 'Annulée'
+                }
+                const statusClasses: Record<string, string> = {
+                    pending: 'bg-orange-100 text-orange-800',
+                    accepted: 'bg-green-100 text-green-800',
+                    expired: 'bg-gray-100 text-gray-800',
+                    cancelled: 'bg-red-100 text-red-800'
+                }
+                return (
+                    <div className="p-4 border rounded-lg bg-white shadow-sm">
+                        <div className="flex justify-between items-start mb-2">
+                            <div className="font-medium">{item.email}</div>
+                            <Badge variant="secondary" className={`text-xs ${statusClasses[status] || ''}`}>
+                                {statusLabels[status] || status}
+                            </Badge>
+                        </div>
+                        <div className="text-sm text-slate-500 mb-2">
+                            {item.name || 'Sans nom'} • {getContactTypeLabel(item.role)}
+                        </div>
+                        <div className="text-xs text-slate-400">
+                            Envoyée le {new Date(item.created_at).toLocaleDateString('fr-FR')}
+                        </div>
                     </div>
-                    <div className="text-sm text-slate-500 mb-2">
-                        {item.name || 'Sans nom'} • {getContactTypeLabel(item.role)}
-                    </div>
-                    <div className="text-xs text-slate-400">
-                        Envoyée le {new Date(item.created_at).toLocaleDateString('fr-FR')}
-                    </div>
-                </div>
-            ),
+                )
+            },
             compact: true
         },
         list: {

@@ -83,6 +83,11 @@ export default function EditBuildingClient({
   // Step navigation
   const [currentStep, setCurrentStep] = useState(1)
 
+  // Handler pour le clic sur une étape dans le header (mode edit = toutes étapes cliquables)
+  const handleStepClick = (step: number) => {
+    setCurrentStep(step)
+  }
+
   // Building data states - initialized with pre-populated data
   const [buildingInfo, setBuildingInfo] = useState<BuildingInfo>(initialBuilding.buildingInfo)
   const [lots, setLots] = useState<ComponentLot[]>(initialBuilding.lots)
@@ -530,6 +535,8 @@ export default function EditBuildingClient({
         onBack={() => router.push(`/gestionnaire/biens/immeubles/${buildingId}`)}
         steps={buildingSteps}
         currentStep={currentStep}
+        onStepClick={handleStepClick}
+        allowFutureSteps={true}
       />
 
       {/* Error Alert */}

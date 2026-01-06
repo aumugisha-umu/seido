@@ -76,11 +76,19 @@ export interface TenantIntervention {
   urgency: string
   type: string
   lot?: {
+    id?: string
     reference: string
     building?: {
+      id?: string
       name: string
     }
   }
+  // ✅ Building direct pour interventions building-level (sans lot_id)
+  building?: {
+    id: string
+    name: string
+    address?: string
+  } | null
   assigned_contact?: {
     name: string
     phone: string
@@ -255,6 +263,7 @@ export const useTenantData = () => {
         urgency: i.urgency || 'normale',
         type: i.intervention_type || i.type || 'autre',
         lot: i.lot,
+        building: (i as any).building || null,  // ✅ Building direct pour interventions building-level
         assigned_contact: i.assigned_contact,
         quotes: i.quotes || [],
         timeSlots: i.timeSlots || [],

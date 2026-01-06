@@ -101,8 +101,23 @@ export default function NewLotPage() {
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
   const { data: managerData } = useManagerStats()
-  const [currentStep, setCurrentStep] = useState(1)
-  
+  const [currentStep, setCurrentStepState] = useState(1)
+  const [maxStepReached, setMaxStepReached] = useState(1)
+
+  // Wrapper pour setCurrentStep qui met aussi à jour maxStepReached
+  const setCurrentStep = (step: number) => {
+    const clampedStep = Math.max(1, Math.min(step, 4)) // 4 étapes total
+    setCurrentStepState(clampedStep)
+    if (clampedStep > maxStepReached) {
+      setMaxStepReached(clampedStep)
+    }
+  }
+
+  // Handler pour le clic sur une étape dans le header
+  const handleStepClick = (step: number) => {
+    setCurrentStep(step)
+  }
+
   // États pour la gestion des gestionnaires de lot
   const [isLotManagerModalOpen, setIsLotManagerModalOpen] = useState(false)
 
@@ -2349,6 +2364,9 @@ export default function NewLotPage() {
         onBack={() => router.push(backDestination)}
         steps={lotSteps}
         currentStep={currentStep}
+        onStepClick={handleStepClick}
+        allowFutureSteps={false}
+        maxReachableStep={maxStepReached}
       />
 
       {/* Main Content with uniform padding (responsive) and bottom space for footer */}

@@ -26,6 +26,7 @@ import {
   Clock,
   MessageSquare,
   Paperclip,
+  Pencil,
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
@@ -34,7 +35,8 @@ import { useSearchParams } from "next/navigation"
 import { useSaveFormState, useRestoreFormState } from "@/hooks/use-form-persistence"
 import PropertySelector from "@/components/property-selector"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { PROBLEM_TYPES, URGENCY_LEVELS } from "@/lib/intervention-data"
+import { URGENCY_LEVELS } from "@/lib/intervention-data"
+import { InterventionTypeCombobox } from "@/components/intervention/intervention-type-combobox"
 import { determineAssignmentType, createTeamService, createContactService, createTenantService, createLotService, createBuildingService } from '@/lib/services'
 import { useAuth } from "@/hooks/use-auth"
 import ContactSelectorOld from "@/components/ui/contact-selector"
@@ -44,11 +46,12 @@ import { StepProgressHeader } from "@/components/ui/step-progress-header"
 import { interventionSteps } from "@/lib/step-configurations"
 import { logger, logError } from '@/lib/logger'
 import { getTeamContactsAction } from '@/app/actions/contacts'
-import { getActiveTenantsByLotAction } from '@/app/actions/contract-actions'
+import { getActiveTenantsByLotAction, getActiveTenantsByBuildingAction, type BuildingTenantsResult } from '@/app/actions/contract-actions'
 import { AssignmentSectionV2 } from "@/components/intervention/assignment-section-v2"
 import { useInterventionUpload, DOCUMENT_TYPES } from "@/hooks/use-intervention-upload"
 import { InterventionFileAttachment } from "@/components/intervention/intervention-file-attachment"
 import { InterventionConfirmationSummary, type InterventionConfirmationData } from "@/components/interventions/intervention-confirmation-summary"
+import { Switch } from "@/components/ui/switch"
 
 // Types for server-loaded data
 interface Building {
@@ -74,6 +77,7 @@ interface BuildingsData {
   lots: Lot[]
   teamId: string | null
   userId: string | null  // ✅ Ajout pour pré-sélection gestionnaire
+  interventionCount?: number  // ✅ Pour numérotation titre par défaut
 }
 
 interface NouvelleInterventionClientProps {
@@ -100,6 +104,7 @@ export default function NouvelleInterventionClient({
   })
 
   const [currentStep, setCurrentStep] = useState(1)
+  const [maxStepReached, setMaxStepReached] = useState(1)
   const [selectedLogement, setSelectedLogement] = useState<any>(null)
   const [selectedBuildingId, setSelectedBuildingId] = useState<string | undefined>()
   const [selectedLotId, setSelectedLotId] = useState<string | undefined>()
@@ -139,6 +144,29 @@ export default function NouvelleInterventionClient({
   const [error, setError] = useState<string>("")
 
   const [expectsQuote, setExpectsQuote] = useState(false)
+
+  // Toggle pour inclure les locataires (lots occupés uniquement)
+  const [includeTenants, setIncludeTenants] = useState<boolean>(true)
+
+  // État pour les locataires d'un immeuble (groupés par lot)
+  const [buildingTenants, setBuildingTenants] = useState<BuildingTenantsResult | null>(null)
+  const [loadingBuildingTenants, setLoadingBuildingTenants] = useState(false)
+
+  // État pour les lots exclus (sélection granulaire par lot)
+  const [excludedLotIds, setExcludedLotIds] = useState<Set<string>>(new Set())
+
+  // Handler pour toggle un lot
+  const handleLotToggle = (lotId: string) => {
+    setExcludedLotIds(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(lotId)) {
+        newSet.delete(lotId)
+      } else {
+        newSet.add(lotId)
+      }
+      return newSet
+    })
+  }
 
   // États pour les données réelles
   const [managers, setManagers] = useState<unknown[]>([])
@@ -673,6 +701,11 @@ export default function NouvelleInterventionClient({
   const handleBuildingSelect = async (buildingId: string | null) => {
     setSelectedBuildingId(buildingId || undefined)
     setSelectedLotId(undefined)
+    // Reset building tenants and excluded lots when changing selection
+    setBuildingTenants(null)
+    setExcludedLotIds(new Set())
+    setIncludeTenants(false)
+
     if (!buildingId) {
       setSelectedLogement(null)
       return
@@ -705,6 +738,36 @@ export default function NouvelleInterventionClient({
           buildingId: result.data.id
         })
         setSelectedBuildingId(String(result.data.id))
+
+        // ✅ Générer titre par défaut si vide
+        if (!formData.title) {
+          const nextNumber = (initialBuildingsData.interventionCount || 0) + 1
+          const buildingName = result.data.name || buildingFromInitial?.name || 'Immeuble'
+          setFormData(prev => ({
+            ...prev,
+            title: `Intervention #${nextNumber} - ${buildingName}`
+          }))
+        }
+      }
+
+      // 🆕 Charger les locataires de tous les lots de l'immeuble
+      setLoadingBuildingTenants(true)
+      try {
+        const tenantsResult = await getActiveTenantsByBuildingAction(buildingId)
+        if (tenantsResult.success && tenantsResult.data) {
+          setBuildingTenants(tenantsResult.data)
+          // Activer le toggle si des locataires existent
+          setIncludeTenants(tenantsResult.data.hasActiveTenants)
+          logger.info('✅ Building tenants loaded:', {
+            buildingId,
+            totalCount: tenantsResult.data.totalCount,
+            occupiedLotsCount: tenantsResult.data.occupiedLotsCount
+          })
+        }
+      } catch (tenantError) {
+        logger.warn("Could not load building tenants:", tenantError)
+      } finally {
+        setLoadingBuildingTenants(false)
       }
     } catch (err) {
       logger.error("❌ Error loading building data:", err)
@@ -730,6 +793,9 @@ export default function NouvelleInterventionClient({
   }
 
   const handleLotSelect = async (lotId: string | null, buildingId?: string) => {
+    // Reset building tenants when switching to lot selection
+    setBuildingTenants(null)
+
     if (!lotId) {
       setSelectedLotId(undefined)
       setSelectedBuildingId(buildingId || undefined)
@@ -750,8 +816,11 @@ export default function NouvelleInterventionClient({
       buildingId: buildingIdStr,
       name: lotFromInitial?.reference || `Lot ${lotIdStr.slice(0, 8)}`,
       building: lotFromInitial?.building?.name,
-      address: lotFromInitial?.building?.address
+      address: lotFromInitial?.building?.address,
+      is_occupied: lotFromInitial?.is_occupied || false
     })
+    // ✅ Initialiser includeTenants depuis données initiales pour cohérence avec étape 1
+    setIncludeTenants(lotFromInitial?.is_occupied || false)
 
     if (!services) {
       logger.info("⏳ Services not ready, cannot load lot details")
@@ -810,10 +879,23 @@ export default function NouvelleInterventionClient({
           tenantEmail,
           tenantPhone,
           tenants, // Liste de tous les locataires
-          is_occupied: lotData.is_occupied || false
+          // ✅ Préserver is_occupied des données initiales (basées sur contrats actifs)
+          is_occupied: lotFromInitial?.is_occupied ?? lotData.is_occupied ?? false
         })
+        // Toggle locataires: coché par défaut si lot occupé (basé sur contrats actifs)
+        setIncludeTenants(lotFromInitial?.is_occupied ?? lotData.is_occupied ?? false)
         setSelectedLotId(String(lotData.id))
         setSelectedBuildingId(lotData.building_id ? String(lotData.building_id) : (lotData.building?.id ? String(lotData.building.id) : undefined))
+
+        // ✅ Générer titre par défaut si vide
+        if (!formData.title) {
+          const nextNumber = (initialBuildingsData.interventionCount || 0) + 1
+          const lotName = lotData.reference || lotFromInitial?.reference || 'Lot'
+          setFormData(prev => ({
+            ...prev,
+            title: `Intervention #${nextNumber} - ${lotName}`
+          }))
+        }
       } else {
         // Fallback to minimal data if lot not found (utilise données initiales)
         setSelectedLotId(lotIdStr)
@@ -892,13 +974,27 @@ export default function NouvelleInterventionClient({
     }
 
     if (currentStep < 4) {
-      setCurrentStep(currentStep + 1)
+      const nextStep = currentStep + 1
+      setCurrentStep(nextStep)
+      // Track the maximum step reached for header navigation
+      if (nextStep > maxStepReached) {
+        setMaxStepReached(nextStep)
+      }
     }
   }
 
   const handleBack = () => {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
+    }
+  }
+
+  // Handler for step clicks in the header (updates currentStep, maxStepReached is already tracked)
+  const handleStepClick = (step: number) => {
+    setCurrentStep(step)
+    // Update maxStepReached if navigating forward
+    if (step > maxStepReached) {
+      setMaxStepReached(step)
     }
   }
 
@@ -917,13 +1013,13 @@ export default function NouvelleInterventionClient({
         if (!formData.title?.trim()) {
           errors.push("Le titre est requis")
         }
-        if (!formData.description?.trim()) {
-          errors.push("La description est requise")
-        }
+        // description est optionnelle (gestionnaire)
         if (!formData.urgency?.trim()) {
           errors.push("L'urgence est requise")
         }
-        // type est optionnel selon le schéma
+        if (!formData.type?.trim()) {
+          errors.push("Le type d'intervention est requis")
+        }
         break
 
       case 3: // Contacts
@@ -992,7 +1088,7 @@ export default function NouvelleInterventionClient({
         // Basic intervention data
         title: formData.title,
         description: formData.description,
-        type: formData.type || undefined, // ✅ undefined si vide (optionnel)
+        type: formData.type, // ✅ Obligatoire
         urgency: formData.urgency,
 
         // Housing selection
@@ -1026,6 +1122,16 @@ export default function NouvelleInterventionClient({
 
         // Options
         expectsQuote,
+        // Include tenants for lots OR buildings
+        includeTenants: (selectedLogement?.type === 'lot' && selectedLogement?.is_occupied)
+          ? includeTenants
+          : (selectedLogement?.type === 'building' && buildingTenants?.hasActiveTenants)
+            ? includeTenants
+            : false,
+        // Excluded lots (for building interventions with granular selection)
+        excludedLotIds: selectedLogement?.type === 'building' && includeTenants
+          ? Array.from(excludedLotIds)
+          : [],
 
         // Team context
         teamId: currentUserTeam?.id || initialBuildingsData.teamId
@@ -1137,6 +1243,9 @@ export default function NouvelleInterventionClient({
         onBack={() => router.back()}
         steps={interventionSteps}
         currentStep={currentStep}
+        onStepClick={handleStepClick}
+        allowFutureSteps={false}
+        maxReachableStep={maxStepReached}
       />
 
       {/* Main Content with horizontal padding and bottom space for footer */}
@@ -1163,34 +1272,54 @@ export default function NouvelleInterventionClient({
         {/* Step 2: Formulaire de description */}
         {currentStep === 2 && selectedLogement && (
           <div className="space-y-6">
-            {/* Encadré Bien Concerné */}
-            <Card className="bg-blue-50 border-blue-200">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-2">
-                  <Home className="h-4 w-4 text-blue-600" />
-                  <span className="font-medium">
-                    {selectedLogement.type === 'lot'
-                      ? (selectedLogement.building
-                          ? `${selectedLogement.building} › Lot ${selectedLogement.name}`
-                          : `Lot ${selectedLogement.name}`)
-                      : selectedLogement.name}
-                  </span>
-                  {selectedLogement.address && (
-                    <>
-                      <span className="text-gray-400">•</span>
-                      <span className="text-sm text-gray-600">{selectedLogement.address}</span>
-                    </>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Détails de l'intervention */}
+            {/* Détails de l'intervention - avec localisation intégrée */}
             <Card>
             <CardContent className="p-0 flex flex-col gap-6">
-              <div className="flex items-center space-x-2">
-                <Building2 className="h-5 w-5 text-orange-500" />
-                <h3 className="text-lg font-medium">Détails de l'intervention</h3>
+              {/* Header avec titre + localisation compacte */}
+              <div className="flex flex-col gap-3">
+                {/* Titre de la card */}
+                <div className="flex items-center space-x-2">
+                  <Building2 className="h-5 w-5 text-orange-500" />
+                  <h3 className="text-lg font-medium">Détails de l'intervention</h3>
+                </div>
+
+                {/* Localisation compacte + bouton modifier */}
+                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Home className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium text-sm">
+                      {selectedLogement.type === 'lot'
+                        ? (selectedLogement.building
+                            ? `${selectedLogement.building} › Lot ${selectedLogement.name}`
+                            : `Lot ${selectedLogement.name}`)
+                        : selectedLogement.name}
+                    </span>
+                    {selectedLogement.address && (
+                      <>
+                        <span className="text-muted-foreground">•</span>
+                        <span className="text-sm text-muted-foreground">{selectedLogement.address}</span>
+                      </>
+                    )}
+
+                    {/* Badge occupation (lots uniquement) */}
+                    {selectedLogement.type === 'lot' && (
+                      <Badge variant={selectedLogement.is_occupied ? "default" : "secondary"} className="ml-1">
+                        {selectedLogement.is_occupied ? "Occupé" : "Vacant"}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Bouton modifier -> retour étape 1 */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setCurrentStep(1)}
+                    className="h-8 px-2 text-muted-foreground hover:text-foreground"
+                  >
+                    <Pencil className="h-4 w-4" />
+                    <span className="sr-only">Modifier le bien</span>
+                  </Button>
+                </div>
               </div>
 
               <div className="flex flex-col gap-4 flex-1">
@@ -1199,7 +1328,7 @@ export default function NouvelleInterventionClient({
                   <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
                     {/* Titre - Même largeur que Description */}
                     <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">Titre du problème *</label>
+                      <label className="block text-sm font-medium text-foreground mb-2">Titre de l'intervention *</label>
                       <Input
                         placeholder="Ex: Fuite d'eau dans la salle de bain"
                         value={formData.title}
@@ -1211,22 +1340,15 @@ export default function NouvelleInterventionClient({
                     {/* Type + Urgence - Partagent le 1/3 restant */}
                     <div className="grid grid-cols-2 gap-4">
                       <div className="min-w-0">
-                        <label className="block text-sm font-medium text-foreground mb-2">Type de problème</label>
-                        <Select
+                        <label className="block text-sm font-medium text-foreground mb-2">
+                          Catégorie d'intervention <span className="text-red-500">*</span>
+                        </label>
+                        <InterventionTypeCombobox
                           value={formData.type}
                           onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
-                        >
-                          <SelectTrigger className="border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20 w-full">
-                            <SelectValue placeholder="Sélectionnez le type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {PROBLEM_TYPES.map((type) => (
-                              <SelectItem key={type.value} value={type.value}>
-                                {type.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                          placeholder="Sélectionnez la catégorie"
+                          className="border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20 w-full"
+                        />
                       </div>
 
                       <div className="min-w-0">
@@ -1256,9 +1378,9 @@ export default function NouvelleInterventionClient({
                   <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
                     {/* Description - 2/3 largeur (aligné avec Titre) */}
                     <div>
-                      <label className="block text-sm font-medium text-foreground mb-2">Description détaillée *</label>
+                      <label className="block text-sm font-medium text-foreground mb-2">Description détaillée</label>
                       <Textarea
-                        placeholder="Décrivez le problème en détail : où, quand, comment..."
+                        placeholder="Décrivez l'intervention en détail : où, quand, comment..."
                         value={formData.description}
                         onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
                         className="min-h-[280px] border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20 resize-none"
@@ -1325,7 +1447,13 @@ export default function NouvelleInterventionClient({
               <AssignmentSectionV2
                 managers={managers as any[]}
                 providers={providers as any[]}
-                tenants={[]}
+                tenants={(selectedLogement?.tenants || []).map((t: any, i: number) => ({
+                  id: `tenant-${selectedLogement?.id || 'unknown'}-${i}`,
+                  name: t.name || 'Locataire',
+                  email: t.email || '',
+                  phone: t.phone || '',
+                  type: 'locataire' as const
+                }))}
                 selectedManagerIds={selectedManagerIds}
                 selectedProviderIds={selectedProviderIds}
                 onManagerSelect={handleManagerSelect}
@@ -1360,6 +1488,19 @@ export default function NouvelleInterventionClient({
                     [providerId]: instructions
                   }))
                 }}
+                // Tenant toggle props (for occupied lots OR buildings with tenants)
+                showTenantsSection={
+                  (selectedLogement?.type === 'lot' && selectedLogement?.is_occupied === true) ||
+                  (selectedLogement?.type === 'building' && buildingTenants?.hasActiveTenants === true)
+                }
+                includeTenants={includeTenants}
+                onIncludeTenantsChange={setIncludeTenants}
+                // Building tenants (grouped by lot)
+                buildingTenants={selectedLogement?.type === 'building' ? buildingTenants : null}
+                loadingBuildingTenants={loadingBuildingTenants}
+                // Lots selection (for granular control)
+                excludedLotIds={excludedLotIds}
+                onLotToggle={handleLotToggle}
               />
             </Card>
           </div>
@@ -1415,6 +1556,19 @@ export default function NouvelleInterventionClient({
                       phone: selectedLogement.tenantPhone || undefined,
                       isCurrentUser: false,
                     }]
+                  : []),
+                // 🆕 Ajouter les locataires d'immeuble (depuis buildingTenants)
+                ...(buildingTenants && includeTenants
+                  ? buildingTenants.byLot
+                      .filter(lot => !excludedLotIds.has(lot.lotId))
+                      .flatMap(lot => lot.tenants.map((tenant, index) => ({
+                        id: `building-tenant-${lot.lotId}-${index}`,
+                        name: tenant.name,
+                        role: 'Locataire',
+                        email: tenant.email || undefined,
+                        phone: tenant.phone || undefined,
+                        isCurrentUser: false,
+                      })))
                   : [])
               ],
               scheduling: schedulingType === 'slots' && timeSlots.length > 0

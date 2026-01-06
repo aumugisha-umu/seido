@@ -210,7 +210,10 @@ export function DataTable<T extends Record<string, any>>({
                                                                 )}
                                                                 <DropdownMenuItem
                                                                     key={`item-${actionKey}`}
-                                                                    onClick={() => action.onClick(item)}
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation()
+                                                                        action.onClick(item)
+                                                                    }}
                                                                     className={action.className}
                                                                 >
                                                                     {Icon && <Icon className="mr-2 h-4 w-4" />}

@@ -79,12 +79,12 @@ export function UrgentInterventionsSection({
     }
 
     const handleViewAll = () => {
+        // Gestionnaire has a dedicated interventions list, others use dashboard
         const basePath = userContext === 'gestionnaire'
             ? '/gestionnaire/interventions'
             : userContext === 'prestataire'
-                ? '/prestataire/interventions'
-                : '/locataire/interventions'
-        // Navigate to interventions list without urgency filter
+                ? '/prestataire/dashboard'
+                : '/locataire/dashboard'
         router.push(basePath)
     }
 

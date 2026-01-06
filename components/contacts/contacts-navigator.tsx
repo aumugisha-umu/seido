@@ -45,11 +45,13 @@ interface ContactsNavigatorProps {
     contacts: ContactData[]
     invitations: InvitationData[]
     companies: CompanyData[]
+    /** Number of pending invitations to display in badge (different from total invitations count) */
+    pendingInvitationsCount?: number
     loading?: boolean
     onRefresh?: () => void
-    // Invitation tab actions
-    onResendInvitation?: (id: string) => void
-    onCancelInvitation?: (id: string) => void
+    // Invitation tab actions (with confirmation modal)
+    onResendInvitationModal?: (invitation: InvitationData) => void
+    onCancelInvitationModal?: (invitation: InvitationData) => void
     // Contact actions
     onArchiveContact?: (id: string) => void
     // Contact invitation actions (based on invitationStatus)
@@ -64,10 +66,11 @@ export function ContactsNavigator({
     contacts,
     invitations,
     companies,
+    pendingInvitationsCount,
     loading = false,
     onRefresh,
-    onResendInvitation,
-    onCancelInvitation,
+    onResendInvitationModal,
+    onCancelInvitationModal,
     onArchiveContact,
     onSendContactInvitation,
     onResendContactInvitation,
@@ -135,10 +138,10 @@ export function ContactsNavigator({
                     ...invitationsTableConfig,
                     actions: invitationsTableConfig.actions?.map(action => {
                         if (action.id === 'resend') {
-                            return { ...action, onClick: (invitation: InvitationData) => onResendInvitation?.(invitation.id) }
+                            return { ...action, onClick: (invitation: InvitationData) => onResendInvitationModal?.(invitation) }
                         }
                         if (action.id === 'cancel') {
-                            return { ...action, onClick: (invitation: InvitationData) => onCancelInvitation?.(invitation.id) }
+                            return { ...action, onClick: (invitation: InvitationData) => onCancelInvitationModal?.(invitation) }
                         }
                         return action
                     })
@@ -335,7 +338,7 @@ export function ContactsNavigator({
                                     <Send className={getTabIconClass(activeTab === 'invitations')} />
                                     Invitations
                                     <span className={getTabBadgeClass(activeTab === 'invitations')}>
-                                        {invitations.length}
+                                        {pendingInvitationsCount ?? invitations.filter(i => i.status === 'pending').length}
                                     </span>
                                 </button>
                                 <button
@@ -368,10 +371,13 @@ export function ContactsNavigator({
                                         )}
                                     </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-80 p-4" align="end">
+                                <PopoverContent
+                                    className="w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[480px] p-4"
+                                    align="end"
+                                >
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between">
-                                            <h4 className="font-medium leading-none">Filtres</h4>
+                                            <h4 id="filters-heading" className="font-medium leading-none">Filtres</h4>
                                             {activeFilterCount > 0 && (
                                                 <Button
                                                     variant="ghost"
@@ -385,15 +391,28 @@ export function ContactsNavigator({
                                         </div>
 
                                         {currentConfig.filters && currentConfig.filters.length > 0 ? (
-                                            <div className="grid grid-cols-2 gap-3">
+                                            <div
+                                                className="flex flex-col sm:flex-row gap-3 sm:gap-4"
+                                                role="group"
+                                                aria-labelledby="filters-heading"
+                                            >
                                                 {currentConfig.filters.map((filter) => (
-                                                    <div key={filter.id} className="space-y-1.5">
-                                                        <Label className="text-xs text-slate-500">{filter.label}</Label>
+                                                    <div key={filter.id} className="space-y-1.5 flex-1">
+                                                        <Label
+                                                            htmlFor={`filter-${filter.id}`}
+                                                            className="text-sm font-medium text-slate-600"
+                                                        >
+                                                            {filter.label}
+                                                        </Label>
                                                         <Select
                                                             value={activeFilters[filter.id] || filter.defaultValue || 'all'}
                                                             onValueChange={(value) => handleFilterChange(filter.id, value)}
                                                         >
-                                                            <SelectTrigger className="h-8">
+                                                            <SelectTrigger
+                                                                id={`filter-${filter.id}`}
+                                                                className="h-10 w-full"
+                                                                aria-label={`Filtrer par ${filter.label}`}
+                                                            >
                                                                 <SelectValue placeholder="Sélectionner..." />
                                                             </SelectTrigger>
                                                             <SelectContent>

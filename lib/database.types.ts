@@ -1866,6 +1866,98 @@ export type Database = {
           },
         ]
       }
+      intervention_type_categories: {
+        Row: {
+          code: string
+          created_at: string
+          description_fr: string | null
+          id: string
+          is_active: boolean | null
+          label_fr: string
+          sort_order: number | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description_fr?: string | null
+          id?: string
+          is_active?: boolean | null
+          label_fr: string
+          sort_order?: number | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description_fr?: string | null
+          id?: string
+          is_active?: boolean | null
+          label_fr?: string
+          sort_order?: number | null
+        }
+        Relationships: []
+      }
+      intervention_type_legacy_mapping: {
+        Row: {
+          new_code: string
+          old_code: string
+        }
+        Insert: {
+          new_code: string
+          old_code: string
+        }
+        Update: {
+          new_code?: string
+          old_code?: string
+        }
+        Relationships: []
+      }
+      intervention_types: {
+        Row: {
+          category_id: string
+          code: string
+          color_class: string | null
+          created_at: string
+          description_fr: string | null
+          icon_name: string | null
+          id: string
+          is_active: boolean | null
+          label_fr: string
+          sort_order: number | null
+        }
+        Insert: {
+          category_id: string
+          code: string
+          color_class?: string | null
+          created_at?: string
+          description_fr?: string | null
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          label_fr: string
+          sort_order?: number | null
+        }
+        Update: {
+          category_id?: string
+          code?: string
+          color_class?: string | null
+          created_at?: string
+          description_fr?: string | null
+          icon_name?: string | null
+          id?: string
+          is_active?: boolean | null
+          label_fr?: string
+          sort_order?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_types_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_type_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interventions: {
         Row: {
           assignment_mode: Database["public"]["Enums"]["assignment_mode"]
@@ -1895,7 +1987,7 @@ export type Database = {
           status: Database["public"]["Enums"]["intervention_status"]
           team_id: string
           title: string
-          type: Database["public"]["Enums"]["intervention_type"]
+          type: string
           updated_at: string
           urgency: Database["public"]["Enums"]["intervention_urgency"]
         }
@@ -1927,7 +2019,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["intervention_status"]
           team_id: string
           title: string
-          type: Database["public"]["Enums"]["intervention_type"]
+          type: string
           updated_at?: string
           urgency?: Database["public"]["Enums"]["intervention_urgency"]
         }
@@ -1959,7 +2051,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["intervention_status"]
           team_id?: string
           title?: string
-          type?: Database["public"]["Enums"]["intervention_type"]
+          type?: string
           updated_at?: string
           urgency?: Database["public"]["Enums"]["intervention_urgency"]
         }
@@ -2780,7 +2872,7 @@ export type Database = {
             | null
           provider_rating: number | null
           role: Database["public"]["Enums"]["user_role"]
-          speciality: Database["public"]["Enums"]["intervention_type"] | null
+          speciality: string | null
           team_id: string | null
           total_interventions: number | null
           updated_at: string | null
@@ -2810,7 +2902,7 @@ export type Database = {
             | null
           provider_rating?: number | null
           role?: Database["public"]["Enums"]["user_role"]
-          speciality?: Database["public"]["Enums"]["intervention_type"] | null
+          speciality?: string | null
           team_id?: string | null
           total_interventions?: number | null
           updated_at?: string | null
@@ -2840,7 +2932,7 @@ export type Database = {
             | null
           provider_rating?: number | null
           role?: Database["public"]["Enums"]["user_role"]
-          speciality?: Database["public"]["Enums"]["intervention_type"] | null
+          speciality?: string | null
           team_id?: string | null
           total_interventions?: number | null
           updated_at?: string | null
@@ -3240,7 +3332,7 @@ export type Database = {
           status: Database["public"]["Enums"]["intervention_status"] | null
           team_id: string | null
           title: string | null
-          type: Database["public"]["Enums"]["intervention_type"] | null
+          type: string | null
           updated_at: string | null
           urgency: Database["public"]["Enums"]["intervention_urgency"] | null
         }
@@ -3276,7 +3368,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["intervention_status"] | null
           team_id?: string | null
           title?: string | null
-          type?: Database["public"]["Enums"]["intervention_type"] | null
+          type?: string | null
           updated_at?: string | null
           urgency?: Database["public"]["Enums"]["intervention_urgency"] | null
         }
@@ -3312,7 +3404,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["intervention_status"] | null
           team_id?: string | null
           title?: string | null
-          type?: Database["public"]["Enums"]["intervention_type"] | null
+          type?: string | null
           updated_at?: string | null
           urgency?: Database["public"]["Enums"]["intervention_urgency"] | null
         }

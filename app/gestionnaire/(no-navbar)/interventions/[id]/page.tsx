@@ -76,9 +76,9 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         ? supabase.from('buildings').select('*').eq('id', intervention.building_id).single()
         : Promise.resolve({ data: null }),
 
-      // Lot
+      // Lot (avec building pour la localisation complète)
       intervention.lot_id
-        ? supabase.from('lots').select('*').eq('id', intervention.lot_id).single()
+        ? supabase.from('lots').select('*, building:building_id(*)').eq('id', intervention.lot_id).single()
         : Promise.resolve({ data: null }),
 
       // Assignments

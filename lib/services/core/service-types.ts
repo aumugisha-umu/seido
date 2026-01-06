@@ -633,6 +633,8 @@ export interface LotWithRelations extends Lot {
 
 export interface InterventionWithRelations extends Intervention {
   lot?: LotWithRelations
+  // ✅ Building-wide interventions (no lot, directly on building)
+  building?: Building
   // ✅ FIX 2025-10-15: tenant removed - use assignments array instead
   assignments?: Array<{
     role: 'gestionnaire' | 'prestataire' | 'locataire'

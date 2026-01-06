@@ -2,17 +2,18 @@
 'use client'
 
 /**
- * Intervention Confirmation Summary - Variant 2: Visual Hierarchy Focus
+ * Intervention Confirmation Summary
  *
  * Features:
- * - Prominent urgency header with gradient background
- * - Strong visual hierarchy with section separators
+ * - Clean header with contextual icon (AlertTriangle/CheckCircle2)
+ * - Urgency and category as separate badges
+ * - Dedicated amber banner for quote requests
  * - Two-column grid for property/contact info
+ * - Time slots displayed as purple badges
  * - Colored accent sections for scheduling and instructions
- * - Large section icons for better scannability
  */
 
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -21,15 +22,81 @@ import {
   Building2,
   Users,
   Calendar,
-  MessageSquare,
   MessageSquareText,
   FileText,
   Paperclip,
   ArrowLeft,
-  AlertCircle,
+  AlertTriangle,
   MapPin,
   UserCog,
 } from 'lucide-react'
+import { format } from 'date-fns'
+import { fr } from 'date-fns/locale'
+import { getTypeIcon } from '@/components/interventions/intervention-type-icon'
+import { cn } from '@/lib/utils'
+
+// ============================================================================
+// Category Colors (matching intervention-type-combobox.tsx)
+// ============================================================================
+
+// Badge style: light background + darker text/icon
+const CATEGORY_BADGE_STYLES: Record<string, string> = {
+  bien: 'bg-blue-100 text-blue-700 border-blue-200',
+  bail: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  locataire: 'bg-orange-100 text-orange-700 border-orange-200',
+}
+
+// Map type codes to their category
+const TYPE_TO_CATEGORY: Record<string, string> = {
+  // Bien (20 types)
+  plomberie: 'bien',
+  electricite: 'bien',
+  chauffage: 'bien',
+  climatisation: 'bien',
+  serrurerie: 'bien',
+  menuiserie: 'bien',
+  vitrerie: 'bien',
+  peinture: 'bien',
+  revetements_sols: 'bien',
+  toiture: 'bien',
+  facade: 'bien',
+  espaces_verts: 'bien',
+  parties_communes: 'bien',
+  ascenseur: 'bien',
+  securite_incendie: 'bien',
+  nettoyage: 'bien',
+  deratisation: 'bien',
+  demenagement: 'bien',
+  travaux_gros_oeuvre: 'bien',
+  autre_technique: 'bien',
+  // Legacy mappings
+  jardinage: 'bien',
+  menage: 'bien',
+  autre: 'bien',
+  // Bail (9 types)
+  etat_des_lieux_entree: 'bail',
+  etat_des_lieux_sortie: 'bail',
+  renouvellement_bail: 'bail',
+  revision_loyer: 'bail',
+  regularisation_charges: 'bail',
+  resiliation_bail: 'bail',
+  caution: 'bail',
+  assurance: 'bail',
+  autre_administratif: 'bail',
+  // Locataire (7 types)
+  reclamation: 'locataire',
+  demande_information: 'locataire',
+  nuisances: 'locataire',
+  demande_travaux: 'locataire',
+  changement_situation: 'locataire',
+  urgence_locataire: 'locataire',
+  autre_locataire: 'locataire',
+}
+
+// Helper to get category code from type code
+function getCategoryFromType(typeCode: string): string {
+  return TYPE_TO_CATEGORY[typeCode] || 'bien'
+}
 
 export interface InterventionConfirmationData {
   logement: {
@@ -91,40 +158,50 @@ interface InterventionConfirmationSummaryProps {
   showFooter?: boolean
 }
 
-// Helper to get urgency color scheme - Using design tokens for OKLCH compliance
-function getUrgencyColors(urgency: string) {
+// Helper to format slot date nicely (ex: "mer. 15 janv.")
+function formatSlotDate(dateStr: string): string {
+  if (!dateStr) return ''
+  try {
+    const date = new Date(dateStr)
+    return format(date, 'EEE d MMM', { locale: fr })
+  } catch {
+    return dateStr
+  }
+}
+
+// Helper to capitalize first letter
+function capitalizeFirst(str: string): string {
+  return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
+}
+
+// Helper to get urgency badge class - Using design tokens for OKLCH compliance
+function getUrgencyBadgeClass(urgency: string): string {
   switch (urgency.toLowerCase()) {
     case 'urgente':
     case 'haute':
     case 'critique':
-      return {
-        gradient: 'from-destructive/10 to-destructive/20',
-        border: 'border-destructive',
-        badge: 'bg-destructive text-destructive-foreground',
-        icon: 'text-destructive'
-      }
+      return 'border-destructive text-destructive bg-destructive/10'
     case 'normale':
     case 'moyenne':
-      return {
-        gradient: 'from-primary/10 to-primary/20',
-        border: 'border-primary',
-        badge: 'bg-primary text-primary-foreground',
-        icon: 'text-primary'
-      }
+      return 'border-primary text-primary bg-primary/10'
     case 'basse':
-      return {
-        gradient: 'from-muted to-muted/80',
-        border: 'border-muted-foreground/50',
-        badge: 'bg-muted text-muted-foreground',
-        icon: 'text-muted-foreground'
-      }
+      return 'border-muted-foreground text-muted-foreground bg-muted'
     default:
-      return {
-        gradient: 'from-primary/10 to-primary/20',
-        border: 'border-primary',
-        badge: 'bg-primary text-primary-foreground',
-        icon: 'text-primary'
-      }
+      return 'border-primary text-primary bg-primary/10'
+  }
+}
+
+// Helper to get urgency icon class
+function getUrgencyIconClass(urgency: string): string {
+  switch (urgency.toLowerCase()) {
+    case 'urgente':
+    case 'haute':
+    case 'critique':
+      return 'text-destructive'
+    case 'basse':
+      return 'text-muted-foreground'
+    default:
+      return 'text-primary'
   }
 }
 
@@ -135,7 +212,9 @@ export function InterventionConfirmationSummary({
   isLoading = false,
   showFooter = true,
 }: InterventionConfirmationSummaryProps) {
-  const urgencyColors = getUrgencyColors(data.intervention.urgency)
+  const urgencyIconClass = getUrgencyIconClass(data.intervention.urgency)
+  const urgencyBadgeClass = getUrgencyBadgeClass(data.intervention.urgency)
+  const isUrgent = ['urgente', 'haute', 'critique'].includes(data.intervention.urgency.toLowerCase())
 
   // Séparer les contacts par rôle
   const gestionnaires = data.contacts.filter(c => c.role.toLowerCase().includes('gestionnaire'))
@@ -156,41 +235,55 @@ export function InterventionConfirmationSummary({
   return (
     <div className="max-w-4xl mx-auto">
       <Card className="overflow-hidden shadow-sm">
-        {/* Prominent Urgency Header */}
-        <CardHeader className={`bg-gradient-to-r ${urgencyColors.gradient} border-b-4 ${urgencyColors.border}`}>
+        {/* Clean Header - No colored frame */}
+        <CardHeader className="pb-4">
           <div className="flex items-center gap-3">
-            <AlertCircle className={`w-8 h-8 ${urgencyColors.icon}`} />
-            <div className="flex-1">
-              <CardTitle className="text-xl">
-                {data.intervention.urgency === 'urgente' || data.intervention.urgency === 'haute'
-                  ? 'Intervention Urgente'
-                  : 'Nouvelle Intervention'}
-              </CardTitle>
-              <CardDescription className="text-base font-medium text-gray-900 mt-1">
-                {data.intervention.title}
-              </CardDescription>
-            </div>
-          </div>
-          <div className="flex gap-2 mt-3">
-            <Badge className={urgencyColors.badge}>
-              Urgence: {data.intervention.urgency}
-            </Badge>
-            <Badge variant="secondary" className="bg-white/90 text-gray-800">
-              {data.intervention.category}
-            </Badge>
-            {data.expectsQuote && (
-              <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                Devis requis
-              </Badge>
+            {isUrgent ? (
+              <AlertTriangle className={`w-8 h-8 ${urgencyIconClass}`} />
+            ) : (
+              <CheckCircle2 className={`w-8 h-8 ${urgencyIconClass}`} />
             )}
+            <CardTitle className="text-xl flex-1">
+              {data.intervention.title}
+            </CardTitle>
           </div>
+          {/* Badges: Urgency + Category */}
+          <div className="flex flex-wrap gap-2 mt-3">
+            <Badge variant="outline" className={urgencyBadgeClass}>
+              {capitalizeFirst(data.intervention.urgency)}
+            </Badge>
+            {/* Category badge with icon and color */}
+            {(() => {
+              const TypeIcon = getTypeIcon(data.intervention.category)
+              const categoryCode = getCategoryFromType(data.intervention.category)
+              const badgeStyle = CATEGORY_BADGE_STYLES[categoryCode] || 'bg-gray-100 text-gray-700 border-gray-200'
+              return (
+                <Badge
+                  variant="outline"
+                  className={cn("flex items-center gap-1.5", badgeStyle)}
+                >
+                  <TypeIcon className="h-3.5 w-3.5" />
+                  <span>{data.intervention.category}</span>
+                </Badge>
+              )
+            })()}
+          </div>
+          {/* Dedicated Quote Request Banner */}
+          {data.expectsQuote && (
+            <div className="flex items-center gap-2 mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <FileText className="w-4 h-4 text-amber-600 flex-shrink-0" />
+              <span className="text-sm font-medium text-amber-800">
+                Un devis sera demandé au prestataire
+              </span>
+            </div>
+          )}
         </CardHeader>
 
         <CardContent className="space-y-4 pt-6">
           {/* Property & Contact Grid - Mobile-first responsive */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
             {/* Property Section */}
-            <div className="space-y-3">
+            <div className="border border-slate-200 rounded-xl p-4 bg-white">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
                   <Building2 className="w-5 h-5 text-blue-600" />
@@ -224,7 +317,7 @@ export function InterventionConfirmationSummary({
             </div>
 
             {/* Contacts Section */}
-            <div className="space-y-3">
+            <div className="border border-slate-200 rounded-xl p-4 bg-white">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
                   <Users className="w-5 h-5 text-green-600" />
@@ -327,7 +420,11 @@ export function InterventionConfirmationSummary({
               )}
               <div>
                 <dt className="text-sm text-gray-600 mb-1">Description</dt>
-                <dd className="text-sm text-gray-700 leading-relaxed">{data.intervention.description}</dd>
+                <dd className="text-sm text-gray-700 leading-relaxed">
+                  {data.intervention.description || (
+                    <span className="text-muted-foreground italic">Non renseignée</span>
+                  )}
+                </dd>
               </div>
             </div>
           </div>
@@ -343,11 +440,17 @@ export function InterventionConfirmationSummary({
                 </div>
                 <div className="pl-8">
                   {data.scheduling.slots && data.scheduling.slots.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
                       {data.scheduling.slots.map((slot, idx) => (
-                        <div key={idx} className="flex items-center gap-2 text-sm">
-                          <span className="font-medium">{slot.date}</span>
-                          <span className="text-gray-600">
+                        <div
+                          key={idx}
+                          className="inline-flex items-center gap-2 px-3 py-2 bg-purple-100 border border-purple-200 rounded-lg text-sm"
+                        >
+                          <Calendar className="h-3.5 w-3.5 text-purple-600" />
+                          <span className="font-medium text-purple-900">
+                            {formatSlotDate(slot.date)}
+                          </span>
+                          <span className="text-purple-600">
                             {slot.startTime} - {slot.endTime}
                           </span>
                         </div>

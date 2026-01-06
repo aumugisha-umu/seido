@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import {
   ArrowLeft,
   Bell,
@@ -25,8 +25,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Skeleton } from "@/components/ui/skeleton"
 import ActivityLog from "@/components/activity-log"
+import { ActivityLogFilters, defaultActivityFilters, type ActivityFilters } from "@/components/activity-log-filters"
 import { useNotifications, type Notification } from "@/hooks/use-notifications"
 import { useActivityLogs } from "@/hooks/use-activity-logs"
+import { useRealtimeNotificationsV2 } from "@/hooks/use-realtime-notifications-v2"
 import { useAuth } from "@/hooks/use-auth"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import { useToast } from "@/hooks/use-toast"
@@ -78,49 +80,95 @@ export default function NotificationsPage() {
   const [markingAllAsRead, setMarkingAllAsRead] = useState(false)
   // ✅ Fix hydration: Ne render conditionnel qu'après montage client
   const [isMounted, setIsMounted] = useState(false)
+  // State pour les filtres du journal d'activité
+  const [activityFilters, setActivityFilters] = useState<ActivityFilters>(defaultActivityFilters)
 
   // Hook pour les notifications d'équipe (activité des collègues)
-  const { 
-    notifications: teamNotifications, 
+  const {
+    notifications: teamNotifications,
     loading: loadingTeamNotifications,
     error: teamNotificationsError,
     unreadCount,
     refetch: refetchTeamNotifications,
     markAsRead: markTeamNotificationAsRead,
-    markAllAsRead: markAllTeamNotificationsAsRead 
+    markAllAsRead: markAllTeamNotificationsAsRead
   } = useNotifications({
     teamId: userTeam?.id,
     scope: 'team', // Notifications des collègues pour information
-    autoRefresh: true,
-    refreshInterval: 30000
+    autoRefresh: false, // ✅ Désactivé - Realtime gère les mises à jour
   })
 
   // Hook pour les notifications personnelles (qui me sont adressées directement)
-  const { 
-    notifications: personalNotifications, 
+  const {
+    notifications: personalNotifications,
     loading: loadingPersonalNotifications,
     error: personalNotificationsError,
     unreadCount: personalUnreadCount,
     refetch: refetchPersonalNotifications,
-    markAsRead: markPersonalNotificationAsRead 
+    markAsRead: markPersonalNotificationAsRead
   } = useNotifications({
     teamId: userTeam?.id,
     scope: 'personal', // Mes notifications personnelles
-    autoRefresh: true,
-    refreshInterval: 30000
+    autoRefresh: false, // ✅ Désactivé - Realtime gère les mises à jour
   })
 
-  // Hook pour les logs d'activité
-  const { 
-    activities, 
+  // Hook pour les logs d'activité avec filtres
+  const {
+    activities,
     loading: loadingActivities,
     error: activitiesError,
-    refetch: refetchActivities 
+    refetch: refetchActivities
   } = useActivityLogs({
     teamId: userTeam?.id,
+    userId: activityFilters.userId || undefined,
+    entityType: activityFilters.entityType || undefined,
+    actionType: activityFilters.actionType || undefined,
+    status: activityFilters.status || undefined,
+    startDate: activityFilters.dateRange.from?.toISOString(),
+    endDate: activityFilters.dateRange.to?.toISOString(),
     autoRefresh: true,
     refreshInterval: 60000,
     limit: 100
+  })
+
+  // Filtrage texte côté client (recherche instantanée)
+  const filteredActivities = useMemo(() => {
+    if (!activityFilters.search || !activities) return activities
+    const search = activityFilters.search.toLowerCase()
+    return activities.filter((a: any) =>
+      a.description?.toLowerCase().includes(search) ||
+      a.entity_name?.toLowerCase().includes(search) ||
+      a.display_context?.toLowerCase().includes(search) ||
+      a.user_name?.toLowerCase().includes(search)
+    )
+  }, [activities, activityFilters.search])
+
+  // Extraire les membres de l'équipe depuis les activités (pour le dropdown)
+  const activityTeamMembers = useMemo(() => {
+    if (!activities) return []
+    const uniqueUsers = new Map<string, { id: string; name: string }>()
+    activities.forEach((a: any) => {
+      if (a.user_id && a.user_name) {
+        uniqueUsers.set(a.user_id, { id: a.user_id, name: a.user_name })
+      }
+    })
+    return Array.from(uniqueUsers.values()).sort((a, b) => a.name.localeCompare(b.name))
+  }, [activities])
+
+  // ✅ Realtime: Écouter les nouvelles notifications via WebSocket
+  // Remplace le polling toutes les 30s par des mises à jour instantanées
+  useRealtimeNotificationsV2({
+    enabled: !!user?.id,
+    onInsert: () => {
+      // Nouvelle notification reçue → rafraîchir les deux listes
+      refetchTeamNotifications()
+      refetchPersonalNotifications()
+    },
+    onUpdate: () => {
+      // Notification modifiée (ex: marquée lue) → rafraîchir
+      refetchTeamNotifications()
+      refetchPersonalNotifications()
+    }
   })
 
   // ✅ Marquer comme monté après hydratation
@@ -494,9 +542,9 @@ export default function NotificationsPage() {
                   Historique complet des actions de votre equipe
                 </p>
               </div>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={refetchActivities}
                 className="flex-shrink-0 text-xs sm:text-sm"
               >
@@ -506,8 +554,16 @@ export default function NotificationsPage() {
               </Button>
             </div>
 
-            <ActivityLog 
-              activities={activities}
+            {/* Barre de recherche et filtres */}
+            <ActivityLogFilters
+              filters={activityFilters}
+              onFiltersChange={setActivityFilters}
+              teamMembers={activityTeamMembers}
+              isLoading={loadingActivities}
+            />
+
+            <ActivityLog
+              activities={filteredActivities}
               loading={loadingActivities}
               error={activitiesError}
             />

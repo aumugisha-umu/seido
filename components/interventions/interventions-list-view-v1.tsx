@@ -40,6 +40,73 @@ import {
   getInterventionLocationIcon
 } from '@/lib/intervention-utils'
 import { shouldShowAlertBadge } from '@/lib/intervention-alert-utils'
+import { getTypeIcon } from '@/components/interventions/intervention-type-icon'
+import { cn } from '@/lib/utils'
+
+// ============================================================================
+// Category Colors (matching intervention-type-combobox.tsx)
+// ============================================================================
+
+// Badge style: light background + darker text/icon
+const CATEGORY_BADGE_STYLES: Record<string, string> = {
+  bien: 'bg-blue-100 text-blue-700 border-blue-200',
+  bail: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  locataire: 'bg-orange-100 text-orange-700 border-orange-200',
+}
+
+// Map type codes to their category
+const TYPE_TO_CATEGORY: Record<string, string> = {
+  // Bien (20 types)
+  plomberie: 'bien',
+  electricite: 'bien',
+  chauffage: 'bien',
+  climatisation: 'bien',
+  serrurerie: 'bien',
+  menuiserie: 'bien',
+  vitrerie: 'bien',
+  peinture: 'bien',
+  revetements_sols: 'bien',
+  toiture: 'bien',
+  facade: 'bien',
+  espaces_verts: 'bien',
+  parties_communes: 'bien',
+  ascenseur: 'bien',
+  securite_incendie: 'bien',
+  nettoyage: 'bien',
+  deratisation: 'bien',
+  demenagement: 'bien',
+  travaux_gros_oeuvre: 'bien',
+  autre_technique: 'bien',
+  // Legacy
+  jardinage: 'bien',
+  menage: 'bien',
+  autre: 'bien',
+  maintenance: 'bien',
+  renovation: 'bien',
+  // Bail (9 types)
+  etat_des_lieux_entree: 'bail',
+  etat_des_lieux_sortie: 'bail',
+  renouvellement_bail: 'bail',
+  revision_loyer: 'bail',
+  regularisation_charges: 'bail',
+  resiliation_bail: 'bail',
+  caution: 'bail',
+  assurance: 'bail',
+  autre_administratif: 'bail',
+  // Locataire (7 types)
+  reclamation: 'locataire',
+  demande_information: 'locataire',
+  nuisances: 'locataire',
+  demande_travaux: 'locataire',
+  changement_situation: 'locataire',
+  urgence_locataire: 'locataire',
+  autre_locataire: 'locataire',
+}
+
+// Helper to get category from type
+const getCategoryFromType = (typeCode: string): string => {
+  return TYPE_TO_CATEGORY[typeCode?.toLowerCase()] || 'bien'
+}
 
 /**
  * 📊 INTERVENTIONS LIST VIEW V1 - TABLE DENSE (RECOMMENDED)
@@ -183,35 +250,51 @@ export function InterventionsListViewV1({
   }
 
   /**
-   * 🎨 Get type label
+   * 🎨 Get type label - formats type code to readable label
    */
   const getTypeLabel = (_type: string) => {
-    const labels: Record<string, string> = {
-      plomberie: 'Plomberie',
-      electricite: 'Électricité',
-      chauffage: 'Chauffage',
-      serrurerie: 'Serrurerie',
-      peinture: 'Peinture',
-      maintenance: 'Maintenance',
-      autre: 'Autre'
-    }
-    return labels[_type?.toLowerCase()] || 'Autre'
+    if (!_type) return 'Autre'
+    // Format: replace underscores with spaces, capitalize first letter
+    const formatted = _type
+      .replace(/_/g, ' ')
+      .replace(/^\w/, c => c.toUpperCase())
+    return formatted
   }
 
   /**
-   * 🎨 Get type badge color
+   * 🎨 Get type badge style based on category
    */
-  const getTypeBadgeColor = (_type: string) => {
-    const colors: Record<string, string> = {
-      plomberie: 'bg-blue-100 text-blue-800 border-blue-200',
-      electricite: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-      chauffage: 'bg-red-100 text-red-800 border-red-200',
-      serrurerie: 'bg-gray-100 text-gray-800 border-gray-200',
-      peinture: 'bg-purple-100 text-purple-800 border-purple-200',
-      maintenance: 'bg-orange-100 text-orange-800 border-orange-200',
-      autre: 'bg-slate-100 text-slate-800 border-slate-200'
-    }
-    return colors[_type?.toLowerCase()] || 'bg-slate-100 text-slate-800 border-slate-200'
+  const getTypeBadgeStyle = (_type: string) => {
+    const categoryCode = getCategoryFromType(_type)
+    return CATEGORY_BADGE_STYLES[categoryCode] || 'bg-slate-100 text-slate-700 border-slate-200'
+  }
+
+  /**
+   * 🎨 Render type badge with icon, category color, and tooltip
+   */
+  const renderTypeBadge = (_type: string) => {
+    const TypeIcon = getTypeIcon(_type)
+    const badgeStyle = getTypeBadgeStyle(_type)
+    const fullLabel = getTypeLabel(_type)
+
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Badge
+              variant="outline"
+              className={cn("flex items-center gap-1 text-xs cursor-default", badgeStyle)}
+            >
+              <TypeIcon className="h-3 w-3" />
+              <span className="truncate max-w-[80px]">{fullLabel}</span>
+            </Badge>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            <p className="text-sm font-medium">{fullLabel}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
   }
 
   /**
@@ -257,7 +340,7 @@ export function InterventionsListViewV1({
                 </Button>
               </TableHead>
 
-              {/* Type Column - Sortable */}
+              {/* Catégorie Column - Sortable */}
               <TableHead className="w-[120px]">
                 <Button
                   variant="ghost"
@@ -265,7 +348,7 @@ export function InterventionsListViewV1({
                   className="h-8 px-2 hover:bg-slate-100 font-semibold"
                   onClick={() => handleSort('type')}
                 >
-                  Type
+                  Catégorie
                   {renderSortIcon('type')}
                 </Button>
               </TableHead>
@@ -375,9 +458,7 @@ export function InterventionsListViewV1({
 
                   {/* Type Cell */}
                   <TableCell>
-                    <Badge className={`${getTypeBadgeColor(intervention.type || 'autre')} text-xs border`}>
-                      {getTypeLabel(intervention.type || 'autre')}
-                    </Badge>
+                    {renderTypeBadge(intervention.type || 'autre')}
                   </TableCell>
 
                   {/* Urgency Cell */}

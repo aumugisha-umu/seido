@@ -329,7 +329,7 @@ export function FinalizationModalLive({
                     <div className="grid grid-cols-2 gap-6">
                       <div className="space-y-1">
                         <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                          Type d'intervention
+                          Catégorie d'intervention
                         </p>
                         <p className="text-sm font-normal text-gray-900">
                           {intervention.type}

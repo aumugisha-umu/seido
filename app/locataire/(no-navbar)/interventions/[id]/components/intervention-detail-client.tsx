@@ -379,7 +379,7 @@ export function LocataireInterventionDetailClient({
     <>
       {/* Intervention Detail Header with Action Panel */}
       <DetailPageHeader
-        onBack={() => router.push('/locataire/interventions')}
+        onBack={() => router.push('/locataire/dashboard')}
         backButtonText="Retour"
         title={intervention.title}
         badges={[getStatusBadge(), getUrgencyBadge()].filter((badge): badge is DetailPageHeaderBadge => badge !== null)}

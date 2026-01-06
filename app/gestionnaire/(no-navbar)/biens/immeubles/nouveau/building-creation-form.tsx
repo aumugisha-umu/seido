@@ -146,7 +146,8 @@ export default function NewImmeubleePage({
   const { data: managerData } = useManagerStats()
 
   // TOUS LES HOOKS useState DOIVENT ÊTRE AVANT LES EARLY RETURNS (Rules of Hooks)
-  const [currentStep, setCurrentStep] = useState(1)
+  const [currentStep, setCurrentStepState] = useState(1)
+  const [maxStepReached, setMaxStepReached] = useState(1)
   const [buildingInfo, setBuildingInfo] = useState<BuildingInfo>({
     name: "",
     address: "",
@@ -209,9 +210,24 @@ export default function NewImmeubleePage({
     contactInvitation: ReturnType<typeof createContactInvitationService> | null
   } | null>(null)
 
+  // Wrapper pour setCurrentStep qui met aussi à jour maxStepReached
+  const setCurrentStep = (step: number) => {
+    const clampedStep = Math.max(1, Math.min(step, 4)) // 4 étapes total
+    setCurrentStepState(clampedStep)
+    if (clampedStep > maxStepReached) {
+      setMaxStepReached(clampedStep)
+    }
+  }
+
+  // Handler pour le clic sur une étape dans le header
+  const handleStepClick = (step: number) => {
+    setCurrentStep(step)
+  }
+
   // ✅ Hook pour sauvegarder l'état du formulaire avant redirect vers création de contact
   const formState = {
     currentStep,
+    maxStepReached,
     buildingInfo,
     lots,
     buildingContacts,
@@ -254,7 +270,8 @@ export default function NewImmeubleePage({
     logger.info(`📥 [BUILDING-FORM] Restoring form state after contact creation`)
 
     // Restaurer tous les états
-    setCurrentStep(restoredState.currentStep)
+    setCurrentStepState(restoredState.currentStep)
+    setMaxStepReached(restoredState.maxStepReached || restoredState.currentStep)
     setBuildingInfo(restoredState.buildingInfo)
     setLots(restoredState.lots)
     setBuildingContacts(restoredState.buildingContacts)
@@ -895,6 +912,9 @@ export default function NewImmeubleePage({
         onBack={() => router.push("/gestionnaire/biens")}
         steps={buildingSteps}
         currentStep={currentStep}
+        onStepClick={handleStepClick}
+        allowFutureSteps={false}
+        maxReachableStep={maxStepReached}
       />
 
       {/* Main content with horizontal padding and bottom space for footer */}

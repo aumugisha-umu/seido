@@ -47,7 +47,7 @@ export function TimePicker24h({ value, onChange, className, disabled }: TimePick
     return (
         <div className={cn("flex items-center gap-1", className)}>
             <Select value={hours} onValueChange={handleHourChange} disabled={disabled}>
-                <SelectTrigger className="w-[70px] focus:ring-0 focus:ring-offset-0">
+                <SelectTrigger className="w-[70px] bg-white focus:ring-0 focus:ring-offset-0">
                     <SelectValue placeholder="HH" />
                 </SelectTrigger>
                 <SelectContent className="h-[200px]">
@@ -60,7 +60,7 @@ export function TimePicker24h({ value, onChange, className, disabled }: TimePick
             </Select>
             <span className="text-slate-500 font-medium">:</span>
             <Select value={minutes} onValueChange={handleMinuteChange} disabled={disabled}>
-                <SelectTrigger className="w-[70px] focus:ring-0 focus:ring-offset-0">
+                <SelectTrigger className="w-[70px] bg-white focus:ring-0 focus:ring-offset-0">
                     <SelectValue placeholder="MM" />
                 </SelectTrigger>
                 <SelectContent className="h-[200px]">

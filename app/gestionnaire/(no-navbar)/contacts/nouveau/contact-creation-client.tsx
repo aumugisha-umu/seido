@@ -12,6 +12,7 @@ import { Step1Type } from "./steps/step-1-type"
 import { Step2Company } from "./steps/step-2-company"
 import { Step3Contact } from "./steps/step-3-contact"
 import { Step4Confirmation } from "./steps/step-4-confirmation"
+import { getTypeLabel } from "@/components/interventions/intervention-type-icon"
 
 // Types
 interface Company {
@@ -66,8 +67,23 @@ export function ContactCreationClient({
   returnUrl
 }: ContactCreationClientProps) {
   const router = useRouter()
-  const [currentStep, setCurrentStep] = useState(1)
+  const [currentStep, setCurrentStepState] = useState(1)
+  const [maxStepReached, setMaxStepReached] = useState(1)
   const [isCreating, setIsCreating] = useState(false)
+
+  // Wrapper pour setCurrentStep qui met aussi à jour maxStepReached
+  const setCurrentStep = (step: number) => {
+    const clampedStep = Math.max(1, Math.min(step, 3)) // 3 étapes total pour les contacts
+    setCurrentStepState(clampedStep)
+    if (clampedStep > maxStepReached) {
+      setMaxStepReached(clampedStep)
+    }
+  }
+
+  // Handler pour le clic sur une étape dans le header
+  const handleStepClick = (step: number) => {
+    setCurrentStep(step)
+  }
 
   // Mapping des types anglais (ContactSelector) vers français (formulaire)
   const mapContactType = (type: string | null | undefined): ContactFormData['contactType'] => {
@@ -278,20 +294,8 @@ export function ContactCreationClient({
     }
   }
 
-  // Helper pour formater la spécialité
-  const getSpecialtyLabel = (value: string): string => {
-    const labels: Record<string, string> = {
-      plomberie: 'Plomberie',
-      electricite: 'Électricité',
-      chauffage: 'Chauffage',
-      serrurerie: 'Serrurerie',
-      peinture: 'Peinture et revêtements',
-      menage: 'Ménage et nettoyage',
-      jardinage: 'Jardinage et espaces verts',
-      autre: 'Autre'
-    }
-    return labels[value] || value
-  }
+  // Helper pour formater la spécialité - utilise le mapping centralisé
+  const getSpecialtyLabel = (value: string): string => getTypeLabel(value)
 
   // Générer le message de succès contextuel
   const getSuccessMessage = (): string => {
@@ -469,6 +473,9 @@ export function ContactCreationClient({
         }}
         steps={contactSteps}
         currentStep={currentStep}
+        onStepClick={handleStepClick}
+        allowFutureSteps={false}
+        maxReachableStep={maxStepReached}
       />
 
       {/* Contenu principal (scrollable) */}

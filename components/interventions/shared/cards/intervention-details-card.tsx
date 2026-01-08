@@ -21,9 +21,10 @@
  */
 
 import { cn } from '@/lib/utils'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
+import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
 import {
   FileText,
   ListChecks,
@@ -34,7 +35,9 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  User
+  User,
+  XCircle,
+  HelpCircle
 } from 'lucide-react'
 import { InterventionDetailsCardProps } from '../types'
 import { formatDate, formatAmount } from '../utils/helpers'
@@ -84,7 +87,11 @@ const getPlanningStatusConfig = (status: 'pending' | 'proposed' | 'scheduled' | 
 /**
  * Configuration du statut devis
  */
-const getQuotesStatusConfig = (status: 'pending' | 'received' | 'approved', count: number) => {
+const getQuotesStatusConfig = (
+  status: 'pending' | 'received' | 'approved',
+  requestedCount: number = 0,
+  receivedCount: number = 0
+) => {
   switch (status) {
     case 'approved':
       return {
@@ -94,13 +101,23 @@ const getQuotesStatusConfig = (status: 'pending' | 'received' | 'approved', coun
         bgColor: 'bg-green-50'
       }
     case 'received':
+      // Il y a des devis reçus (envoyés par prestataires)
       return {
         icon: FileText,
-        label: `${count} devis reçu${count > 1 ? 's' : ''}`,
+        label: `${receivedCount} devis reçu${receivedCount > 1 ? 's' : ''}`,
         color: 'text-blue-600',
         bgColor: 'bg-blue-50'
       }
     default:
+      // Seulement des demandes en attente ou rien
+      if (requestedCount > 0) {
+        return {
+          icon: Clock,
+          label: `${requestedCount} demande${requestedCount > 1 ? 's' : ''} en attente`,
+          color: 'text-amber-600',
+          bgColor: 'bg-amber-50'
+        }
+      }
       return {
         icon: AlertCircle,
         label: 'En attente',
@@ -120,7 +137,11 @@ interface PlanningStatusSectionProps {
 
 const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatusSectionProps) => {
   const planningConfig = getPlanningStatusConfig(planning.status, planning.proposedSlotsCount)
-  const quotesConfig = getQuotesStatusConfig(planning.quotesStatus, planning.quotesCount || 0)
+  const quotesConfig = getQuotesStatusConfig(
+    planning.quotesStatus,
+    planning.requestedQuotesCount || 0,
+    planning.receivedQuotesCount || 0
+  )
   const PlanningIcon = planningConfig.icon
   const QuotesIcon = quotesConfig.icon
 
@@ -174,18 +195,71 @@ const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatu
                 : planningConfig.description}
             </p>
           </div>
-          <Badge
-            variant="outline"
-            className={cn(
-              'text-xs shrink-0',
-              planningConfig.bgColor,
-              planningConfig.color,
-              'border-transparent'
+          {/* Badges container */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <Badge
+              variant="outline"
+              className={cn(
+                'text-xs',
+                planningConfig.bgColor,
+                planningConfig.color,
+                'border-transparent'
+              )}
+              aria-label={`Statut planning: ${planningConfig.label}`}
+            >
+              {planningConfig.label}
+            </Badge>
+
+            {/* Badge réponses avec HoverCard */}
+            {planning.responseStats && planning.responseStats.totalExpectedResponses > 0 && (
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <Badge
+                    variant="outline"
+                    className="text-xs bg-slate-100 text-slate-700 border-transparent cursor-help"
+                    aria-label={`${planning.responseStats.maxResponsesReceived} réponses sur ${planning.responseStats.totalExpectedResponses}`}
+                  >
+                    {planning.responseStats.maxResponsesReceived}/{planning.responseStats.totalExpectedResponses} ✓
+                  </Badge>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-80 p-3" align="end">
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Réponses par créneau</p>
+                    {planning.responseStats.slotDetails.map((slot, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-sm gap-2">
+                        <span className="text-muted-foreground truncate">
+                          {formatDate(slot.slotDate)} {slot.startTime.substring(0, 5)}-{slot.endTime.substring(0, 5)}
+                        </span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {slot.accepted > 0 && (
+                            <span className="text-green-600 flex items-center gap-0.5">
+                              <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                              {slot.accepted}
+                            </span>
+                          )}
+                          {slot.rejected > 0 && (
+                            <span className="text-red-600 flex items-center gap-0.5">
+                              <XCircle className="h-3 w-3" aria-hidden="true" />
+                              {slot.rejected}
+                            </span>
+                          )}
+                          {slot.pending > 0 && (
+                            <span className="text-amber-600 flex items-center gap-0.5">
+                              <HelpCircle className="h-3 w-3" aria-hidden="true" />
+                              {slot.pending}
+                            </span>
+                          )}
+                          {slot.accepted === 0 && slot.rejected === 0 && slot.pending === 0 && (
+                            <span className="text-slate-400 text-xs">Aucune</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </HoverCardContent>
+              </HoverCard>
             )}
-            aria-label={`Statut planning: ${planningConfig.label}`}
-          >
-            {planningConfig.label}
-          </Badge>
+          </div>
         </div>
 
         {/* Devis Status */}
@@ -217,21 +291,29 @@ const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatu
             >
               Validé
             </Badge>
-          ) : planning.quotesCount && planning.quotesCount > 0 ? (
+          ) : planning.receivedQuotesCount && planning.receivedQuotesCount > 0 ? (
             <Badge
               variant="outline"
               className="text-xs bg-blue-50 text-blue-600 border-transparent shrink-0"
-              aria-label={`${planning.quotesCount} devis reçu${planning.quotesCount > 1 ? 's' : ''}`}
+              aria-label={`${planning.receivedQuotesCount} devis reçu${planning.receivedQuotesCount > 1 ? 's' : ''}`}
             >
-              {planning.quotesCount} reçu{planning.quotesCount > 1 ? 's' : ''}
+              {planning.receivedQuotesCount} reçu{planning.receivedQuotesCount > 1 ? 's' : ''}
+            </Badge>
+          ) : planning.requestedQuotesCount && planning.requestedQuotesCount > 0 ? (
+            <Badge
+              variant="outline"
+              className="text-xs bg-amber-50 text-amber-600 border-transparent shrink-0"
+              aria-label={`${planning.requestedQuotesCount} demande${planning.requestedQuotesCount > 1 ? 's' : ''} en attente`}
+            >
+              {planning.requestedQuotesCount} demande{planning.requestedQuotesCount > 1 ? 's' : ''}
             </Badge>
           ) : (
             <Badge
               variant="outline"
-              className="text-xs bg-amber-50 text-amber-600 border-transparent shrink-0"
-              aria-label="Devis en attente"
+              className="text-xs bg-slate-100 text-slate-500 border-transparent shrink-0"
+              aria-label="Aucun devis"
             >
-              En attente
+              Aucun
             </Badge>
           )}
         </div>
@@ -256,7 +338,7 @@ const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatu
  * Card de détails d'intervention avec planification intégrée
  */
 export const InterventionDetailsCard = ({
-  title,
+  title: _title, // eslint-disable-line @typescript-eslint/no-unused-vars -- Reserved for future use
   description,
   instructions,
   location,

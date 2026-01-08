@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
-import { Paperclip, X, FileText, AlertCircle, Loader2, Eye, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Paperclip, X, FileText, AlertCircle, Loader2, Eye, ChevronLeft, ChevronRight, Download, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
@@ -18,6 +18,21 @@ import {
   DOCUMENT_TYPES
 } from '@/hooks/use-intervention-upload'
 
+/**
+ * Interface pour les documents existants (déjà uploadés en DB)
+ */
+export interface ExistingDocument {
+  id: string
+  original_filename: string
+  file_size: number
+  mime_type: string
+  document_type: string
+  storage_path: string
+  uploaded_at: string
+  /** URL signée pour la preview/téléchargement */
+  signedUrl?: string
+}
+
 interface InterventionFileAttachmentProps {
   files: FileWithPreview[]
   onAddFiles: (files: File[]) => void
@@ -26,6 +41,12 @@ interface InterventionFileAttachmentProps {
   isUploading?: boolean
   className?: string
   maxFiles?: number
+  /** Documents existants (mode édition) */
+  existingDocuments?: ExistingDocument[]
+  /** Callback pour supprimer un document existant */
+  onRemoveExistingDocument?: (documentId: string) => void
+  /** IDs des documents marqués pour suppression */
+  documentsToDelete?: string[]
 }
 
 export function InterventionFileAttachment({
@@ -35,7 +56,10 @@ export function InterventionFileAttachment({
   onUpdateFileType,
   isUploading = false,
   className = '',
-  maxFiles = 10
+  maxFiles = 10,
+  existingDocuments = [],
+  onRemoveExistingDocument,
+  documentsToDelete = []
 }: InterventionFileAttachmentProps) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [previewModalOpen, setPreviewModalOpen] = useState(false)
@@ -152,21 +176,125 @@ export function InterventionFileAttachment({
         className="hidden"
       />
 
-      {/* Add files button */}
-      <Button
-        type="button"
-        variant="outline"
-        onClick={() => fileInputRef.current?.click()}
-        disabled={isUploading || files.length >= maxFiles}
-        className={`w-full shrink-0 ${files.length === 0 ? 'flex-1 min-h-0' : ''}`}
-      >
-        <Paperclip className="h-4 w-4 mr-2" />
-        Ajouter des fichiers {files.length > 0 && `(${files.length}/${maxFiles})`}
-      </Button>
+      {/* Documents existants actifs (non marqués pour suppression) */}
+      {(() => {
+        const activeExistingDocs = existingDocuments.filter(doc => !documentsToDelete.includes(doc.id))
+        const totalFiles = activeExistingDocs.length + files.length
+        const hasAnyFiles = totalFiles > 0
 
-      {/* Files list */}
+        return (
+          <>
+            {/* Add files button */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || totalFiles >= maxFiles}
+              className={`w-full shrink-0 ${!hasAnyFiles ? 'flex-1 min-h-0' : ''}`}
+            >
+              <Paperclip className="h-4 w-4 mr-2" />
+              Ajouter des fichiers {hasAnyFiles && `(${totalFiles}/${maxFiles})`}
+            </Button>
+
+            {/* Existing documents section */}
+            {activeExistingDocs.length > 0 && (
+              <div className="mt-4 space-y-2">
+                <p className="text-xs font-medium text-slate-600">
+                  Documents existants ({activeExistingDocs.length})
+                </p>
+                <div className="flex gap-3 overflow-x-auto max-w-[300px]">
+                  {activeExistingDocs.map((doc) => {
+                    const isImage = doc.mime_type?.startsWith('image/')
+                    const isPdf = doc.mime_type === 'application/pdf'
+                    const docTypeLabel = DOCUMENT_TYPES.find(t => t.value === doc.document_type)?.label || doc.document_type
+
+                    return (
+                      <div
+                        key={doc.id}
+                        className="relative group border rounded-lg p-3 hover:border-blue-500 transition-colors w-[280px] flex-shrink-0 bg-white"
+                      >
+                        {/* Remove button */}
+                        {onRemoveExistingDocument && (
+                          <button
+                            type="button"
+                            onClick={() => onRemoveExistingDocument(doc.id)}
+                            className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-sm hover:bg-red-50 transition-colors z-10"
+                            aria-label={`Supprimer ${doc.original_filename}`}
+                          >
+                            <Trash2 className="h-3 w-3 text-gray-600 hover:text-red-600" />
+                          </button>
+                        )}
+
+                        {/* File preview/icon */}
+                        <div className="relative w-full aspect-video rounded overflow-hidden bg-gray-100 mb-2">
+                          {isImage && doc.signedUrl ? (
+                            <img
+                              src={doc.signedUrl}
+                              alt={doc.original_filename}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gray-50 flex items-center justify-center">
+                              <FileText className={`h-12 w-12 ${isPdf ? 'text-red-500' : 'text-gray-500'}`} />
+                            </div>
+                          )}
+
+                          {/* Overlay with file info */}
+                          <div className="absolute inset-0 bg-black/70 flex flex-col justify-between p-3">
+                            {/* Top section - Download button */}
+                            <div className="flex justify-end gap-2">
+                              {doc.signedUrl && (
+                                <a
+                                  href={doc.signedUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="p-2 bg-white/90 hover:bg-white rounded-md transition-colors"
+                                  aria-label="Télécharger le fichier"
+                                >
+                                  <Download className="h-4 w-4 text-gray-900" />
+                                </a>
+                              )}
+                            </div>
+
+                            {/* Bottom section - File info */}
+                            <div className="space-y-2">
+                              <p className="text-xs text-white font-medium truncate drop-shadow-md" title={doc.original_filename}>
+                                {doc.original_filename}
+                              </p>
+                              <div className="flex items-center justify-between">
+                                <Badge variant="secondary" className="text-xs bg-white/90 text-gray-900">
+                                  {docTypeLabel}
+                                </Badge>
+                                <span className="text-xs text-white/80">
+                                  {formatFileSize(doc.file_size)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Uploaded badge */}
+                        <Badge variant="default" className="text-xs bg-green-600">
+                          Uploadé
+                        </Badge>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+          </>
+        )
+      })()}
+
+      {/* New files list */}
       {files.length > 0 && (
         <div className="mt-4 flex-1 min-h-0 flex flex-col max-w-full">
+          {existingDocuments.length > 0 && (
+            <p className="text-xs font-medium text-slate-600 mb-2">
+              Nouveaux fichiers ({files.length})
+            </p>
+          )}
           <div
             className={`flex gap-3 max-w-[300px] ${files.length > 1 ? 'overflow-x-auto' : ''}`}
             onDrop={handleDrop}

@@ -3,6 +3,8 @@
 /**
  * TimeSlotCard - Carte affichant un créneau horaire
  *
+ * Layout compact avec HoverCard pour afficher les détails des réponses
+ *
  * @example
  * <TimeSlotCard
  *   slot={timeSlot}
@@ -15,11 +17,10 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger
-} from '@/components/ui/dropdown-menu'
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from '@/components/ui/hover-card'
 import {
   Calendar,
   Clock,
@@ -29,7 +30,6 @@ import {
   CheckCircle2,
   XCircle,
   HelpCircle,
-  MoreVertical,
   Edit,
   CalendarCheck
 } from 'lucide-react'
@@ -56,10 +56,116 @@ export interface TimeSlotCardProps {
   onCancel?: (slotId: string) => void
   /** Callback pour choisir définitivement ce créneau (manager) */
   onChoose?: (slotId: string) => void
+  /** Callback pour ouvrir la modale de réponse */
+  onOpenResponseModal?: (slotId: string) => void
   /** Variante d'affichage */
   variant?: 'default' | 'compact'
   /** Classes CSS additionnelles */
   className?: string
+}
+
+/**
+ * Composant interne pour afficher les indicateurs de réponses avec HoverCard
+ */
+const ResponseIndicators = ({ slot }: { slot: TimeSlot }) => {
+  const responses = slot.responses || []
+
+  // Séparer les réponses par type
+  const acceptedResponses = responses.filter(r => r.response === 'accepted')
+  const rejectedResponses = responses.filter(r => r.response === 'rejected')
+  const pendingResponses = responses.filter(r => r.response === 'pending')
+
+  const responseCounts = {
+    accepted: acceptedResponses.length,
+    rejected: rejectedResponses.length,
+    pending: pendingResponses.length
+  }
+
+  // Si aucune réponse, ne rien afficher
+  if (responses.length === 0) {
+    return null
+  }
+
+  return (
+    <HoverCard openDelay={200} closeDelay={100}>
+      <HoverCardTrigger asChild>
+        <button
+          className="flex items-center gap-2 text-sm hover:bg-slate-100 rounded px-2 py-1 cursor-pointer transition-colors min-h-[36px]"
+          aria-label="Voir les détails des réponses"
+        >
+          {responseCounts.accepted > 0 && (
+            <span className="flex items-center gap-1 text-green-600">
+              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              {responseCounts.accepted}
+            </span>
+          )}
+          {responseCounts.pending > 0 && (
+            <span className="flex items-center gap-1 text-amber-600">
+              <HelpCircle className="h-4 w-4" aria-hidden="true" />
+              {responseCounts.pending}
+            </span>
+          )}
+          {responseCounts.rejected > 0 && (
+            <span className="flex items-center gap-1 text-red-600">
+              <XCircle className="h-4 w-4" aria-hidden="true" />
+              {responseCounts.rejected}
+            </span>
+          )}
+        </button>
+      </HoverCardTrigger>
+
+      <HoverCardContent className="w-72" align="end" side="top">
+        <div className="space-y-3">
+          <p className="text-sm font-semibold border-b pb-2">Réponses au créneau</p>
+
+          {/* Accepté */}
+          {acceptedResponses.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-green-700 flex items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                Ont accepté ({acceptedResponses.length})
+              </p>
+              {acceptedResponses.map(r => (
+                <p key={r.user_id} className="text-sm text-slate-600 pl-5">
+                  {r.user?.name || 'Utilisateur'}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* En attente */}
+          {pendingResponses.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-amber-700 flex items-center gap-1.5">
+                <HelpCircle className="h-4 w-4" aria-hidden="true" />
+                En attente ({pendingResponses.length})
+              </p>
+              {pendingResponses.map(r => (
+                <p key={r.user_id} className="text-sm text-slate-600 pl-5">
+                  {r.user?.name || 'Utilisateur'}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Refusé */}
+          {rejectedResponses.length > 0 && (
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-red-700 flex items-center gap-1.5">
+                <XCircle className="h-4 w-4" aria-hidden="true" />
+                Ont refusé ({rejectedResponses.length})
+              </p>
+              {rejectedResponses.map(r => (
+                <p key={r.user_id} className="text-sm text-slate-600 pl-5">
+                  {r.user?.name || 'Utilisateur'}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      </HoverCardContent>
+    </HoverCard>
+  )
 }
 
 /**
@@ -75,6 +181,7 @@ export const TimeSlotCard = ({
   onEdit,
   onCancel,
   onChoose,
+  onOpenResponseModal,
   variant = 'default',
   className
 }: TimeSlotCardProps) => {
@@ -85,22 +192,8 @@ export const TimeSlotCard = ({
   // Vérifie si l'utilisateur courant est le proposant du créneau
   const isOwnSlot = slot.proposed_by === currentUserId
 
-  // Vérifie le rôle du proposant pour déterminer les actions disponibles
-  const proposerRole = slot.proposed_by_user?.name?.toLowerCase().includes('gestionnaire')
-    ? 'manager'
-    : slot.proposed_by_user?.name?.toLowerCase().includes('prestataire')
-      ? 'provider'
-      : undefined
-
   // Créneau actif (non annulé, non confirmé, non rejeté)
   const isActiveSlot = !['cancelled', 'selected', 'confirmed', 'rejected'].includes(slot.status)
-
-  // Compte les réponses par type
-  const responseCounts = {
-    accepted: slot.responses?.filter(r => r.response === 'accepted').length || 0,
-    rejected: slot.responses?.filter(r => r.response === 'rejected').length || 0,
-    pending: slot.responses?.filter(r => r.response === 'pending').length || 0
-  }
 
   // Détermine la couleur de fond selon le statut
   const getBackgroundClass = () => {
@@ -116,6 +209,7 @@ export const TimeSlotCard = ({
     }
   }
 
+  // Variante compacte
   if (variant === 'compact') {
     return (
       <div
@@ -130,7 +224,8 @@ export const TimeSlotCard = ({
           <span className="text-sm font-medium">
             {formatDateShort(slot.slot_date)}
           </span>
-          <Clock className="h-3.5 w-3.5 text-muted-foreground ml-2" aria-hidden="true" />
+          <span className="text-slate-300">•</span>
+          <Clock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
           <span className="text-sm">
             {formatTimeRange(slot.start_time, slot.end_time)}
           </span>
@@ -146,6 +241,7 @@ export const TimeSlotCard = ({
     )
   }
 
+  // Variante default - layout compact avec HoverCard
   return (
     <div
       className={cn(
@@ -154,114 +250,109 @@ export const TimeSlotCard = ({
         className
       )}
     >
-      {/* En-tête: Date et heure */}
+      {/* Ligne 1: Date + Heure + Badge statut */}
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5">
-            <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            <span className="font-medium">{formatDateShort(slot.slot_date)}</span>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
+            <span className="text-sm font-medium">{formatDateShort(slot.slot_date)}</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Clock className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          <span className="text-slate-300">•</span>
+          <div className="flex items-center gap-1">
+            <Clock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
             <span className="text-sm text-muted-foreground">
               {formatTimeRange(slot.start_time, slot.end_time)}
             </span>
           </div>
         </div>
 
-        {/* Badge de statut */}
+        {/* Badge de statut (confirmé/annulé) */}
         {slot.status === 'confirmed' && (
-          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs">
             <CheckCircle2 className="h-3 w-3 mr-1" aria-hidden="true" />
             Confirmé
           </Badge>
         )}
         {slot.status === 'cancelled' && (
-          <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">
+          <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 text-xs">
             <XCircle className="h-3 w-3 mr-1" aria-hidden="true" />
             Annulé
           </Badge>
         )}
       </div>
 
-      {/* Proposé par */}
-      {slot.proposed_by_user && (
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
-          <User className="h-3 w-3" aria-hidden="true" />
-          <span>Proposé par {slot.proposed_by_user.name}</span>
-        </div>
-      )}
-
-      {/* Indicateurs de réponses */}
-      {slot.responses && slot.responses.length > 0 && (
-        <div className="flex items-center gap-3 text-xs mb-3">
-          {responseCounts.accepted > 0 && (
-            <div className="flex items-center gap-1 text-green-600">
-              <CheckCircle2 className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{responseCounts.accepted}</span>
-            </div>
-          )}
-          {responseCounts.rejected > 0 && (
-            <div className="flex items-center gap-1 text-red-600">
-              <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{responseCounts.rejected}</span>
-            </div>
-          )}
-          {responseCounts.pending > 0 && (
-            <div className="flex items-center gap-1 text-amber-600">
-              <HelpCircle className="h-3.5 w-3.5" aria-hidden="true" />
-              <span>{responseCounts.pending}</span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Actions */}
-      <div className="flex items-center gap-2">
-        {/* Locataire: peut sélectionner un créneau */}
-        {permissions.canSelectTimeSlot(userRole) && onSelect && !hasResponded && isActiveSlot && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onSelect(slot.id)}
-            className="flex-1"
-            aria-label="Sélectionner ce créneau"
-          >
-            <Check className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
-            Sélectionner
-          </Button>
+      {/* Ligne 2: Proposé par + Indicateurs réponses (avec hover) */}
+      <div className="flex items-center justify-between mb-2">
+        {slot.proposed_by_user && (
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <User className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>{slot.proposed_by_user.name}</span>
+          </div>
         )}
+        {!slot.proposed_by_user && <div />}
 
-        {/* Manager: boutons Approuver/Rejeter pour créneaux proposés par d'autres */}
-        {userRole === 'manager' && !isOwnSlot && isActiveSlot && (
+        {/* HoverCard pour les réponses */}
+        <ResponseIndicators slot={slot} />
+      </div>
+
+      {/* Ligne 3: Ma réponse - bandeau visible si l'utilisateur a répondu */}
+      {hasResponded && (
+        <div
+          className={cn(
+            'flex items-center gap-2 px-3 py-2 rounded-md mb-2 text-sm',
+            userResponse?.response === 'accepted'
+              ? 'bg-green-50 text-green-700 border border-green-200'
+              : userResponse?.response === 'rejected'
+                ? 'bg-red-50 text-red-700 border border-red-200'
+                : 'bg-amber-50 text-amber-700 border border-amber-200'
+          )}
+        >
+          {userResponse?.response === 'accepted' && <CheckCircle2 className="h-4 w-4 flex-shrink-0" aria-hidden="true" />}
+          {userResponse?.response === 'rejected' && <XCircle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />}
+          {userResponse?.response === 'pending' && <HelpCircle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />}
+          <span className="font-medium">
+            Ma réponse : {userResponse?.response === 'accepted' && 'Accepté'}
+            {userResponse?.response === 'rejected' && 'Refusé'}
+            {userResponse?.response === 'pending' && 'En attente'}
+          </span>
+        </div>
+      )}
+
+      {/* Ligne 4: Actions simplifiées */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Cas 1: A déjà répondu → bouton "Modifier réponse" + "Choisir" (manager) */}
+        {hasResponded && isActiveSlot && (
           <>
-            {onApprove && (
+            {onOpenResponseModal && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onApprove(slot.id)}
-                className="text-green-700 border-green-300 hover:bg-green-50"
-                aria-label="Approuver ce créneau"
+                onClick={() => onOpenResponseModal(slot.id)}
+                aria-label="Modifier ma réponse"
               >
-                <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                <Edit className="h-4 w-4 mr-1" aria-hidden="true" />
+                Modifier réponse
               </Button>
             )}
-            {onReject && (
+
+            {/* Manager uniquement: Choisir ce créneau (bouton visible) */}
+            {userRole === 'manager' && onChoose && (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onReject(slot.id)}
-                className="text-red-700 border-red-300 hover:bg-red-50"
-                aria-label="Rejeter ce créneau"
+                onClick={() => onChoose(slot.id)}
+                className="text-blue-700 border-blue-300 hover:bg-blue-50"
+                aria-label="Choisir ce créneau pour planifier l'intervention"
               >
-                <X className="h-3.5 w-3.5" aria-hidden="true" />
+                <CalendarCheck className="h-4 w-4 mr-1" aria-hidden="true" />
+                Choisir
               </Button>
             )}
           </>
         )}
 
-        {/* Provider: boutons Accepter/Rejeter pour créneaux proposés par gestionnaire */}
-        {userRole === 'provider' && !isOwnSlot && !hasResponded && isActiveSlot && (
+        {/* Cas 2: Pas encore répondu → boutons Accepter/Refuser */}
+        {!hasResponded && isActiveSlot && (
           <>
             {onApprove && (
               <Button
@@ -271,7 +362,7 @@ export const TimeSlotCard = ({
                 className="text-green-700 border-green-300 hover:bg-green-50"
                 aria-label="Accepter ce créneau"
               >
-                <Check className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+                <Check className="h-4 w-4 mr-1" aria-hidden="true" />
                 Accepter
               </Button>
             )}
@@ -280,80 +371,28 @@ export const TimeSlotCard = ({
                 variant="outline"
                 size="sm"
                 onClick={() => onReject(slot.id)}
-                className="text-red-700 border-red-300 hover:bg-red-50"
+                className="text-orange-700 border-orange-300 hover:bg-orange-50"
                 aria-label="Refuser ce créneau"
               >
-                <X className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+                <X className="h-4 w-4 mr-1" aria-hidden="true" />
                 Refuser
               </Button>
             )}
           </>
         )}
 
-        {/* Actions sur ses propres créneaux (Modifier, Annuler) */}
-        {isOwnSlot && isActiveSlot && (
-          <>
-            {onEdit && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onEdit(slot.id)}
-                className="text-blue-700 border-blue-300 hover:bg-blue-50"
-                aria-label="Modifier ce créneau"
-              >
-                <Edit className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
-                Modifier
-              </Button>
-            )}
-            {onCancel && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onCancel(slot.id)}
-                className="text-red-700 border-red-300 hover:bg-red-50"
-                aria-label="Annuler ce créneau"
-              >
-                <X className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
-                Annuler
-              </Button>
-            )}
-          </>
-        )}
-
-        {/* Indication si l'utilisateur a déjà répondu */}
-        {hasResponded && (
-          <Badge
+        {/* Manager: bouton Choisir même si pas encore répondu */}
+        {!hasResponded && userRole === 'manager' && onChoose && isActiveSlot && (
+          <Button
             variant="outline"
-            className={cn(
-              'text-xs',
-              userResponse?.response === 'accepted'
-                ? 'bg-green-50 text-green-700 border-green-200'
-                : userResponse?.response === 'rejected'
-                  ? 'bg-red-50 text-red-700 border-red-200'
-                  : 'bg-amber-50 text-amber-700 border-amber-200'
-            )}
+            size="sm"
+            onClick={() => onChoose(slot.id)}
+            className="text-blue-700 border-blue-300 hover:bg-blue-50"
+            aria-label="Choisir ce créneau pour planifier l'intervention"
           >
-            {userResponse?.response === 'accepted' && 'Accepté'}
-            {userResponse?.response === 'rejected' && 'Refusé'}
-            {userResponse?.response === 'pending' && 'En attente'}
-          </Badge>
-        )}
-
-        {/* Menu dropdown pour Manager: Choisir cet horaire */}
-        {userRole === 'manager' && onChoose && isActiveSlot && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Plus d'actions pour ce créneau">
-                <MoreVertical className="h-4 w-4" aria-hidden="true" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => onChoose(slot.id)}>
-                <CalendarCheck className="h-4 w-4 mr-2" aria-hidden="true" />
-                Choisir cet horaire
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+            <CalendarCheck className="h-4 w-4 mr-1" aria-hidden="true" />
+            Choisir
+          </Button>
         )}
       </div>
     </div>

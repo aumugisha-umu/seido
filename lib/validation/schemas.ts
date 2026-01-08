@@ -403,6 +403,11 @@ export const createManagerInterventionSchema = z.object({
   // Messages
   messageType: z.enum(['none', 'global', 'individual']).optional(),
   globalMessage: z.string().max(5000).trim().optional(),
+
+  // Confirmation des participants
+  // En mode "fixed" avec toggle activé ou en mode "slots"
+  requiresParticipantConfirmation: z.boolean().optional().default(false),
+  confirmationRequiredUserIds: z.array(uuidSchema).optional().default([]),
 })
 
 /**

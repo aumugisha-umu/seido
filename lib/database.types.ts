@@ -1240,6 +1240,9 @@ export type Database = {
         Row: {
           assigned_at: string
           assigned_by: string | null
+          confirmation_notes: string | null
+          confirmation_status: string | null
+          confirmed_at: string | null
           created_at: string
           id: string
           intervention_id: string
@@ -1247,6 +1250,7 @@ export type Database = {
           notes: string | null
           notified: boolean | null
           provider_instructions: string | null
+          requires_confirmation: boolean
           role: string
           updated_at: string
           user_id: string
@@ -1254,6 +1258,9 @@ export type Database = {
         Insert: {
           assigned_at?: string
           assigned_by?: string | null
+          confirmation_notes?: string | null
+          confirmation_status?: string | null
+          confirmed_at?: string | null
           created_at?: string
           id?: string
           intervention_id: string
@@ -1261,6 +1268,7 @@ export type Database = {
           notes?: string | null
           notified?: boolean | null
           provider_instructions?: string | null
+          requires_confirmation?: boolean
           role: string
           updated_at?: string
           user_id: string
@@ -1268,6 +1276,9 @@ export type Database = {
         Update: {
           assigned_at?: string
           assigned_by?: string | null
+          confirmation_notes?: string | null
+          confirmation_status?: string | null
+          confirmed_at?: string | null
           created_at?: string
           id?: string
           intervention_id?: string
@@ -1275,6 +1286,7 @@ export type Database = {
           notes?: string | null
           notified?: boolean | null
           provider_instructions?: string | null
+          requires_confirmation?: boolean
           role?: string
           updated_at?: string
           user_id?: string
@@ -1978,6 +1990,7 @@ export type Database = {
           provider_guidelines: string | null
           reference: string
           requested_date: string | null
+          requires_participant_confirmation: boolean
           requires_quote: boolean
           scheduled_date: string | null
           scheduling_method: string | null
@@ -2010,6 +2023,7 @@ export type Database = {
           provider_guidelines?: string | null
           reference: string
           requested_date?: string | null
+          requires_participant_confirmation?: boolean
           requires_quote?: boolean
           scheduled_date?: string | null
           scheduling_method?: string | null
@@ -2042,6 +2056,7 @@ export type Database = {
           provider_guidelines?: string | null
           reference?: string
           requested_date?: string | null
+          requires_participant_confirmation?: boolean
           requires_quote?: boolean
           scheduled_date?: string | null
           scheduling_method?: string | null

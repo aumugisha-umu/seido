@@ -124,6 +124,10 @@ export async function POST(request: NextRequest) {
       // Options
       expectsQuote,
       includeTenants,
+
+      // Confirmation des participants
+      requiresParticipantConfirmation,
+      confirmationRequiredUserIds,
     } = validation.data
 
     // Fields not in schema validation (passed through from body)
@@ -511,6 +515,49 @@ export async function POST(request: NextRequest) {
           count: assignmentData?.length || 0,
           inserted: assignmentData?.map(a => ({ id: a.id, user_id: a.user_id, role: a.role }))
         }, "✅ Contact assignments created successfully")
+
+        // ✅ NEW: Gestion de la confirmation des participants
+        // Si requiresParticipantConfirmation est activé, mettre à jour l'intervention et les assignments
+        if (requiresParticipantConfirmation && confirmationRequiredUserIds && confirmationRequiredUserIds.length > 0) {
+          logger.info({
+            interventionId: intervention.id,
+            confirmationRequiredUserIds
+          }, "📋 Setting up participant confirmation requirements")
+
+          // 1. Mettre à jour l'intervention avec le flag
+          const { error: updateInterventionError } = await supabase
+            .from('interventions')
+            .update({ requires_participant_confirmation: true })
+            .eq('id', intervention.id)
+
+          if (updateInterventionError) {
+            logger.error({
+              error: updateInterventionError
+            }, "⚠️ Failed to update intervention confirmation flag (non-blocking)")
+          } else {
+            logger.info({}, "✅ Intervention confirmation flag set")
+          }
+
+          // 2. Mettre à jour les assignments qui nécessitent une confirmation
+          const { error: updateAssignmentsError } = await supabase
+            .from('intervention_assignments')
+            .update({
+              requires_confirmation: true,
+              confirmation_status: 'pending'
+            })
+            .eq('intervention_id', intervention.id)
+            .in('user_id', confirmationRequiredUserIds)
+
+          if (updateAssignmentsError) {
+            logger.error({
+              error: updateAssignmentsError
+            }, "⚠️ Failed to update assignment confirmation status (non-blocking)")
+          } else {
+            logger.info({
+              count: confirmationRequiredUserIds.length
+            }, "✅ Assignment confirmation requirements set")
+          }
+        }
       }
     }
 
@@ -898,9 +945,10 @@ export async function POST(request: NextRequest) {
       logger.error(error, "⚠️ [API] Failed to create notifications")
     }
 
-    // ✅ EMAILS: Send email notifications to assigned users
+    // ✅ EMAILS: Send email notifications to assigned users (FIRE-AND-FORGET)
+    // Ne pas bloquer la réponse API - les emails sont envoyés en background
     try {
-      logger.info({ interventionId: intervention.id }, "📧 [API] Sending email notifications")
+      logger.info({ interventionId: intervention.id }, "📧 [API] Triggering background email notifications")
 
       // Use Service Role client for email notification service
       const serviceRoleClient = createServiceRoleSupabaseClient()
@@ -923,25 +971,33 @@ export async function POST(request: NextRequest) {
         lotRepository
       )
 
-      // Send batch emails (non-blocking, graceful degradation)
-      const emailResult = await emailNotificationService.sendInterventionCreatedBatch(
+      // ✅ FIX: Fire-and-forget - ne pas attendre l'envoi des emails (~8-10s de gain)
+      // Les emails sont envoyés en background, l'API retourne immédiatement
+      emailNotificationService.sendInterventionCreatedBatch(
         intervention.id,
         'intervention'
-      )
+      ).then(emailResult => {
+        logger.info({
+          interventionId: intervention.id,
+          sentCount: emailResult.sentCount,
+          failedCount: emailResult.failedCount,
+          success: emailResult.success
+        }, "📧 [API] Background email notifications completed")
+      }).catch(error => {
+        logger.error({
+          interventionId: intervention.id,
+          error: error instanceof Error ? error.message : String(error)
+        }, "⚠️ [API] Background email notifications failed")
+      })
 
-      logger.info({
-        interventionId: intervention.id,
-        sentCount: emailResult.sentCount,
-        failedCount: emailResult.failedCount,
-        success: emailResult.success
-      }, "📧 [API] Email notifications sent")
+      logger.info({ interventionId: intervention.id }, "📧 [API] Email notifications triggered (non-blocking)")
 
     } catch (error) {
       // Non-blocking: log error but don't fail the intervention creation
       logger.error({
         error: error instanceof Error ? error.message : 'Unknown error',
         interventionId: intervention.id
-      }, "⚠️ [API] Failed to send email notifications (non-blocking)")
+      }, "⚠️ [API] Failed to trigger email notifications")
     }
 
     // ⚡ NO-CACHE: Mutations ne doivent pas être cachées

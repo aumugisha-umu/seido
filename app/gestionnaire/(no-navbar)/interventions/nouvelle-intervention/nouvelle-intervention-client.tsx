@@ -168,6 +168,60 @@ export default function NouvelleInterventionClient({
     })
   }
 
+  // États pour la confirmation des participants
+  const [requiresConfirmation, setRequiresConfirmation] = useState(false)
+  const [confirmationRequired, setConfirmationRequired] = useState<string[]>([])
+
+  // Handler pour toggle la confirmation d'un participant
+  const handleConfirmationRequiredChange = (userId: string, required: boolean) => {
+    setConfirmationRequired(prev =>
+      required ? [...prev, userId] : prev.filter(id => id !== userId)
+    )
+  }
+
+  // Handler pour le toggle "Demander confirmation" - sélectionne tous par défaut
+  const handleRequiresConfirmationChange = (requires: boolean) => {
+    setRequiresConfirmation(requires)
+
+    if (requires) {
+      // Collecter tous les IDs de participants (sauf utilisateur courant)
+      const allParticipantIds: string[] = []
+
+      // Gestionnaires sélectionnés (sauf utilisateur courant)
+      const currentUserId = user?.id
+      for (const managerId of selectedManagerIds) {
+        const manager = managers.find((m: any) => String(m.id) === managerId)
+        if (manager && !(manager as any).isCurrentUser && managerId !== currentUserId) {
+          allParticipantIds.push(managerId)
+        }
+      }
+
+      // Prestataires sélectionnés
+      allParticipantIds.push(...selectedProviderIds)
+
+      // Locataires (lot-level ou building-level)
+      if (selectedLogement?.type === 'lot' && selectedLogement?.tenants) {
+        // Pour lot-level, les IDs sont générés - on les ajoute aussi
+        selectedLogement.tenants.forEach((_: any, i: number) => {
+          allParticipantIds.push(`tenant-${selectedLogement?.id || 'unknown'}-${i}`)
+        })
+      } else if (selectedLogement?.type === 'building' && buildingTenants && includeTenants) {
+        // Pour building-level, utiliser les vrais user_id
+        for (const lotGroup of buildingTenants.byLot) {
+          if (!excludedLotIds.has(lotGroup.lotId)) {
+            for (const tenant of lotGroup.tenants) {
+              allParticipantIds.push(tenant.user_id)
+            }
+          }
+        }
+      }
+
+      setConfirmationRequired(allParticipantIds)
+    }
+    // Note: on ne vide PAS la sélection quand on désactive le toggle
+    // pour permettre à l'utilisateur de réactiver sans perdre sa sélection
+  }
+
   // États pour les données réelles
   const [managers, setManagers] = useState<unknown[]>([])
   const [providers, setProviders] = useState<unknown[]>([])
@@ -561,6 +615,47 @@ export default function NouvelleInterventionClient({
     }
   }, [services, searchParams, isPreFilled])
 
+  // Reset ou pré-sélection des confirmations selon le mode de planification
+  useEffect(() => {
+    if (schedulingType !== 'fixed' && schedulingType !== 'slots') {
+      // Mode flexible : pas de confirmation
+      setRequiresConfirmation(false)
+      setConfirmationRequired([])
+    } else if (schedulingType === 'slots') {
+      // Mode créneaux : sélectionner tous les participants par défaut
+      const allParticipantIds: string[] = []
+
+      // Gestionnaires sélectionnés (sauf utilisateur courant)
+      const currentUserId = user?.id
+      for (const managerId of selectedManagerIds) {
+        const manager = managers.find((m: any) => String(m.id) === managerId)
+        if (manager && !(manager as any).isCurrentUser && managerId !== currentUserId) {
+          allParticipantIds.push(managerId)
+        }
+      }
+
+      // Prestataires sélectionnés
+      allParticipantIds.push(...selectedProviderIds)
+
+      // Locataires (lot-level ou building-level)
+      if (selectedLogement?.type === 'lot' && selectedLogement?.tenants) {
+        selectedLogement.tenants.forEach((_: any, i: number) => {
+          allParticipantIds.push(`tenant-${selectedLogement?.id || 'unknown'}-${i}`)
+        })
+      } else if (selectedLogement?.type === 'building' && buildingTenants && includeTenants) {
+        for (const lotGroup of buildingTenants.byLot) {
+          if (!excludedLotIds.has(lotGroup.lotId)) {
+            for (const tenant of lotGroup.tenants) {
+              allParticipantIds.push(tenant.user_id)
+            }
+          }
+        }
+      }
+
+      setConfirmationRequired(allParticipantIds)
+    }
+  }, [schedulingType, selectedManagerIds, selectedProviderIds, selectedLogement, buildingTenants, includeTenants, excludedLotIds, managers, user?.id])
+
   const getRelatedContacts = () => {
     return [...managers, ...providers]
   }
@@ -608,11 +703,21 @@ export default function NouvelleInterventionClient({
         // Si déjà sélectionné, le retirer
         const newIds = normalizedPrevIds.filter(id => id !== normalizedManagerId)
         logger.info("👤 Gestionnaire retiré, nouveaux IDs:", newIds)
+        // Retirer aussi de la liste de confirmation
+        setConfirmationRequired(prev => prev.filter(id => id !== normalizedManagerId))
         return newIds
       } else {
         // Sinon l'ajouter
         const newIds = [...normalizedPrevIds, normalizedManagerId]
         logger.info("👤 Gestionnaire ajouté, nouveaux IDs:", newIds)
+        // Si confirmation active, l'ajouter automatiquement à la liste
+        if (requiresConfirmation) {
+          // Vérifier que ce n'est pas l'utilisateur courant
+          const manager = managers.find((m: any) => String(m.id) === normalizedManagerId)
+          if (manager && !(manager as any).isCurrentUser && normalizedManagerId !== user?.id) {
+            setConfirmationRequired(prev => [...prev, normalizedManagerId])
+          }
+        }
         return newIds
       }
     })
@@ -633,6 +738,8 @@ export default function NouvelleInterventionClient({
         if (newIds.length <= 1) {
           setAssignmentMode('single')
         }
+        // Retirer aussi de la liste de confirmation
+        setConfirmationRequired(prev => prev.filter(id => id !== normalizedProviderId))
         return newIds
       } else {
         // ✅ Multi-sélection : ajouter le prestataire
@@ -641,6 +748,10 @@ export default function NouvelleInterventionClient({
         // Si on passe à plusieurs prestataires, suggérer le mode group par défaut
         if (newIds.length > 1 && assignmentMode === 'single') {
           setAssignmentMode('group')
+        }
+        // Si confirmation active, l'ajouter automatiquement à la liste
+        if (requiresConfirmation) {
+          setConfirmationRequired(prev => [...prev, normalizedProviderId])
         }
         return newIds
       }
@@ -721,6 +832,38 @@ export default function NouvelleInterventionClient({
       address: buildingFromInitial?.address || ""
     })
 
+    // ✅ FIX: Générer titre par défaut AVANT le check des services
+    // Utilise les données initiales qui sont toujours disponibles
+    if (!formData.title) {
+      const nextNumber = (initialBuildingsData.interventionCount || 0) + 1
+      const buildingName = buildingFromInitial?.name || 'Immeuble'
+      setFormData(prev => ({
+        ...prev,
+        title: `Intervention #${nextNumber} - ${buildingName}`
+      }))
+    }
+
+    // ✅ FIX: Charger les tenants d'immeuble via Server Action AVANT le check services
+    // Les Server Actions ne dépendent pas des services client
+    setLoadingBuildingTenants(true)
+    try {
+      const tenantsResult = await getActiveTenantsByBuildingAction(buildingId)
+      if (tenantsResult.success && tenantsResult.data) {
+        setBuildingTenants(tenantsResult.data)
+        // Activer le toggle si des locataires existent
+        setIncludeTenants(tenantsResult.data.hasActiveTenants)
+        logger.info('✅ Building tenants loaded (early):', {
+          buildingId,
+          totalCount: tenantsResult.data.totalCount,
+          occupiedLotsCount: tenantsResult.data.occupiedLotsCount
+        })
+      }
+    } catch (tenantError) {
+      logger.warn("Could not load building tenants (early):", tenantError)
+    } finally {
+      setLoadingBuildingTenants(false)
+    }
+
     if (!services) {
       logger.info("⏳ Services not ready, cannot load building details")
       return
@@ -748,26 +891,6 @@ export default function NouvelleInterventionClient({
             title: `Intervention #${nextNumber} - ${buildingName}`
           }))
         }
-      }
-
-      // 🆕 Charger les locataires de tous les lots de l'immeuble
-      setLoadingBuildingTenants(true)
-      try {
-        const tenantsResult = await getActiveTenantsByBuildingAction(buildingId)
-        if (tenantsResult.success && tenantsResult.data) {
-          setBuildingTenants(tenantsResult.data)
-          // Activer le toggle si des locataires existent
-          setIncludeTenants(tenantsResult.data.hasActiveTenants)
-          logger.info('✅ Building tenants loaded:', {
-            buildingId,
-            totalCount: tenantsResult.data.totalCount,
-            occupiedLotsCount: tenantsResult.data.occupiedLotsCount
-          })
-        }
-      } catch (tenantError) {
-        logger.warn("Could not load building tenants:", tenantError)
-      } finally {
-        setLoadingBuildingTenants(false)
       }
     } catch (err) {
       logger.error("❌ Error loading building data:", err)
@@ -821,6 +944,51 @@ export default function NouvelleInterventionClient({
     })
     // ✅ Initialiser includeTenants depuis données initiales pour cohérence avec étape 1
     setIncludeTenants(lotFromInitial?.is_occupied || false)
+
+    // ✅ FIX: Générer titre par défaut AVANT le check des services
+    // Utilise les données initiales qui sont toujours disponibles
+    if (!formData.title) {
+      const nextNumber = (initialBuildingsData.interventionCount || 0) + 1
+      const lotName = lotFromInitial?.reference || 'Lot'
+      setFormData(prev => ({
+        ...prev,
+        title: `Intervention #${nextNumber} - ${lotName}`
+      }))
+    }
+
+    // ✅ FIX: Charger les tenants via Server Action AVANT le check services
+    // Les Server Actions ne dépendent pas des services client
+    if (lotFromInitial?.is_occupied) {
+      try {
+        const tenantsResult = await getActiveTenantsByLotAction(lotIdStr)
+        if (tenantsResult.success && tenantsResult.data?.tenants.length > 0) {
+          const primaryTenant = tenantsResult.data.tenants.find(t => t.is_primary)
+            || tenantsResult.data.tenants[0]
+
+          const tenants = tenantsResult.data.tenants.map(t => ({
+            name: t.name,
+            email: t.email,
+            phone: t.phone
+          }))
+
+          // Mettre à jour selectedLogement avec les tenants
+          setSelectedLogement(prev => prev ? {
+            ...prev,
+            tenant: primaryTenant.name,
+            tenantEmail: primaryTenant.email,
+            tenantPhone: primaryTenant.phone,
+            tenants
+          } : prev)
+
+          logger.info("✅ [LOT-SELECT] Tenant data loaded (early):", {
+            primaryTenant: primaryTenant.name,
+            tenantsCount: tenants.length
+          })
+        }
+      } catch (tenantError) {
+        logger.warn("⚠️ [LOT-SELECT] Could not load tenant data (early):", tenantError)
+      }
+    }
 
     if (!services) {
       logger.info("⏳ Services not ready, cannot load lot details")
@@ -932,8 +1100,8 @@ export default function NouvelleInterventionClient({
     }))
   }
 
-  const addTimeSlot = () => {
-    setTimeSlots((prev) => [...prev, { date: "", startTime: "09:00", endTime: "17:00" }])
+  const addTimeSlot = (slot?: { date: string; startTime: string; endTime: string }) => {
+    setTimeSlots((prev) => [...prev, slot || { date: "", startTime: "09:00", endTime: "17:00" }])
   }
 
   const removeTimeSlot = (index: number) => {
@@ -1132,6 +1300,17 @@ export default function NouvelleInterventionClient({
         excludedLotIds: selectedLogement?.type === 'building' && includeTenants
           ? Array.from(excludedLotIds)
           : [],
+
+        // Confirmation des participants
+        // En mode "fixed" : dépend du toggle requiresConfirmation
+        // En mode "slots" : toujours activé (confirmation obligatoire)
+        requiresParticipantConfirmation:
+          (schedulingType === 'fixed' && requiresConfirmation) ||
+          schedulingType === 'slots',
+        confirmationRequiredUserIds:
+          ((schedulingType === 'fixed' && requiresConfirmation) || schedulingType === 'slots')
+            ? confirmationRequired
+            : [],
 
         // Team context
         teamId: currentUserTeam?.id || initialBuildingsData.teamId
@@ -1501,6 +1680,11 @@ export default function NouvelleInterventionClient({
                 // Lots selection (for granular control)
                 excludedLotIds={excludedLotIds}
                 onLotToggle={handleLotToggle}
+                // Confirmation des participants
+                requiresConfirmation={requiresConfirmation}
+                onRequiresConfirmationChange={handleRequiresConfirmationChange}
+                confirmationRequired={confirmationRequired}
+                onConfirmationRequiredChange={handleConfirmationRequiredChange}
               />
             </Card>
           </div>
@@ -1558,11 +1742,12 @@ export default function NouvelleInterventionClient({
                     }]
                   : []),
                 // 🆕 Ajouter les locataires d'immeuble (depuis buildingTenants)
+                // ✅ Utiliser user_id pour matcher avec confirmationRequired
                 ...(buildingTenants && includeTenants
                   ? buildingTenants.byLot
                       .filter(lot => !excludedLotIds.has(lot.lotId))
-                      .flatMap(lot => lot.tenants.map((tenant, index) => ({
-                        id: `building-tenant-${lot.lotId}-${index}`,
+                      .flatMap(lot => lot.tenants.map((tenant) => ({
+                        id: tenant.user_id,
                         name: tenant.name,
                         role: 'Locataire',
                         email: tenant.email || undefined,
@@ -1579,6 +1764,16 @@ export default function NouvelleInterventionClient({
                       startTime: slot.startTime,
                       endTime: slot.endTime,
                     })),
+                  }
+                : schedulingType === 'fixed' && fixedDateTime.date
+                ? {
+                    // ✅ FIX: Convertir la date fixe en slot pour l'affichage
+                    type: 'slots' as const,
+                    slots: [{
+                      date: fixedDateTime.date,
+                      startTime: fixedDateTime.time || '09:00',
+                      endTime: fixedDateTime.time || '09:00',
+                    }],
                   }
                 : schedulingType === 'immediate'
                 ? { type: 'immediate' as const }
@@ -1605,6 +1800,11 @@ export default function NouvelleInterventionClient({
               // Multi-provider mode data
               assignmentMode: selectedProviderIds.length > 1 ? assignmentMode : 'single',
               providerInstructions: assignmentMode === 'separate' ? providerInstructions : undefined,
+              // Participant confirmation data
+              requiresParticipantConfirmation:
+                (schedulingType === 'fixed' && requiresConfirmation) ||
+                schedulingType === 'slots',
+              confirmationRequiredUserIds: confirmationRequired,
             }
 
             return (

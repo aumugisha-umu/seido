@@ -45,6 +45,10 @@ import {
 
 // Modal pour choisir un créneau
 import { ChooseTimeSlotModal } from '@/components/intervention/modals/choose-time-slot-modal'
+// Modal pour répondre à un créneau (accepter/refuser)
+import { TimeSlotResponseModal } from '@/components/intervention/modals/time-slot-response-modal'
+// Modal pour prévisualiser les documents
+import { DocumentPreviewModal } from '@/components/intervention/modals/document-preview-modal'
 
 // Intervention components
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata } from '@/components/ui/detail-page-header'
@@ -69,8 +73,21 @@ import { useInterventionApproval } from '@/hooks/use-intervention-approval'
 import { ContactSelector, type ContactSelectorRef } from '@/components/contact-selector'
 
 // Actions
-import { assignUserAction, unassignUserAction } from '@/app/actions/intervention-actions'
+import { assignUserAction, unassignUserAction, cancelQuoteAction } from '@/app/actions/intervention-actions'
 import { addInterventionComment } from '@/app/actions/intervention-comment-actions'
+
+// Confirmation banners
+import {
+  ConfirmationRequiredBanner,
+  ConfirmationSuccessBanner,
+  ConfirmationRejectedBanner
+} from '@/components/intervention/confirmation-required-banner'
+import {
+  getParticipantPermissions,
+  needsConfirmation,
+  hasConfirmed,
+  hasRejected
+} from '@/lib/utils/intervention-permissions'
 
 // Intervention type icons and utils
 import { getTypeIcon } from '@/components/interventions/intervention-type-icon'
@@ -239,12 +256,27 @@ export function InterventionDetailClient({
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
   const [selectedSlotIdForChoice, setSelectedSlotIdForChoice] = useState<string | null>(null)
   const [isChooseModalOpen, setIsChooseModalOpen] = useState(false)
+  // État pour la modale de réponse à un créneau
+  const [responseModalSlotId, setResponseModalSlotId] = useState<string | null>(null)
+  const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
 
   // Thread type sélectionné pour le chat (utilisé quand on clique sur une icône message)
   const [selectedThreadType, setSelectedThreadType] = useState<string>('group')
 
   // État pour la modale d'upload de documents
   const [isDocumentUploadOpen, setIsDocumentUploadOpen] = useState(false)
+
+  // État pour la modale de prévisualisation de documents
+  const [previewDocument, setPreviewDocument] = useState<{
+    id: string
+    name: string
+    type?: string
+    size?: string
+    date?: string
+    url?: string
+    mimeType?: string
+  } | null>(null)
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false)
 
   // État pour le message initial dans le chat
   const [initialChatMessage, setInitialChatMessage] = useState<string | null>(null)
@@ -284,6 +316,52 @@ export function InterventionDetailClient({
     const activeQuote = getActiveQuote()
     setRequireQuote(activeQuote !== undefined)
   }, [quotes])
+
+  // ============================================================================
+  // Participant Confirmation Logic
+  // ============================================================================
+
+  // Check if current user is the creator
+  const isCreator = intervention.created_by === serverUserId
+
+  // Find current user's assignment (if any)
+  const currentUserAssignment = useMemo(() => {
+    return assignments.find(a => a.user_id === serverUserId)
+  }, [assignments, serverUserId])
+
+  // Build intervention confirmation info for permissions helper
+  const interventionConfirmationInfo = useMemo(() => ({
+    requires_participant_confirmation: intervention.requires_participant_confirmation ?? false
+  }), [intervention.requires_participant_confirmation])
+
+  // Build assignment confirmation info for permissions helper
+  const assignmentConfirmationInfo = useMemo(() => {
+    if (!currentUserAssignment) return null
+    return {
+      requires_confirmation: currentUserAssignment.requires_confirmation ?? false,
+      confirmation_status: (currentUserAssignment.confirmation_status ?? 'not_required') as 'pending' | 'confirmed' | 'rejected' | 'not_required'
+    }
+  }, [currentUserAssignment])
+
+  // Get permissions for current user
+  const participantPermissions = useMemo(() => {
+    return getParticipantPermissions(
+      interventionConfirmationInfo,
+      assignmentConfirmationInfo,
+      isCreator
+    )
+  }, [interventionConfirmationInfo, assignmentConfirmationInfo, isCreator])
+
+  // Determine which banner to show (if any)
+  const showConfirmationBanner = participantPermissions.canConfirm
+  const showConfirmedBanner = !isCreator && hasConfirmed(assignmentConfirmationInfo)
+  const showRejectedBanner = !isCreator && hasRejected(assignmentConfirmationInfo)
+
+  // Callback after confirmation/rejection
+  const handleConfirmationResponse = () => {
+    // Refresh the page to get updated data
+    router.refresh()
+  }
 
   // Transform assignments into Contact arrays by role (legacy format for modals)
   const { managers, providers, tenants } = useMemo(() => {
@@ -393,6 +471,47 @@ export function InterventionDetailClient({
     }))
     , [timeSlots])
 
+  // Calculer les stats de réponse pour la section Planning (vue générale)
+  const responseStats = useMemo(() => {
+    // Filtrer les slots actifs (pending ou requested)
+    const activeSlots = transformedTimeSlots.filter(s =>
+      s.status === 'pending' || s.status === 'requested'
+    )
+
+    if (activeSlots.length === 0) return undefined
+
+    // Compter les participants attendus (ceux avec requires_confirmation)
+    const participantsWithConfirmation = assignments.filter(a => a.requires_confirmation)
+    const totalExpectedResponses = participantsWithConfirmation.length
+
+    if (totalExpectedResponses === 0) return undefined
+
+    // Calculer le détail par créneau
+    const slotDetails = activeSlots.map(slot => {
+      const responses = slot.responses || []
+      return {
+        slotDate: slot.slot_date,
+        startTime: slot.start_time,
+        endTime: slot.end_time,
+        accepted: responses.filter(r => r.response === 'accepted').length,
+        rejected: responses.filter(r => r.response === 'rejected').length,
+        pending: responses.filter(r => r.response === 'pending').length
+      }
+    })
+
+    // Trouver le max de réponses reçues (accepted + rejected)
+    const maxResponsesReceived = Math.max(
+      ...slotDetails.map(s => s.accepted + s.rejected),
+      0
+    )
+
+    return {
+      maxResponsesReceived,
+      totalExpectedResponses,
+      slotDetails
+    }
+  }, [transformedTimeSlots, assignments])
+
   // Comments transformés pour CommentsCard
   const transformedComments: SharedComment[] = useMemo(() =>
     comments.map(c => ({
@@ -478,6 +597,15 @@ export function InterventionDetailClient({
   // Récupérer le slot complet pour la modale de choix
   const selectedFullSlotForChoice = selectedSlotIdForChoice
     ? timeSlots.find(s => s.id === selectedSlotIdForChoice)
+    : null
+
+  // Récupérer le slot complet pour la modale de réponse
+  const selectedSlotForResponse = responseModalSlotId
+    ? timeSlots.find(s => s.id === responseModalSlotId)
+    : null
+  // Récupérer la réponse actuelle de l'utilisateur pour ce slot
+  const currentUserResponseForSlot = selectedSlotForResponse
+    ? (selectedSlotForResponse as any).responses?.find((r: any) => r.user_id === serverUserId)?.response
     : null
 
   // Date planifiée (si un créneau est sélectionné/confirmé)
@@ -924,6 +1052,34 @@ export function InterventionDetailClient({
     }
   }
 
+  // Handler pour annuler une demande de devis (statut pending)
+  const handleCancelQuote = async (quoteId: string) => {
+    try {
+      const result = await cancelQuoteAction(quoteId, intervention.id)
+
+      if (result.success) {
+        toast({
+          title: 'Demande annulée',
+          description: 'La demande de devis a été annulée'
+        })
+        handleRefresh()
+      } else {
+        toast({
+          title: 'Erreur',
+          description: result.error || 'Erreur lors de l\'annulation de la demande',
+          variant: 'destructive'
+        })
+      }
+    } catch (error) {
+      console.error('Error cancelling quote:', error)
+      toast({
+        title: 'Erreur',
+        description: 'Erreur lors de l\'annulation de la demande',
+        variant: 'destructive'
+      })
+    }
+  }
+
   // ============================================================================
   // Callbacks pour le nouveau design PreviewHybrid
   // ============================================================================
@@ -973,7 +1129,7 @@ export function InterventionDetailClient({
     }
   }
 
-  // Handler pour visualiser un document (ouvre dans un nouvel onglet)
+  // Handler pour visualiser un document (ouvre la modale de preview)
   const handleViewDocument = async (documentId: string) => {
     const doc = documents.find(d => d.id === documentId)
     if (!doc) {
@@ -990,10 +1146,28 @@ export function InterventionDetailClient({
 
       if (error) throw error
 
-      window.open(data.signedUrl, '_blank')
+      // Ouvrir la modale de preview au lieu d'un nouvel onglet
+      const fileName = (doc as any).original_filename || doc.filename || 'Document'
+      setPreviewDocument({
+        id: doc.id,
+        name: fileName,
+        type: doc.document_type || undefined,
+        size: doc.file_size ? `${Math.round(doc.file_size / 1024)} KB` : undefined,
+        date: doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleDateString('fr-FR') : undefined,
+        url: data.signedUrl,
+        mimeType: doc.mime_type || undefined
+      })
+      setIsPreviewModalOpen(true)
     } catch (error) {
       console.error('Error previewing document:', error)
       toast({ title: "Erreur", description: "Impossible d'ouvrir le document", variant: "destructive" })
+    }
+  }
+
+  // Handler pour télécharger depuis la modale de preview
+  const handleDownloadFromPreview = () => {
+    if (previewDocument) {
+      handleDownloadDocument(previewDocument.id)
     }
   }
 
@@ -1069,6 +1243,15 @@ export function InterventionDetailClient({
     if (slotExists) {
       setSelectedSlotIdForChoice(slotId)
       setIsChooseModalOpen(true)
+    }
+  }
+
+  // Handler pour ouvrir la modale de réponse à un créneau
+  const handleOpenResponseModal = (slotId: string) => {
+    const slotExists = timeSlots.some(s => s.id === slotId)
+    if (slotExists) {
+      setResponseModalSlotId(slotId)
+      setIsResponseModalOpen(true)
     }
   }
 
@@ -1607,6 +1790,19 @@ export function InterventionDetailClient({
               {/* TAB: GENERAL */}
               <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
                 <ContentWrapper>
+                  {/* Bannières de confirmation si nécessaire */}
+                  {showConfirmationBanner && (
+                    <ConfirmationRequiredBanner
+                      interventionId={intervention.id}
+                      scheduledDate={intervention.scheduled_date}
+                      scheduledTime={null}
+                      onConfirm={handleConfirmationResponse}
+                      onReject={handleConfirmationResponse}
+                    />
+                  )}
+                  {showConfirmedBanner && <ConfirmationSuccessBanner />}
+                  {showRejectedBanner && <ConfirmationRejectedBanner />}
+
                   {/* Détails de l'intervention */}
                   <div className="flex-shrink-0">
                     <InterventionDetailsCard
@@ -1632,8 +1828,11 @@ export function InterventionDetailClient({
                         status: planningStatus,
                         proposedSlotsCount,
                         quotesCount: transformedQuotes.length,
+                        requestedQuotesCount: transformedQuotes.filter(q => q.status === 'pending').length,
+                        receivedQuotesCount: transformedQuotes.filter(q => q.status === 'sent').length,
                         quotesStatus,
-                        selectedQuoteAmount
+                        selectedQuoteAmount,
+                        responseStats
                       }}
                       createdBy={intervention.creator?.name || null}
                       createdAt={intervention.created_at || null}
@@ -1697,6 +1896,7 @@ export function InterventionDetailClient({
                       onAddQuote={() => console.log('Add quote')}
                       onApproveQuote={handleApproveQuote}
                       onRejectQuote={handleRejectQuote}
+                      onCancelQuote={handleCancelQuote}
                       className="flex-1 min-h-0"
                     />
                   )}
@@ -1725,6 +1925,7 @@ export function InterventionDetailClient({
                       if (slot) planning.openCancelSlotModal(slot, intervention.id)
                     }}
                     onChooseSlot={handleChooseSlot}
+                    onOpenResponseModal={handleOpenResponseModal}
                     className="flex-1 min-h-0"
                   />
                 </div>
@@ -1742,6 +1943,27 @@ export function InterventionDetailClient({
             open={isChooseModalOpen}
             onOpenChange={setIsChooseModalOpen}
             onSuccess={handleChooseModalSuccess}
+          />
+        )}
+
+        {/* Modale de réponse à un créneau (accepter/refuser) */}
+        {selectedSlotForResponse && (
+          <TimeSlotResponseModal
+            isOpen={isResponseModalOpen}
+            onClose={() => {
+              setIsResponseModalOpen(false)
+              setResponseModalSlotId(null)
+            }}
+            slot={{
+              id: selectedSlotForResponse.id,
+              slot_date: selectedSlotForResponse.slot_date || '',
+              start_time: selectedSlotForResponse.start_time || '',
+              end_time: selectedSlotForResponse.end_time || '',
+              notes: (selectedSlotForResponse as any).notes
+            }}
+            interventionId={intervention.id}
+            currentResponse={currentUserResponseForSlot}
+            onSuccess={handleRefresh}
           />
         )}
 
@@ -1770,6 +1992,17 @@ export function InterventionDetailClient({
             setIsDocumentUploadOpen(false)
             router.refresh()
           }}
+        />
+
+        {/* Modale de prévisualisation de documents */}
+        <DocumentPreviewModal
+          isOpen={isPreviewModalOpen}
+          onClose={() => {
+            setIsPreviewModalOpen(false)
+            setPreviewDocument(null)
+          }}
+          document={previewDocument}
+          onDownload={handleDownloadFromPreview}
         />
 
         {/* Modals pour l'approbation/rejet */}

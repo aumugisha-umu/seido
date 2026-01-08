@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type RefObject } from "react"
+import { useState, useMemo, type RefObject } from "react"
 import {
   Users,
   User,
@@ -16,7 +16,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
-  Send
+  Send,
+  UserCheck
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -43,6 +44,7 @@ import { format } from "date-fns"
 import { fr } from "date-fns/locale"
 import { AssignmentModeSelector, type AssignmentMode } from "./assignment-mode-selector"
 import { ProviderInstructionsInput } from "./provider-instructions-input"
+import { ParticipantConfirmationSelector } from "./participant-confirmation-selector"
 import type { BuildingTenantsResult } from "@/app/actions/contract-actions"
 
 interface Contact {
@@ -76,7 +78,7 @@ interface AssignmentSectionV2Props {
   fixedDateTime: { date: string; time: string }
   onFixedDateTimeChange: (dateTime: { date: string; time: string }) => void
   timeSlots: TimeSlot[]
-  onAddTimeSlot: () => void
+  onAddTimeSlot: (slot?: { date: string; startTime: string; endTime: string }) => void
   onUpdateTimeSlot: (index: number, field: keyof TimeSlot, value: string) => void
   onRemoveTimeSlot: (index: number) => void
   expectsQuote: boolean
@@ -102,6 +104,11 @@ interface AssignmentSectionV2Props {
   // Lots selection (for granular control)
   excludedLotIds?: Set<string>
   onLotToggle?: (lotId: string) => void
+  // Confirmation des participants (date fixe: optionnel, créneaux: obligatoire)
+  requiresConfirmation?: boolean
+  onRequiresConfirmationChange?: (requires: boolean) => void
+  confirmationRequired?: string[]  // IDs des participants qui doivent confirmer
+  onConfirmationRequiredChange?: (userId: string, required: boolean) => void
 }
 
 // Helper pour formater la date des créneaux
@@ -230,7 +237,7 @@ function TimeSlotSection({
   onRemoveTimeSlot
 }: {
   timeSlots: TimeSlot[]
-  onAddTimeSlot: () => void
+  onAddTimeSlot: (slot?: { date: string; startTime: string; endTime: string }) => void
   onUpdateTimeSlot: (index: number, field: keyof TimeSlot, value: string) => void
   onRemoveTimeSlot: (index: number) => void
 }) {
@@ -280,11 +287,8 @@ function TimeSlotSection({
         <PopoverContent className="w-auto p-4" align="start" sideOffset={8}>
           <TimeSlotPopoverContent
             onAdd={(slot) => {
-              const newIndex = timeSlots.length
-              onAddTimeSlot()
-              onUpdateTimeSlot(newIndex, 'date', slot.date)
-              onUpdateTimeSlot(newIndex, 'startTime', slot.startTime)
-              onUpdateTimeSlot(newIndex, 'endTime', slot.endTime)
+              // ✅ Passer le slot complet directement pour éviter les problèmes de batching React
+              onAddTimeSlot(slot)
             }}
             onOpenChange={setIsPopoverOpen}
           />
@@ -332,7 +336,12 @@ export function AssignmentSectionV2({
   loadingBuildingTenants = false,
   // Lots selection
   excludedLotIds = new Set(),
-  onLotToggle
+  onLotToggle,
+  // Confirmation des participants
+  requiresConfirmation = false,
+  onRequiresConfirmationChange,
+  confirmationRequired = [],
+  onConfirmationRequiredChange
 }: AssignmentSectionV2Props) {
   const [expandedSections, setExpandedSections] = useState({
     contacts: true,
@@ -351,11 +360,51 @@ export function AssignmentSectionV2({
   // Get selected contacts
   const selectedManagers = managers.filter(m => selectedManagerIds.includes(String(m.id)))
   const selectedProviders = providers.filter(p => selectedProviderIds.includes(String(p.id)))
-  const allSelectedContacts = [...selectedManagers, ...selectedProviders, ...tenants]
+
+  // Combiner tous les locataires (lot-level + building-level filtré par excludedLotIds)
+  const allTenants = useMemo(() => {
+    // Si on a des tenants directs (lot-level), les utiliser
+    if (tenants.length > 0) {
+      return tenants
+    }
+
+    // Si on a des building tenants (building-level), les combiner depuis les lots non-exclus
+    if (buildingTenants && includeTenants) {
+      const buildingTenantsFlattened: Contact[] = []
+      for (const lotGroup of buildingTenants.byLot) {
+        // Ignorer les lots exclus
+        if (excludedLotIds?.has(lotGroup.lotId)) continue
+
+        for (const tenant of lotGroup.tenants) {
+          buildingTenantsFlattened.push({
+            id: tenant.user_id,
+            name: tenant.name || '',
+            email: tenant.email || undefined,
+            phone: tenant.phone || undefined,
+            type: 'locataire' as const
+          })
+        }
+      }
+      return buildingTenantsFlattened
+    }
+
+    return []
+  }, [tenants, buildingTenants, includeTenants, excludedLotIds])
+
+  const allSelectedContacts = [...selectedManagers, ...selectedProviders, ...allTenants]
+
+  // Vérifier si il y a d'autres participants que l'utilisateur courant
+  // (nécessaire pour activer le mode "créneaux" et la confirmation)
+  const hasOtherParticipants =
+    selectedProviders.length > 0 ||
+    selectedManagers.filter(m => !m.isCurrentUser).length > 0 ||
+    allTenants.length > 0
 
   // Debug log
   console.log("🔍 AssignmentSectionV2 - Tenants received:", tenants)
-  console.log("🔍 AssignmentSectionV2 - All contacts:", allSelectedContacts)
+  console.log("🔍 AssignmentSectionV2 - Building tenants:", buildingTenants)
+  console.log("🔍 AssignmentSectionV2 - All tenants (combined):", allTenants)
+  console.log("🔍 AssignmentSectionV2 - Has other participants:", hasOtherParticipants)
 
   return (
     <div className="space-y-4">
@@ -619,10 +668,10 @@ export function AssignmentSectionV2({
       </div>
 
       {/* Instructions + Planning - Side by side on desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
         {/* Messages & Assignment Mode Section */}
-        <Collapsible open={expandedSections.messages}>
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <Collapsible open={expandedSections.messages} className="h-full">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full flex flex-col">
           <CollapsibleTrigger
             onClick={() => toggleSection('messages')}
             className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
@@ -643,7 +692,7 @@ export function AssignmentSectionV2({
             )}
           </CollapsibleTrigger>
 
-          <CollapsibleContent>
+          <CollapsibleContent className="flex-1">
             <div className="px-6 pb-6 space-y-5 border-t pt-4">
               {/* Assignment Mode Selector - Only show when 2+ providers */}
               {selectedProviderIds.length > 1 && onAssignmentModeChange && (
@@ -698,8 +747,8 @@ export function AssignmentSectionV2({
       </Collapsible>
 
       {/* Planning Section */}
-      <Collapsible open={expandedSections.planning}>
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <Collapsible open={expandedSections.planning} className="h-full">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden h-full flex flex-col">
           <CollapsibleTrigger
             onClick={() => toggleSection('planning')}
             className="w-full px-6 py-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
@@ -721,8 +770,8 @@ export function AssignmentSectionV2({
             )}
           </CollapsibleTrigger>
 
-          <CollapsibleContent>
-            <div className="px-6 pb-6 space-y-4 border-t pt-4">
+          <CollapsibleContent className="flex-1">
+            <div className="px-6 pb-6 space-y-4 border-t pt-4 h-full">
               {/* Inline Radio Options */}
               <div className="flex flex-col sm:flex-row gap-3">
                 <label className={cn(
@@ -764,54 +813,125 @@ export function AssignmentSectionV2({
                 </label>
 
                 <label className={cn(
-                  "flex items-center gap-3 p-3 rounded-lg border-2 cursor-pointer transition-all",
-                  schedulingType === "slots"
-                    ? "border-blue-500 bg-blue-50"
-                    : "border-slate-200 hover:border-slate-300"
+                  "flex items-center gap-3 p-3 rounded-lg border-2 transition-all",
+                  !hasOtherParticipants
+                    ? "opacity-50 cursor-not-allowed border-slate-200 bg-slate-50"
+                    : schedulingType === "slots"
+                      ? "border-blue-500 bg-blue-50 cursor-pointer"
+                      : "border-slate-200 hover:border-slate-300 cursor-pointer"
                 )}>
                   <input
                     type="radio"
                     name="scheduling"
                     checked={schedulingType === "slots"}
-                    onChange={() => onSchedulingTypeChange("slots")}
+                    onChange={() => hasOtherParticipants && onSchedulingTypeChange("slots")}
+                    disabled={!hasOtherParticipants}
                     className="w-4 h-4 text-blue-600"
                   />
                   <div className="flex-1">
                     <span className="font-medium text-sm">Créneaux</span>
-                    <p className="text-xs text-slate-600">Proposer plusieurs options</p>
+                    <p className="text-xs text-slate-600">
+                      {!hasOtherParticipants
+                        ? "Ajoutez au moins 1 autre participant"
+                        : "Proposer plusieurs options"}
+                    </p>
                   </div>
                 </label>
               </div>
 
               {/* Conditional content based on selection */}
               {schedulingType === "fixed" && (
-                <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-end">
-                  <div className="flex flex-col gap-2">
-                    <Label className="text-sm font-medium">Date</Label>
-                    <DatePicker
-                      value={fixedDateTime.date}
-                      onChange={(date) => onFixedDateTimeChange({ ...fixedDateTime, date })}
-                      minDate={new Date().toISOString().split('T')[0]}
-                      className="w-full"
-                    />
+                <div className="space-y-4">
+                  {/* Date & Heure */}
+                  <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-4 items-end">
+                    <div className="flex flex-col gap-2">
+                      <Label className="text-sm font-medium">Date</Label>
+                      <DatePicker
+                        value={fixedDateTime.date}
+                        onChange={(date) => onFixedDateTimeChange({ ...fixedDateTime, date })}
+                        minDate={new Date().toISOString().split('T')[0]}
+                        className="w-full"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <Label className="text-sm font-medium">Heure</Label>
+                      <TimePicker24h
+                        value={fixedDateTime.time}
+                        onChange={(time) => onFixedDateTimeChange({ ...fixedDateTime, time })}
+                      />
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-2">
-                    <Label className="text-sm font-medium">Heure</Label>
-                    <TimePicker24h
-                      value={fixedDateTime.time}
-                      onChange={(time) => onFixedDateTimeChange({ ...fixedDateTime, time })}
-                    />
-                  </div>
+
+                  {/* Section confirmation (optionnelle) - visible seulement si autres participants */}
+                  {hasOtherParticipants && onRequiresConfirmationChange && (
+                    <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <UserCheck className="h-5 w-5 text-blue-600" />
+                          <Label className="text-sm font-medium cursor-pointer">
+                            Demander confirmation des participants
+                          </Label>
+                        </div>
+                        <Switch
+                          checked={requiresConfirmation}
+                          onCheckedChange={onRequiresConfirmationChange}
+                          className="data-[state=checked]:bg-blue-600"
+                        />
+                      </div>
+
+                      {/* Sélection individuelle si toggle activé */}
+                      {requiresConfirmation && onConfirmationRequiredChange && (
+                        <ParticipantConfirmationSelector
+                          managers={selectedManagers}
+                          providers={selectedProviders}
+                          tenants={allTenants}
+                          confirmationRequired={confirmationRequired}
+                          onToggle={onConfirmationRequiredChange}
+                          mandatory={false}
+                        />
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
               {schedulingType === "slots" && (
-                <TimeSlotSection
-                  timeSlots={timeSlots}
-                  onAddTimeSlot={onAddTimeSlot}
-                  onUpdateTimeSlot={onUpdateTimeSlot}
-                  onRemoveTimeSlot={onRemoveTimeSlot}
-                />
+                <div className="space-y-4">
+                  {/* Sélection des créneaux */}
+                  <TimeSlotSection
+                    timeSlots={timeSlots}
+                    onAddTimeSlot={onAddTimeSlot}
+                    onUpdateTimeSlot={onUpdateTimeSlot}
+                    onRemoveTimeSlot={onRemoveTimeSlot}
+                  />
+
+                  {/* Section confirmation OBLIGATOIRE pour le mode créneaux */}
+                  {hasOtherParticipants && onConfirmationRequiredChange && (
+                    <div className="border border-blue-200 rounded-lg p-4 bg-blue-50/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <UserCheck className="h-5 w-5 text-blue-600" />
+                        <Label className="text-sm font-medium">
+                          Participants qui doivent valider les créneaux
+                        </Label>
+                        <Badge variant="secondary" className="text-xs">
+                          Obligatoire
+                        </Badge>
+                      </div>
+                      <p className="text-xs text-blue-600 mb-2">
+                        Les participants sélectionnés devront confirmer leur disponibilité sur les créneaux proposés.
+                      </p>
+
+                      <ParticipantConfirmationSelector
+                        managers={selectedManagers}
+                        providers={selectedProviders}
+                        tenants={allTenants}
+                        confirmationRequired={confirmationRequired}
+                        onToggle={onConfirmationRequiredChange}
+                        mandatory={true}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </CollapsibleContent>

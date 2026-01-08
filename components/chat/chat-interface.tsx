@@ -404,6 +404,9 @@ export function ChatInterface({
   const [thread, setThread] = useState<Thread | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  // Track which threadId has been initialized to prevent infinite loops
+  // (initialMessages/initialParticipants are objects whose references may change on re-renders)
+  const initializedThreadIdRef = useRef<string | null>(null)
 
   // File upload hook
   const chatUpload = useChatUpload({
@@ -418,6 +421,13 @@ export function ChatInterface({
 
   // Load real data from API (Phase 2: Skip if server-fetched data available)
   useEffect(() => {
+    // ✅ FIX: Skip if already initialized for this threadId
+    // This prevents infinite loops when initialMessages/initialParticipants object references change
+    if (initializedThreadIdRef.current === threadId) {
+      return
+    }
+    initializedThreadIdRef.current = threadId
+
     const loadData = async () => {
       // ✅ Phase 2 optimization: Skip fetch if initial data provided
       if (initialMessages?.[threadId] && initialParticipants?.[threadId]) {

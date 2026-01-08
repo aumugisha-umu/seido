@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
-import { CheckCircle, Building2, Users, Wrench, ArrowRight } from 'lucide-react'
+import { CheckCircle, Building2, Users, Wrench, ArrowRight, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -78,18 +78,23 @@ export const SignupSuccessModal = ({
         return [
           {
             icon: Building2,
-            title: 'Créer votre premier bien immobilier',
-            description: 'Ajoutez un immeuble ou une maison à gérer'
+            title: 'Centraliser votre patrimoine',
+            description: 'Ajoutez vos biens, lots et documents en un seul endroit'
+          },
+          {
+            icon: FileText,
+            title: 'Lier locataires et logements',
+            description: 'Créez des contrats pour associer vos locataires à leurs lots'
           },
           {
             icon: Users,
-            title: 'Inviter des membres dans votre équipe',
-            description: 'Collaborez avec vos collègues gestionnaires'
+            title: 'Collaborer avec votre équipe',
+            description: 'Déléguez et suivez les tâches en temps réel'
           },
           {
             icon: Wrench,
-            title: 'Découvrir les interventions',
-            description: 'Gérez les demandes de maintenance efficacement'
+            title: 'Piloter toutes vos tâches',
+            description: 'Interventions, indexations, renouvellements, assurances... tout en un'
           }
         ]
 

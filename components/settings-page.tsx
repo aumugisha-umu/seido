@@ -6,15 +6,16 @@ import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Bell, Smartphone, Mail } from "lucide-react"
 import { PushNotificationToggle } from "@/components/push-notification-toggle"
-import { TestNotificationsPanel } from "@/components/test-notifications-panel"
 import { InstallPWAButton } from "@/components/install-pwa-button"
+import { SubscriptionManagementSection } from "@/components/subscription-management-section"
 
 interface SettingsPageProps {
   role: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
   dashboardPath: string
+  defaultLotCount?: number
 }
 
-export default function SettingsPage({ role, dashboardPath }: SettingsPageProps) {
+export default function SettingsPage({ role, dashboardPath, defaultLotCount }: SettingsPageProps) {
   const { user } = useAuth()
   const router = useRouter()
 
@@ -28,7 +29,7 @@ export default function SettingsPage({ role, dashboardPath }: SettingsPageProps)
 
   return (
     <div className="layout-padding">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         {/* Header avec bouton retour */}
         <div className="flex items-center mb-6">
           <Button variant="ghost" size="sm" onClick={handleBack} className="mr-4">
@@ -39,6 +40,9 @@ export default function SettingsPage({ role, dashboardPath }: SettingsPageProps)
         </div>
 
         <div className="space-y-6">
+          {/* Installation PWA */}
+          <InstallPWAButton />
+
           {/* Notifications push */}
           <Card>
             <CardHeader>
@@ -55,8 +59,8 @@ export default function SettingsPage({ role, dashboardPath }: SettingsPageProps)
             </CardContent>
           </Card>
 
-          {/* Test notifications push */}
-          <TestNotificationsPanel />
+          {/* Gestion d'abonnement (Gestionnaire only) */}
+          {role === 'gestionnaire' && <SubscriptionManagementSection defaultLotCount={defaultLotCount} />}
 
           {/* Email Settings (Gestionnaire only) */}
           {role === 'gestionnaire' && (
@@ -72,9 +76,6 @@ export default function SettingsPage({ role, dashboardPath }: SettingsPageProps)
               </CardHeader>
             </Card>
           )}
-
-          {/* Installation PWA */}
-          <InstallPWAButton />
         </div>
       </div>
     </div>

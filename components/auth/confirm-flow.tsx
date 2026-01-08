@@ -36,8 +36,8 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
     role: 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
   } | null>(null)
 
-  // Polling pour vérifier la création du profil
-  const pollProfileCreation = async (authUserId: string, maxAttempts = 5): Promise<boolean> => {
+  // Polling pour vérifier la création du profil - retourne les données du profil
+  const pollProfileCreation = async (authUserId: string, maxAttempts = 5) => {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       console.log(`[CONFIRM-FLOW] Checking profile (attempt ${attempt + 1}/${maxAttempts})...`)
 
@@ -45,7 +45,7 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
 
       if (result.success && result.data) {
         console.log('[CONFIRM-FLOW] Profile found:', result.data)
-        return true
+        return result.data  // Retourner les données du profil
       }
 
       // Attendre 2 secondes avant la prochaine tentative
@@ -54,7 +54,7 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
       }
     }
 
-    return false
+    return null  // Retourner null si non trouvé
   }
 
   // Flow principal au montage du composant
@@ -81,9 +81,9 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
         console.log('[CONFIRM-FLOW] Waiting for profile creation...')
         setState('creating_profile')
 
-        const profileCreated = await pollProfileCreation(confirmResult.data.authUserId)
+        const profileData = await pollProfileCreation(confirmResult.data.authUserId)
 
-        if (!profileCreated) {
+        if (!profileData) {
           console.error('[CONFIRM-FLOW] Profile not created after 10 seconds')
           setError(
             'Votre compte est créé mais votre profil prend plus de temps que prévu à être initialisé. ' +
@@ -93,8 +93,12 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
           return
         }
 
-        // ÉTAPE 3 : Succès ! Afficher la modale
-        console.log('[CONFIRM-FLOW] Profile created successfully, showing success modal')
+        // ÉTAPE 3 : Succès ! Utiliser le firstName de la DB (plus fiable que l'email)
+        console.log('[CONFIRM-FLOW] Profile created successfully, using DB firstName:', profileData.firstName)
+        setUserData({
+          ...confirmResult.data,
+          firstName: profileData.firstName  // Utiliser le prénom de la DB
+        })
         setState('success')
 
       } catch (error) {

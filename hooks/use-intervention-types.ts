@@ -95,6 +95,17 @@ async function fetchInterventionTypes(): Promise<InterventionTypesData> {
 // ============================================================================
 
 /**
+ * Hook options for useInterventionTypes
+ */
+export interface UseInterventionTypesOptions {
+  /**
+   * Initial data from server-side fetch (via getInterventionTypesServer)
+   * When provided, the dropdown will render instantly without loading state
+   */
+  initialData?: InterventionTypesData | null
+}
+
+/**
  * Hook to fetch and cache intervention types with categories
  *
  * Features:
@@ -102,33 +113,56 @@ async function fetchInterventionTypes(): Promise<InterventionTypesData> {
  * - No refetch on focus/reconnect
  * - Fallback to static PROBLEM_TYPES if fetch fails
  * - Helper functions for type lookup
+ * - ✅ NEW: Accepts initialData from server to avoid loading delay
  *
  * @example
  * ```tsx
- * const { types, categories, getTypeByCode, isLoading } = useInterventionTypes()
+ * // Basic usage (will show loading spinner)
+ * const { types, categories, isLoading } = useInterventionTypes()
+ *
+ * // With server-side prefetch (instant render, no spinner)
+ * const { types, categories, isLoading } = useInterventionTypes({
+ *   initialData: serverPrefetchedData
+ * })
  *
  * // Get type info
  * const plomberie = getTypeByCode('plomberie')
  * console.log(plomberie?.label_fr) // "Plomberie"
- *
- * // Group by category for Combobox
- * categories.map(cat => ({
- *   label: cat.label_fr,
- *   types: getTypesByCategory(cat.code)
- * }))
  * ```
  */
-export function useInterventionTypes() {
+export function useInterventionTypes(options?: UseInterventionTypesOptions) {
+  const { initialData } = options || {}
+
   // ✅ Wait for auth before fetching (RLS policies require auth.uid())
   const { user, loading: authLoading } = useAuth()
 
   // SWR key logic:
-  // - null while auth is still loading (prevents premature fetch)
-  // - null if user is not authenticated (RLS would block anyway)
-  // - valid key only when auth is complete AND user exists
-  const swrKey = authLoading ? null : (user ? 'intervention-types' : null)
+  // - If we have initialData, we can use a valid key immediately (no auth wait needed for initial render)
+  // - Otherwise, wait for auth to complete before fetching
+  const hasInitialData = !!initialData && initialData.types.length > 0
+  const swrKey = hasInitialData
+    ? 'intervention-types' // ✅ Immediate key when we have server data
+    : (authLoading ? null : (user ? 'intervention-types' : null))
 
-  console.log('[useInterventionTypes] Auth state:', { authLoading, hasUser: !!user, swrKey })
+  // Static fallback for when no data is available
+  const staticFallback: InterventionTypesData = {
+    categories: [
+      { id: '1', code: 'bien', label_fr: 'Bien', description_fr: null, sort_order: 1, is_active: true }
+    ],
+    types: PROBLEM_TYPES_FALLBACK.map((t, i) => ({
+      id: String(i),
+      code: t.value,
+      category_id: '1',
+      category_code: 'bien',
+      category_label: 'Bien',
+      label_fr: t.label,
+      description_fr: null,
+      icon_name: null,
+      color_class: null,
+      sort_order: i,
+      is_active: true,
+    }))
+  }
 
   const { data, error, isLoading, mutate } = useSWR<InterventionTypesData>(
     swrKey,
@@ -136,32 +170,16 @@ export function useInterventionTypes() {
     {
       // Reference data - long cache
       revalidateOnFocus: false,
-      revalidateOnReconnect: true,   // ✅ Retry on reconnect
+      revalidateOnReconnect: true,
       dedupingInterval: 300000, // 5 minutes
-      // Allow refetch when stale (important after auth)
-      revalidateIfStale: true,       // ✅ Changed: allow refetch
-      // Retry on error with more attempts
-      errorRetryCount: 3,            // ✅ Increased
-      errorRetryInterval: 2000,      // ✅ Longer interval
-      // Fallback data if fetch fails (only used if swrKey is set but fetch fails)
-      fallbackData: {
-        categories: [
-          { id: '1', code: 'bien', label_fr: 'Bien', description_fr: null, sort_order: 1, is_active: true }
-        ],
-        types: PROBLEM_TYPES_FALLBACK.map((t, i) => ({
-          id: String(i),
-          code: t.value,
-          category_id: '1',
-          category_code: 'bien',
-          category_label: 'Bien',
-          label_fr: t.label,
-          description_fr: null,
-          icon_name: null,
-          color_class: null,
-          sort_order: i,
-          is_active: true,
-        }))
-      }
+      // ✅ Don't revalidate on mount if we have initial data (already fresh from server)
+      revalidateOnMount: !hasInitialData,
+      revalidateIfStale: !hasInitialData, // Only revalidate if no initial data
+      // Retry on error
+      errorRetryCount: 3,
+      errorRetryInterval: 2000,
+      // ✅ Use initialData if provided, otherwise use static fallback
+      fallbackData: initialData || staticFallback
     }
   )
 
@@ -204,8 +222,10 @@ export function useInterventionTypes() {
     types: getTypesByCategory(category.code)
   })) || []
 
-  // Combined loading state: auth loading OR data loading
-  const combinedLoading = authLoading || isLoading
+  // Combined loading state:
+  // - If we have initialData, we're never in loading state (instant render)
+  // - Otherwise, loading = auth loading OR SWR loading
+  const combinedLoading = hasInitialData ? false : (authLoading || isLoading)
 
   return {
     // Raw data

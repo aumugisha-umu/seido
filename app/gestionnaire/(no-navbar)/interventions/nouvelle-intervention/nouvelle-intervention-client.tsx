@@ -37,6 +37,7 @@ import PropertySelector from "@/components/property-selector"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { URGENCY_LEVELS } from "@/lib/intervention-data"
 import { InterventionTypeCombobox } from "@/components/intervention/intervention-type-combobox"
+import type { InterventionTypesData } from "@/hooks/use-intervention-types"
 import { determineAssignmentType, createTeamService, createContactService, createTenantService, createLotService, createBuildingService } from '@/lib/services'
 import { useAuth } from "@/hooks/use-auth"
 import ContactSelectorOld from "@/components/ui/contact-selector"
@@ -82,10 +83,13 @@ interface BuildingsData {
 
 interface NouvelleInterventionClientProps {
   initialBuildingsData: BuildingsData
+  /** Pre-fetched intervention types from server (avoids loading spinner) */
+  initialInterventionTypes?: InterventionTypesData | null
 }
 
 export default function NouvelleInterventionClient({
-  initialBuildingsData
+  initialBuildingsData,
+  initialInterventionTypes
 }: NouvelleInterventionClientProps) {
   logger.info("🚀 NouvelleInterventionPage - Composant initialisé")
 
@@ -1527,6 +1531,7 @@ export default function NouvelleInterventionClient({
                           onValueChange={(value) => setFormData((prev) => ({ ...prev, type: value }))}
                           placeholder="Sélectionnez la catégorie"
                           className="border-2 border-border focus:border-primary focus:ring-2 focus:ring-primary/20 w-full"
+                          initialData={initialInterventionTypes}
                         />
                       </div>
 

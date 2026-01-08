@@ -8,6 +8,7 @@ import {
 import { getServerAuthContext } from '@/lib/server-context'
 import NouvelleInterventionClient from './nouvelle-intervention-client'
 import { logger } from '@/lib/logger'
+import { getInterventionTypesServer } from '@/hooks/use-intervention-types'
 
 export default async function NouvelleInterventionPage() {
   const startTime = Date.now()
@@ -166,6 +167,15 @@ export default async function NouvelleInterventionPage() {
       logger.warn('⚠️ Could not count interventions:', countError)
     }
 
+    // ✅ 2026-01-08: Pre-fetch intervention types server-side to avoid loading delay
+    logger.info('📍 [INTERVENTION-PAGE-SERVER] Step 5: Loading intervention types...')
+    const interventionTypes = await getInterventionTypesServer()
+    logger.info('✅ [INTERVENTION-PAGE-SERVER] Intervention types loaded', {
+      typeCount: interventionTypes?.types?.length || 0,
+      categoryCount: interventionTypes?.categories?.length || 0,
+      elapsed: `${Date.now() - startTime}ms`
+    })
+
     // Prepare data for client component
     const buildingsData = {
       buildings,
@@ -183,7 +193,10 @@ export default async function NouvelleInterventionPage() {
 
     // Pass data to Client Component
     return (
-      <NouvelleInterventionClient initialBuildingsData={buildingsData} />
+      <NouvelleInterventionClient
+        initialBuildingsData={buildingsData}
+        initialInterventionTypes={interventionTypes}
+      />
     )
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)

@@ -826,52 +826,56 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Handle file uploads if provided
+    // Handle file uploads if provided - ✅ OPTIMIZED: Parallel uploads
     if (files && files.length > 0) {
-      logger.info({ count: files.length }, "📎 Processing file uploads")
+      logger.info({ count: files.length }, "📎 Processing file uploads (parallel)")
 
       try {
         const { fileService } = await import('@/lib/file-service')
-        let uploadedCount = 0
 
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i]
-          const metadata = fileMetadata[i] || {}
+        // ✅ Upload all files in parallel instead of sequentially
+        const uploadResults = await Promise.all(
+          files.map(async (file, i) => {
+            const metadata = fileMetadata[i] || {}
 
-          try {
-            // Validate file
-            const validation = fileService.validateFile(file)
-            if (!validation.isValid) {
-              logger.error({ fileName: file.name, error: validation.error }, "❌ File validation failed")
-              continue
+            try {
+              // Validate file
+              const validation = fileService.validateFile(file)
+              if (!validation.isValid) {
+                logger.error({ fileName: file.name, error: validation.error }, "❌ File validation failed")
+                return { success: false, fileName: file.name }
+              }
+
+              // Get document type from metadata or use default
+              const documentType = (metadata as { documentType?: string }).documentType || 'photo_avant'
+
+              // Upload to Supabase Storage and create database record
+              await fileService.uploadInterventionDocument(supabase, file, {
+                interventionId: intervention.id,
+                uploadedBy: user.id,
+                teamId: intervention.team_id,
+                documentType: documentType as Database['public']['Enums']['intervention_document_type'],
+                description: `Fichier uploadé lors de la création: ${file.name}`
+              })
+
+              logger.info({ fileName: file.name }, "✅ File uploaded successfully")
+              return { success: true, fileName: file.name }
+            } catch (fileError) {
+              logger.error({ fileName: file.name, error: fileError }, "❌ Error uploading file")
+              return { success: false, fileName: file.name }
             }
+          })
+        )
 
-            // Get document type from metadata or use default
-            const documentType = (metadata as { documentType?: string }).documentType || 'photo_avant'
-
-            // Upload to Supabase Storage and create database record
-            await fileService.uploadInterventionDocument(supabase, file, {
-              interventionId: intervention.id,
-              uploadedBy: user.id,
-              teamId: intervention.team_id,
-              documentType: documentType as Database['public']['Enums']['intervention_document_type'],
-              description: `Fichier uploadé lors de la création: ${file.name}`
-            })
-
-            uploadedCount++
-            logger.info({ fileName: file.name }, "✅ File uploaded successfully")
-          } catch (fileError) {
-            logger.error({ fileName: file.name, error: fileError }, "❌ Error uploading file")
-            // Continue with other files even if one fails
-          }
-        }
+        // Count successful uploads
+        const uploadedCount = uploadResults.filter(r => r.success).length
 
         // Update intervention has_attachments flag if any files were uploaded
         if (uploadedCount > 0) {
           try {
             const updateResult = await interventionService.update(intervention.id, { has_attachments: true })
             if (updateResult.success) {
-              logger.info({ uploadedCount }, "✅ Files uploaded successfully and has_attachments flag updated")
+              logger.info({ uploadedCount, totalFiles: files.length }, "✅ Files uploaded successfully and has_attachments flag updated")
             } else {
               logger.warn({ error: updateResult.error }, "⚠️ Could not update intervention has_attachments flag (non-critical)")
             }
@@ -918,31 +922,29 @@ export async function POST(request: NextRequest) {
 
     logger.info({}, "🎉 Manager intervention creation completed successfully")
 
-    // ✅ NOTIFICATIONS: Send notifications to team members
-    try {
-      logger.info({ interventionId: intervention.id }, "📬 [API] Creating intervention notifications")
+    // ✅ NOTIFICATIONS: Send notifications to team members (FIRE-AND-FORGET)
+    // ✅ OPTIMIZED: Ne pas bloquer la réponse API - notifications envoyées en background
+    {
+      logger.info({ interventionId: intervention.id }, "📬 [API] Triggering background in-app notifications")
 
       // ✅ Use Service Role to bypass RLS for notification context fetching
-      // This ensures we can fetch the full intervention details even if RLS blocked the read for the user
       const serviceRoleClient = createServiceRoleSupabaseClient()
       const notificationRepository = new NotificationRepository(serviceRoleClient)
       const notificationService = new NotificationService(notificationRepository)
 
-      const notifications = await notificationService.notifyInterventionCreated({
+      // ✅ Fire-and-forget - ne pas attendre (~300-500ms de gain)
+      notificationService.notifyInterventionCreated({
         interventionId: intervention.id,
         teamId: intervention.team_id,
         createdBy: user.id
+      }).then(() => {
+        logger.info({
+          reference: intervention.reference,
+          interventionId: intervention.id
+        }, "✅ [API] In-app notifications created successfully (background)")
+      }).catch((error) => {
+        logger.error(error, "⚠️ [API] Failed to create in-app notifications (background)")
       })
-
-      logger.info({
-        reference: intervention.reference,
-        title: intervention.title,
-        status: intervention.status,
-        created_at: intervention.created_at
-      }, "✅ [API] Notifications created successfully")
-
-    } catch (error) {
-      logger.error(error, "⚠️ [API] Failed to create notifications")
     }
 
     // ✅ EMAILS: Send email notifications to assigned users (FIRE-AND-FORGET)

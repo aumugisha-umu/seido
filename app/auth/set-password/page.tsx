@@ -14,7 +14,7 @@ import AuthLogo from "@/components/ui/auth-logo"
 import { useAuth } from "@/hooks/use-auth"
 import { createBrowserSupabaseClient } from "@/lib/services"
 import { logger, logError } from '@/lib/logger'
-import { PWAInstallPromptModal } from '@/components/pwa/pwa-install-prompt-modal'
+
 interface PasswordCriteria {
   minLength: boolean
   hasUppercase: boolean
@@ -37,7 +37,6 @@ export default function SetPasswordPage() {
     hasLowercase: false,
     hasNumber: false
   })
-  const [showPWAPrompt, setShowPWAPrompt] = useState(false)
   // ✅ CRITIQUE: Initialisation SYNCHRONE de isWaitingForSession
   // Détecte verified=true immédiatement, avant tout useEffect
   const [isWaitingForSession, setIsWaitingForSession] = useState(() => {
@@ -200,28 +199,8 @@ export default function SetPasswordPage() {
     setCriteria(newCriteria)
   }, [_password])
 
-  // 📱 PWA: Déclencher automatiquement le prompt après succès
-  useEffect(() => {
-    if (isCompleted) {
-      const timer = setTimeout(() => {
-        logger.info('📱 [SET-PASSWORD] Triggering PWA prompt after password setup success')
-        setShowPWAPrompt(true)
-      }, 2000)
-
-      return () => clearTimeout(timer)
-    }
-  }, [isCompleted])
-
   const isPasswordValid = () => {
     return Object.values(criteria).every(criterion => criterion)
-  }
-
-  const handlePWAInstallSuccess = (notificationsEnabled: boolean) => {
-    logger.info('✅ [SET-PASSWORD] PWA installed successfully', { notificationsEnabled })
-  }
-
-  const handlePWADismiss = () => {
-    logger.info('❌ [SET-PASSWORD] PWA prompt dismissed by user')
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -353,57 +332,48 @@ export default function SetPasswordPage() {
   // Si le mot de passe a été défini avec succès
   if (isCompleted) {
     return (
-      <>
-        <div className="w-full space-y-6">
-          <div className="flex flex-col items-center space-y-4 text-center">
-            <AuthLogo />
+      <div className="w-full space-y-6">
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <AuthLogo />
 
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-full blur-xl" />
-              <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
-                <CheckCircle className="h-8 w-8 text-green-400" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <h1 className="text-3xl font-bold tracking-tight text-white">Mot de passe défini !</h1>
-              <p className="text-white/60">
-                Votre compte est maintenant configuré et prêt à être utilisé
-              </p>
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-emerald-500/20 rounded-full blur-xl" />
+            <div className="relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/20">
+              <CheckCircle className="h-8 w-8 text-green-400" />
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-              <p className="text-sm text-green-200">
-                <strong>Bienvenue dans SEIDO !</strong><br />
-                Vous allez être redirigé vers votre tableau de bord dans quelques secondes.
-              </p>
-            </div>
-            <Button
-              onClick={() => {
-                if (user?.role) {
-                  const dashboardPath = `/${user.role}/dashboard`
-                  logger.info("🔄 [SET-PASSWORD] Manual redirect to dashboard:", dashboardPath)
-                  window.location.href = dashboardPath
-                } else {
-                  window.location.href = '/auth/login'
-                }
-              }}
-              className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
-            >
-              Accéder au tableau de bord
-            </Button>
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold tracking-tight text-white">Mot de passe défini !</h1>
+            <p className="text-white/60">
+              Votre compte est maintenant configuré et prêt à être utilisé
+            </p>
           </div>
         </div>
 
-        <PWAInstallPromptModal
-          isOpen={showPWAPrompt}
-          onClose={() => setShowPWAPrompt(false)}
-          onInstallSuccess={handlePWAInstallSuccess}
-          onDismiss={handlePWADismiss}
-        />
-      </>
+        <div className="space-y-4">
+          <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+            <p className="text-sm text-green-200">
+              <strong>Bienvenue dans SEIDO !</strong><br />
+              Vous allez être redirigé vers votre tableau de bord dans quelques secondes.
+            </p>
+          </div>
+          <Button
+            onClick={() => {
+              if (user?.role) {
+                const dashboardPath = `/${user.role}/dashboard`
+                logger.info("🔄 [SET-PASSWORD] Manual redirect to dashboard:", dashboardPath)
+                window.location.href = dashboardPath
+              } else {
+                window.location.href = '/auth/login'
+              }
+            }}
+            className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
+          >
+            Accéder au tableau de bord
+          </Button>
+        </div>
+      </div>
     )
   }
 

@@ -15,8 +15,10 @@ import {
 } from 'lucide-react'
 import { faq } from '@/data/faq'
 import { CountUp } from '@/components/ui/count-up'
+import { Slider } from '@/components/ui/slider'
 import { DemoRequestForm } from './demo-request-form'
 import { LandingHeader } from './landing-header'
+import { PricingCards } from '@/components/pricing-cards'
 
 /**
  * VERSION 2 - MODERN PREMIUM
@@ -62,6 +64,7 @@ function FadeIn({ children, delay = 0, className = "" }: { children: React.React
 
 export function LandingPage() {
     const [showDemoModal, setShowDemoModal] = useState(false)
+    const [lotCount, setLotCount] = useState(10)
 
     return (
         <div className="min-h-screen bg-[#0f172a] text-white selection:bg-purple-500 selection:text-white">
@@ -601,100 +604,46 @@ export function LandingPage() {
                     </div>
                 </FadeIn>
 
-                <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                    {/* Mensuel */}
-                    <FadeIn delay={0} className="h-full">
-                        <div className="p-8 rounded-3xl border border-white/10 bg-[#1e293b]/50 backdrop-blur-md hover:bg-[#1e293b]/70 transition-colors flex flex-col h-full hover:scale-[1.02] duration-300 relative">
-                            <div className="absolute -top-3 left-6 px-3 py-1 bg-white/10 border border-white/20 rounded-full landing-overline text-white/80">
-                                Après essai gratuit
+                {/* Slider nombre de biens */}
+                <FadeIn delay={0}>
+                    <div className="max-w-md mx-auto mb-12 p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
+                        <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/20 to-sky-500/20">
+                                    <Home className="w-5 h-5 text-blue-400" />
+                                </div>
+                                <span className="text-white/80 font-medium">Nombre de biens</span>
                             </div>
-                            <h3 className="landing-h3 text-white mb-2 mt-2">Mensuel</h3>
-                            <div className="flex items-baseline gap-1 mb-6">
-                                <span className="text-4xl font-bold text-white">5€</span>
-                                <span className="text-white/60">/lot/mois</span>
-                            </div>
-                            <ul className="space-y-3 mb-6 flex-grow">
-                                <li className="flex items-center text-white/80">
-                                    <CheckCircle2 className="w-5 h-5 text-green-400 mr-3 flex-shrink-0" />
-                                    <span><strong className="text-green-400">1er mois offert</strong></span>
-                                </li>
-                                <li className="flex items-center text-white/80">
-                                    <CheckCircle2 className="w-5 h-5 text-green-400 mr-3 flex-shrink-0" />
-                                    Sans engagement
-                                </li>
-                                <li className="flex items-center text-white/80">
-                                    <CheckCircle2 className="w-5 h-5 text-green-400 mr-3 flex-shrink-0" />
-                                    Import CSV inclus
-                                </li>
-                            </ul>
-                            <div className="pt-4 border-t border-white/10 mb-6">
-                                <p className="landing-caption text-white/50">
-                                    Service d'import pro disponible : 500€/jour
-                                </p>
-                            </div>
-                            <Link href="/auth/signup" className="w-full mt-auto">
-                                <Button className="w-full bg-white/10 hover:bg-white/20 text-white border-0 transition-all hover:scale-105">
-                                    Démarrer mon essai gratuit
-                                </Button>
-                            </Link>
+                            <span className="text-2xl font-bold text-white">{lotCount} <span className="text-sm font-normal text-white/60">lots</span></span>
                         </div>
-                    </FadeIn>
+                        <Slider
+                            value={[lotCount]}
+                            onValueChange={(v) => setLotCount(v[0])}
+                            min={1}
+                            max={1000}
+                            step={1}
+                            className="w-full [&_[data-slot=slider-track]]:bg-white/10 [&_[data-slot=slider-range]]:bg-gradient-to-r [&_[data-slot=slider-range]]:from-blue-500 [&_[data-slot=slider-range]]:to-blue-400 [&_[data-slot=slider-thumb]]:border-blue-400 [&_[data-slot=slider-thumb]]:bg-white"
+                        />
+                        {lotCount >= 1000 ? (
+                            <p className="text-sm text-blue-400 font-medium mt-3 text-center">
+                                1000+ biens ? <a href="#contact" className="underline hover:text-blue-300">Contactez-nous</a> pour une offre personnalisée.
+                            </p>
+                        ) : (
+                            <p className="text-sm text-white/50 mt-3 text-center">
+                                Déplacez le curseur pour calculer votre tarif
+                            </p>
+                        )}
+                    </div>
+                </FadeIn>
 
-                    {/* Annuel - Glowing */}
-                    <FadeIn delay={150} className="h-full">
-                        <div className="relative p-8 rounded-3xl bg-[#1e293b]/80 backdrop-blur-md border border-blue-500/50 shadow-[0_0_40px_rgba(59,130,246,0.15)] flex flex-col h-full hover:scale-[1.02] transition-transform duration-300 hover:shadow-[0_0_60px_rgba(59,130,246,0.25)]">
-                            {/* Badges */}
-                            <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex gap-2">
-                                <span className="px-3 py-1 bg-gradient-to-r from-blue-600 to-blue-400 rounded-full landing-overline text-white flex items-center justify-center text-center">
-                                    Populaire
-                                </span>
-                                <span className="px-3 py-1 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full landing-overline text-white animate-pulse flex items-center justify-center text-center whitespace-nowrap">
-                                    Import Pro Offert
-                                </span>
-                            </div>
-                            <h3 className="landing-h3 text-white mb-2 mt-2">Annuel</h3>
-                            <div className="flex items-baseline gap-1 mb-2">
-                                <span className="text-4xl font-bold text-white">50€</span>
-                                <span className="text-white/60">/lot/an</span>
-                            </div>
-                            <p className="landing-caption text-blue-300 mb-6">Économisez 2 mois</p>
-
-                            {/* Reference to Monthly */}
-                            <div className="mb-4 pb-4 border-b border-white/10">
-                                <p className="landing-caption text-white/60 flex items-center gap-2">
-                                    <ArrowRight className="w-4 h-4 text-blue-400" />
-                                    Inclus (Annuel) :
-                                </p>
-                            </div>
-
-                            {/* Exclusive Annual Benefits */}
-                            <ul className="space-y-3 mb-6 flex-grow">
-                                <li className="flex items-center text-white">
-                                    <CheckCircle2 className="w-5 h-5 text-blue-400 mr-3 flex-shrink-0" />
-                                    <span><strong>Service d'import pro inclus</strong></span>
-                                </li>
-                                <li className="flex items-center text-white/80">
-                                    <CheckCircle2 className="w-5 h-5 text-blue-400 mr-3 flex-shrink-0" />
-                                    Données connectées & vérifiées
-                                </li>
-                                <li className="flex items-center text-white/80">
-                                    <CheckCircle2 className="w-5 h-5 text-blue-400 mr-3 flex-shrink-0" />
-                                    Priorité support
-                                </li>
-                            </ul>
-                            <div className="pt-4 border-t border-blue-500/30 mb-6">
-                                <p className="landing-caption text-blue-300">
-                                    Notre équipe migre vos données (valeur jusqu'à 2000€)
-                                </p>
-                            </div>
-                            <Link href="/auth/signup" className="w-full mt-auto">
-                                <Button className="w-full bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border-0 shadow-lg shadow-blue-500/25 transition-all hover:scale-105">
-                                    Démarrer mon essai gratuit
-                                </Button>
-                            </Link>
-                        </div>
-                    </FadeIn>
-                </div>
+                {/* Pricing Cards */}
+                <FadeIn delay={150}>
+                    <PricingCards
+                        variant="dark"
+                        lotCount={lotCount}
+                        className="max-w-4xl mx-auto"
+                    />
+                </FadeIn>
 
 
             </section >

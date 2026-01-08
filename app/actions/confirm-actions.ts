@@ -41,6 +41,7 @@ type CheckProfileResult = {
     id: string
     email: string
     name: string
+    firstName: string
     role: string
     teamId: string | null
   }
@@ -208,7 +209,7 @@ export async function checkProfileCreated(authUserId: string): Promise<CheckProf
     // Query directe sans RLS - plus rapide et plus fiable
     const { data: profile, error } = await admin
       .from('users')
-      .select('id, email, name, role, team_id')
+      .select('id, email, name, first_name, role, team_id')
       .eq('auth_user_id', authUserId)
       .single()
 
@@ -258,6 +259,7 @@ export async function checkProfileCreated(authUserId: string): Promise<CheckProf
       id: profile.id,
       email: profile.email,
       role: profile.role,
+      firstName: profile.first_name,
       hasTeam: !!profile.team_id
     })
 
@@ -267,6 +269,7 @@ export async function checkProfileCreated(authUserId: string): Promise<CheckProf
         id: profile.id,
         email: profile.email,
         name: profile.name || '',
+        firstName: profile.first_name || profile.name?.split(' ')[0] || 'Utilisateur',
         role: profile.role,
         teamId: profile.team_id || null
       }

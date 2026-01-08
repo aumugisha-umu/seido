@@ -124,6 +124,10 @@ export async function POST(request: NextRequest) {
       // Options
       expectsQuote,
       includeTenants,
+
+      // Confirmation des participants
+      requiresParticipantConfirmation,
+      confirmationRequiredUserIds,
     } = validation.data
 
     // Fields not in schema validation (passed through from body)
@@ -511,6 +515,49 @@ export async function POST(request: NextRequest) {
           count: assignmentData?.length || 0,
           inserted: assignmentData?.map(a => ({ id: a.id, user_id: a.user_id, role: a.role }))
         }, "✅ Contact assignments created successfully")
+
+        // ✅ NEW: Gestion de la confirmation des participants
+        // Si requiresParticipantConfirmation est activé, mettre à jour l'intervention et les assignments
+        if (requiresParticipantConfirmation && confirmationRequiredUserIds && confirmationRequiredUserIds.length > 0) {
+          logger.info({
+            interventionId: intervention.id,
+            confirmationRequiredUserIds
+          }, "📋 Setting up participant confirmation requirements")
+
+          // 1. Mettre à jour l'intervention avec le flag
+          const { error: updateInterventionError } = await supabase
+            .from('interventions')
+            .update({ requires_participant_confirmation: true })
+            .eq('id', intervention.id)
+
+          if (updateInterventionError) {
+            logger.error({
+              error: updateInterventionError
+            }, "⚠️ Failed to update intervention confirmation flag (non-blocking)")
+          } else {
+            logger.info({}, "✅ Intervention confirmation flag set")
+          }
+
+          // 2. Mettre à jour les assignments qui nécessitent une confirmation
+          const { error: updateAssignmentsError } = await supabase
+            .from('intervention_assignments')
+            .update({
+              requires_confirmation: true,
+              confirmation_status: 'pending'
+            })
+            .eq('intervention_id', intervention.id)
+            .in('user_id', confirmationRequiredUserIds)
+
+          if (updateAssignmentsError) {
+            logger.error({
+              error: updateAssignmentsError
+            }, "⚠️ Failed to update assignment confirmation status (non-blocking)")
+          } else {
+            logger.info({
+              count: confirmationRequiredUserIds.length
+            }, "✅ Assignment confirmation requirements set")
+          }
+        }
       }
     }
 
@@ -779,52 +826,56 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Handle file uploads if provided
+    // Handle file uploads if provided - ✅ OPTIMIZED: Parallel uploads
     if (files && files.length > 0) {
-      logger.info({ count: files.length }, "📎 Processing file uploads")
+      logger.info({ count: files.length }, "📎 Processing file uploads (parallel)")
 
       try {
         const { fileService } = await import('@/lib/file-service')
-        let uploadedCount = 0
 
-        for (let i = 0; i < files.length; i++) {
-          const file = files[i]
-          const metadata = fileMetadata[i] || {}
+        // ✅ Upload all files in parallel instead of sequentially
+        const uploadResults = await Promise.all(
+          files.map(async (file, i) => {
+            const metadata = fileMetadata[i] || {}
 
-          try {
-            // Validate file
-            const validation = fileService.validateFile(file)
-            if (!validation.isValid) {
-              logger.error({ fileName: file.name, error: validation.error }, "❌ File validation failed")
-              continue
+            try {
+              // Validate file
+              const validation = fileService.validateFile(file)
+              if (!validation.isValid) {
+                logger.error({ fileName: file.name, error: validation.error }, "❌ File validation failed")
+                return { success: false, fileName: file.name }
+              }
+
+              // Get document type from metadata or use default
+              const documentType = (metadata as { documentType?: string }).documentType || 'photo_avant'
+
+              // Upload to Supabase Storage and create database record
+              await fileService.uploadInterventionDocument(supabase, file, {
+                interventionId: intervention.id,
+                uploadedBy: user.id,
+                teamId: intervention.team_id,
+                documentType: documentType as Database['public']['Enums']['intervention_document_type'],
+                description: `Fichier uploadé lors de la création: ${file.name}`
+              })
+
+              logger.info({ fileName: file.name }, "✅ File uploaded successfully")
+              return { success: true, fileName: file.name }
+            } catch (fileError) {
+              logger.error({ fileName: file.name, error: fileError }, "❌ Error uploading file")
+              return { success: false, fileName: file.name }
             }
+          })
+        )
 
-            // Get document type from metadata or use default
-            const documentType = (metadata as { documentType?: string }).documentType || 'photo_avant'
-
-            // Upload to Supabase Storage and create database record
-            await fileService.uploadInterventionDocument(supabase, file, {
-              interventionId: intervention.id,
-              uploadedBy: user.id,
-              teamId: intervention.team_id,
-              documentType: documentType as Database['public']['Enums']['intervention_document_type'],
-              description: `Fichier uploadé lors de la création: ${file.name}`
-            })
-
-            uploadedCount++
-            logger.info({ fileName: file.name }, "✅ File uploaded successfully")
-          } catch (fileError) {
-            logger.error({ fileName: file.name, error: fileError }, "❌ Error uploading file")
-            // Continue with other files even if one fails
-          }
-        }
+        // Count successful uploads
+        const uploadedCount = uploadResults.filter(r => r.success).length
 
         // Update intervention has_attachments flag if any files were uploaded
         if (uploadedCount > 0) {
           try {
             const updateResult = await interventionService.update(intervention.id, { has_attachments: true })
             if (updateResult.success) {
-              logger.info({ uploadedCount }, "✅ Files uploaded successfully and has_attachments flag updated")
+              logger.info({ uploadedCount, totalFiles: files.length }, "✅ Files uploaded successfully and has_attachments flag updated")
             } else {
               logger.warn({ error: updateResult.error }, "⚠️ Could not update intervention has_attachments flag (non-critical)")
             }
@@ -871,36 +922,35 @@ export async function POST(request: NextRequest) {
 
     logger.info({}, "🎉 Manager intervention creation completed successfully")
 
-    // ✅ NOTIFICATIONS: Send notifications to team members
-    try {
-      logger.info({ interventionId: intervention.id }, "📬 [API] Creating intervention notifications")
+    // ✅ NOTIFICATIONS: Send notifications to team members (FIRE-AND-FORGET)
+    // ✅ OPTIMIZED: Ne pas bloquer la réponse API - notifications envoyées en background
+    {
+      logger.info({ interventionId: intervention.id }, "📬 [API] Triggering background in-app notifications")
 
       // ✅ Use Service Role to bypass RLS for notification context fetching
-      // This ensures we can fetch the full intervention details even if RLS blocked the read for the user
       const serviceRoleClient = createServiceRoleSupabaseClient()
       const notificationRepository = new NotificationRepository(serviceRoleClient)
       const notificationService = new NotificationService(notificationRepository)
 
-      const notifications = await notificationService.notifyInterventionCreated({
+      // ✅ Fire-and-forget - ne pas attendre (~300-500ms de gain)
+      notificationService.notifyInterventionCreated({
         interventionId: intervention.id,
         teamId: intervention.team_id,
         createdBy: user.id
+      }).then(() => {
+        logger.info({
+          reference: intervention.reference,
+          interventionId: intervention.id
+        }, "✅ [API] In-app notifications created successfully (background)")
+      }).catch((error) => {
+        logger.error(error, "⚠️ [API] Failed to create in-app notifications (background)")
       })
-
-      logger.info({
-        reference: intervention.reference,
-        title: intervention.title,
-        status: intervention.status,
-        created_at: intervention.created_at
-      }, "✅ [API] Notifications created successfully")
-
-    } catch (error) {
-      logger.error(error, "⚠️ [API] Failed to create notifications")
     }
 
-    // ✅ EMAILS: Send email notifications to assigned users
+    // ✅ EMAILS: Send email notifications to assigned users (FIRE-AND-FORGET)
+    // Ne pas bloquer la réponse API - les emails sont envoyés en background
     try {
-      logger.info({ interventionId: intervention.id }, "📧 [API] Sending email notifications")
+      logger.info({ interventionId: intervention.id }, "📧 [API] Triggering background email notifications")
 
       // Use Service Role client for email notification service
       const serviceRoleClient = createServiceRoleSupabaseClient()
@@ -923,25 +973,33 @@ export async function POST(request: NextRequest) {
         lotRepository
       )
 
-      // Send batch emails (non-blocking, graceful degradation)
-      const emailResult = await emailNotificationService.sendInterventionCreatedBatch(
+      // ✅ FIX: Fire-and-forget - ne pas attendre l'envoi des emails (~8-10s de gain)
+      // Les emails sont envoyés en background, l'API retourne immédiatement
+      emailNotificationService.sendInterventionCreatedBatch(
         intervention.id,
         'intervention'
-      )
+      ).then(emailResult => {
+        logger.info({
+          interventionId: intervention.id,
+          sentCount: emailResult.sentCount,
+          failedCount: emailResult.failedCount,
+          success: emailResult.success
+        }, "📧 [API] Background email notifications completed")
+      }).catch(error => {
+        logger.error({
+          interventionId: intervention.id,
+          error: error instanceof Error ? error.message : String(error)
+        }, "⚠️ [API] Background email notifications failed")
+      })
 
-      logger.info({
-        interventionId: intervention.id,
-        sentCount: emailResult.sentCount,
-        failedCount: emailResult.failedCount,
-        success: emailResult.success
-      }, "📧 [API] Email notifications sent")
+      logger.info({ interventionId: intervention.id }, "📧 [API] Email notifications triggered (non-blocking)")
 
     } catch (error) {
       // Non-blocking: log error but don't fail the intervention creation
       logger.error({
         error: error instanceof Error ? error.message : 'Unknown error',
         interventionId: intervention.id
-      }, "⚠️ [API] Failed to send email notifications (non-blocking)")
+      }, "⚠️ [API] Failed to trigger email notifications")
     }
 
     // ⚡ NO-CACHE: Mutations ne doivent pas être cachées

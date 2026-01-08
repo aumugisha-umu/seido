@@ -5,18 +5,17 @@
  * Intervention Confirmation Summary
  *
  * Features:
- * - Clean header with contextual icon (AlertTriangle/CheckCircle2)
- * - Urgency and category as separate badges
- * - Dedicated amber banner for quote requests
- * - Two-column grid for property/contact info
- * - Time slots displayed as purple badges
- * - Colored accent sections for scheduling and instructions
+ * - Refined Header with clear information hierarchy
+ * - Participant list using Avatars for quick recognition
+ * - distinct grouping of information fields
+ * - Accessible contrast and spacing
  */
 
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   CheckCircle2,
   Building2,
@@ -29,6 +28,9 @@ import {
   AlertTriangle,
   MapPin,
   UserCog,
+  UserCheck,
+  Clock,
+  Briefcase
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -36,14 +38,24 @@ import { getTypeIcon } from '@/components/interventions/intervention-type-icon'
 import { cn } from '@/lib/utils'
 
 // ============================================================================
-// Category Colors (matching intervention-type-combobox.tsx)
+// Helper Functions & Constants
 // ============================================================================
+
+function nameToInitials(name: string) {
+  if (!name) return '?'
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
 
 // Badge style: light background + darker text/icon
 const CATEGORY_BADGE_STYLES: Record<string, string> = {
-  bien: 'bg-blue-100 text-blue-700 border-blue-200',
-  bail: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  locataire: 'bg-orange-100 text-orange-700 border-orange-200',
+  bien: 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100',
+  bail: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',
+  locataire: 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100',
 }
 
 // Map type codes to their category
@@ -122,6 +134,7 @@ export interface InterventionConfirmationData {
     role: string
     speciality?: string
     isCurrentUser?: boolean
+    avatarUrl?: string // Optional avatar URL
   }>
   scheduling?: {
     type: 'immediate' | 'slots' | 'flexible'
@@ -146,6 +159,9 @@ export interface InterventionConfirmationData {
   // Multi-provider mode
   assignmentMode?: 'single' | 'group' | 'separate'
   providerInstructions?: Record<string, string>
+  // Participant confirmation
+  requiresParticipantConfirmation?: boolean
+  confirmationRequiredUserIds?: string[]
 }
 
 interface InterventionConfirmationSummaryProps {
@@ -158,7 +174,7 @@ interface InterventionConfirmationSummaryProps {
   showFooter?: boolean
 }
 
-// Helper to format slot date nicely (ex: "mer. 15 janv.")
+// Helper to format slot date
 function formatSlotDate(dateStr: string): string {
   if (!dateStr) return ''
   try {
@@ -174,34 +190,20 @@ function capitalizeFirst(str: string): string {
   return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase()
 }
 
-// Helper to get urgency badge class - Using design tokens for OKLCH compliance
+// Helper to get urgency badge class
 function getUrgencyBadgeClass(urgency: string): string {
   switch (urgency.toLowerCase()) {
     case 'urgente':
     case 'haute':
     case 'critique':
-      return 'border-destructive text-destructive bg-destructive/10'
+      return 'border-destructive/30 text-destructive bg-destructive/5 hover:bg-destructive/10'
     case 'normale':
     case 'moyenne':
-      return 'border-primary text-primary bg-primary/10'
+      return 'border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100'
     case 'basse':
-      return 'border-muted-foreground text-muted-foreground bg-muted'
+      return 'border-slate-200 text-slate-600 bg-slate-50 hover:bg-slate-100'
     default:
-      return 'border-primary text-primary bg-primary/10'
-  }
-}
-
-// Helper to get urgency icon class
-function getUrgencyIconClass(urgency: string): string {
-  switch (urgency.toLowerCase()) {
-    case 'urgente':
-    case 'haute':
-    case 'critique':
-      return 'text-destructive'
-    case 'basse':
-      return 'text-muted-foreground'
-    default:
-      return 'text-primary'
+      return 'border-primary/20 text-primary bg-primary/5'
   }
 }
 
@@ -212,365 +214,313 @@ export function InterventionConfirmationSummary({
   isLoading = false,
   showFooter = true,
 }: InterventionConfirmationSummaryProps) {
-  const urgencyIconClass = getUrgencyIconClass(data.intervention.urgency)
-  const urgencyBadgeClass = getUrgencyBadgeClass(data.intervention.urgency)
   const isUrgent = ['urgente', 'haute', 'critique'].includes(data.intervention.urgency.toLowerCase())
+  const urgencyBadgeClass = getUrgencyBadgeClass(data.intervention.urgency)
 
-  // Séparer les contacts par rôle
+  // Contacts Filtering
   const gestionnaires = data.contacts.filter(c => c.role.toLowerCase().includes('gestionnaire'))
   const prestataires = data.contacts.filter(c => c.role.toLowerCase().includes('prestataire'))
   let locataires = data.contacts.filter(c => c.role.toLowerCase().includes('locataire'))
 
-  // ✅ Fallback: Si aucun locataire dans contacts mais tenant existe dans logement
+  // Fallback Locataire
   if (locataires.length === 0 && data.logement.tenant) {
     locataires = [{
       id: 'tenant-from-logement',
       name: data.logement.tenant,
       role: 'Locataire',
-      email: undefined,
-      phone: undefined,
     }]
   }
 
-  return (
-    <div className="max-w-4xl mx-auto">
-      <Card className="overflow-hidden shadow-sm">
-        {/* Clean Header - No colored frame */}
-        <CardHeader className="pb-4">
-          <div className="flex items-center gap-3">
-            {isUrgent ? (
-              <AlertTriangle className={`w-8 h-8 ${urgencyIconClass}`} />
-            ) : (
-              <CheckCircle2 className={`w-8 h-8 ${urgencyIconClass}`} />
-            )}
-            <CardTitle className="text-xl flex-1">
-              {data.intervention.title}
-            </CardTitle>
-          </div>
-          {/* Badges: Urgency + Category */}
-          <div className="flex flex-wrap gap-2 mt-3">
-            <Badge variant="outline" className={urgencyBadgeClass}>
-              {capitalizeFirst(data.intervention.urgency)}
-            </Badge>
-            {/* Category badge with icon and color */}
-            {(() => {
-              const TypeIcon = getTypeIcon(data.intervention.category)
-              const categoryCode = getCategoryFromType(data.intervention.category)
-              const badgeStyle = CATEGORY_BADGE_STYLES[categoryCode] || 'bg-gray-100 text-gray-700 border-gray-200'
-              return (
-                <Badge
-                  variant="outline"
-                  className={cn("flex items-center gap-1.5", badgeStyle)}
-                >
-                  <TypeIcon className="h-3.5 w-3.5" />
-                  <span>{data.intervention.category}</span>
+  // Compact Contact List Renderer
+  const renderContactList = (contacts: typeof data.contacts) => (
+    <div className="flex flex-col gap-2">
+      {contacts.map((contact) => (
+        <div key={contact.id} className="flex items-center gap-2.5 p-1.5 rounded-md hover:bg-slate-50 transition-colors -ml-1.5">
+          <Avatar className="h-7 w-7 border border-slate-100">
+            <AvatarImage src={contact.avatarUrl} alt={contact.name} />
+            <AvatarFallback className="text-[10px] font-medium text-slate-600 bg-slate-100">
+              {nameToInitials(contact.name)}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-medium truncate flex items-center gap-1.5 leading-none mb-0.5">
+              {contact.name}
+              {contact.isCurrentUser && (
+                <Badge variant="secondary" className="text-[9px] h-3.5 px-0.5 pointer-events-none">
+                  Vous
                 </Badge>
-              )
-            })()}
+              )}
+            </span>
+            <span className="text-[10px] text-muted-foreground truncate leading-none">
+              {contact.speciality || contact.role}
+            </span>
           </div>
-          {/* Dedicated Quote Request Banner */}
-          {data.expectsQuote && (
-            <div className="flex items-center gap-2 mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <FileText className="w-4 h-4 text-amber-600 flex-shrink-0" />
-              <span className="text-sm font-medium text-amber-800">
-                Un devis sera demandé au prestataire
-              </span>
-            </div>
-          )}
-        </CardHeader>
+        </div>
+      ))}
+    </div>
+  )
 
-        <CardContent className="space-y-4 pt-6">
-          {/* Property & Contact Grid - Mobile-first responsive */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-            {/* Property Section */}
-            <div className="border border-slate-200 rounded-xl p-4 bg-white">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                  <Building2 className="w-5 h-5 text-blue-600" />
-                </div>
-                <h3 className="font-semibold text-base">Logement</h3>
-              </div>
-              <dl className="space-y-2 pl-10">
-                <div className="flex justify-between">
-                  <dt className="text-sm text-gray-600">Type:</dt>
-                  <dd className="font-medium">{data.logement.name}</dd>
-                </div>
-                {data.logement.building && (
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-600">Immeuble:</dt>
-                    <dd className="font-medium">{data.logement.building}</dd>
-                  </div>
-                )}
-                {data.logement.floor !== undefined && (
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-600">Étage:</dt>
-                    <dd className="font-medium">{data.logement.floor}</dd>
-                  </div>
-                )}
-                {data.logement.tenant && (
-                  <div className="flex justify-between">
-                    <dt className="text-sm text-gray-600">Locataire:</dt>
-                    <dd className="font-medium">{data.logement.tenant}</dd>
-                  </div>
-                )}
-              </dl>
-            </div>
+  const categoryCode = getCategoryFromType(data.intervention.category)
+  const TypeIcon = getTypeIcon(data.intervention.category)
 
-            {/* Contacts Section */}
-            <div className="border border-slate-200 rounded-xl p-4 bg-white">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-green-600" />
-                </div>
-                <h3 className="font-semibold text-base">Participants</h3>
-                {/* Assignment mode badge when 2+ providers - More visible */}
-                {prestataires.length > 1 && data.assignmentMode && data.assignmentMode !== 'single' && (
+  return (
+    <div className="w-full max-w-5xl mx-auto animate-in fade-in-50 duration-500">
+
+      {/* Main Card - Compact View */}
+      <Card className="overflow-hidden border-slate-200 shadow-sm flex flex-col h-full max-h-[85vh]">
+
+        {/* COMPACT HEADER */}
+        <CardHeader className="border-b bg-slate-50/50 py-3 px-5 flex-shrink-0">
+          <div className="flex items-center justify-between gap-4">
+            {/* Left: Title & Meta */}
+            <div className="flex items-center gap-4 overflow-hidden">
+              <div className="flex flex-col min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <CardTitle className="text-lg font-bold leading-none tracking-tight text-slate-900 truncate">
+                    {data.intervention.title}
+                  </CardTitle>
                   <Badge
                     variant="outline"
-                    className={`ml-auto flex items-center gap-1 ${
-                      data.assignmentMode === 'separate'
-                        ? 'bg-amber-50 text-amber-700 border-amber-300'
-                        : 'bg-blue-50 text-blue-700 border-blue-300'
-                    }`}
+                    className={cn("uppercase text-[9px] h-4 px-1.5 tracking-wider font-semibold", urgencyBadgeClass)}
                   >
-                    {data.assignmentMode === 'separate' ? (
-                      <>
-                        <UserCog className="w-3 h-3" />
-                        Mode Séparé
-                      </>
-                    ) : (
-                      <>
-                        <Users className="w-3 h-3" />
-                        Mode Groupe
-                      </>
-                    )}
+                    {data.intervention.urgency}
                   </Badge>
-                )}
+                  <Badge
+                    variant="outline"
+                    className={cn("flex items-center gap-1 font-normal bg-white h-4 px-1.5 text-[10px]", CATEGORY_BADGE_STYLES[categoryCode])}
+                  >
+                    <TypeIcon className="h-2.5 w-2.5" />
+                    {data.intervention.category}
+                  </Badge>
+                </div>
+                <CardDescription className="flex items-center gap-1.5 text-xs truncate">
+                  <MapPin className="h-3 w-3" />
+                  <span className="font-medium">{data.logement.name}</span>
+                  {data.logement.building && <span className="text-muted-foreground">• {data.logement.building}</span>}
+                </CardDescription>
               </div>
-              <dl className="space-y-3 pl-10">
-                {gestionnaires.length > 0 && (
-                  <div className="mb-3">
-                    <dt className="text-sm font-medium text-gray-600 mb-2">
-                      Gestionnaire{gestionnaires.length > 1 ? 's' : ''}
-                    </dt>
-                    <dd className="space-y-1.5">
-                      {gestionnaires.map((contact) => (
-                        <div key={contact.id} className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{contact.name}</span>
-                          {contact.isCurrentUser && (
-                            <Badge className="bg-blue-100 text-blue-800 text-xs">Vous</Badge>
-                          )}
-                        </div>
-                      ))}
-                    </dd>
-                  </div>
-                )}
-                {prestataires.length > 0 && (
-                  <div className="mb-3">
-                    <dt className="text-sm font-medium text-gray-600 mb-2">
-                      Prestataire{prestataires.length > 1 ? 's' : ''}
-                    </dt>
-                    <dd className="space-y-1.5">
-                      {prestataires.map((contact) => (
-                        <div key={contact.id} className="flex items-center gap-2">
-                          <span className="font-medium text-sm">{contact.name}</span>
-                          {contact.speciality && (
-                            <span className="text-xs text-gray-500">({contact.speciality})</span>
-                          )}
-                        </div>
-                      ))}
-                    </dd>
-                  </div>
-                )}
-                {locataires.length > 0 && (
-                  <div>
-                    <dt className="text-sm font-medium text-gray-600 mb-2">
-                      Locataire{locataires.length > 1 ? 's' : ''}
-                    </dt>
-                    <dd className="space-y-1.5">
-                      {locataires.map((contact) => (
-                        <div key={contact.id} className="font-medium text-sm">{contact.name}</div>
-                      ))}
-                    </dd>
-                  </div>
-                )}
-              </dl>
             </div>
-          </div>
 
-          <Separator />
-
-          {/* Details Section */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                <FileText className="w-5 h-5 text-blue-600" />
-              </div>
-              <h3 className="font-semibold text-base">Détails de l'intervention</h3>
-            </div>
-            <div className="space-y-2 pl-10">
-              {data.intervention.room && (
-                <div>
-                  <dt className="text-sm text-gray-600 mb-1">Pièce concernée</dt>
-                  <dd className="font-medium flex items-center gap-2">
-                    <MapPin className="w-4 h-4 text-gray-400" />
-                    {data.intervention.room}
-                  </dd>
+            {/* Right: Status Indicator - Compact */}
+            <div className="flex-shrink-0">
+              {data.expectsQuote ? (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-full">
+                  <FileText className="h-3 w-3 text-amber-600" />
+                  <span className="text-[10px] font-semibold text-amber-700">Devis demandé</span>
+                </div>
+              ) : (
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 border border-green-200 rounded-full">
+                  <CheckCircle2 className="h-3 w-3 text-green-600" />
+                  <span className="text-[10px] font-semibold text-green-700">Direct</span>
                 </div>
               )}
-              <div>
-                <dt className="text-sm text-gray-600 mb-1">Description</dt>
-                <dd className="text-sm text-gray-700 leading-relaxed">
-                  {data.intervention.description || (
-                    <span className="text-muted-foreground italic">Non renseignée</span>
-                  )}
-                </dd>
-              </div>
             </div>
           </div>
+        </CardHeader>
 
-          {/* Scheduling Section */}
-          {data.scheduling && (data.scheduling.slots || data.scheduling.message) && (
-            <>
-              <Separator />
-              <div className="bg-purple-50 -mx-6 px-6 py-4 border-l-4 border-purple-500">
-                <div className="flex items-center gap-2 mb-2">
-                  <Calendar className="w-6 h-6 text-purple-600" />
-                  <h3 className="font-semibold text-base">Planification</h3>
-                </div>
-                <div className="pl-8">
-                  {data.scheduling.slots && data.scheduling.slots.length > 0 ? (
-                    <div className="flex flex-wrap gap-2">
+        {/* SCROLLABLE CONTENT AREA */}
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 min-h-full">
+
+            {/* COLUMN 1: Details (Larger) - 8/12 */}
+            <div className="p-4 lg:p-5 lg:col-span-8 space-y-5">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Description Block */}
+                <section className="space-y-2 col-span-1 md:col-span-2">
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <FileText className="h-3.5 w-3.5" /> Détails
+                  </h4>
+                  <div className="bg-slate-50 rounded-md p-3 text-sm text-slate-700 leading-snug border border-slate-100">
+                    {data.intervention.description || <span className="text-muted-foreground italic">Aucune description.</span>}
+                  </div>
+                  {data.intervention.room && (
+                    <div className="text-xs text-slate-600 pl-1">
+                      Lieu : <span className="font-medium text-slate-900">{data.intervention.room}</span>
+                    </div>
+                  )}
+                </section>
+
+                {/* Planning Block */}
+                <section className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5" /> Planning
+                    </h4>
+                    {data.scheduling?.type && (
+                      <Badge variant="outline" className="text-[9px] h-4 px-1.5 bg-slate-100 text-slate-600 border-slate-200">
+                        {data.scheduling.type === 'flexible' && 'Laissé libre'}
+                        {data.scheduling.type === 'slots' && 'Créneau proposé'}
+                        {data.scheduling.type === 'immediate' && 'Date fixe'}
+                      </Badge>
+                    )}
+                  </div>
+                  {data.scheduling?.slots && data.scheduling.slots.length > 0 ? (
+                    <div className="flex flex-col gap-1.5">
                       {data.scheduling.slots.map((slot, idx) => (
-                        <div
-                          key={idx}
-                          className="inline-flex items-center gap-2 px-3 py-2 bg-purple-100 border border-purple-200 rounded-lg text-sm"
-                        >
-                          <Calendar className="h-3.5 w-3.5 text-purple-600" />
-                          <span className="font-medium text-purple-900">
-                            {formatSlotDate(slot.date)}
-                          </span>
-                          <span className="text-purple-600">
-                            {slot.startTime} - {slot.endTime}
+                        <div key={idx} className="flex items-center gap-2 px-2.5 py-1.5 bg-purple-50 text-purple-700 rounded-md border border-purple-100 text-xs">
+                          <span className="font-semibold">{formatSlotDate(slot.date)}</span>
+                          <span className="opacity-75">
+                            {slot.startTime === slot.endTime ? slot.startTime : `${slot.startTime}-${slot.endTime}`}
                           </span>
                         </div>
                       ))}
                     </div>
-                  ) : data.scheduling.message ? (
-                    <p className="text-sm text-gray-700">{data.scheduling.message}</p>
                   ) : (
-                    <p className="text-sm text-gray-700">Planning à définir</p>
+                    <div className="text-xs text-slate-500 italic bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
+                      {data.scheduling?.message || "À définir"}
+                    </div>
                   )}
-                </div>
-              </div>
-            </>
-          )}
+                </section>
 
-          {/* Files Section */}
-          {data.files && data.files.length > 0 && (
-            <>
-              <Separator />
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center">
-                    <Paperclip className="w-5 h-5 text-gray-600" />
-                  </div>
-                  <h3 className="font-semibold text-base">Fichiers joints ({data.files.length})</h3>
-                </div>
-                <ul className="space-y-1 pl-10">
-                  {data.files.map((file) => (
-                    <li key={file.id} className="text-sm flex justify-between">
-                      <span className="text-gray-700 truncate flex-1">{file.name}</span>
-                      <span className="text-xs text-gray-500 ml-2">{file.size}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </>
-          )}
-
-          {/* Instructions Section - With distinct icon */}
-          {data.instructions?.globalMessage && (
-            <>
-              <Separator />
-              <div className="bg-blue-50 -mx-6 px-6 py-4 border-l-4 border-blue-500">
-                <div className="flex items-center gap-2 mb-2">
-                  <MessageSquareText className="w-6 h-6 text-blue-600" />
-                  <h3 className="font-semibold text-base">Instructions générales</h3>
-                  <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300 text-xs ml-auto">
-                    Pour tous
-                  </Badge>
-                </div>
-                <p className="text-sm text-gray-700 pl-8 leading-relaxed">
-                  {data.instructions.globalMessage}
-                </p>
-              </div>
-            </>
-          )}
-
-          {/* Provider-specific Instructions Section (Separate Mode) - UserCog icon */}
-          {data.assignmentMode === 'separate' && data.providerInstructions && Object.keys(data.providerInstructions).length > 0 && (
-            <>
-              <Separator />
-              <div className="bg-amber-50 -mx-6 px-6 py-4 border-l-4 border-amber-500">
-                <div className="flex items-center gap-2 mb-3">
-                  <UserCog className="w-6 h-6 text-amber-600" />
-                  <h3 className="font-semibold text-base">Instructions par prestataire</h3>
-                  <Badge variant="outline" className="bg-amber-100 text-amber-700 border-amber-300 text-xs ml-auto">
-                    Mode Séparé
-                  </Badge>
-                </div>
-                <div className="space-y-3 pl-8">
-                  {prestataires.map((provider) => {
-                    const instructions = data.providerInstructions?.[provider.id]
-                    if (!instructions) return null
-                    return (
-                      <div key={provider.id} className="bg-white rounded-lg p-3 border border-amber-200">
-                        <div className="flex items-center gap-2 mb-1">
-                          <div className="w-6 h-6 rounded-full bg-amber-200 flex items-center justify-center text-xs font-medium text-amber-800">
-                            {provider.name.charAt(0).toUpperCase()}
-                          </div>
-                          <span className="font-medium text-sm">{provider.name}</span>
-                          {provider.speciality && (
-                            <span className="text-xs text-gray-500">({provider.speciality})</span>
-                          )}
+                {/* Files Block - Compact Grid */}
+                {data.files && data.files.length > 0 && (
+                  <section className="space-y-2">
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <Paperclip className="h-3.5 w-3.5" /> Fichiers ({data.files.length})
+                    </h4>
+                    <div className="flex flex-col gap-1.5">
+                      {data.files.map(file => (
+                        <div key={file.id} className="flex items-center gap-2 p-1.5 bg-slate-50 border border-slate-100 rounded-md text-xs truncate">
+                          <FileText className="h-3 w-3 text-slate-400 flex-shrink-0" />
+                          <span className="truncate text-slate-700">{file.name}</span>
                         </div>
-                        <p className="text-sm text-gray-700 pl-8">{instructions}</p>
-                      </div>
-                    )
-                  })}
-                </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
               </div>
-            </>
-          )}
-        </CardContent>
 
-        {/* Footer Actions - Mobile responsive with 44px touch targets */}
+              {/* Instructions - Full Width if present */}
+              {(data.instructions?.globalMessage || (data.providerInstructions && Object.keys(data.providerInstructions).length > 0)) && (
+                <>
+                  <Separator className="bg-slate-100" />
+                  <section className="space-y-2">
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                      <MessageSquareText className="h-3.5 w-3.5" /> Instructions
+                    </h4>
+
+                    {data.instructions?.globalMessage && (
+                      <div className="bg-blue-50/50 p-2.5 rounded-md border border-blue-100 text-xs text-slate-700">
+                        <span className="font-semibold text-blue-800 mr-1">Global:</span>
+                        {data.instructions.globalMessage}
+                      </div>
+                    )}
+
+                    {data.assignmentMode === 'separate' && data.providerInstructions && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                        {prestataires.map(provider => {
+                          const msg = data.providerInstructions?.[provider.id]
+                          if (!msg) return null;
+                          return (
+                            <div key={provider.id} className="flex flex-col gap-1 text-xs bg-slate-50 p-2 rounded-md border border-slate-100">
+                              <div className="flex items-center gap-1.5 font-medium text-slate-900">
+                                <Avatar className="h-4 w-4"><AvatarFallback className="text-[8px]">{nameToInitials(provider.name)}</AvatarFallback></Avatar>
+                                {provider.name}
+                              </div>
+                              <p className="text-slate-600 pl-5.5">{msg}</p>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </section>
+                </>
+              )}
+
+            </div>
+
+            {/* COLUMN 2: Participants & Confirmation (Smaller) - 4/12 */}
+            <div className="bg-slate-50/40 p-4 lg:p-5 lg:col-span-4 flex flex-col gap-5 overflow-y-auto max-h-full">
+
+              {/* Participants Group - Tighter */}
+              <div className="space-y-4 flex-1">
+
+                {/* Gestionnaires */}
+                {gestionnaires.length > 0 && (
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Gestion</span>
+                    {renderContactList(gestionnaires)}
+                  </div>
+                )}
+
+                {/* Locataires */}
+                {locataires.length > 0 && (
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Locataires</span>
+                    {renderContactList(locataires)}
+                  </div>
+                )}
+
+                {/* Prestataires */}
+                {prestataires.length > 0 && (
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Prestataires</span>
+                      {prestataires.length > 1 && data.assignmentMode && (
+                        <Badge variant="outline" className="text-[9px] h-4 px-1 bg-white">
+                          {data.assignmentMode === 'separate' ? 'Séparé' : 'Groupe'}
+                        </Badge>
+                      )}
+                    </div>
+                    {renderContactList(prestataires)}
+                  </div>
+                )}
+              </div>
+
+              {/* Confirmation Block - Compact */}
+              {data.requiresParticipantConfirmation && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2 mt-auto">
+                  <div className="flex items-center gap-2 text-amber-900">
+                    <UserCheck className="h-4 w-4" />
+                    <span className="text-xs font-bold">Confirmation requise</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1">
+                    {data.contacts
+                      .filter(c => data.confirmationRequiredUserIds?.includes(c.id))
+                      .map(contact => (
+                        <Badge key={contact.id} variant="secondary" className="bg-white border-amber-100 text-amber-900 hover:bg-amber-50 text-[10px] h-5 px-1.5">
+                          {contact.name}
+                        </Badge>
+                      ))
+                    }
+                  </div>
+                </div>
+              )}
+
+            </div>
+          </div>
+        </div>
+
+        {/* FOOTER - Compact */}
         {showFooter && (
-          <CardFooter className="flex flex-col sm:flex-row gap-3 sm:justify-between bg-gray-50 border-t p-4">
+          <CardFooter className="flex-shrink-0 flex flex-col-reverse sm:flex-row gap-3 sm:justify-between border-t bg-white p-3 lg:px-5">
             <Button
-              variant="outline"
+              variant="ghost"
+              size="sm"
               onClick={onBack}
               disabled={isLoading}
-              className="w-full sm:w-auto min-h-[44px]"
+              className="w-full sm:w-auto text-slate-500 hover:text-slate-900"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
+              <ArrowLeft className="w-3.5 h-3.5 mr-2" />
               Retour
             </Button>
             <Button
-              className="w-full sm:w-auto min-h-[44px] bg-green-600 hover:bg-green-700"
+              size="sm"
+              className="w-full sm:w-auto bg-green-600 hover:bg-green-700 shadow-sm"
               onClick={onConfirm}
               disabled={isLoading}
             >
               {isLoading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                  Création en cours...
+                  <div className="h-3.5 w-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                  Création...
                 </>
               ) : (
                 <>
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Créer l'intervention
+                  <CheckCircle2 className="w-3.5 h-3.5 mr-2" />
+                  Confirmer l'intervention
                 </>
               )}
             </Button>

@@ -49,6 +49,18 @@ import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-mo
 // Hooks
 import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
 
+// Confirmation banners
+import {
+  ConfirmationRequiredBanner,
+  ConfirmationSuccessBanner,
+  ConfirmationRejectedBanner
+} from '@/components/intervention/confirmation-required-banner'
+import {
+  getParticipantPermissions,
+  hasConfirmed,
+  hasRejected
+} from '@/lib/utils/intervention-permissions'
+
 import type { Database } from '@/lib/database.types'
 
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
@@ -98,10 +110,58 @@ export function LocataireInterventionDetailClient({
   // États pour le nouveau design PreviewHybrid
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
 
+  // Get assignments from intervention (locataire component uses nested data)
+  const assignmentList = useMemo(() => {
+    return (intervention as any).assignments || []
+  }, [intervention])
+
+  // ============================================================================
+  // Participant Confirmation Logic
+  // ============================================================================
+
+  // Check if current user is the creator (tenant can be creator of their own interventions)
+  const isCreator = intervention.created_by === currentUser.id
+
+  // Find current user's assignment
+  const currentUserAssignment = useMemo(() => {
+    return assignmentList.find((a: any) => a.user_id === currentUser.id)
+  }, [assignmentList, currentUser.id])
+
+  // Build intervention confirmation info
+  const interventionConfirmationInfo = useMemo(() => ({
+    requires_participant_confirmation: intervention.requires_participant_confirmation ?? false
+  }), [intervention.requires_participant_confirmation])
+
+  // Build assignment confirmation info
+  const assignmentConfirmationInfo = useMemo(() => {
+    if (!currentUserAssignment) return null
+    return {
+      requires_confirmation: currentUserAssignment.requires_confirmation ?? false,
+      confirmation_status: (currentUserAssignment.confirmation_status ?? 'not_required') as 'pending' | 'confirmed' | 'rejected' | 'not_required'
+    }
+  }, [currentUserAssignment])
+
+  // Get permissions for current user
+  const participantPermissions = useMemo(() => {
+    return getParticipantPermissions(
+      interventionConfirmationInfo,
+      assignmentConfirmationInfo,
+      isCreator
+    )
+  }, [interventionConfirmationInfo, assignmentConfirmationInfo, isCreator])
+
+  // Determine which banner to show
+  const showConfirmationBanner = participantPermissions.canConfirm
+  const showConfirmedBanner = !isCreator && hasConfirmed(assignmentConfirmationInfo)
+  const showRejectedBanner = !isCreator && hasRejected(assignmentConfirmationInfo)
+
+  // Callback after confirmation/rejection
+  const handleConfirmationResponse = () => {
+    router.refresh()
+  }
+
   // Transform assignments into Contact arrays by role
   const { managers, providers, tenants } = useMemo(() => {
-    // Locataire component might not have assignments prop, use empty array as fallback
-    const assignmentList = (intervention as any).assignments || []
 
     const managers = assignmentList
       .filter((a: any) => a.role === 'gestionnaire')
@@ -140,7 +200,7 @@ export function LocataireInterventionDetailClient({
       .filter((c: any) => c.id)
 
     return { managers, providers, tenants }
-  }, [intervention])
+  }, [assignmentList])
 
   // ============================================================================
   // Transformations pour les composants shared (nouveau design PreviewHybrid)
@@ -148,7 +208,6 @@ export function LocataireInterventionDetailClient({
 
   // Participants pour InterventionSidebar (format Participant)
   const participants = useMemo(() => {
-    const assignmentList = (intervention as any).assignments || []
     return {
       managers: assignmentList
         .filter((a: any) => a.role === 'gestionnaire' && a.user)
@@ -178,7 +237,7 @@ export function LocataireInterventionDetailClient({
           role: 'tenant' as const
         }))
     }
-  }, [intervention])
+  }, [assignmentList])
 
   // TimeSlots transformés pour PlanningCard
   const transformedTimeSlots: SharedTimeSlot[] = useMemo(() =>
@@ -446,6 +505,19 @@ export function LocataireInterventionDetailClient({
               {/* TAB: GENERAL */}
               <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
                 <ContentWrapper>
+                  {/* Bannières de confirmation si nécessaire */}
+                  {showConfirmationBanner && (
+                    <ConfirmationRequiredBanner
+                      interventionId={intervention.id}
+                      scheduledDate={intervention.scheduled_date}
+                      scheduledTime={null}
+                      onConfirm={handleConfirmationResponse}
+                      onReject={handleConfirmationResponse}
+                    />
+                  )}
+                  {showConfirmedBanner && <ConfirmationSuccessBanner />}
+                  {showRejectedBanner && <ConfirmationRejectedBanner />}
+
                   {/* Détails de l'intervention */}
                   <div className="flex-shrink-0">
                     <InterventionDetailsCard

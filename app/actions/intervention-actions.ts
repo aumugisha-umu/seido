@@ -280,15 +280,27 @@ export async function updateInterventionAction(
     description?: string
     type?: string
     urgency?: string
-    instructions?: string
-    require_quote?: boolean
+    provider_guidelines?: string
+    requires_quote?: boolean
     assignedManagerIds?: string[]
     assignedProviderIds?: string[]
+    assignedTenantIds?: string[]
     timeSlots?: Array<{
-      proposed_date: string
+      id?: string  // ✅ Optionnel - présent pour slots existants, absent pour nouveaux
+      slot_date: string
       start_time: string
       end_time: string
     }>
+    // Mode d'assignation et confirmation
+    assignment_mode?: 'single' | 'group' | 'separate'
+    requires_participant_confirmation?: boolean
+    providerInstructions?: Record<string, string>
+    confirmationRequiredUserIds?: string[]
+    // Documents à supprimer (soft delete)
+    documentsToDelete?: string[]
+    // Planification
+    scheduling_type?: 'fixed' | 'flexible' | 'slots'
+    scheduled_date?: string | null
   }
 ): Promise<ActionResult<Intervention>> {
   try {
@@ -322,8 +334,20 @@ export async function updateInterventionAction(
     if (data.description !== undefined) updateData.description = data.description
     if (data.type !== undefined) updateData.type = data.type as InterventionType
     if (data.urgency !== undefined) updateData.urgency = data.urgency as InterventionUrgency
-    if (data.instructions !== undefined) updateData.instructions = data.instructions
-    if (data.require_quote !== undefined) updateData.require_quote = data.require_quote
+    if (data.provider_guidelines !== undefined) updateData.provider_guidelines = data.provider_guidelines
+    if (data.requires_quote !== undefined) updateData.requires_quote = data.requires_quote
+    // Mode d'assignation et confirmation
+    if (data.assignment_mode !== undefined) updateData.assignment_mode = data.assignment_mode
+    if (data.requires_participant_confirmation !== undefined) {
+      updateData.requires_participant_confirmation = data.requires_participant_confirmation
+    }
+    // Planification
+    if (data.scheduling_type !== undefined) {
+      updateData.scheduling_type = data.scheduling_type
+    }
+    if (data.scheduled_date !== undefined) {
+      updateData.scheduled_date = data.scheduled_date
+    }
     updateData.updated_at = new Date().toISOString()
 
     const { data: updatedIntervention, error: updateError } = await supabase
@@ -392,27 +416,273 @@ export async function updateInterventionAction(
       }
     }
 
-    // Update time slots if provided
-    if (data.timeSlots !== undefined) {
-      // Delete existing pending time slots
-      await supabase
-        .from('intervention_time_slots')
-        .delete()
+    // Update tenant assignments if provided
+    if (data.assignedTenantIds !== undefined) {
+      // Get current tenant assignments
+      const { data: currentTenantAssignments } = await supabase
+        .from('intervention_assignments')
+        .select('id, user_id')
         .eq('intervention_id', interventionId)
-        .eq('status', 'proposed')
+        .eq('role', 'locataire')
 
-      // Insert new time slots
-      if (data.timeSlots.length > 0) {
+      const currentTenantIds = new Set(
+        currentTenantAssignments?.map(a => a.user_id) || []
+      )
+      const newTenantIds = new Set(data.assignedTenantIds)
+
+      // Delete removed tenants
+      const tenantsToDelete = currentTenantAssignments?.filter(
+        a => !newTenantIds.has(a.user_id)
+      ) || []
+
+      if (tenantsToDelete.length > 0) {
+        await supabase
+          .from('intervention_assignments')
+          .delete()
+          .in('id', tenantsToDelete.map(a => a.id))
+      }
+
+      // Insert new tenants
+      const tenantsToInsert = data.assignedTenantIds.filter(
+        userId => !currentTenantIds.has(userId)
+      )
+
+      if (tenantsToInsert.length > 0) {
+        await supabase
+          .from('intervention_assignments')
+          .insert(tenantsToInsert.map((userId, index) => ({
+            intervention_id: interventionId,
+            user_id: userId,
+            role: 'locataire',
+            is_primary: index === 0,
+            assigned_by: user.id
+          })))
+      }
+
+      logger.info({
+        removed: tenantsToDelete.length,
+        added: tenantsToInsert.length,
+        total: data.assignedTenantIds.length
+      }, 'Tenant assignments updated')
+    }
+
+    // Update time slots if provided - Intelligent upsert with change tracking
+    if (data.timeSlots !== undefined) {
+      logger.info({ count: data.timeSlots.length }, '📅 Processing time slots update')
+
+      // 1. Récupérer les slots existants pour cette intervention
+      const { data: existingSlots } = await supabase
+        .from('intervention_time_slots')
+        .select('id, slot_date, start_time, end_time, status')
+        .eq('intervention_id', interventionId)
+
+      // Type explicite pour éviter les erreurs TS avec Map iteration
+      type ExistingSlot = {
+        id: string
+        slot_date: string
+        start_time: string
+        end_time: string
+        status: string
+      }
+
+      const existingMap = new Map<string, ExistingSlot>(
+        (existingSlots || []).map(s => [s.id, s as ExistingSlot])
+      )
+
+      // 2. Catégoriser les slots incoming
+      const incomingIds = new Set(
+        data.timeSlots.filter(ts => ts.id).map(ts => ts.id!)
+      )
+
+      const slotsToInsert: typeof data.timeSlots = []
+      const slotsToUpdate: Array<{
+        id: string
+        data: { slot_date: string; start_time: string; end_time: string }
+        oldData: { slot_date: string; start_time: string; end_time: string }
+      }> = []
+      const slotsToDelete: string[] = []
+
+      // Identifier les slots à supprimer (existants non présents dans incoming)
+      existingMap.forEach((existingSlot, existingId) => {
+        if (!incomingIds.has(existingId)) {
+          // Ne supprimer que les slots modifiables (pending, proposed, requested)
+          // Les slots 'selected', 'cancelled', 'rejected' sont des états finaux
+          if (['pending', 'proposed', 'requested'].includes(existingSlot.status)) {
+            slotsToDelete.push(existingId)
+          }
+        }
+      })
+
+      // Identifier les slots à insérer ou mettre à jour
+      for (const slot of data.timeSlots) {
+        if (slot.id && existingMap.has(slot.id)) {
+          // Slot existant - vérifier si modifié
+          const existing = existingMap.get(slot.id)!
+          const isModified =
+            existing.slot_date !== slot.slot_date ||
+            existing.start_time !== slot.start_time ||
+            existing.end_time !== slot.end_time
+
+          if (isModified) {
+            slotsToUpdate.push({
+              id: slot.id,
+              data: { slot_date: slot.slot_date, start_time: slot.start_time, end_time: slot.end_time },
+              oldData: { slot_date: existing.slot_date, start_time: existing.start_time, end_time: existing.end_time }
+            })
+          }
+          // Si non modifié, on ne fait rien (SKIP)
+        } else {
+          // Nouveau slot (pas d'ID ou ID non trouvé)
+          slotsToInsert.push(slot)
+        }
+      }
+
+      // 3. Exécuter les opérations DB
+
+      // DELETE - Supprimer les slots retirés
+      if (slotsToDelete.length > 0) {
         await supabase
           .from('intervention_time_slots')
-          .insert(data.timeSlots.map(slot => ({
+          .delete()
+          .in('id', slotsToDelete)
+        logger.info({ count: slotsToDelete.length }, '🗑️ Deleted time slots')
+      }
+
+      // UPDATE - Mettre à jour les slots modifiés
+      for (const update of slotsToUpdate) {
+        await supabase
+          .from('intervention_time_slots')
+          .update(update.data)
+          .eq('id', update.id)
+      }
+      if (slotsToUpdate.length > 0) {
+        logger.info({ count: slotsToUpdate.length, changes: slotsToUpdate }, '✏️ Updated time slots')
+      }
+
+      // INSERT - Insérer les nouveaux slots
+      if (slotsToInsert.length > 0) {
+        const { error: insertError } = await supabase
+          .from('intervention_time_slots')
+          .insert(slotsToInsert.map(slot => ({
             intervention_id: interventionId,
-            proposed_date: slot.proposed_date,
+            slot_date: slot.slot_date,
             start_time: slot.start_time,
             end_time: slot.end_time,
-            status: 'proposed',
+            status: 'pending',
             proposed_by: user.id
           })))
+
+        if (insertError) {
+          logger.error({ error: insertError }, '❌ Error inserting time slots')
+        } else {
+          logger.info({ count: slotsToInsert.length }, '➕ Inserted new time slots')
+        }
+      }
+
+      // 4. Résumé des modifications (pour notifications futures)
+      const slotChanges = {
+        deleted: slotsToDelete.length,
+        updated: slotsToUpdate.length,
+        inserted: slotsToInsert.length,
+        unchanged: data.timeSlots.length - slotsToInsert.length - slotsToUpdate.length,
+        details: slotsToUpdate // Contient old vs new pour chaque slot modifié
+      }
+      logger.info(slotChanges, '📊 Time slots changes summary')
+    }
+
+    // Update provider instructions per assignment (for 'separate' mode)
+    if (data.providerInstructions && Object.keys(data.providerInstructions).length > 0) {
+      for (const [providerId, instructions] of Object.entries(data.providerInstructions)) {
+        await supabase
+          .from('intervention_assignments')
+          .update({ provider_instructions: instructions })
+          .eq('intervention_id', interventionId)
+          .eq('user_id', providerId)
+          .eq('role', 'prestataire')
+      }
+      logger.info({ count: Object.keys(data.providerInstructions).length }, 'Provider instructions updated')
+    }
+
+    // Update requires_confirmation per assignment
+    if (data.confirmationRequiredUserIds !== undefined) {
+      // Reset all assignments to not require confirmation
+      await supabase
+        .from('intervention_assignments')
+        .update({ requires_confirmation: false })
+        .eq('intervention_id', interventionId)
+
+      // Set requires_confirmation to true for selected users
+      if (data.confirmationRequiredUserIds.length > 0) {
+        await supabase
+          .from('intervention_assignments')
+          .update({ requires_confirmation: true })
+          .eq('intervention_id', interventionId)
+          .in('user_id', data.confirmationRequiredUserIds)
+      }
+      logger.info({ count: data.confirmationRequiredUserIds.length }, 'Confirmation requirements updated')
+    }
+
+    // Create quote requests if requires_quote is enabled and providers are assigned
+    if (data.requires_quote && data.assignedProviderIds && data.assignedProviderIds.length > 0) {
+      try {
+        logger.info({ interventionId, providerCount: data.assignedProviderIds.length }, '💰 Creating quote requests for providers')
+
+        // Check for existing active quotes to avoid duplicates
+        const { data: existingQuotes } = await supabase
+          .from('intervention_quotes')
+          .select('id, provider_id, status')
+          .eq('intervention_id', interventionId)
+          .in('status', ['pending', 'sent'])
+
+        // Build set of provider IDs that already have active quotes
+        const existingProviderIds = new Set(
+          (existingQuotes || []).map(q => q.provider_id)
+        )
+
+        // Filter out providers who already have active quotes
+        const newProviderIds = data.assignedProviderIds.filter(
+          providerId => !existingProviderIds.has(providerId)
+        )
+
+        // Only create quotes for NEW providers
+        if (newProviderIds.length > 0) {
+          await createQuoteRequestsForProviders({
+            interventionId,
+            teamId: existingIntervention.team_id,
+            providerIds: newProviderIds,
+            createdBy: user.id,
+            messageType: 'global',
+            globalMessage: data.provider_guidelines || undefined,
+            supabase
+          })
+
+          logger.info({ newQuotesCount: newProviderIds.length }, '✅ Quote requests created for new providers')
+        } else {
+          logger.info({}, '⏭️ Skipped quote creation - all providers already have active quotes')
+        }
+      } catch (quoteError) {
+        logger.error({ error: quoteError }, '❌ Error creating quote requests')
+        // Don't fail the whole operation if quote creation fails
+      }
+    }
+
+    // Soft delete documents if requested
+    if (data.documentsToDelete && data.documentsToDelete.length > 0) {
+      try {
+        const { error: deleteDocsError } = await supabase
+          .from('intervention_documents')
+          .update({ deleted_at: new Date().toISOString() })
+          .eq('intervention_id', interventionId)
+          .in('id', data.documentsToDelete)
+
+        if (deleteDocsError) {
+          logger.error({ error: deleteDocsError }, '❌ Error soft-deleting documents')
+          // Don't fail the whole operation if document deletion fails
+        } else {
+          logger.info({ count: data.documentsToDelete.length }, '✅ Documents soft-deleted')
+        }
+      } catch (docDeleteError) {
+        logger.error({ error: docDeleteError }, '❌ Unexpected error soft-deleting documents')
       }
     }
 
@@ -697,6 +967,77 @@ export async function requestQuoteAction(
   } catch (error) {
     logger.error('❌ [SERVER-ACTION] Error requesting quote:', error)
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' }
+  }
+}
+
+/**
+ * Cancel a quote request (change status from 'pending' to 'cancelled')
+ * Only managers can cancel quote requests, and only if the quote is still pending
+ */
+export async function cancelQuoteAction(
+  quoteId: string,
+  interventionId: string
+): Promise<ActionResult<void>> {
+  try {
+    // Auth check
+    const user = await getAuthenticatedUser()
+    if (!user) {
+      return { success: false, error: 'Authentication required' }
+    }
+
+    // Only managers can cancel quote requests
+    if (!['gestionnaire', 'admin'].includes(user.role)) {
+      return { success: false, error: 'Seuls les gestionnaires peuvent annuler une demande de devis' }
+    }
+
+    logger.info('❌ [SERVER-ACTION] Cancelling quote request:', {
+      quoteId,
+      interventionId,
+      userId: user.id
+    })
+
+    const supabase = await createServerSupabaseClient()
+
+    // Verify the quote exists and is pending
+    const { data: quote, error: fetchError } = await supabase
+      .from('intervention_quotes')
+      .select('id, status, intervention_id')
+      .eq('id', quoteId)
+      .eq('intervention_id', interventionId)
+      .single()
+
+    if (fetchError || !quote) {
+      return { success: false, error: 'Devis non trouvé' }
+    }
+
+    if (quote.status !== 'pending') {
+      return { success: false, error: 'Seules les demandes en attente peuvent être annulées' }
+    }
+
+    // Update the quote status to cancelled
+    const { error: updateError } = await supabase
+      .from('intervention_quotes')
+      .update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', quoteId)
+
+    if (updateError) {
+      logger.error('❌ [SERVER-ACTION] Error cancelling quote:', updateError)
+      return { success: false, error: updateError.message }
+    }
+
+    // Revalidate intervention pages
+    revalidatePath('/gestionnaire/interventions')
+    revalidatePath(`/gestionnaire/interventions/${interventionId}`)
+    revalidatePath('/prestataire/interventions')
+    revalidatePath(`/prestataire/interventions/${interventionId}`)
+
+    return { success: true }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error cancelling quote:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Erreur inconnue' }
   }
 }
 

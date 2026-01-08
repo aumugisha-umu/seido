@@ -41,6 +41,8 @@ interface QuoteItemProps {
   showActions?: boolean
   onApprove?: () => void
   onReject?: () => void
+  /** Annuler une demande de devis (seulement pour statut pending) */
+  onCancel?: () => void
 }
 
 const QuoteItem = ({
@@ -48,10 +50,16 @@ const QuoteItem = ({
   userRole,
   showActions = true,
   onApprove,
-  onReject
+  onReject,
+  onCancel
 }: QuoteItemProps) => {
   const canManage = permissions.canManageQuotes(userRole)
-  const canShowActions = showActions && canManage && (quote.status === 'pending' || quote.status === 'sent')
+  // Valider/Refuser seulement pour les devis reçus (sent)
+  const canShowApproveReject = showActions && canManage && quote.status === 'sent'
+  // Annuler seulement pour les demandes en attente (pending)
+  const canShowCancel = showActions && canManage && quote.status === 'pending'
+  // Indique si c'est une demande en attente (pas encore de devis reçu)
+  const isPendingRequest = quote.status === 'pending'
 
   const getStatusConfig = () => {
     switch (quote.status) {
@@ -118,11 +126,15 @@ const QuoteItem = ({
         </div>
 
         <div className="text-right">
-          <p className="text-lg font-semibold text-slate-900">{formatAmount(quote.amount)}</p>
+          {/* Prix masqué pour les demandes en attente (pending) */}
+          {!isPendingRequest && (
+            <p className="text-lg font-semibold text-slate-900">{formatAmount(quote.amount)}</p>
+          )}
           <Badge
             variant="outline"
             className={cn(
-              'text-xs mt-1',
+              'text-xs',
+              !isPendingRequest && 'mt-1',
               statusConfig.bg,
               statusConfig.text,
               statusConfig.border
@@ -135,36 +147,59 @@ const QuoteItem = ({
         </div>
       </div>
 
-      {/* Description si présente */}
-      {quote.description && (
+      {/* Description ou message d'attente */}
+      {isPendingRequest ? (
+        <p className="text-sm text-muted-foreground mt-3 italic">
+          En attente de devis du prestataire...
+        </p>
+      ) : quote.description ? (
         <p className="text-sm text-muted-foreground mt-3 line-clamp-2">
           {quote.description}
         </p>
-      )}
+      ) : null}
 
-      {/* Actions - affiché seulement si showActions=true et statut pending/sent */}
-      {canShowActions && (
+      {/* Actions - Valider/Refuser pour devis reçus (sent), Annuler pour demandes (pending) */}
+      {(canShowApproveReject || canShowCancel) && (
         <div className="flex items-center gap-2 mt-3 pt-3 border-t border-dashed border-slate-200">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onApprove}
-            className="text-green-600 border-green-200 hover:bg-green-50"
-            aria-label={`Valider le devis de ${quote.provider_name || 'prestataire'}`}
-          >
-            <Check className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
-            Valider
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onReject}
-            className="text-red-600 border-red-200 hover:bg-red-50"
-            aria-label={`Refuser le devis de ${quote.provider_name || 'prestataire'}`}
-          >
-            <X className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
-            Refuser
-          </Button>
+          {/* Valider/Refuser - seulement pour les devis reçus */}
+          {canShowApproveReject && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onApprove}
+                className="text-green-600 border-green-200 hover:bg-green-50"
+                aria-label={`Valider le devis de ${quote.provider_name || 'prestataire'}`}
+              >
+                <Check className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+                Valider
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onReject}
+                className="text-red-600 border-red-200 hover:bg-red-50"
+                aria-label={`Refuser le devis de ${quote.provider_name || 'prestataire'}`}
+              >
+                <X className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+                Refuser
+              </Button>
+            </>
+          )}
+
+          {/* Annuler - seulement pour les demandes en attente */}
+          {canShowCancel && onCancel && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onCancel}
+              className="text-red-600 border-red-200 hover:bg-red-50"
+              aria-label={`Annuler la demande de devis pour ${quote.provider_name || 'prestataire'}`}
+            >
+              <X className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+              Annuler
+            </Button>
+          )}
         </div>
       )}
     </div>
@@ -184,14 +219,16 @@ export const QuotesCard = ({
   onAddQuote,
   onApproveQuote,
   onRejectQuote,
+  onCancelQuote,
   isLoading = false,
   className
 }: QuotesCardProps) => {
   const canSubmit = permissions.canSubmitQuote(userRole)
   const canView = permissions.canViewQuotes(userRole)
 
-  // Sépare les devis par statut
-  const pendingQuotes = quotes.filter(q => q.status === 'pending' || q.status === 'sent')
+  // Sépare les devis par statut - 4 groupes distincts
+  const requestedQuotes = quotes.filter(q => q.status === 'pending')  // Demandes en attente du prestataire
+  const receivedQuotes = quotes.filter(q => q.status === 'sent')      // Devis reçus, en attente de validation
   const approvedQuotes = quotes.filter(q => q.status === 'approved')
   const otherQuotes = quotes.filter(q => !['pending', 'sent', 'approved'].includes(q.status))
 
@@ -267,14 +304,34 @@ export const QuotesCard = ({
           </div>
         )}
 
-        {/* Devis en attente */}
-        {pendingQuotes.length > 0 && (
+        {/* Demandes en attente - en attente de réponse du prestataire */}
+        {requestedQuotes.length > 0 && (
           <div className="space-y-3">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              En attente ({pendingQuotes.length})
+            <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider">
+              Demandes en attente ({requestedQuotes.length})
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {pendingQuotes.map((quote) => (
+              {requestedQuotes.map((quote) => (
+                <QuoteItem
+                  key={quote.id}
+                  quote={quote}
+                  userRole={userRole}
+                  showActions={showActions}
+                  onCancel={onCancelQuote ? () => onCancelQuote(quote.id) : undefined}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Devis reçus - en attente de validation */}
+        {receivedQuotes.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
+              Devis reçus ({receivedQuotes.length})
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              {receivedQuotes.map((quote) => (
                 <QuoteItem
                   key={quote.id}
                   quote={quote}

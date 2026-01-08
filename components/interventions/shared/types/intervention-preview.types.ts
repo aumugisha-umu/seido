@@ -266,6 +266,8 @@ export interface QuotesCardProps {
   onViewQuote?: (quoteId: string) => void
   onApproveQuote?: (quoteId: string) => void
   onRejectQuote?: (quoteId: string) => void
+  /** Annuler une demande de devis (statut pending) */
+  onCancelQuote?: (quoteId: string) => void
   isLoading?: boolean
   className?: string
 }
@@ -285,6 +287,8 @@ export interface PlanningCardProps {
   onEditSlot?: (slotId: string) => void
   onCancelSlot?: (slotId: string) => void
   onChooseSlot?: (slotId: string) => void
+  /** Callback pour ouvrir la modale de réponse */
+  onOpenResponseModal?: (slotId: string) => void
   isLoading?: boolean
   className?: string
 }
@@ -357,12 +361,32 @@ export interface InterventionDetailsCardProps {
     status: 'pending' | 'proposed' | 'scheduled' | 'completed'
     /** Nombre de créneaux proposés (pour status='proposed') */
     proposedSlotsCount?: number
-    /** Nombre de devis reçus */
+    /** Nombre total de devis (tous statuts confondus) */
     quotesCount?: number
+    /** Nombre de demandes de devis en attente (statut pending) */
+    requestedQuotesCount?: number
+    /** Nombre de devis reçus (statut sent) */
+    receivedQuotesCount?: number
     /** Statut des devis */
     quotesStatus: 'pending' | 'received' | 'approved'
     /** Montant du devis validé */
     selectedQuoteAmount?: number | null
+    /** Statistiques de réponses aux créneaux (pour afficher X/Y dans la vue générale) */
+    responseStats?: {
+      /** Nombre de réponses reçues (max parmi tous les créneaux) */
+      maxResponsesReceived: number
+      /** Nombre total de participants attendus */
+      totalExpectedResponses: number
+      /** Détail par créneau pour le hover */
+      slotDetails: Array<{
+        slotDate: string
+        startTime: string
+        endTime: string
+        accepted: number
+        rejected: number
+        pending: number
+      }>
+    }
   }
   /** Nom du créateur de l'intervention */
   createdBy?: string | null

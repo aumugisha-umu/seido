@@ -44,6 +44,7 @@ export const PlanningCard = ({
   onEditSlot,
   onCancelSlot,
   onChooseSlot,
+  onOpenResponseModal,
   isLoading = false,
   className
 }: PlanningCardProps) => {
@@ -109,15 +110,18 @@ export const PlanningCard = ({
               <CheckCircle2 className="h-4 w-4 text-green-600" />
               <p className="text-sm font-medium">Créneau confirmé</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {/* Scroll horizontal pour les créneaux */}
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin">
               {confirmedSlots.map((slot) => (
-                <TimeSlotCard
-                  key={slot.id}
-                  slot={slot}
-                  userRole={userRole}
-                  currentUserId={currentUserId}
-                  variant="default"
-                />
+                <div key={slot.id} className="flex-shrink-0 w-[320px] min-w-[280px]">
+                  <TimeSlotCard
+                    slot={slot}
+                    userRole={userRole}
+                    currentUserId={currentUserId}
+                    onOpenResponseModal={onOpenResponseModal}
+                    variant="default"
+                  />
+                </div>
               ))}
             </div>
           </div>
@@ -136,21 +140,24 @@ export const PlanningCard = ({
               </Badge>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {/* Scroll horizontal pour les créneaux */}
+            <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-thin">
               {pendingSlots.map((slot) => (
-                <TimeSlotCard
-                  key={slot.id}
-                  slot={slot}
-                  userRole={userRole}
-                  currentUserId={currentUserId}
-                  onSelect={onSelectSlot}
-                  onApprove={onApproveSlot}
-                  onReject={onRejectSlot}
-                  onEdit={onEditSlot}
-                  onCancel={onCancelSlot}
-                  onChoose={onChooseSlot}
-                  variant="default"
-                />
+                <div key={slot.id} className="flex-shrink-0 w-[320px] min-w-[280px]">
+                  <TimeSlotCard
+                    slot={slot}
+                    userRole={userRole}
+                    currentUserId={currentUserId}
+                    onSelect={onSelectSlot}
+                    onApprove={onApproveSlot}
+                    onReject={onRejectSlot}
+                    onEdit={onEditSlot}
+                    onCancel={onCancelSlot}
+                    onChoose={onChooseSlot}
+                    onOpenResponseModal={onOpenResponseModal}
+                    variant="default"
+                  />
+                </div>
               ))}
             </div>
           </div>

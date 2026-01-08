@@ -62,6 +62,18 @@ import { LinkedInterventionBanner } from '@/components/intervention/linked-inter
 // Actions
 import { acceptTimeSlotAction } from '@/app/actions/intervention-actions'
 
+// Confirmation banners
+import {
+  ConfirmationRequiredBanner,
+  ConfirmationSuccessBanner,
+  ConfirmationRejectedBanner
+} from '@/components/intervention/confirmation-required-banner'
+import {
+  getParticipantPermissions,
+  hasConfirmed,
+  hasRejected
+} from '@/lib/utils/intervention-permissions'
+
 // Types
 import type { Database } from '@/lib/database.types'
 
@@ -162,6 +174,51 @@ export function PrestataireInterventionDetailClient({
 
   // États pour le nouveau design PreviewHybrid
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
+
+  // ============================================================================
+  // Participant Confirmation Logic
+  // ============================================================================
+
+  // Prestataire is never the creator (interventions are created by managers/tenants)
+  const isCreator = false
+
+  // Find current user's assignment
+  const currentUserAssignment = useMemo(() => {
+    return assignments.find(a => a.user_id === currentUser.id)
+  }, [assignments, currentUser.id])
+
+  // Build intervention confirmation info
+  const interventionConfirmationInfo = useMemo(() => ({
+    requires_participant_confirmation: intervention.requires_participant_confirmation ?? false
+  }), [intervention.requires_participant_confirmation])
+
+  // Build assignment confirmation info
+  const assignmentConfirmationInfo = useMemo(() => {
+    if (!currentUserAssignment) return null
+    return {
+      requires_confirmation: currentUserAssignment.requires_confirmation ?? false,
+      confirmation_status: (currentUserAssignment.confirmation_status ?? 'not_required') as 'pending' | 'confirmed' | 'rejected' | 'not_required'
+    }
+  }, [currentUserAssignment])
+
+  // Get permissions for current user
+  const participantPermissions = useMemo(() => {
+    return getParticipantPermissions(
+      interventionConfirmationInfo,
+      assignmentConfirmationInfo,
+      isCreator
+    )
+  }, [interventionConfirmationInfo, assignmentConfirmationInfo, isCreator])
+
+  // Determine which banner to show
+  const showConfirmationBanner = participantPermissions.canConfirm
+  const showConfirmedBanner = hasConfirmed(assignmentConfirmationInfo)
+  const showRejectedBanner = hasRejected(assignmentConfirmationInfo)
+
+  // Callback after confirmation/rejection
+  const handleConfirmationResponse = () => {
+    router.refresh()
+  }
 
   // Transform assignments into Contact arrays by role
   const { managers, providers, tenants } = useMemo(() => {
@@ -654,6 +711,19 @@ export function PrestataireInterventionDetailClient({
               {/* TAB: GENERAL */}
               <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
                 <ContentWrapper>
+                  {/* Bannières de confirmation si nécessaire */}
+                  {showConfirmationBanner && (
+                    <ConfirmationRequiredBanner
+                      interventionId={intervention.id}
+                      scheduledDate={intervention.scheduled_date}
+                      scheduledTime={null}
+                      onConfirm={handleConfirmationResponse}
+                      onReject={handleConfirmationResponse}
+                    />
+                  )}
+                  {showConfirmedBanner && <ConfirmationSuccessBanner />}
+                  {showRejectedBanner && <ConfirmationRejectedBanner />}
+
                   {/* Détails de l'intervention */}
                   <div className="flex-shrink-0">
                     <InterventionDetailsCard

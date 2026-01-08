@@ -17,7 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover"
-import { useInterventionTypes, type InterventionType } from "@/hooks/use-intervention-types"
+import { useInterventionTypes, type InterventionType, type InterventionTypesData } from "@/hooks/use-intervention-types"
 import { getTypeIcon } from "@/components/interventions/intervention-type-icon"
 
 // ============================================================================
@@ -55,6 +55,10 @@ interface InterventionTypeComboboxProps {
    * Error state from form validation
    */
   error?: boolean
+  /**
+   * Initial data from server-side prefetch (avoids loading spinner)
+   */
+  initialData?: InterventionTypesData | null
 }
 
 // ============================================================================
@@ -88,11 +92,15 @@ export function InterventionTypeCombobox({
   className,
   categoryFilter = null,
   error = false,
+  initialData,
 }: InterventionTypeComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [expandedCategories, setExpandedCategories] = React.useState<Set<string>>(new Set(['bien', 'bail', 'locataire']))
-  const { types, categories, isLoading, getTypeByCode, normalizeLegacyCode } = useInterventionTypes()
+  // ✅ Pass initialData to avoid loading delay when server-prefetched
+  const { types, categories, isLoading, getTypeByCode, normalizeLegacyCode } = useInterventionTypes({
+    initialData: initialData ?? undefined
+  })
 
   // When searching, show all items (ignore collapsed state)
   const isSearching = searchQuery.length > 0

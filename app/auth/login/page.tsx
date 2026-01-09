@@ -26,6 +26,9 @@ interface LoginPageProps {
   }>
 }
 
+// Erreurs OAuth possibles
+const OAUTH_ERRORS = ['oauth_error', 'missing_code', 'exchange_failed', 'no_session', 'exception'] as const
+
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   // ✅ SERVER COMPONENT: Traitement des paramètres URL côté serveur (Next.js 15+)
   const params = await searchParams
@@ -34,6 +37,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const showEmailNotConfirmed = params.reason === 'email_not_confirmed'
   const showSessionExpired = params.reason === 'session_expired'
   const showConfirmationError = params.error && ['expired_token', 'invalid_token', 'confirmation_failed'].includes(params.error)
+  const showOAuthError = params.error && OAUTH_ERRORS.includes(params.error as typeof OAUTH_ERRORS[number])
+  const oauthErrorMessage = params.message ? decodeURIComponent(params.message) : null
 
   logger.info('🔄 [LOGIN-SERVER] Login page rendered server-side', {
     confirmed: params.confirmed,
@@ -116,6 +121,23 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
             {params.error === 'expired_token' && 'Le lien de confirmation a expiré. Veuillez vous inscrire à nouveau.'}
             {params.error === 'invalid_token' && 'Le lien de confirmation est invalide.'}
             {params.error === 'confirmation_failed' && 'Erreur lors de la confirmation. Veuillez réessayer.'}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {showOAuthError && (
+        <Alert variant="destructive" className="mb-4 bg-red-500/10 border-red-500/30 text-red-200">
+          <AlertDescription>
+            <strong>Erreur d'authentification Google</strong><br />
+            {oauthErrorMessage || (
+              <>
+                {params.error === 'oauth_error' && 'Une erreur est survenue lors de l\'authentification.'}
+                {params.error === 'missing_code' && 'Code d\'authentification manquant.'}
+                {params.error === 'exchange_failed' && 'Échec de l\'échange du code d\'authentification.'}
+                {params.error === 'no_session' && 'Session non établie.'}
+                {params.error === 'exception' && 'Erreur interne. Veuillez réessayer.'}
+              </>
+            )}
           </AlertDescription>
         </Alert>
       )}

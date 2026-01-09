@@ -439,69 +439,25 @@ class AuthService {
         return { user, error: null }
       }
 
-      // ✅ SELF-HEALING (2025): Profile manquant en DB, création automatique
+      // ✅ Profile manquant en DB
       // Ceci peut arriver si:
-      // 1. Le trigger PostgreSQL a échoué (avant migration 20251003000001)
-      // 2. La création server-side dans /auth/confirm a échoué
+      // 1. Nouvel utilisateur OAuth (doit compléter son profil sur /auth/complete-profile)
+      // 2. Le trigger PostgreSQL a échoué
       // 3. L'utilisateur a été créé manuellement sans profil
-      logger.warn('⚠️ [AUTH-SERVICE-SELF-HEAL] CRITICAL: No profile in DB, attempting auto-creation...', {
+      logger.warn('⚠️ [AUTH-SERVICE] No profile in DB for user', {
         authUserId: authUser.id,
         email: authUser.email,
         emailConfirmed: authUser.email_confirmed_at ? 'YES' : 'NO',
+        provider: authUser.app_metadata?.provider || 'email',
         timestamp: new Date().toISOString()
       })
 
-      try {
-        // ✅ Auto-créer le profil manquant
-        const userSvc = await getUserService()
-        const createdProfileResult = await userSvc.create({
-          auth_user_id: authUser.id,
-          email: authUser.email!,
-          name: authUser.user_metadata?.full_name || authUser.email!.split('@')[0],
-          first_name: authUser.user_metadata?.first_name || undefined,
-          last_name: authUser.user_metadata?.last_name || undefined,
-          role: authUser.user_metadata?.role || 'gestionnaire',
-          provider_category: null,
-          phone: authUser.user_metadata?.phone || undefined,
-          password_set: authUser.user_metadata?.password_set ?? true
-        })
-
-        if (!createdProfileResult.success || !createdProfileResult.data) {
-          throw new Error('Failed to create user profile: ' + (createdProfileResult as any).error)
-        }
-
-        const createdProfile = createdProfileResult.data
-
-        logger.info('✅ [AUTH-SERVICE-SELF-HEAL] Successfully auto-created missing profile:', {
-          id: createdProfile.id,
-          email: createdProfile.email,
-          role: createdProfile.role
-        })
-
-        // Retourner le profil nouvellement créé
-        const user: AuthUser = {
-          id: createdProfile.id,
-          email: createdProfile.email,
-          name: createdProfile.name,
-          first_name: createdProfile.first_name || undefined,
-          last_name: createdProfile.last_name || undefined,
-          display_name: authUser.user_metadata?.display_name || createdProfile.name,
-          role: createdProfile.role,
-          team_id: createdProfile.team_id,
-          phone: createdProfile.phone || undefined,
-          avatar_url: createdProfile.avatar_url || undefined,
-          password_set: createdProfile.password_set,
-          created_at: createdProfile.created_at || undefined,
-          updated_at: createdProfile.updated_at || undefined,
-        }
-
-        return { user, error: null }
-
-      } catch (healError) {
-        logger.error('❌ [AUTH-SERVICE-SELF-HEAL] Auto-creation failed:', healError)
-        // Échec critique - retourner null plutôt qu'un fallback JWT
-        return { user: null, error: null }
-      }
+      // ⚠️ NE PAS tenter de créer le profil côté client (browser)
+      // La création se fait via:
+      // - /auth/complete-profile pour les utilisateurs OAuth
+      // - /auth/confirm pour les utilisateurs email/password
+      // Retourner null pour que le composant gère la redirection
+      return { user: null, error: null }
 
     } catch (error) {
       logger.error('❌ [AUTH-SERVICE-REFACTORED] getCurrentUser failed:', error)

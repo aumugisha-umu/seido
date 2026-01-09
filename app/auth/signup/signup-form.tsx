@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff, Check, Phone } from "lucide-react"
 import { signupAction } from "@/app/actions/auth-actions"
+import { GoogleOAuthButton } from "@/components/auth/google-oauth-button"
 import { logger, logError } from '@/lib/logger'
 /**
  * 🚀 COMPOSANT CLIENT - SignupForm (Server Actions 2025)
@@ -131,6 +132,19 @@ export function SignupForm() {
           <AlertDescription>{state.error}</AlertDescription>
         </Alert>
       )}
+
+      {/* Bouton Google OAuth */}
+      <GoogleOAuthButton mode="signup" />
+
+      {/* Séparateur OAuth */}
+      <div className="relative my-2">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-white/20" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-[#0f172a] px-2 text-white/60">Ou avec email</span>
+        </div>
+      </div>
 
       {/* Prénom et Nom */}
       <div className="grid grid-cols-2 gap-4">

@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Eye, EyeOff, Mail } from "lucide-react"
 import { loginAction } from "@/app/actions/auth-actions"
 import { useAuth } from "@/hooks/use-auth"
+import { GoogleOAuthButton } from "@/components/auth/google-oauth-button"
 import { logger, logError } from '@/lib/logger'
 /**
  * 🚀 COMPOSANT CLIENT - LoginForm (Server Actions 2025)
@@ -171,6 +172,19 @@ export function LoginForm() {
 
       {/* ✅ 2025: Bouton avec état Server Action */}
       <SubmitButton />
+
+      {/* Séparateur OAuth */}
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-white/20" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-[#0f172a] px-2 text-white/60">Ou continuer avec</span>
+        </div>
+      </div>
+
+      {/* Bouton Google OAuth */}
+      <GoogleOAuthButton mode="login" />
     </form>
   )
 }

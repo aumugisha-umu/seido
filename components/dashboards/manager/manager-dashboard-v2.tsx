@@ -26,6 +26,7 @@ import { UrgentInterventionsSection } from "@/components/dashboards/manager/urge
 import { KPICarousel, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
 import { GestionnaireFAB } from "@/components/ui/fab"
 import { PeriodSelector, getDefaultPeriod, type Period } from "@/components/ui/period-selector"
+import { OnboardingButton, OnboardingModal } from "@/components/onboarding"
 
 import type { ContractStats } from "@/lib/types/contract.types"
 import type { Database } from "@/lib/database.types"
@@ -108,7 +109,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                 {/* Header Section */}
                 <div className="dashboard__header">
                     <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
-                        {/* Title + Period Selector together */}
+                        {/* Title + Period Selector + Guide together */}
                         <div className="flex items-center gap-4 flex-1 min-w-0">
                             <h1 className="text-3xl font-bold text-foreground">Tableau de bord</h1>
                             {/* Period Selector - Dropdown only */}
@@ -116,6 +117,8 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                                 value={period.value}
                                 onChange={setPeriod}
                             />
+                            {/* Onboarding Guide Button */}
+                            <OnboardingButton />
                         </div>
                         <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
                             {/* Bouton Importer */}
@@ -238,6 +241,9 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                 onCreateLot={() => router.push('/gestionnaire/biens/lots/nouveau')}
                 onCreateContact={() => router.push('/gestionnaire/contacts/nouveau')}
             />
+
+            {/* Onboarding Modal - Auto-opens on first visit */}
+            <OnboardingModal />
         </div>
     )
 }

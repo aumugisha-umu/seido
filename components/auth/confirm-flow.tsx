@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { confirmEmailAction, checkProfileCreated } from '@/app/actions/confirm-actions'
-import { SignupSuccessModal } from './signup-success-modal'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import AuthLogo from '@/components/ui/auth-logo'
@@ -93,13 +92,11 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
           return
         }
 
-        // ÉTAPE 3 : Succès ! Utiliser le firstName de la DB (plus fiable que l'email)
-        console.log('[CONFIRM-FLOW] Profile created successfully, using DB firstName:', profileData.firstName)
-        setUserData({
-          ...confirmResult.data,
-          firstName: profileData.firstName  // Utiliser le prénom de la DB
-        })
-        setState('success')
+        // ÉTAPE 3 : Succès ! Redirection directe vers le dashboard
+        console.log('[CONFIRM-FLOW] Profile created successfully, redirecting to dashboard...')
+        const role = profileData.role || confirmResult.data.role
+        router.push(`/${role}/dashboard`)
+        return // Arrêter l'exécution, pas besoin de setState
 
       } catch (error) {
         console.error('[CONFIRM-FLOW] Unexpected error:', error)
@@ -223,19 +220,6 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
     <>
       {/* Contenu principal (loading/error states) */}
       {renderContent()}
-
-      {/* Modale de succès */}
-      {state === 'success' && userData && (
-        <SignupSuccessModal
-          isOpen={true}
-          firstName={userData.firstName}
-          role={userData.role}
-          dashboardPath={`/${userData.role}/dashboard`}
-          onContinue={() => {
-            router.push(`/${userData.role}/dashboard`)
-          }}
-        />
-      )}
     </>
   )
 }

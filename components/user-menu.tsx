@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { User, Settings, LogOut, ChevronDown, Loader2 } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/use-auth"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +21,6 @@ interface UserMenuProps {
 
 export default function UserMenu({ userName, userInitial, role }: UserMenuProps) {
   const router = useRouter()
-  const { signOut } = useAuth()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const handleLogout = async () => {
@@ -36,21 +34,16 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
       setIsLoggingOut(true)
       logger.info('👤 [USER-MENU] Logout button clicked')
 
-      // Effectuer la déconnexion
-      await signOut()
-      logger.info('👤 [USER-MENU] Sign out completed, redirecting to login')
-
-      // Navigation soft Next.js (plus rapide que window.location.href)
-      router.push("/auth/login")
+      // ✅ OPTIMISÉ: Rediriger vers /auth/logout qui gère la déconnexion côté serveur
+      // Plus rapide que: await signOut() + router.push()
+      // Car évite les re-renders React et la réconciliation d'état
+      window.location.href = "/auth/logout"
 
     } catch (error) {
       logger.error('❌ [USER-MENU] Error during logout:', error)
 
-      // Même en cas d'erreur, rediriger vers login
-      logger.info('🔄 [USER-MENU] Forcing redirect to login after error')
-      router.push("/auth/login")
-    } finally {
-      // Ne pas réinitialiser isLoggingOut car on redirige
+      // Même en cas d'erreur, rediriger vers logout
+      window.location.href = "/auth/logout"
     }
   }
 

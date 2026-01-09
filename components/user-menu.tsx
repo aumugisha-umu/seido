@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
+import Link from "next/link"
 import { User, Settings, LogOut, ChevronDown, Loader2 } from "lucide-react"
-import { useRouter } from "next/navigation"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,15 +12,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Button } from "@/components/ui/button"
-import { logger, logError } from '@/lib/logger'
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
+import { logger } from '@/lib/logger'
+
 interface UserMenuProps {
   userName: string
   userInitial: string
   role: string
+  avatarUrl?: string
 }
 
-export default function UserMenu({ userName, userInitial, role }: UserMenuProps) {
-  const router = useRouter()
+export default function UserMenu({ userName, userInitial, role, avatarUrl }: UserMenuProps) {
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
   const handleLogout = async () => {
@@ -47,14 +49,6 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
     }
   }
 
-  const handleProfile = () => {
-    router.push(`/${role}/profile`)
-  }
-
-  const handleSettings = () => {
-    router.push(`/${role}/parametres`)
-  }
-
   const getRoleDisplayName = (_role: string) => {
     const roleNames = {
       admin: "Administrateur",
@@ -72,9 +66,12 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
           variant="ghost" 
           className="flex items-center space-x-3 h-auto px-3 py-2 border border-transparent hover:bg-gray-100 hover:border-gray-300 rounded-lg transition-all duration-200 hover:scale-[1.02] hover:shadow-sm"
         >
-          <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-            <span className="text-primary-foreground font-medium text-sm">{userInitial}</span>
-          </div>
+          <Avatar className="w-8 h-8 flex-shrink-0">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={userName} />}
+            <AvatarFallback className="bg-primary text-primary-foreground font-medium text-sm">
+              {userInitial}
+            </AvatarFallback>
+          </Avatar>
           <div className="hidden sm:flex flex-col items-start">
             <span className="text-gray-700 font-medium text-sm leading-tight">{userName}</span>
             <span className="text-gray-500 text-xs leading-tight">{getRoleDisplayName(role)}</span>
@@ -95,14 +92,18 @@ export default function UserMenu({ userName, userInitial, role }: UserMenuProps)
         
         <DropdownMenuSeparator />
         
-        <DropdownMenuItem onClick={handleProfile} className="cursor-pointer">
-          <User className="mr-2 h-4 w-4" />
-          <span>Mon profil</span>
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <Link href={`/${role}/profile`} className="flex items-center">
+            <User className="mr-2 h-4 w-4" />
+            <span>Mon profil</span>
+          </Link>
         </DropdownMenuItem>
-        
-        <DropdownMenuItem onClick={handleSettings} className="cursor-pointer">
-          <Settings className="mr-2 h-4 w-4" />
-          <span>Paramètres</span>
+
+        <DropdownMenuItem asChild className="cursor-pointer">
+          <Link href={`/${role}/parametres`} className="flex items-center">
+            <Settings className="mr-2 h-4 w-4" />
+            <span>Paramètres</span>
+          </Link>
         </DropdownMenuItem>
         
         <DropdownMenuSeparator />

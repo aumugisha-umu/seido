@@ -49,20 +49,22 @@ export async function POST(request: NextRequest) {
     logger.info({ user: authUser.email }, "📸 [UPLOAD-AVATAR] Processing upload for user:")
 
     // Supprimer l'ancien avatar si il existe
+    // ✅ FIX: Utiliser authUser.id pour correspondre aux politiques RLS (auth.uid())
     if (dbUser.avatar_url) {
       const oldFileName = dbUser.avatar_url.split('/').pop()
       if (oldFileName && oldFileName !== 'default-avatar.png') {
         logger.info({ oldFileName: oldFileName }, "🗑️ [UPLOAD-AVATAR] Removing old avatar:")
         await supabase.storage
           .from('avatars')
-          .remove([`${dbUser.id}/${oldFileName}`])
+          .remove([`${authUser.id}/${oldFileName}`])
       }
     }
 
     // Générer un nom de fichier unique
+    // ✅ FIX: Utiliser authUser.id pour correspondre aux politiques RLS (auth.uid())
     const fileExt = file.name.split('.').pop()
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
-    const filePath = `${dbUser.id}/${fileName}`
+    const filePath = `${authUser.id}/${fileName}`
 
     logger.info({ filePath: filePath }, "☁️ [UPLOAD-AVATAR] Uploading to Storage:")
 
@@ -133,16 +135,17 @@ export async function DELETE() {
     const authResult = await getApiAuthContext()
     if (!authResult.success) return authResult.error
 
-    const { supabase, userProfile: dbUser } = authResult.data
+    const { supabase, authUser, userProfile: dbUser } = authResult.data
 
     // Supprimer le fichier du storage si il existe
+    // ✅ FIX: Utiliser authUser.id pour correspondre aux politiques RLS (auth.uid())
     if (dbUser.avatar_url) {
       const fileName = dbUser.avatar_url.split('/').pop()
       if (fileName && fileName !== 'default-avatar.png') {
         logger.info({ fileName: fileName }, "🗑️ [DELETE-AVATAR] Removing avatar:")
         await supabase.storage
           .from('avatars')
-          .remove([`${dbUser.id}/${fileName}`])
+          .remove([`${authUser.id}/${fileName}`])
       }
     }
 

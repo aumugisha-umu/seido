@@ -418,6 +418,17 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Affichage de l'email actuel */}
+              <div className="mb-6 p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Mail className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Adresse email</p>
+                    <p className="font-medium">{user.email}</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Button
                   variant="outline"

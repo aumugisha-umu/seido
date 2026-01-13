@@ -90,9 +90,9 @@ export function LinkToEntityDialog({
             const endpoint = getSearchEndpoint(type, teamId)
             console.log('🔍 [LINK-DIALOG] endpoint resolved:', endpoint)
 
-            // Skip if endpoint not available (e.g., missing teamId for contacts)
+            // Skip if endpoint not available
             if (!endpoint) {
-                console.warn('🔍 [LINK-DIALOG] No endpoint - teamId missing?', { type, teamId })
+                console.warn('🔍 [LINK-DIALOG] No endpoint available for type:', type)
                 setSearchResults([])
                 setIsSearching(false)
                 return
@@ -440,9 +440,8 @@ function getSearchEndpoint(type: EmailLinkEntityType, teamId?: string): string |
         case 'contract':
             return '/api/contracts'
         case 'contact':
-            // Requires teamId for team-contacts endpoint
-            if (!teamId) return null
-            return `/api/team-contacts?teamId=${teamId}`
+            // teamId no longer required - API uses auth context
+            return '/api/team-contacts'
         case 'company':
             return '/api/companies'
         case 'intervention':

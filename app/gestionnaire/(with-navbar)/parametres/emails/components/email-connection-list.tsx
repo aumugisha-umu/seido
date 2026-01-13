@@ -285,7 +285,7 @@ export function EmailConnectionList({
                                 {/* Error Message */}
                                 {connection.last_error && (
                                     <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
-                                        {connection.last_error}
+                                        {connection.last_error.replace(/[\x00-\x1F\x7F-\x9F]/g, '')}
                                     </div>
                                 )}
 

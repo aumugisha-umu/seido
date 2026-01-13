@@ -873,7 +873,7 @@ Urgence : eau qui coule depuis ce matin.
 
 ---
 
-### 2.27 Import Excel/CSV `/gestionnaire/biens/import`
+### 2.27 Import Excel/CSV `/gestionnaire/import`
 
 **Préconditions** : Connecté comme `gestionnaire@test-seido.fr`
 
@@ -896,7 +896,7 @@ Urgence : eau qui coule depuis ce matin.
 
 **2.27.1 Accès à la page Import**
 - [ ] Bouton "Importer" visible sur `/gestionnaire/biens`
-- [ ] Redirection vers `/gestionnaire/biens/import`
+- [ ] Redirection vers `/gestionnaire/import`
 - [ ] Wizard multi-étapes affiché (Upload → Mapping → Validation → Import)
 
 **2.27.2 Téléchargement du template**

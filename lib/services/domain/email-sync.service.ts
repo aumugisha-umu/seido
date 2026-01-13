@@ -6,6 +6,23 @@ import { EmailBlacklistRepository } from '@/lib/services/repositories/email-blac
 import { GmailOAuthService } from '@/lib/services/domain/gmail-oauth.service';
 import { TeamEmailConnection } from '@/lib/types/email-integration';
 
+/**
+ * Sanitizes error messages before storing in DB or logging
+ */
+function sanitizeErrorForStorage(error: Error | any): string {
+    try {
+        const message = error?.message || error?.toString() || 'Unknown error';
+        return message
+            .replace(/\\u[\da-fA-F]{0,3}(?![0-9a-fA-F])/g, '') // Remove incomplete \u sequences
+            .replace(/\\x[\da-fA-F]{0,1}(?![0-9a-fA-F])/g, '') // Remove incomplete \x sequences
+            .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
+            .substring(0, 500) // Limit length for DB storage
+            .trim();
+    } catch {
+        return 'Error during synchronization (message sanitization failed)';
+    }
+}
+
 export interface SyncResult {
     connectionId: string;
     status: 'success' | 'no_new_emails' | 'error';
@@ -181,9 +198,10 @@ export class EmailSyncService {
             };
 
         } catch (err: any) {
-            console.error(`Error syncing connection ${connection.id}:`, err);
-            await this.connectionRepo.recordError(connection.id, err.message);
-            return { connectionId: connection.id, status: 'error', error: err.message };
+            const sanitizedError = sanitizeErrorForStorage(err);
+            console.error(`Error syncing connection ${connection.id}:`, sanitizedError);
+            await this.connectionRepo.recordError(connection.id, sanitizedError);
+            return { connectionId: connection.id, status: 'error', error: sanitizedError };
         }
     }
 }

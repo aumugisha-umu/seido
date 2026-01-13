@@ -494,6 +494,19 @@ export class ImportService {
       // Emit final completed event
       emitProgress('completed', 5, 0, 0, 0, errors.length);
 
+      // Log complete import to activity_logs
+      await this.logCompleteImport({
+        teamId,
+        userId,
+        jobId,
+        success: errors.length === 0,
+        created,
+        updated,
+        errors,
+        rawData: data,
+        duration,
+      });
+
       return {
         success: errors.length === 0,
         jobId,
@@ -531,22 +544,38 @@ export class ImportService {
         completed_at: new Date().toISOString(),
       });
 
+      const failedDuration = Date.now() - startTime;
+      const failedErrors: ImportRowError[] = [
+        {
+          row: 0,
+          sheet: '',
+          field: '',
+          value: '',
+          message: error instanceof Error ? error.message : 'Erreur inconnue',
+          code: 'UNKNOWN',
+        },
+      ];
+
+      // Log failed import to activity_logs
+      await this.logCompleteImport({
+        teamId,
+        userId,
+        jobId,
+        success: false,
+        created: { buildings: [], lots: [], contacts: [], contracts: [], companies: [] },
+        updated: { buildings: [], lots: [], contacts: [], contracts: [], companies: [] },
+        errors: failedErrors,
+        rawData: data,
+        duration: failedDuration,
+      });
+
       return {
         success: false,
         jobId,
         created: {},
         updated: {},
-        errors: [
-          {
-            row: 0,
-            sheet: '',
-            field: '',
-            value: '',
-            message: error instanceof Error ? error.message : 'Erreur inconnue',
-            code: 'UNKNOWN',
-          },
-        ],
-        summary: this.createEmptySummary(Date.now() - startTime),
+        errors: failedErrors,
+        summary: this.createEmptySummary(failedDuration),
       };
     }
   }
@@ -1218,6 +1247,181 @@ export class ImportService {
     summary.totalProcessed = summary.totalSuccess + summary.totalFailed;
 
     return summary;
+  }
+
+  /**
+   * Log complete import to activity_logs
+   * Creates a single comprehensive log entry at the end of the import
+   */
+  private async logCompleteImport(params: {
+    teamId: string;
+    userId: string;
+    jobId: string;
+    success: boolean;
+    created: ImportCreatedIds;
+    updated: ImportCreatedIds;
+    errors: ImportRowError[];
+    rawData: ParsedData;
+    duration: number;
+  }): Promise<void> {
+    const { teamId, userId, jobId, success, created, updated, errors, rawData, duration } = params;
+
+    try {
+      const supabase = await createServerSupabaseClient();
+
+      // Calculate totals
+      const totalCreated = 
+        (created.companies?.length || 0) +
+        (created.contacts?.length || 0) +
+        (created.buildings?.length || 0) +
+        (created.lots?.length || 0) +
+        (created.contracts?.length || 0);
+
+      const totalUpdated =
+        (updated.companies?.length || 0) +
+        (updated.contacts?.length || 0) +
+        (updated.buildings?.length || 0) +
+        (updated.lots?.length || 0) +
+        (updated.contracts?.length || 0);
+
+      const totalRows =
+        rawData.companies.length +
+        rawData.contacts.length +
+        rawData.buildings.length +
+        rawData.lots.length +
+        rawData.contracts.length;
+
+      // Build metadata with complete import details
+      const metadata = {
+        import_job_id: jobId,
+        duration_ms: duration,
+        summary: {
+          total_rows: totalRows,
+          total_created: totalCreated,
+          total_updated: totalUpdated,
+          total_failed: errors.length,
+        },
+        by_entity: {
+          companies: {
+            total: rawData.companies.length,
+            created: created.companies?.length || 0,
+            updated: updated.companies?.length || 0,
+            failed: errors.filter(e => e.sheet === SHEET_NAMES.COMPANIES).length,
+            created_ids: created.companies || [],
+            updated_ids: updated.companies || [],
+            data: rawData.companies.map(c => ({
+              row: c._rowIndex + 2,
+              name: c.name,
+              vat_number: c.vat_number,
+              city: c.city,
+            })),
+          },
+          contacts: {
+            total: rawData.contacts.length,
+            created: created.contacts?.length || 0,
+            updated: updated.contacts?.length || 0,
+            failed: errors.filter(e => e.sheet === SHEET_NAMES.CONTACTS).length,
+            created_ids: created.contacts || [],
+            updated_ids: updated.contacts || [],
+            data: rawData.contacts.map(c => ({
+              row: c._rowIndex + 2,
+              name: c.name,
+              email: c.email,
+              role: c.role,
+              company_name: c.company_name,
+            })),
+          },
+          buildings: {
+            total: rawData.buildings.length,
+            created: created.buildings?.length || 0,
+            updated: updated.buildings?.length || 0,
+            failed: errors.filter(e => e.sheet === SHEET_NAMES.BUILDINGS).length,
+            created_ids: created.buildings || [],
+            updated_ids: updated.buildings || [],
+            data: rawData.buildings.map(b => ({
+              row: b._rowIndex + 2,
+              name: b.name,
+              reference: b.reference,
+              address: b.address,
+              city: b.city,
+            })),
+          },
+          lots: {
+            total: rawData.lots.length,
+            created: created.lots?.length || 0,
+            updated: updated.lots?.length || 0,
+            failed: errors.filter(e => e.sheet === SHEET_NAMES.LOTS).length,
+            created_ids: created.lots || [],
+            updated_ids: updated.lots || [],
+            data: rawData.lots.map(l => ({
+              row: l._rowIndex + 2,
+              reference: l.reference,
+              building_reference: l.building_reference,
+              category: l.category,
+              floor: l.floor,
+            })),
+          },
+          contracts: {
+            total: rawData.contracts.length,
+            created: created.contracts?.length || 0,
+            updated: updated.contracts?.length || 0,
+            failed: errors.filter(e => e.sheet === SHEET_NAMES.CONTRACTS).length,
+            created_ids: created.contracts || [],
+            updated_ids: updated.contracts || [],
+            data: rawData.contracts.map(c => ({
+              row: c._rowIndex + 2,
+              lot_reference: c.lot_reference,
+              tenant_email: c.tenant_email,
+              start_date: c.start_date,
+              rent_amount: c.rent_amount,
+            })),
+          },
+        },
+        errors: errors.map(e => ({
+          row: e.row,
+          sheet: e.sheet,
+          field: e.field,
+          value: e.value,
+          message: e.message,
+          code: e.code,
+        })),
+      };
+
+      // Insert activity log
+      const { error: insertError } = await supabase
+        .from('activity_logs')
+        .insert({
+          team_id: teamId,
+          user_id: userId,
+          action_type: 'import',
+          entity_type: 'import',
+          entity_id: jobId,
+          entity_name: `Import Excel - ${new Date().toLocaleDateString('fr-FR')}`,
+          description: `Import Excel: ${totalCreated} créés, ${totalUpdated} mis à jour, ${errors.length} erreurs`,
+          status: success ? 'success' : 'failure',
+          metadata,
+        });
+
+      if (insertError) {
+        logger.error('[IMPORT-SERVICE] Failed to create activity log', {
+          error: insertError.message,
+          jobId,
+        });
+      } else {
+        logger.info('[IMPORT-SERVICE] Activity log created', {
+          jobId,
+          totalCreated,
+          totalUpdated,
+          totalFailed: errors.length,
+        });
+      }
+    } catch (error) {
+      // Don't fail the import if logging fails
+      logger.error('[IMPORT-SERVICE] Exception creating activity log', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        jobId,
+      });
+    }
   }
 }
 

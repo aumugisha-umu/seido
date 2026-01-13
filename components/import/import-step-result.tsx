@@ -5,6 +5,7 @@
  * Shows import results (success or errors)
  */
 
+import { useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -21,7 +22,7 @@ import {
   Mail,
 } from 'lucide-react';
 import type { UseImportWizardReturn } from '@/hooks/use-import-wizard';
-import type { CreatedContactInfo } from '@/lib/import/types';
+import type { CreatedContactInfo, ImportRowError } from '@/lib/import/types';
 import { SHEET_NAMES } from '@/lib/import/constants';
 
 interface ImportStepResultProps {
@@ -46,6 +47,66 @@ export function ImportStepResult({ wizard, onClose }: ImportStepResultProps) {
     // Navigate to invitation step
     goToInvitationStep();
   };
+
+  // Export errors to JSON file
+  const handleExportErrors = useCallback(() => {
+    if (!importResult) return;
+
+    // Helper to group by key
+    const groupBy = <T,>(arr: T[], key: keyof T): Record<string, T[]> => {
+      return arr.reduce((acc, item) => {
+        const k = String(item[key]);
+        if (!acc[k]) acc[k] = [];
+        acc[k].push(item);
+        return acc;
+      }, {} as Record<string, T[]>);
+    };
+
+    const exportData = {
+      exportedAt: new Date().toISOString(),
+      importJobId: importResult.jobId || 'unknown',
+      summary: {
+        duration: importResult.summary?.duration || 0,
+        totalProcessed: importResult.summary?.totalProcessed || 0,
+        totalSuccess: importResult.summary?.totalSuccess || 0,
+        totalFailed: importResult.summary?.totalFailed || 0,
+        byEntity: {
+          buildings: importResult.summary?.buildings || { created: 0, updated: 0, failed: 0 },
+          lots: importResult.summary?.lots || { created: 0, updated: 0, failed: 0 },
+          contacts: importResult.summary?.contacts || { created: 0, updated: 0, failed: 0 },
+          contracts: importResult.summary?.contracts || { created: 0, updated: 0, failed: 0 },
+        },
+      },
+      errors: {
+        all: importResult.errors || [],
+        bySheet: groupBy(importResult.errors || [] as ImportRowError[], 'sheet'),
+        byCode: groupBy(importResult.errors || [] as ImportRowError[], 'code'),
+      },
+      debug: {
+        fileName: state.file?.name || 'unknown',
+        fileSize: state.file?.size || 0,
+        parsedCounts: {
+          buildings: state.parseResult?.data?.buildings?.length || 0,
+          lots: state.parseResult?.data?.lots?.length || 0,
+          contacts: state.parseResult?.data?.contacts?.length || 0,
+          contracts: state.parseResult?.data?.contracts?.length || 0,
+        },
+        timestamp: new Date().toISOString(),
+      },
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      type: 'application/json'
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `import-errors-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [importResult, state]);
 
   // Get stats from result
   const summary = importResult?.summary;
@@ -183,9 +244,14 @@ export function ImportStepResult({ wizard, onClose }: ImportStepResultProps) {
               <AlertTriangle className="h-4 w-4 text-destructive" />
               Erreurs ({errors.length})
             </h4>
-            <Button variant="outline" size="sm">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportErrors}
+              disabled={!importResult?.errors?.length}
+            >
               <Download className="h-4 w-4 mr-2" />
-              Exporter les erreurs
+              Exporter les erreurs ({importResult?.errors?.length || 0})
             </Button>
           </div>
 
@@ -228,7 +294,7 @@ export function ImportStepResult({ wizard, onClose }: ImportStepResultProps) {
         )}
         {onClose && (
           <Button onClick={onClose}>
-            {isSuccess ? 'Fermer' : 'Retour'}
+            Terminer
           </Button>
         )}
       </div>

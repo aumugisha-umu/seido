@@ -132,7 +132,7 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
               <Button
                 variant="outline"
                 className="flex items-center space-x-2"
-                onClick={() => router.push('/gestionnaire/biens/import')}
+                onClick={() => router.push('/gestionnaire/import')}
               >
                 <Upload className="h-4 w-4" />
                 <span>Importer</span>

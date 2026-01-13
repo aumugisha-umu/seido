@@ -40,7 +40,9 @@ export class EmailRepository extends BaseRepository<Email> {
             .select()
             .single();
 
-        if (error) throw error;
+        if (error) {
+            throw error;
+        }
         return data;
     }
 

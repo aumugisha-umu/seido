@@ -124,7 +124,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                             {/* Bouton Importer */}
                             <Button
                                 variant="outline"
-                                onClick={() => router.push("/gestionnaire/biens/import")}
+                                onClick={() => router.push("/gestionnaire/import")}
                                 className="bg-card border-border text-foreground rounded-xl"
                             >
                                 <Upload className="h-4 w-4 mr-2" />

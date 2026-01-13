@@ -62,7 +62,7 @@ npx tsx scripts/check-pino-encoding.ts
 
 [13:08:59] INFO: 🎫 [INVITE-USER-SIMPLE] Process completed successfully
     invitationId: "abc-123-..."
-    email: "arthur+test@seido.pm"
+    email: "arthur+test@seido-app.com"
 
 [13:09:00] INFO: 🔍 [TEAM-INVITATIONS] Fetching all invitations for team
     teamId: "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2"
@@ -76,7 +76,7 @@ npx tsx scripts/check-pino-encoding.ts
 
 [13:08:59] INFO: [INVITE] [INVITE-USER-SIMPLE] Process completed successfully
     invitationId: "abc-123-..."
-    email: "arthur+test@seido.pm"
+    email: "arthur+test@seido-app.com"
 
 [13:09:00] INFO: [SEARCH] [TEAM-INVITATIONS] Fetching all invitations for team
     teamId: "f187f3c0-f4c1-42c3-9260-cb6ede7eb9e2"

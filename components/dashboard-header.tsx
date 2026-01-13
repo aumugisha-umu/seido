@@ -4,7 +4,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Building2, Users, Bell, Wrench, MessageSquare, Menu, X, User, Settings, LogOut, Loader2, FileText } from "lucide-react"
+import { Home, Building2, Users, Bell, Wrench, MessageSquare, Menu, X, User, Settings, LogOut, Loader2, FileText, Mail } from "lucide-react"
 import Image from "next/image"
 import UserMenu from "./user-menu"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
@@ -60,6 +60,7 @@ const roleConfigs: Record<string, HeaderConfig> = {
       { href: "/gestionnaire/contrats", label: "Contrats", icon: FileText },
       { href: "/gestionnaire/interventions", label: "Interventions", icon: Wrench },
       { href: "/gestionnaire/contacts", label: "Contacts", icon: Users },
+      { href: "/gestionnaire/mail", label: "Emails", icon: Mail },
     ],
     showUserElements: true,
   },

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
     ArrowLeft,
     Building2,
@@ -16,8 +17,10 @@ import {
     Edit,
     Trash2,
     Users,
-    ChevronRight
+    ChevronRight,
+    Eye
 } from 'lucide-react'
+import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 import { cn } from '@/lib/utils'
 import {
     AlertDialog,
@@ -69,6 +72,7 @@ export function CompanyDetailsClient({
     currentUserId
 }: CompanyDetailsClientProps) {
     const router = useRouter()
+    const [activeTab, setActiveTab] = useState('details')
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
 
@@ -180,8 +184,23 @@ export function CompanyDetailsClient({
 
             {/* Main Content */}
             <main className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
-                {/* Company Info Card */}
-                <Card>
+                {/* Tabs Navigation */}
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 bg-muted">
+                        <TabsTrigger value="details" className="flex items-center gap-2">
+                            <Eye className="h-4 w-4" />
+                            <span>Détails</span>
+                        </TabsTrigger>
+                        <TabsTrigger value="emails" className="flex items-center gap-2">
+                            <Mail className="h-4 w-4" />
+                            <span>Emails</span>
+                        </TabsTrigger>
+                    </TabsList>
+
+                    {/* Details Tab */}
+                    <TabsContent value="details" className="mt-6 space-y-6">
+                        {/* Company Info Card */}
+                        <Card>
                     <CardHeader className="pb-4">
                         <div className="flex items-center gap-4">
                             <div className="w-14 h-14 bg-purple-100 dark:bg-purple-900/30 rounded-xl flex items-center justify-center">
@@ -345,18 +364,29 @@ export function CompanyDetailsClient({
                     </Card>
                 )}
 
-                {/* Empty state for contacts */}
-                {associatedContacts.length === 0 && (
-                    <Card>
-                        <CardContent className="py-8 text-center">
-                            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                            <h3 className="font-medium mb-2">Aucun contact associé</h3>
-                            <p className="text-sm text-muted-foreground">
-                                Les contacts de cette société apparaîtront ici
-                            </p>
-                        </CardContent>
-                    </Card>
-                )}
+                        {/* Empty state for contacts */}
+                        {associatedContacts.length === 0 && (
+                            <Card>
+                                <CardContent className="py-8 text-center">
+                                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                                    <h3 className="font-medium mb-2">Aucun contact associé</h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        Les contacts de cette société apparaîtront ici
+                                    </p>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </TabsContent>
+
+                    {/* Emails Tab */}
+                    <TabsContent value="emails" className="mt-6">
+                        <EntityEmailsTab
+                            entityType="company"
+                            entityId={company.id}
+                            entityName={company.name}
+                        />
+                    </TabsContent>
+                </Tabs>
             </main>
 
             {/* Mobile Footer */}

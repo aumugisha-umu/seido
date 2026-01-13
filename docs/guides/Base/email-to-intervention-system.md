@@ -2,7 +2,7 @@
 
 ## Vue d'ensemble
 
-Cette fonctionnalité permet de transformer automatiquement les emails reçus sur les alias d'équipes (ex: `mon-agence@seido.pm`) en demandes d'intervention dans l'application Seido.
+Cette fonctionnalité permet de transformer automatiquement les emails reçus sur les alias d'équipes (ex: `mon-agence@seido-app.com`) en demandes d'intervention dans l'application Seido.
 
 **Objectif** : Simplifier la création d'interventions en permettant aux locataires/contacts d'envoyer directement un email à l'équipe gestionnaire sans passer par l'interface web.
 
@@ -17,12 +17,12 @@ Email entrant → Google Workspace → Webhook → API Seido → Base de donnée
 ### 1. Configuration Google Workspace
 
 #### 1.1 Création du compte principal
-- **Action** : Créer `gestionnaire@seido.pm` sur Google Workspace
+- **Action** : Créer `gestionnaire@seido-app.com` sur Google Workspace
 - **Pourquoi** : C'est le compte maître qui recevra tous les emails des alias. Avoir un compte dédié permet de séparer cette fonctionnalité du système principal et facilite la gestion des permissions.
 
 #### 1.2 Configuration des alias d'équipes
-- **Action** : Créer des alias comme `mon-agence@seido.pm`, `agence-paris@seido.pm`, etc.
-- **Configuration** : Tous les alias redirigent vers `gestionnaire@seido.pm`
+- **Action** : Créer des alias comme `mon-agence@seido-app.com`, `agence-paris@seido-app.com`, etc.
+- **Configuration** : Tous les alias redirigent vers `gestionnaire@seido-app.com`
 - **Pourquoi** : Les alias permettent d'avoir des adresses personnalisées par équipe tout en centralisant la réception sur un seul compte. Cela simplifie la gestion technique.
 
 #### 1.3 Configuration Gmail API

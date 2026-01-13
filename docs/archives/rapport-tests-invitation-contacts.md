@@ -181,7 +181,7 @@ export async function navigateToContacts(page: Page): Promise<void> {
 ```typescript
 test('Diagnostiquer redirection contacts → dashboard', async ({ page }) => {
   // Login
-  await loginAsGestionnaire(page, 'arthur@seido.pm', 'Wxcvbn123')
+  await loginAsGestionnaire(page, 'arthur@seido-app.com', 'Wxcvbn123')
 
   // Intercepter toutes les navigations
   page.on('framenavigated', frame => {

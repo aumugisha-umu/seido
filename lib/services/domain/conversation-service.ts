@@ -814,10 +814,21 @@ export class ConversationService {
       const user = await this.getUserWithRole(userId)
       if (!user) return false
 
-      // Managers have access to all threads in their team interventions
+      // Managers have access to all threads in their team
       if (['gestionnaire', 'admin'].includes(user.role)) {
-        const intervention = await this.interventionRepo.findById(thread.data.intervention_id)
-        return intervention.success && intervention.data?.team_id === user.team_id
+        // Case 1: Thread linked to an intervention
+        if (thread.data.intervention_id) {
+          const intervention = await this.interventionRepo.findById(thread.data.intervention_id)
+          return intervention.success && intervention.data?.team_id === user.team_id
+        }
+
+        // Case 2: Thread linked to an email (email_internal type)
+        if (thread.data.email_id && thread.data.thread_type === 'email_internal') {
+          // Email threads have team_id directly - check user belongs to same team
+          return thread.data.team_id === user.team_id
+        }
+
+        return false
       }
 
       // Check if user is a participant

@@ -8,8 +8,9 @@ export interface CreateEmailDTO {
     direction: 'received' | 'sent';
 
     message_id?: string;
-    in_reply_to?: string;
-    references?: string;
+    in_reply_to?: string;           // UUID FK (not used during sync)
+    in_reply_to_header?: string;    // RFC 5322 In-Reply-To header (Message-ID string)
+    references?: string;            // RFC 5322 References header
 
     from_address: string;
     to_addresses: string[];
@@ -109,21 +110,25 @@ export class EmailRepository extends BaseRepository<Email> {
         } else {
             // Folder logic
             if (folder === 'inbox') {
+                // Inbox: only unread received emails
                 query = query
                     .eq('direction', 'received')
-                    .neq('status', 'archived')
-                    // We can't easily filter 'deleted' if it's a soft delete column or status
-                    // Assuming status != 'deleted' if that status exists, or deleted_at is null
-                    // For now, let's assume status based filtering as per current schema usage
-                    // If 'deleted' is a status:
-                    // .neq('status', 'deleted')
-                    // But supabase doesn't support multiple neq easily on same column in all client versions without chaining
-                    // Let's chain
-                    .neq('status', 'deleted');
+                    .eq('status', 'unread')
+                    .is('deleted_at', null);
+            } else if (folder === 'processed') {
+                // Processed: read received emails (not archived)
+                query = query
+                    .eq('direction', 'received')
+                    .eq('status', 'read')
+                    .is('deleted_at', null);
             } else if (folder === 'sent') {
-                query = query.eq('direction', 'sent');
+                query = query
+                    .eq('direction', 'sent')
+                    .is('deleted_at', null);
             } else if (folder === 'archive') {
-                query = query.eq('status', 'archived');
+                query = query
+                    .eq('status', 'archived')
+                    .is('deleted_at', null);
             }
         }
 

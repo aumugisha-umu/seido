@@ -132,18 +132,13 @@ export function ContratsPageClient({
         </div>
 
         {/* Card wrapper - Structure exacte du dashboard */}
-        <div className="flex-1 flex flex-col min-h-0">
-          <div className="bg-card rounded-lg border border-border shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
-            {/* Content wrapper avec padding */}
-            <div className="flex-1 flex flex-col min-h-0 p-4">
-              <ContractsNavigator
-                contracts={contracts}
-                loading={isRefreshing}
-                onRefresh={handleRefresh}
-                onDeleteContract={handleDeleteContract}
-              />
-            </div>
-          </div>
+        <div className="bg-card rounded-lg border border-border shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
+          <ContractsNavigator
+            contracts={contracts}
+            loading={isRefreshing}
+            onRefresh={handleRefresh}
+            onDeleteContract={handleDeleteContract}
+          />
         </div>
       </div>
     </div>

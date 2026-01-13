@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button'
 // Tab components (ChatTab kept for potential reuse)
 import { ChatTab } from './chat-tab'
 import { DocumentsTab } from './documents-tab'
+import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 
 // Chat complet avec threads et temps réel
 import { InterventionChatTab } from '@/components/interventions/intervention-chat-tab'
@@ -1927,6 +1928,17 @@ export function InterventionDetailClient({
                     onChooseSlot={handleChooseSlot}
                     onOpenResponseModal={handleOpenResponseModal}
                     className="flex-1 min-h-0"
+                  />
+                </div>
+              </TabsContent>
+
+              {/* TAB: EMAILS */}
+              <TabsContent value="emails" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 p-4 sm:p-6">
+                  <EntityEmailsTab
+                    entityType="intervention"
+                    entityId={intervention.id}
+                    entityName={intervention.title}
                   />
                 </div>
               </TabsContent>

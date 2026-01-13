@@ -862,8 +862,9 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          email_id: string | null
           id: string
-          intervention_id: string
+          intervention_id: string | null
           last_message_at: string | null
           message_count: number | null
           team_id: string
@@ -874,8 +875,9 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          email_id?: string | null
           id?: string
-          intervention_id: string
+          intervention_id?: string | null
           last_message_at?: string | null
           message_count?: number | null
           team_id: string
@@ -886,8 +888,9 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          email_id?: string | null
           id?: string
-          intervention_id?: string
+          intervention_id?: string | null
           last_message_at?: string | null
           message_count?: number | null
           team_id?: string
@@ -901,6 +904,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_threads_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
             referencedColumns: ["id"]
           },
           {
@@ -1009,6 +1019,61 @@ export type Database = {
           },
         ]
       }
+      email_links: {
+        Row: {
+          email_id: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["email_link_entity_type"]
+          id: string
+          linked_at: string
+          linked_by: string | null
+          notes: string | null
+          team_id: string
+        }
+        Insert: {
+          email_id: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["email_link_entity_type"]
+          id?: string
+          linked_at?: string
+          linked_by?: string | null
+          notes?: string | null
+          team_id: string
+        }
+        Update: {
+          email_id?: string
+          entity_id?: string
+          entity_type?: Database["public"]["Enums"]["email_link_entity_type"]
+          id?: string
+          linked_at?: string
+          linked_by?: string | null
+          notes?: string | null
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_links_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_links_linked_by_fkey"
+            columns: ["linked_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_links_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emails: {
         Row: {
           bcc_addresses: string[] | null
@@ -1023,6 +1088,7 @@ export type Database = {
           from_address: string
           id: string
           in_reply_to: string | null
+          in_reply_to_header: string | null
           intervention_id: string | null
           lot_id: string | null
           message_id: string | null
@@ -1048,6 +1114,7 @@ export type Database = {
           from_address: string
           id?: string
           in_reply_to?: string | null
+          in_reply_to_header?: string | null
           intervention_id?: string | null
           lot_id?: string | null
           message_id?: string | null
@@ -1073,6 +1140,7 @@ export type Database = {
           from_address?: string
           id?: string
           in_reply_to?: string | null
+          in_reply_to_header?: string | null
           intervention_id?: string | null
           lot_id?: string | null
           message_id?: string | null
@@ -2557,70 +2625,85 @@ export type Database = {
       }
       team_email_connections: {
         Row: {
+          auth_method: string | null
           created_at: string | null
           email_address: string
           id: string
-          imap_host: string
-          imap_password_encrypted: string
+          imap_host: string | null
+          imap_password_encrypted: string | null
           imap_port: number
           imap_use_ssl: boolean | null
-          imap_username: string
+          imap_username: string | null
           is_active: boolean | null
           last_error: string | null
           last_sync_at: string | null
           last_uid: number | null
+          oauth_access_token: string | null
+          oauth_refresh_token: string | null
+          oauth_scope: string | null
+          oauth_token_expires_at: string | null
           provider: string
-          smtp_host: string
-          smtp_password_encrypted: string
+          smtp_host: string | null
+          smtp_password_encrypted: string | null
           smtp_port: number
           smtp_use_tls: boolean | null
-          smtp_username: string
+          smtp_username: string | null
           sync_from_date: string | null
           team_id: string
           updated_at: string | null
         }
         Insert: {
+          auth_method?: string | null
           created_at?: string | null
           email_address: string
           id?: string
-          imap_host: string
-          imap_password_encrypted: string
+          imap_host?: string | null
+          imap_password_encrypted?: string | null
           imap_port?: number
           imap_use_ssl?: boolean | null
-          imap_username: string
+          imap_username?: string | null
           is_active?: boolean | null
           last_error?: string | null
           last_sync_at?: string | null
           last_uid?: number | null
+          oauth_access_token?: string | null
+          oauth_refresh_token?: string | null
+          oauth_scope?: string | null
+          oauth_token_expires_at?: string | null
           provider: string
-          smtp_host: string
-          smtp_password_encrypted: string
+          smtp_host?: string | null
+          smtp_password_encrypted?: string | null
           smtp_port?: number
           smtp_use_tls?: boolean | null
-          smtp_username: string
+          smtp_username?: string | null
           sync_from_date?: string | null
           team_id: string
           updated_at?: string | null
         }
         Update: {
+          auth_method?: string | null
           created_at?: string | null
           email_address?: string
           id?: string
-          imap_host?: string
-          imap_password_encrypted?: string
+          imap_host?: string | null
+          imap_password_encrypted?: string | null
           imap_port?: number
           imap_use_ssl?: boolean | null
-          imap_username?: string
+          imap_username?: string | null
           is_active?: boolean | null
           last_error?: string | null
           last_sync_at?: string | null
           last_uid?: number | null
+          oauth_access_token?: string | null
+          oauth_refresh_token?: string | null
+          oauth_scope?: string | null
+          oauth_token_expires_at?: string | null
           provider?: string
-          smtp_host?: string
-          smtp_password_encrypted?: string
+          smtp_host?: string | null
+          smtp_password_encrypted?: string | null
           smtp_port?: number
           smtp_use_tls?: boolean | null
-          smtp_username?: string
+          smtp_username?: string | null
           sync_from_date?: string | null
           team_id?: string
           updated_at?: string | null
@@ -3874,6 +3957,7 @@ export type Database = {
         | "group"
         | "tenant_to_managers"
         | "provider_to_managers"
+        | "email_internal"
       country:
         | "belgique"
         | "france"
@@ -3884,6 +3968,13 @@ export type Database = {
         | "autre"
       document_visibility_level: "equipe" | "locataire" | "intervention"
       email_direction: "received" | "sent"
+      email_link_entity_type:
+        | "building"
+        | "lot"
+        | "contract"
+        | "contact"
+        | "company"
+        | "intervention"
       email_status: "unread" | "read" | "archived" | "deleted"
       guarantee_type:
         | "pas_de_garantie"
@@ -4172,6 +4263,7 @@ export const Constants = {
         "group",
         "tenant_to_managers",
         "provider_to_managers",
+        "email_internal",
       ],
       country: [
         "belgique",
@@ -4184,6 +4276,14 @@ export const Constants = {
       ],
       document_visibility_level: ["equipe", "locataire", "intervention"],
       email_direction: ["received", "sent"],
+      email_link_entity_type: [
+        "building",
+        "lot",
+        "contract",
+        "contact",
+        "company",
+        "intervention",
+      ],
       email_status: ["unread", "read", "archived", "deleted"],
       guarantee_type: [
         "pas_de_garantie",

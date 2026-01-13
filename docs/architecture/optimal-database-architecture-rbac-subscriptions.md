@@ -1,7 +1,16 @@
 # SEIDO - Architecture Optimale Complète de Base de Données
 
-> **Version** : 2.0.0
-> **Date** : 2025-12-29
+> **Version** : 2.1.0
+> **Date** : 2026-01-09
+
+> ⚠️ **NOTE IMPORTANTE**
+>
+> Ce document décrit l'architecture **OPTIMALE CIBLE** pour SEIDO.
+> - **État actuel (Jan 2026)** : 37 tables, 36 enums, 106 migrations
+> - **Cible optimale** : 44 tables (+7 nouvelles proposées)
+>
+> Les sections marquées **[PROPOSÉ]** ne sont pas encore implémentées.
+> Les sections marquées **[IMPLÉMENTÉ]** sont en production.
 
 ---
 
@@ -32,14 +41,15 @@
 
 ### 1.1 Statistiques Globales (Architecture Optimale)
 
-| Métrique | Valeur Actuelle | Valeur Optimale |
-|----------|-----------------|-----------------|
-| **Tables** | 35 | 44 (+9) |
-| **Enums PostgreSQL** | 31 | 37 (+6) |
+| Métrique | Valeur Actuelle (Jan 2026) | Valeur Optimale Cible |
+|----------|----------------------------|----------------------|
+| **Tables** | 37 | 44 (+7) |
+| **Enums PostgreSQL** | 36 | 40 (+4) |
 | **Fonctions RLS** | 59 | 68 (+9) |
-| **Indexes** | 100+ | 130+ |
-| **Triggers** | 15+ | 20+ |
-| **Storage Buckets** | 4 | 4 |
+| **Indexes** | 209 | 230+ |
+| **Triggers** | 47 | 55+ |
+| **Migrations** | 104 | - |
+| **Storage Buckets** | 5 | 5 |
 
 **Changements majeurs :**
 - **+4 tables Stripe** : `stripe_customers`, `stripe_products`, `stripe_prices`, `stripe_invoices`

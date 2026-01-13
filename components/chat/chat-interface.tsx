@@ -18,6 +18,7 @@ import {
   Eye
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatErrorMessage } from '@/lib/utils/error-formatter'
 
 // UI Components
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -415,7 +416,7 @@ export function ChatInterface({
       toast.success(`${documentIds.length} fichier(s) uploadé(s)`)
     },
     onUploadError: (error) => {
-      toast.error(error)
+      toast.error(formatErrorMessage(error, 'Erreur lors de l\'upload'))
     }
   })
 
@@ -466,14 +467,14 @@ export function ChatInterface({
         if (threadResult.success && threadResult.data) {
           setThread(threadResult.data)
         } else {
-          toast.error(threadResult.error || 'Erreur lors du chargement de la conversation')
+          toast.error(formatErrorMessage(threadResult.error, 'Erreur lors du chargement de la conversation'))
         }
 
         // Handle messages result
         if (messagesResult.success && messagesResult.data) {
           setMessages(messagesResult.data)
         } else {
-          toast.error(messagesResult.error || 'Erreur lors du chargement des messages')
+          toast.error(formatErrorMessage(messagesResult.error, 'Erreur lors du chargement des messages'))
         }
 
         // Handle participants result

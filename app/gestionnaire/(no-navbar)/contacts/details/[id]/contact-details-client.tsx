@@ -44,6 +44,7 @@ import { InterventionsNavigator } from "@/components/interventions/interventions
 import { PropertiesNavigator } from "@/components/properties/properties-navigator"
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
 import { StatsCard } from "@/components/dashboards/shared/stats-card"
+import { EntityEmailsTab } from "@/components/emails/entity-emails-tab"
 import { logger } from '@/lib/logger'
 import { useToast } from "@/hooks/use-toast"
 import { Clock, CheckCircle2 } from "lucide-react"
@@ -541,7 +542,8 @@ export function ContactDetailsClient({
   const tabs = [
     { id: "overview", label: "Vue d'ensemble", icon: Eye, count: null },
     { id: "interventions", label: "Interventions", icon: Wrench, count: stats.interventionStats.total },
-    { id: "properties", label: "Biens", icon: Home, count: stats.totalProperties }
+    { id: "properties", label: "Biens", icon: Home, count: stats.totalProperties },
+    { id: "emails", label: "Emails", icon: Mail, count: null }
   ]
 
   const getRoleConfig = (role: string) => {
@@ -736,7 +738,7 @@ export function ContactDetailsClient({
         {/* Tabs Navigation */}
       <div className="content-max-width px-4 sm:px-6 lg:px-8">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3 bg-muted">
+          <TabsList className="grid w-full grid-cols-4 bg-muted">
             {tabs.map((tab) => {
               const Icon = tab.icon
               return (
@@ -1283,6 +1285,15 @@ export function ContactDetailsClient({
                   showFilters={true}
                 />
               </div>
+            </TabsContent>
+
+            {/* Emails Tab */}
+            <TabsContent value="emails" className="mt-0">
+              <EntityEmailsTab
+                entityType="contact"
+                entityId={contactId}
+                entityName={contact.name}
+              />
             </TabsContent>
           </div>
         </Tabs>

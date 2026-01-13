@@ -213,7 +213,7 @@ LIMIT 10;
 ### Priorité 2 : Nettoyer les Utilisateurs de Test
 ```sql
 -- Supprimer tous les users de test
-DELETE FROM auth.users WHERE email LIKE 'arthur+test-%@seido.pm';
+DELETE FROM auth.users WHERE email LIKE 'arthur+test-%@seido-app.com';
 ```
 
 ### Priorité 3 : Finaliser Test E2E

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
-import { createLotService } from '@/lib/services/domain/lot.service'
+import { createServerLotService } from '@/lib/services/domain/lot.service'
 import type { LotInsert } from '@/lib/services/core/service-types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { createLotSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
@@ -28,23 +28,28 @@ export async function GET(request: NextRequest) {
     logger.info({
       buildingId,
       userId: userProfile.id,
-      role: userProfile.role
+      role: userProfile.role,
+      teamId: userProfile.team_id
     }, '🏠 [LOTS-API] GET request')
 
+    // Vérifier que l'utilisateur a une équipe
+    if (!userProfile.team_id) {
+      logger.warn({ userId: userProfile.id }, '⚠️ [LOTS-API] No team found for user')
+      return NextResponse.json({
+        success: false,
+        error: 'No team'
+      }, { status: 403 })
+    }
+
     // Initialiser le service
-    const lotService = await createLotService()
+    const lotService = await createServerLotService()
 
     // Récupérer les lots
     let result
     if (buildingId) {
       result = await lotService.getLotsByBuilding(buildingId)
-    } else if (page && limit) {
-      result = await lotService.getAll({
-        page: parseInt(page),
-        limit: parseInt(limit)
-      })
     } else {
-      result = await lotService.getAll()
+      result = await lotService.getLotsByTeam(userProfile.team_id)
     }
 
     if (!result.success) {
@@ -111,7 +116,7 @@ export async function POST(request: NextRequest) {
     }, '🏠 [LOTS-API] POST request - Creating lot')
 
     // Initialiser le service
-    const lotService = await createLotService()
+    const lotService = await createServerLotService()
 
     // Créer le lot
     const result = await lotService.create({

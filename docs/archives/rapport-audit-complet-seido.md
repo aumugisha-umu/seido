@@ -1311,7 +1311,7 @@ teamId: ''
 
 **Erreur observée:**
 ```json
-{email: 'arthur+1@seido.pm', teamId: ''} '🔍 [CONTACT-FORM] Checking email...'
+{email: 'arthur+1@seido-app.com', teamId: ''} '🔍 [CONTACT-FORM] Checking email...'
 ❌ [DASHBOARD-CLIENT] No team found
 ```
 
@@ -3379,10 +3379,10 @@ Le système **auto-healing multi-agents** représente une **évolution majeure**
 ```
 
 **Workflow complet validé :**
-- ✅ **Connexion gestionnaire** : arthur@seido.pm authentifié
+- ✅ **Connexion gestionnaire** : arthur@seido-app.com authentifié
 - ✅ **Navigation vers Contacts** : Accès direct `/gestionnaire/contacts` fonctionnel
 - ✅ **Ouverture formulaire** : Modal "Créer un contact" s'affiche correctement
-- ✅ **Remplissage formulaire** : Prénom (Jean), Nom (Dupont), Email (arthur+loc2@seido.pm)
+- ✅ **Remplissage formulaire** : Prénom (Jean), Nom (Dupont), Email (arthur+loc2@seido-app.com)
 - ⚠️ **Validation découverte** : Type de contact requis (locataire/prestataire/autre)
 - ✅ **Gestion état vide** : Page contacts affiche correctement "Aucun contact" avec boutons d'action
 - ✅ **Screenshots générés** : 7 captures du workflow pour documentation
@@ -3592,11 +3592,11 @@ Taux Global Réussite:  ████░░░░░░  40% 🔴 NON PRÊT PRODU
 L'agent tester spécialisé pour SEIDO a été configuré et déployé avec succès. Voici le résumé de la configuration :
 
 #### Configuration Multi-Rôles
-- **4 rôles utilisateur** configurés avec comptes de test standardisés (arthur+XXX@seido.pm)
-  - Admin (arthur+003@seido.pm)
-  - Gestionnaire (arthur+000@seido.pm)
-  - Prestataire (arthur+001@seido.pm)
-  - Locataire (arthur+002@seido.pm)
+- **4 rôles utilisateur** configurés avec comptes de test standardisés (arthur+XXX@seido-app.com)
+  - Admin (arthur+003@seido-app.com)
+  - Gestionnaire (arthur+000@seido-app.com)
+  - Prestataire (arthur+001@seido-app.com)
+  - Locataire (arthur+002@seido-app.com)
 
 #### Workflows Critiques Définis
 1. **intervention-complete-workflow**: Cycle complet d'intervention multi-rôles
@@ -4648,10 +4648,10 @@ npm run lint          # ⚠️ 293 warnings (au lieu d'erreurs bloquantes)
 
 | Rôle | Email | Statut | Problème |
 |------|-------|--------|----------|
-| Admin | admin@seido.pm | ❌ FAIL | Credentials invalides |
+| Admin | admin@seido-app.com | ❌ FAIL | Credentials invalides |
 | Gestionnaire | arthur@umumentum.com | ✅ PASS | Connexion réussie |
-| Prestataire | arthur+prest@seido.pm | ❌ FAIL | Timeout page login |
-| Locataire | arthur+loc@seido.pm | ❌ FAIL | Timeout page login |
+| Prestataire | arthur+prest@seido-app.com | ❌ FAIL | Timeout page login |
+| Locataire | arthur+loc@seido-app.com | ❌ FAIL | Timeout page login |
 
 **Taux de succès: 25%** - Seul le compte gestionnaire fonctionne correctement.
 
@@ -4817,8 +4817,8 @@ Succès:
 
 #### 1. **Authentification Défaillante (75% d'échec)**
 - ✅ **Gestionnaire (arthur@umumentum.com):** Connexion fonctionnelle
-- ❌ **Prestataire (arthur+prest@seido.pm):** Perte des éléments DOM après connexion
-- ❌ **Locataire (arthur+loc@seido.pm):** Perte des éléments DOM après connexion
+- ❌ **Prestataire (arthur+prest@seido-app.com):** Perte des éléments DOM après connexion
+- ❌ **Locataire (arthur+loc@seido-app.com):** Perte des éléments DOM après connexion
 - ⚠️ **Absence de bouton de déconnexion** sur tous les dashboards
 
 #### 2. **Dashboards Complètement Inutilisables (0% de succès)**

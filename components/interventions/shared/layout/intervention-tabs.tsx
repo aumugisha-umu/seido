@@ -13,7 +13,7 @@
 
 import { cn } from '@/lib/utils'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { FileText, MessageSquare, Calendar } from 'lucide-react'
+import { FileText, MessageSquare, Calendar, Mail } from 'lucide-react'
 import { UserRole } from '../types'
 
 export interface InterventionTabsProps {
@@ -54,6 +54,11 @@ const getTabsConfig = (role: UserRole) => {
           value: 'planning',
           label: 'Planning et Devis',
           icon: Calendar
+        },
+        {
+          value: 'emails',
+          label: 'Emails',
+          icon: Mail
         }
       ]
     case 'provider':
@@ -97,7 +102,10 @@ export const InterventionTabs = ({
     >
       {/* Navigation des onglets - avec padding pour espacement du bord */}
       <div className="px-4 sm:px-6 pt-4 sm:pt-6 flex-shrink-0">
-        <TabsList className="grid w-full grid-cols-3 mb-4">
+        <TabsList className={cn(
+          "grid w-full mb-4",
+          tabsConfig.length === 4 ? "grid-cols-4" : "grid-cols-3"
+        )}>
         {tabsConfig.map((tab) => {
           const Icon = tab.icon
           return (

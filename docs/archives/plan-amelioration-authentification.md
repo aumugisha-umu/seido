@@ -103,7 +103,7 @@ Résoudre les problèmes d'authentification identifiés lors des tests automatis
 **Impact:** Redirection role-based fonctionne parfaitement
 
 ### Bug #3: Browser Autofill Cache ✅
-**Symptôme:** Tests utilisaient anciennes credentials (arthur+admin@seido.pm)
+**Symptôme:** Tests utilisaient anciennes credentials (arthur+admin@seido-app.com)
 **Cause:** Playwright cachait les valeurs d'autofill du navigateur
 **Solution:** Clear explicite des champs avant fill
 **Fichier:** `docs/refacto/Tests/simple-login.spec.ts` lignes 25-26
@@ -183,9 +183,9 @@ lib/
    - Configuration Playwright optimisée (headed mode, slowMo)
 
 2. **Créer suite de tests complète:**
-   - Test login + dashboard pour **Gestionnaire** (arthur@seido.pm)
-   - Test login + dashboard pour **Prestataire** (arthur+prest@seido.pm)
-   - Test login + dashboard pour **Locataire** (arthur+loc@seido.pm)
+   - Test login + dashboard pour **Gestionnaire** (arthur@seido-app.com)
+   - Test login + dashboard pour **Prestataire** (arthur+prest@seido-app.com)
+   - Test login + dashboard pour **Locataire** (arthur+loc@seido-app.com)
    - Validation chargement données dans chaque dashboard
    - Vérification éléments spécifiques par rôle
 
@@ -284,8 +284,8 @@ lib/
 ### ✅ TODO 4.3 : Tests E2E Complets des 4 Rôles
 - [ ] Créer test pour Admin (credentials à définir)
 - [ ] Valider test Gestionnaire (arthur@umumentum.com)
-- [ ] Valider test Prestataire (arthur+prest@seido.pm)
-- [ ] Valider test Locataire (arthur+loc@seido.pm)
+- [ ] Valider test Prestataire (arthur+prest@seido-app.com)
+- [ ] Valider test Locataire (arthur+loc@seido-app.com)
 - [ ] Tester workflow complet : login → dashboard → logout
 - [ ] Ajouter test de permissions par rôle
 - **Critère de succès :** 4/4 rôles testés avec succès 95%+

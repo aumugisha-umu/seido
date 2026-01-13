@@ -46,7 +46,7 @@ Après un login réussi, l'utilisateur est redirigé vers son dashboard mais :
 ### Logs Serveur (SANS refresh) - ✅ TOUT FONCTIONNE
 ```javascript
 // Login réussit
-✅ [LOGIN-ACTION] User authenticated: arthur@seido.pm
+✅ [LOGIN-ACTION] User authenticated: arthur@seido-app.com
 🔄 [LOGIN-ACTION] Determined role-specific dashboard: { role: 'gestionnaire', dashboard: '/gestionnaire/dashboard' }
 🚀 [LOGIN-ACTION] Authentication successful, returning redirect path
 
@@ -54,7 +54,7 @@ Après un login réussi, l'utilisateur est redirigé vers son dashboard mais :
 ✅ [DAL] Valid session found for user: 751e8672-cd51-4ff1-968f-50b8708834ac
 ✅ [DAL] Complete user profile loaded: {
   id: 'd5f38423-efef-4d1a-8abf-2a3cd4fed572',
-  email: 'arthur@seido.pm',
+  email: 'arthur@seido-app.com',
   name: 'Arthur Umugisha',
   role: 'gestionnaire',
   team_id: '271ee351-19c7-42e5-afab-243de46b2166'
@@ -95,7 +95,7 @@ Après un login réussi, l'utilisateur est redirigé vers son dashboard mais :
 🔄 [AUTH-STATE-CHANGE] Event: INITIAL_SESSION Has session: true
 ✅ [AUTH-SERVICE-REFACTORED] User profile found: {
   id: "d5f38423-efef-4d1a-8abf-2a3cd4fed572",
-  email: "arthur@seido.pm",
+  email: "arthur@seido-app.com",
   name: "Arthur Umugisha",
   role: "gestionnaire"
 }
@@ -329,7 +329,7 @@ npm run dev
 2. **Ouvrir les DevTools** : Console (pour voir les logs client)
 3. **Ouvrir un terminal** : Voir les logs serveur
 4. **Se connecter** :
-   - Email: `arthur@seido.pm`
+   - Email: `arthur@seido-app.com`
    - Password: `Wxcvbn123`
 5. **Cliquer sur "Se connecter"**
 6. **Observer** :
@@ -500,7 +500,7 @@ export const createClient = () => {
 
 **Tests E2E** (Playwright) :
 ```typescript
-await page.fill('input[type="email"]', 'arthur+gest@seido.pm')
+await page.fill('input[type="email"]', 'arthur+gest@seido-app.com')
 await page.fill('input[type="password"]', 'Wxcvbn123')
 await page.click('button[type="submit"]')
 await page.waitForTimeout(2000)

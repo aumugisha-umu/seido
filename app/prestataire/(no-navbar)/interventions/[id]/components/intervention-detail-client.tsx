@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { formatErrorMessage } from '@/lib/utils/error-formatter'
 import { createBrowserSupabaseClient } from '@/lib/services'
 
 // Composants partagés pour le nouveau design
@@ -415,7 +416,7 @@ export function PrestataireInterventionDetailClient({
         toast.success('Créneau accepté avec succès')
         handleRefresh()
       } else {
-        toast.error(result.error || 'Erreur lors de l\'acceptation du créneau')
+        toast.error(formatErrorMessage(result.error, 'Erreur lors de l\'acceptation du créneau'))
       }
     } catch (error) {
       console.error('Error accepting slot:', error)

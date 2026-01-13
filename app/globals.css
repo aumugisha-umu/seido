@@ -731,7 +731,7 @@ input[autocomplete="cc-number"],
   .break-words img {
     max-width: 100% !important;
     height: auto !important;
-    width: auto !important;
+    /* width: auto supprimé - permet aux images de garder leur largeur originale si < max-width */
   }
 
   .prose td,

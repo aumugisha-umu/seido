@@ -12,6 +12,7 @@ import { TabsContent } from '@/components/ui/tabs'
 import { DocumentsTab } from '@/app/gestionnaire/(no-navbar)/interventions/[id]/components/documents-tab'
 import { selectTimeSlotAction, validateByTenantAction } from '@/app/actions/intervention-actions'
 import { toast } from 'sonner'
+import { formatErrorMessage } from '@/lib/utils/error-formatter'
 import { Building2, MapPin, Calendar } from 'lucide-react'
 
 // Composants partagés pour le nouveau design
@@ -333,7 +334,7 @@ export function LocataireInterventionDetailClient({
         toast.success('Créneau sélectionné avec succès')
         router.refresh()
       } else {
-        toast.error(result.error)
+        toast.error(formatErrorMessage(result.error, 'Erreur lors de la sélection du créneau'))
       }
     } catch (error) {
       console.error('Error selecting slot:', error)
@@ -349,7 +350,7 @@ export function LocataireInterventionDetailClient({
         toast.success('Travaux validés avec succès')
         router.refresh()
       } else {
-        toast.error(result.error)
+        toast.error(formatErrorMessage(result.error, 'Erreur lors de la validation des travaux'))
       }
     } catch (error) {
       console.error('Error validating work:', error)

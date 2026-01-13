@@ -31,7 +31,7 @@ export class EmailClientService {
     /**
      * Fetch email counts
      */
-    static async getCounts(): Promise<{ inbox: number; sent: number; archive: number; drafts: number }> {
+    static async getCounts(): Promise<{ inbox: number; processed: number; sent: number; archive: number; drafts: number }> {
         const response = await fetch('/api/emails/counts');
         if (!response.ok) {
             throw new Error('Failed to fetch email counts');

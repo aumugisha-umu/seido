@@ -28,7 +28,7 @@ module.exports = async (browser, { url }) => {
   console.log('[Lighthouse Auth] Filling login form...');
 
   // Remplir le formulaire de connexion
-  await page.type('#email', 'arthur@seido.pm', { delay: 50 });
+  await page.type('#email', 'arthur@seido-app.com', { delay: 50 });
   await page.type('#password', 'Wxcvbn123', { delay: 50 });
 
   console.log('[Lighthouse Auth] Submitting form...');

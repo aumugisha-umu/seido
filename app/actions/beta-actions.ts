@@ -130,7 +130,7 @@ export async function validateBetaPassword(
 
 /**
  * ✅ SERVER ACTION: Soumettre une demande d'intérêt beta
- * Envoie un email de notification à contact@seido.pm
+ * Envoie un email de notification à contact@seido-app.com
  */
 export async function submitBetaInterest(
   prevState: BetaActionResult,

@@ -133,16 +133,16 @@ This file provides guidance to Claude Code when working with this repository.
 
 **Current Status**: ✅ **Production Ready**
 - **Architecture**: Repository Pattern + Service Layer
-- **Infrastructure**: 8 repositories, 10 services, 70+ API routes, 30+ hooks
+- **Infrastructure**: 20 repositories, 27 domain services, 97 API routes, 60 hooks, 15 server actions
 - **Testing**: Unit tests + E2E suite with auto-healing
-- **Database**: Phase 1 & 2 applied, Phase 3 planned (interventions)
-- **Current Focus**: Performance optimizations completed (Realtime + Caching)
+- **Database**: All phases applied (Phase 1-4 + RLS optimizations + Jan 2026 features)
+- **Current Focus**: User Experience (Google OAuth, Onboarding, Avatars)
 
 ## Development Commands
 
 **Notes spéciales** :
 - Port 3000 occupé ? Fermer processus + clean cache + relancer
-- Tests : toujours référencer `tests-new/` et maintenir structure
+- Tests : référencer `tests/` pour les tests E2E
 - **⚠️ IMPORTANT après un build** : S'assurer que tous les processus Node sont terminés avant de relancer le serveur de développement
 
 ```bash
@@ -221,39 +221,41 @@ npm run supabase:migrate # New migration
 - **Core**: Next.js 15.2.4, React 19, TypeScript 5 (strict)
 - **UI**: Tailwind v4, shadcn/ui (50+ components), Lucide React
 - **Backend**: Supabase (PostgreSQL + RLS), @supabase/ssr
-- **State**: React Context, 30+ custom hooks, React Hook Form + Zod
+- **State**: React Context (3 contexts), 60 custom hooks, React Hook Form + Zod
 - **Caching**: Redis (ioredis), LRU cache, DataLoader
 - **Testing**: Vitest, Playwright, @testing-library/react
-- **Email**: Resend (planned)
+- **Email**: Resend + React Email (18 templates, integrated)
 - **Notifications**: Server Actions → Domain Service → Repository (NEW: 2025-11-22)
 
 ### Key Directories
 ```
 app/[role]/          # Role-based routes (admin, gestionnaire, prestataire, locataire)
-components/          # 50+ shadcn/ui + dashboards + intervention workflow
-hooks/               # 30+ custom hooks (auth, interventions, quotes, caching)
+components/          # 270+ components (50+ shadcn/ui + dashboards + intervention workflow)
+hooks/               # 60 custom hooks (auth, interventions, quotes, caching, realtime, analytics)
 lib/services/        # Repository Pattern architecture
   ├── core/          # Supabase clients, base repository, error handler
-  ├── repositories/  # 8 repositories (user, building, lot, contact, intervention, team, stats)
-  ├── domain/        # 10 services (business logic)
+  ├── repositories/  # 20 repositories (full data access layer)
+  ├── domain/        # 27 services (business logic)
   └── __tests__/     # Unit + integration tests
-docs/refacto/Tests/  # E2E test infrastructure (helpers, fixtures, suites)
+tests/               # E2E test infrastructure (helpers, fixtures, suites)
 ```
 
-### Database Migration Status (2025-12-26)
+### Database Migration Status (2026-01-09)
 - ✅ **Phase 1**: Users, Teams, Companies, Invitations **(Applied)**
 - ✅ **Phase 2**: Buildings, Lots, Property Documents **(Applied)**
-- ✅ **Phase 3**: Interventions, Chat, Notifications **(Applied)**
-- ✅ **Phase 4**: Contracts, Contract Documents **(Applied)**
+- ✅ **Phase 3**: Interventions, Chat, Notifications, Email System **(Applied)**
+- ✅ **Phase 4**: Contracts, Contract Documents, Import Jobs **(Applied)**
 - ✅ **Optimisations RLS**: Dénormalisation team_id + Vues _active **(Applied 2025-12-26)**
+- ✅ **Phase 5**: Intervention Types, Participant Confirmation, Avatars **(Applied Jan 2026)**
 
 **Statistiques DB :**
-- **35 tables** réparties en 4 phases
-- **31 enums** PostgreSQL
+- **37 tables** réparties en 5 phases
+- **36 enums** PostgreSQL
 - **59 fonctions RLS** (toutes SECURITY DEFINER)
-- **147+ indexes** (partiels, composites, covering)
+- **209 indexes** (partiels, composites, covering)
+- **47 triggers** (synchronisation données)
 - **4 vues _active** pour données non-supprimées
-- **101+ migrations** SQL
+- **104 migrations** SQL
 
 **Key Tables**:
 - Phase 1: `users`, `teams`, `team_members`, `companies`, `user_invitations`, `company_members`
@@ -426,11 +428,16 @@ const supabase = await createServerSupabaseClient()
 - `error-handler.ts` - Centralized validation + exceptions
 - `service-types.ts` - Strict TypeScript interfaces
 
-**Repositories** (8 total):
-- User, Building, Lot, Contact, Intervention, Team, TeamMember, Stats
+**Repositories** (20 total):
+- User, Building, Lot, LotContact, Contact, Intervention, InterventionComment, Team, TeamMember, Stats
+- PropertyDocument, Conversation, Email, EmailBlacklist, EmailConnection
+- Notification, Quote, ImportJob, Company, Contract
 
-**Domain Services** (10 total):
+**Domain Services** (27 total):
 - User, Building, Lot, Tenant, Contact, ContactInvitation, Team, Intervention, Stats, Composite
+- Conversation, Email, EmailSync, IMAP, SMTP, Encryption, Notification, NotificationDispatcher
+- NotificationHelpers, EmailNotification, MagicLink, Storage, PropertyDocument
+- Import, CompanyLookup, Contract, EmailConnectionTest
 
 **Additional Services**:
 - AuthService, FileService, CacheManager, QueryOptimizer, InterventionActionsService
@@ -748,6 +755,84 @@ await handleSuccess({
 - API route pattern: `app/gestionnaire/(no-navbar)/interventions/nouvelle-intervention/nouvelle-intervention-client.tsx`
 - Deprecated hook: `hooks/use-creation-success.ts` (marked @deprecated)
 
+### Google OAuth Authentication (NEW: 2026-01)
+
+**Login/Signup with Google** - OAuth intégré via Supabase Auth.
+
+```typescript
+// In login/signup forms
+import { createBrowserSupabaseClient } from '@/lib/services'
+
+const handleGoogleAuth = async () => {
+  const supabase = createBrowserSupabaseClient()
+  await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`
+    }
+  })
+}
+```
+
+**Files**:
+- `app/auth/login/login-form.tsx` - Google button integration
+- `app/auth/signup/signup-form.tsx` - Google button integration
+- `app/auth/callback/page.tsx` - OAuth callback handler
+
+### Onboarding Modal (NEW: 2026-01)
+
+**5-slide carousel** pour nouveaux utilisateurs après première connexion.
+
+**Features**:
+- Carousel avec 5 slides d'introduction
+- Affichage unique après premier login
+- Stockage en `localStorage` pour éviter répétition
+
+**Files**:
+- `components/auth/onboarding-modal.tsx` - Modal carousel component
+- Layout files: `app/gestionnaire/layout.tsx`, `app/prestataire/layout.tsx`, `app/locataire/layout.tsx`
+
+### Avatar System (NEW: 2026-01)
+
+**Upload et affichage** des photos de profil utilisateur.
+
+```typescript
+// Profile page avatar upload
+const { data } = await supabase.storage
+  .from('avatars')
+  .upload(`${userId}/${filename}`, file)
+```
+
+**Files**:
+- `app/api/upload-avatar/route.ts` - Upload API endpoint
+- `components/profile-page.tsx` - Avatar display + upload UI
+- `components/dashboard-header.tsx` - Avatar in header
+- Migration: `20260109120000_create_avatars_bucket.sql`
+
+**Storage Bucket**: `avatars` (public, user-scoped paths)
+
+### Participant Confirmation (NEW: 2026-01)
+
+**Système de confirmation** pour participants aux interventions.
+
+**Fields** (table `intervention_assignments`):
+- `requires_confirmation` - Flag si confirmation requise
+- `confirmation_status` - pending/confirmed/declined
+- `confirmed_at` - Timestamp de confirmation
+
+**Migration**: `20260108000000_add_participant_confirmation.sql`
+
+### Intervention Types Dynamic (NEW: 2026-01)
+
+**Refactoring** de `intervention_type` : ENUM → VARCHAR avec tables de référence.
+
+**Changes**:
+- `intervention_type_categories` - 3 catégories (plomberie, électricité, etc.)
+- `intervention_types` - 35+ types avec icônes et couleurs
+- Support hiérarchique pour filtrage UI
+
+**Migration**: `20260105000000_intervention_types_categories.sql`
+
 ### Testing
 
 **E2E Tests** (`docs/refacto/Tests/`):
@@ -818,8 +903,8 @@ npm test -- --coverage                 # Coverage
 
 5. **Quick reference**:
    - **Types**: `lib/database.types.ts`
-   - **Schema**: `supabase/migrations/*.sql` (22 migrations currently)
-   - **RLS Functions**: `is_admin()`, `is_gestionnaire()`, `is_team_manager()`, `get_building_team_id()`, `get_lot_team_id()`, `is_tenant_of_lot()`, `can_view_building()`, `can_view_lot()`
+   - **Schema**: `supabase/migrations/*.sql` (104 migrations currently)
+   - **RLS Functions**: `is_admin()`, `is_gestionnaire()`, `is_team_manager()`, `get_building_team_id()`, `get_lot_team_id()`, `is_tenant_of_lot()`, `can_view_building()`, `can_view_lot()`, `get_accessible_intervention_ids()`
    - **Regenerate types**: `npm run supabase:types`
 
 **Example debugging session**:
@@ -939,6 +1024,6 @@ npm test -- --coverage                 # Coverage
 
 ---
 
-**Last Updated**: 2025-12-26
+**Last Updated**: 2026-01-09
 **Status**: ✅ Production Ready
-**Current Focus**: DB Optimizations (RLS denormalization + _active views)
+**Current Focus**: User Experience (Google OAuth, Onboarding, Avatars, Intervention Types)

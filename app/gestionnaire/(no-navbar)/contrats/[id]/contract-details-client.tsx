@@ -32,7 +32,8 @@ import {
   Shield,
   MoreVertical,
   Download,
-  Eye
+  Eye,
+  Mail
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -52,6 +53,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
+import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 import { logger } from '@/lib/logger'
 import type {
   ContractWithRelations,
@@ -292,6 +294,10 @@ export default function ContractDetailsClient({
             <TabsTrigger value="documents" className="flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Documents ({documents.length})
+            </TabsTrigger>
+            <TabsTrigger value="emails" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Emails
             </TabsTrigger>
           </TabsList>
 
@@ -574,6 +580,19 @@ export default function ContractDetailsClient({
                     </Button>
                   </div>
                 )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Emails Tab */}
+          <TabsContent value="emails" className="space-y-6">
+            <Card>
+              <CardContent className="p-0">
+                <EntityEmailsTab
+                  entityType="contract"
+                  entityId={contract.id}
+                  entityName={`Contrat ${contract.type}`}
+                />
               </CardContent>
             </Card>
           </TabsContent>

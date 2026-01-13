@@ -9,11 +9,35 @@ export async function GET(request: Request) {
 
         const { supabase, userProfile } = authResult.data;
 
-        if (!userProfile?.team_id) {
-            return NextResponse.json({ error: 'User has no team' }, { status: 403 });
+        // Récupérer le team_id depuis team_members (source de vérité)
+        // Cela garantit la cohérence avec les politiques RLS
+        const { data: membership, error: membershipError } = await supabase
+            .from('team_members')
+            .select('team_id')
+            .eq('user_id', userProfile?.id)
+            .in('role', ['gestionnaire', 'admin'])
+            .is('left_at', null)
+            .single();
+
+        if (membershipError || !membership?.team_id) {
+            console.warn('📧 [EMAILS-API] No team membership found:', {
+                userId: userProfile?.id,
+                userTeamId: userProfile?.team_id,
+                membershipError: membershipError?.message
+            });
+            return NextResponse.json({ error: 'User is not a team manager' }, { status: 403 });
         }
 
-        const teamId = userProfile.team_id;
+        const teamId = membership.team_id;
+
+        // Debug: Compare les deux sources de team_id
+        if (userProfile?.team_id !== teamId) {
+            console.warn('📧 [EMAILS-API] Team ID mismatch!', {
+                usersTableTeamId: userProfile?.team_id,
+                teamMembersTeamId: teamId
+            });
+        }
+
         const emailRepo = new EmailRepository(supabase);
 
         const { searchParams } = new URL(request.url);
@@ -22,11 +46,15 @@ export async function GET(request: Request) {
         const offset = parseInt(searchParams.get('offset') || '0');
         const search = searchParams.get('search') || undefined;
 
+        console.log('📧 [EMAILS-API] Fetching emails:', { teamId, folder, limit, offset, search });
+
         const result = await emailRepo.getEmailsByFolder(teamId, folder, {
             limit,
             offset,
             search
         });
+
+        console.log('📧 [EMAILS-API] Result:', { emailCount: result.data.length, total: result.count });
 
         return NextResponse.json({
             emails: result.data,

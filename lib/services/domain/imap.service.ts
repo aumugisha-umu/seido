@@ -2,9 +2,12 @@ import Imap from 'node-imap';
 import { simpleParser, ParsedMail } from 'mailparser';
 import { TeamEmailConnection } from '@/lib/types/email-integration';
 import { EncryptionService } from './encryption.service';
+import { GmailOAuthService } from './gmail-oauth.service';
 
 export interface ParsedEmail {
     messageId: string;
+    inReplyTo?: string;      // RFC 5322 In-Reply-To header for threading
+    references?: string;     // RFC 5322 References header for threading
     from: string;
     to: string[];
     subject: string;
@@ -19,25 +22,94 @@ export interface ParsedEmail {
     }[];
 }
 
+/**
+ * Configuration IMAP pour différentes méthodes d'authentification
+ */
+interface ImapConfig {
+    user: string;
+    password?: string;
+    xoauth2?: string;
+    host: string;
+    port: number;
+    tls: boolean;
+    tlsOptions: { rejectUnauthorized: boolean };
+    connTimeout: number;
+    authTimeout: number;
+}
+
 export class ImapService {
+    /**
+     * Construit la configuration IMAP selon la méthode d'authentification
+     */
+    private static async buildImapConfig(
+        connection: TeamEmailConnection
+    ): Promise<ImapConfig> {
+        const baseConfig: ImapConfig = {
+            user: connection.imap_username || connection.email_address,
+            host: connection.imap_host,
+            port: connection.imap_port,
+            tls: connection.imap_use_ssl,
+            tlsOptions: { rejectUnauthorized: false },
+            connTimeout: 30000,
+            authTimeout: 10000
+        };
+
+        if (connection.auth_method === 'oauth') {
+            // Authentification OAuth avec XOAUTH2
+            if (!connection.oauth_access_token || !connection.oauth_refresh_token) {
+                throw new Error('OAuth tokens manquants pour la connexion');
+            }
+
+            // Déchiffrer les tokens
+            const { accessToken, refreshToken } = GmailOAuthService.decryptTokens(
+                connection.oauth_access_token,
+                connection.oauth_refresh_token
+            );
+
+            // Vérifier si le token est expiré et le rafraîchir si nécessaire
+            let finalAccessToken = accessToken;
+            if (connection.oauth_token_expires_at) {
+                const isExpired = GmailOAuthService.isTokenExpired(
+                    new Date(connection.oauth_token_expires_at)
+                );
+
+                if (isExpired) {
+                    console.log('Access token expiré, rafraîchissement en cours...');
+                    const refreshed = await GmailOAuthService.refreshAccessToken(refreshToken);
+                    finalAccessToken = refreshed.accessToken;
+
+                    // Note: Le nouveau token devrait être sauvegardé en DB
+                    // Cela sera géré par le service de sync qui a accès à Supabase
+                    console.log('Token rafraîchi avec succès');
+                }
+            }
+
+            // Générer le token XOAUTH2
+            baseConfig.xoauth2 = GmailOAuthService.generateXOAuth2Token(
+                connection.email_address,
+                finalAccessToken
+            );
+        } else {
+            // Authentification par mot de passe classique
+            if (!connection.imap_password_encrypted) {
+                throw new Error('Mot de passe IMAP manquant pour la connexion');
+            }
+            baseConfig.password = EncryptionService.decrypt(
+                connection.imap_password_encrypted
+            );
+        }
+
+        return baseConfig;
+    }
+
     static async fetchNewEmails(
         connection: TeamEmailConnection
     ): Promise<{ emails: ParsedEmail[], maxUid: number }> {
-        return new Promise((resolve, reject) => {
-            const password = EncryptionService.decrypt(
-                connection.imap_password_encrypted
-            );
+        // Construire la configuration IMAP
+        const imapConfig = await this.buildImapConfig(connection);
 
-            const imap = new Imap({
-                user: connection.imap_username,
-                password,
-                host: connection.imap_host,
-                port: connection.imap_port,
-                tls: connection.imap_use_ssl,
-                tlsOptions: { rejectUnauthorized: false },
-                connTimeout: 30000,
-                authTimeout: 10000
-            });
+        return new Promise((resolve, reject) => {
+            const imap = new Imap(imapConfig);
 
             const parsedEmails: ParsedEmail[] = [];
             let maxUid = connection.last_uid || 0;
@@ -101,8 +173,18 @@ export class ImapService {
                                 msg.once('end', () => {
                                     simpleParser(buffer)
                                         .then(parsed => {
+                                            // mailparser returns references as string or array
+                                            let referencesStr: string | undefined;
+                                            if (parsed.references) {
+                                                referencesStr = Array.isArray(parsed.references)
+                                                    ? parsed.references.join(' ')
+                                                    : parsed.references;
+                                            }
+
                                             parsedEmails.push({
                                                 messageId: parsed.messageId || '',
+                                                inReplyTo: parsed.inReplyTo || undefined,
+                                                references: referencesStr,
                                                 from: parsed.from?.text || '',
                                                 to: Array.isArray(parsed.to) ? parsed.to.map(t => t.text) : [parsed.to?.text || ''],
                                                 subject: parsed.subject || '',

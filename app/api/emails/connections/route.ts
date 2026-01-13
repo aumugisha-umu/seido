@@ -20,20 +20,44 @@ export async function GET() {
         const connectionRepo = new EmailConnectionRepository(supabase);
 
         const queryStart = Date.now();
-        // Get all connections for the team
+        // Get all connections for the team (including OAuth fields)
         const { data: connections, error } = await supabase
             .from('team_email_connections')
-            .select('id, provider, email_address, is_active, last_sync_at, last_error, sync_from_date, created_at')
+            .select('id, provider, email_address, is_active, last_sync_at, last_error, sync_from_date, created_at, auth_method, oauth_token_expires_at')
             .eq('team_id', userProfile.team_id)
             .order('created_at', { ascending: false });
         console.log(`[PERF] DB query completed in ${Date.now() - queryStart}ms`);
 
         if (error) throw error;
 
-        // Return connections without email count for now (performance optimization)
+        // Get email counts for each connection in a single query
+        const countStart = Date.now();
+        const connectionIds = (connections || []).map(c => c.id);
+
+        let emailCounts: Record<string, number> = {};
+        if (connectionIds.length > 0) {
+            const { data: counts, error: countError } = await supabase
+                .from('emails')
+                .select('email_connection_id')
+                .in('email_connection_id', connectionIds);
+
+            if (!countError && counts) {
+                // Count emails per connection
+                emailCounts = counts.reduce((acc, email) => {
+                    const connId = email.email_connection_id;
+                    if (connId) {
+                        acc[connId] = (acc[connId] || 0) + 1;
+                    }
+                    return acc;
+                }, {} as Record<string, number>);
+            }
+        }
+        console.log(`[PERF] Email count query completed in ${Date.now() - countStart}ms`);
+
+        // Merge connections with their email counts
         const connectionsWithCount = (connections || []).map(conn => ({
             ...conn,
-            email_count: 0
+            email_count: emailCounts[conn.id] || 0
         }));
 
         console.log(`[PERF] Total request time: ${Date.now() - startTime}ms`);

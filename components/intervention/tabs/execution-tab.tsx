@@ -15,6 +15,7 @@ import { Calendar, Clock, User, Check, Edit, X, Shield, Wrench, Home, CheckCircl
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
+import { formatErrorMessage } from '@/lib/utils/error-formatter'
 import {
   selectTimeSlotAction,
   acceptTimeSlotAction,
@@ -150,7 +151,7 @@ export function ExecutionTab({
         toast.success('Créneau sélectionné avec succès')
         window.location.reload()
       } else {
-        toast.error(result.error)
+        toast.error(formatErrorMessage(result.error, 'Erreur lors de la sélection du créneau'))
       }
     } catch (error) {
       console.error('Error selecting slot:', error)
@@ -187,7 +188,7 @@ export function ExecutionTab({
         window.location.reload()
       } else {
         console.error('❌ [ExecutionTab] Failed to accept slot:', result.error)
-        toast.error(result.error || 'Erreur lors de l\'acceptation du créneau')
+        toast.error(formatErrorMessage(result.error, 'Erreur lors de l\'acceptation du créneau'))
       }
     } catch (error) {
       console.error('❌ [ExecutionTab] Exception in handleAcceptSlot:', {
@@ -211,7 +212,7 @@ export function ExecutionTab({
         toast.success('Réponse retirée')
         window.location.reload()
       } else {
-        toast.error(result.error)
+        toast.error(formatErrorMessage(result.error, 'Erreur lors du retrait de la réponse'))
       }
     } catch (error) {
       console.error('Error withdrawing response:', error)

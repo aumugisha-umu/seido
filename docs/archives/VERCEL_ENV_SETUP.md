@@ -45,7 +45,7 @@ NEXT_PUBLIC_SITE_URL=https://votre-app.vercel.app
 
 ```bash
 RESEND_API_KEY=re_7L8FJmFX_DSUTX5VraEr1VA1HtxtHLJne
-RESEND_FROM_EMAIL="SEIDO <noreply@seido.pm>"
+RESEND_FROM_EMAIL="SEIDO <noreply@seido-app.com>"
 ```
 
 #### 🔐 Authentication
@@ -58,7 +58,7 @@ NEXT_PUBLIC_USE_MOCK_AUTH=false
 
 ```bash
 LOG_LEVEL=info
-SUPPORT_EMAIL=support@seido.pm
+SUPPORT_EMAIL=support@seido-app.com
 ```
 
 ---

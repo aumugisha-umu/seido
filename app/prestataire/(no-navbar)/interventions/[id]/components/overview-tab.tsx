@@ -23,6 +23,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { formatErrorMessage } from '@/lib/utils/error-formatter'
 import { FileText, Edit, XCircle, Clock, CheckCircle2, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -194,7 +195,7 @@ export function OverviewTab({
         toast.success('Travaux démarrés avec succès')
         onRefresh()
       } else {
-        toast.error(result.error || 'Erreur lors du démarrage des travaux')
+        toast.error(formatErrorMessage(result.error, 'Erreur lors du démarrage des travaux'))
       }
     } catch (error) {
       console.error('Error starting work:', error)
@@ -220,7 +221,7 @@ export function OverviewTab({
         setWorkReport('')
         onRefresh()
       } else {
-        toast.error(result.error || 'Erreur lors de la finalisation des travaux')
+        toast.error(formatErrorMessage(result.error, 'Erreur lors de la finalisation des travaux'))
       }
     } catch (error) {
       console.error('Error completing work:', error)
@@ -244,7 +245,7 @@ export function OverviewTab({
         setTimeSlotDialogOpen(false)
         onRefresh()
       } else {
-        toast.error(result.error || 'Erreur lors de la proposition des créneaux')
+        toast.error(formatErrorMessage(result.error, 'Erreur lors de la proposition des créneaux'))
       }
     } catch (error) {
       console.error('Error proposing time slots:', error)

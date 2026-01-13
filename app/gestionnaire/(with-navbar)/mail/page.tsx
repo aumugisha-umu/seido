@@ -1,26 +1,90 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { MailboxSidebar } from './components/mailbox-sidebar'
+import { MailboxSidebar, LinkedEntities, LinkedEntity } from './components/mailbox-sidebar'
 import { EmailList } from './components/email-list'
 import { EmailDetail } from './components/email-detail'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
-import { Plus, RefreshCw } from 'lucide-react'
+import { Plus, RefreshCw, X, ChevronLeft, ChevronRight } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { EmailClientService } from '@/lib/services/client/email-client.service'
 import { Email } from '@/lib/types/email-integration'
-import { MailboxEmail, Building } from './components/types'
+import { LinkedEmail } from '@/lib/types/email-links'
+import { MailboxEmail, Building, generateConversationId, extractSenderName } from './components/types'
 import { useRealtimeEmailsV2 } from '@/hooks/use-realtime-emails-v2'
+import { useEmailPolling } from '@/hooks/use-email-polling'
+
+// Type for entity filter
+interface EntityFilter {
+  type: string
+  id: string
+  name: string
+}
+
+// Adapter to convert LinkedEmail to Email (for entity filtering)
+const adaptLinkedEmailToEmail = (le: LinkedEmail): Email => ({
+  id: le.id,
+  team_id: '', // Will be filled by RLS anyway
+  email_connection_id: null,
+  direction: le.direction,
+  status: le.status as any,
+  deleted_at: null,
+  message_id: null,
+  in_reply_to: null,
+  in_reply_to_header: null, // RFC 5322 header (not available in LinkedEmail)
+  references: null,
+  from_address: le.from_address,
+  to_addresses: [],
+  cc_addresses: null,
+  bcc_addresses: null,
+  subject: le.subject,
+  body_text: le.snippet || null,
+  body_html: null,
+  building_id: null,
+  lot_id: null,
+  intervention_id: null,
+  received_at: le.received_at,
+  sent_at: le.sent_at,
+  created_at: le.received_at || le.sent_at || new Date().toISOString(),
+  attachments: []
+})
+
+// Helper to find entity name from linkedEntities
+const findEntityName = (type: string, id: string, entities: LinkedEntities): string => {
+  const typeMap: Record<string, LinkedEntity[]> = {
+    building: entities.buildings,
+    lot: entities.lots,
+    contact: entities.contacts,
+    contract: entities.contracts,
+    intervention: entities.interventions,
+    company: entities.companies
+  }
+  const entity = typeMap[type]?.find(e => e.id === id)
+  return entity?.name || 'Entité'
+}
 
 // Adapter to convert real Email to MailboxEmail (for UI compatibility)
 const adaptEmail = (email: Email, buildings: Building[]): MailboxEmail => {
   const building = buildings.find(b => b.id === email.building_id)
   const lot = building?.lots.find(l => l.id === email.lot_id)
 
+  // Generate conversation ID - Gmail-style (RFC 5322 compliant)
+  // Priority: References header (first = root) > In-Reply-To > subject fallback > standalone
+  const conversationId = generateConversationId(
+    email.id,
+    email.message_id,
+    email.in_reply_to_header,  // Use RFC 5322 In-Reply-To header (not UUID FK)
+    email.references,
+    email.subject,
+    email.from_address,
+    email.to_addresses?.[0]
+  )
+
   return {
     id: email.id,
     sender_email: email.from_address,
-    sender_name: email.from_address.split('@')[0], // Simple extraction
+    sender_name: extractSenderName(email.from_address), // RFC 5322 parsing
     recipient_email: email.to_addresses[0],
     subject: email.subject,
     snippet: email.body_text?.substring(0, 100) || '',
@@ -43,9 +107,9 @@ const adaptEmail = (email: Email, buildings: Building[]): MailboxEmail => {
     labels: [], // TODO: Implement labels
     direction: email.direction,
     status: email.status,
-    conversation_id: email.id, // TODO: Implement conversation grouping
-    thread_order: 0,
-    is_parent: true,
+    conversation_id: conversationId, // RFC 5322 headers-based (Gmail-style)
+    thread_order: 0, // Will be calculated in groupEmailsByConversation
+    is_parent: false, // Will be calculated in groupEmailsByConversation
     email_connection_id: email.email_connection_id || undefined
   }
 }
@@ -59,7 +123,23 @@ export default function EmailPage() {
 
   const [teamId, setTeamId] = useState<string | undefined>(undefined)
 
-  const [counts, setCounts] = useState({ inbox: 0, sent: 0, drafts: 0, archive: 0 })
+  const [counts, setCounts] = useState({ inbox: 0, processed: 0, sent: 0, drafts: 0, archive: 0 })
+
+  // Linked entities for sidebar
+  const [linkedEntities, setLinkedEntities] = useState<LinkedEntities>({
+    buildings: [],
+    lots: [],
+    contacts: [],
+    contracts: [],
+    interventions: [],
+    companies: []
+  })
+
+  // Entity filter (when user clicks on entity in sidebar)
+  const [entityFilter, setEntityFilter] = useState<EntityFilter | null>(null)
+
+  // Collapse state for email list column
+  const [isEmailListCollapsed, setIsEmailListCollapsed] = useState(false)
 
   const [totalEmails, setTotalEmails] = useState(0)
   const [offset, setOffset] = useState(0)
@@ -74,7 +154,8 @@ export default function EmailPage() {
     console.log('🔍 Selected Email ID changed:', selectedEmailId)
     console.log('🔍 Selected Email object:', selectedEmail)
     console.log('🔍 Total emails:', emails.length)
-  }, [selectedEmailId, selectedEmail, emails.length])
+    console.log('🔍 [PAGE] teamId state:', teamId)
+  }, [selectedEmailId, selectedEmail, emails.length, teamId])
 
   // Fetch team ID
   useEffect(() => {
@@ -82,9 +163,12 @@ export default function EmailPage() {
       try {
         const response = await fetch('/api/user-teams')
         if (response.ok) {
-          const data = await response.json()
-          if (data.success && data.teamId) {
-            setTeamId(data.teamId)
+          const result = await response.json()
+          console.log('🔍 [PAGE] /api/user-teams response:', result)
+          // API returns { success: true, data: [...teams] }
+          if (result.success && result.data && result.data.length > 0) {
+            setTeamId(result.data[0].id)
+            console.log('🔍 [PAGE] teamId set to:', result.data[0].id)
           }
         }
       } catch (error) {
@@ -114,6 +198,32 @@ export default function EmailPage() {
     }
   })
 
+  // Soft polling every 60 seconds (safety net for Realtime)
+  // Only polls DB counts - does NOT trigger IMAP sync
+  const { isPolling, lastPollAt, refresh: manualRefresh, resetKnownEmails } = useEmailPolling({
+    interval: 60000, // 1 minute
+    enabled: !entityFilter, // Disable when filtering by entity
+    onCountsChange: (newCounts) => {
+      // Silently update counts (UI indicator that something changed)
+      setCounts(prev => ({
+        ...prev,
+        inbox: newCounts.inbox,
+        processed: newCounts.processed,
+        sent: newCounts.sent,
+        archive: newCounts.archive
+      }))
+    },
+    onNewEmails: (newEmailIds) => {
+      // New emails detected that weren't caught by Realtime
+      // This is a safety net - fetch the missing emails
+      console.log('[EMAIL-POLLING] New emails detected (missed by Realtime):', newEmailIds.length)
+      if (newEmailIds.length > 0 && currentFolder === 'inbox') {
+        // Soft refresh: fetch latest emails without full reload
+        fetchEmails(false)
+      }
+    }
+  })
+
   // Fetch buildings
   const fetchBuildings = async () => {
     try {
@@ -134,6 +244,27 @@ export default function EmailPage() {
       }
     } catch (error) {
       console.error('Failed to fetch buildings:', error)
+    }
+  }
+
+  // Fetch linked entities for sidebar
+  // Uses timestamp param to bypass cache (important after linking)
+  const fetchLinkedEntities = async () => {
+    try {
+      // Use timestamp query param instead of cache: 'no-store' for better compatibility
+      const response = await fetch(`/api/email-linked-entities?_t=${Date.now()}`)
+      if (!response.ok) {
+        console.error('Failed to fetch linked entities - HTTP error:', response.status, response.statusText)
+        return
+      }
+      const data = await response.json()
+      if (data.success) {
+        setLinkedEntities(data.entities)
+      } else {
+        console.error('Failed to fetch linked entities - API error:', data.error)
+      }
+    } catch (error) {
+      console.error('Failed to fetch linked entities - Network error:', error instanceof Error ? error.message : error)
     }
   }
 
@@ -182,10 +313,19 @@ export default function EmailPage() {
     }
   }
 
-  // Initial fetch
+  // Initial fetch - defer non-critical data to prioritize emails display
   useEffect(() => {
+    // Critical data first
     fetchBuildings()
     fetchCounts()
+
+    // Defer linked entities to reduce initial load competition
+    // They're for sidebar filters, not needed for displaying emails
+    const timer = setTimeout(() => {
+      fetchLinkedEntities()
+    }, 500) // Load after 500ms to let emails load first
+
+    return () => clearTimeout(timer)
   }, [])
 
   // Fetch emails when folder changes
@@ -194,10 +334,45 @@ export default function EmailPage() {
     fetchEmails(false)
   }, [currentFolder])
 
+  // Fetch full email data when a filtered email is selected
+  // LinkedEmail only contains minimal data (no body_html, no attachments)
+  const fetchFullEmail = async (emailId: string): Promise<Email | null> => {
+    try {
+      const response = await fetch(`/api/emails/${emailId}`)
+      const data = await response.json()
+      if (data.success && data.email) {
+        return data.email as Email
+      }
+    } catch (error) {
+      console.error('Error fetching full email:', error)
+    }
+    return null
+  }
+
+  // When a filtered email is selected, load full data if it's partial
+  useEffect(() => {
+    if (entityFilter && selectedEmailId) {
+      const currentEmail = realEmails.find(e => e.id === selectedEmailId)
+      // If body_html is null, this is an adapted LinkedEmail with partial data
+      if (currentEmail && currentEmail.body_html === null) {
+        fetchFullEmail(selectedEmailId).then(fullEmail => {
+          if (fullEmail) {
+            // Replace the partial email with the full email in the list
+            setRealEmails(prev => prev.map(e =>
+              e.id === selectedEmailId ? fullEmail : e
+            ))
+          }
+        })
+      }
+    }
+  }, [selectedEmailId, entityFilter])
+
   // Auto-select first email when folder changes
   const handleFolderChange = (folder: string) => {
+    setEntityFilter(null) // Reset entity filter when changing folder
     setCurrentFolder(folder)
     setSelectedEmailId(undefined) // Will be set by fetchEmails/useEffect
+    resetKnownEmails() // Reset polling tracker to avoid false "new emails" detection
   }
 
   const handleLoadMore = () => {
@@ -245,22 +420,51 @@ export default function EmailPage() {
 
   const handleArchive = async () => {
     if (!selectedEmailId) return
+
+    // Optimistic update: save state for rollback and remove from UI immediately
+    const previousEmails = realEmails
+    const emailToArchive = realEmails.find(e => e.id === selectedEmailId)
+    setRealEmails(prev => prev.filter(e => e.id !== selectedEmailId))
+    setSelectedEmailId(undefined)
+
     try {
       await EmailClientService.archiveEmail(selectedEmailId)
       toast.success('Email archivé')
-      fetchEmails()
+      // Update counts without full refetch
+      setCounts(prev => ({
+        ...prev,
+        inbox: Math.max(0, prev.inbox - 1),
+        archive: prev.archive + 1
+      }))
     } catch (error) {
+      // Rollback on error
+      setRealEmails(previousEmails)
+      setSelectedEmailId(emailToArchive?.id)
       toast.error('Échec de l\'archivage')
     }
   }
 
   const handleDelete = async () => {
     if (!selectedEmailId) return
+
+    // Optimistic update: save state for rollback and remove from UI immediately
+    const previousEmails = realEmails
+    const emailToDelete = realEmails.find(e => e.id === selectedEmailId)
+    setRealEmails(prev => prev.filter(e => e.id !== selectedEmailId))
+    setSelectedEmailId(undefined)
+
     try {
       await EmailClientService.deleteEmail(selectedEmailId)
       toast.success('Email supprimé')
-      fetchEmails()
+      // Update counts
+      setCounts(prev => ({
+        ...prev,
+        inbox: Math.max(0, prev.inbox - 1)
+      }))
     } catch (error) {
+      // Rollback on error
+      setRealEmails(previousEmails)
+      setSelectedEmailId(emailToDelete?.id)
       toast.error('Échec de la suppression')
     }
   }
@@ -281,11 +485,23 @@ export default function EmailPage() {
   }
 
   const handleSoftDelete = async (emailId: string) => {
+    // Optimistic update: save state for rollback and remove from UI immediately
+    const previousEmails = realEmails
+    const wasSelected = selectedEmailId === emailId
+    setRealEmails(prev => prev.filter(e => e.id !== emailId))
+    if (wasSelected) setSelectedEmailId(undefined)
+
     try {
       await EmailClientService.deleteEmail(emailId)
       toast.success('Email deleted')
-      fetchEmails()
+      setCounts(prev => ({
+        ...prev,
+        inbox: Math.max(0, prev.inbox - 1)
+      }))
     } catch (error) {
+      // Rollback on error
+      setRealEmails(previousEmails)
+      if (wasSelected) setSelectedEmailId(emailId)
       toast.error('Failed to delete email')
     }
   }
@@ -307,22 +523,54 @@ export default function EmailPage() {
     }
   }
 
-  const handleBuildingClick = (buildingId: string) => {
-    // Filter by building (not implemented in API yet, but we can filter locally or add param)
-    // For now, just set folder to buildingId (which might not work if API doesn't support it)
-    // Actually, API supports 'folder' param. If we pass buildingId, API needs to handle it.
-    // Current API only handles 'inbox', 'sent', 'archive'.
-    // We might need to update API to support building_id filter.
-    // For now, let's just log.
-    console.log('Filter by building:', buildingId)
-    toast.info('Filtrage par immeuble pas encore implémenté')
+  const handleEntityClick = async (type: string, entityId: string) => {
+    // Find entity name for display
+    const entityName = findEntityName(type, entityId, linkedEntities)
+
+    setEntityFilter({ type, id: entityId, name: entityName })
+    setIsLoading(true)
+    setSelectedEmailId(undefined)
+
+    try {
+      const response = await fetch(`/api/entities/${type}/${entityId}/emails?limit=${LIMIT}`)
+      const data = await response.json()
+
+      if (data.success) {
+        // Adapt LinkedEmail[] to Email[]
+        const adaptedEmails = data.emails.map(adaptLinkedEmailToEmail)
+        setRealEmails(adaptedEmails)
+        setTotalEmails(data.pagination.total)
+        setOffset(data.emails.length)
+
+        // Select first email
+        if (adaptedEmails.length > 0) {
+          setSelectedEmailId(adaptedEmails[0].id)
+        }
+      } else {
+        toast.error('Erreur lors du chargement des emails')
+      }
+    } catch (error) {
+      console.error('Failed to fetch entity emails:', error)
+      toast.error('Erreur lors du chargement des emails')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const clearEntityFilter = () => {
+    setEntityFilter(null)
+    resetKnownEmails() // Reset polling tracker
+    fetchEmails(false)
   }
 
   const handleConversationSelect = (conversationId: string) => {
-    // Find the parent email of this conversation and select it
-    const parentEmail = emails.find(e => e.conversation_id === conversationId && e.is_parent)
-    if (parentEmail) {
-      setSelectedEmailId(parentEmail.id)
+    // Find all emails in this conversation and select the oldest (parent)
+    const conversationEmails = emails
+      .filter(e => e.conversation_id === conversationId)
+      .sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
+
+    if (conversationEmails.length > 0) {
+      setSelectedEmailId(conversationEmails[0].id) // Select the oldest (parent)
     }
   }
 
@@ -331,11 +579,11 @@ export default function EmailPage() {
   }
 
   return (
-    <div className="layout-padding flex flex-col flex-1 min-h-0 bg-background">
+    <div className="h-full flex flex-col overflow-hidden layout-container">
       {/* Page Header */}
-      <div className="mb-6 lg:mb-8 flex-shrink-0">
+      <div className="mb-4 lg:mb-6 flex-shrink-0">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl mb-2">
+          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
             Emails
           </h1>
           <div className="flex gap-2">
@@ -351,27 +599,65 @@ export default function EmailPage() {
         </div>
       </div>
 
-      {/* White Card with Email Interface */}
-      <div className="bg-card rounded-lg shadow-sm border border-border flex-1 min-h-0 overflow-hidden flex flex-col">
-        <div className="flex flex-1 min-h-0 w-full">
+      {/* White Card with Email Interface - fills remaining height */}
+      <div className="bg-card rounded-lg shadow-sm border border-border flex-1 min-h-0 overflow-hidden">
+        <div className="flex h-full">
           {/* Sidebar */}
           <MailboxSidebar
             currentFolder={currentFolder}
             onFolderChange={handleFolderChange}
             unreadCounts={counts}
-            buildings={buildings}
-            onBuildingClick={handleBuildingClick}
+            linkedEntities={linkedEntities}
+            onEntityClick={handleEntityClick}
+            selectedEntity={entityFilter}
           />
 
-          {/* Email List */}
-          <EmailList
-            emails={emails}
-            selectedEmailId={selectedEmailId}
-            onEmailSelect={setSelectedEmailId}
-            onConversationSelect={handleConversationSelect}
-            totalEmails={totalEmails}
-            onLoadMore={handleLoadMore}
-          />
+          {/* Email List with optional filter indicator - collapsible */}
+          <div className={cn(
+            "flex flex-col h-full overflow-hidden flex-shrink-0 transition-all duration-200",
+            isEmailListCollapsed ? "w-0 opacity-0" : "w-[400px] opacity-100"
+          )}>
+            {/* Filter indicator */}
+            {entityFilter && !isEmailListCollapsed && (
+              <div className="w-full px-3 py-2 bg-primary/5 border-b border-r flex items-center justify-between gap-2 flex-shrink-0">
+                <span className="text-sm text-muted-foreground truncate">
+                  Filtré par : <span className="font-medium text-foreground">{entityFilter.name}</span>
+                </span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 px-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setEntityFilter(null)
+                    fetchEmails(false)
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            <EmailList
+              emails={emails}
+              selectedEmailId={selectedEmailId}
+              onEmailSelect={setSelectedEmailId}
+              onConversationSelect={handleConversationSelect}
+              totalEmails={totalEmails}
+              onLoadMore={handleLoadMore}
+            />
+          </div>
+
+          {/* Toggle button for email list collapse/expand */}
+          <button
+            onClick={() => setIsEmailListCollapsed(!isEmailListCollapsed)}
+            className="h-full w-5 flex items-center justify-center hover:bg-muted border-r cursor-pointer group flex-shrink-0"
+            aria-label={isEmailListCollapsed ? "Afficher la liste d'emails" : "Masquer la liste d'emails"}
+          >
+            {isEmailListCollapsed ? (
+              <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+            ) : (
+              <ChevronLeft className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+            )}
+          </button>
 
           {/* Email Detail */}
           {selectedEmail ? (
@@ -380,6 +666,7 @@ export default function EmailPage() {
               email={selectedEmail}
               allEmails={emails}
               buildings={buildings}
+              teamId={teamId}
               onReply={handleReply}
               onArchive={handleArchive}
               onDelete={handleDelete}
@@ -388,6 +675,7 @@ export default function EmailPage() {
               onSoftDelete={handleSoftDelete}
               onBlacklist={handleBlacklist}
               onMarkAsProcessed={handleMarkAsProcessed}
+              onLinksUpdated={fetchLinkedEntities}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-muted-foreground bg-muted/50">

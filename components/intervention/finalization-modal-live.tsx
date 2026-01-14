@@ -181,11 +181,11 @@ export function FinalizationModalLive({
           lot_id: data.intervention.lot?.id || '',
           building_id: data.intervention.lot?.building?.id || '',
           type: data.intervention.type,
-          context: `Suite à l'intervention ${data.intervention.reference}`,
+          context: `Suite à l'intervention "${data.intervention.title}"`,
           title: `Suivi - ${data.intervention.title}`
         })
 
-        window.location.href = `/gestionnaire/interventions/nouvelle?${queryParams.toString()}`
+        window.location.href = `/gestionnaire/interventions/nouvelle-intervention?${queryParams.toString()}`
       } else {
         onClose()
         onComplete?.()

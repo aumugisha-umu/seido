@@ -601,8 +601,9 @@ export default function NouvelleInterventionClient({
 
     if (isPreFilled) return // Prevent re-execution if already pre-filled
 
-    const lotId = searchParams.get("lotId")
-    const buildingId = searchParams.get("buildingId")
+    // ✅ Support both camelCase (legacy) and snake_case (from finalization modal)
+    const lotId = searchParams.get("lotId") || searchParams.get("lot_id")
+    const buildingId = searchParams.get("buildingId") || searchParams.get("building_id")
 
     if (lotId) {
       // Pré-remplir avec un lot spécifique
@@ -618,6 +619,60 @@ export default function NouvelleInterventionClient({
         logger.info("✅ [PRE-FILL] Building selected, moved to step 2")
       })
       setIsPreFilled(true)
+    }
+  }, [services, searchParams, isPreFilled])
+
+  // ✅ NEW: Pré-remplissage depuis intervention de suivi (follow-up après finalisation)
+  useEffect(() => {
+    if (isPreFilled) return // Prevent re-execution if already pre-filled
+
+    const fromInterventionId = searchParams.get("from_intervention")
+    if (!fromInterventionId) return
+
+    // ⚠️ Attendre que services soit prêt AVANT de modifier le formulaire
+    // pour éviter les exécutions multiples du setFormData
+    if (!services) {
+      logger.info("⏳ [PRE-FILL-FOLLOWUP] Services not ready, waiting...")
+      return
+    }
+
+    logger.info("🔄 [PRE-FILL-FOLLOWUP] Pre-filling from follow-up intervention:", fromInterventionId)
+
+    // 1. Lire les paramètres (snake_case envoyés par la modale de finalisation)
+    const lotId = searchParams.get("lot_id")
+    const buildingId = searchParams.get("building_id")
+    const title = searchParams.get("title")
+    const type = searchParams.get("type")
+    const context = searchParams.get("context")
+
+    // 2. Pré-remplir le formulaire (une seule fois, services est prêt)
+    if (title || type || context) {
+      setFormData(prev => ({
+        ...prev,
+        title: title || prev.title,
+        type: type || prev.type,
+        description: context ? `${context}\n\n` : prev.description
+      }))
+      logger.info("📝 [PRE-FILL-FOLLOWUP] Form data pre-filled:", { title, type, context })
+    }
+
+    // 3. Charger le lot ou immeuble
+    if (lotId) {
+      logger.info("🏠 [PRE-FILL-FOLLOWUP] Loading lot:", lotId)
+      loadSpecificLot(lotId).then(() => {
+        setIsPreFilled(true)
+        logger.info("✅ [PRE-FILL-FOLLOWUP] Lot loaded, form ready")
+      })
+    } else if (buildingId) {
+      logger.info("🏢 [PRE-FILL-FOLLOWUP] Loading building:", buildingId)
+      handleBuildingSelect(buildingId).then(() => {
+        setCurrentStep(2)
+        setIsPreFilled(true)
+        logger.info("✅ [PRE-FILL-FOLLOWUP] Building loaded, moved to step 2")
+      })
+    } else {
+      setIsPreFilled(true)
+      logger.info("✅ [PRE-FILL-FOLLOWUP] No lot/building, but form data set")
     }
   }, [services, searchParams, isPreFilled])
 

@@ -81,7 +81,6 @@ export class NotificationService {
     demande_de_devis: 'Demande de devis',
     planification: 'Planification',
     planifiee: 'Planifiée',
-    en_cours: 'En cours',
     cloturee_par_prestataire: 'Clôturée par prestataire',
     cloturee_par_locataire: 'Clôturée par locataire',
     cloturee_par_gestionnaire: 'Clôturée par gestionnaire',
@@ -140,8 +139,8 @@ export class NotificationService {
       if (oldStatus === 'approuvee' && newStatus === 'planification') {
         return `L'intervention "${intervention.title}" qui vous est assignée est maintenant en planification${reasonText}`
       }
-      if (newStatus === 'en_cours') {
-        return `Vous avez démarré l'intervention "${intervention.title}"${reasonText}`
+      if (newStatus === 'cloturee_par_prestataire') {
+        return `Vous avez terminé l'intervention "${intervention.title}"${reasonText}`
       }
       return `L'intervention "${intervention.title}" à laquelle vous êtes assigné(e) est passée de "${oldLabel}" à "${newLabel}"${reasonText}`
     }

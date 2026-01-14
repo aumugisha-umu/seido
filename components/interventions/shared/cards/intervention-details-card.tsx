@@ -40,7 +40,7 @@ import {
   HelpCircle
 } from 'lucide-react'
 import { InterventionDetailsCardProps } from '../types'
-import { formatDate, formatAmount } from '../utils/helpers'
+import { formatDate, formatAmount, formatTimeRange } from '../utils/helpers'
 
 /**
  * Configuration du statut planning
@@ -191,7 +191,7 @@ const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatu
             <p className="text-sm font-medium">Planning</p>
             <p className="text-xs text-muted-foreground truncate">
               {planning.scheduledDate
-                ? formatDate(planning.scheduledDate)
+                ? `${formatDate(planning.scheduledDate)}${planning.scheduledStartTime && planning.scheduledEndTime ? ` • ${formatTimeRange(planning.scheduledStartTime, planning.scheduledEndTime)}` : ''}`
                 : planningConfig.description}
             </p>
           </div>

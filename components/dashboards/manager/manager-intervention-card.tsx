@@ -246,16 +246,6 @@ export function ManagerInterventionCard({
                 }
                 break
 
-            case 'en_cours':
-                if (userContext === 'prestataire' || userContext === 'gestionnaire') {
-                    actions.push({
-                        label: "Marquer comme terminé",
-                        icon: CheckCircle,
-                        onClick: () => handleActionClick('complete_work'),
-                    })
-                }
-                break
-
             case 'cloturee_par_prestataire':
                 if (userContext === 'locataire') {
                     actions.push(

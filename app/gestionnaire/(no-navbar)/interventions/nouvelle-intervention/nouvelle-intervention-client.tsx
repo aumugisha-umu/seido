@@ -205,9 +205,11 @@ export default function NouvelleInterventionClient({
 
       // Locataires (lot-level ou building-level)
       if (selectedLogement?.type === 'lot' && selectedLogement?.tenants) {
-        // Pour lot-level, les IDs sont générés - on les ajoute aussi
-        selectedLogement.tenants.forEach((_: any, i: number) => {
-          allParticipantIds.push(`tenant-${selectedLogement?.id || 'unknown'}-${i}`)
+        // Pour lot-level, utiliser les vrais user_id des locataires
+        selectedLogement.tenants.forEach((tenant: any) => {
+          if (tenant.user_id) {
+            allParticipantIds.push(tenant.user_id)
+          }
         })
       } else if (selectedLogement?.type === 'building' && buildingTenants && includeTenants) {
         // Pour building-level, utiliser les vrais user_id
@@ -643,8 +645,11 @@ export default function NouvelleInterventionClient({
 
       // Locataires (lot-level ou building-level)
       if (selectedLogement?.type === 'lot' && selectedLogement?.tenants) {
-        selectedLogement.tenants.forEach((_: any, i: number) => {
-          allParticipantIds.push(`tenant-${selectedLogement?.id || 'unknown'}-${i}`)
+        // Pour lot-level, utiliser les vrais user_id des locataires
+        selectedLogement.tenants.forEach((tenant: any) => {
+          if (tenant.user_id) {
+            allParticipantIds.push(tenant.user_id)
+          }
         })
       } else if (selectedLogement?.type === 'building' && buildingTenants && includeTenants) {
         for (const lotGroup of buildingTenants.byLot) {
@@ -970,6 +975,7 @@ export default function NouvelleInterventionClient({
             || tenantsResult.data.tenants[0]
 
           const tenants = tenantsResult.data.tenants.map(t => ({
+            user_id: t.user_id,
             name: t.name,
             email: t.email,
             phone: t.phone

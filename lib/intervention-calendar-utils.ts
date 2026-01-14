@@ -335,7 +335,6 @@ export function getCalendarStatistics(
     demande: filtered.filter(i => i.status === 'demande').length,
     approuvee: filtered.filter(i => i.status === 'approuvee').length,
     planifiee: filtered.filter(i => i.status === 'planifiee').length,
-    en_cours: filtered.filter(i => i.status === 'en_cours').length,
     cloturee: filtered.filter(i =>
       i.status === 'cloturee_par_prestataire' ||
       i.status === 'cloturee_par_locataire' ||

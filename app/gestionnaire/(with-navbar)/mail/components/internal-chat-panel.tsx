@@ -18,7 +18,8 @@ import { StartConversationModal } from './start-conversation-modal'
 import { AddParticipantModal } from './add-participant-modal'
 import {
   getEmailConversationAction,
-  getEmailConversationParticipantsAction
+  getEmailConversationParticipantsAction,
+  getTeamGestionnairesAction
 } from '@/app/actions/email-conversation-actions'
 import { sendMessageAction } from '@/app/actions/conversation-actions'
 import type { Database } from '@/lib/database.types'
@@ -53,6 +54,9 @@ interface InternalChatPanelProps {
   className?: string
 }
 
+// Minimum gestionnaires required to start a conversation
+const MIN_GESTIONNAIRES = 2
+
 // Helper to get initials from name or email
 const getInitials = (name: string | null, email: string | null): string => {
   if (name) {
@@ -81,6 +85,7 @@ export const InternalChatPanel = ({
   const [showStartModal, setShowStartModal] = useState(false)
   const [showAddParticipantModal, setShowAddParticipantModal] = useState(false)
   const [participantIds, setParticipantIds] = useState<string[]>([])
+  const [availableGestionnaires, setAvailableGestionnaires] = useState<number | null>(null)
 
   // Fetch existing conversation on mount and when emailId changes
   const fetchThread = useCallback(async () => {
@@ -117,6 +122,17 @@ export const InternalChatPanel = ({
     setIsOpen(false)
     fetchThread()
   }, [fetchThread])
+
+  // Check if there are enough gestionnaires to start a conversation
+  useEffect(() => {
+    const checkGestionnaires = async () => {
+      const result = await getTeamGestionnairesAction(teamId)
+      if (result.success && result.data) {
+        setAvailableGestionnaires(result.data.length)
+      }
+    }
+    checkGestionnaires()
+  }, [teamId])
 
   // Refresh participants
   const refreshParticipants = useCallback(async () => {
@@ -176,7 +192,7 @@ export const InternalChatPanel = ({
   const unreadCount = 0 // TODO: Implement real unread count based on last_read_message_id
 
   // Loading state
-  if (isLoadingThread) {
+  if (isLoadingThread || availableGestionnaires === null) {
     return (
       <div className={cn(
         'sticky bottom-0 z-20 bg-card border-t h-14 flex items-center justify-center',
@@ -185,6 +201,11 @@ export const InternalChatPanel = ({
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       </div>
     )
+  }
+
+  // Hide panel if not enough gestionnaires with auth accounts
+  if (availableGestionnaires < MIN_GESTIONNAIRES) {
+    return null
   }
 
   // No conversation exists - show "Start Conversation" button

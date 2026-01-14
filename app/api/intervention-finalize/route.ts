@@ -97,8 +97,8 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
 
-    // Check if intervention can be finalized
-    const finalizableStatuses = ['cloturee_par_prestataire', 'cloturee_par_locataire', 'contestee']
+    // Check if intervention can be finalized (planifiee allows direct finalization by manager)
+    const finalizableStatuses = ['planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire', 'contestee']
     if (!finalizableStatuses.includes(intervention.status)) {
       return NextResponse.json({
         success: false,

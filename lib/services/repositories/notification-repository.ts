@@ -565,6 +565,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
   /**
    * Get intervention with all managers and assigned users (optimized JOIN query)
    * Used by NotificationService to determine recipients for intervention notifications
+   * ✅ NOTIFICATION FIX (Jan 2026): Includes auth_user_id for filtering users without accounts
    */
   async getInterventionWithManagers(interventionId: string) {
     validateUUID(interventionId)
@@ -586,13 +587,13 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
             building_contacts!building_contacts_building_id_fkey(
               user_id,
               is_primary,
-              user:user_id(role)
+              user:user_id(role, auth_user_id)
             )
           ),
           lot_contacts!lot_contacts_lot_id_fkey(
             user_id,
             is_primary,
-            user:user_id(role)
+            user:user_id(role, auth_user_id)
           )
         ),
         building:building_id(
@@ -600,19 +601,20 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
           building_contacts!building_contacts_building_id_fkey(
             user_id,
             is_primary,
-            user:user_id(role)
+            user:user_id(role, auth_user_id)
           )
         ),
         intervention_assignments!intervention_assignments_intervention_id_fkey(
           user_id,
           role,
-          is_primary
+          is_primary,
+          user:user_id(auth_user_id)
         ),
         team:team_id(
           id,
           team_members(
             user_id,
-            user:user_id(id, name, role)
+            user:user_id(id, name, role, auth_user_id)
           )
         )
       `)
@@ -621,29 +623,31 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
 
     if (error) throw handleError(error, 'notifications:getInterventionWithManagers')
 
+    // ✅ NOTIFICATION FIX (Jan 2026): Filter out users without auth accounts
+    // Only users with auth_user_id can log in and see notifications
     return {
       ...data,
-      // Extract IDs from intervention_assignments by role
+      // Extract IDs from intervention_assignments by role (only users with auth)
       interventionAssignedManagers: data.intervention_assignments
-        ?.filter(a => a.role === 'gestionnaire')
+        ?.filter(a => a.role === 'gestionnaire' && a.user?.auth_user_id)
         ?.map(a => a.user_id) || [],
       interventionAssignedProviders: data.intervention_assignments
-        ?.filter(a => a.role === 'prestataire')
+        ?.filter(a => a.role === 'prestataire' && a.user?.auth_user_id)
         ?.map(a => a.user_id) || [],
       interventionAssignedTenants: data.intervention_assignments
-        ?.filter(a => a.role === 'locataire')
+        ?.filter(a => a.role === 'locataire' && a.user?.auth_user_id)
         ?.map(a => a.user_id) || [],
-      // Extract building managers from lot or direct building
+      // Extract building managers from lot or direct building (only users with auth)
       buildingManagers: (data.lot?.building?.building_contacts || data.building?.building_contacts || [])
-        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
+        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire' && c.user?.auth_user_id)
         ?.map(c => c.user_id) || [],
-      // Extract lot managers
+      // Extract lot managers (only users with auth)
       lotManagers: data.lot?.lot_contacts
-        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
+        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire' && c.user?.auth_user_id)
         ?.map(c => c.user_id) || [],
-      // Extract team members
+      // Extract team members (only users with auth)
       teamMembers: data.team?.team_members
-        ?.filter(tm => tm.user)
+        ?.filter(tm => tm.user && tm.user.auth_user_id)
         ?.map(tm => ({
           id: tm.user_id,
           role: tm.user.role,
@@ -654,6 +658,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
 
   /**
    * Get building with all managers (optimized JOIN query)
+   * ✅ NOTIFICATION FIX (Jan 2026): Includes auth_user_id for filtering users without accounts
    */
   async getBuildingWithManagers(buildingId: string) {
     validateUUID(buildingId)
@@ -668,13 +673,13 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
         building_contacts!building_contacts_building_id_fkey(
           user_id,
           is_primary,
-          user:user_id(role)
+          user:user_id(role, auth_user_id)
         ),
         team:team_id(
           id,
           team_members(
             user_id,
-            user:user_id(id, name, role)
+            user:user_id(id, name, role, auth_user_id)
           )
         )
       `)
@@ -685,11 +690,12 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
 
     return {
       ...data,
+      // Only users with auth can receive notifications
       buildingManagers: data.building_contacts
-        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
+        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire' && c.user?.auth_user_id)
         ?.map(c => c.user_id) || [],
       teamMembers: data.team?.team_members
-        ?.filter(tm => tm.user)
+        ?.filter(tm => tm.user && tm.user.auth_user_id)
         ?.map(tm => ({
           id: tm.user_id,
           role: tm.user.role,
@@ -700,6 +706,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
 
   /**
    * Get lot with all managers (optimized JOIN query)
+   * ✅ NOTIFICATION FIX (Jan 2026): Includes auth_user_id for filtering users without accounts
    */
   async getLotWithManagers(lotId: string) {
     validateUUID(lotId)
@@ -716,19 +723,19 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
           building_contacts!building_contacts_building_id_fkey(
             user_id,
             is_primary,
-            user:user_id(role)
+            user:user_id(role, auth_user_id)
           )
         ),
         lot_contacts!lot_contacts_lot_id_fkey(
           user_id,
           is_primary,
-          user:user_id(role)
+          user:user_id(role, auth_user_id)
         ),
         team:team_id(
           id,
           team_members(
             user_id,
-            user:user_id(id, name, role)
+            user:user_id(id, name, role, auth_user_id)
           )
         )
       `)
@@ -739,14 +746,15 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
 
     return {
       ...data,
+      // Only users with auth can receive notifications
       lotManagers: data.lot_contacts
-        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
+        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire' && c.user?.auth_user_id)
         ?.map(c => c.user_id) || [],
       buildingManagers: data.building?.building_contacts
-        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
+        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire' && c.user?.auth_user_id)
         ?.map(c => c.user_id) || [],
       teamMembers: data.team?.team_members
-        ?.filter(tm => tm.user)
+        ?.filter(tm => tm.user && tm.user.auth_user_id)
         ?.map(tm => ({
           id: tm.user_id,
           role: tm.user.role,
@@ -757,6 +765,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
 
   /**
    * Get contact with all related building managers (optimized JOIN query)
+   * ✅ NOTIFICATION FIX (Jan 2026): Includes auth_user_id for filtering users without accounts
    */
   async getContactWithManagers(contactId: string) {
     validateUUID(contactId)
@@ -775,7 +784,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
             building_contacts!building_contacts_building_id_fkey(
               user_id,
               is_primary,
-              user:user_id(role)
+              user:user_id(role, auth_user_id)
             )
           )
         ),
@@ -786,7 +795,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
               building_contacts!building_contacts_building_id_fkey(
                 user_id,
                 is_primary,
-                user:user_id(role)
+                user:user_id(role, auth_user_id)
               )
             )
           )
@@ -795,7 +804,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
           id,
           team_members(
             user_id,
-            user:user_id(id, name, role)
+            user:user_id(id, name, role, auth_user_id)
           )
         )
       `)
@@ -804,18 +813,18 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
 
     if (userError) throw handleError(userError, 'notifications:getContactWithManagers')
 
-    // Collect all unique building managers
+    // Collect all unique building managers (only those with auth)
     const buildingManagersSet = new Set<string>()
 
     user.building_contacts?.forEach(bc => {
       bc.building?.building_contacts
-        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
+        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire' && c.user?.auth_user_id)
         ?.forEach(c => buildingManagersSet.add(c.user_id))
     })
 
     user.lot_contacts?.forEach(lc => {
       lc.lot?.building?.building_contacts
-        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire')
+        ?.filter(c => c.is_primary && c.user?.role === 'gestionnaire' && c.user?.auth_user_id)
         ?.forEach(c => buildingManagersSet.add(c.user_id))
     })
 
@@ -827,7 +836,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
       team_id: user.team_id,
       relatedBuildingManagers: Array.from(buildingManagersSet),
       teamMembers: user.team?.team_members
-        ?.filter(tm => tm.user)
+        ?.filter(tm => tm.user && tm.user.auth_user_id)
         ?.map(tm => ({
           id: tm.user_id,
           role: tm.user.role,

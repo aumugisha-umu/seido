@@ -95,10 +95,7 @@ export const shouldShowAlertBadge = (
         const twentyFourHours = 24 * 60 * 60 * 1000
         return (scheduledTime - now) <= twentyFourHours && scheduledTime > now
       }
-      
-      // En cours - intervention active à terminer
-      if (status === 'en_cours') return true
-      
+
       return false
 
     default:
@@ -145,10 +142,9 @@ export const hasAnyAlertAction = (
           'demande_de_devis',             // Soumettre un devis
           'devis-a-fournir',              // Variante frontend de demande_de_devis
           'planification',                // Proposer créneaux
-          'planifiee',                    // Préparer intervention
-          'en_cours'                      // Terminer travaux
+          'planifiee'                     // Préparer intervention
         ].includes(status)
-      
+
       default:
         return false
     }
@@ -192,10 +188,9 @@ export const filterPendingActions = <T extends { status: string }>(
           'demande_de_devis',
           'devis-a-fournir',
           'planification',
-          'planifiee',
-          'en_cours'
+          'planifiee'
         ].includes(status)
-      
+
       default:
         return false
     }

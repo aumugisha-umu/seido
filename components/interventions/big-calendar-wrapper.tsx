@@ -221,6 +221,7 @@ export function BigCalendarWrapper({
 
     // Extract background color from Tailwind classes
     // Map status classes to hex colors for react-big-calendar
+    // Note: 'en_cours' removed from workflow - interventions go directly from 'planifiee' to finalization
     const statusColorMap: Record<string, string> = {
       'demande': '#fee2e2',           // red-100
       'rejetee': '#fee2e2',           // red-100
@@ -228,7 +229,6 @@ export function BigCalendarWrapper({
       'demande_de_devis': '#dbeafe',  // blue-100
       'planification': '#fef3c7',     // yellow-100
       'planifiee': '#f3e8ff',         // purple-100
-      'en_cours': '#e0e7ff',          // indigo-100
       'cloturee_par_prestataire': '#fed7aa', // orange-100
       'cloturee_par_locataire': '#d1fae5',   // emerald-100
       'cloturee_par_gestionnaire': '#dcfce7', // green-100
@@ -242,7 +242,6 @@ export function BigCalendarWrapper({
       'demande_de_devis': '#1e40af',  // blue-800
       'planification': '#854d0e',     // yellow-800
       'planifiee': '#6b21a8',         // purple-800
-      'en_cours': '#3730a3',          // indigo-800
       'cloturee_par_prestataire': '#9a3412', // orange-800
       'cloturee_par_locataire': '#065f46',   // emerald-800
       'cloturee_par_gestionnaire': '#166534', // green-800

@@ -295,6 +295,35 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
   }
 
   /**
+   * Find multiple users by IDs that have a linked auth account (batch operation)
+   * ✅ NOTIFICATION FIX (Jan 2026): Only return users who can actually log in
+   *
+   * Use this method for notifications to ensure:
+   * - Emails are only sent to users who can click magic links and log in
+   * - In-app notifications are only created for users who can see them
+   *
+   * @param userIds Array of user IDs to fetch
+   * @returns Array of users with auth_user_id (users without auth are excluded)
+   */
+  async findByIdsWithAuth(userIds: string[]) {
+    if (!userIds.length) {
+      return { success: true as const, data: [] }
+    }
+
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select('*')
+      .in('id', userIds)
+      .not('auth_user_id', 'is', null) // Only users with linked auth account
+
+    if (error) {
+      return { success: false as const, error: handleError(error) }
+    }
+
+    return { success: true as const, data: data || [] }
+  }
+
+  /**
    * Bulk update users' team
    */
   async updateTeamBulk(userIds: string[], teamId: string | null) {

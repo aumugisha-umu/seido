@@ -83,7 +83,6 @@ export async function POST(request: NextRequest) {
     logger.info({ title: intervention.title, status: intervention.status }, `📋 Found intervention "${intervention.title}" with status: ${intervention.status}`)
 
     // Vérifier que l'intervention peut être annulée
-    // Note: 'en_cours' is DEPRECATED - removed from cancellable list
     const cancellableStatuses = [
       "approuvee",
       "demande_de_devis",

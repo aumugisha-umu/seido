@@ -3057,6 +3057,13 @@ export type Database = {
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "users_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -3419,6 +3426,7 @@ export type Database = {
           provider_guidelines: string | null
           reference: string | null
           requested_date: string | null
+          requires_participant_confirmation: boolean | null
           requires_quote: boolean | null
           scheduled_date: string | null
           scheduling_method: string | null
@@ -3455,6 +3463,7 @@ export type Database = {
           provider_guidelines?: string | null
           reference?: string | null
           requested_date?: string | null
+          requires_participant_confirmation?: boolean | null
           requires_quote?: boolean | null
           scheduled_date?: string | null
           scheduling_method?: string | null
@@ -3491,6 +3500,7 @@ export type Database = {
           provider_guidelines?: string | null
           reference?: string | null
           requested_date?: string | null
+          requires_participant_confirmation?: boolean | null
           requires_quote?: boolean | null
           scheduled_date?: string | null
           scheduling_method?: string | null
@@ -3737,6 +3747,10 @@ export type Database = {
         }
         Returns: string
       }
+      can_create_email_conversation: {
+        Args: { p_email_id: string; p_team_id: string }
+        Returns: boolean
+      }
       can_manage_contract: { Args: { contract_uuid: string }; Returns: boolean }
       can_manage_intervention: {
         Args: { p_intervention_id: string }
@@ -3777,6 +3791,7 @@ export type Database = {
         Args: { slot_id_param: string }
         Returns: boolean
       }
+      delete_team_cascade: { Args: { p_team_id: string }; Returns: Json }
       expire_old_invitations: { Args: never; Returns: number }
       get_accessible_building_ids: {
         Args: never
@@ -3918,6 +3933,7 @@ export type Database = {
         | "send_notification"
         | "login"
         | "logout"
+        | "import"
       activity_entity_type:
         | "user"
         | "team"
@@ -3930,6 +3946,7 @@ export type Database = {
         | "message"
         | "quote"
         | "report"
+        | "import"
       activity_status: "success" | "failure" | "pending"
       assignment_mode: "single" | "group" | "separate"
       contract_contact_role:
@@ -4009,11 +4026,11 @@ export type Database = {
         | "demande_de_devis"
         | "planification"
         | "planifiee"
-        | "en_cours"
         | "cloturee_par_prestataire"
         | "cloturee_par_locataire"
         | "cloturee_par_gestionnaire"
         | "annulee"
+        | "contestee"
       intervention_type:
         | "plomberie"
         | "electricite"
@@ -4220,6 +4237,7 @@ export const Constants = {
         "send_notification",
         "login",
         "logout",
+        "import",
       ],
       activity_entity_type: [
         "user",
@@ -4233,6 +4251,7 @@ export const Constants = {
         "message",
         "quote",
         "report",
+        "import",
       ],
       activity_status: ["success", "failure", "pending"],
       assignment_mode: ["single", "group", "separate"],
@@ -4321,11 +4340,11 @@ export const Constants = {
         "demande_de_devis",
         "planification",
         "planifiee",
-        "en_cours",
         "cloturee_par_prestataire",
         "cloturee_par_locataire",
         "cloturee_par_gestionnaire",
         "annulee",
+        "contestee",
       ],
       intervention_type: [
         "plomberie",

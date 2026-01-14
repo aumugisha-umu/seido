@@ -5,14 +5,10 @@ import {
   CheckCircle,
   XCircle,
   Calendar,
-  Play,
   Clock,
   UserCheck,
   AlertTriangle,
-  AlertCircle,
-  TrendingUp,
   FileText,
-  Euro,
   Edit3,
   Trash2,
   Edit
@@ -359,8 +355,6 @@ export function InterventionActionButtons({
           )
         }
         break
-
-      // Note: 'en_cours' status is deprecated - interventions go directly from 'planifiee' to 'cloturee_par_*'
 
       case 'cloturee_par_prestataire':
         if (userRole === 'locataire' && isInterventionTenant(intervention, userId)) {

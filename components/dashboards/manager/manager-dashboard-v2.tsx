@@ -57,7 +57,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
     // Calculate active and completed intervention counts
     const activeInterventionsCount = useMemo(() => {
         return interventions.filter(i =>
-            ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'en_cours'].includes(i.status)
+            ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee'].includes(i.status)
         ).length
     }, [interventions])
 

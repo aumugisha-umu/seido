@@ -13,7 +13,7 @@
 
 import { cn } from '@/lib/utils'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { FileText, MessageSquare, Calendar, Mail } from 'lucide-react'
+import { FileText, MessageSquare, Calendar, Mail, Users } from 'lucide-react'
 import { UserRole } from '../types'
 
 export interface InterventionTabsProps {
@@ -54,6 +54,11 @@ const getTabsConfig = (role: UserRole) => {
           value: 'planning',
           label: 'Planning et Devis',
           icon: Calendar
+        },
+        {
+          value: 'contacts',
+          label: 'Contacts',
+          icon: Users
         },
         {
           value: 'emails',
@@ -104,7 +109,7 @@ export const InterventionTabs = ({
       <div className="px-4 sm:px-6 pt-4 sm:pt-6 flex-shrink-0">
         <TabsList className={cn(
           "grid w-full mb-4",
-          tabsConfig.length === 4 ? "grid-cols-4" : "grid-cols-3"
+          tabsConfig.length === 5 ? "grid-cols-5" : tabsConfig.length === 4 ? "grid-cols-4" : "grid-cols-3"
         )}>
         {tabsConfig.map((tab) => {
           const Icon = tab.icon

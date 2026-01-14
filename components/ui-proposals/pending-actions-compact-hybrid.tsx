@@ -165,15 +165,7 @@ export function PendingActionsCompactHybrid({
             label: "Planifiée",
             buttonText: "Voir"
           }
-        case 'en_cours':
-          return {
-            icon: Wrench,
-            iconColor: "text-emerald-600",
-            badgeVariant: "secondary",
-            badgeClass: "bg-emerald-100 text-emerald-700 hover:bg-emerald-100",
-            label: "En cours",
-            buttonText: "Suivre"
-          }
+        // Note: 'en_cours' removed from workflow - interventions go directly from 'planifiee' to finalization
         default:
           return {
             icon: Clock,
@@ -209,7 +201,7 @@ export function PendingActionsCompactHybrid({
             buttonText: "Planifier"
           }
         case "planifiee":
-        case "en_cours":
+          // Note: 'en_cours' removed from workflow
           return {
             icon: Wrench,
             iconColor: "text-emerald-600",
@@ -271,13 +263,13 @@ export function PendingActionsCompactHybrid({
             buttonText: "Suivre"
           }
         case 'planifiee':
-        case 'en_cours':
+          // Note: 'en_cours' removed from workflow
           return {
             icon: Wrench,
             iconColor: "text-green-600",
             badgeVariant: "secondary",
             badgeClass: "bg-green-100 text-green-700 hover:bg-green-100",
-            label: "En cours",
+            label: "Planifiée",
             buttonText: "Surveiller"
           }
         default:

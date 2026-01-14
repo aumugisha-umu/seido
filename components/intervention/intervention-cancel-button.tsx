@@ -16,9 +16,9 @@ interface InterventionCancelButtonProps {
 
 /**
  * Composant bouton d'annulation d'intervention
- * 
- * Compatible avec les statuts : approuvee, demande_de_devis, planification, planifiee, en_cours
- * 
+ *
+ * Compatible avec les statuts : approuvee, demande_de_devis, planification, planifiee
+ *
  * @param intervention - L'intervention à annuler
  * @param variant - "button" pour un bouton autonome, "dropdown-item" pour menu contextuel
  * @param size - Taille du bouton (si variant="button")
@@ -30,16 +30,15 @@ export const InterventionCancelButton = ({
   size = "sm",
   className = "",
 }: InterventionCancelButtonProps) => {
-  
+
   const cancellationHook = useInterventionCancellationContext()
 
   // Vérifier si l'intervention peut être annulée
   const canBeCancelled = [
     "approuvee",
-    "demande_de_devis", 
+    "demande_de_devis",
     "planification",
-    "planifiee",
-    "en_cours"
+    "planifiee"
   ].includes(intervention.status)
 
   if (!canBeCancelled) {

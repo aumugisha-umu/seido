@@ -996,7 +996,7 @@ export async function cancelQuoteAction(
       userId: user.id
     })
 
-    const supabase = await createServerSupabaseClient()
+    const supabase = await createServerActionSupabaseClient()
 
     // Verify the quote exists and is pending
     const { data: quote, error: fetchError } = await supabase
@@ -1478,7 +1478,7 @@ export async function cancelTimeSlotAction(
       userId: user.id
     })
 
-    const supabase = await createServerSupabaseClient()
+    const supabase = await createServerActionSupabaseClient()
 
     // Get the time slot with intervention info
     const { data: slot, error: fetchError } = await supabase

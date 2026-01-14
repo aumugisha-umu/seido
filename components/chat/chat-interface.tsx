@@ -610,7 +610,7 @@ export function ChatInterface({
     userRole === 'gestionnaire'
 
   return (
-    <Card className={`flex flex-col h-[600px] ${className}`}>
+    <Card className={`flex flex-col h-full ${className}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-2 flex-1">

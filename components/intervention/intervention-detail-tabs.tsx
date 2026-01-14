@@ -212,10 +212,10 @@ export function InterventionDetailTabs({
     }
 
     // Statuts considérés comme "planification et suite" - même logique pour locataires et prestataires
+    // Note: 'en_cours' a été supprimé du workflow - les interventions passent directement de 'planifiee' à finalisation
     const planificationStatuses = [
       'planification',
       'planifiee',
-      'en_cours',
       'terminee',
       'approuvee',
       'cloturee'

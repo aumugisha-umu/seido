@@ -357,6 +357,10 @@ export interface InterventionDetailsCardProps {
   planning?: {
     /** Date planifiée */
     scheduledDate?: string | null
+    /** Heure de début du créneau confirmé */
+    scheduledStartTime?: string | null
+    /** Heure de fin du créneau confirmé */
+    scheduledEndTime?: string | null
     /** Statut du planning: pending (rien), proposed (créneaux proposés), scheduled (confirmé), completed */
     status: 'pending' | 'proposed' | 'scheduled' | 'completed'
     /** Nombre de créneaux proposés (pour status='proposed') */
@@ -432,6 +436,8 @@ export interface InterventionSidebarProps {
   onConversationClick?: (participantId: string) => void
   /** Callback pour conversation de groupe */
   onGroupConversationClick?: () => void
+  /** Callback quand on clique sur un participant (navigation vers tab Contacts) */
+  onParticipantClick?: () => void
   /** Afficher les boutons de conversation */
   showConversationButtons?: boolean
   /** Mode d'assignation (single/group/separate) */

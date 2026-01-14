@@ -44,6 +44,12 @@ import {
   PlanningCard
 } from '@/components/interventions/shared'
 
+// Contacts navigator (grid/list views)
+import { InterventionContactsNavigator } from '@/components/interventions/intervention-contacts-navigator'
+
+// Helpers de formatage
+import { formatDate, formatTimeRange } from '@/components/interventions/shared/utils/helpers'
+
 // Modal pour choisir un créneau
 import { ChooseTimeSlotModal } from '@/components/intervention/modals/choose-time-slot-modal'
 // Modal pour répondre à un créneau (accepter/refuser)
@@ -61,7 +67,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Building2, MapPin, User, AlertCircle, Edit, XCircle, MoreVertical, UserCheck, CheckCircle, MessageSquare } from 'lucide-react'
+import { Building2, MapPin, User, AlertCircle, Edit, XCircle, MoreVertical, UserCheck, CheckCircle, MessageSquare, Calendar } from 'lucide-react'
 
 // Hooks
 import { useAuth } from '@/hooks/use-auth'
@@ -549,9 +555,10 @@ export function InterventionDetailClient({
     })
 
     // Ajouter les étapes selon le statut actuel
+    // Note: 'en_cours' removed from workflow - interventions go directly from 'planifiee' to finalization
     const statusOrder = [
       'demande', 'approuvee', 'demande_de_devis', 'planification',
-      'planifiee', 'en_cours', 'cloturee_par_prestataire',
+      'planifiee', 'cloturee_par_prestataire',
       'cloturee_par_locataire', 'cloturee_par_gestionnaire'
     ]
 
@@ -609,8 +616,11 @@ export function InterventionDetailClient({
     ? (selectedSlotForResponse as any).responses?.find((r: any) => r.user_id === serverUserId)?.response
     : null
 
-  // Date planifiée (si un créneau est sélectionné/confirmé)
-  const scheduledDate = timeSlots.find(s => s.status === 'selected')?.slot_date || null
+  // Créneau confirmé (si un créneau est sélectionné/confirmé)
+  const confirmedSlot = timeSlots.find(s => s.status === 'selected')
+  const scheduledDate = confirmedSlot?.slot_date || null
+  const scheduledStartTime = confirmedSlot?.start_time || null
+  const scheduledEndTime = confirmedSlot?.end_time || null
 
   // Compter les créneaux proposés (non sélectionnés)
   // Statuts DB: 'requested' (demandé), 'pending' (en attente), 'selected' (confirmé), 'rejected', 'cancelled'
@@ -1272,7 +1282,7 @@ export function InterventionDetailClient({
       demande_de_devis: { label: 'Devis demandé', color: 'bg-purple-100 text-purple-800 border-purple-200', dotColor: 'bg-purple-500' },
       planification: { label: 'Planification', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', dotColor: 'bg-yellow-500' },
       planifiee: { label: 'Planifiée', color: 'bg-indigo-100 text-indigo-800 border-indigo-200', dotColor: 'bg-indigo-500' },
-      en_cours: { label: 'En cours', color: 'bg-blue-100 text-blue-800 border-blue-200', dotColor: 'bg-blue-500' },
+      // Note: 'en_cours' removed from workflow
       cloturee_par_prestataire: { label: 'Clôturée (prestataire)', color: 'bg-green-100 text-green-800 border-green-200', dotColor: 'bg-green-500' },
       cloturee_par_locataire: { label: 'Clôturée (locataire)', color: 'bg-green-100 text-green-800 border-green-200', dotColor: 'bg-green-500' },
       cloturee_par_gestionnaire: { label: 'Clôturée', color: 'bg-gray-100 text-gray-800 border-gray-200', dotColor: 'bg-gray-500' },
@@ -1315,8 +1325,17 @@ export function InterventionDetailClient({
 
   const headerBadges: DetailPageHeaderBadge[] = [getTypeBadge(), getStatusBadge(), getUrgencyBadge()].filter(Boolean) as DetailPageHeaderBadge[];
 
-  // Metadata moved to InterventionDetailsCard (below Planning et Devis section)
+  // Metadata: Show scheduled date/time in header when confirmed
   const headerMetadata: DetailPageHeaderMetadata[] = [];
+  if (scheduledDate) {
+    const scheduledText = scheduledStartTime && scheduledEndTime
+      ? `${formatDate(scheduledDate)} • ${formatTimeRange(scheduledStartTime, scheduledEndTime)}`
+      : formatDate(scheduledDate);
+    headerMetadata.push({
+      icon: Calendar,
+      text: scheduledText
+    });
+  }
 
   // Helper function to check if action badge should be shown
   const shouldShowActionBadge = (
@@ -1778,6 +1797,7 @@ export function InterventionDetailClient({
               showConversationButtons={true}
               onConversationClick={handleConversationClick}
               onGroupConversationClick={handleGroupConversationClick}
+              onParticipantClick={() => handleTabChange('contacts')}
               assignmentMode={assignmentMode}
               unreadCounts={unreadCounts}
             />
@@ -1826,6 +1846,8 @@ export function InterventionDetailClient({
                       }}
                       planning={{
                         scheduledDate,
+                        scheduledStartTime,
+                        scheduledEndTime,
                         status: planningStatus,
                         proposedSlotsCount,
                         quotesCount: transformedQuotes.length,
@@ -1872,22 +1894,24 @@ export function InterventionDetailClient({
 
               {/* TAB: CONVERSATIONS */}
               <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
-                <InterventionChatTab
-                  interventionId={intervention.id}
-                  threads={threads}
-                  initialMessagesByThread={initialMessagesByThread}
-                  initialParticipantsByThread={initialParticipantsByThread}
-                  currentUserId={serverUserId}
-                  userRole={serverUserRole as 'gestionnaire' | 'locataire' | 'prestataire' | 'admin'}
-                  defaultThreadType={selectedThreadType}
-                  initialMessage={initialChatMessage || undefined}
-                  onMessageSent={() => setInitialChatMessage(null)}
-                />
+                <div className="flex-1 flex flex-col min-h-0 p-4 sm:p-6">
+                  <InterventionChatTab
+                    interventionId={intervention.id}
+                    threads={threads}
+                    initialMessagesByThread={initialMessagesByThread}
+                    initialParticipantsByThread={initialParticipantsByThread}
+                    currentUserId={serverUserId}
+                    userRole={serverUserRole as 'gestionnaire' | 'locataire' | 'prestataire' | 'admin'}
+                    defaultThreadType={selectedThreadType}
+                    initialMessage={initialChatMessage || undefined}
+                    onMessageSent={() => setInitialChatMessage(null)}
+                  />
+                </div>
               </TabsContent>
 
               {/* TAB: PLANNING */}
               <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 flex flex-col gap-4 p-4 sm:p-6">
+                <div className="flex-1 flex flex-col gap-4 p-4 sm:p-6 overflow-y-auto">
                   {/* Devis */}
                   {requireQuote && (
                     <QuotesCard
@@ -1928,6 +1952,16 @@ export function InterventionDetailClient({
                     onChooseSlot={handleChooseSlot}
                     onOpenResponseModal={handleOpenResponseModal}
                     className="flex-1 min-h-0"
+                  />
+                </div>
+              </TabsContent>
+
+              {/* TAB: CONTACTS */}
+              <TabsContent value="contacts" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 p-4 sm:p-6 overflow-hidden">
+                  <InterventionContactsNavigator
+                    assignments={assignments}
+                    className="h-full"
                   />
                 </div>
               </TabsContent>

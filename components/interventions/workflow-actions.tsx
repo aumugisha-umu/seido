@@ -8,14 +8,10 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 import {
-  Play,
   CheckCircle,
   XCircle,
   FileText,
   Calendar,
-  Clock,
-  DollarSign,
-  MessageSquare,
   AlertTriangle,
   Ban,
   Star
@@ -97,12 +93,6 @@ const WORKFLOW_ACTIONS = {
     requiresSlot: true,
     nextStatus: 'planifiee' as InterventionStatus
   },
-  startWork: {
-    icon: Play,
-    label: 'Démarrer les travaux',
-    color: 'bg-blue-600',
-    nextStatus: 'en_cours' as InterventionStatus
-  },
   completeWork: {
     icon: CheckCircle,
     label: 'Terminer les travaux',
@@ -166,20 +156,13 @@ function getAvailableActions(
       break
 
     case 'planifiee':
-      if (role === 'prestataire') {
-        actions.push('startWork')
-      }
-      if (role === 'gestionnaire' || role === 'admin') {
-        actions.push('cancel')
-      }
-      break
-
-    case 'en_cours':
+      // Prestataire can complete work directly from 'planifiee' (no intermediate status)
       if (role === 'prestataire') {
         actions.push('completeWork')
       }
+      // Manager can finalize directly or cancel
       if (role === 'gestionnaire' || role === 'admin') {
-        actions.push('cancel')
+        actions.push('finalize', 'cancel')
       }
       break
 

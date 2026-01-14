@@ -34,7 +34,6 @@ export const getStatusLabel = (
  * @returns Tailwind color class name (without prefix)
  */
 export const getStatusColor = (status: InterventionStatus): string => {
-  // Note: 'en_cours' is DEPRECATED but kept for backward compatibility
   const colorMap: Record<InterventionStatus, string> = {
     demande: 'yellow',
     rejetee: 'red',
@@ -42,7 +41,6 @@ export const getStatusColor = (status: InterventionStatus): string => {
     demande_de_devis: 'blue',
     planification: 'indigo',
     planifiee: 'purple',
-    en_cours: 'orange', // DEPRECATED
     cloturee_par_prestataire: 'teal',
     cloturee_par_locataire: 'cyan',
     cloturee_par_gestionnaire: 'emerald',
@@ -58,7 +56,6 @@ export const getStatusColor = (status: InterventionStatus): string => {
  */
 export const getStatusBadgeVariant = (status: InterventionStatus):
   'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning' => {
-  // Note: 'en_cours' is DEPRECATED but kept for backward compatibility
   const variantMap: Record<InterventionStatus, any> = {
     demande: 'warning',
     rejetee: 'destructive',
@@ -66,7 +63,6 @@ export const getStatusBadgeVariant = (status: InterventionStatus):
     demande_de_devis: 'default',
     planification: 'secondary',
     planifiee: 'secondary',
-    en_cours: 'default', // DEPRECATED
     cloturee_par_prestataire: 'secondary',
     cloturee_par_locataire: 'success',
     cloturee_par_gestionnaire: 'success',
@@ -81,10 +77,9 @@ export const getStatusBadgeVariant = (status: InterventionStatus):
  * @returns True if status is valid
  */
 export const isValidStatus = (status: string): status is InterventionStatus => {
-  // Note: 'en_cours' is DEPRECATED but kept for backward compatibility
   const validStatuses: InterventionStatus[] = [
     'demande', 'rejetee', 'approuvee', 'demande_de_devis',
-    'planification', 'planifiee', 'en_cours', // DEPRECATED
+    'planification', 'planifiee',
     'cloturee_par_prestataire', 'cloturee_par_locataire',
     'cloturee_par_gestionnaire', 'annulee'
   ]
@@ -144,15 +139,13 @@ export const isValidStatusTransition = (
   currentStatus: InterventionStatus,
   nextStatus: InterventionStatus
 ): boolean => {
-  // Note: 'en_cours' is DEPRECATED - interventions go directly from 'planifiee' to 'cloturee_par_*'
   const validTransitions: Record<InterventionStatus, InterventionStatus[]> = {
     demande: ['approuvee', 'rejetee', 'annulee'],
     rejetee: [],
     approuvee: ['demande_de_devis', 'planification', 'annulee'],
     demande_de_devis: ['planification', 'annulee'],
     planification: ['planifiee', 'annulee'],
-    planifiee: ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'], // Direct to closure
-    en_cours: ['cloturee_par_prestataire', 'annulee'], // DEPRECATED - kept for backward compatibility
+    planifiee: ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'],
     cloturee_par_prestataire: ['cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'],
     cloturee_par_locataire: ['cloturee_par_gestionnaire', 'annulee'],
     cloturee_par_gestionnaire: [],
@@ -172,7 +165,6 @@ export const getStatusDescription = (
   status: InterventionStatus,
   locale: 'fr' | 'en' = 'fr'
 ): string => {
-  // Note: 'en_cours' is DEPRECATED but kept for backward compatibility
   const descriptionsFR: Record<InterventionStatus, string> = {
     demande: "En attente de validation par le gestionnaire",
     rejetee: "Demande rejetée par le gestionnaire",
@@ -180,7 +172,6 @@ export const getStatusDescription = (
     demande_de_devis: "Devis demandé au prestataire",
     planification: "Recherche d'un créneau de disponibilité",
     planifiee: "Intervention planifiée à une date précise",
-    en_cours: "Travaux en cours par le prestataire", // DEPRECATED
     cloturee_par_prestataire: "Travaux terminés, en attente de validation locataire",
     cloturee_par_locataire: "Validée par le locataire, en attente de clôture gestionnaire",
     cloturee_par_gestionnaire: "Intervention terminée et clôturée",

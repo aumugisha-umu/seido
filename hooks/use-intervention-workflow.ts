@@ -75,7 +75,7 @@ interface UseInterventionWorkflowReturn {
 }
 
 // Status transition rules
-// Note: 'en_cours' is DEPRECATED - interventions go directly from 'planifiee' to 'cloturee_par_*'
+// Workflow: planifiee → cloturee_par_prestataire (direct transition, no intermediate status)
 const ALLOWED_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> = {
   'demande': ['approuvee', 'rejetee'],
   'rejetee': [],
@@ -83,11 +83,11 @@ const ALLOWED_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> = {
   'demande_de_devis': ['planification', 'annulee'],
   'planification': ['planifiee', 'annulee'],
   'planifiee': ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'], // Direct to closure
-  'en_cours': ['cloturee_par_prestataire', 'annulee'], // DEPRECATED: kept for backward compatibility
   'cloturee_par_prestataire': ['cloturee_par_locataire', 'cloturee_par_gestionnaire'], // Manager can finalize directly
   'cloturee_par_locataire': ['cloturee_par_gestionnaire'],
   'cloturee_par_gestionnaire': [],
-  'annulee': []
+  'annulee': [],
+  'contestee': ['cloturee_par_gestionnaire', 'annulee'] // Disputed interventions can be finalized
 }
 
 export function useInterventionWorkflow(interventionId: string): UseInterventionWorkflowReturn {
@@ -290,9 +290,9 @@ export function useInterventionWorkflow(interventionId: string): UseIntervention
   }, [interventionId, canTransitionTo, executeAction])
 
   const completeWork = useCallback(async (report?: string) => {
-    // Allow completion from both 'planifiee' (new flow) and 'en_cours' (deprecated legacy flow)
+    // Complete work from 'planifiee' status
     const currentStatus = intervention?.status
-    if (currentStatus !== 'planifiee' && currentStatus !== 'en_cours') {
+    if (currentStatus !== 'planifiee') {
       toast.error('Cannot complete work in current status')
       return
     }
@@ -305,12 +305,10 @@ export function useInterventionWorkflow(interventionId: string): UseIntervention
   }, [interventionId, intervention?.status, executeAction])
 
   /**
-   * @deprecated The 'en_cours' status is deprecated. Use completeWork() instead.
-   * Interventions now go directly from 'planifiee' to 'cloturee_par_prestataire'.
-   * This method now calls completeWork() for backward compatibility.
+   * @deprecated Use completeWork() instead.
+   * Interventions go directly from 'planifiee' to 'cloturee_par_prestataire'.
    */
   const startWork = useCallback(async () => {
-    // DEPRECATED: Skip 'en_cours' and go directly to provider completion
     console.warn('[DEPRECATED] startWork() is deprecated. Use completeWork() instead.')
     await completeWork()
   }, [completeWork])

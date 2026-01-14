@@ -142,7 +142,7 @@ interface DashboardStats {
 
 /**
  * Valid status transitions mapping
- * Note: 'en_cours' is DEPRECATED - interventions go directly from 'planifiee' to 'cloturee_par_*'
+ * Workflow: planifiee → cloturee_par_prestataire (direct transition)
  */
 const VALID_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> = {
   'demande': ['rejetee', 'approuvee'],
@@ -151,11 +151,11 @@ const VALID_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> = {
   'demande_de_devis': ['planification', 'annulee'],
   'planification': ['planifiee', 'annulee'],
   'planifiee': ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'], // Direct to closure
-  'en_cours': ['cloturee_par_prestataire', 'annulee'], // DEPRECATED - kept for backward compatibility
   'cloturee_par_prestataire': ['cloturee_par_locataire', 'cloturee_par_gestionnaire'], // Manager can finalize directly
   'cloturee_par_locataire': ['cloturee_par_gestionnaire'],
   'cloturee_par_gestionnaire': [], // Terminal state
-  'annulee': [] // Terminal state
+  'annulee': [], // Terminal state
+  'contestee': ['cloturee_par_gestionnaire', 'annulee'] // Disputed can be finalized
 }
 
 /**

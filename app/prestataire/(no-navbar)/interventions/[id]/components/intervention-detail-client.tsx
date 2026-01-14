@@ -134,7 +134,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
   'demande_de_devis': { label: 'Devis demandé', color: 'bg-yellow-100 text-yellow-800' },
   'planification': { label: 'Planification', color: 'bg-blue-100 text-blue-800' },
   'planifiee': { label: 'Planifiée', color: 'bg-blue-100 text-blue-800' },
-  'en_cours': { label: 'En cours', color: 'bg-blue-100 text-blue-800' },
+  // Note: 'en_cours' removed from workflow
   'cloturee_par_prestataire': { label: 'Terminée (prestataire)', color: 'bg-purple-100 text-purple-800' },
   'cloturee_par_locataire': { label: 'Validée (locataire)', color: 'bg-purple-100 text-purple-800' },
   'cloturee_par_gestionnaire': { label: 'Clôturée', color: 'bg-gray-100 text-gray-800' },
@@ -352,9 +352,10 @@ export function PrestataireInterventionDetailClient({
       authorRole: 'tenant'
     })
 
+    // Note: 'en_cours' removed from workflow - interventions go directly from 'planifiee' to finalization
     const statusOrder = [
       'demande', 'approuvee', 'demande_de_devis', 'planification',
-      'planifiee', 'en_cours', 'cloturee_par_prestataire',
+      'planifiee', 'cloturee_par_prestataire',
       'cloturee_par_locataire', 'cloturee_par_gestionnaire'
     ]
 
@@ -562,7 +563,7 @@ export function PrestataireInterventionDetailClient({
       'demande_de_devis': { label: 'Demande de devis', color: 'bg-amber-50 border-amber-200 text-amber-900', dotColor: 'bg-amber-500', icon: null },
       'planification': { label: 'Planification', color: 'bg-purple-50 border-purple-200 text-purple-900', dotColor: 'bg-purple-500', icon: null },
       'planifiee': { label: 'Planifiée', color: 'bg-indigo-50 border-indigo-200 text-indigo-900', dotColor: 'bg-indigo-500', icon: null },
-      'en_cours': { label: 'En cours', color: 'bg-cyan-50 border-cyan-200 text-cyan-900', dotColor: 'bg-cyan-500', icon: null },
+      // Note: 'en_cours' removed from workflow
       'cloturee_par_prestataire': { label: 'Clôturée (Prestataire)', color: 'bg-emerald-50 border-emerald-200 text-emerald-900', dotColor: 'bg-emerald-500', icon: null },
       'cloturee_par_gestionnaire': { label: 'Clôturée', color: 'bg-slate-50 border-slate-200 text-slate-900', dotColor: 'bg-slate-500', icon: null },
       'annulee': { label: 'Annulée', color: 'bg-red-50 border-red-200 text-red-900', dotColor: 'bg-red-500', icon: null },

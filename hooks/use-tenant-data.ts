@@ -213,7 +213,7 @@ export const useTenantData = () => {
       const transformedStats: TenantStats = {
         openRequests: rawInterventions.filter((i: RawIntervention) => i.status === 'demande').length,
         inProgress: rawInterventions.filter((i: RawIntervention) =>
-          ['en_cours', 'planifiee', 'approuvee'].includes(i.status)
+          ['planifiee', 'approuvee', 'planification', 'demande_de_devis'].includes(i.status)
         ).length,
         thisMonthInterventions: rawInterventions.filter((i: RawIntervention) => {
           const createdDate = new Date(i.created_at)

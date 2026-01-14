@@ -144,8 +144,8 @@ export async function POST(request: NextRequest) {
       notificationTitle = 'Intervention validée par le locataire'
       notificationMessage = `L'intervention "${intervention.title}" a été validée par le locataire ${user.name}. Elle peut maintenant être finalisée administrativement.`
     } else if (validationStatus === 'contested') {
-      // Note: 'en_cours' is DEPRECATED - return to 'planifiee' for provider to redo work
-      newStatus = 'planifiee' // Return to scheduled for provider to redo
+      // Return to 'planifiee' for provider to redo work
+      newStatus = 'planifiee'
       notificationTitle = 'Intervention contestée par le locataire'
       notificationMessage = `L'intervention "${intervention.title}" a été contestée par le locataire ${user.name}. Motif: ${contestReason}`
     } else {

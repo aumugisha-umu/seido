@@ -90,8 +90,8 @@ export async function POST(
     }
 
     // Check if intervention is in correct status
-    // Note: 'en_cours' is DEPRECATED - now accepts 'planifiee' for direct completion
-    if (!['planifiee', 'en_cours'].includes(intervention.status)) { // en_cours kept for backward compatibility
+    // Interventions can be completed directly from 'planifiee'
+    if (intervention.status !== 'planifiee') {
       return NextResponse.json({
         success: false,
         error: `Le rapport ne peut être soumis que pour les interventions planifiées (statut actuel: ${intervention.status})`

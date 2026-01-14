@@ -284,7 +284,7 @@ function TimeSlotSection({
             Ajouter un créneau
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-4" align="start" sideOffset={8}>
+        <PopoverContent className="w-auto p-4" align="start" sideOffset={8} collisionPadding={16}>
           <TimeSlotPopoverContent
             onAdd={(slot) => {
               // ✅ Passer le slot complet directement pour éviter les problèmes de batching React

@@ -628,8 +628,7 @@ export class StatsService {
               'approuvee',
               'demande_de_devis',
               'planification',
-              'planifiee',
-              'en_cours'
+              'planifiee'
             ].includes(intervention.status)
             return requiresAction
           })

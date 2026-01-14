@@ -50,7 +50,6 @@ const STATUS_OPTIONS = [
     { value: 'demande_de_devis', label: 'Devis demandé' },
     { value: 'planification', label: 'Planification' },
     { value: 'planifiee', label: 'Planifiée' },
-    { value: 'en_cours', label: 'En cours' },
     { value: 'cloturee_par_prestataire', label: 'Clôturée (presta)' },
     { value: 'cloturee_par_locataire', label: 'Clôturée (locataire)' },
     { value: 'cloturee_par_gestionnaire', label: 'Clôturée' },

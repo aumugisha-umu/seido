@@ -333,7 +333,6 @@ export const interventionStatusEnum = z.enum([
   'demande_de_devis',
   'planification',
   'planifiee',
-  'en_cours',
   'cloturee_par_prestataire',
   'cloturee_par_locataire',
   'cloturee_par_gestionnaire',

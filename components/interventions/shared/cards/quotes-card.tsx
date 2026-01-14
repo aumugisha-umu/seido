@@ -25,7 +25,8 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  Send
+  Send,
+  Ban
 } from 'lucide-react'
 import { QuotesCardProps, Quote } from '../types'
 import { formatAmount, formatDateShort } from '../utils/helpers'
@@ -89,6 +90,15 @@ const QuoteItem = ({
           text: 'text-blue-700',
           border: 'border-blue-200',
           leftBorder: 'border-l-blue-500'
+        }
+      case 'cancelled':
+        return {
+          icon: Ban,
+          label: 'Annulée',
+          bg: 'bg-gray-50',
+          text: 'text-gray-600',
+          border: 'border-gray-200',
+          leftBorder: 'border-l-gray-400'
         }
       default:
         return {

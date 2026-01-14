@@ -13,7 +13,7 @@ export default function ImportPage() {
   const router = useRouter();
 
   const handleClose = () => {
-    router.push('/gestionnaire');
+    router.push('/gestionnaire/dashboard');
   };
 
   return (

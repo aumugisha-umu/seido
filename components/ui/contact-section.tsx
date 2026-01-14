@@ -20,7 +20,7 @@ import {
 } from "lucide-react"
 
 // Base contact interface - compatible with both Contact and UserType
-interface BaseContact {
+export interface BaseContact {
   id: string
   name: string
   email: string

@@ -522,10 +522,11 @@ export function ContactDetailsClient({
   }
 
   const getStats = () => {
+    // Note: 'en_cours' removed from workflow - interventions go directly from 'planifiee' to finalization
     const interventionStats = {
       total: interventions.length,
       pending: interventions.filter(i => i.status === 'demande').length,
-      inProgress: interventions.filter(i => ['en_cours', 'planifiee', 'planification'].includes(i.status)).length,
+      inProgress: interventions.filter(i => ['planifiee', 'planification'].includes(i.status)).length,
       completed: interventions.filter(i => i.status.startsWith('cloturee')).length
     }
 

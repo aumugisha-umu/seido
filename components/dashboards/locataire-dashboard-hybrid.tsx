@@ -260,7 +260,7 @@ export default function LocataireDashboardHybrid({
         {/* --- STATS CARDS (Reusable Component) --- */}
         {(() => {
           const pendingCount = filteredInterventions.filter(i => ['demande', 'planification'].includes(i.status)).length
-          const activeCount = filteredInterventions.filter(i => ['en_cours', 'planifiee'].includes(i.status)).length
+          const activeCount = filteredInterventions.filter(i => ['planifiee'].includes(i.status)).length
           const completedCount = filteredInterventions.filter(i => ['cloturee_par_prestataire'].includes(i.status)).length
 
           return (

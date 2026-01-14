@@ -110,7 +110,6 @@ export const STATUS_TO_FRONTEND: Record<string, string> = {
   'demande_de_devis': 'devis-a-fournir',
   'planification': 'planification',
   'planifiee': 'planifiee',
-  'en_cours': 'en-cours',
   'cloturee_par_prestataire': 'travaux-termines',
   'cloturee_par_locataire': 'validee',
   'cloturee_par_gestionnaire': 'cloturee',
@@ -127,7 +126,6 @@ export const STATUS_TO_LABEL: Record<string, string> = {
   'demande_de_devis': 'En attente de devis',
   'planification': 'Planification',
   'planifiee': 'Planifiée',
-  'en_cours': 'En cours',
   'cloturee_par_prestataire': 'Travaux terminés',
   'cloturee_par_locataire': 'Validée par locataire',
   'cloturee_par_gestionnaire': 'Clôturée',
@@ -268,8 +266,7 @@ export const statusRequiresManagerAction = (status: string): boolean => {
     'approuvee',
     'demande_de_devis',
     'planification',
-    'planifiee',
-    'en_cours'
+    'planifiee'
   ].includes(status)
 }
 

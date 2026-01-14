@@ -58,7 +58,6 @@ const getStatusColor = (status: string) => {
   const s = status?.toLowerCase() || ''
   if (s === 'approuvee' || s === 'approuvée') return 'bg-emerald-100 text-emerald-800 border-emerald-200'
   if (s === 'planifiee' || s === 'planifiée' || s === 'planification') return 'bg-blue-100 text-blue-800 border-blue-200'
-  if (s === 'en_cours' || s === 'en cours') return 'bg-blue-100 text-blue-800 border-blue-200'
   if (s === 'demande') return 'bg-amber-100 text-amber-800 border-amber-200'
   return 'bg-slate-100 text-slate-800 border-slate-200'
 }
@@ -68,7 +67,6 @@ const getStatusDotColor = (status: string) => {
   const s = status?.toLowerCase() || ''
   if (s === 'approuvee' || s === 'approuvée') return 'bg-emerald-500'
   if (s === 'planifiee' || s === 'planifiée' || s === 'planification') return 'bg-blue-500'
-  if (s === 'en_cours' || s === 'en cours') return 'bg-blue-600'
   if (s === 'demande') return 'bg-amber-500'
   return 'bg-slate-500'
 }

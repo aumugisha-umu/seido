@@ -95,7 +95,7 @@ const getInterventionLocationText = (intervention: InterventionData): string => 
       }
       return lot.reference
     } else {
-      // Show full details for later stages (planifiée, en_cours, etc.)
+      // Show full details for later stages (planifiée, etc.)
       const buildingName = building?.name || ''
       return buildingName
         ? `${lot.reference} - ${buildingName}`
@@ -196,7 +196,6 @@ export function InterventionModalHeader({
                     const status = (intervention?.status || '').toLowerCase()
                     if (status === 'approuvee' || status === 'approuvée') return 'bg-emerald-100 text-emerald-800 border-emerald-200'
                     if (status === 'planifiee' || status === 'planifiée' || status === 'planification') return 'bg-blue-100 text-blue-800 border-blue-200'
-                    if (status === 'en cours') return 'bg-blue-100 text-blue-800 border-blue-200'
                     return 'bg-amber-100 text-amber-800 border-amber-200'
                   })()
                 }`}
@@ -206,7 +205,6 @@ export function InterventionModalHeader({
                     const status = (intervention?.status || '').toLowerCase()
                     if (status === 'approuvee' || status === 'approuvée') return 'bg-emerald-500'
                     if (status === 'planifiee' || status === 'planifiée' || status === 'planification') return 'bg-blue-500'
-                    if (status === 'en cours') return 'bg-blue-600'
                     return 'bg-amber-500'
                   })()
                 }`} />

@@ -417,13 +417,14 @@ export async function getTeamGestionnairesAction(
       return { success: true, data: [] }
     }
 
-    // Get user details for gestionnaires/admins only
+    // Get user details for gestionnaires/admins only (with active auth account)
     const userIds = teamMembers.map(m => m.user_id)
     const { data: users, error: usersError } = await supabase
       .from('users')
       .select('id, name, email, avatar_url, role')
       .in('id', userIds)
       .in('role', ['gestionnaire', 'admin'])
+      .not('auth_user_id', 'is', null) // Only users with active auth account
 
     if (usersError) {
       return { success: false, error: 'Failed to fetch users' }

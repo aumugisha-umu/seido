@@ -81,10 +81,10 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         ? supabase.from('lots').select('*, building:building_id(*)').eq('id', intervention.lot_id).single()
         : Promise.resolve({ data: null }),
 
-      // Assignments
+      // Assignments (with company data for contacts navigator)
       supabase
         .from('intervention_assignments')
-        .select('*, user:users!user_id(*)')
+        .select('*, user:users!user_id(*, company:company_id(*))')
         .eq('intervention_id', id)
         .order('assigned_at', { ascending: false }),
 

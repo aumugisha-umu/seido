@@ -373,10 +373,15 @@ export class EmailNotificationService {
       // 5. Déterminer les destinataires avec filtrage
       const allRecipients = determineInterventionRecipients(enrichedIntervention, filterOptions || {})
 
-      // 6. Récupérer les détails utilisateurs pour les emails
-      const recipients = await this.notificationRepository.getNotificationRecipients(
-        allRecipients.map(r => r.userId)
-      )
+      // 6. Récupérer les détails utilisateurs pour les emails (auth-only)
+      // ✅ NOTIFICATION FIX (Jan 2026): N'envoyer des emails qu'aux users qui peuvent se connecter
+      const userIds = allRecipients.map(r => r.userId)
+      const usersResult = await this.userRepository.findByIdsWithAuth(userIds)
+      if (!usersResult.success || !usersResult.data) {
+        logger.error({ interventionId }, '❌ [EMAIL-NOTIFICATION] Failed to fetch user details')
+        return { success: false, sentCount: 0, failedCount: 0, results: [] }
+      }
+      const recipients = usersResult.data.filter(user => user.email)
 
       if (recipients.length === 0) {
         logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] No recipients for scheduled email')
@@ -575,10 +580,15 @@ export class EmailNotificationService {
       // 4. Déterminer les destinataires avec filtrage
       const allRecipients = determineInterventionRecipients(enrichedIntervention, filterOptions || {})
 
-      // 5. Récupérer les détails utilisateurs pour les emails
-      const recipients = await this.notificationRepository.getNotificationRecipients(
-        allRecipients.map(r => r.userId)
-      )
+      // 5. Récupérer les détails utilisateurs pour les emails (auth-only)
+      // ✅ NOTIFICATION FIX (Jan 2026): N'envoyer des emails qu'aux users qui peuvent se connecter
+      const userIds = allRecipients.map(r => r.userId)
+      const usersResult = await this.userRepository.findByIdsWithAuth(userIds)
+      if (!usersResult.success || !usersResult.data) {
+        logger.error({ interventionId }, '❌ [EMAIL-NOTIFICATION] Failed to fetch user details')
+        return { success: false, sentCount: 0, failedCount: 0, results: [] }
+      }
+      const recipients = usersResult.data.filter(user => user.email)
 
       if (recipients.length === 0) {
         logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] No recipients for time slots email')
@@ -764,10 +774,15 @@ export class EmailNotificationService {
       // 4. Déterminer les destinataires avec filtrage
       const allRecipients = determineInterventionRecipients(enrichedIntervention, filterOptions || {})
 
-      // 5. Récupérer les détails utilisateurs pour les emails
-      const recipients = await this.notificationRepository.getNotificationRecipients(
-        allRecipients.map(r => r.userId)
-      )
+      // 5. Récupérer les détails utilisateurs pour les emails (auth-only)
+      // ✅ NOTIFICATION FIX (Jan 2026): N'envoyer des emails qu'aux users qui peuvent se connecter
+      const userIds = allRecipients.map(r => r.userId)
+      const usersResult = await this.userRepository.findByIdsWithAuth(userIds)
+      if (!usersResult.success || !usersResult.data) {
+        logger.error({ interventionId }, '❌ [EMAIL-NOTIFICATION] Failed to fetch user details')
+        return { success: false, sentCount: 0, failedCount: 0, results: [] }
+      }
+      const recipients = usersResult.data.filter(user => user.email)
 
       if (recipients.length === 0) {
         logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] No recipients for completed email')
@@ -986,10 +1001,15 @@ export class EmailNotificationService {
       // 4. Déterminer les destinataires avec filtrage
       const allRecipients = determineInterventionRecipients(enrichedIntervention, filterOptions || {})
 
-      // 5. Récupérer les détails utilisateurs pour les emails
-      const recipients = await this.notificationRepository.getNotificationRecipients(
-        allRecipients.map(r => r.userId)
-      )
+      // 5. Récupérer les détails utilisateurs pour les emails (auth-only)
+      // ✅ NOTIFICATION FIX (Jan 2026): N'envoyer des emails qu'aux users qui peuvent se connecter
+      const userIds = allRecipients.map(r => r.userId)
+      const usersResult = await this.userRepository.findByIdsWithAuth(userIds)
+      if (!usersResult.success || !usersResult.data) {
+        logger.error({ interventionId }, '❌ [EMAIL-NOTIFICATION] Failed to fetch user details')
+        return { success: false, sentCount: 0, failedCount: 0, results: [] }
+      }
+      const recipients = usersResult.data.filter(user => user.email)
 
       if (recipients.length === 0) {
         logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] No recipients for status changed email')
@@ -1025,7 +1045,6 @@ export class EmailNotificationService {
         'demande_de_devis': 'Devis demandé',
         'planification': 'En planification',
         'planifiee': 'Planifiée',
-        'en_cours': 'En cours',
         'cloturee_par_prestataire': 'Terminée (prestataire)',
         'cloturee_par_locataire': 'Validée (locataire)',
         'cloturee_par_gestionnaire': 'Finalisée',
@@ -1357,10 +1376,11 @@ export class EmailNotificationService {
         }
       }
 
-      // 7. Récupérer les détails des utilisateurs (email, first_name, role) en batch
-      logger.info({ interventionId, userIdCount: recipientList.length }, '📧 [EMAIL-NOTIFICATION] Step 7: Fetching user details')
+      // 7. Récupérer les détails des utilisateurs AVEC compte auth (email, first_name, role) en batch
+      // ✅ NOTIFICATION FIX (Jan 2026): N'envoyer des emails qu'aux users qui peuvent se connecter
+      logger.info({ interventionId, userIdCount: recipientList.length }, '📧 [EMAIL-NOTIFICATION] Step 7: Fetching user details (auth-only)')
       const userIds = recipientList.map(r => r.userId)
-      const usersResult = await this.userRepository.findByIds(userIds)
+      const usersResult = await this.userRepository.findByIdsWithAuth(userIds)
 
       if (!usersResult.success || !usersResult.data) {
         logger.error({
@@ -1370,13 +1390,25 @@ export class EmailNotificationService {
         throw new Error('Failed to fetch user details for recipients')
       }
 
-      logger.info({
-        interventionId,
-        usersFound: usersResult.data.length,
-        usersRequested: userIds.length
-      }, '✅ [EMAIL-NOTIFICATION] User details fetched')
+      // Log des users exclus car sans auth_user_id
+      const usersWithAuthCount = usersResult.data.length
+      const usersWithoutAuthCount = userIds.length - usersWithAuthCount
+      if (usersWithoutAuthCount > 0) {
+        logger.info({
+          interventionId,
+          usersWithAuth: usersWithAuthCount,
+          usersWithoutAuth: usersWithoutAuthCount,
+          usersRequested: userIds.length
+        }, '⚠️ [EMAIL-NOTIFICATION] Some users excluded (no auth_user_id)')
+      } else {
+        logger.info({
+          interventionId,
+          usersFound: usersWithAuthCount,
+          usersRequested: userIds.length
+        }, '✅ [EMAIL-NOTIFICATION] User details fetched (all have auth)')
+      }
 
-      // Filtrer uniquement les utilisateurs avec email
+      // Filtrer uniquement les utilisateurs avec email (double sécurité)
       const recipients = usersResult.data.filter(user => user.email)
 
       logger.info({

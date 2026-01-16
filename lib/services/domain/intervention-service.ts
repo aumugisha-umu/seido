@@ -306,6 +306,40 @@ export class InterventionService {
   }
 
   /**
+   * Get interventions by contract
+   * Returns all interventions linked to a specific contract (bail)
+   */
+  async getByContract(contractId: string) {
+    try {
+      const { data, error } = await this.interventionRepo.supabase
+        .from('interventions')
+        .select(`
+          *,
+          building:building_id(id, name, address),
+          lot:lot_id(id, reference, category),
+          selected_time_slot:intervention_time_slots!intervention_id(
+            id,
+            slot_date,
+            start_time,
+            end_time,
+            status
+          )
+        `)
+        .eq('contract_id', contractId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        return createErrorResponse(handleError(error, 'interventions:getByContract'))
+      }
+
+      return createSuccessResponse(data || [])
+    } catch (error) {
+      return createErrorResponse(handleError(error, 'interventions:getByContract'))
+    }
+  }
+
+  /**
    * Get documents for an intervention
    */
   async getDocuments(interventionId: string) {

@@ -109,7 +109,11 @@ export const useContractUpload = ({
   }, [defaultDocumentType])
 
   // Add files with validation and preview generation
-  const addFiles = useCallback((newFiles: File[]) => {
+  // overrideDocumentType: force a specific type instead of smart detection (used by slot-based upload)
+  const addFiles = useCallback((
+    newFiles: File[],
+    overrideDocumentType?: ContractDocumentType
+  ) => {
     const validatedFiles: ContractFileWithPreview[] = []
     const errors: string[] = []
 
@@ -145,7 +149,8 @@ export const useContractUpload = ({
         preview,
         progress: 0,
         status: 'pending',
-        documentType: getSmartDefaultType(file.name)
+        // Use override type if provided, otherwise smart detect from filename
+        documentType: overrideDocumentType ?? getSmartDefaultType(file.name)
       })
     })
 

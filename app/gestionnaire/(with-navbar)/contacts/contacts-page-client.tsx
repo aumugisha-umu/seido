@@ -140,9 +140,9 @@ export function ContactsPageClient({
     }))
   }, [contacts, initialContactsInvitationStatus])
 
-  // Instancier les services nécessaires
-  const contactService = createContactService()
-  const contactInvitationService = createContactInvitationService()
+  // Instancier les services nécessaires (mémorisés pour éviter re-création à chaque render)
+  const contactService = useMemo(() => createContactService(), [])
+  const contactInvitationService = useMemo(() => createContactInvitationService(), [])
 
   // Refetch via router.refresh()
   const refetchContacts = async () => {
@@ -153,19 +153,6 @@ export function ContactsPageClient({
       logger.error("❌ Error refetching contacts:", error)
     } finally {
       setLoading(false)
-    }
-  }
-
-  const loadInvitations = async (teamId: string) => {
-    try {
-      logger.info(`📧 Loading invitations for team: ${teamId}`)
-      // Note: This still uses getPendingInvitations but the table filter handles display
-      // A full refresh is done via router.refresh() for complete reload
-      const contactInvitationServiceLocal = createContactInvitationService()
-      const loadedInvitations = await contactInvitationServiceLocal.getPendingInvitations(teamId)
-      setInvitations(loadedInvitations)
-    } catch (invitationError) {
-      logger.error("❌ Error loading invitations:", invitationError)
     }
   }
 

@@ -178,7 +178,17 @@ export class ContractService {
       endDate
     )
 
-    if (isSuccessResponse(overlapResult) && overlapResult.data) {
+    // ✅ Gérer l'erreur de vérification (fail-safe) - ne pas créer si vérification échoue
+    if (!isSuccessResponse(overlapResult)) {
+      logger.error({ error: overlapResult.error, lotId: data.lot_id }, 'Overlap check failed - blocking creation')
+      throw new ValidationException(
+        'Impossible de vérifier les chevauchements de contrats. Veuillez réessayer.',
+        'contracts',
+        'overlap_check_failed'
+      )
+    }
+
+    if (overlapResult.data) {
       throw new ConflictException(
         'Un contrat existe déjà pour ce lot sur cette période. Les dates de début et fin ne peuvent pas chevaucher un contrat existant.',
         'contracts',

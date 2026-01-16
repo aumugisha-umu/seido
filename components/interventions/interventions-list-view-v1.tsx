@@ -497,14 +497,31 @@ export function InterventionsListViewV1({
                       : '-'}
                   </TableCell>
 
-                  {/* Scheduled Date Cell */}
+                  {/* Scheduled Date Cell - Show selected time slot if available */}
                   <TableCell className="text-sm text-slate-600">
-                    {intervention.scheduled_date
-                      ? new Date(intervention.scheduled_date).toLocaleDateString('fr-FR', {
-                          day: '2-digit',
-                          month: '2-digit'
-                        })
-                      : '-'}
+                    {intervention.selected_time_slot?.[0] ? (
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5 flex-shrink-0 text-blue-600" aria-hidden="true" />
+                        <div className="flex flex-col">
+                          <span className="font-medium">
+                            {new Date(intervention.selected_time_slot[0].slot_date).toLocaleDateString('fr-FR', {
+                              day: '2-digit',
+                              month: '2-digit'
+                            })}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {intervention.selected_time_slot[0].start_time} - {intervention.selected_time_slot[0].end_time}
+                          </span>
+                        </div>
+                      </div>
+                    ) : intervention.scheduled_date ? (
+                      new Date(intervention.scheduled_date).toLocaleDateString('fr-FR', {
+                        day: '2-digit',
+                        month: '2-digit'
+                      })
+                    ) : (
+                      '-'
+                    )}
                   </TableCell>
 
                   {/* Actions Cell */}

@@ -404,6 +404,13 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           amount,
           provider_id,
           provider:users!provider_id(name)
+        ),
+        selected_time_slot:intervention_time_slots!intervention_id(
+          id,
+          slot_date,
+          start_time,
+          end_time,
+          status
         )
       `)
       .eq('team_id', teamId)

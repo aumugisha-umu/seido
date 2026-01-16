@@ -13,6 +13,7 @@ import { Step2Company } from "./steps/step-2-company"
 import { Step3Contact } from "./steps/step-3-contact"
 import { Step4Confirmation } from "./steps/step-4-confirmation"
 import { getTypeLabel } from "@/components/interventions/intervention-type-icon"
+import { isValidEmail } from "@/lib/validation/patterns"
 
 // Types
 interface Company {
@@ -48,6 +49,10 @@ interface ContactFormData {
 
   // Step 4: Invitation
   inviteToApp: boolean
+
+  // Statut email (calculé automatiquement dans Step3)
+  existsInCurrentTeam?: boolean
+  hasAuthAccount?: boolean
 }
 
 interface ContactCreationClientProps {
@@ -73,7 +78,7 @@ export function ContactCreationClient({
 
   // Wrapper pour setCurrentStep qui met aussi à jour maxStepReached
   const setCurrentStep = (step: number) => {
-    const clampedStep = Math.max(1, Math.min(step, 3)) // 3 étapes total pour les contacts
+    const clampedStep = Math.max(1, Math.min(step, contactSteps.length))
     setCurrentStepState(clampedStep)
     if (clampedStep > maxStepReached) {
       setMaxStepReached(clampedStep)
@@ -121,71 +126,7 @@ export function ContactCreationClient({
     setFormData(prev => ({ ...prev, [field]: value }))
   }
 
-  // Validation par étape (pour vérifier si le bouton doit être désactivé)
-  const isCurrentStepValid = (): boolean => {
-    switch (currentStep) {
-      case 1: // Type de contact
-        if (!formData.contactType) return false
-        if (!formData.personOrCompany) return false
-        if (formData.contactType === 'prestataire' && !formData.specialty) return false
-        if (formData.contactType === 'autre' && !formData.customRoleDescription?.trim()) return false
-        return true
-
-      case 2: // Informations société (seulement si company)
-        if (formData.personOrCompany === 'company') {
-          if (formData.companyMode === 'existing') {
-            if (!formData.companyId) return false
-          } else {
-            // Nouvelle société
-            if (!formData.companyName?.trim()) return false
-            if (!formData.vatNumber?.trim()) return false
-            if (!formData.street?.trim()) return false
-            if (!formData.streetNumber?.trim()) return false
-            if (!formData.postalCode?.trim()) return false
-            if (!formData.city?.trim()) return false
-            if (!formData.country?.trim()) return false
-          }
-        }
-        return true
-
-      case 3: // Informations contact
-        // Validation email conditionnelle selon inviteToApp
-        if (formData.inviteToApp) {
-          // Email obligatoire si invitation activée
-          if (!formData.email?.trim()) return false
-          // Validation basique email
-          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-          if (!emailRegex.test(formData.email)) return false
-        } else {
-          // Email optionnel - valider format seulement si fourni
-          if (formData.email?.trim()) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-            if (!emailRegex.test(formData.email)) return false
-          }
-
-          // Pour les contacts société sans invitation : au moins email OU téléphone requis
-          if (formData.personOrCompany === 'company') {
-            const hasEmail = formData.email?.trim()
-            const hasPhone = formData.phone?.trim()
-            if (!hasEmail && !hasPhone) return false
-          }
-        }
-
-        // Si personne physique, prénom OU nom requis
-        if (formData.personOrCompany === 'person') {
-          if (!formData.firstName?.trim() && !formData.lastName?.trim()) return false
-        }
-        return true
-
-      case 4: // Confirmation - toujours valide
-        return true
-
-      default:
-        return true
-    }
-  }
-
-  // Validation par étape (pour afficher les erreurs)
+  // Validation par étape (unique source de vérité pour valid + errors)
   const validateCurrentStep = (): { valid: boolean; errors: string[] } => {
     const errors: string[] = []
 
@@ -226,16 +167,14 @@ export function ContactCreationClient({
             errors.push("Email requis")
           } else {
             // Validation basique email
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-            if (!emailRegex.test(formData.email)) {
+            if (!isValidEmail(formData.email)) {
               errors.push("Email invalide")
             }
           }
         } else {
           // Email optionnel - valider format seulement si fourni
           if (formData.email?.trim()) {
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-            if (!emailRegex.test(formData.email)) {
+            if (!isValidEmail(formData.email)) {
               errors.push("Email invalide")
             }
           }
@@ -270,9 +209,15 @@ export function ContactCreationClient({
     const validation = validateCurrentStep()
 
     if (!validation.valid) {
-      validation.errors.forEach(error => {
-        toast.error(error)
-      })
+      // Grouper les erreurs en un seul toast pour éviter l'empilement
+      const errorCount = validation.errors.length
+      if (errorCount === 1) {
+        toast.error(validation.errors[0])
+      } else {
+        toast.error(`${errorCount} champs à corriger`, {
+          description: validation.errors.join(' • ')
+        })
+      }
       return
     }
 
@@ -515,6 +460,7 @@ export function ContactCreationClient({
 
             {currentStep === 3 && (
               <Step3Contact
+                teamId={teamId}
                 personOrCompany={formData.personOrCompany}
                 firstName={formData.firstName}
                 lastName={formData.lastName}
@@ -548,6 +494,8 @@ export function ContactCreationClient({
                 inviteToApp={formData.inviteToApp}
                 onInviteChange={(value) => handleInputChange('inviteToApp', value)}
                 companies={initialCompanies}
+                existsInCurrentTeam={formData.existsInCurrentTeam}
+                hasAuthAccount={formData.hasAuthAccount}
               />
             )}
           </div>
@@ -578,7 +526,11 @@ export function ContactCreationClient({
                 handleNext()
               }
             }}
-            disabled={isCreating || !isCurrentStepValid()}
+            disabled={
+              isCreating ||
+              !validateCurrentStep().valid ||
+              (currentStep === contactSteps.length && formData.existsInCurrentTeam)
+            }
             className={currentStep === contactSteps.length ? 'bg-green-600 hover:bg-green-700' : ''}
           >
             {isCreating ? (

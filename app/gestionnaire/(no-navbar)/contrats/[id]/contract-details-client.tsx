@@ -18,7 +18,6 @@ import {
   deleteContract
 } from '@/app/actions/contract-actions'
 import {
-  ArrowLeft,
   Edit,
   Trash2,
   PlayCircle,
@@ -33,7 +32,8 @@ import {
   MoreVertical,
   Download,
   Eye,
-  Mail
+  Mail,
+  ListTodo
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -54,6 +54,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { cn } from '@/lib/utils'
 import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
+import { InterventionsNavigator } from '@/components/interventions/interventions-navigator'
+import { DetailPageHeader } from '@/components/ui/detail-page-header'
 import { logger } from '@/lib/logger'
 import type {
   ContractWithRelations,
@@ -69,8 +71,9 @@ import {
 export default function ContractDetailsClient({
   contract,
   documents,
+  interventions,
   teamId
-}: ContractDetailsClientProps & { documents: ContractDocument[] }) {
+}: ContractDetailsClientProps & { documents: ContractDocument[]; interventions?: any[] }) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('overview')
   const [isLoading, setIsLoading] = useState(false)
@@ -150,134 +153,128 @@ export default function ContractDetailsClient({
     router.push(`/gestionnaire/contrats/nouveau?renew=${contract.id}`)
   }, [contract.id, router])
 
+  // Status badge configuration for DetailPageHeader
+  const getStatusBadge = () => {
+    const statusConfig: Record<string, { label: string; color: string; dotColor: string }> = {
+      actif: { label: 'Actif', color: 'bg-green-100 text-green-800 border-green-200', dotColor: 'bg-green-500' },
+      brouillon: { label: 'Brouillon', color: 'bg-gray-100 text-gray-800 border-gray-200', dotColor: 'bg-gray-500' },
+      a_venir: { label: 'À venir', color: 'bg-blue-100 text-blue-800 border-blue-200', dotColor: 'bg-blue-500' },
+      resilie: { label: 'Résilié', color: 'bg-red-100 text-red-800 border-red-200', dotColor: 'bg-red-500' },
+      expire: { label: 'Expiré', color: 'bg-orange-100 text-orange-800 border-orange-200', dotColor: 'bg-orange-500' }
+    }
+    const config = statusConfig[contract.status] || statusConfig.brouillon
+    return { label: config.label, color: config.color, dotColor: config.dotColor }
+  }
+
   return (
     <div className="contract-details min-h-screen bg-background">
-      {/* Header */}
-      <header className="contract-details__header bg-card border-b border-border sticky top-0 z-10">
-        <div className="content-max-width px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between gap-4">
-            {/* Back button and title */}
-            <div className="flex items-center gap-4 min-w-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => router.push('/gestionnaire/contrats')}
-                className="flex-shrink-0"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h1 className="text-xl font-bold text-foreground truncate">
-                    {contract.title}
-                  </h1>
-                  <SeidoBadge type="contract" value={contract.status} showIcon />
-                </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-sm text-muted-foreground">{locationInfo}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Quick actions based on status */}
-              {contract.status === 'actif' && (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={handleRenew}
-                    disabled={isLoading}
-                    className="hidden sm:flex items-center gap-2"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                    Renouveler
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setTerminateDialogOpen(true)}
-                    disabled={isLoading}
-                    className="hidden sm:flex items-center gap-2 text-destructive hover:text-destructive"
-                  >
-                    <StopCircle className="h-4 w-4" />
-                    Résilier
-                  </Button>
-                </>
-              )}
-
-              {/* Edit button */}
-              {contract.status !== 'resilie' && contract.status !== 'expire' && (
+      {/* Unified Header using DetailPageHeader */}
+      <DetailPageHeader
+        onBack={() => router.push('/gestionnaire/contrats')}
+        backButtonText="Contrats"
+        title={contract.title}
+        subtitle={locationInfo}
+        badges={[getStatusBadge()]}
+        metadata={[
+          { icon: Calendar, text: `${new Date(contract.start_date).toLocaleDateString('fr-FR')} - ${new Date(contract.end_date).toLocaleDateString('fr-FR')}` },
+          { icon: Euro, text: `${monthlyTotal.toLocaleString('fr-FR')} €/mois` }
+        ]}
+        actionButtons={
+          <div className="flex items-center gap-2">
+            {/* Desktop actions */}
+            {contract.status === 'actif' && (
+              <>
                 <Button
                   variant="outline"
-                  onClick={() => router.push(`/gestionnaire/contrats/modifier/${contract.id}`)}
+                  onClick={handleRenew}
                   disabled={isLoading}
                   className="hidden sm:flex items-center gap-2"
                 >
-                  <Edit className="h-4 w-4" />
-                  Modifier
+                  <RefreshCw className="h-4 w-4" />
+                  <span className="hidden md:inline">Renouveler</span>
                 </Button>
-              )}
+                <Button
+                  variant="outline"
+                  onClick={() => setTerminateDialogOpen(true)}
+                  disabled={isLoading}
+                  className="hidden sm:flex items-center gap-2 text-destructive hover:text-destructive"
+                >
+                  <StopCircle className="h-4 w-4" />
+                  <span className="hidden md:inline">Résilier</span>
+                </Button>
+              </>
+            )}
 
-              {/* More actions dropdown */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="icon">
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {/* Mobile actions */}
-                  {contract.status === 'brouillon' && (
-                    <DropdownMenuItem onClick={handleActivate} className="sm:hidden">
-                      <PlayCircle className="h-4 w-4 mr-2" />
-                      Activer
-                    </DropdownMenuItem>
-                  )}
-                  {contract.status === 'actif' && (
-                    <>
-                      <DropdownMenuItem onClick={handleRenew} className="sm:hidden">
-                        <RefreshCw className="h-4 w-4 mr-2" />
-                        Renouveler
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => setTerminateDialogOpen(true)}
-                        className="sm:hidden text-destructive"
-                      >
-                        <StopCircle className="h-4 w-4 mr-2" />
-                        Résilier
-                      </DropdownMenuItem>
-                    </>
-                  )}
-                  {contract.status !== 'resilie' && contract.status !== 'expire' && (
-                    <DropdownMenuItem
-                      onClick={() => router.push(`/gestionnaire/contrats/modifier/${contract.id}`)}
-                      className="sm:hidden"
-                    >
-                      <Edit className="h-4 w-4 mr-2" />
-                      Modifier
-                    </DropdownMenuItem>
-                  )}
-                  {(contract.status === 'brouillon' || contract.status === 'actif') && (
-                    <DropdownMenuSeparator className="sm:hidden" />
-                  )}
+            {contract.status !== 'resilie' && contract.status !== 'expire' && (
+              <Button
+                variant="outline"
+                onClick={() => router.push(`/gestionnaire/contrats/modifier/${contract.id}`)}
+                disabled={isLoading}
+                className="hidden sm:flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                <span className="hidden md:inline">Modifier</span>
+              </Button>
+            )}
 
-                  {/* Delete action */}
-                  {contract.status !== 'actif' && (
-                    <DropdownMenuItem
-                      onClick={() => setDeleteDialogOpen(true)}
-                      className="text-destructive focus:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Supprimer
+            {/* More actions dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {/* Mobile actions */}
+                {contract.status === 'brouillon' && (
+                  <DropdownMenuItem onClick={handleActivate} className="sm:hidden">
+                    <PlayCircle className="h-4 w-4 mr-2" />
+                    Activer
+                  </DropdownMenuItem>
+                )}
+                {contract.status === 'actif' && (
+                  <>
+                    <DropdownMenuItem onClick={handleRenew} className="sm:hidden">
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Renouveler
                     </DropdownMenuItem>
-                  )}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+                    <DropdownMenuItem
+                      onClick={() => setTerminateDialogOpen(true)}
+                      className="sm:hidden text-destructive"
+                    >
+                      <StopCircle className="h-4 w-4 mr-2" />
+                      Résilier
+                    </DropdownMenuItem>
+                  </>
+                )}
+                {contract.status !== 'resilie' && contract.status !== 'expire' && (
+                  <DropdownMenuItem
+                    onClick={() => router.push(`/gestionnaire/contrats/modifier/${contract.id}`)}
+                    className="sm:hidden"
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Modifier
+                  </DropdownMenuItem>
+                )}
+                {(contract.status === 'brouillon' || contract.status === 'actif') && (
+                  <DropdownMenuSeparator className="sm:hidden" />
+                )}
+
+                {/* Delete action */}
+                {contract.status !== 'actif' && (
+                  <DropdownMenuItem
+                    onClick={() => setDeleteDialogOpen(true)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Supprimer
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Main content */}
       <main className="content-max-width px-4 sm:px-6 lg:px-8 py-8">
@@ -298,6 +295,10 @@ export default function ContractDetailsClient({
             <TabsTrigger value="emails" className="flex items-center gap-2">
               <Mail className="h-4 w-4" />
               Emails
+            </TabsTrigger>
+            <TabsTrigger value="interventions" className="flex items-center gap-2">
+              <ListTodo className="h-4 w-4" />
+              Tâches ({interventions?.length || 0})
             </TabsTrigger>
           </TabsList>
 
@@ -595,6 +596,28 @@ export default function ContractDetailsClient({
                 />
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Interventions Tab */}
+          <TabsContent value="interventions" className="space-y-6">
+            <InterventionsNavigator
+              interventions={interventions || []}
+              userContext="gestionnaire"
+              loading={false}
+              emptyStateConfig={{
+                title: "Aucune tâche",
+                description: "Aucune intervention n'a été créée pour ce contrat.",
+                showCreateButton: true,
+                createButtonText: "Créer une intervention",
+                createButtonAction: () => router.push(
+                  `/gestionnaire/interventions/nouvelle-intervention?lotId=${contract.lot_id}&contractId=${contract.id}`
+                )
+              }}
+              showStatusActions={true}
+              searchPlaceholder="Rechercher par titre, description..."
+              showFilters={true}
+              isEmbeddedInCard={true}
+            />
           </TabsContent>
         </Tabs>
       </main>

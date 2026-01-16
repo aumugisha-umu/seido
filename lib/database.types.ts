@@ -589,6 +589,7 @@ export type Database = {
       contracts: {
         Row: {
           charges_amount: number | null
+          charges_type: Database["public"]["Enums"]["charges_type"]
           comments: string | null
           contract_type: Database["public"]["Enums"]["contract_type"]
           created_at: string
@@ -617,6 +618,7 @@ export type Database = {
         }
         Insert: {
           charges_amount?: number | null
+          charges_type?: Database["public"]["Enums"]["charges_type"]
           comments?: string | null
           contract_type?: Database["public"]["Enums"]["contract_type"]
           created_at?: string
@@ -645,6 +647,7 @@ export type Database = {
         }
         Update: {
           charges_amount?: number | null
+          charges_type?: Database["public"]["Enums"]["charges_type"]
           comments?: string | null
           contract_type?: Database["public"]["Enums"]["contract_type"]
           created_at?: string
@@ -2043,6 +2046,7 @@ export type Database = {
           assignment_mode: Database["public"]["Enums"]["assignment_mode"]
           building_id: string | null
           completed_date: string | null
+          contract_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -2076,6 +2080,7 @@ export type Database = {
           assignment_mode?: Database["public"]["Enums"]["assignment_mode"]
           building_id?: string | null
           completed_date?: string | null
+          contract_id?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -2109,6 +2114,7 @@ export type Database = {
           assignment_mode?: Database["public"]["Enums"]["assignment_mode"]
           building_id?: string | null
           completed_date?: string | null
+          contract_id?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -2151,6 +2157,20 @@ export type Database = {
             columns: ["building_id"]
             isOneToOne: false
             referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts_active"
             referencedColumns: ["id"]
           },
           {
@@ -3949,6 +3969,7 @@ export type Database = {
         | "import"
       activity_status: "success" | "failure" | "pending"
       assignment_mode: "single" | "group" | "separate"
+      charges_type: "forfaitaire" | "provision"
       contract_contact_role:
         | "locataire"
         | "colocataire"
@@ -4255,6 +4276,7 @@ export const Constants = {
       ],
       activity_status: ["success", "failure", "pending"],
       assignment_mode: ["single", "group", "separate"],
+      charges_type: ["forfaitaire", "provision"],
       contract_contact_role: [
         "locataire",
         "colocataire",

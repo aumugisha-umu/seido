@@ -13,6 +13,7 @@ import { Step1Type } from "../../nouveau/steps/step-1-type"
 import { Step2Company } from "../../nouveau/steps/step-2-company"
 import { Step3Contact } from "../../nouveau/steps/step-3-contact"
 import { Step4Confirmation } from "../../nouveau/steps/step-4-confirmation"
+import { isValidEmail } from "@/lib/validation/patterns"
 
 // Types
 interface Company {
@@ -156,8 +157,7 @@ export function EditContactClient({
             case 3: // Informations contact
                 // Email optionnel en mode edit sauf si on veut l'inviter (mais ici inviteToApp est read only)
                 if (formData.email?.trim()) {
-                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-                    if (!emailRegex.test(formData.email)) return false
+                    if (!isValidEmail(formData.email)) return false
                 }
 
                 // Pour les contacts société : au moins email OU téléphone requis

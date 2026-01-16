@@ -64,7 +64,7 @@ export async function POST(request: Request) {
     // Vérifier si l'email existe dans l'équipe courante (Service Role bypass RLS)
     const { data: existingInCurrentTeam, error: currentTeamError } = await supabaseAdmin
       .from('users')
-      .select('id, email, team_id, role')
+      .select('id, email, team_id, role, auth_user_id')
       .eq('email', normalizedEmail)
       .eq('team_id', teamId)
       .is('deleted_at', null) // ✅ FIX: Utiliser .is() pour vérifier NULL sur colonne timestamp
@@ -92,6 +92,10 @@ export async function POST(request: Request) {
     const existsInOtherTeams = !!existingInOtherTeams && existingInOtherTeams.length > 0
     const canCreate = !existsInCurrentTeam
 
+    // Vérifier si le contact dans l'équipe courante a un compte auth
+    // ⚠️ CONFIDENTIALITÉ : On ne révèle cette info que pour l'équipe courante
+    const hasAuthAccount = existsInCurrentTeam && existingInCurrentTeam?.auth_user_id !== null
+
     let message = ''
     if (existsInCurrentTeam) {
       message = `Un contact avec cet email existe déjà dans votre équipe.`
@@ -106,6 +110,7 @@ export async function POST(request: Request) {
       teamId,
       existsInCurrentTeam,
       existsInOtherTeams,
+      hasAuthAccount,
       canCreate
     }, `✅ [CHECK-EMAIL-TEAM] Validation completed:`)
 
@@ -113,6 +118,7 @@ export async function POST(request: Request) {
       existsInCurrentTeam,
       existsInOtherTeams,
       canCreate,
+      hasAuthAccount,
       message
     })
 

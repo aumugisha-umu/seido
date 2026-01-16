@@ -147,8 +147,33 @@ export async function POST(request: Request) {
             { status: 400 }
           )
         }
+
+        // ✅ SÉCURITÉ: Vérifier que la société appartient bien à l'équipe de l'utilisateur
+        const { data: companyCheck, error: companyCheckError } = await supabaseAdmin
+          .from('companies')
+          .select('id')
+          .eq('id', providedCompanyId)
+          .eq('team_id', teamId)
+          .maybeSingle()
+
+        if (companyCheckError) {
+          logger.error({ error: companyCheckError }, '❌ [STEP-0] Error checking company ownership')
+          return NextResponse.json(
+            { error: 'Erreur lors de la vérification de la société' },
+            { status: 500 }
+          )
+        }
+
+        if (!companyCheck) {
+          logger.warn({ companyId: providedCompanyId, teamId }, '⚠️ [STEP-0] Company does not belong to team - potential IDOR attack')
+          return NextResponse.json(
+            { error: 'Société non trouvée dans votre équipe' },
+            { status: 403 }
+          )
+        }
+
         finalCompanyId = providedCompanyId
-        logger.info({ companyId: finalCompanyId }, '✅ [STEP-0] Using existing company')
+        logger.info({ companyId: finalCompanyId }, '✅ [STEP-0] Using existing company (ownership verified)')
 
       } else {
         // Mode: Nouvelle société
@@ -336,39 +361,87 @@ export async function POST(request: Request) {
       logger.info({}, '📧 [STEP-3-INVITE] Processing invitation flow with official Supabase link...')
 
       try {
-        // SOUS-ÉTAPE 1: Générer le lien d'invitation officiel Supabase (crée auth automatiquement)
-        // Note: normalizedEmail ne peut pas être null ici car la validation Zod garantit que email est requis si shouldInviteToApp === true
-        logger.info({}, '🔗 [STEP-3-INVITE-1] Generating official Supabase invite link (auto-creates auth user)...')
-        const { data: inviteLink, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
-          type: 'invite',
-          email: normalizedEmail!, // Non-null assertion car garanti par validation Zod
-          options: {
-            redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
-            data: {
-              // ✅ Metadata pour l'auth user (équivalent à user_metadata de createUser)
-              full_name: contactName,
-              first_name: firstName || null,
-              last_name: lastName || null,
-              display_name: contactName,
-              role: validUserRole,
-              provider_category: finalProviderCategory,
-              team_id: teamId,
-              password_set: false  // ✅ CRITIQUE: Indique que l'utilisateur doit définir son mot de passe
+        // SOUS-ÉTAPE 0: Vérifier si un auth user existe déjà pour cet email (support multi-équipes)
+        // ✅ OPTIMISATION: Au lieu de charger TOUS les auth users avec listUsers(),
+        // on vérifie public.users où auth_user_id IS NOT NULL (requête indexée O(1))
+        logger.info({ email: normalizedEmail }, '🔍 [STEP-3-INVITE-0] Checking if auth user already exists (multi-team support)...')
+        const { data: existingUserWithAuth } = await supabaseAdmin
+          .from('users')
+          .select('id, auth_user_id')
+          .eq('email', normalizedEmail)
+          .not('auth_user_id', 'is', null)
+          .is('deleted_at', null)
+          .limit(1)
+          .maybeSingle()
+
+        const existingAuthUser = existingUserWithAuth ? { id: existingUserWithAuth.auth_user_id } : null
+
+        let hashedToken: string
+        let invitationUrl: string
+        let isNewAuthUser: boolean
+
+        if (!existingAuthUser) {
+          // ========================================================================
+          // CAS A: AUTH N'EXISTE PAS - CRÉER NOUVEAU AUTH USER
+          // ========================================================================
+          logger.info({}, '📝 [STEP-3-INVITE-1A] Auth user does not exist, creating new one via invite link...')
+          isNewAuthUser = true
+
+          const { data: inviteLink, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
+            type: 'invite',
+            email: normalizedEmail!, // Non-null assertion car garanti par validation Zod
+            options: {
+              redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+              data: {
+                // ✅ Metadata pour l'auth user (équivalent à user_metadata de createUser)
+                full_name: contactName,
+                first_name: firstName || null,
+                last_name: lastName || null,
+                display_name: contactName,
+                role: validUserRole,
+                provider_category: finalProviderCategory,
+                team_id: teamId,
+                password_set: false  // ✅ CRITIQUE: Indique que l'utilisateur doit définir son mot de passe
+              }
             }
+          })
+
+          if (inviteError || !inviteLink?.properties?.action_link) {
+            logger.error({ inviteError: inviteError }, '❌ [STEP-3-INVITE-1A] Failed to generate invite link:')
+            throw new Error('Failed to generate invitation link: ' + inviteError?.message)
           }
-        })
 
-        if (inviteError || !inviteLink?.properties?.action_link) {
-          logger.error({ inviteError: inviteError }, '❌ [STEP-3-INVITE-1] Failed to generate invite link:')
-          throw new Error('Failed to generate invitation link: ' + inviteError?.message)
+          authUserId = inviteLink.user.id
+          hashedToken = inviteLink.properties.hashed_token
+          invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
+          logger.info({ authUserId }, '✅ [STEP-3-INVITE-1A] New auth user created + invite link generated')
+
+        } else {
+          // ========================================================================
+          // CAS B: AUTH EXISTE (AUTRE ÉQUIPE) - RÉUTILISER AUTH EXISTANT
+          // ========================================================================
+          logger.info({ authUserId: existingAuthUser.id }, '♻️ [STEP-3-INVITE-1B] Auth user already exists (other team), reusing and generating magic link...')
+          isNewAuthUser = false
+          authUserId = existingAuthUser.id
+
+          // Générer magic link (pas invite car auth existe déjà)
+          const { data: magicLink, error: magicError } = await supabaseAdmin.auth.admin.generateLink({
+            type: 'magiclink',
+            email: normalizedEmail!,
+            options: {
+              redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?team_id=${teamId}`
+            }
+          })
+
+          if (magicError || !magicLink) {
+            logger.error({ magicError }, '❌ [STEP-3-INVITE-1B] Failed to generate magic link:')
+            throw new Error('Failed to generate magic link: ' + magicError?.message)
+          }
+
+          hashedToken = magicLink.properties.hashed_token
+          invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
+          logger.info({}, '✅ [STEP-3-INVITE-1B] Magic link generated for existing auth user')
         }
-
-        // ✅ Récupérer l'auth_user_id et le hashed_token
-        authUserId = inviteLink.user.id
-        const hashedToken = inviteLink.properties.hashed_token
-        // ✅ Construire l'URL avec notre domaine (pas celui de Supabase dashboard)
-        const invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
-        logger.info({ user: authUserId }, '✅ [STEP-3-INVITE-1] Auth user created + invite link generated:')
 
         // SOUS-ÉTAPE 2: Lier l'auth au profil (utiliser Service Role pour bypasser RLS)
         logger.info({}, '🔗 [STEP-3-INVITE-2] Linking auth to profile with Service Role...')
@@ -381,8 +454,10 @@ export async function POST(request: Request) {
 
         if (updateError || !updatedUser) {
           logger.error({ updateError: updateError }, '❌ [STEP-3-INVITE-2] Failed to link auth to profile:')
-          // Cleanup : Supprimer l'auth créé si échec de liaison
-          await supabaseAdmin.auth.admin.deleteUser(authUserId)
+          // Cleanup : Supprimer l'auth créé SEULEMENT si on vient de le créer
+          if (isNewAuthUser && authUserId) {
+            await supabaseAdmin.auth.admin.deleteUser(authUserId)
+          }
           throw new Error('Failed to link auth to profile: ' + (updateError?.message || 'No user returned'))
         }
 
@@ -435,15 +510,19 @@ export async function POST(request: Request) {
             invitationSent: false,
             magicLink: invitationUrl,
             error: emailResult.error,
-            message: 'Auth et profil créés mais email non envoyé'
+            message: 'Auth et profil créés mais email non envoyé',
+            isNewAuthUser
           }
         } else {
-          logger.info({ emailResult: emailResult.emailId }, '✅ [STEP-3-INVITE-4] Invitation email sent successfully via Resend:')
+          logger.info({ emailResult: emailResult.emailId, isNewAuthUser }, '✅ [STEP-3-INVITE-4] Invitation email sent successfully via Resend:')
           invitationResult = {
             success: true,
             invitationSent: true,
             magicLink: invitationUrl,
-            message: 'Invitation envoyée avec succès'
+            message: isNewAuthUser 
+              ? 'Invitation envoyée avec succès' 
+              : 'Contact ajouté à votre équipe (compte existant réutilisé)',
+            isNewAuthUser
           }
         }
 

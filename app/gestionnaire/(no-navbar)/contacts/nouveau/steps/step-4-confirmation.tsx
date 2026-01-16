@@ -1,8 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card"
-import { Label } from "@/components/ui/label"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { User, Building2, Mail, Phone, FileText, MapPin, CheckCircle, UserX } from "lucide-react"
+import { User, Building2, Mail, Phone, FileText, MapPin, CheckCircle, UserX, Bell, BellOff, Send, Info, AlertTriangle } from "lucide-react"
 import { getTypeLabel } from "@/components/interventions/intervention-type-icon"
 
 interface Company {
@@ -37,6 +35,9 @@ interface Step4ConfirmationProps {
   inviteToApp: boolean
   onInviteChange: (value: boolean) => void
   companies: Company[]
+  // Statut email (venant de Step3)
+  existsInCurrentTeam?: boolean
+  hasAuthAccount?: boolean
 }
 
 export function Step4Confirmation({
@@ -59,7 +60,9 @@ export function Step4Confirmation({
   notes,
   inviteToApp,
   onInviteChange,
-  companies
+  companies,
+  existsInCurrentTeam,
+  hasAuthAccount
 }: Step4ConfirmationProps) {
   // Helper pour formater le type de contact
   const getContactTypeLabel = () => {
@@ -208,24 +211,81 @@ export function Step4Confirmation({
 
             {/* Colonne Droite: Invitation & Accès */}
             <div className={`p-6 ${inviteToApp ? 'bg-blue-50/30 dark:bg-blue-950/30' : 'bg-muted/30'}`}>
-              <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-6">Accès & Invitation</h4>
+              <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">Accès & Invitation</h4>
 
-              <div className={`rounded-xl border p-4 ${inviteToApp ? 'bg-card border-blue-100 dark:border-blue-800 shadow-sm' : 'bg-muted border-border border-dashed'}`}>
-                <div className="flex items-start gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${inviteToApp ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'bg-muted text-muted-foreground'}`}>
-                    {inviteToApp ? <CheckCircle className="h-4 w-4" /> : <UserX className="h-4 w-4" />}
-                  </div>
-                  <div className="space-y-1">
-                    <div className={`font-medium text-sm ${inviteToApp ? 'text-blue-900 dark:text-blue-100' : 'text-foreground'}`}>
-                      {inviteToApp ? "Invitation active" : "Pas d'accès"}
+              <div className="space-y-3">
+                {/* Statut principal */}
+                <div className={`rounded-xl border p-4 ${inviteToApp ? 'bg-card border-blue-200 dark:border-blue-800 shadow-sm' : 'bg-card border-border'}`}>
+                  <div className="flex items-start gap-3">
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${inviteToApp ? 'bg-blue-100 dark:bg-blue-900 text-blue-600' : 'bg-amber-100 dark:bg-amber-900 text-amber-600'}`}>
+                      {inviteToApp ? <CheckCircle className="h-4 w-4" /> : <UserX className="h-4 w-4" />}
                     </div>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      {inviteToApp
-                        ? `Un email sera envoyé à ${email} pour configurer son accès.`
-                        : "Ce contact ne pourra pas se connecter à l'application."
-                      }
-                    </p>
+                    <div className="space-y-1 flex-1">
+                      <div className={`font-semibold text-sm ${inviteToApp ? 'text-blue-900 dark:text-blue-100' : 'text-amber-900 dark:text-amber-100'}`}>
+                        {inviteToApp ? "Invitation à l'application" : "Contact sans accès"}
+                      </div>
+                      <p className="text-sm text-muted-foreground leading-relaxed">
+                        {inviteToApp
+                          ? "Ce contact pourra se connecter à l'application et accéder à ses informations."
+                          : "Ce contact sera enregistré mais ne pourra pas se connecter à l'application."
+                        }
+                      </p>
+                    </div>
                   </div>
+                </div>
+
+                {/* Alerte si contact existant - UNIQUEMENT si dans l'équipe courante */}
+                {existsInCurrentTeam && (
+                  <div className="rounded-xl border p-4 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
+                    <div className="flex items-start gap-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center bg-amber-100 dark:bg-amber-900 text-amber-600 flex-shrink-0">
+                        <AlertTriangle className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="font-semibold text-sm text-amber-800 dark:text-amber-200">
+                          {hasAuthAccount ? "Contact existant avec compte" : "Contact existant"}
+                        </div>
+                        <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                          {hasAuthAccount
+                            ? "Ce contact existe déjà dans votre équipe et possède déjà un compte. La création va échouer."
+                            : "Ce contact existe déjà dans votre équipe. La création va échouer."
+                          }
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Ce qui va se passer */}
+                <div className="rounded-lg bg-muted/50 p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Info className="h-4 w-4" />
+                    <span>Ce qui va se passer</span>
+                  </div>
+
+                  {inviteToApp ? (
+                    <ul className="space-y-2.5 text-sm text-muted-foreground">
+                      <li className="flex items-start gap-2.5">
+                        <Send className="h-4 w-4 mt-0.5 text-blue-500 flex-shrink-0" />
+                        <span>Un email d'invitation sera envoyé à <strong className="text-foreground">{email}</strong></span>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <Bell className="h-4 w-4 mt-0.5 text-green-500 flex-shrink-0" />
+                        <span>Ce contact <strong className="text-foreground">recevra des notifications</strong> pour les interventions et actions le concernant</span>
+                      </li>
+                    </ul>
+                  ) : (
+                    <ul className="space-y-2.5 text-sm text-muted-foreground">
+                      <li className="flex items-start gap-2.5">
+                        <UserX className="h-4 w-4 mt-0.5 text-amber-500 flex-shrink-0" />
+                        <span>Le contact sera créé mais <strong className="text-foreground">aucun email</strong> ne lui sera envoyé</span>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <BellOff className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                        <span>Ce contact <strong className="text-foreground">ne recevra pas de notifications</strong> automatiques</span>
+                      </li>
+                    </ul>
+                  )}
                 </div>
               </div>
             </div>

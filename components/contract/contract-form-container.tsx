@@ -18,6 +18,16 @@ import { ContactSection } from '@/components/ui/contact-section'
 import ContactSelector, { ContactSelectorRef } from '@/components/contact-selector'
 import PropertySelector from '@/components/property-selector'
 import LeaseFormDetailsMerged from '@/components/contract/lease-form-details-merged-v1'
+import { DocumentChecklist } from '@/components/contract/document-checklist'
+import { LeaseInterventionsStep } from '@/components/contract/lease-interventions-step'
+import type { ScheduledInterventionData } from '@/components/contract/intervention-schedule-row'
+import {
+  LEASE_INTERVENTION_TEMPLATES,
+  createMissingDocumentIntervention,
+  resolveTemplateText
+} from '@/lib/constants/lease-interventions'
+import { LEASE_DOCUMENT_SLOTS } from '@/lib/constants/lease-document-slots'
+import { format } from 'date-fns'
 import {
   createContract,
   addContractContact,
@@ -37,17 +47,22 @@ import {
   Users,
   Shield,
   FileText,
-  Save
+  Save,
+  Paperclip,
+  CalendarCheck,
+  AlertTriangle,
+  CheckCircle2
 } from 'lucide-react'
 import { logger } from '@/lib/logger'
-import { useContractUpload } from '@/hooks/use-contract-upload'
+import { useContractUploadByCategory } from '@/hooks/use-contract-upload-by-category'
 import type {
   ContractFormData,
   PaymentFrequency,
   GuaranteeType,
   ContractContactRole,
   ContractWithRelations,
-  ContractDocumentType
+  ContractDocumentType,
+  ChargesType
 } from '@/lib/types/contract.types'
 import {
   GUARANTEE_TYPE_LABELS,
@@ -110,6 +125,7 @@ const initialFormData: Partial<ContractFormData> = {
   paymentFrequencyValue: 1,
   rentAmount: 0,
   chargesAmount: 0,
+  chargesType: 'forfaitaire',
   contacts: [],
   guaranteeType: 'pas_de_garantie',
   guaranteeAmount: undefined,
@@ -143,6 +159,7 @@ function mapContractToFormData(contract: ContractWithRelations): Partial<Contrac
     paymentFrequencyValue: contract.payment_frequency_value,
     rentAmount: contract.rent_amount,
     chargesAmount: contract.charges_amount,
+    chargesType: contract.charges_type,
     contacts: (contract.contacts || []).map(c => ({
       id: c.id,
       userId: c.user_id,
@@ -180,7 +197,7 @@ export default function ContractFormContainer({
   const [currentStep, setCurrentStepState] = useState(() => {
     if (stepParam) {
       const step = parseInt(stepParam, 10)
-      if (!isNaN(step) && step >= 0 && step <= 3) {
+      if (!isNaN(step) && step >= 0 && step <= 4) {
         return step
       }
     }
@@ -188,11 +205,11 @@ export default function ContractFormContainer({
   })
   const [maxStepReached, setMaxStepReached] = useState(() => {
     // En mode edit, toutes les étapes sont accessibles dès le départ
-    if (mode === 'edit') return 3
+    if (mode === 'edit') return 4
     // Sinon, utiliser le step initial depuis URL ou 0
     if (stepParam) {
       const step = parseInt(stepParam, 10)
-      if (!isNaN(step) && step >= 0 && step <= 3) {
+      if (!isNaN(step) && step >= 0 && step <= 4) {
         return step
       }
     }
@@ -204,7 +221,7 @@ export default function ContractFormContainer({
   const setCurrentStep = useCallback((stepOrFn: number | ((prev: number) => number)) => {
     setCurrentStepState(prev => {
       const newStep = typeof stepOrFn === 'function' ? stepOrFn(prev) : stepOrFn
-      const clampedStep = Math.max(0, Math.min(newStep, 3)) // 0-3 pour les contrats
+      const clampedStep = Math.max(0, Math.min(newStep, 4)) // 0-4 pour les contrats (5 étapes)
       // Update maxStepReached si nécessaire (en mode create uniquement)
       if (clampedStep > maxStepReached && mode === 'create') {
         setMaxStepReached(clampedStep)
@@ -218,17 +235,28 @@ export default function ContractFormContainer({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
 
-  // Document upload hook with category support
+  // Interventions planifiées (étape 3)
+  const [scheduledInterventions, setScheduledInterventions] = useState<ScheduledInterventionData[]>([])
+
+  // État de l'overlap check (remonté depuis LeaseFormDetailsMerged pour validation step)
+  const [overlapCheckResult, setOverlapCheckResult] = useState<{
+    hasOverlap: boolean
+    isColocationAllowed: boolean
+    hasDuplicateTenant: boolean
+  } | null>(null)
+
+  // Document upload hook with category-based slots
   const {
-    files: documentFiles,
+    slots,
+    addFilesToSlot,
+    removeFileFromSlot,
+    progress: uploadProgress,
+    missingRecommendedDocuments,
     isUploading: isUploadingDocuments,
-    addFiles: addDocumentFiles,
-    removeFile: removeDocumentFile,
-    updateFileDocumentType,
     uploadFiles: uploadDocumentFiles,
     hasFiles: hasDocuments,
     hasPendingUploads
-  } = useContractUpload({
+  } = useContractUploadByCategory({
     onUploadComplete: (documentIds) => {
       logger.info({ documentIds }, '✅ [CONTRACT-FORM] Documents uploaded successfully')
     },
@@ -247,6 +275,55 @@ export default function ContractFormContainer({
       lotId: prefilledLotId || ''
     }
   })
+
+  // Initialiser les interventions quand les données du bail changent
+  useEffect(() => {
+    if (!formData.startDate || !formData.durationMonths || !formData.chargesType) {
+      setScheduledInterventions([])
+      return
+    }
+
+    const startDate = new Date(formData.startDate)
+    const endDate = new Date(formData.startDate)
+    endDate.setMonth(endDate.getMonth() + formData.durationMonths)
+
+    // Filtrer les templates selon le type de charges
+    const applicableTemplates = LEASE_INTERVENTION_TEMPLATES.filter(template => {
+      if (!template.applicableChargesTypes) return true
+      return template.applicableChargesTypes.includes(formData.chargesType as ChargesType)
+    })
+
+    // Interventions standard avec titres résolus
+    const standardInterventions: ScheduledInterventionData[] = applicableTemplates.map(template => ({
+      key: template.key,
+      title: resolveTemplateText(template.title, formData.chargesType as ChargesType),
+      description: resolveTemplateText(template.description, formData.chargesType as ChargesType),
+      interventionTypeCode: template.interventionTypeCode,
+      icon: template.icon,
+      colorClass: template.colorClass,
+      enabled: template.enabledByDefault,
+      scheduledDate: template.calculateDefaultDate(startDate, endDate),
+      isAutoCalculated: true
+    }))
+
+    // Interventions pour documents manquants
+    const documentInterventions: ScheduledInterventionData[] = missingRecommendedDocuments.map((docType, index) => {
+      const template = createMissingDocumentIntervention(docType, index)
+      return {
+        key: template.key,
+        title: template.title as string,
+        description: template.description as string,
+        interventionTypeCode: template.interventionTypeCode,
+        icon: template.icon,
+        colorClass: template.colorClass,
+        enabled: template.enabledByDefault,
+        scheduledDate: template.calculateDefaultDate(startDate, endDate),
+        isAutoCalculated: true
+      }
+    })
+
+    setScheduledInterventions([...standardInterventions, ...documentInterventions])
+  }, [formData.startDate, formData.durationMonths, formData.chargesType, missingRecommendedDocuments])
 
   // Track original contacts for edit mode (to determine adds/removes/updates)
   const [originalContacts] = useState<FormContact[]>(() => {
@@ -382,22 +459,30 @@ export default function ContractFormContainer({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newContactId, initialNewContactId, sessionKey, initialSessionKey, mode])
 
-  // Validation per step (4 steps total)
+  // Validation per step (5 steps total - ajout Interventions)
   const validateStep = useCallback((step: number): boolean => {
     switch (step) {
       case 0: // Lot selection
         return !!formData.lotId
-      case 1: // Details + Payments
-        return !!(formData.startDate && formData.durationMonths && formData.rentAmount && formData.rentAmount > 0)
-      case 2: // Contacts & Guarantee
+      case 1: // Details + Contacts + Guarantee (MERGED)
+        const hasStartDate = !!formData.startDate
+        const hasDuration = !!formData.durationMonths
+        const hasRent = !!(formData.rentAmount && formData.rentAmount > 0)
         const hasLocataire = (formData.contacts || []).some(c => c.role === 'locataire')
-        return hasLocataire
-      case 3: // Confirmation
+        // ✅ Bloquer si doublon OU si chevauchement sur lot non-colocation
+        const noDuplicateTenant = !overlapCheckResult?.hasDuplicateTenant
+        const noBlockingOverlap = !overlapCheckResult?.hasOverlap || overlapCheckResult?.isColocationAllowed
+        return hasStartDate && hasDuration && hasRent && hasLocataire && noDuplicateTenant && noBlockingOverlap
+      case 2: // Documents (optionnel - toujours valide)
+        return true
+      case 3: // Interventions (optionnel - toujours valide)
+        return true
+      case 4: // Confirmation
         return true
       default:
         return false
     }
-  }, [formData])
+  }, [formData, overlapCheckResult])
 
   // Navigation
   const handleNext = useCallback(() => {
@@ -412,15 +497,17 @@ export default function ContractFormContainer({
     setCurrentStep(prev => Math.max(prev - 1, 0))
   }, [setCurrentStep])
 
-  const handleStepClick = useCallback((index: number) => {
+  const handleStepClick = useCallback((stepNumber: number) => {
+    // stepNumber est 1-indexed (du header), convertir en 0-indexed pour le state
+    const stepIndex = stepNumber - 1
     // En mode edit, toutes les étapes sont cliquables
     if (mode === 'edit') {
-      setCurrentStep(index)
+      setCurrentStep(stepIndex)
       return
     }
     // En mode create, permettre la navigation vers les étapes déjà visitées
-    if (index <= maxStepReached) {
-      setCurrentStep(index)
+    if (stepIndex <= maxStepReached) {
+      setCurrentStep(stepIndex)
     }
   }, [mode, maxStepReached, setCurrentStep])
 
@@ -518,15 +605,45 @@ export default function ContractFormContainer({
 
         // Upload documents with their categories
         if (hasPendingUploads) {
-          logger.info({ fileCount: documentFiles.length }, '📤 [CONTRACT-FORM] Uploading documents...')
+          logger.info('[CONTRACT-FORM] Uploading documents...')
           await uploadDocumentFiles(contractId)
+        }
+
+        // Create scheduled interventions
+        const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
+        if (toCreate.length > 0) {
+          logger.info(`[CONTRACT-FORM] Creating ${toCreate.length} interventions...`)
+          const { createInterventionAction } = await import('@/app/actions/intervention-actions')
+
+          const results = await Promise.allSettled(
+            toCreate.map(async (intervention) => {
+              return createInterventionAction({
+                title: intervention.title,
+                description: intervention.description,
+                type: intervention.interventionTypeCode,
+                urgency: 'basse',
+                lot_id: formData.lotId!,
+                team_id: teamId,
+                contract_id: contractId,  // Lier l'intervention au contrat
+                requested_date: intervention.scheduledDate || undefined
+              }, { useServiceRole: true })  // Bypass RLS pour création batch
+            })
+          )
+
+          const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length
+          const failedCount = results.length - successCount
+
+          if (successCount > 0) {
+            logger.info({ successCount, failedCount, contractId }, 'Lease interventions created')
+          }
         }
 
         // Send notification
         await createContractNotification(contractId)
 
         toast.success('Bail créé avec succès')
-        // Navigate to returnTo if provided, otherwise to contract details
+
+        // Navigate directly to contract details (no modal)
         router.push(returnTo || `/gestionnaire/contrats/${contractId}`)
       } else {
         // EDIT MODE
@@ -556,7 +673,7 @@ export default function ContractFormContainer({
 
         // Upload new documents with their categories (edit mode)
         if (hasPendingUploads) {
-          logger.info({ fileCount: documentFiles.length }, '📤 [CONTRACT-FORM] Uploading new documents...')
+          logger.info('[CONTRACT-FORM] Uploading new documents...')
           await uploadDocumentFiles(contractId)
         }
 
@@ -570,7 +687,7 @@ export default function ContractFormContainer({
     } finally {
       setIsSubmitting(false)
     }
-  }, [mode, formData, teamId, existingContract, router, currentStep, validateStep, selectedLot, syncContacts, hasPendingUploads, documentFiles.length, uploadDocumentFiles])
+  }, [mode, formData, teamId, existingContract, router, currentStep, validateStep, selectedLot, syncContacts, hasPendingUploads, uploadDocumentFiles, returnTo])
 
   // Page title based on mode
   const pageTitle = mode === 'create' ? 'Nouveau bail' : 'Modifier le contrat'
@@ -578,36 +695,49 @@ export default function ContractFormContainer({
   const submitIcon = mode === 'create' ? Check : Save
   const SubmitIcon = submitIcon
 
+  // Calculate end date for interventions step
+  const endDateCalc = useMemo(() => {
+    if (!formData.startDate || !formData.durationMonths) {
+      return new Date()
+    }
+    const end = new Date(formData.startDate)
+    end.setMonth(end.getMonth() + (formData.durationMonths || 12))
+    return end
+  }, [formData.startDate, formData.durationMonths])
+
   // Render step content
   const renderStepContent = () => {
     switch (currentStep) {
-      // Step 1: Lot Selection
+      // Step 0: Lot Selection - Layout style Patrimoine avec tabs Immeubles/Lots
       case 0:
         return (
-          <div className="content-max-width space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="text-center max-w-2xl mx-auto mb-4">
+          <div className="flex flex-col flex-1 min-h-0 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Header fixe */}
+            <div className="text-center max-w-2xl mx-auto mb-4 flex-shrink-0">
               <h2 className="text-2xl font-bold mb-2">Sélectionnez le lot</h2>
               <p className="text-muted-foreground">
                 {mode === 'create'
-                  ? 'Choisissez le lot auquel sera associé ce bail.'
+                  ? 'Parcourez vos immeubles pour trouver le lot concerné par ce bail.'
                   : 'Modifiez le lot si nécessaire (attention: cette action peut avoir des conséquences).'}
               </p>
             </div>
 
-            <div className="h-[500px] w-full overflow-hidden">
+            {/* PropertySelector - wrapper flex pour remplir l'espace disponible */}
+            <div className="flex-1 flex flex-col min-h-0">
               <PropertySelector
                 mode="select"
                 onLotSelect={handleLotSelect}
                 selectedLotId={formData.lotId}
                 initialData={initialBuildingsData}
                 showViewToggle={true}
-                showOnlyLots={true}
+                compactCards={true}
+                hideBuildingSelect={true}
               />
             </div>
           </div>
         )
 
-      // Step 2: Merged Details (Dates + Payments + Documents with categories)
+      // Step 1: Details + Contacts + Guarantee (MERGED)
       case 1:
         return (
           <LeaseFormDetailsMerged
@@ -619,150 +749,68 @@ export default function ContractFormContainer({
             paymentFrequency={formData.paymentFrequency as PaymentFrequency || 'mensuel'}
             rentAmount={formData.rentAmount || 0}
             chargesAmount={formData.chargesAmount || 0}
-            files={documentFiles}
-            onAddFiles={addDocumentFiles}
-            onRemoveFile={removeDocumentFile}
-            onUpdateFileType={updateFileDocumentType}
-            isUploading={isUploadingDocuments}
+            chargesType={(formData as any).chargesType || 'forfaitaire'}
+            selectedTenants={selectedTenants}
+            selectedGuarantors={selectedGuarantors}
+            guaranteeType={formData.guaranteeType as GuaranteeType || 'pas_de_garantie'}
+            guaranteeAmount={formData.guaranteeAmount}
+            guaranteeNotes={formData.guaranteeNotes || ''}
             onFieldChange={(field, value) => updateField(field as keyof ContractFormData, value)}
+            onAddContact={(contactType) => contactSelectorRef.current?.openContactModal(contactType)}
+            onRemoveContact={removeContactById}
+            contactSelectorRef={contactSelectorRef}
+            teamId={teamId}
+            mode={mode}
+            addContact={addContact}
+            saveAndRedirect={saveAndRedirect}
             lotId={formData.lotId}
             existingContractId={existingContract?.id}
+            onOverlapCheckChange={setOverlapCheckResult}
           />
         )
 
-      // Step 3: Contacts & Guarantee
+      // Step 2: Documents (optionnel)
       case 2:
         return (
-          <Card className="shadow-sm content-max-width min-w-0">
-            <CardContent className="px-6 py-6 space-y-6">
-              <div>
-                <h2 className="text-lg font-semibold mb-2">Contacts et garantie</h2>
-                <p className="text-sm text-muted-foreground">
-                  Ajoutez les locataires et garants, puis définissez la garantie locative.
-                </p>
-              </div>
-
-              {/* Contacts section - Side by side layout */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <ContactSection
-                  sectionType="tenants"
-                  contacts={selectedTenants}
-                  onAddContact={() => contactSelectorRef.current?.openContactModal('tenant')}
-                  onRemoveContact={(id) => removeContactById(id, 'locataire')}
-                  minRequired={1}
-                />
-
-                <ContactSection
-                  sectionType="guarantors"
-                  contacts={selectedGuarantors}
-                  onAddContact={() => contactSelectorRef.current?.openContactModal('guarantor')}
-                  onRemoveContact={(id) => removeContactById(id, 'garant')}
-                />
-              </div>
-
-              <Separator />
-
-              {/* Guarantee section */}
-              <div className="space-y-4">
-                <h3 className="font-medium flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Garantie locative
-                </h3>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <Label>Type de garantie</Label>
-                    <Select
-                      value={formData.guaranteeType}
-                      onValueChange={(value) => updateField('guaranteeType', value as GuaranteeType)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(GUARANTEE_TYPE_LABELS).map(([value, label]) => (
-                          <SelectItem key={value} value={value}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {formData.guaranteeType !== 'pas_de_garantie' && (
-                    <div>
-                      <Label htmlFor="guaranteeAmount">Montant de la garantie</Label>
-                      <div className="relative">
-                        <Input
-                          id="guaranteeAmount"
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={formData.guaranteeAmount || ''}
-                          onChange={(e) => updateField('guaranteeAmount', parseFloat(e.target.value) || undefined)}
-                          className="pr-8"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">€</span>
-                      </div>
-                    </div>
-                  )}
-
-                  {formData.guaranteeType !== 'pas_de_garantie' && (
-                    <div className="md:col-span-2">
-                      <Label htmlFor="guaranteeNotes">Notes sur la garantie</Label>
-                      <Textarea
-                        id="guaranteeNotes"
-                        value={formData.guaranteeNotes}
-                        onChange={(e) => updateField('guaranteeNotes', e.target.value)}
-                        placeholder="Informations complémentaires..."
-                        rows={2}
-                      />
-                    </div>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-
-            {/* ContactSelector modal */}
-            <ContactSelector
-              ref={contactSelectorRef}
-              teamId={teamId}
-              displayMode="compact"
-              hideUI={true}
-              selectionMode="multi"
-              allowedContactTypes={['tenant', 'guarantor']}
-              selectedContacts={{
-                tenant: selectedTenants,
-                guarantor: selectedGuarantors
-              }}
-              onContactSelected={(contact, contactType) => {
-                const role = contactType === 'tenant' ? 'locataire' : 'garant'
-                addContact(contact.id, role as ContractContactRole)
-              }}
-              onContactRemoved={(contactId, contactType) => {
-                const role = contactType === 'tenant' ? 'locataire' : 'garant'
-                removeContactById(contactId, role as ContractContactRole)
-              }}
-              onRequestContactCreation={(contactType) => {
-                if (mode === 'create') {
-                  logger.info(`🔗 [CONTRACT-FORM] Redirecting to contact creation flow`, { contactType })
-                  saveAndRedirect('/gestionnaire/contacts/nouveau', { type: contactType })
-                } else {
-                  // In edit mode, open new tab or show message
-                  toast.info('Créez d\'abord le contact depuis la page contacts, puis revenez ici.')
-                }
-              }}
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="text-center max-w-2xl mx-auto mb-4">
+              <h2 className="text-2xl font-bold mb-2">Documents du bail</h2>
+              <p className="text-muted-foreground">
+                {mode === 'create'
+                  ? 'Ajoutez les documents associés au contrat de location. Tous les documents sont optionnels.'
+                  : 'Gérez les documents du bail. Vous pouvez ajouter ou retirer des fichiers.'}
+              </p>
+            </div>
+            <DocumentChecklist
+              slots={slots}
+              onAddFilesToSlot={addFilesToSlot}
+              onRemoveFileFromSlot={removeFileFromSlot}
+              progress={uploadProgress}
+              missingRecommendedDocuments={missingRecommendedDocuments}
+              isUploading={isUploadingDocuments}
             />
-          </Card>
+          </div>
+        )
+
+      // Step 3: Interventions (optionnel)
+      case 3:
+        return (
+          <LeaseInterventionsStep
+            scheduledInterventions={scheduledInterventions}
+            onInterventionsChange={setScheduledInterventions}
+            missingDocuments={missingRecommendedDocuments}
+          />
         )
 
       // Step 4: Confirmation
-      case 3:
+      case 4:
         const displayRef = formData.title?.trim() || generateContractReference(
           selectedLot?.reference,
           formData.startDate!,
           formData.durationMonths || 12
         )
         return (
-          <div className="content-max-width space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="text-center max-w-2xl mx-auto">
               <h2 className="text-2xl font-bold mb-2">Récapitulatif</h2>
               <p className="text-muted-foreground">
@@ -918,6 +966,91 @@ export default function ContractFormContainer({
               </Card>
             </div>
 
+            {/* Section Documents */}
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Paperclip className="h-4 w-4 text-primary" />
+                  Documents ajoutés
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                {hasDocuments ? (
+                  <div className="space-y-2">
+                    {slots.filter(slot => slot.files.length > 0).map((slot, index) => {
+                      const slotConfig = LEASE_DOCUMENT_SLOTS.find(s => s.type === slot.type)
+                      return (
+                        <div key={index} className="flex items-center gap-2 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                          <span className="font-medium">{slotConfig?.label || slot.type}</span>
+                          <span className="text-muted-foreground">
+                            - {slot.files.length} fichier{slot.files.length > 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      )
+                    })}
+                    {missingRecommendedDocuments.length > 0 && (
+                      <div className="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                          <div className="text-xs text-amber-700">
+                            <p className="font-medium mb-1">Documents recommandés manquants:</p>
+                            <ul className="list-disc list-inside space-y-0.5">
+                              {missingRecommendedDocuments.map((docType, idx) => {
+                                const slotConfig = LEASE_DOCUMENT_SLOTS.find(s => s.type === docType)
+                                return (
+                                  <li key={idx}>{slotConfig?.label || docType}</li>
+                                )
+                              })}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Aucun document ajouté</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Section Interventions */}
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <CalendarCheck className="h-4 w-4 text-primary" />
+                  Interventions planifiées
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                {scheduledInterventions.filter(i => i.enabled && i.scheduledDate).length > 0 ? (
+                  <div className="space-y-2">
+                    {scheduledInterventions
+                      .filter(i => i.enabled && i.scheduledDate)
+                      .map((intervention, index) => (
+                        <div key={index} className="flex items-center gap-2 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                          <span className="font-medium">{intervention.title}</span>
+                          <span className="text-muted-foreground">
+                            - {intervention.scheduledDate ? format(intervention.scheduledDate, 'dd/MM/yyyy') : '—'}
+                          </span>
+                        </div>
+                      ))}
+                    {scheduledInterventions.filter(i => !i.enabled).length > 0 && (
+                      <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <span>
+                          {scheduledInterventions.filter(i => !i.enabled).length} intervention(s) désactivée(s)
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Aucune intervention planifiée</p>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Changes summary (edit mode only) */}
             {mode === 'edit' && (() => {
               const currentUserIds = new Set((formData.contacts || []).map(c => c.userId))
@@ -955,7 +1088,7 @@ export default function ContractFormContainer({
       {/* HEADER - StepProgressHeader */}
       <StepProgressHeader
         steps={contractSteps}
-        currentStep={currentStep}
+        currentStep={currentStep + 1}  // Convertir 0-indexed → 1-indexed pour le header
         title={pageTitle}
         backButtonText="Retour"
         onBack={() => {
@@ -970,13 +1103,25 @@ export default function ContractFormContainer({
         }}
         onStepClick={handleStepClick}
         allowFutureSteps={mode === 'edit'}
-        maxReachableStep={maxStepReached}
+        maxReachableStep={maxStepReached + 1}  // Convertir 0-indexed → 1-indexed pour le header
       />
 
       {/* MAIN CONTENT */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pt-10 pb-20">
-        {renderStepContent()}
-      </div>
+      {currentStep === 0 ? (
+        // Step 0: Layout fixe comme Patrimoine - conteneur avec scroll interne
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden px-5 sm:px-6 lg:px-10 pt-6 pb-4">
+          <main className="content-max-width w-full flex-1 flex flex-col min-h-0">
+            {renderStepContent()}
+          </main>
+        </div>
+      ) : (
+        // Autres steps: Scroll page normal
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pb-10 pt-10">
+          <main className="content-max-width w-full">
+            {renderStepContent()}
+          </main>
+        </div>
+      )}
 
       {/* FOOTER STICKY */}
       <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm border-t border-border px-5 sm:px-6 lg:px-10 py-4">

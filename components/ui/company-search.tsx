@@ -16,8 +16,8 @@ import type { CompanyLookupResult } from '@/lib/types/cbeapi.types'
  */
 
 export interface CompanySearchProps {
-  /** Type de recherche : 'name' (par nom) ou 'vat' (par numéro de TVA) */
-  searchType: 'name' | 'vat'
+  /** Type de recherche : 'name' (par nom), 'vat' (par numéro de TVA), ou 'auto' (détection automatique) */
+  searchType: 'name' | 'vat' | 'auto'
   /** ID de l'équipe pour la recherche */
   teamId: string
   /** Callback appelé quand l'utilisateur sélectionne une entreprise */
@@ -57,34 +57,60 @@ export function CompanySearch({
       .substring(0, 10) // Maximum 10 chiffres pour une TVA belge
   }
 
-  // Helper: Formater un numéro de TVA belge pour l'affichage
-  const formatBelgianVatDisplay = (digits: string): string => {
+  // Helper: Formater un numéro de TVA pour l'affichage avec espaces
+  const formatVatDisplay = (digits: string): string => {
     if (digits.length === 0) return ''
 
-    // Format: BE 0XXX.XXX.XXX
-    let formatted = 'BE '
-
+    // Détecter le pays basé sur les premiers chiffres (simplifié pour BE par défaut)
+    // Format BE: BE 0123 456 789
     if (digits.length <= 4) {
-      formatted += digits
+      return digits
     } else if (digits.length <= 7) {
-      formatted += digits.substring(0, 4) + '.' + digits.substring(4)
+      return `${digits.substring(0, 4)} ${digits.substring(4)}`
+    } else if (digits.length <= 10) {
+      return `${digits.substring(0, 4)} ${digits.substring(4, 7)} ${digits.substring(7, 10)}`
     } else {
-      formatted += digits.substring(0, 4) + '.'
-        + digits.substring(4, 7) + '.'
-        + digits.substring(7, 10)
+      // Pour les formats plus longs (FR, etc.)
+      return `${digits.substring(0, 4)} ${digits.substring(4, 7)} ${digits.substring(7, 10)} ${digits.substring(10)}`
     }
+  }
 
-    return formatted
+  // Détecter automatiquement le type de recherche (nom ou TVA)
+  const detectSearchType = (value: string): 'name' | 'vat' => {
+    if (searchType !== 'auto') return searchType
+    
+    const cleanValue = value.trim()
+    if (!cleanValue) return 'name'
+    
+    // Si la valeur commence par un code pays (2-3 lettres) suivi de chiffres, c'est probablement un numéro de TVA
+    const vatPattern = /^[A-Z]{2,3}\s*\d+$/i
+    if (vatPattern.test(cleanValue)) {
+      return 'vat'
+    }
+    
+    // Si la valeur contient principalement des chiffres (plus de 70% de chiffres) et fait au moins 8 caractères, c'est probablement un numéro de TVA
+    const digits = cleanValue.replace(/\D/g, '').length
+    const totalChars = cleanValue.replace(/\s/g, '').length
+    
+    if (totalChars >= 8 && digits / totalChars > 0.7) {
+      return 'vat'
+    }
+    
+    return 'name'
   }
 
   // Labels par défaut selon le type de recherche
-  const defaultLabel = searchType === 'name'
+  const defaultLabel = searchType === 'auto'
+    ? 'Rechercher par nom ou numéro de TVA'
+    : searchType === 'name'
     ? 'Rechercher par nom d\'entreprise'
     : 'Rechercher par numéro de TVA'
 
-  const defaultPlaceholder = searchType === 'name'
+  const defaultPlaceholder = searchType === 'auto'
+    ? 'Nom d\'entreprise ou numéro de TVA...'
+    : searchType === 'name'
     ? 'Tapez le nom de l\'entreprise...'
-    : 'BE 0123.456.789'
+    : '0123456789'
 
   // Recherche avec debounce uniforme
   useEffect(() => {
@@ -98,8 +124,12 @@ export function CompanySearch({
 
     setError(null)
 
+    // Détecter le type de recherche si mode auto
+    const detectedType = detectSearchType(searchValue)
+    const actualSearchType = searchType === 'auto' ? detectedType : searchType
+
     // Pour la recherche par TVA, valider le format d'abord
-    if (searchType === 'vat') {
+    if (actualSearchType === 'vat') {
       const validation = validateVatNumber(searchValue)
       if (!validation.isValid) {
         setError(validation.error || 'Format de numéro de TVA invalide')
@@ -120,8 +150,8 @@ export function CompanySearch({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            searchType,
-            [searchType === 'name' ? 'name' : 'vatNumber']: searchValue,
+            searchType: actualSearchType,
+            [actualSearchType === 'name' ? 'name' : 'vatNumber']: searchValue,
             teamId,
             limit: 10
           })
@@ -202,17 +232,24 @@ export function CompanySearch({
           {/* Input */}
           <Input
             id={`company-search-${searchType}`}
-            value={searchType === 'vat' ? displayValue : searchValue}
+            value={(() => {
+              // Détecter le type pour déterminer la valeur d'affichage
+              const detectedType = searchType === 'auto' ? detectSearchType(searchValue) : searchType
+              return detectedType === 'vat' ? displayValue : searchValue
+            })()}
             onChange={(e) => {
               const input = e.target.value
 
-              if (searchType === 'vat') {
+              // Détecter le type de recherche si mode auto
+              const detectedType = searchType === 'auto' ? detectSearchType(input) : searchType
+
+              if (detectedType === 'vat') {
                 // Extraire uniquement les chiffres
                 const digits = extractBelgianVatDigits(input)
                 setRawVatInput(digits)
 
-                // Formater pour l'affichage
-                const formatted = formatBelgianVatDisplay(digits)
+                // Formater pour l'affichage (sans préfixe BE dans l'input)
+                const formatted = formatVatDisplay(digits)
                 setDisplayValue(formatted)
 
                 // Mettre à jour searchValue avec le préfixe BE pour l'API
@@ -220,6 +257,8 @@ export function CompanySearch({
               } else {
                 // Recherche par nom - comportement normal
                 setSearchValue(input)
+                setDisplayValue('')
+                setRawVatInput('')
               }
 
               setError(null)
@@ -277,6 +316,13 @@ export function CompanySearch({
             <AlertCircle className="w-3 h-3" />
             <span>{error}</span>
           </div>
+        )}
+
+        {/* Indication pour la recherche (nom et TVA) */}
+        {!error && (
+          <p className="text-xs text-muted-foreground mt-1">
+            Recherche disponible uniquement pour les sociétés belges
+          </p>
         )}
       </div>
     </div>

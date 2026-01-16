@@ -8,7 +8,8 @@
 
 import {
   createServerActionInterventionService,
-  createServerActionSupabaseClient
+  createServerActionSupabaseClient,
+  createServiceRoleSupabaseClient
 } from '@/lib/services'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -17,6 +18,7 @@ import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
 import { createQuoteRequestsForProviders } from '@/app/api/create-manager-intervention/create-quote-requests'
 import { createInterventionNotification } from './notification-actions'
+import { mapInterventionType } from '@/lib/utils/intervention-mappers'
 
 // Type aliases
 type InterventionUrgency = Database['public']['Enums']['intervention_urgency']
@@ -53,27 +55,28 @@ function revalidateInterventionCaches(interventionId: string, teamId?: string) {
 }
 
 // Validation schemas
+// NOTE: type uses z.string() to accept all intervention types from intervention_types table
+// (bien, bail, locataire categories - 36+ types) instead of hardcoded enum
 const InterventionCreateSchema = z.object({
   title: z.string().min(3).max(255),
   description: z.string().min(10),
-  type: z.enum(['plomberie', 'electricite', 'menuiserie', 'peinture', 'chauffage', 'climatisation', 'serrurerie', 'vitrerie', 'nettoyage', 'jardinage', 'autre'] as const),
+  type: z.string().min(1, "Le type d'intervention est obligatoire"),
   urgency: z.enum(['basse', 'normale', 'haute', 'urgente'] as const).optional().default('normale'),
   lot_id: z.string().uuid().optional().nullable(),
   building_id: z.string().uuid().optional().nullable(),
-  specific_location: z.string().optional().nullable(),
-  tenant_comment: z.string().optional().nullable(),
-  team_id: z.string().uuid()
+  team_id: z.string().uuid(),
+  contract_id: z.string().uuid().optional().nullable()  // Lien vers le contrat source
 })
 
 const InterventionUpdateSchema = z.object({
   title: z.string().min(3).max(255).optional(),
   description: z.string().min(10).optional(),
-  type: z.enum(['plomberie', 'electricite', 'menuiserie', 'peinture', 'chauffage', 'climatisation', 'serrurerie', 'vitrerie', 'nettoyage', 'jardinage', 'autre'] as const).optional(),
+  type: z.string().min(1).optional(),
   urgency: z.enum(['basse', 'normale', 'haute', 'urgente'] as const).optional(),
-  specific_location: z.string().optional().nullable(),
   provider_guidelines: z.string().max(5000).optional().nullable(),
   estimated_cost: z.number().positive().optional().nullable(),
-  final_cost: z.number().positive().optional().nullable()
+  final_cost: z.number().positive().optional().nullable(),
+  contract_id: z.string().uuid().optional().nullable()
 })
 
 const TimeSlotSchema = z.object({
@@ -87,7 +90,7 @@ const InterventionFiltersSchema = z.object({
   // Note: 'en_cours' is deprecated and no longer used in the workflow
   status: z.enum(['demande', 'rejetee', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'] as const).optional(),
   urgency: z.enum(['basse', 'normale', 'haute', 'urgente'] as const).optional(),
-  type: z.enum(['plomberie', 'electricite', 'menuiserie', 'peinture', 'chauffage', 'climatisation', 'serrurerie', 'vitrerie', 'nettoyage', 'jardinage', 'autre'] as const).optional(),
+  type: z.string().optional(),
   building_id: z.string().uuid().optional(),
   lot_id: z.string().uuid().optional(),
   tenant_id: z.string().uuid().optional(),
@@ -146,14 +149,16 @@ export async function createInterventionAction(
     lot_id?: string
     building_id?: string
     team_id: string
-    tenant_comment?: string
-    specific_location?: string
+    contract_id?: string  // Lien vers le contrat source (optionnel)
     requested_date?: Date
   },
-  options?: { redirectTo?: string }
+  options?: {
+    redirectTo?: string
+    useServiceRole?: boolean  // Bypass RLS pour création batch (auth vérifiée au niveau applicatif)
+  }
 ): Promise<ActionResult<Intervention>> {
   try {
-    // Auth check
+    // Auth check - TOUJOURS vérifié, même avec useServiceRole
     const user = await getAuthenticatedUser()
     if (!user) {
       return { success: false, error: 'Authentication required' }
@@ -162,7 +167,7 @@ export async function createInterventionAction(
     // Validate input data
     const validatedData = InterventionCreateSchema.safeParse({
       ...data,
-      type: data.type as InterventionType,
+      type: data.type,  // Accepts all types from intervention_types table
       urgency: (data.urgency || 'normale') as InterventionUrgency
     })
 
@@ -171,23 +176,40 @@ export async function createInterventionAction(
       return { success: false, error: 'Données invalides: ' + validatedData.error.errors.map(e => e.message).join(', ') }
     }
 
-    const supabase = await createServerActionSupabaseClient()
+    // Choisir le client selon l'option useServiceRole
+    // Service role bypasse RLS mais l'auth est vérifiée au niveau applicatif ci-dessus
+    const supabase = options?.useServiceRole
+      ? createServiceRoleSupabaseClient()
+      : await createServerActionSupabaseClient()
 
-    // Create intervention with status 'demande' (tenant request)
+    // Map type for legacy compatibility (e.g., 'jardinage' → 'espaces_verts')
+    const mappedType = mapInterventionType(validatedData.data.type)
+
+    // ✅ Déterminer si c'est une intervention pré-planifiée (création depuis bail)
+    // Si requested_date est fourni → status 'planifiee' avec créneau à 9h00
+    const isPreScheduled = !!data.requested_date
+
+    // Create intervention (status dynamique selon contexte)
     const { data: intervention, error } = await supabase
       .from('interventions')
       .insert({
         title: validatedData.data.title,
         description: validatedData.data.description,
-        type: validatedData.data.type,
+        type: mappedType,
         urgency: validatedData.data.urgency,
-        status: 'demande' as InterventionStatus,
+        // ✅ Status dynamique: 'planifiee' si date fournie (bail), sinon 'demande' (locataire)
+        status: (isPreScheduled ? 'planifiee' : 'demande') as InterventionStatus,
         lot_id: validatedData.data.lot_id || null,
         building_id: validatedData.data.building_id || null,
         team_id: validatedData.data.team_id,
-        tenant_comment: validatedData.data.tenant_comment || null,
-        specific_location: validatedData.data.specific_location || null,
-        created_by: user.id
+        contract_id: validatedData.data.contract_id || null,
+        created_by: user.id,
+        // ✅ Date planifiée à 9h00 si fournie
+        scheduled_date: data.requested_date
+          ? data.requested_date.toISOString().split('T')[0] + 'T09:00:00.000Z'
+          : null,
+        // ✅ Méthode de planification directe si pré-planifié (valeurs: 'direct', 'slots', 'flexible')
+        scheduling_method: isPreScheduled ? 'direct' : null
       })
       .select()
       .single()
@@ -195,6 +217,38 @@ export async function createInterventionAction(
     if (error) {
       logger.error({ error }, 'Failed to create intervention')
       return { success: false, error: 'Échec de la création de l\'intervention' }
+    }
+
+    // ✅ Créer un créneau horaire fixé à 9h00 si pré-planifié (création depuis bail)
+    if (isPreScheduled && data.requested_date && intervention) {
+      const slotDate = data.requested_date.toISOString().split('T')[0] // YYYY-MM-DD
+
+      const { data: timeSlot, error: slotError } = await supabase
+        .from('intervention_time_slots')
+        .insert({
+          intervention_id: intervention.id,
+          slot_date: slotDate,
+          start_time: '09:00',
+          end_time: '10:00',  // 1 heure par défaut
+          is_selected: true,
+          status: 'selected',
+          proposed_by: user.id,
+          selected_by_manager: true
+        })
+        .select('id')
+        .single()
+
+      if (slotError) {
+        logger.warn({ error: slotError }, 'Failed to create time slot for pre-scheduled intervention')
+      } else if (timeSlot) {
+        // Mettre à jour l'intervention avec le slot sélectionné
+        await supabase
+          .from('interventions')
+          .update({ selected_slot_id: timeSlot.id })
+          .eq('id', intervention.id)
+
+        logger.info({ slotId: timeSlot.id, interventionId: intervention.id }, 'Time slot created and linked')
+      }
     }
 
     // Invalidate caches

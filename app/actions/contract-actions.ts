@@ -983,9 +983,17 @@ export async function getOverlappingContracts(
     const hasOverlap = overlappingContracts.length > 0
 
     // Calculer la prochaine date disponible si chevauchement
+    // ✅ FIX: Utiliser TOUS les contrats actifs/à venir sur le lot, pas seulement ceux qui chevauchent
     let nextAvailableDate: string | null = null
     if (hasOverlap) {
-      nextAvailableDate = calculateNextAvailableDate(overlappingContracts)
+      const allContractsResult = await repository.findAllActiveOrUpcomingContractsOnLot(
+        lotId,
+        excludeContractId
+      )
+
+      if (allContractsResult.success && allContractsResult.data && allContractsResult.data.length > 0) {
+        nextAvailableDate = calculateNextAvailableDate(allContractsResult.data as OverlappingContractInfo[])
+      }
     }
 
     logger.debug(
@@ -1038,6 +1046,167 @@ function calculateNextAvailableDate(
   nextDate.setDate(nextDate.getDate() + 1) // Jour suivant
 
   return nextDate.toISOString().split('T')[0]
+}
+
+// ============================================================================
+// OVERLAP VALIDATION WITH TENANT DETECTION (COLOCATION / DOUBLON)
+// ============================================================================
+
+/**
+ * Résultat détaillé de la vérification de chevauchement avec détection de doublons
+ */
+export interface OverlapCheckDetailedResult {
+  hasOverlap: boolean
+  overlappingContracts: OverlappingContractInfo[]
+  nextAvailableDate: string | null
+  // Logique colocation/doublon
+  lotCategory: string | null        // Catégorie du lot
+  isColocationLot: boolean          // true si lot.category === 'collocation'
+  isColocationAllowed: boolean      // true si colocation permise (lot colocation + pas de doublon)
+  hasDuplicateTenant: boolean       // true si même locataire déjà sur ce lot
+  duplicateTenantContracts: OverlappingContractInfo[]  // Contrats du locataire en doublon
+}
+
+/**
+ * Vérifie les chevauchements avec détection de doublons et logique colocation.
+ *
+ * Règles métier:
+ * - Si lot.category !== 'collocation' et chevauchement → ERREUR BLOQUANTE
+ * - Si lot.category === 'collocation' et locataire différent → WARNING (colocation permise)
+ * - Si même locataire déjà sur ce lot (toute catégorie) → ERREUR BLOQUANTE (doublon)
+ *
+ * @param lotId - ID du lot
+ * @param startDate - Date de début (format YYYY-MM-DD)
+ * @param durationMonths - Durée en mois
+ * @param tenantUserIds - IDs des locataires sélectionnés pour le nouveau bail
+ * @param excludeContractId - ID du contrat à exclure (mode édition)
+ */
+export async function checkContractOverlapWithDetails(
+  lotId: string,
+  startDate: string,
+  durationMonths: number,
+  tenantUserIds: string[],
+  excludeContractId?: string
+): Promise<ActionResult<OverlapCheckDetailedResult>> {
+  try {
+    const endDate = calculateEndDate(startDate, durationMonths)
+
+    logger.debug(
+      { lotId, startDate, endDate, durationMonths, tenantUserIds, excludeContractId },
+      '🔍 [CONTRACT-ACTION] checkContractOverlapWithDetails'
+    )
+
+    // 1. Récupérer la catégorie du lot
+    const { createServerActionLotRepository } = await import('@/lib/services/repositories/lot.repository')
+    const lotRepository = await createServerActionLotRepository()
+    const lotResult = await lotRepository.findById(lotId)
+
+    const lotCategory = lotResult?.data?.category || null
+    const isColocationLot = lotCategory === 'collocation'
+
+    // 2. Vérifier les contrats en chevauchement sur ce lot
+    const { createServerActionContractRepository } = await import('@/lib/services/repositories/contract.repository')
+    const repository = await createServerActionContractRepository()
+
+    const overlapResult = await repository.findOverlappingContracts(
+      lotId,
+      startDate,
+      endDate,
+      excludeContractId
+    )
+
+    if (!overlapResult.success) {
+      return { success: false, error: overlapResult.error.message }
+    }
+
+    const overlappingContracts = overlapResult.data as OverlappingContractInfo[]
+    const hasOverlap = overlappingContracts.length > 0
+
+    // Calculer la prochaine date disponible si chevauchement
+    // ✅ FIX: Utiliser TOUS les contrats actifs/à venir sur le lot, pas seulement ceux qui chevauchent
+    let nextAvailableDate: string | null = null
+    if (hasOverlap) {
+      const allContractsResult = await repository.findAllActiveOrUpcomingContractsOnLot(
+        lotId,
+        excludeContractId
+      )
+
+      if (allContractsResult.success && allContractsResult.data && allContractsResult.data.length > 0) {
+        nextAvailableDate = calculateNextAvailableDate(allContractsResult.data as OverlappingContractInfo[])
+      }
+    }
+
+    // 3. Vérifier si un des locataires sélectionnés a déjà un bail actif sur ce lot
+    let hasDuplicateTenant = false
+    const duplicateTenantContracts: OverlappingContractInfo[] = []
+
+    if (tenantUserIds.length > 0) {
+      for (const tenantUserId of tenantUserIds) {
+        const tenantResult = await repository.findTenantActiveContractsOnLot(
+          lotId,
+          tenantUserId,
+          startDate,
+          endDate,
+          excludeContractId
+        )
+
+        if (tenantResult.success && tenantResult.data.length > 0) {
+          hasDuplicateTenant = true
+          // Ajouter les contrats trouvés (éviter les doublons)
+          for (const contract of tenantResult.data) {
+            if (!duplicateTenantContracts.find(c => c.id === contract.id)) {
+              duplicateTenantContracts.push({
+                id: contract.id,
+                title: contract.title,
+                start_date: contract.start_date,
+                end_date: contract.end_date,
+                status: contract.status
+              })
+            }
+          }
+        }
+      }
+    }
+
+    // 4. Déterminer si la colocation est permise
+    // Colocation permise SI: lot est collocation ET pas de doublon locataire
+    const isColocationAllowed = isColocationLot && hasOverlap && !hasDuplicateTenant
+
+    logger.debug(
+      {
+        hasOverlap,
+        overlappingCount: overlappingContracts.length,
+        lotCategory,
+        isColocationLot,
+        isColocationAllowed,
+        hasDuplicateTenant,
+        duplicateCount: duplicateTenantContracts.length,
+        nextAvailableDate
+      },
+      '✅ [CONTRACT-ACTION] checkContractOverlapWithDetails complete'
+    )
+
+    return {
+      success: true,
+      data: {
+        hasOverlap,
+        overlappingContracts,
+        nextAvailableDate,
+        lotCategory,
+        isColocationLot,
+        isColocationAllowed,
+        hasDuplicateTenant,
+        duplicateTenantContracts
+      }
+    }
+
+  } catch (error) {
+    logger.error('❌ [CONTRACT-ACTION] Error in checkContractOverlapWithDetails:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
 }
 
 // ============================================================================

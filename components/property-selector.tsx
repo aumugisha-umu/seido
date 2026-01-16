@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -38,10 +38,12 @@ interface PropertySelectorProps {
   selectedLotId?: string
   showActions?: boolean
   hideLotsSelect?: boolean  // ✅ Masquer les boutons Select des lots (utile pour création de lot)
+  hideBuildingSelect?: boolean  // ✅ Masquer les boutons Select des immeubles (utile pour création de bail où on sélectionne les lots)
   showOnlyBuildings?: boolean  // ✅ Masquer complètement les lots indépendants et leurs tabs
   showOnlyLots?: boolean  // ✅ Masquer complètement les immeubles (utile pour création de bail)
   initialData?: BuildingsData  // ✅ Optional server data
   showViewToggle?: boolean  // ✅ Afficher le toggle grille/liste
+  compactCards?: boolean  // ✅ Afficher les cards en mode compact (sans détails)
 }
 
 interface PropertySelectorViewProps extends Omit<PropertySelectorProps, 'initialData'> {
@@ -49,9 +51,11 @@ interface PropertySelectorViewProps extends Omit<PropertySelectorProps, 'initial
   individualLots: Lot[]
   loading: boolean
   hideLotsSelect?: boolean
+  hideBuildingSelect?: boolean
   showOnlyBuildings?: boolean
   showOnlyLots?: boolean
   showViewToggle?: boolean
+  compactCards?: boolean
 }
 
 // ⚡ PERFORMANCE: Split into two components to avoid unnecessary hook calls
@@ -159,9 +163,11 @@ function PropertySelectorView({
   selectedLotId,
   showActions: _showActions = true,
   hideLotsSelect = false,
+  hideBuildingSelect = false,
   showOnlyBuildings = false,
   showOnlyLots = false,
   showViewToggle = false,
+  compactCards = false,
   buildings,
   individualLots,
   loading
@@ -333,7 +339,7 @@ function PropertySelectorView({
                         </div>
                         
                         <div className="flex-shrink-0 ml-2 flex items-center space-x-1">
-                          {mode === "select" ? (
+                          {mode === "select" && !hideBuildingSelect ? (
                             <Button
                               variant={isSelected ? "default" : "outline"}
                               size="sm"
@@ -348,7 +354,7 @@ function PropertySelectorView({
                             >
                               {isSelected ? "Sélectionné" : "Sélectionner"}
                             </Button>
-                          ) : (
+                          ) : mode === "select" && hideBuildingSelect ? null : (
                             <div className="flex items-center space-x-1">
                               <Button
                                 variant="ghost"
@@ -797,7 +803,7 @@ function PropertySelectorView({
                   </div>
                   {/* Action */}
                   <div className="sm:col-span-2 flex items-center justify-end gap-2">
-                    {mode === "select" ? (
+                    {mode === "select" && !hideBuildingSelect ? (
                       <Button
                         variant={isSelected ? "default" : "outline"}
                         size="sm"
@@ -812,7 +818,7 @@ function PropertySelectorView({
                       >
                         {isSelected ? "Sélectionné" : "Sélectionner"}
                       </Button>
-                    ) : (
+                    ) : mode === "select" && hideBuildingSelect ? null : (
                       <Button
                         variant="ghost"
                         size="sm"
@@ -950,9 +956,38 @@ function PropertySelectorView({
     </div>
   )
 
+  // #region agent log
+  useEffect(() => {
+    const cardViewDiv = document.querySelector('[data-property-selector-card-view]') as HTMLElement
+    const gridDiv = cardViewDiv?.querySelector('.grid') as HTMLElement
+    
+    if (cardViewDiv && gridDiv) {
+      const logData = {
+        location: 'property-selector.tsx:955',
+        message: 'Card view height measurements',
+        data: {
+          cardViewHeight: cardViewDiv.offsetHeight,
+          cardViewScrollHeight: cardViewDiv.scrollHeight,
+          gridHeight: gridDiv.offsetHeight,
+          gridScrollHeight: gridDiv.scrollHeight,
+          lotsCount: filteredIndividualLots.length
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'C'
+      }
+      fetch('http://127.0.0.1:7242/ingest/6e12353c-b19d-479f-90dc-6917014c3318', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(logData)
+      }).catch(() => {})
+    }
+  }, [filteredIndividualLots.length])
+  // #endregion
   // Card view for individual lots
   const individualLotsCardView = (
-    <div className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-6">
+    <div data-property-selector-card-view className="flex-1 min-h-0 overflow-y-auto space-y-4 pb-6">
       <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
         {filteredIndividualLots.length === 0 ? (
           <div className="col-span-full text-center py-12 px-4">
@@ -1006,6 +1041,7 @@ function PropertySelectorView({
                 isSelected={isSelected}
                 onSelect={onLotSelect}
                 showBuilding={true}
+                compact={compactCards}
               />
             )
           })

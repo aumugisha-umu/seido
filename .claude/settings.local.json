@@ -25,7 +25,8 @@
       "Bash(tree:*)",
       "Bash(wc:*)",
       "Bash(xargs:*)",
-      "WebFetch(domain:developers.google.com)"
+      "WebFetch(domain:developers.google.com)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": [],
     "ask": []

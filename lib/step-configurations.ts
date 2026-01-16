@@ -1,4 +1,4 @@
-import { Building, MapPin, Users, Check, Home, Building2, FileText, CheckCircle, User } from "lucide-react"
+import { Building, MapPin, Users, Check, Home, Building2, FileText, CheckCircle, User, Paperclip, CalendarCheck } from "lucide-react"
 import { StepConfig } from "@/components/ui/step-progress-header"
 
 export const buildingSteps: StepConfig[] = [
@@ -94,7 +94,7 @@ export const contactSteps: StepConfig[] = [
   }
 ]
 
-// Steps pour la création de contrat/bail (4 étapes après fusion Contrat+Paiements)
+// Steps pour la création de contrat/bail (5 étapes - ajout Interventions)
 export const contractSteps: StepConfig[] = [
   {
     icon: Home,
@@ -102,11 +102,15 @@ export const contractSteps: StepConfig[] = [
   },
   {
     icon: FileText,
-    label: "Détails"
+    label: "Détails et contacts"
   },
   {
-    icon: Users,
-    label: "Contacts"
+    icon: Paperclip,
+    label: "Documents"
+  },
+  {
+    icon: CalendarCheck,
+    label: "Interventions"
   },
   {
     icon: Check,

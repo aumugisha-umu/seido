@@ -53,11 +53,34 @@ interface ContactFormData {
   // Statut email (calculé automatiquement dans Step3)
   existsInCurrentTeam?: boolean
   hasAuthAccount?: boolean
+
+  // Liaison à une entité (optionnel)
+  linkedEntityType?: 'building' | 'lot' | 'contract' | 'intervention' | null
+  linkedBuildingId?: string | null
+  linkedLotId?: string | null
+  linkedContractId?: string | null
+  linkedInterventionId?: string | null
+}
+
+interface Building {
+  id: string
+  name: string
+  address?: string | null
+}
+
+interface Lot {
+  id: string
+  reference: string
+  building_id: string
+  category?: string | null
+  building?: Building | null
 }
 
 interface ContactCreationClientProps {
   teamId: string
   initialCompanies: Company[]
+  initialBuildings: Building[]
+  initialLots: Lot[]
   // Redirect parameters when coming from another form (e.g., building creation)
   prefilledType?: string | null
   sessionKey?: string | null
@@ -67,6 +90,8 @@ interface ContactCreationClientProps {
 export function ContactCreationClient({
   teamId,
   initialCompanies,
+  initialBuildings,
+  initialLots,
   prefilledType,
   sessionKey,
   returnUrl
@@ -325,6 +350,15 @@ export function ContactCreationClient({
         payload.country = formData.country
       }
 
+      // Ajouter les champs de liaison à une entité (si sélectionnés)
+      if (formData.linkedEntityType) {
+        payload.linkedEntityType = formData.linkedEntityType
+        payload.linkedBuildingId = formData.linkedBuildingId
+        payload.linkedLotId = formData.linkedLotId
+        payload.linkedContractId = formData.linkedContractId
+        payload.linkedInterventionId = formData.linkedInterventionId
+      }
+
       const response = await fetch('/api/invite-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -462,6 +496,7 @@ export function ContactCreationClient({
               <Step3Contact
                 teamId={teamId}
                 personOrCompany={formData.personOrCompany}
+                contactType={formData.contactType}
                 firstName={formData.firstName}
                 lastName={formData.lastName}
                 email={formData.email}
@@ -469,6 +504,14 @@ export function ContactCreationClient({
                 notes={formData.notes}
                 inviteToApp={formData.inviteToApp}
                 onFieldChange={handleInputChange}
+                // Entity linking props
+                buildings={initialBuildings}
+                lots={initialLots}
+                linkedEntityType={formData.linkedEntityType}
+                linkedBuildingId={formData.linkedBuildingId}
+                linkedLotId={formData.linkedLotId}
+                linkedContractId={formData.linkedContractId}
+                linkedInterventionId={formData.linkedInterventionId}
               />
             )}
 

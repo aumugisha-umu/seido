@@ -32,7 +32,7 @@ import {
   getPriorityLabel
 } from "@/lib/intervention-utils"
 import { FileUploader } from "@/components/ui/file-uploader"
-import { TimeSlotCard } from "./time-slot-card"
+import { TimeSlotCard } from "@/components/interventions/shared/atoms/time-slot-card"
 import { RejectSlotModal } from "./modals/reject-slot-modal"
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'

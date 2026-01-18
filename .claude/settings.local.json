@@ -26,7 +26,8 @@
       "Bash(wc:*)",
       "Bash(xargs:*)",
       "WebFetch(domain:developers.google.com)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []

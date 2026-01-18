@@ -182,6 +182,12 @@ export const inviteUserSchema = z.object({
   postalCode: z.string().max(20).trim().optional().nullable(),
   city: z.string().max(100).trim().optional().nullable(),
   country: z.string().length(2).trim().optional().nullable(),
+  // Champs liaison à une entité (optionnel)
+  linkedEntityType: z.enum(['building', 'lot', 'contract', 'intervention']).optional().nullable(),
+  linkedBuildingId: uuidSchema.optional().nullable(),
+  linkedLotId: uuidSchema.optional().nullable(),
+  linkedContractId: uuidSchema.optional().nullable(),
+  linkedInterventionId: uuidSchema.optional().nullable(),
 }).superRefine((data, ctx) => {
   // Email obligatoire si shouldInviteToApp === true
   if (data.shouldInviteToApp) {

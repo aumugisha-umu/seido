@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { AlertTriangle, ChevronRight } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { ManagerInterventionCard } from "@/components/dashboards/manager/manager-intervention-card"
+import { ManagerInterventionCardV2 } from "@/components/dashboards/manager/manager-intervention-card-v2"
 import { shouldShowAlertBadge } from "@/lib/intervention-alert-utils"
 
 // ============================================================================
@@ -17,6 +17,8 @@ interface UrgentInterventionsSectionProps {
     interventions: any[]
     maxItems?: number
     userContext: 'gestionnaire' | 'prestataire' | 'locataire'
+    /** Callback when an action completes (for removing card with animation) */
+    onActionComplete?: (interventionId: string) => void
 }
 
 // ============================================================================
@@ -51,7 +53,8 @@ const getActionPriority = (intervention: any): number => {
 export function UrgentInterventionsSection({
     interventions,
     maxItems = 5,
-    userContext
+    userContext,
+    onActionComplete
 }: UrgentInterventionsSectionProps) {
     const router = useRouter()
 
@@ -130,19 +133,24 @@ export function UrgentInterventionsSection({
                 </div>
             </CardHeader>
             <CardContent className="pt-2 pb-4 px-0 relative z-10">
-                {/* Horizontal scrollable container - reusing ManagerInterventionCard */}
-                <div className="flex gap-4 overflow-x-auto px-4 pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-transparent">
+                {/* Horizontal scrollable container - V2 cards with direct CTAs */}
+                {/* @container permet d'utiliser cqw (container query width) au lieu de vw (viewport width) */}
+                <div className="@container flex gap-4 overflow-x-auto pl-4 pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-transparent">
                     {actionableInterventions.map((intervention) => (
                         <div
                             key={intervention.id}
-                            className="flex-shrink-0 w-[calc(33.333%-11px)] min-w-[320px] snap-start"
+                            className="flex-shrink-0 w-[85cqw] @sm:w-[45cqw] @lg:w-[31cqw] min-w-[320px] max-w-[450px] snap-start"
                         >
-                            <ManagerInterventionCard
+                            <ManagerInterventionCardV2
                                 intervention={intervention}
                                 userContext={userContext}
+                                onActionComplete={onActionComplete}
+                                enableAnimations={true}
                             />
                         </div>
                     ))}
+                    {/* Spacer pour préserver le padding-right avec overflow-x-auto */}
+                    <div className="flex-shrink-0 w-4" aria-hidden="true" />
                 </div>
             </CardContent>
         </Card>

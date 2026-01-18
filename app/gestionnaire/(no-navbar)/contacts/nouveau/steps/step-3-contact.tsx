@@ -8,29 +8,63 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { PhoneInput } from "@/components/ui/phone-input"
 import { Mail, FileText, User, Loader2 } from "lucide-react"
 import { isValidEmail } from "@/lib/validation/patterns"
+import { EntityLinkSection } from "@/components/contact-details/entity-link-section"
+
+// Types for entity linking
+interface Building {
+  id: string
+  name: string
+  address?: string | null
+}
+
+interface Lot {
+  id: string
+  reference: string
+  building_id: string
+  category?: string | null
+  building?: Building | null
+}
 
 interface Step3ContactProps {
   teamId: string
   personOrCompany: 'person' | 'company'
+  contactType: string
   firstName?: string
   lastName?: string
   email: string
   phone?: string
   notes?: string
   inviteToApp: boolean
-  onFieldChange: (field: string, value: string | boolean) => void
+  onFieldChange: (field: string, value: string | boolean | null) => void
+  // Entity linking props
+  buildings: Building[]
+  lots: Lot[]
+  linkedEntityType?: 'building' | 'lot' | 'contract' | 'intervention' | null
+  linkedBuildingId?: string | null
+  linkedLotId?: string | null
+  linkedContractId?: string | null
+  linkedInterventionId?: string | null
 }
 
 export function Step3Contact({
   teamId,
   personOrCompany,
+  contactType,
   firstName,
   lastName,
   email,
   phone,
   notes,
   inviteToApp,
-  onFieldChange
+  onFieldChange,
+  // Entity linking props
+  buildings,
+  lots,
+  linkedEntityType,
+  linkedBuildingId,
+  linkedLotId,
+  linkedContractId,
+  linkedInterventionId
 }: Step3ContactProps) {
   // État pour le statut de vérification email
   const [emailStatus, setEmailStatus] = useState<{
@@ -258,6 +292,20 @@ export function Step3Contact({
           </div>
         </div>
       </div>
+
+      {/* Section de liaison à une entité (optionnelle) */}
+      <EntityLinkSection
+        contactType={contactType}
+        teamId={teamId}
+        linkedEntityType={linkedEntityType ?? null}
+        linkedBuildingId={linkedBuildingId ?? null}
+        linkedLotId={linkedLotId ?? null}
+        linkedContractId={linkedContractId ?? null}
+        linkedInterventionId={linkedInterventionId ?? null}
+        onFieldChange={onFieldChange}
+        buildings={buildings}
+        lots={lots}
+      />
     </div>
   )
 }

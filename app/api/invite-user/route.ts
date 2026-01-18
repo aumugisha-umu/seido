@@ -61,7 +61,13 @@ export async function POST(request: Request) {
       streetNumber,
       postalCode,
       city,
-      country
+      country,
+      // Champs liaison à une entité (optionnel)
+      linkedEntityType,
+      linkedBuildingId,
+      linkedLotId,
+      linkedContractId,
+      linkedInterventionId
     } = validatedData
 
     // ✅ Normaliser l'email : convertir chaînes vides en null (pour usage dans toutes les étapes)
@@ -562,6 +568,97 @@ export async function POST(request: Request) {
         logger.error({ logError: logError }, '⚠️ [STEP-4] Failed to log activity:')
         // Non bloquant
       }
+
+    // ============================================================================
+    // ÉTAPE 5 (OPTIONNELLE): Liaison à une entité (immeuble, lot, contrat, intervention)
+    // ============================================================================
+    if (linkedEntityType && userProfile.id) {
+      logger.info({ linkedEntityType }, '🔗 [STEP-5] Processing entity linking...')
+
+      try {
+        // Liaison à un immeuble
+        if (linkedEntityType === 'building' && linkedBuildingId) {
+          const { error: buildingLinkError } = await supabaseAdmin
+            .from('building_contacts')
+            .insert({
+              building_id: linkedBuildingId,
+              user_id: userProfile.id,
+              team_id: teamId,
+              is_primary: false,
+              role: validUserRole
+            })
+
+          if (buildingLinkError) {
+            logger.warn({ error: buildingLinkError }, '⚠️ [STEP-5] Failed to link contact to building')
+          } else {
+            logger.info({ buildingId: linkedBuildingId }, '✅ [STEP-5] Contact linked to building')
+          }
+        }
+
+        // Liaison à un lot
+        if (linkedEntityType === 'lot' && linkedLotId) {
+          const { error: lotLinkError } = await supabaseAdmin
+            .from('lot_contacts')
+            .insert({
+              lot_id: linkedLotId,
+              user_id: userProfile.id,
+              team_id: teamId,
+              is_primary: false,
+              role: validUserRole
+            })
+
+          if (lotLinkError) {
+            logger.warn({ error: lotLinkError }, '⚠️ [STEP-5] Failed to link contact to lot')
+          } else {
+            logger.info({ lotId: linkedLotId }, '✅ [STEP-5] Contact linked to lot')
+          }
+        }
+
+        // Liaison à un contrat
+        if (linkedEntityType === 'contract' && linkedContractId) {
+          // Mapper le rôle du contact vers le rôle contrat
+          const contractRole = validUserRole === 'locataire' ? 'locataire' : 'autre'
+
+          const { error: contractLinkError } = await supabaseAdmin
+            .from('contract_contacts')
+            .insert({
+              contract_id: linkedContractId,
+              user_id: userProfile.id,
+              is_primary: false,
+              role: contractRole
+            })
+
+          if (contractLinkError) {
+            logger.warn({ error: contractLinkError }, '⚠️ [STEP-5] Failed to link contact to contract')
+          } else {
+            logger.info({ contractId: linkedContractId }, '✅ [STEP-5] Contact linked to contract')
+          }
+        }
+
+        // Liaison à une intervention (assignment)
+        if (linkedEntityType === 'intervention' && linkedInterventionId) {
+          const { error: interventionLinkError } = await supabaseAdmin
+            .from('intervention_assignments')
+            .insert({
+              intervention_id: linkedInterventionId,
+              user_id: userProfile.id,
+              assigned_by: currentUserProfile.id,
+              role: validUserRole,
+              is_primary: false,
+              requires_confirmation: false
+            })
+
+          if (interventionLinkError) {
+            logger.warn({ error: interventionLinkError }, '⚠️ [STEP-5] Failed to link contact to intervention')
+          } else {
+            logger.info({ interventionId: linkedInterventionId }, '✅ [STEP-5] Contact linked to intervention')
+          }
+        }
+      } catch (linkError) {
+        logger.error({ error: linkError }, '⚠️ [STEP-5] Entity linking error (non-blocking):')
+        // Non bloquant - le contact a été créé, on continue
+      }
+    }
 
     logger.info({}, '🎉 [INVITE-USER-SIMPLE] Process completed successfully')
 

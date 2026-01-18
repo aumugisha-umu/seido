@@ -14,7 +14,7 @@ import {
     X,
     ArrowUpDown
 } from "lucide-react"
-import { ManagerInterventionCard } from "@/components/dashboards/manager/manager-intervention-card"
+import { ManagerInterventionCardV2 } from "@/components/dashboards/manager/manager-intervention-card-v2"
 import { InterventionsCalendarView } from "@/components/interventions/interventions-calendar-view"
 import { InterventionsEmptyState } from "@/components/interventions/interventions-empty-state"
 import { InterventionsListViewV1 } from "@/components/interventions/interventions-list-view-v1"
@@ -131,13 +131,16 @@ interface DashboardInterventionsSectionProps {
     userContext: 'gestionnaire' | 'prestataire' | 'locataire'
     title?: string
     onCreateIntervention?: () => void
+    /** Callback when an action completes on a card (for removing with animation) */
+    onActionComplete?: (interventionId: string) => void
 }
 
 export function DashboardInterventionsSection({
     interventions,
     userContext,
     title = "Interventions",
-    onCreateIntervention
+    onCreateIntervention,
+    onActionComplete
 }: DashboardInterventionsSectionProps) {
     // Auth for userId (needed for alert badges in list view)
     const { user } = useAuth()
@@ -474,9 +477,11 @@ export function DashboardInterventionsSection({
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {filteredAndSortedInterventions.map((intervention) => (
                                     <div key={intervention.id} className="h-full">
-                                        <ManagerInterventionCard
+                                        <ManagerInterventionCardV2
                                             intervention={intervention}
                                             userContext={userContext}
+                                            onActionComplete={onActionComplete}
+                                            enableAnimations={true}
                                         />
                                     </div>
                                 ))}

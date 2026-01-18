@@ -23,6 +23,7 @@ import {
 import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
 import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
 import { UrgentInterventionsSection } from "@/components/dashboards/manager/urgent-interventions-section"
+import { ProgressTracker } from "@/components/dashboards/manager/progress-tracker"
 import { KPICarousel, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
 import { GestionnaireFAB } from "@/components/ui/fab"
 import { PeriodSelector, getDefaultPeriod, type Period } from "@/components/ui/period-selector"
@@ -88,7 +89,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
         })
     }, [interventions, period])
 
-    // Realtime updates for interventions 
+    // Realtime updates for interventions
     useRealtimeInterventions({
         interventionCallbacks: {
             onUpdate: useCallback((updatedIntervention: DbIntervention) => {
@@ -102,6 +103,13 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
             }, [])
         }
     })
+
+    // Handler for card action completion (remove from list with animation)
+    const handleActionComplete = useCallback((interventionId: string) => {
+        // Remove the intervention from the local list
+        // This triggers an immediate UI update while the server processes
+        setInterventions(prev => prev.filter(i => i.id !== interventionId))
+    }, [])
 
     return (
         <div className="dashboard">
@@ -213,22 +221,32 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                     />
                 </div>
 
-                {/* Urgent Interventions Section */}
+                {/* Progress Tracker - Shows completion progress for the period */}
+                <div className="dashboard__progress mb-6">
+                    <ProgressTracker
+                        interventions={filteredInterventions}
+                        period={period}
+                    />
+                </div>
+
+                {/* Urgent Interventions Section - V2 cards with direct CTAs */}
                 <div className="dashboard__urgent mb-6">
                     <UrgentInterventionsSection
                         interventions={filteredInterventions}
                         userContext="gestionnaire"
                         maxItems={10}
+                        onActionComplete={handleActionComplete}
                     />
                 </div>
 
-                {/* Content Section */}
+                {/* Content Section - V2 cards with direct CTAs */}
                 <div className="dashboard__content">
                     <DashboardInterventionsSection
                         interventions={filteredInterventions}
                         userContext="gestionnaire"
                         title={period.value !== 'all' ? `Interventions (${period.label})` : "Interventions"}
                         onCreateIntervention={() => router.push('/gestionnaire/interventions/nouvelle-intervention')}
+                        onActionComplete={handleActionComplete}
                     />
                 </div>
             </div>

@@ -30,7 +30,6 @@ export function LotCardWrapper({ item, actions: _actions }: CardComponentProps<L
       variant="expandable"
       mode="view"
       showBuilding={true}
-      showInterventionsCount={true}
     />
   )
 }

@@ -1366,6 +1366,8 @@ export interface ActiveTenant {
   role: ContractContactRole
   contract_id: string
   contract_title: string
+  contract_start_date: string
+  contract_end_date: string
   is_primary: boolean
 }
 
@@ -1378,17 +1380,18 @@ export interface ActiveTenantsResult {
 }
 
 /**
- * Récupère les locataires des contrats ACTIFS d'un lot.
+ * Récupère les locataires des contrats ACTIFS et À VENIR d'un lot.
  *
  * Utilisé pour :
  * - Déterminer si un lot est "Occupé" (hasActiveTenants = true)
  * - Auto-assigner les locataires lors de la création d'une intervention
+ * - Permettre de lier une intervention à un contrat actif ou à venir
  *
  * @param lotId - ID du lot
  * @returns Liste des locataires avec indicateur d'occupation
  *
- * Note: Seuls les contrats avec status='actif' sont considérés.
- * Les contrats 'a_venir' ne comptent pas (bail pas encore commencé).
+ * Note: Les contrats avec status='actif' (en cours) ET 'a_venir' (à venir)
+ * sont inclus pour permettre de planifier des interventions futures.
  */
 export async function getActiveTenantsByLotAction(
   lotId: string

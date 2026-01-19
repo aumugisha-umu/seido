@@ -4039,6 +4039,7 @@ export type Database = {
         | "garantie"
         | "bon_de_commande"
         | "autre"
+        | "email"
       intervention_scheduling_type: "flexible" | "fixed" | "slots"
       intervention_status:
         | "demande"
@@ -4353,6 +4354,7 @@ export const Constants = {
         "garantie",
         "bon_de_commande",
         "autre",
+        "email",
       ],
       intervention_scheduling_type: ["flexible", "fixed", "slots"],
       intervention_status: [

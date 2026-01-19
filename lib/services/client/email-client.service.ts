@@ -65,13 +65,30 @@ export class EmailClientService {
     }
 
     /**
-     * Sync emails manually (trigger cron)
+     * Sync emails manually for the current user's team
+     * Uses /api/emails/sync (user-accessible) instead of /api/cron/sync-emails (cron-protected)
      */
-    static async syncEmails(): Promise<void> {
-        const response = await fetch('/api/cron/sync-emails');
+    static async syncEmails(): Promise<{
+        success: boolean;
+        results: any[];
+        summary?: {
+            connections: number;
+            successful: number;
+            errors: number;
+            newEmails: number;
+        };
+    }> {
+        const response = await fetch('/api/emails/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
         if (!response.ok) {
-            throw new Error('Failed to sync emails');
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to sync emails');
         }
+
+        return response.json();
     }
     /**
      * Update an email

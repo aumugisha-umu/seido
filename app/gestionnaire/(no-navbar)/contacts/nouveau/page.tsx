@@ -1,7 +1,10 @@
 import { getServerAuthContext } from '@/lib/server-context'
 import { createServerCompanyRepository } from '@/lib/services/repositories/company.repository'
-import { createServerBuildingRepository } from '@/lib/services/repositories/building.repository'
-import { createServerLotRepository } from '@/lib/services/repositories/lot.repository'
+import {
+  createServerBuildingService,
+  createServerLotService,
+  createServerContractService
+} from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { ContactCreationClient } from './contact-creation-client'
 
@@ -49,36 +52,68 @@ export default async function NewContactPage({
     }
 
     // ✅ Charger les immeubles et lots pour EntityLinkSection
-    const buildingRepository = await createServerBuildingRepository()
-    const lotRepository = await createServerLotRepository()
+    // Utiliser les services (comme intervention) pour avoir les lots inclus dans chaque building
+    const buildingService = await createServerBuildingService()
+    const lotService = await createServerLotService()
+    const contractService = await createServerContractService()
 
-    let buildings: { id: string; name: string; address?: string | null }[] = []
-    let lots: { id: string; reference: string; building_id: string; category?: string | null; building?: { id: string; name: string; address?: string | null } | null }[] = []
+    let buildings: any[] = []
+    let lots: any[] = []
 
-    const buildingsResult = await buildingRepository.findByTeam(team.id)
+    // ✅ Charger les buildings AVEC leurs lots (via le service)
+    const buildingsResult = await buildingService.getBuildingsByTeam(team.id)
     if (buildingsResult.success && buildingsResult.data) {
-      buildings = buildingsResult.data.map(b => ({
-        id: b.id,
-        name: b.name,
-        address: b.address
-      }))
-      logger.info(`✅ [NEW-CONTACT-PAGE] Loaded ${buildings.length} buildings`)
+      buildings = buildingsResult.data
+      logger.info(`✅ [NEW-CONTACT-PAGE] Loaded ${buildings.length} buildings with lots`)
     }
 
-    const lotsResult = await lotRepository.findByTeam(team.id)
+    // ✅ Récupérer les lots occupés (via contrats actifs)
+    let occupiedLotIds = new Set<string>()
+    try {
+      const occupiedResult = await contractService.getOccupiedLotIdsByTeam(team.id)
+      if (occupiedResult.success) {
+        occupiedLotIds = occupiedResult.data
+        logger.info(`✅ [NEW-CONTACT-PAGE] Occupied lots from contracts: ${occupiedLotIds.size}`)
+      } else {
+        logger.warn({
+          error: occupiedResult.error,
+          teamId: team.id
+        }, '⚠️ [NEW-CONTACT-PAGE] Contract service returned error for occupied lots')
+      }
+    } catch (error) {
+      logger.warn({
+        error: error instanceof Error ? error.message : String(error),
+        teamId: team.id
+      }, '⚠️ [NEW-CONTACT-PAGE] Exception getting occupied lots from contracts')
+      // Continue without occupied lot info - form will still work
+    }
+
+    // ✅ Transformer les buildings pour ajouter le statut des lots
+    buildings = buildings.map((building: any) => ({
+      ...building,
+      lots: (building.lots || []).map((lot: any) => {
+        const isOccupied = occupiedLotIds.has(lot.id)
+        return {
+          ...lot,
+          is_occupied: isOccupied,
+          status: isOccupied ? "occupied" : "vacant"
+        }
+      })
+    }))
+
+    // ✅ Charger tous les lots pour l'onglet "Lots" (indépendants + attachés)
+    const lotsResult = await lotService.getLotsByTeam(team.id)
     if (lotsResult.success && lotsResult.data) {
-      lots = lotsResult.data.map(l => ({
-        id: l.id,
-        reference: l.reference,
-        building_id: l.building_id,
-        category: l.category,
-        building: l.building ? {
-          id: l.building.id,
-          name: l.building.name,
-          address: l.building.address
-        } : null
-      }))
-      logger.info(`✅ [NEW-CONTACT-PAGE] Loaded ${lots.length} lots`)
+      lots = lotsResult.data.map((lot: any) => {
+        const isOccupied = occupiedLotIds.has(lot.id)
+        return {
+          ...lot,
+          is_occupied: isOccupied,
+          status: isOccupied ? "occupied" : "vacant",
+          building_name: buildings.find((b: any) => b.id === lot.building_id)?.name || null
+        }
+      })
+      logger.info(`✅ [NEW-CONTACT-PAGE] Loaded and transformed ${lots.length} lots`)
     }
 
     logger.info(`📊 [NEW-CONTACT-PAGE] Server data ready - Companies: ${companies.length}, Buildings: ${buildings.length}, Lots: ${lots.length}`)

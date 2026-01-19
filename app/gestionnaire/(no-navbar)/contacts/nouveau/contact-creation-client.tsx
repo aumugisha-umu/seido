@@ -55,11 +55,10 @@ interface ContactFormData {
   hasAuthAccount?: boolean
 
   // Liaison à une entité (optionnel)
-  linkedEntityType?: 'building' | 'lot' | 'contract' | 'intervention' | null
+  linkedEntityType?: 'building' | 'lot' | 'contract' | null
   linkedBuildingId?: string | null
   linkedLotId?: string | null
   linkedContractId?: string | null
-  linkedInterventionId?: string | null
 }
 
 interface Building {
@@ -142,7 +141,7 @@ export function ContactCreationClient({
     personOrCompany: 'person',
     companyMode: 'new',
     email: '',
-    country: 'Belgique',
+    country: 'BE',
     inviteToApp: true
   })
 
@@ -356,7 +355,6 @@ export function ContactCreationClient({
         payload.linkedBuildingId = formData.linkedBuildingId
         payload.linkedLotId = formData.linkedLotId
         payload.linkedContractId = formData.linkedContractId
-        payload.linkedInterventionId = formData.linkedInterventionId
       }
 
       const response = await fetch('/api/invite-user', {
@@ -511,7 +509,6 @@ export function ContactCreationClient({
                 linkedBuildingId={formData.linkedBuildingId}
                 linkedLotId={formData.linkedLotId}
                 linkedContractId={formData.linkedContractId}
-                linkedInterventionId={formData.linkedInterventionId}
               />
             )}
 
@@ -539,6 +536,13 @@ export function ContactCreationClient({
                 companies={initialCompanies}
                 existsInCurrentTeam={formData.existsInCurrentTeam}
                 hasAuthAccount={formData.hasAuthAccount}
+                // Liaison à une entité
+                linkedEntityType={formData.linkedEntityType}
+                linkedBuildingId={formData.linkedBuildingId}
+                linkedLotId={formData.linkedLotId}
+                linkedContractId={formData.linkedContractId}
+                buildings={initialBuildings}
+                lots={initialLots}
               />
             )}
           </div>

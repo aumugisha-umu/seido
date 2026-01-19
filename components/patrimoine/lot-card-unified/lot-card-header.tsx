@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Building2, Users, Wrench, Check, X } from "lucide-react"
+import { Home, Building2, Users, Check, X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -153,7 +153,7 @@ export function LotCardBadges({
   isOccupied,
   contactsCount,
   interventionsCount = 0,
-  showInterventionsCount = true,
+  showInterventionsCount = false,
   showDetails = false
 }: LotCardBadgesProps) {
   const categoryConfig = lot.category
@@ -282,13 +282,6 @@ export function LotCardBadges({
         </Badge>
       )}
 
-      {/* Interventions count */}
-      {showInterventionsCount && interventionsCount > 0 && (
-        <div className="flex items-center gap-1 text-xs text-amber-700">
-          <Wrench className="h-3 w-3" />
-          <span>{interventionsCount}</span>
-        </div>
-      )}
     </div>
   )
 }

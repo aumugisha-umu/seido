@@ -14,7 +14,10 @@ export interface ActionConfig<T = any> {
     id: string
     label: string
     icon?: LucideIcon
-    onClick: (item: T) => void
+    /** Click handler for the action. Optional if href is provided. */
+    onClick?: (item: T) => void
+    /** URL generator for navigation actions. Uses Next.js router for SPA navigation. */
+    href?: (item: T) => string
     variant?: 'default' | 'destructive'
     className?: string
     show?: (item: T) => boolean

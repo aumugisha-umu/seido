@@ -10,13 +10,11 @@ export { AddressInput } from "./form-fields/AddressInput"
 export { PropertyNameInput } from "./form-fields/PropertyNameInput"
 
 // Selector atoms
-export { BuildingSelector } from "./selectors/BuildingSelector"
 export { ManagerSelector } from "./selectors/ManagerSelector"
 
 // Re-export types for convenience
 export type {
   AddressInputProps,
   PropertyNameInputProps,
-  BuildingSelectorProps,
   ManagerSelectorProps
 } from "../types"

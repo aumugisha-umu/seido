@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Home, Eye, Users, Wrench, MapPin, Building2, Edit, MoreVertical, Archive } from "lucide-react"
+import { Home, Eye, Users, MapPin, Building2, Edit, MoreVertical, Archive } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,7 +57,7 @@ interface LotCardProps {
   isSelected?: boolean
   onSelect?: (lotId: string | null, buildingId?: string) => void
   showBuilding?: boolean
-  compact?: boolean  // Hide extra details (floor, surface, rooms, building name, interventions)
+  compact?: boolean  // Hide extra details (floor, surface, rooms)
 }
 
 export default function LotCard({
@@ -70,7 +70,6 @@ export default function LotCard({
   compact = false
 }: LotCardProps) {
   const router = useRouter()
-  const lotInterventions = interventions.filter(i => i.lot_id === lot.id)
 
   // ✅ Phase 2: Calculate occupancy from lot_contacts (not tenant_id)
   const tenants = lot.lot_contacts?.filter(lc => lc.user?.role === 'locataire') || []
@@ -300,22 +299,9 @@ export default function LotCard({
 
               {/* Building Info - Visible in all modes including compact */}
               {showBuilding && lot.building?.name && (
-                <div className="flex items-center text-xs text-slate-500 mb-2">
+                <div className="flex items-center text-xs text-slate-500">
                   <Building2 className="h-3 w-3 mr-1" />
                   <span>{lot.building.name}</span>
-                </div>
-              )}
-
-              {/* Interventions Count - Hidden in compact mode */}
-              {!compact && (
-                <div className="flex items-center text-xs text-slate-600">
-                  <Wrench className="h-3 w-3 mr-1" />
-                  <span>
-                    {lotInterventions.length > 0
-                      ? `${lotInterventions.length} intervention(s)`
-                      : 'Aucune intervention'
-                    }
-                  </span>
                 </div>
               )}
             </div>

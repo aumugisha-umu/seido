@@ -43,6 +43,16 @@ const serwist = new Serwist({
         networkTimeoutSeconds: 30,
       }),
     },
+    // Routes de sync email - timeout plus long (1 minute)
+    // La sync IMAP peut prendre du temps selon le nombre d'emails
+    {
+      matcher: ({ url }: { url: URL }) =>
+        url.pathname.startsWith('/api/emails') &&
+        (url.pathname.includes('/sync') || url.pathname.includes('/connections')),
+      handler: new NetworkOnly({
+        networkTimeoutSeconds: 60, // 1 minute pour les syncs IMAP
+      }),
+    },
     // Fallback NetworkOnly pour autres API
     {
       matcher: ({ url }: { url: URL }) => url.pathname.startsWith('/api/'),
@@ -79,6 +89,15 @@ const serwist = new Serwist({
           }
         ]
       }),
+    },
+    // Images externes (emails HTML) - pas d'interception SW
+    // Les emails HTML contiennent des images sur des domaines externes (bolt.eu, etc.)
+    // Le SW ne peut pas les fetcher correctement, donc on les laisse passer directement
+    {
+      matcher: ({ request, url }: { request: Request; url: URL }) => {
+        return request.destination === 'image' && url.origin !== self.location.origin
+      },
+      handler: new NetworkOnly(), // Fetch direct sans cache SW
     },
     ...defaultCache,
   ],

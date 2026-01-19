@@ -39,11 +39,10 @@ interface Step3ContactProps {
   // Entity linking props
   buildings: Building[]
   lots: Lot[]
-  linkedEntityType?: 'building' | 'lot' | 'contract' | 'intervention' | null
+  linkedEntityType?: 'building' | 'lot' | 'contract' | null
   linkedBuildingId?: string | null
   linkedLotId?: string | null
   linkedContractId?: string | null
-  linkedInterventionId?: string | null
 }
 
 export function Step3Contact({
@@ -63,8 +62,7 @@ export function Step3Contact({
   linkedEntityType,
   linkedBuildingId,
   linkedLotId,
-  linkedContractId,
-  linkedInterventionId
+  linkedContractId
 }: Step3ContactProps) {
   // État pour le statut de vérification email
   const [emailStatus, setEmailStatus] = useState<{
@@ -301,7 +299,6 @@ export function Step3Contact({
         linkedBuildingId={linkedBuildingId ?? null}
         linkedLotId={linkedLotId ?? null}
         linkedContractId={linkedContractId ?? null}
-        linkedInterventionId={linkedInterventionId ?? null}
         onFieldChange={onFieldChange}
         buildings={buildings}
         lots={lots}

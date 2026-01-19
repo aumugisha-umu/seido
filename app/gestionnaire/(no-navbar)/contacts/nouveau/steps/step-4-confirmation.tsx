@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { User, Building2, Mail, Phone, FileText, MapPin, CheckCircle, UserX, Bell, BellOff, Send, Info, AlertTriangle } from "lucide-react"
+import { User, Building2, Mail, Phone, FileText, MapPin, CheckCircle, UserX, Bell, BellOff, Send, Info, AlertTriangle, Link2, Home } from "lucide-react"
 import { getTypeLabel } from "@/components/interventions/intervention-type-icon"
 
 interface Company {
@@ -12,6 +12,20 @@ interface Company {
   postal_code?: string | null
   city?: string | null
   country?: string | null
+}
+
+interface Building {
+  id: string
+  name: string
+  address?: string | null
+}
+
+interface Lot {
+  id: string
+  reference: string
+  building_id: string
+  category?: string | null
+  building?: Building | null
 }
 
 interface Step4ConfirmationProps {
@@ -38,6 +52,14 @@ interface Step4ConfirmationProps {
   // Statut email (venant de Step3)
   existsInCurrentTeam?: boolean
   hasAuthAccount?: boolean
+  // Liaison à une entité (optionnel)
+  linkedEntityType?: 'building' | 'lot' | 'contract' | null
+  linkedBuildingId?: string | null
+  linkedLotId?: string | null
+  linkedContractId?: string | null
+  // Données pour affichage (noms/références)
+  buildings?: Building[]
+  lots?: Lot[]
 }
 
 export function Step4Confirmation({
@@ -62,7 +84,13 @@ export function Step4Confirmation({
   onInviteChange,
   companies,
   existsInCurrentTeam,
-  hasAuthAccount
+  hasAuthAccount,
+  linkedEntityType,
+  linkedBuildingId,
+  linkedLotId,
+  linkedContractId,
+  buildings,
+  lots
 }: Step4ConfirmationProps) {
   // Helper pour formater le type de contact
   const getContactTypeLabel = () => {
@@ -292,6 +320,82 @@ export function Step4Confirmation({
           </div>
         </CardContent>
       </Card>
+
+      {/* 3. Section Liaison à une entité (si applicable) */}
+      {linkedEntityType && (linkedBuildingId || linkedLotId || linkedContractId) && (
+        <Card className="border-l-4 border-l-blue-500 bg-blue-50/30 dark:bg-blue-950/30">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+                <Link2 className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="flex-1 space-y-2">
+                <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                  Lié à
+                </h3>
+
+                {/* Immeuble */}
+                {linkedEntityType === 'building' && linkedBuildingId && (
+                  <div className="flex items-center gap-3 pt-2">
+                    <Building2 className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        {buildings?.find(b => b.id === linkedBuildingId)?.name || 'Immeuble sélectionné'}
+                      </p>
+                      {buildings?.find(b => b.id === linkedBuildingId)?.address && (
+                        <p className="text-sm text-muted-foreground">
+                          {buildings?.find(b => b.id === linkedBuildingId)?.address}
+                        </p>
+                      )}
+                      <Badge variant="outline" className="mt-1 bg-card text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-800">
+                        Immeuble
+                      </Badge>
+                    </div>
+                  </div>
+                )}
+
+                {/* Lot */}
+                {linkedEntityType === 'lot' && linkedLotId && (() => {
+                  const selectedLot = lots?.find(l => l.id === linkedLotId)
+                  return (
+                    <div className="flex items-center gap-3 pt-2">
+                      <Home className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          {selectedLot?.reference || 'Lot sélectionné'}
+                        </p>
+                        {selectedLot?.building?.name && (
+                          <p className="text-sm text-muted-foreground">
+                            {selectedLot.building.name}
+                          </p>
+                        )}
+                        <Badge variant="outline" className="mt-1 bg-card text-green-700 dark:text-green-400 border-green-200 dark:border-green-800">
+                          Lot
+                        </Badge>
+                      </div>
+                    </div>
+                  )
+                })()}
+
+                {/* Contrat */}
+                {linkedEntityType === 'contract' && linkedContractId && (
+                  <div className="flex items-center gap-3 pt-2">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-semibold text-foreground">
+                        Contrat sélectionné
+                      </p>
+                      <Badge variant="outline" className="mt-1 bg-card text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800">
+                        Contrat
+                      </Badge>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

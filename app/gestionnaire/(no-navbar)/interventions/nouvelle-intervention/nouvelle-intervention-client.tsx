@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -149,8 +149,21 @@ export default function NouvelleInterventionClient({
 
   const [expectsQuote, setExpectsQuote] = useState(false)
 
+  // Source email ID (when intervention is created from an email)
+  const [sourceEmailId, setSourceEmailId] = useState<string | null>(null)
+
   // Toggle pour inclure les locataires (lots occupés uniquement)
   const [includeTenants, setIncludeTenants] = useState<boolean>(true)
+
+  // Contract selection for occupied lots
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null)
+  const [availableContracts, setAvailableContracts] = useState<Array<{
+    id: string
+    title: string
+    tenantNames: string[]
+    startDate: string
+    endDate: string
+  }>>([])
 
   // État pour les locataires d'un immeuble (groupés par lot)
   const [buildingTenants, setBuildingTenants] = useState<BuildingTenantsResult | null>(null)
@@ -203,10 +216,10 @@ export default function NouvelleInterventionClient({
       // Prestataires sélectionnés
       allParticipantIds.push(...selectedProviderIds)
 
-      // Locataires (lot-level ou building-level)
-      if (selectedLogement?.type === 'lot' && selectedLogement?.tenants) {
-        // Pour lot-level, utiliser les vrais user_id des locataires
-        selectedLogement.tenants.forEach((tenant: any) => {
+      // Locataires (lot-level filtré par contrat, ou building-level)
+      if (selectedLogement?.type === 'lot' && selectedContractId && includeTenants) {
+        // Pour lot-level, utiliser les locataires filtrés par contrat
+        filteredTenants.forEach((tenant: any) => {
           if (tenant.user_id) {
             allParticipantIds.push(tenant.user_id)
           }
@@ -234,8 +247,39 @@ export default function NouvelleInterventionClient({
   const [loading, setLoading] = useState(false)
   const [currentUserTeam, setCurrentUserTeam] = useState<any>(null)
 
+  // ✅ Filtrer les locataires selon le contrat sélectionné
+  // Si aucun contrat n'est sélectionné (null), on ne montre pas de locataires
+  const filteredTenants = useMemo(() => {
+    // Pas de lot sélectionné ou pas occupé
+    if (!selectedLogement?.tenants || selectedLogement.type !== 'lot') {
+      return []
+    }
+
+    // Aucun contrat sélectionné → pas de locataires à afficher
+    if (!selectedContractId) {
+      return []
+    }
+
+    // Contrat sélectionné → filtrer les locataires par contract_id
+    return selectedLogement.tenants.filter(
+      (tenant: any) => tenant.contract_id === selectedContractId
+    )
+  }, [selectedLogement, selectedContractId])
+
   // Ref pour le modal ContactSelector
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
+
+  // ✅ FIX: Ref to track mount status (persists across Strict Mode remounts)
+  // Unlike local variables in useEffect, refs persist and only change on final unmount
+  const isMountedRef = useRef(true)
+
+  // ✅ FIX: Manage mount lifecycle - only set to false on final unmount
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, []) // Empty deps = runs once on mount, cleanup on final unmount
 
   const router = useRouter()
   const { toast } = useToast()
@@ -268,7 +312,10 @@ export default function NouvelleInterventionClient({
     files: fileUpload.files,
     // Multi-provider mode
     assignmentMode,
-    providerInstructions
+    providerInstructions,
+    // Contract selection
+    selectedContractId,
+    availableContracts
   }
   const { saveAndRedirect } = useSaveFormState(formState)
 
@@ -292,6 +339,9 @@ export default function NouvelleInterventionClient({
     // Multi-provider mode
     if (restoredState.assignmentMode) setAssignmentMode(restoredState.assignmentMode)
     if (restoredState.providerInstructions) setProviderInstructions(restoredState.providerInstructions)
+    // Contract selection
+    if (restoredState.selectedContractId) setSelectedContractId(restoredState.selectedContractId)
+    if (restoredState.availableContracts) setAvailableContracts(restoredState.availableContracts)
     // Note: files ne sont pas restaurés car ils ne sont pas sérialisables
   })
 
@@ -592,6 +642,135 @@ export default function NouvelleInterventionClient({
     }
   }, [])
 
+  // ✅ Extract primitive value BEFORE useEffect to avoid reference changes
+  // This prevents multiple useEffect executions from searchParams object changing
+  const fromEmailParam = searchParams.get('fromEmail')
+
+  // ✅ NEW: Pré-remplissage depuis email (création d'intervention depuis la boîte mail)
+  // ✅ OPTIMIZED: PDF is generated in background while user fills form (instant redirect)
+  // ✅ FIX: Uses isMountedRef instead of local variable to survive React Strict Mode remounts
+  useEffect(() => {
+    if (isPreFilled) return // Prevent re-execution if already pre-filled
+
+    if (fromEmailParam !== 'true') return
+
+    // Récupérer les données depuis sessionStorage
+    const emailDataStr = sessionStorage.getItem('intervention-from-email')
+    if (!emailDataStr) {
+      logger.warn('⚠️ [PRE-FILL-EMAIL] No email data found in sessionStorage')
+      return
+    }
+
+    try {
+      const emailData = JSON.parse(emailDataStr)
+      logger.info('📧 [PRE-FILL-EMAIL] Pre-filling from email:', {
+        emailId: emailData.emailId,
+        title: emailData.title?.substring(0, 50),
+        pdfPending: emailData.pdfPending
+      })
+
+      // 1. Stocker l'emailId pour liaison après création
+      if (emailData.emailId) {
+        setSourceEmailId(emailData.emailId)
+      }
+
+      // 2. Pré-remplir le formulaire (titre et description)
+      setFormData(prev => ({
+        ...prev,
+        title: emailData.title || prev.title,
+        description: emailData.description || prev.description
+      }))
+
+      // 3. ✅ BACKGROUND PDF GENERATION: Fetch PDF asynchronously
+      // User can start filling the form immediately while PDF generates (~5s)
+      if (emailData.pdfPending && emailData.emailId) {
+        logger.debug({ emailId: emailData.emailId }, '[PRE-FILL-EMAIL] Starting background PDF generation')
+
+        // Fire-and-forget: generate PDF in background
+        fetch(`/api/emails/${emailData.emailId}/pdf`)
+          .then(response => response.json())
+          .then(pdfResult => {
+            // ✅ FIX: Use ref instead of local variable - persists across Strict Mode remounts
+            if (!isMountedRef.current) {
+              return
+            }
+
+            if (pdfResult.success && !pdfResult.fallback && pdfResult.pdfUrl) {
+              // Download the PDF from the signed URL
+              return fetch(pdfResult.pdfUrl)
+                .then(response => {
+                  if (!response.ok) throw new Error(`PDF download failed: ${response.status}`)
+                  return response.blob()
+                })
+                .then(blob => {
+                  // ✅ FIX: Check ref again after async download
+                  if (!isMountedRef.current) {
+                    return
+                  }
+
+                  // Create File object and add to form
+                  const pdfFile = new File([blob], pdfResult.filename || 'email.pdf', {
+                    type: 'application/pdf'
+                  })
+
+                  fileUpload.addFiles([pdfFile], 'email') // ✅ Set document type to 'email' for email PDFs
+                  logger.info({ filename: pdfFile.name, size: pdfFile.size }, '[PRE-FILL-EMAIL] PDF attachment added')
+                })
+            } else {
+              logger.debug({
+                success: pdfResult.success,
+                fallback: pdfResult.fallback,
+                hasUrl: !!pdfResult.pdfUrl,
+                error: pdfResult.error
+              }, '[PRE-FILL-EMAIL] PDF not available')
+            }
+          })
+          .catch(pdfError => {
+            if (!isMountedRef.current) return
+            logger.warn({ error: pdfError }, '[PRE-FILL-EMAIL] Background PDF generation failed')
+            // Non-blocking: intervention can be created without PDF
+          })
+      }
+      // Legacy support: if pdfUrl already exists (old flow), download it directly
+      else if (emailData.pdfUrl && emailData.pdfFilename) {
+        logger.info('📄 [PRE-FILL-EMAIL] Downloading pre-generated PDF...')
+
+        fetch(emailData.pdfUrl)
+          .then(response => {
+            if (!response.ok) throw new Error('PDF download failed')
+            return response.blob()
+          })
+          .then(blob => {
+            if (!isMountedRef.current) return
+
+            const pdfFile = new File([blob], emailData.pdfFilename, {
+              type: 'application/pdf'
+            })
+
+            fileUpload.addFiles([pdfFile], 'email') // ✅ Set document type to 'email' for email PDFs
+            logger.info('✅ [PRE-FILL-EMAIL] PDF attachment added')
+          })
+          .catch(pdfError => {
+            if (!isMountedRef.current) return
+            logger.warn('⚠️ [PRE-FILL-EMAIL] Could not add PDF attachment:', pdfError)
+          })
+      }
+
+      // 4. Nettoyer sessionStorage
+      sessionStorage.removeItem('intervention-from-email')
+
+      // 5. Marquer comme pré-rempli
+      setIsPreFilled(true)
+
+      logger.info('✅ [PRE-FILL-EMAIL] Form pre-filled from email')
+
+    } catch (parseError) {
+      logger.error('❌ [PRE-FILL-EMAIL] Failed to parse email data:', parseError)
+      sessionStorage.removeItem('intervention-from-email')
+    }
+    // ✅ No cleanup needed here - isMountedRef is managed by its own useEffect
+  }, [fromEmailParam, isPreFilled]) // ✅ Use primitive value instead of searchParams object
+
   // ✅ NEW: Pré-remplissage depuis lot/immeuble (gestionnaire)
   useEffect(() => {
     if (!services) {
@@ -876,10 +1055,12 @@ export default function NouvelleInterventionClient({
   const handleBuildingSelect = async (buildingId: string | null) => {
     setSelectedBuildingId(buildingId || undefined)
     setSelectedLotId(undefined)
-    // Reset building tenants and excluded lots when changing selection
+    // Reset building tenants, excluded lots, and contract selection when changing selection
     setBuildingTenants(null)
     setExcludedLotIds(new Set())
     setIncludeTenants(false)
+    setSelectedContractId(null)
+    setAvailableContracts([])
 
     if (!buildingId) {
       setSelectedLogement(null)
@@ -980,8 +1161,10 @@ export default function NouvelleInterventionClient({
   }
 
   const handleLotSelect = async (lotId: string | null, buildingId?: string) => {
-    // Reset building tenants when switching to lot selection
+    // Reset building tenants and contract selection when switching lots
     setBuildingTenants(null)
+    setSelectedContractId(null)
+    setAvailableContracts([])
 
     if (!lotId) {
       setSelectedLotId(undefined)
@@ -1033,7 +1216,8 @@ export default function NouvelleInterventionClient({
             user_id: t.user_id,
             name: t.name,
             email: t.email,
-            phone: t.phone
+            phone: t.phone,
+            contract_id: t.contract_id  // Pour filtrer par contrat sélectionné
           }))
 
           // Mettre à jour selectedLogement avec les tenants
@@ -1045,9 +1229,39 @@ export default function NouvelleInterventionClient({
             tenants
           } : prev)
 
-          logger.info("✅ [LOT-SELECT] Tenant data loaded (early):", {
+          // ✅ Extract unique contracts from tenants (with dates)
+          const contractsMap = new Map<string, { id: string; title: string; tenantNames: string[]; startDate: string; endDate: string }>()
+          tenantsResult.data.tenants.forEach(tenant => {
+            if (tenant.contract_id) {
+              const existing = contractsMap.get(tenant.contract_id)
+              if (existing) {
+                existing.tenantNames.push(tenant.name)
+              } else {
+                contractsMap.set(tenant.contract_id, {
+                  id: tenant.contract_id,
+                  title: tenant.contract_title,
+                  tenantNames: [tenant.name],
+                  startDate: tenant.contract_start_date,
+                  endDate: tenant.contract_end_date
+                })
+              }
+            }
+          })
+
+          const contracts = Array.from(contractsMap.values())
+          setAvailableContracts(contracts)
+
+          // Auto-select if only one contract
+          if (contracts.length === 1) {
+            setSelectedContractId(contracts[0].id)
+          } else {
+            setSelectedContractId(null)
+          }
+
+          logger.info("✅ [LOT-SELECT] Tenant and contract data loaded (early):", {
             primaryTenant: primaryTenant.name,
-            tenantsCount: tenants.length
+            tenantsCount: tenants.length,
+            contractsCount: contracts.length
           })
         }
       } catch (tenantError) {
@@ -1071,7 +1285,7 @@ export default function NouvelleInterventionClient({
         let tenantName: string | null = lotData.tenant?.name || null
         let tenantEmail: string | null = null
         let tenantPhone: string | null = null
-        let tenants: Array<{ name: string; email: string | null; phone: string | null }> = []
+        let tenants: Array<{ user_id: string; name: string; email: string | null; phone: string | null; contract_id: string | null }> = []
 
         try {
           const tenantsResult = await getActiveTenantsByLotAction(lotIdStr)
@@ -1084,11 +1298,13 @@ export default function NouvelleInterventionClient({
             tenantEmail = primaryTenant.email
             tenantPhone = primaryTenant.phone
 
-            // Stocker tous les locataires
+            // Stocker tous les locataires avec contract_id pour filtrage
             tenants = tenantsResult.data.tenants.map(t => ({
+              user_id: t.user_id,
               name: t.name,
               email: t.email,
-              phone: t.phone
+              phone: t.phone,
+              contract_id: t.contract_id  // Pour filtrer par contrat sélectionné
             }))
 
             logger.info("✅ [LOT-SELECT] Tenant data loaded from contracts:", {
@@ -1378,7 +1594,13 @@ export default function NouvelleInterventionClient({
             : [],
 
         // Team context
-        teamId: currentUserTeam?.id || initialBuildingsData.teamId
+        teamId: currentUserTeam?.id || initialBuildingsData.teamId,
+
+        // Source email (for automatic linking after creation)
+        sourceEmailId: sourceEmailId || undefined,
+
+        // Contract link (for occupied lots with active contracts)
+        contractId: selectedContractId || undefined
       }
 
       logger.info("📝 Sending intervention data:", interventionData)
@@ -1564,6 +1786,62 @@ export default function NouvelleInterventionClient({
                     <span className="sr-only">Modifier le bien</span>
                   </Button>
                 </div>
+
+                {/* Contract Selection - Only for occupied lots with contracts */}
+                {selectedLogement?.type === 'lot' &&
+                 selectedLogement?.is_occupied &&
+                 availableContracts.length > 0 && (
+                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900">
+                    <label className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2 block">
+                      Lier à un contrat (optionnel)
+                    </label>
+                    <Select
+                      value={selectedContractId || 'none'}
+                      onValueChange={(value) => {
+                        const newContractId = value === 'none' ? null : value
+                        setSelectedContractId(newContractId)
+                        // Désactiver les locataires si aucun contrat sélectionné, activer sinon
+                        setIncludeTenants(newContractId !== null)
+                      }}
+                    >
+                      <SelectTrigger className="bg-white dark:bg-slate-900">
+                        <SelectValue placeholder="Sélectionner un contrat..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">
+                          <span className="text-muted-foreground">Aucun contrat spécifique</span>
+                        </SelectItem>
+                        {availableContracts.map((contract) => {
+                          // Format dates as MM/YYYY for compact display
+                          const formatDate = (dateStr: string) => {
+                            const date = new Date(dateStr)
+                            return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
+                          }
+                          const dateRange = `${formatDate(contract.startDate)} - ${formatDate(contract.endDate)}`
+
+                          return (
+                            <SelectItem key={contract.id} value={contract.id}>
+                              <div className="flex flex-col">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium">{contract.title}</span>
+                                  <span className="text-xs text-muted-foreground bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                    {dateRange}
+                                  </span>
+                                </div>
+                                <span className="text-xs text-muted-foreground">
+                                  {contract.tenantNames.join(', ')}
+                                </span>
+                              </div>
+                            </SelectItem>
+                          )
+                        })}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                      Lier l'intervention à un bail permet de la retrouver dans l'historique du contrat.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-4 flex-1">
@@ -1692,8 +1970,8 @@ export default function NouvelleInterventionClient({
               <AssignmentSectionV2
                 managers={managers as any[]}
                 providers={providers as any[]}
-                tenants={(selectedLogement?.tenants || []).map((t: any, i: number) => ({
-                  id: `tenant-${selectedLogement?.id || 'unknown'}-${i}`,
+                tenants={filteredTenants.map((t: any, i: number) => ({
+                  id: t.user_id || `tenant-${selectedLogement?.id || 'unknown'}-${i}`,
                   name: t.name || 'Locataire',
                   email: t.email || '',
                   phone: t.phone || '',
@@ -1733,9 +2011,9 @@ export default function NouvelleInterventionClient({
                     [providerId]: instructions
                   }))
                 }}
-                // Tenant toggle props (for occupied lots OR buildings with tenants)
+                // Tenant toggle props (for occupied lots with selected contract OR buildings with tenants)
                 showTenantsSection={
-                  (selectedLogement?.type === 'lot' && selectedLogement?.is_occupied === true) ||
+                  (selectedLogement?.type === 'lot' && selectedLogement?.is_occupied === true && selectedContractId !== null) ||
                   (selectedLogement?.type === 'building' && buildingTenants?.hasActiveTenants === true)
                 }
                 includeTenants={includeTenants}
@@ -1787,33 +2065,25 @@ export default function NouvelleInterventionClient({
                   speciality: contact.speciality,
                   isCurrentUser: contact.isCurrentUser,
                 })),
-                // ✅ Ajouter tous les locataires du lot sélectionné (depuis les contrats actifs)
-                ...(selectedLogement?.tenants && selectedLogement.tenants.length > 0
-                  ? selectedLogement.tenants.map((tenant: { name: string; email: string | null; phone: string | null }, index: number) => ({
-                      id: `tenant-${selectedLogement.id}-${index}`,
+                // ✅ Ajouter les locataires du lot filtrés par contrat sélectionné
+                ...(filteredTenants.length > 0 && includeTenants && selectedContractId
+                  ? filteredTenants.map((tenant: { user_id: string; name: string; email: string | null; phone: string | null; contract_id: string | null }, index: number) => ({
+                      id: tenant.user_id || `tenant-${selectedLogement?.id}-${index}`,
                       name: tenant.name,
                       role: 'Locataire',
                       email: tenant.email || undefined,
                       phone: tenant.phone || undefined,
                       isCurrentUser: false,
                     }))
-                  // Fallback si pas de liste mais juste le nom
-                  : selectedLogement?.tenant ? [{
-                      id: `tenant-${selectedLogement.id}`,
-                      name: selectedLogement.tenant,
-                      role: 'Locataire',
-                      email: selectedLogement.tenantEmail || undefined,
-                      phone: selectedLogement.tenantPhone || undefined,
-                      isCurrentUser: false,
-                    }]
                   : []),
                 // 🆕 Ajouter les locataires d'immeuble (depuis buildingTenants)
-                // ✅ Utiliser user_id pour matcher avec confirmationRequired
+                // ✅ Utiliser clé composite lot+user pour éviter les doublons React
+                // (un même locataire peut apparaître dans plusieurs lots)
                 ...(buildingTenants && includeTenants
                   ? buildingTenants.byLot
                       .filter(lot => !excludedLotIds.has(lot.lotId))
                       .flatMap(lot => lot.tenants.map((tenant) => ({
-                        id: tenant.user_id,
+                        id: `${lot.lotId}-${tenant.user_id}`,
                         name: tenant.name,
                         role: 'Locataire',
                         email: tenant.email || undefined,

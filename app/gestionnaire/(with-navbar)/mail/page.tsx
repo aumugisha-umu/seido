@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { MailboxSidebar, LinkedEntities, LinkedEntity } from './components/mailbox-sidebar'
 import { EmailList } from './components/email-list'
 import { EmailDetail } from './components/email-detail'
 import { toast } from 'sonner'
+import { extractTextFromHtml } from '@/lib/templates/email-pdf-template'
 import { Button } from '@/components/ui/button'
 import { Plus, RefreshCw, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -115,6 +117,7 @@ const adaptEmail = (email: Email, buildings: Building[]): MailboxEmail => {
 }
 
 export default function EmailPage() {
+  const router = useRouter()
   const [currentFolder, setCurrentFolder] = useState('inbox')
   const [selectedEmailId, setSelectedEmailId] = useState<string | undefined>(undefined)
   const [realEmails, setRealEmails] = useState<Email[]>([])
@@ -480,8 +483,43 @@ export default function EmailPage() {
     }
   }
 
-  const handleCreateIntervention = () => {
-    toast.success('Modal de création d\'intervention s\'ouvrira ici (action factice)')
+  const handleCreateIntervention = async () => {
+    if (!selectedEmail) {
+      toast.error('Aucun email sélectionné')
+      return
+    }
+
+    // ✅ OPTIMIZED: Redirect immediately, PDF generation happens in background
+    // This eliminates the 5-second wait before redirect
+
+    // 1. Prepare intervention pre-fill data (instant)
+    const emailBodyText = selectedEmail.body_text ||
+      extractTextFromHtml(selectedEmail.body_html) ||
+      ''
+
+    // Truncate description if too long
+    const description = emailBodyText.length > 2000
+      ? emailBodyText.substring(0, 2000) + '...'
+      : emailBodyText
+
+    const prefillData = {
+      fromEmail: true,
+      emailId: selectedEmail.id,
+      title: `[Email] ${selectedEmail.subject || 'Sans objet'}`.substring(0, 200),
+      description,
+      // ✅ PDF will be fetched in background by the intervention form
+      pdfPending: true, // Flag to indicate PDF should be fetched async
+      senderEmail: selectedEmail.sender_email,
+      senderName: selectedEmail.sender_name,
+      receivedAt: selectedEmail.received_at
+    }
+
+    // 2. Store in sessionStorage for the intervention creation page
+    sessionStorage.setItem('intervention-from-email', JSON.stringify(prefillData))
+
+    // 3. Redirect immediately (no waiting for PDF)
+    toast.success('Redirection vers la création d\'intervention')
+    router.push('/gestionnaire/interventions/nouvelle-intervention?fromEmail=true')
   }
 
   const handleSoftDelete = async (emailId: string) => {

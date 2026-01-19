@@ -4,15 +4,26 @@
  * EntityLinkSection - Section de liaison d'entité dans la création de contact
  *
  * Permet de lier un nouveau contact directement à :
- * - Un immeuble (pas pour les locataires)
- * - Un lot
- * - Un contrat
- * - Une intervention (non clôturée)
+ * - Un bien (immeuble ou lot via PropertySelector avec tabs internes)
+ *   - Locataires : uniquement lots (pas d'immeuble directement)
+ *   - Autres : immeubles et lots
+ * - Un contrat (pas pour les prestataires - contrat = bail locatif)
  *
- * Architecture:
- * - Tabs pour naviguer entre les types d'entités
- * - PropertySelector réutilisé pour immeubles/lots (avec recherche intégrée)
- * - ContractMiniSelector et InterventionMiniSelector pour contrats/interventions
+ * Règles métier de filtrage :
+ * | Type Contact   | Building | Lot | Contract |
+ * |----------------|----------|-----|----------|
+ * | gestionnaire   |    ✅    | ✅  |    ✅    |
+ * | proprietaire   |    ✅    | ✅  |    ✅    |
+ * | locataire      |    ❌    | ✅  |    ✅    |
+ * | prestataire    |    ✅    | ✅  |    ❌    |
+ * | autre          |    ✅    | ✅  |    ✅    |
+ *
+ * Architecture (v3 - 2026-01):
+ * - 2 Tabs: Bien | Contrat
+ * - Tab "Bien": PropertySelector complet avec tabs internes (Immeubles/Lots)
+ *   → UX cohérente avec création d'intervention
+ *   → showOnlyLots=true pour les locataires
+ * - ContractMiniSelector pour les contrats
  */
 
 import { useState, useEffect, useMemo } from 'react'
@@ -24,30 +35,33 @@ import {
   Link2,
   ChevronDown,
   Building2,
-  Home,
   FileText,
-  Zap,
   X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import PropertySelector from '@/components/property-selector'
 import ContractMiniSelector from './contract-mini-selector'
-import InterventionMiniSelector from './intervention-mini-selector'
-import type { InterventionStatus } from '@/lib/services/core/service-types'
 
 // Types
-interface Building {
-  id: string
-  name: string
-  address?: string | null
-}
-
 interface Lot {
   id: string
   reference: string
   building_id: string
   category?: string | null
-  building?: Building | null
+  is_occupied?: boolean
+  status?: 'occupied' | 'vacant'
+  building?: {
+    id: string
+    name: string
+    address?: string | null
+  } | null
+}
+
+interface Building {
+  id: string
+  name: string
+  address?: string | null
+  lots?: Lot[]  // ✅ Ajouté pour afficher les lots dans le dropdown du PropertySelector
 }
 
 interface Contract {
@@ -64,22 +78,8 @@ interface Contract {
   status?: string | null
 }
 
-interface Intervention {
-  id: string
-  title: string
-  status: InterventionStatus
-  priority?: 'low' | 'medium' | 'high' | 'urgent' | null
-  scheduled_date?: string | null
-  lot?: {
-    id: string
-    reference: string
-    building?: {
-      name: string
-    } | null
-  } | null
-}
-
-type EntityType = 'building' | 'lot' | 'contract' | 'intervention' | null
+type EntityType = 'building' | 'lot' | 'contract' | null
+type TabType = 'property' | 'contract'
 
 interface EntityLinkSectionProps {
   contactType: string
@@ -88,19 +88,11 @@ interface EntityLinkSectionProps {
   linkedBuildingId: string | null
   linkedLotId: string | null
   linkedContractId: string | null
-  linkedInterventionId: string | null
   onFieldChange: (field: string, value: string | null) => void
   // Données pré-chargées côté serveur
   buildings: Building[]
   lots: Lot[]
 }
-
-// Statuts d'intervention à exclure (clôturées ou annulées)
-const EXCLUDED_INTERVENTION_STATUSES = [
-  'cloturee_par_gestionnaire',
-  'cloturee_par_locataire',
-  'annulee'
-]
 
 export function EntityLinkSection({
   contactType,
@@ -109,41 +101,50 @@ export function EntityLinkSection({
   linkedBuildingId,
   linkedLotId,
   linkedContractId,
-  linkedInterventionId,
   onFieldChange,
   buildings,
   lots
 }: EntityLinkSectionProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [contracts, setContracts] = useState<Contract[]>([])
-  const [interventions, setInterventions] = useState<Intervention[]>([])
   const [loadingContracts, setLoadingContracts] = useState(false)
-  const [loadingInterventions, setLoadingInterventions] = useState(false)
-  const [activeTab, setActiveTab] = useState<string>('lot')
+  const [activeTab, setActiveTab] = useState<TabType>('property')
 
   // Filtrer les options disponibles selon le type de contact
-  const showBuildingOption = contactType !== 'locataire'
+  // - Locataire → peut sélectionner un lot (pas d'immeuble directement)
+  // - Prestataire → pas de contrat (contrat = bail locatif, pas pour prestataires)
+  const isLocataire = contactType === 'locataire'
+  const showContractOption = contactType !== 'prestataire'
 
-  // Définir le tab par défaut
+  // Calculer le nombre de tabs visibles pour adapter la grille
+  // Tabs: property (toujours), contract (pas pour prestataires)
+  const visibleTabsCount = [
+    true, // property toujours visible
+    showContractOption
+  ].filter(Boolean).length
+
+  // Définir le tab par défaut basé sur l'entité liée
   useEffect(() => {
     if (linkedEntityType) {
-      setActiveTab(linkedEntityType)
-    } else if (!showBuildingOption) {
-      setActiveTab('lot')
+      // Si l'entité liée est un building ou lot → tab "property"
+      if (linkedEntityType === 'building' || linkedEntityType === 'lot') {
+        setActiveTab('property')
+      }
+      // Si l'entité liée est un contrat mais que le contact est prestataire → tab "property"
+      else if (linkedEntityType === 'contract' && !showContractOption) {
+        setActiveTab('property')
+      }
+      // Sinon utiliser "contract" comme tab
+      else if (linkedEntityType === 'contract') {
+        setActiveTab('contract')
+      }
     }
-  }, [linkedEntityType, showBuildingOption])
+  }, [linkedEntityType, showContractOption])
 
   // Charger les contrats quand on switch sur le tab "contract"
   useEffect(() => {
     if (activeTab === 'contract' && contracts.length === 0 && !loadingContracts) {
       fetchContracts()
-    }
-  }, [activeTab])
-
-  // Charger les interventions quand on switch sur le tab "intervention"
-  useEffect(() => {
-    if (activeTab === 'intervention' && interventions.length === 0 && !loadingInterventions) {
-      fetchInterventions()
     }
   }, [activeTab])
 
@@ -162,27 +163,11 @@ export function EntityLinkSection({
     }
   }
 
-  const fetchInterventions = async () => {
-    setLoadingInterventions(true)
-    try {
-      const response = await fetch(`/api/interventions/list?teamId=${teamId}&excludeStatuses=${EXCLUDED_INTERVENTION_STATUSES.join(',')}`)
-      if (response.ok) {
-        const data = await response.json()
-        setInterventions(data.interventions || [])
-      }
-    } catch (error) {
-      console.error('Error fetching interventions:', error)
-    } finally {
-      setLoadingInterventions(false)
-    }
-  }
-
   // Handlers de sélection - clear autres + set nouvelle valeur
   const handleBuildingSelect = (buildingId: string | null) => {
     // Clear all other linked IDs
     onFieldChange('linkedLotId', null)
     onFieldChange('linkedContractId', null)
-    onFieldChange('linkedInterventionId', null)
     // Set building
     onFieldChange('linkedBuildingId', buildingId)
     onFieldChange('linkedEntityType', buildingId ? 'building' : null)
@@ -192,7 +177,6 @@ export function EntityLinkSection({
     // Clear all other linked IDs
     onFieldChange('linkedBuildingId', null)
     onFieldChange('linkedContractId', null)
-    onFieldChange('linkedInterventionId', null)
     // Set lot
     onFieldChange('linkedLotId', lotId)
     onFieldChange('linkedEntityType', lotId ? 'lot' : null)
@@ -202,25 +186,14 @@ export function EntityLinkSection({
     // Clear all other linked IDs
     onFieldChange('linkedBuildingId', null)
     onFieldChange('linkedLotId', null)
-    onFieldChange('linkedInterventionId', null)
     // Set contract
     onFieldChange('linkedContractId', contractId)
     onFieldChange('linkedEntityType', contractId ? 'contract' : null)
   }
 
-  const handleInterventionSelect = (interventionId: string | null) => {
-    // Clear all other linked IDs
-    onFieldChange('linkedBuildingId', null)
-    onFieldChange('linkedLotId', null)
-    onFieldChange('linkedContractId', null)
-    // Set intervention
-    onFieldChange('linkedInterventionId', interventionId)
-    onFieldChange('linkedEntityType', interventionId ? 'intervention' : null)
-  }
-
   // Handler de changement de tab
   const handleTabChange = (value: string) => {
-    setActiveTab(value)
+    setActiveTab(value as TabType)
     // Ne pas clear la sélection au changement de tab
     // L'utilisateur peut naviguer entre tabs et garder sa sélection visible
   }
@@ -231,7 +204,6 @@ export function EntityLinkSection({
     onFieldChange('linkedBuildingId', null)
     onFieldChange('linkedLotId', null)
     onFieldChange('linkedContractId', null)
-    onFieldChange('linkedInterventionId', null)
   }
 
   // Récupérer le nom de l'entité sélectionnée pour l'affichage
@@ -247,10 +219,6 @@ export function EntityLinkSection({
     if (linkedContractId) {
       const contract = contracts.find(c => c.id === linkedContractId)
       return contract?.reference || contract?.lot?.reference || 'Contrat sélectionné'
-    }
-    if (linkedInterventionId) {
-      const intervention = interventions.find(i => i.id === linkedInterventionId)
-      return intervention?.title || 'Intervention sélectionnée'
     }
     return null
   }
@@ -310,83 +278,47 @@ export function EntityLinkSection({
             <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
               <TabsList className={cn(
                 "grid w-full",
-                showBuildingOption ? "grid-cols-4" : "grid-cols-3"
+                visibleTabsCount === 2 && "grid-cols-2",
+                visibleTabsCount === 1 && "grid-cols-1"
               )}>
-                {showBuildingOption && (
-                  <TabsTrigger value="building" className="flex items-center gap-1.5">
-                    <Building2 className="h-4 w-4" />
-                    <span className="hidden sm:inline">Immeuble</span>
+                <TabsTrigger value="property" className="flex items-center gap-1.5">
+                  <Building2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Bien</span>
+                </TabsTrigger>
+                {showContractOption && (
+                  <TabsTrigger value="contract" className="flex items-center gap-1.5">
+                    <FileText className="h-4 w-4" />
+                    <span className="hidden sm:inline">Contrat</span>
                   </TabsTrigger>
                 )}
-                <TabsTrigger value="lot" className="flex items-center gap-1.5">
-                  <Home className="h-4 w-4" />
-                  <span className="hidden sm:inline">Lot</span>
-                </TabsTrigger>
-                <TabsTrigger value="contract" className="flex items-center gap-1.5">
-                  <FileText className="h-4 w-4" />
-                  <span className="hidden sm:inline">Contrat</span>
-                </TabsTrigger>
-                <TabsTrigger value="intervention" className="flex items-center gap-1.5">
-                  <Zap className="h-4 w-4" />
-                  <span className="hidden sm:inline">Intervention</span>
-                </TabsTrigger>
               </TabsList>
 
-              {/* Tab Immeuble */}
-              {showBuildingOption && (
-                <TabsContent value="building" className="mt-4">
-                  <div className="border rounded-lg p-4 bg-muted/10 max-h-[350px] overflow-hidden">
-                    <PropertySelector
-                      mode="select"
-                      showOnlyBuildings
-                      initialData={propertySelectorData}
-                      onBuildingSelect={handleBuildingSelect}
-                      selectedBuildingId={linkedBuildingId || undefined}
-                      compactCards
-                      showViewToggle={false}
-                    />
-                  </div>
-                </TabsContent>
-              )}
-
-              {/* Tab Lot */}
-              <TabsContent value="lot" className="mt-4">
-                <div className="border rounded-lg p-4 bg-muted/10 max-h-[350px] overflow-hidden">
-                  <PropertySelector
-                    mode="select"
-                    showOnlyLots
-                    initialData={propertySelectorData}
-                    onLotSelect={handleLotSelect}
-                    selectedLotId={linkedLotId || undefined}
-                    compactCards
-                    showViewToggle={false}
-                  />
-                </div>
+              {/* Tab Bien - PropertySelector complet avec tabs internes Immeubles/Lots */}
+              <TabsContent value="property" className="mt-4">
+                <PropertySelector
+                  mode="select"
+                  initialData={propertySelectorData}
+                  onBuildingSelect={isLocataire ? undefined : handleBuildingSelect}
+                  onLotSelect={handleLotSelect}
+                  selectedBuildingId={linkedBuildingId || undefined}
+                  selectedLotId={linkedLotId || undefined}
+                  showOnlyLots={isLocataire}
+                  compactCards={false}
+                  showViewToggle={true}
+                />
               </TabsContent>
 
-              {/* Tab Contrat */}
-              <TabsContent value="contract" className="mt-4">
-                <div className="border rounded-lg p-4 bg-muted/10">
+              {/* Tab Contrat (non disponible pour les prestataires) */}
+              {showContractOption && (
+                <TabsContent value="contract" className="mt-4">
                   <ContractMiniSelector
                     contracts={contracts}
                     selectedId={linkedContractId}
                     onSelect={handleContractSelect}
                     loading={loadingContracts}
                   />
-                </div>
-              </TabsContent>
-
-              {/* Tab Intervention */}
-              <TabsContent value="intervention" className="mt-4">
-                <div className="border rounded-lg p-4 bg-muted/10">
-                  <InterventionMiniSelector
-                    interventions={interventions}
-                    selectedId={linkedInterventionId}
-                    onSelect={handleInterventionSelect}
-                    loading={loadingInterventions}
-                  />
-                </div>
-              </TabsContent>
+                </TabsContent>
+              )}
             </Tabs>
 
             {/* Bouton pour effacer la sélection */}

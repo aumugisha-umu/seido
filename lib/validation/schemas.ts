@@ -413,6 +413,13 @@ export const createManagerInterventionSchema = z.object({
   // En mode "fixed" avec toggle activé ou en mode "slots"
   requiresParticipantConfirmation: z.boolean().optional().default(false),
   confirmationRequiredUserIds: z.array(uuidSchema).optional().default([]),
+
+  // Source email ID (for interventions created from an email)
+  // ✅ SECURITY: Validated as UUID to prevent injection
+  sourceEmailId: uuidSchema.optional(),
+
+  // Contract ID (for linking intervention to a specific contract on an occupied lot)
+  contractId: uuidSchema.optional().nullable(),
 })
 
 /**

@@ -12,6 +12,8 @@ import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-cl
 import { NotificationRepository } from '@/lib/services/repositories/notification-repository'
 import { EmailNotificationService } from '@/lib/services/domain/email-notification.service'
 import { EmailService } from '@/lib/services/domain/email.service'
+// ✅ Static import for EmailLinkRepository (was dynamic import before)
+import { EmailLinkRepository } from '@/lib/services/repositories/email-link.repository'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "🔧 create-manager-intervention API route called")
@@ -128,6 +130,12 @@ export async function POST(request: NextRequest) {
       // Confirmation des participants
       requiresParticipantConfirmation,
       confirmationRequiredUserIds,
+
+      // Source email (validated as UUID by Zod)
+      sourceEmailId,
+
+      // Contract ID (for linking intervention to a specific contract)
+      contractId,
     } = validation.data
 
     // Fields not in schema validation (passed through from body)
@@ -135,7 +143,7 @@ export async function POST(request: NextRequest) {
       managerAvailabilities,
       individualMessages,
       teamId,
-      excludedLotIds = [] // For building interventions: lots to exclude from tenant assignment
+      excludedLotIds = [], // For building interventions: lots to exclude from tenant assignment
     } = body
 
     // Validate required fields (description is optional per Zod schema)
@@ -353,6 +361,12 @@ export async function POST(request: NextRequest) {
     // Add building_id only if it exists (for building-wide interventions)
     if (buildingId) {
       interventionData.building_id = buildingId
+    }
+
+    // Add contract_id if provided (for linking intervention to a specific contract)
+    if (contractId) {
+      interventionData.contract_id = contractId
+      logger.info({ contractId }, "📄 Linking intervention to contract")
     }
 
     logger.info({ interventionData }, "📝 Creating intervention with data")
@@ -921,6 +935,54 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info({}, "🎉 Manager intervention creation completed successfully")
+
+    // ✅ EMAIL LINK: Create automatic link if intervention was created from an email
+    // sourceEmailId is already validated as UUID by Zod schema
+    if (sourceEmailId) {
+      try {
+        logger.info({ sourceEmailId, interventionId: intervention.id }, "🔗 [API] Creating email-intervention link")
+
+        // ✅ SECURITY: Verify email exists and belongs to user's team before linking
+        const { data: emailExists, error: emailCheckError } = await supabase
+          .from('emails')
+          .select('id')
+          .eq('id', sourceEmailId)
+          .eq('team_id', intervention.team_id)
+          .single()
+
+        if (emailCheckError || !emailExists) {
+          logger.warn({
+            sourceEmailId,
+            interventionId: intervention.id,
+            error: emailCheckError?.message
+          }, "⚠️ [API] Email not found or not in team, skipping link creation")
+          // Non-blocking: continue without creating the link
+        } else {
+          // Email exists and belongs to the team, create the link
+          const emailLinkRepo = new EmailLinkRepository(supabase)
+
+          await emailLinkRepo.createLink({
+            email_id: sourceEmailId,
+            entity_type: 'intervention',
+            entity_id: intervention.id,
+            linked_by: user.id
+          })
+
+          logger.info({
+            sourceEmailId,
+            interventionId: intervention.id
+          }, "✅ [API] Email-intervention link created successfully")
+        }
+
+      } catch (linkError) {
+        // Non-blocking: log error but don't fail intervention creation
+        logger.error({
+          error: linkError instanceof Error ? linkError.message : String(linkError),
+          sourceEmailId,
+          interventionId: intervention.id
+        }, "⚠️ [API] Failed to create email-intervention link")
+      }
+    }
 
     // ✅ NOTIFICATIONS: Send notifications to team members (FIRE-AND-FORGET)
     // ✅ OPTIMIZED: Ne pas bloquer la réponse API - notifications envoyées en background

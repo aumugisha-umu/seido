@@ -187,7 +187,7 @@ export function Step2Company({
               Société <span className="text-red-500">*</span>
             </Label>
             <CompanySelector
-              teamId={teamId}
+              companies={companies}
               value={companyId || null}
               onChange={(id) => onFieldChange('companyId', id)}
               placeholder="Sélectionnez une société..."

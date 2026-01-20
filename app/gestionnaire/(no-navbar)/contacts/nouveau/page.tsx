@@ -116,7 +116,23 @@ export default async function NewContactPage({
       logger.info(`✅ [NEW-CONTACT-PAGE] Loaded and transformed ${lots.length} lots`)
     }
 
-    logger.info(`📊 [NEW-CONTACT-PAGE] Server data ready - Companies: ${companies.length}, Buildings: ${buildings.length}, Lots: ${lots.length}`)
+    // ✅ Charger les contrats pour la section de confirmation
+    let contracts: any[] = []
+    try {
+      const contractsResult = await contractService.getByTeam(team.id)
+      if (contractsResult.success && contractsResult.data) {
+        contracts = contractsResult.data
+        logger.info(`✅ [NEW-CONTACT-PAGE] Loaded ${contracts.length} contracts`)
+      }
+    } catch (error) {
+      logger.warn({
+        error: error instanceof Error ? error.message : String(error),
+        teamId: team.id
+      }, '⚠️ [NEW-CONTACT-PAGE] Exception loading contracts')
+      // Continue without contracts - form will still work
+    }
+
+    logger.info(`📊 [NEW-CONTACT-PAGE] Server data ready - Companies: ${companies.length}, Buildings: ${buildings.length}, Lots: ${lots.length}, Contracts: ${contracts.length}`)
 
     // ✅ Pass data to Client Component (avec paramètres de redirection si présents)
     return (
@@ -125,6 +141,7 @@ export default async function NewContactPage({
         initialCompanies={companies}
         initialBuildings={buildings}
         initialLots={lots}
+        initialContracts={contracts}
         prefilledType={prefilledType}
         sessionKey={sessionKey}
         returnUrl={returnUrl}

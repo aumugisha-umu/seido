@@ -154,7 +154,7 @@ export function PrestataireInterventionDetailClient({
   parentLink
 }: PrestataireInterventionDetailClientProps) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState('general')
   const [refreshing, setRefreshing] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
   const [availabilityOnlyMode, setAvailabilityOnlyMode] = useState(false) // Hide estimation section
@@ -215,6 +215,29 @@ export function PrestataireInterventionDetailClient({
   const showConfirmationBanner = participantPermissions.canConfirm
   const showConfirmedBanner = hasConfirmed(assignmentConfirmationInfo)
   const showRejectedBanner = hasRejected(assignmentConfirmationInfo)
+
+  // Detect if there are time slots with pending responses from the current user
+  const pendingSlotsForCurrentUser = useMemo(() => {
+    return timeSlots.filter(slot => {
+      // Only consider active slots
+      if (['cancelled', 'selected', 'confirmed', 'rejected'].includes(slot.status)) {
+        return false
+      }
+      // Check if current user has a pending response
+      const slotWithResponses = slot as TimeSlot & { responses?: Array<{ user_id: string; response: string }> }
+      const userResponse = slotWithResponses.responses?.find(r => r.user_id === currentUser.id)
+      // Slot needs attention if no response OR response is pending
+      return !userResponse || userResponse.response === 'pending'
+    })
+  }, [timeSlots, currentUser.id])
+
+  const hasProposedSlots = pendingSlotsForCurrentUser.length > 0
+  const proposedSlotsCount = pendingSlotsForCurrentUser.length
+
+  // Handler to navigate to planning tab when clicking "Voir les créneaux"
+  const handleViewSlots = () => {
+    setActiveTab('planning')
+  }
 
   // Callback after confirmation/rejection
   const handleConfirmationResponse = () => {
@@ -714,7 +737,15 @@ export function PrestataireInterventionDetailClient({
               <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
                 <ContentWrapper>
                   {/* Bannières de confirmation si nécessaire */}
-                  {showConfirmationBanner && (
+                  {/* Show slot banner if there are pending slots, otherwise show confirmation banner */}
+                  {hasProposedSlots ? (
+                    <ConfirmationRequiredBanner
+                      interventionId={intervention.id}
+                      hasProposedSlots={true}
+                      proposedSlotsCount={proposedSlotsCount}
+                      onViewSlots={handleViewSlots}
+                    />
+                  ) : showConfirmationBanner && (
                     <ConfirmationRequiredBanner
                       interventionId={intervention.id}
                       scheduledDate={intervention.scheduled_date}

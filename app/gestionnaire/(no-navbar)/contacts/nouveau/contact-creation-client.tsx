@@ -75,11 +75,26 @@ interface Lot {
   building?: Building | null
 }
 
+interface Contract {
+  id: string
+  reference?: string | null
+  lot?: {
+    id: string
+    reference: string
+    building?: {
+      name: string
+    } | null
+  } | null
+  start_date?: string | null
+  status?: string | null
+}
+
 interface ContactCreationClientProps {
   teamId: string
   initialCompanies: Company[]
   initialBuildings: Building[]
   initialLots: Lot[]
+  initialContracts: Contract[]
   // Redirect parameters when coming from another form (e.g., building creation)
   prefilledType?: string | null
   sessionKey?: string | null
@@ -91,6 +106,7 @@ export function ContactCreationClient({
   initialCompanies,
   initialBuildings,
   initialLots,
+  initialContracts,
   prefilledType,
   sessionKey,
   returnUrl
@@ -543,6 +559,7 @@ export function ContactCreationClient({
                 linkedContractId={formData.linkedContractId}
                 buildings={initialBuildings}
                 lots={initialLots}
+                contracts={initialContracts}
               />
             )}
           </div>

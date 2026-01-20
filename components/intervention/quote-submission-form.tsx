@@ -897,14 +897,14 @@ export function QuoteSubmissionForm({
                         key={slot.id}
                         slot={slot}
                         currentUserId={currentUserId || ''}
-                        userRole="prestataire"
-                        onAccept={handleAcceptSlot}
-                        onReject={handleOpenRejectModal}
-                        onWithdraw={handleWithdrawResponse}
-                        showActions={true}
-                        compact={true}
-                        accepting={acceptingSlotId}
-                        withdrawing={withdrawingSlotId}
+                        userRole="provider"
+                        onApprove={(slotId) => handleAcceptSlot(slotId)}
+                        onReject={(slotId) => {
+                          const slotToReject = slots.find(s => s.id === slotId)
+                          if (slotToReject) handleOpenRejectModal(slotToReject)
+                        }}
+                        onOpenResponseModal={(slotId) => handleWithdrawResponse(slotId)}
+                        variant="compact"
                       />
                     ))}
                   </div>

@@ -19,7 +19,7 @@ import { useNotificationPopover } from "@/hooks/use-notification-popover"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import UserMenu from "@/components/user-menu"
 import NotificationPopover from "@/components/notification-popover"
-import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
+import { StatsCard } from "@/components/dashboards/shared/stats-card"
 import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
 
 interface LocataireDashboardHybridProps {
@@ -257,18 +257,26 @@ export default function LocataireDashboardHybrid({
           </div>
         )}
 
-        {/* --- STATS CARDS (Reusable Component) --- */}
+        {/* --- STATS CARD: Actions Requises (only if count > 0) --- */}
         {(() => {
           const pendingCount = filteredInterventions.filter(i => ['demande', 'planification'].includes(i.status)).length
-          const activeCount = filteredInterventions.filter(i => ['planifiee'].includes(i.status)).length
-          const completedCount = filteredInterventions.filter(i => ['cloturee_par_prestataire'].includes(i.status)).length
+
+          // Hide entirely when no actions required
+          if (pendingCount === 0) return null
 
           return (
-            <DashboardStatsCards
-              pendingCount={pendingCount}
-              activeCount={activeCount}
-              completedCount={completedCount}
-            />
+            <div className="grid grid-cols-1">
+              <StatsCard
+                id="actions"
+                label="Actions requises"
+                value={pendingCount}
+                sublabel="Urgent"
+                icon={AlertTriangle}
+                iconColor="text-amber-500"
+                variant="warning"
+                href="/locataire/interventions"
+              />
+            </div>
           )
         })()}
 

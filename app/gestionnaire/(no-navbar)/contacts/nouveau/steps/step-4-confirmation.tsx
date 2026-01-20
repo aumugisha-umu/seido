@@ -28,6 +28,20 @@ interface Lot {
   building?: Building | null
 }
 
+interface Contract {
+  id: string
+  reference?: string | null
+  lot?: {
+    id: string
+    reference: string
+    building?: {
+      name: string
+    } | null
+  } | null
+  start_date?: string | null
+  status?: string | null
+}
+
 interface Step4ConfirmationProps {
   contactType: 'locataire' | 'prestataire' | 'gestionnaire' | 'proprietaire' | 'autre'
   personOrCompany: 'person' | 'company'
@@ -60,6 +74,7 @@ interface Step4ConfirmationProps {
   // Données pour affichage (noms/références)
   buildings?: Building[]
   lots?: Lot[]
+  contracts?: Contract[]
 }
 
 export function Step4Confirmation({
@@ -90,7 +105,8 @@ export function Step4Confirmation({
   linkedLotId,
   linkedContractId,
   buildings,
-  lots
+  lots,
+  contracts
 }: Step4ConfirmationProps) {
   // Helper pour formater le type de contact
   const getContactTypeLabel = () => {
@@ -378,19 +394,27 @@ export function Step4Confirmation({
                 })()}
 
                 {/* Contrat */}
-                {linkedEntityType === 'contract' && linkedContractId && (
-                  <div className="flex items-center gap-3 pt-2">
-                    <FileText className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                      <p className="font-semibold text-foreground">
-                        Contrat sélectionné
-                      </p>
-                      <Badge variant="outline" className="mt-1 bg-card text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800">
-                        Contrat
-                      </Badge>
+                {linkedEntityType === 'contract' && linkedContractId && (() => {
+                  const selectedContract = contracts?.find(c => c.id === linkedContractId)
+                  return (
+                    <div className="flex items-center gap-3 pt-2">
+                      <FileText className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="font-semibold text-foreground">
+                          {selectedContract?.reference || selectedContract?.lot?.reference || 'Contrat sélectionné'}
+                        </p>
+                        {selectedContract?.lot?.building?.name && (
+                          <p className="text-sm text-muted-foreground">
+                            {selectedContract.lot.building.name}
+                          </p>
+                        )}
+                        <Badge variant="outline" className="mt-1 bg-card text-purple-700 dark:text-purple-400 border-purple-200 dark:border-purple-800">
+                          Contrat
+                        </Badge>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
               </div>
             </div>
           </CardContent>

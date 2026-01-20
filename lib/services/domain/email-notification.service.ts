@@ -22,6 +22,7 @@
 import * as React from 'react'
 import { logger } from '@/lib/logger'
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
+import { EmailReplyService } from './email-reply.service'
 import type { NotificationRepository } from '@/lib/services/repositories/notification-repository'
 import type { EmailService } from '@/lib/services/domain/email.service'
 import type { InterventionRepository } from '@/lib/services/repositories/intervention-repository'
@@ -478,14 +479,19 @@ export class EmailNotificationService {
           scheduledDate: scheduledDate.toISOString()
         }, '📧 [EMAIL-NOTIFICATION] Sending scheduled email')
 
+        // Générer l'adresse reply-to pour les réponses directes
+        const replyTo = EmailReplyService.generateInterventionReplyTo(intervention.id)
+
         const emailResult = await this.emailService.send({
           to: recipient.email,
           subject: `📅 RDV confirmé - ${intervention.reference || intervention.title}`,
           react: InterventionScheduledEmail(emailProps),
+          replyTo, // ← Permet aux destinataires de répondre directement
           tags: [
             { name: 'type', value: 'intervention_scheduled' },
             { name: 'intervention_id', value: interventionId },
-            { name: 'user_role', value: recipientRole }
+            { name: 'user_role', value: recipientRole },
+            { name: 'reply_enabled', value: 'true' }
           ]
         })
 
@@ -677,15 +683,20 @@ export class EmailNotificationService {
           planningType: schedulingContext.planningType
         }, '📧 [EMAIL-NOTIFICATION] Sending time slots email')
 
+        // Générer l'adresse reply-to pour les réponses directes
+        const replyTo = EmailReplyService.generateInterventionReplyTo(intervention.id)
+
         const emailResult = await this.emailService.send({
           to: recipient.email,
           subject: `${subjectPrefix} - ${intervention.reference || intervention.title}`,
           react: TimeSlotsProposedEmail(emailProps),
+          replyTo, // ← Permet aux destinataires de répondre directement
           tags: [
             { name: 'type', value: 'time_slots_proposed' },
             { name: 'intervention_id', value: interventionId },
             { name: 'user_role', value: recipientRole },
-            { name: 'planning_type', value: schedulingContext.planningType }
+            { name: 'planning_type', value: schedulingContext.planningType },
+            { name: 'reply_enabled', value: 'true' }
           ]
         })
 
@@ -889,14 +900,19 @@ export class EmailNotificationService {
           recipientRole
         }, '📧 [EMAIL-NOTIFICATION] Sending completed email')
 
+        // Générer l'adresse reply-to pour les réponses directes
+        const replyTo = EmailReplyService.generateInterventionReplyTo(intervention.id)
+
         const emailResult = await this.emailService.send({
           to: recipient.email,
           subject,
           react: InterventionCompletedEmail(emailProps),
+          replyTo, // ← Permet aux destinataires de répondre directement
           tags: [
             { name: 'type', value: 'intervention_completed' },
             { name: 'intervention_id', value: interventionId },
-            { name: 'user_role', value: recipientRole }
+            { name: 'user_role', value: recipientRole },
+            { name: 'reply_enabled', value: 'true' }
           ]
         })
 
@@ -1111,15 +1127,20 @@ export class EmailNotificationService {
           statusChange: `${statusChange.oldStatus} → ${statusChange.newStatus}`
         }, '📧 [EMAIL-NOTIFICATION] Sending status changed email')
 
+        // Générer l'adresse reply-to pour les réponses directes
+        const replyTo = EmailReplyService.generateInterventionReplyTo(intervention.id)
+
         const emailResult = await this.emailService.send({
           to: recipient.email,
           subject,
           react: InterventionCompletedEmail(emailProps), // Réutilisation du template completed
+          replyTo, // ← Permet aux destinataires de répondre directement
           tags: [
             { name: 'type', value: 'intervention_status_changed' },
             { name: 'intervention_id', value: interventionId },
             { name: 'user_role', value: recipientRole },
-            { name: 'new_status', value: statusChange.newStatus }
+            { name: 'new_status', value: statusChange.newStatus },
+            { name: 'reply_enabled', value: 'true' }
           ]
         })
 
@@ -1544,14 +1565,19 @@ export class EmailNotificationService {
             break
         }
 
+        // Générer l'adresse reply-to pour les réponses directes
+        const replyTo = EmailReplyService.generateInterventionReplyTo(interventionId)
+
         return {
           to: recipient.email,
           subject,
           react: emailContent,
+          replyTo, // ← Permet aux destinataires de répondre directement
           tags: [
             { name: 'type', value: 'intervention_created' },
             { name: 'intervention_id', value: interventionId },
             { name: 'user_role', value: recipient.role },
+            { name: 'reply_enabled', value: 'true' },
           ],
         }
       })

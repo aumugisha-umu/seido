@@ -1224,18 +1224,25 @@ export class EmailNotificationService {
       }
 
       // 2. Récupérer l'intervention complète avec tous les détails
+      // NOTE: On utilise le client service role pour bypasser RLS et éviter les timeouts
+      // (les politiques RLS sur interventions font des JOINs coûteux)
       logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] Step 2: Fetching intervention details')
-      const interventionResult = await this.interventionRepository.findById(interventionId)
+      const supabase = createServiceRoleSupabaseClient()
 
-      if (!interventionResult.success || !interventionResult.data) {
+      const { data: intervention, error: interventionError } = await supabase
+        .from('interventions')
+        .select('*')
+        .eq('id', interventionId)
+        .is('deleted_at', null)
+        .single()
+
+      if (interventionError || !intervention) {
         logger.error({
           interventionId,
-          error: interventionResult.error || 'Not found'
+          error: interventionError?.message || 'Not found'
         }, '❌ [EMAIL-NOTIFICATION] Intervention not found')
         throw new Error(`Intervention ${interventionId} not found`)
       }
-
-      const intervention = interventionResult.data
 
       logger.info({
         interventionId,
@@ -1286,10 +1293,9 @@ export class EmailNotificationService {
       }, '✅ [EMAIL-NOTIFICATION] Building and lot fetched')
 
       // 4bis. Récupérer les créneaux proposés
-      // Note: On utilise le client service role pour bypasser RLS et voir TOUS les créneaux
+      // Note: Le client service role (créé plus haut) bypass RLS et voit TOUS les créneaux
       // (la RLS filtre par provider_id ce qui exclut les slots des autres prestataires)
       logger.info({ interventionId }, '📧 [EMAIL-NOTIFICATION] Step 4bis: Fetching time slots')
-      const supabase = createServiceRoleSupabaseClient()
       const { data: timeSlotsData } = await supabase
         .from('intervention_time_slots')
         .select('slot_date, start_time, end_time')

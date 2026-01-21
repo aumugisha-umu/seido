@@ -22,7 +22,7 @@
  * @see lib/services/domain/email-reply.service.ts
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { logger } from '@/lib/logger'
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import { ResendWebhookService } from '@/lib/services/domain/resend-webhook.service'
@@ -366,18 +366,30 @@ export async function POST(request: NextRequest) {
     })
 
     // ═══════════════════════════════════════════════════════════
-    // 7. Traitement asynchrone (ne pas bloquer la réponse)
+    // 7. Traitement asynchrone via after() (Vercel-compatible)
     // ═══════════════════════════════════════════════════════════
-    // Note: On utilise setImmediate/Promise pour ne pas bloquer
+    // IMPORTANT: On Vercel serverless, the function is terminated after response.
+    // Using after() keeps the context alive for background processing.
+    // See: https://nextjs.org/docs/app/api-reference/functions/after
     const loggingContext = {
       startTime,
       toAddress
     }
-    processEmailAsync(event.data, parsed, loggingContext).catch(err => {
-      logger.error(
-        { error: err, emailId: event.data.email_id, interventionId: parsed.id },
-        '❌ [RESEND-INBOUND] Async processing failed'
-      )
+
+    // Capture variables for closure (avoid stale references)
+    const asyncEmailData = event.data
+    const asyncParsed = parsed
+    const asyncLoggingContext = loggingContext
+
+    after(async () => {
+      try {
+        await processEmailAsync(asyncEmailData, asyncParsed, asyncLoggingContext)
+      } catch (error) {
+        logger.error(
+          { error, emailId: asyncEmailData.email_id, interventionId: asyncParsed.id },
+          '❌ [RESEND-INBOUND] Async processing failed (in after())'
+        )
+      }
     })
 
     logger.info(

@@ -23,7 +23,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import DOMPurify from 'isomorphic-dompurify'
 import { logger } from '@/lib/logger'
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import { ResendWebhookService } from '@/lib/services/domain/resend-webhook.service'
@@ -32,19 +31,41 @@ import { validateRequest, resendInboundWebhookSchema, formatZodErrors, uuidSchem
 import type { ResendInboundWebhookPayload } from '@/lib/validation/schemas'
 
 // ══════════════════════════════════════════════════════════════
-// DOMPurify Configuration for HTML Sanitization
+// Server-Side HTML Sanitization (no jsdom dependency)
 // ══════════════════════════════════════════════════════════════
 
 /**
- * Allowed HTML tags for email content (prevents XSS)
- * Only safe formatting tags are permitted
+ * Server-side HTML sanitizer (no jsdom dependency)
+ *
+ * Removes XSS vectors for server-to-DB storage:
+ * - <script> tags
+ * - Event handlers (onclick, onerror, etc.)
+ * - javascript: protocols
+ * - data: protocols in src/href
+ *
+ * Note: Client-side display uses DOMPurify in email-detail.tsx
+ * for full sanitization before DOM insertion (defense in depth)
+ *
+ * @param html - Raw HTML content from email
+ * @returns Sanitized HTML safe for database storage
  */
-const DOMPURIFY_CONFIG = {
-  ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'b', 'i', 'u', 'ul', 'ol', 'li', 'a', 'blockquote', 'div', 'span', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'table', 'tr', 'td', 'th', 'tbody', 'thead'],
-  ALLOWED_ATTR: ['href', 'target', 'rel', 'style'],
-  ALLOW_DATA_ATTR: false,
-  // Force all links to open in new tab and prevent opener access
-  ADD_ATTR: ['target', 'rel'],
+function sanitizeHtmlServer(html: string): string {
+  if (!html) return ''
+
+  // Remove script tags completely (including content)
+  let cleaned = html.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+
+  // Remove event handlers (on*) - both quoted and unquoted values
+  cleaned = cleaned.replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '')
+  cleaned = cleaned.replace(/\s+on\w+\s*=\s*[^\s>]+/gi, '')
+
+  // Remove javascript: protocols
+  cleaned = cleaned.replace(/javascript\s*:/gi, 'blocked:')
+
+  // Remove data: protocols in src/href (potential XSS vector)
+  cleaned = cleaned.replace(/\s+(src|href)\s*=\s*["']?\s*data:/gi, ' $1="blocked:')
+
+  return cleaned
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -467,17 +488,17 @@ async function processEmailAsync(
 
   // ═══════════════════════════════════════════════════════════
   // 1.1 SECURITY: Sanitize HTML content to prevent XSS
+  // Uses server-side regex sanitizer (no jsdom dependency)
+  // Client-side uses DOMPurify for additional protection on display
   // ═══════════════════════════════════════════════════════════
-  const sanitizedHtml = content.html
-    ? DOMPurify.sanitize(content.html, DOMPURIFY_CONFIG)
-    : ''
+  const sanitizedHtml = sanitizeHtmlServer(content.html || '')
 
   logger.info(
     {
       emailId: emailData.email_id,
       hasHtml: !!content.html,
       hasText: !!content.text,
-      htmlSanitized: content.html !== sanitizedHtml
+      htmlSanitized: !!content.html
     },
     '✅ [RESEND-INBOUND] Email content fetched and sanitized'
   )

@@ -475,32 +475,42 @@ async function processEmailAsync(
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 1. Récupérer le contenu de l'email (pas dans le webhook!)
+  // 1. Use email content directly from webhook payload
   // ═══════════════════════════════════════════════════════════
-  const content = await ResendWebhookService.fetchEmailContent(emailData.email_id)
-  if (!content) {
-    logger.error(
-      { emailId: emailData.email_id },
-      '❌ [RESEND-INBOUND] Could not fetch email content - aborting'
-    )
-    return null
+  // NOTE: For inbound emails, content is in the webhook payload itself!
+  // The /emails/{id} API is for SENT emails only and returns 404 for inbound.
+  // See: https://resend.com/docs/dashboard/receiving/introduction
+  const content = {
+    html: emailData.html || '',
+    text: emailData.text || '',
+    headers: emailData.headers || {}
   }
+
+  // Log content presence for debugging
+  logger.info(
+    {
+      emailId: emailData.email_id,
+      hasHtml: !!emailData.html,
+      hasText: !!emailData.text,
+      htmlLength: content.html.length,
+      textLength: content.text.length
+    },
+    '📧 [RESEND-INBOUND] Using email content from webhook payload'
+  )
 
   // ═══════════════════════════════════════════════════════════
   // 1.1 SECURITY: Sanitize HTML content to prevent XSS
   // Uses server-side regex sanitizer (no jsdom dependency)
   // Client-side uses DOMPurify for additional protection on display
   // ═══════════════════════════════════════════════════════════
-  const sanitizedHtml = sanitizeHtmlServer(content.html || '')
+  const sanitizedHtml = sanitizeHtmlServer(content.html)
 
   logger.info(
     {
       emailId: emailData.email_id,
-      hasHtml: !!content.html,
-      hasText: !!content.text,
-      htmlSanitized: !!content.html
+      htmlSanitized: content.html.length > 0
     },
-    '✅ [RESEND-INBOUND] Email content fetched and sanitized'
+    '✅ [RESEND-INBOUND] Email content sanitized'
   )
 
   // ═══════════════════════════════════════════════════════════
@@ -577,7 +587,8 @@ async function processEmailAsync(
       body_html: sanitizedHtml, // ✅ SECURITY: Using sanitized HTML (XSS prevention)
       body_text: content.text,
       message_id: emailData.message_id || content.headers['message-id'] || null,
-      in_reply_to_header: content.headers['in-reply-to'] || null,
+      // Use in_reply_to from payload (snake_case) or fallback to headers (kebab-case)
+      in_reply_to_header: emailData.in_reply_to || content.headers['in-reply-to'] || null,
       references: content.headers['references'] || null,
       received_at: new Date().toISOString()
     })

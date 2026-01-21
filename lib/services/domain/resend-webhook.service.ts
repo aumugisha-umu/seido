@@ -5,8 +5,13 @@
  *
  * Architecture:
  * - Vérifie la signature Svix des webhooks Resend
- * - Récupère le contenu complet des emails (le webhook ne contient que les métadonnées)
+ * - Email content (html, text, headers) is included DIRECTLY in webhook payload
+ *   (no API fetch needed for inbound emails!)
  * - Télécharge les pièces jointes (URLs expirent en 7 jours)
+ *
+ * IMPORTANT: The /emails/{id} API is for SENT emails only!
+ * For inbound emails, use the content from the webhook payload directly.
+ * See: https://resend.com/docs/dashboard/receiving/introduction
  *
  * Sécurité:
  * - Vérification signature Svix (svix-id, svix-timestamp, svix-signature)
@@ -277,26 +282,19 @@ export class ResendWebhookService {
   }
 
   /**
-   * Récupère le contenu complet d'un email via l'API Resend (avec retry)
+   * @deprecated For inbound emails, use the content directly from webhook payload!
+   * The /emails/{id} API is for SENT emails only and returns 404 for inbound emails.
    *
-   * IMPORTANT: Le webhook ne contient que les métadonnées!
-   * Il faut appeler cette méthode pour obtenir le body et les headers.
+   * Instead, access emailData.html, emailData.text, emailData.headers directly
+   * from the validated webhook payload in the route handler.
    *
-   * Cette méthode inclut un retry automatique avec exponential backoff
-   * en cas d'échec temporaire de l'API Resend.
+   * This method is kept for backward compatibility and potential future use
+   * with outbound email tracking.
    *
-   * @param emailId - ID de l'email reçu (fourni dans le webhook)
-   * @returns Contenu de l'email ou null si échec après tous les retries
+   * @see https://resend.com/docs/dashboard/receiving/introduction
    *
-   * @example
-   * ```typescript
-   * const content = await ResendWebhookService.fetchEmailContent('email_123')
-   * if (content) {
-   *   console.log(content.text) // Corps en texte brut
-   *   console.log(content.html) // Corps HTML
-   *   console.log(content.headers['in-reply-to']) // Header de threading
-   * }
-   * ```
+   * @param emailId - ID of the email (only works for SENT emails)
+   * @returns Email content or null if not found/failed
    */
   static async fetchEmailContent(emailId: string): Promise<EmailContent | null> {
     return withRetry(

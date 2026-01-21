@@ -923,10 +923,12 @@ export const generateMagicLinksSchema = z.object({
  * POST /api/webhooks/resend-inbound
  *
  * Schema for Resend inbound email webhook events.
- * Note: The webhook only contains metadata - the actual email content
- * must be fetched via resend.emails.get(email_id)
  *
- * @see https://resend.com/docs/webhooks
+ * IMPORTANT: For inbound emails, the content (html, text, headers) is included
+ * DIRECTLY in the webhook payload. The /emails/{id} API is for SENT emails only!
+ *
+ * @see https://resend.com/docs/dashboard/receiving/introduction
+ * @see https://resend.com/blog/inbound-emails
  */
 export const resendInboundWebhookSchema = z.object({
   type: z.literal('email.received'),
@@ -940,6 +942,14 @@ export const resendInboundWebhookSchema = z.object({
     bcc: z.array(z.string()).optional().default([]),
     subject: z.string(),
     message_id: z.string().optional(),
+    // ✅ Email content is included directly in inbound webhook payload
+    html: z.string().optional().default(''),
+    text: z.string().optional().default(''),
+    headers: z.record(z.string()).optional().default({}),
+    // ✅ Threading fields (snake_case as sent by Resend)
+    in_reply_to: z.string().optional(),
+    thread_id: z.string().optional(),
+    // Attachments (download URLs, not content - must be fetched separately)
     attachments: z.array(z.object({
       id: z.string(),
       filename: z.string(),

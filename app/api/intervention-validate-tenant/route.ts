@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import {
@@ -269,29 +269,69 @@ export async function POST(request: NextRequest) {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // EMAIL NOTIFICATIONS: Validation locataire
+    // EMAIL NOTIFICATIONS: Validation locataire (via after())
     // ═══════════════════════════════════════════════════════════════════════════
-    // Note: Email 'status_changed' not yet implemented - will be logged as warning
-    try {
-      const emailResult = await emailNotificationService.sendInterventionEmails({
-        interventionId: intervention.id,
-        eventType: 'status_changed',
-        excludeUserId: user.id,
-        onlyRoles: ['gestionnaire', 'prestataire'],
-        excludeNonPersonal: true,
-        statusChange: {
-          oldStatus: 'cloturee_par_prestataire',
-          newStatus: newStatus,
-          reason: contestReason
+    {
+      // Capture variables for after() closure
+      const emailInterventionId = intervention.id
+      const emailExcludeUserId = user.id
+      const emailNewStatus = newStatus
+      const emailContestReason = contestReason
+
+      after(async () => {
+        try {
+          // Re-initialize email service inside after()
+          const { EmailNotificationService } = await import('@/lib/services/domain/email-notification.service')
+          const { EmailService } = await import('@/lib/services/domain/email.service')
+          const {
+            createServerNotificationRepository,
+            createServerInterventionRepository,
+            createServerUserRepository,
+            createServerBuildingRepository,
+            createServerLotRepository
+          } = await import('@/lib/services')
+
+          const notificationRepo = await createServerNotificationRepository()
+          const interventionRepo = await createServerInterventionRepository()
+          const userRepo = await createServerUserRepository()
+          const buildingRepo = await createServerBuildingRepository()
+          const lotRepo = await createServerLotRepository()
+          const emailSvc = new EmailService()
+
+          const emailNotificationSvc = new EmailNotificationService(
+            notificationRepo,
+            emailSvc,
+            interventionRepo,
+            userRepo,
+            buildingRepo,
+            lotRepo
+          )
+
+          const emailResult = await emailNotificationSvc.sendInterventionEmails({
+            interventionId: emailInterventionId,
+            eventType: 'status_changed',
+            excludeUserId: emailExcludeUserId,
+            onlyRoles: ['gestionnaire', 'prestataire'],
+            excludeNonPersonal: true,
+            statusChange: {
+              oldStatus: 'cloturee_par_prestataire',
+              newStatus: emailNewStatus,
+              reason: emailContestReason
+            }
+          })
+
+          logger.info({
+            interventionId: emailInterventionId,
+            emailsSent: emailResult.sentCount,
+            emailsFailed: emailResult.failedCount
+          }, "📧 [API] Validation emails sent (via after())")
+        } catch (emailError) {
+          logger.error({
+            interventionId: emailInterventionId,
+            error: emailError instanceof Error ? emailError.message : String(emailError)
+          }, "⚠️ [API] Email notifications failed (via after())")
         }
       })
-
-      logger.info({
-        emailsSent: emailResult.sentCount,
-        emailsFailed: emailResult.failedCount
-      }, "📧 Validation emails sent")
-    } catch (emailError) {
-      logger.warn({ emailError }, "⚠️ Could not send validation emails:")
     }
 
     return NextResponse.json({

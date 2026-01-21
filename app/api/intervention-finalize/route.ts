@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import {
@@ -268,28 +268,69 @@ export async function POST(request: NextRequest) {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // EMAIL NOTIFICATIONS: Finalisation intervention
+    // EMAIL NOTIFICATIONS: Finalisation intervention (via after())
     // ═══════════════════════════════════════════════════════════════════════════
-    try {
-      const emailResult = await emailNotificationService.sendInterventionEmails({
-        interventionId: intervention.id,
-        eventType: 'status_changed',
-        excludeUserId: user.id,
-        onlyRoles: ['locataire', 'prestataire'],
-        excludeNonPersonal: true,
-        statusChange: {
-          oldStatus: intervention.status,
-          newStatus: 'cloturee_par_gestionnaire',
-          reason: finalizationComment
+    {
+      // Capture variables for after() closure
+      const emailInterventionId = intervention.id
+      const emailExcludeUserId = user.id
+      const emailOldStatus = intervention.status
+      const emailFinalizationComment = finalizationComment
+
+      after(async () => {
+        try {
+          // Re-initialize email service inside after()
+          const { EmailNotificationService } = await import('@/lib/services/domain/email-notification.service')
+          const { EmailService } = await import('@/lib/services/domain/email.service')
+          const {
+            createServerNotificationRepository,
+            createServerInterventionRepository,
+            createServerUserRepository,
+            createServerBuildingRepository,
+            createServerLotRepository
+          } = await import('@/lib/services')
+
+          const notificationRepo = await createServerNotificationRepository()
+          const interventionRepo = await createServerInterventionRepository()
+          const userRepo = await createServerUserRepository()
+          const buildingRepo = await createServerBuildingRepository()
+          const lotRepo = await createServerLotRepository()
+          const emailSvc = new EmailService()
+
+          const emailNotificationSvc = new EmailNotificationService(
+            notificationRepo,
+            emailSvc,
+            interventionRepo,
+            userRepo,
+            buildingRepo,
+            lotRepo
+          )
+
+          const emailResult = await emailNotificationSvc.sendInterventionEmails({
+            interventionId: emailInterventionId,
+            eventType: 'status_changed',
+            excludeUserId: emailExcludeUserId,
+            onlyRoles: ['locataire', 'prestataire'],
+            excludeNonPersonal: true,
+            statusChange: {
+              oldStatus: emailOldStatus,
+              newStatus: 'cloturee_par_gestionnaire',
+              reason: emailFinalizationComment
+            }
+          })
+
+          logger.info({
+            interventionId: emailInterventionId,
+            emailsSent: emailResult.sentCount,
+            emailsFailed: emailResult.failedCount
+          }, "📧 [API] Finalization emails sent (via after())")
+        } catch (emailError) {
+          logger.error({
+            interventionId: emailInterventionId,
+            error: emailError instanceof Error ? emailError.message : String(emailError)
+          }, "⚠️ [API] Email notifications failed (via after())")
         }
       })
-
-      logger.info({
-        emailsSent: emailResult.sentCount,
-        emailsFailed: emailResult.failedCount
-      }, "📧 Finalization emails sent")
-    } catch (emailError) {
-      logger.warn({ emailError }, "⚠️ Could not send finalization emails:")
     }
 
     // Create activity log entry for closure

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { createCustomNotification } from '@/app/actions/notification-actions'
 import { createEmailNotificationService } from '@/lib/services/domain/email-notification.service'
 import { Database } from '@/lib/database.types'
@@ -283,57 +283,75 @@ export async function POST(request: NextRequest) {
       logger.warn({ notifError }, "⚠️ Could not send notifications")
     }
 
-    // Send email to manager
-    try {
-      const emailService = createEmailNotificationService()
+    // Send email to manager (via after())
+    {
+      // Capture variables for after() closure
+      const emailQuote = { ...finalQuote }
+      const emailIntervention = { ...intervention }
+      const emailInterventionId = interventionId
+      const emailProvider = { ...user }
+      const emailTeamId = intervention.team_id
 
-      // Get manager (first one found)
-      const { data: teamMembers } = await supabase
-        .from('team_members')
-        .select('users(id, email, first_name, last_name)')
-        .eq('team_id', intervention.team_id)
-        .eq('role', 'gestionnaire')
-        .limit(1)
-        .single()
+      after(async () => {
+        try {
+          const { createEmailNotificationService } = await import('@/lib/services/domain/email-notification.service')
+          const { createServerSupabaseClient } = await import('@/lib/services')
 
-      if (teamMembers && teamMembers.users) {
-        const manager = teamMembers.users as any
+          const emailService = createEmailNotificationService()
+          const supabaseClient = await createServerSupabaseClient()
 
-        // Get property address
-        const { data: interventionDetails } = await supabase
-          .from('interventions')
-          .select(`
-            lot_id,
-            building_id,
-            lots(reference, buildings(address, city)),
-            buildings(address, city)
-          `)
-          .eq('id', interventionId)
-          .single()
+          // Get manager (first one found)
+          const { data: teamMembers } = await supabaseClient
+            .from('team_members')
+            .select('users(id, email, first_name, last_name)')
+            .eq('team_id', emailTeamId)
+            .eq('role', 'gestionnaire')
+            .limit(1)
+            .single()
 
-        let propertyAddress = 'Adresse non spécifiée'
-        if (interventionDetails) {
-          if (interventionDetails.lot_id && interventionDetails.lots) {
-            const lot = interventionDetails.lots as any
-            const building = lot.buildings
-            propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
-          } else if (interventionDetails.building_id && interventionDetails.buildings) {
-            const building = interventionDetails.buildings as any
-            propertyAddress = `${building.address}, ${building.city}`
+          if (teamMembers && teamMembers.users) {
+            const manager = teamMembers.users as any
+
+            // Get property address
+            const { data: interventionDetails } = await supabaseClient
+              .from('interventions')
+              .select(`
+                lot_id,
+                building_id,
+                lots(reference, buildings(address, city)),
+                buildings(address, city)
+              `)
+              .eq('id', emailInterventionId)
+              .single()
+
+            let propertyAddress = 'Adresse non spécifiée'
+            if (interventionDetails) {
+              if (interventionDetails.lot_id && interventionDetails.lots) {
+                const lot = interventionDetails.lots as any
+                const building = lot.buildings
+                propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+              } else if (interventionDetails.building_id && interventionDetails.buildings) {
+                const building = interventionDetails.buildings as any
+                propertyAddress = `${building.address}, ${building.city}`
+              }
+            }
+
+            await emailService.sendQuoteSubmitted({
+              quote: emailQuote,
+              intervention: emailIntervention as any,
+              property: { address: propertyAddress },
+              manager,
+              provider: emailProvider,
+            })
+            logger.info({ quoteId: emailQuote.id }, '📧 [API] Quote submitted email sent (via after())')
           }
+        } catch (emailError) {
+          logger.error({
+            quoteId: emailQuote.id,
+            error: emailError instanceof Error ? emailError.message : String(emailError)
+          }, '⚠️ [API] Email notifications failed (via after())')
         }
-
-        await emailService.sendQuoteSubmitted({
-          quote: finalQuote,
-          intervention: intervention as any,
-          property: { address: propertyAddress },
-          manager,
-          provider: user,
-        })
-        logger.info({ quoteId: finalQuote.id }, '📧 Quote submitted email sent')
-      }
-    } catch (emailError) {
-      logger.warn({ emailError }, '⚠️ Could not send quote submission email')
+      })
     }
 
     return NextResponse.json({

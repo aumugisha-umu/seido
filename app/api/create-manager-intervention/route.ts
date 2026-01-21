@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { Database } from '@/lib/database.types'
 import { createServerUserService, createServerLotService, createServerBuildingService, createServerInterventionService } from '@/lib/services'
 import { logger } from '@/lib/logger'
@@ -984,84 +984,98 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ✅ NOTIFICATIONS: Send notifications to team members (FIRE-AND-FORGET)
-    // ✅ OPTIMIZED: Ne pas bloquer la réponse API - notifications envoyées en background
+    // ✅ NOTIFICATIONS: Send notifications to team members
+    // ✅ FIXED 2026-01: Use after() to ensure execution in serverless environments (Vercel)
+    // The after() API runs code after the response is sent while keeping the function alive
     {
-      logger.info({ interventionId: intervention.id }, "📬 [API] Triggering background in-app notifications")
+      logger.info({ interventionId: intervention.id }, "📬 [API] Scheduling in-app notifications via after()")
 
-      // ✅ Use Service Role to bypass RLS for notification context fetching
-      const serviceRoleClient = createServiceRoleSupabaseClient()
-      const notificationRepository = new NotificationRepository(serviceRoleClient)
-      const notificationService = new NotificationService(notificationRepository)
+      // Capture variables for closure before after()
+      const notificationInterventionId = intervention.id
+      const notificationTeamId = intervention.team_id
+      const notificationCreatedBy = user.id
+      const notificationReference = intervention.reference
 
-      // ✅ Fire-and-forget - ne pas attendre (~300-500ms de gain)
-      notificationService.notifyInterventionCreated({
-        interventionId: intervention.id,
-        teamId: intervention.team_id,
-        createdBy: user.id
-      }).then(() => {
-        logger.info({
-          reference: intervention.reference,
-          interventionId: intervention.id
-        }, "✅ [API] In-app notifications created successfully (background)")
-      }).catch((error) => {
-        logger.error(error, "⚠️ [API] Failed to create in-app notifications (background)")
+      after(async () => {
+        try {
+          // ✅ Use Service Role to bypass RLS for notification context fetching
+          const serviceRoleClient = createServiceRoleSupabaseClient()
+          const notificationRepository = new NotificationRepository(serviceRoleClient)
+          const notificationService = new NotificationService(notificationRepository)
+
+          await notificationService.notifyInterventionCreated({
+            interventionId: notificationInterventionId,
+            teamId: notificationTeamId,
+            createdBy: notificationCreatedBy
+          })
+
+          logger.info({
+            reference: notificationReference,
+            interventionId: notificationInterventionId
+          }, "✅ [API] In-app notifications created successfully (via after())")
+        } catch (error) {
+          logger.error({
+            interventionId: notificationInterventionId,
+            error: error instanceof Error ? error.message : String(error)
+          }, "⚠️ [API] Failed to create in-app notifications (via after())")
+        }
       })
     }
 
-    // ✅ EMAILS: Send email notifications to assigned users (FIRE-AND-FORGET)
-    // Ne pas bloquer la réponse API - les emails sont envoyés en background
-    try {
-      logger.info({ interventionId: intervention.id }, "📧 [API] Triggering background email notifications")
+    // ✅ EMAILS: Send email notifications to assigned users
+    // ✅ FIXED 2026-01: Use after() to ensure execution in serverless environments (Vercel)
+    // The after() API runs code after the response is sent while keeping the function alive
+    {
+      logger.info({ interventionId: intervention.id }, "📧 [API] Scheduling email notifications via after()")
 
-      // Use Service Role client for email notification service
-      const serviceRoleClient = createServiceRoleSupabaseClient()
+      // Capture variables for closure before after()
+      const emailInterventionId = intervention.id
 
-      // Create all required repositories
-      const emailNotificationRepository = new NotificationRepository(serviceRoleClient)
-      const emailService = new EmailService()
-      const interventionRepository = await createServerInterventionRepository()
-      const userRepository = await createServerUserRepository()
-      const buildingRepository = await createServerBuildingRepository()
-      const lotRepository = await createServerLotRepository()
+      after(async () => {
+        try {
+          logger.info({ interventionId: emailInterventionId }, "📧 [EMAIL-NOTIFICATION] Starting email send (via after())")
 
-      // Create the EmailNotificationService
-      const emailNotificationService = new EmailNotificationService(
-        emailNotificationRepository,
-        emailService,
-        interventionRepository,
-        userRepository,
-        buildingRepository,
-        lotRepository
-      )
+          // Use Service Role client for email notification service
+          const serviceRoleClient = createServiceRoleSupabaseClient()
 
-      // ✅ FIX: Fire-and-forget - ne pas attendre l'envoi des emails (~8-10s de gain)
-      // Les emails sont envoyés en background, l'API retourne immédiatement
-      emailNotificationService.sendInterventionCreatedBatch(
-        intervention.id,
-        'intervention'
-      ).then(emailResult => {
-        logger.info({
-          interventionId: intervention.id,
-          sentCount: emailResult.sentCount,
-          failedCount: emailResult.failedCount,
-          success: emailResult.success
-        }, "📧 [API] Background email notifications completed")
-      }).catch(error => {
-        logger.error({
-          interventionId: intervention.id,
-          error: error instanceof Error ? error.message : String(error)
-        }, "⚠️ [API] Background email notifications failed")
+          // Create all required repositories
+          const emailNotificationRepository = new NotificationRepository(serviceRoleClient)
+          const emailService = new EmailService()
+          const interventionRepository = await createServerInterventionRepository()
+          const userRepository = await createServerUserRepository()
+          const buildingRepository = await createServerBuildingRepository()
+          const lotRepository = await createServerLotRepository()
+
+          // Create the EmailNotificationService
+          const emailNotificationService = new EmailNotificationService(
+            emailNotificationRepository,
+            emailService,
+            interventionRepository,
+            userRepository,
+            buildingRepository,
+            lotRepository
+          )
+
+          // ✅ Now using await - after() keeps the function alive
+          const emailResult = await emailNotificationService.sendInterventionCreatedBatch(
+            emailInterventionId,
+            'intervention'
+          )
+
+          logger.info({
+            interventionId: emailInterventionId,
+            sentCount: emailResult.sentCount,
+            failedCount: emailResult.failedCount,
+            success: emailResult.success
+          }, "📧 [API] Email notifications completed (via after())")
+
+        } catch (error) {
+          logger.error({
+            interventionId: emailInterventionId,
+            error: error instanceof Error ? error.message : String(error)
+          }, "⚠️ [API] Email notifications failed (via after())")
+        }
       })
-
-      logger.info({ interventionId: intervention.id }, "📧 [API] Email notifications triggered (non-blocking)")
-
-    } catch (error) {
-      // Non-blocking: log error but don't fail the intervention creation
-      logger.error({
-        error: error instanceof Error ? error.message : 'Unknown error',
-        interventionId: intervention.id
-      }, "⚠️ [API] Failed to trigger email notifications")
     }
 
     // ⚡ NO-CACHE: Mutations ne doivent pas être cachées

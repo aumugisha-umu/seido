@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
@@ -336,24 +336,62 @@ export async function PUT(
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // EMAIL NOTIFICATIONS: Créneau confirmé (intervention planifiée)
+    // EMAIL NOTIFICATIONS: Créneau confirmé (intervention planifiée) (via after())
     // ═══════════════════════════════════════════════════════════════════════════
-    try {
-      const emailResult = await emailNotificationService.sendInterventionEmails({
-        interventionId: intervention.id,
-        eventType: 'scheduled',
-        excludeUserId: user.id,  // L'utilisateur qui confirme ne reçoit pas d'email
-        excludeRoles: ['gestionnaire'],  // Exclure les gestionnaires (seuls locataire + prestataire reçoivent)
-        excludeNonPersonal: true  // Seulement les assignés directement
-      })
+    {
+      // Capture variables for after() closure
+      const emailInterventionId = intervention.id
+      const emailExcludeUserId = user.id
 
-      logger.info({
-        emailsSent: emailResult.sentCount,
-        emailsFailed: emailResult.failedCount
-      }, "📧 Scheduled intervention emails sent")
-    } catch (emailError) {
-      // Don't fail the API call for email errors
-      logger.warn({ emailError }, "⚠️ Could not send scheduling confirmation emails:")
+      after(async () => {
+        try {
+          // Re-initialize email service inside after()
+          const { EmailNotificationService } = await import('@/lib/services/domain/email-notification.service')
+          const { EmailService } = await import('@/lib/services/domain/email.service')
+          const {
+            createServerNotificationRepository,
+            createServerInterventionRepository,
+            createServerUserRepository,
+            createServerBuildingRepository,
+            createServerLotRepository
+          } = await import('@/lib/services')
+
+          const notificationRepo = await createServerNotificationRepository()
+          const interventionRepo = await createServerInterventionRepository()
+          const userRepo = await createServerUserRepository()
+          const buildingRepo = await createServerBuildingRepository()
+          const lotRepo = await createServerLotRepository()
+          const emailSvc = new EmailService()
+
+          const emailNotificationSvc = new EmailNotificationService(
+            notificationRepo,
+            emailSvc,
+            interventionRepo,
+            userRepo,
+            buildingRepo,
+            lotRepo
+          )
+
+          const emailResult = await emailNotificationSvc.sendInterventionEmails({
+            interventionId: emailInterventionId,
+            eventType: 'scheduled',
+            excludeUserId: emailExcludeUserId,
+            excludeRoles: ['gestionnaire'],
+            excludeNonPersonal: true
+          })
+
+          logger.info({
+            interventionId: emailInterventionId,
+            emailsSent: emailResult.sentCount,
+            emailsFailed: emailResult.failedCount
+          }, "📧 [API] Scheduled intervention emails sent (via after())")
+        } catch (emailError) {
+          logger.error({
+            interventionId: emailInterventionId,
+            error: emailError instanceof Error ? emailError.message : String(emailError)
+          }, "⚠️ [API] Email notifications failed (via after())")
+        }
+      })
     }
 
     return NextResponse.json({

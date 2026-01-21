@@ -15,7 +15,8 @@ import {
   AlertCircle,
   Users,
   Lock,
-  Eye
+  Eye,
+  Mail
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatErrorMessage } from '@/lib/utils/error-formatter'
@@ -127,17 +128,40 @@ function MessageBubble({
     }
   }
 
+  // Check if message is from email reply
+  const metadata = message.metadata as {
+    source?: 'email'
+    sender_email?: string
+    sender_name?: string
+    is_external?: boolean
+    email_id?: string
+  } | null
+
+  const isEmailMessage = metadata?.source === 'email'
+
+  // For email messages, prefer metadata sender info (especially for external senders)
+  const displayName = isEmailMessage && metadata?.sender_name
+    ? metadata.sender_name
+    : message.user?.name || 'Utilisateur'
+
+  const displayEmail = isEmailMessage ? metadata?.sender_email : null
+
+  // Avatar fallback initial
+  const avatarInitial = isEmailMessage && metadata?.sender_name
+    ? metadata.sender_name.charAt(0).toUpperCase()
+    : message.user?.name?.charAt(0)?.toUpperCase() || '?'
+
   return (
     <div
       className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'} ${
         showAvatar ? 'items-end' : 'items-start'
       }`}
     >
-      {showAvatar && message.user && (
+      {showAvatar && (message.user || isEmailMessage) && (
         <Avatar className="w-8 h-8">
-          <AvatarImage src={message.user.avatar_url} />
-          <AvatarFallback>
-            {message.user.name.charAt(0).toUpperCase()}
+          <AvatarImage src={message.user?.avatar_url} />
+          <AvatarFallback className={isEmailMessage ? 'bg-orange-100 text-orange-700' : undefined}>
+            {isEmailMessage ? <Mail className="w-4 h-4" /> : avatarInitial}
           </AvatarFallback>
         </Avatar>
       )}
@@ -147,17 +171,42 @@ function MessageBubble({
           isOwn ? 'items-end' : 'items-start'
         }`}
       >
-        {!isOwn && message.user && (
-          <span className="text-xs text-muted-foreground ml-2">
-            {message.user.name}
-          </span>
+        {/* Author name with email badge for email messages */}
+        {!isOwn && (message.user || isEmailMessage) && (
+          <div className="flex items-center gap-1.5 ml-2">
+            <span className="text-xs text-muted-foreground">
+              {displayName}
+            </span>
+            {isEmailMessage && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="h-4 px-1.5 text-[10px] gap-0.5 bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100">
+                      <Mail className="w-2.5 h-2.5" />
+                      Email
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <div className="text-xs">
+                      <p className="font-medium">Via réponse email</p>
+                      {displayEmail && (
+                        <p className="text-muted-foreground">{displayEmail}</p>
+                      )}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
         )}
 
         <div
           className={`px-3 py-2 rounded-lg ${
             isOwn
               ? 'bg-primary text-primary-foreground'
-              : 'bg-muted'
+              : isEmailMessage
+                ? 'bg-orange-50 border border-orange-200'
+                : 'bg-muted'
           }`}
         >
           <p className="text-sm whitespace-pre-wrap break-words">

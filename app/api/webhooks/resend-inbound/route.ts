@@ -27,6 +27,7 @@ import { logger } from '@/lib/logger'
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import { ResendWebhookService } from '@/lib/services/domain/resend-webhook.service'
 import { EmailReplyService } from '@/lib/services/domain/email-reply.service'
+import { syncEmailReplyToConversation } from '@/lib/services/domain/email-to-conversation.service'
 import { validateRequest, resendInboundWebhookSchema, formatZodErrors, uuidSchema, emailSchema } from '@/lib/validation/schemas'
 import type { ResendInboundWebhookPayload } from '@/lib/validation/schemas'
 
@@ -681,6 +682,47 @@ async function processEmailAsync(
     logger.info(
       { emailId: email.id, interventionId: intervention.id },
       '✅ [RESEND-INBOUND] Email linked to intervention'
+    )
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // 5.1 NEW: Sync email reply to intervention conversation
+  // ═══════════════════════════════════════════════════════════
+  // This creates a message in the "group" conversation thread so
+  // all intervention participants can see the email reply inline
+  // with other conversation messages.
+  try {
+    const syncResult = await syncEmailReplyToConversation({
+      interventionId: intervention.id,
+      emailContent: { html: sanitizedHtml, text: emailContent.text },
+      senderUserId: sender?.id || null,
+      senderEmail: senderEmail,
+      senderName: emailData.from,
+      emailId: email.id,
+      teamId: intervention.team_id
+    })
+
+    if (syncResult.success && syncResult.messageId) {
+      logger.info(
+        {
+          emailId: email.id,
+          messageId: syncResult.messageId,
+          threadId: syncResult.threadId
+        },
+        '✅ [RESEND-INBOUND] Email synced to conversation'
+      )
+    } else if (syncResult.error) {
+      // Non-blocking: log but continue
+      logger.info(
+        { emailId: email.id, reason: syncResult.error },
+        '📧 [RESEND-INBOUND] Email not synced to conversation (expected in some cases)'
+      )
+    }
+  } catch (convError) {
+    // Non-blocking: conversation sync failure should not break email processing
+    logger.warn(
+      { error: convError, emailId: email.id },
+      '⚠️ [RESEND-INBOUND] Conversation sync failed (non-blocking)'
     )
   }
 

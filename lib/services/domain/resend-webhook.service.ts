@@ -5,13 +5,15 @@
  *
  * Architecture:
  * - Vérifie la signature Svix des webhooks Resend
- * - Email content (html, text, headers) is included DIRECTLY in webhook payload
- *   (no API fetch needed for inbound emails!)
+ * - IMPORTANT: Webhooks do NOT include email body content (html, text)!
+ *   Must call fetchReceivedEmailContent() to get the actual content.
  * - Télécharge les pièces jointes (URLs expirent en 7 jours)
  *
- * IMPORTANT: The /emails/{id} API is for SENT emails only!
- * For inbound emails, use the content from the webhook payload directly.
- * See: https://resend.com/docs/dashboard/receiving/introduction
+ * API Endpoints:
+ * - SENT emails: GET /emails/{id} (use fetchEmailContent)
+ * - RECEIVED/INBOUND emails: GET /emails/received/{id} (use fetchReceivedEmailContent)
+ *
+ * See: https://resend.com/docs/api-reference/emails/retrieve-received-email
  *
  * Sécurité:
  * - Vérification signature Svix (svix-id, svix-timestamp, svix-signature)
@@ -282,16 +284,95 @@ export class ResendWebhookService {
   }
 
   /**
-   * @deprecated For inbound emails, use the content directly from webhook payload!
-   * The /emails/{id} API is for SENT emails only and returns 404 for inbound emails.
+   * Fetch RECEIVED/INBOUND email content from Resend API
    *
-   * Instead, access emailData.html, emailData.text, emailData.headers directly
-   * from the validated webhook payload in the route handler.
+   * IMPORTANT: For inbound emails, use /emails/received/:id endpoint!
+   * The /emails/:id endpoint only works for SENT emails.
+   *
+   * The webhook payload does NOT include email body content (html, text).
+   * We MUST call this API to fetch the actual email content.
+   *
+   * @see https://resend.com/docs/api-reference/emails/retrieve-received-email
+   *
+   * @param emailId - ID of the received email
+   * @returns Email content or null if not found/failed
+   */
+  static async fetchReceivedEmailContent(emailId: string): Promise<EmailContent | null> {
+    return withRetry(
+      () => this.fetchReceivedEmailContentInternal(emailId),
+      `fetchReceivedEmailContent(${emailId})`
+    )
+  }
+
+  /**
+   * Internal implementation of fetchReceivedEmailContent without retry
+   * @private
+   */
+  private static async fetchReceivedEmailContentInternal(emailId: string): Promise<EmailContent | null> {
+    const apiKey = process.env.RESEND_API_KEY
+    if (!apiKey) {
+      logger.error({}, '❌ [RESEND-WEBHOOK] RESEND_API_KEY not configured')
+      return null
+    }
+
+    logger.info({ emailId }, '📧 [RESEND-WEBHOOK] Fetching RECEIVED email content from Resend API...')
+
+    // ✅ CORRECT: Use /emails/received/:id for INBOUND emails
+    const response = await fetch(`https://api.resend.com/emails/received/${emailId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      if (response.status === 404) {
+        logger.warn(
+          { emailId, status: response.status },
+          '⚠️ [RESEND-WEBHOOK] Received email not found in Resend (404)'
+        )
+        return null
+      }
+      throw new Error(`API returned ${response.status}: ${errorText}`)
+    }
+
+    const emailData = await response.json()
+
+    // ═══════════════════════════════════════════════════════════
+    // SECURITY: Validate email content size to prevent DoS
+    // ═══════════════════════════════════════════════════════════
+    const htmlSize = (emailData.html || '').length
+    const textSize = (emailData.text || '').length
+    const totalSize = htmlSize + textSize
+
+    if (totalSize > MAX_EMAIL_CONTENT_SIZE) {
+      logger.warn(
+        { emailId, htmlSize, textSize, totalSize, maxSize: MAX_EMAIL_CONTENT_SIZE },
+        '⚠️ [RESEND-WEBHOOK] Received email content too large - rejecting'
+      )
+      return null
+    }
+
+    logger.info(
+      { emailId, hasHtml: !!emailData.html, hasText: !!emailData.text, totalSize },
+      '✅ [RESEND-WEBHOOK] Received email content fetched successfully'
+    )
+
+    return {
+      html: emailData.html || '',
+      text: emailData.text || '',
+      headers: emailData.headers || {}
+    }
+  }
+
+  /**
+   * @deprecated For inbound emails, use fetchReceivedEmailContent() instead!
+   * The /emails/{id} API is for SENT emails only and returns 404 for inbound emails.
    *
    * This method is kept for backward compatibility and potential future use
    * with outbound email tracking.
-   *
-   * @see https://resend.com/docs/dashboard/receiving/introduction
    *
    * @param emailId - ID of the email (only works for SENT emails)
    * @returns Email content or null if not found/failed

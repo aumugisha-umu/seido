@@ -421,7 +421,8 @@ interface LoggingContext {
  * Traitement asynchrone de l'email reçu
  *
  * Étapes:
- * 1. Récupérer le contenu de l'email (le webhook ne contient que les métadonnées)
+ * 1. Récupérer le contenu de l'email via API Resend (GET /emails/received/:id)
+ *    IMPORTANT: Le webhook ne contient PAS le body (html, text)!
  * 2. Vérifier que l'intervention existe
  * 3. Identifier l'expéditeur
  * 4. Créer l'email dans la table emails
@@ -475,27 +476,37 @@ async function processEmailAsync(
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 1. Use email content directly from webhook payload
+  // 1. Fetch email content from Resend API
   // ═══════════════════════════════════════════════════════════
-  // NOTE: For inbound emails, content is in the webhook payload itself!
-  // The /emails/{id} API is for SENT emails only and returns 404 for inbound.
-  // See: https://resend.com/docs/dashboard/receiving/introduction
-  const content = {
-    html: emailData.html || '',
-    text: emailData.text || '',
-    headers: emailData.headers || {}
+  // IMPORTANT: The webhook does NOT include body content (html, text)!
+  // We must call the Resend API to fetch the actual email content.
+  // For INBOUND emails, use: GET /emails/received/:id
+  // See: https://resend.com/docs/api-reference/emails/retrieve-received-email
+  const fetchedContent = await ResendWebhookService.fetchReceivedEmailContent(emailData.email_id)
+
+  if (!fetchedContent) {
+    logger.error(
+      { emailId: emailData.email_id },
+      '❌ [RESEND-INBOUND] Failed to fetch email content from Resend API'
+    )
+    // Log failure but don't block - save email with empty content as fallback
+    // The email record will still be created for tracking purposes
   }
+
+  // Use fetched content or fallback to empty (email still tracked even without content)
+  const emailContent = fetchedContent || { html: '', text: '', headers: {} }
 
   // Log content presence for debugging
   logger.info(
     {
       emailId: emailData.email_id,
-      hasHtml: !!emailData.html,
-      hasText: !!emailData.text,
-      htmlLength: content.html.length,
-      textLength: content.text.length
+      hasHtml: !!emailContent.html,
+      hasText: !!emailContent.text,
+      htmlLength: emailContent.html.length,
+      textLength: emailContent.text.length,
+      fetchedFromApi: !!fetchedContent
     },
-    '📧 [RESEND-INBOUND] Using email content from webhook payload'
+    '📧 [RESEND-INBOUND] Email content status'
   )
 
   // ═══════════════════════════════════════════════════════════
@@ -503,12 +514,12 @@ async function processEmailAsync(
   // Uses server-side regex sanitizer (no jsdom dependency)
   // Client-side uses DOMPurify for additional protection on display
   // ═══════════════════════════════════════════════════════════
-  const sanitizedHtml = sanitizeHtmlServer(content.html)
+  const sanitizedHtml = sanitizeHtmlServer(emailContent.html)
 
   logger.info(
     {
       emailId: emailData.email_id,
-      htmlSanitized: content.html.length > 0
+      htmlSanitized: emailContent.html.length > 0
     },
     '✅ [RESEND-INBOUND] Email content sanitized'
   )
@@ -585,11 +596,11 @@ async function processEmailAsync(
       cc_addresses: emailData.cc || [],
       subject: emailData.subject,
       body_html: sanitizedHtml, // ✅ SECURITY: Using sanitized HTML (XSS prevention)
-      body_text: content.text,
-      message_id: emailData.message_id || content.headers['message-id'] || null,
+      body_text: emailContent.text,
+      message_id: emailData.message_id || emailContent.headers['message-id'] || null,
       // Use in_reply_to from payload (snake_case) or fallback to headers (kebab-case)
-      in_reply_to_header: emailData.in_reply_to || content.headers['in-reply-to'] || null,
-      references: content.headers['references'] || null,
+      in_reply_to_header: emailData.in_reply_to || emailContent.headers['in-reply-to'] || null,
+      references: emailContent.headers['references'] || null,
       received_at: new Date().toISOString()
     })
     .select()
@@ -723,7 +734,7 @@ async function processEmailAsync(
   // ═══════════════════════════════════════════════════════════
   // 7. Notifier les gestionnaires
   // ═══════════════════════════════════════════════════════════
-  const notificationResult = await notifyManagers(supabase, intervention, sender, emailData.subject, content.text)
+  const notificationResult = await notifyManagers(supabase, intervention, sender, emailData.subject, emailContent.text)
 
   const processingTimeMs = Date.now() - loggingContext.startTime
 

@@ -106,30 +106,23 @@ export function stripEmailQuotes(html: string): QuoteStrippingResult {
   let hasQuotedContent = false
 
   // Step 1: Remove Gmail quote containers
-  // Gmail wraps quotes in: <div class="gmail_quote gmail_quote_container">...</div>
-  const gmailQuoteRegex = /<div[^>]*class="[^"]*gmail_quote[^"]*"[^>]*>[\s\S]*?<\/div>(?:\s*<\/div>)*$/gi
-  const gmailMatches = cleanHtml.match(gmailQuoteRegex)
-  if (gmailMatches) {
-    gmailMatches.forEach(match => {
-      quotedParts.push(match)
-      cleanHtml = cleanHtml.replace(match, '')
-    })
+  // Gmail structure: <div dir="ltr">REPLY</div><br><div class="gmail_quote...">QUOTED</div>
+  // Strategy: Find the start of gmail_quote and remove everything from there
+  // This is more robust than regex matching nested </div> tags
+  const gmailQuoteStartRegex = /<div[^>]*class="[^"]*gmail_quote[^"]*"[^>]*>/i
+  const gmailQuoteMatch = gmailQuoteStartRegex.exec(cleanHtml)
+
+  if (gmailQuoteMatch) {
+    // Extract everything BEFORE the gmail_quote div
+    const beforeQuote = cleanHtml.substring(0, gmailQuoteMatch.index)
+    const afterQuote = cleanHtml.substring(gmailQuoteMatch.index)
+
+    quotedParts.push(afterQuote)
+    cleanHtml = beforeQuote
     hasQuotedContent = true
   }
 
-  // Step 2: Remove Gmail attribution lines
-  // Pattern: <div class="gmail_attr">Le mer. 21 janv. 2026 à 22:16, ... &lt;email@example.com&gt; a écrit :</div>
-  const gmailAttrRegex = /<div[^>]*class="[^"]*gmail_attr[^"]*"[^>]*>[\s\S]*?<\/div>/gi
-  const attrMatches = cleanHtml.match(gmailAttrRegex)
-  if (attrMatches) {
-    attrMatches.forEach(match => {
-      quotedParts.push(match)
-      cleanHtml = cleanHtml.replace(match, '')
-    })
-    hasQuotedContent = true
-  }
-
-  // Step 3: Remove Outlook quote headers
+  // Step 2: Remove Outlook quote headers
   const outlookHeaderRegex = /<div[^>]*(?:class="[^"]*OutlookMessageHeader[^"]*"|id="divRplyFwdMsg")[^>]*>[\s\S]*?<\/div>/gi
   const outlookMatches = cleanHtml.match(outlookHeaderRegex)
   if (outlookMatches) {
@@ -140,7 +133,7 @@ export function stripEmailQuotes(html: string): QuoteStrippingResult {
     hasQuotedContent = true
   }
 
-  // Step 4: Remove Apple Mail blockquotes
+  // Step 3: Remove Apple Mail blockquotes
   const appleCiteRegex = /<blockquote[^>]*type="cite"[^>]*>[\s\S]*?<\/blockquote>/gi
   const appleMatches = cleanHtml.match(appleCiteRegex)
   if (appleMatches) {
@@ -151,7 +144,7 @@ export function stripEmailQuotes(html: string): QuoteStrippingResult {
     hasQuotedContent = true
   }
 
-  // Step 5: Remove generic blockquotes that start with attribution patterns
+  // Step 4: Remove generic blockquotes that start with attribution patterns
   // Match blockquotes that likely contain quoted replies
   const blockquoteRegex = /<blockquote[^>]*>[\s\S]*?<\/blockquote>/gi
   const blockquoteMatches = cleanHtml.match(blockquoteRegex)
@@ -167,7 +160,7 @@ export function stripEmailQuotes(html: string): QuoteStrippingResult {
     })
   }
 
-  // Step 6: Handle text-based quote markers
+  // Step 5: Handle text-based quote markers
   // Some clients insert visible text markers like "-------- Message original --------"
   const textMarkers = [
     /[-_=]{3,}\s*(?:Original Message|Message original|Forwarded message|Message transféré)\s*[-_=]{3,}/gi,
@@ -188,7 +181,7 @@ export function stripEmailQuotes(html: string): QuoteStrippingResult {
     }
   })
 
-  // Step 7: Clean up empty elements and excessive whitespace
+  // Step 6: Clean up empty elements and excessive whitespace
   cleanHtml = cleanHtml
     // Remove empty paragraphs and divs
     .replace(/<(p|div)[^>]*>\s*<\/\1>/gi, '')

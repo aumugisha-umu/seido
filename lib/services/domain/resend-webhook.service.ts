@@ -283,15 +283,18 @@ export class ResendWebhookService {
   }
 
   /**
-   * @deprecated The inbound webhook payload DOES contain html/text for email.received events.
-   * This method is NOT needed - use emailData.html and emailData.text from the webhook payload directly.
-   * The /emails/received/:id API endpoint may not work as expected (returns 404 in many cases).
+   * Fetches received (inbound) email content from the Resend API.
    *
-   * This method is kept for potential future use with other webhook types or debugging purposes.
+   * IMPORTANT: This method IS needed as a fallback!
+   * Despite Resend's documentation claiming the webhook payload contains html/text,
+   * in practice these fields are often missing. Use this method when
+   * emailData.html and emailData.text are both empty/undefined.
    *
-   * @see https://resend.com/docs/dashboard/receiving/introduction
-   * "When an email is received, a webhook will be triggered containing the email data including the body."
+   * The inbound webhook handler (route.ts) uses this as a fallback:
+   * 1. First check if content is in webhook payload
+   * 2. If not, call this method to fetch from API
    *
+   * @see https://resend.com/docs/api-reference/emails/retrieve-email
    * @param emailId - ID of the received email
    * @returns Email content or null if not found/failed
    */

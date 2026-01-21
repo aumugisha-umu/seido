@@ -488,29 +488,59 @@ async function processEmailAsync(
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 1. Use email content directly from webhook payload
+  // 1. Get email content: prefer webhook payload, fallback to API fetch
   // ═══════════════════════════════════════════════════════════
-  // NOTE: For INBOUND emails (email.received), content IS in the webhook payload!
-  // This is different from tracking webhooks (email.sent/delivered) which don't have body.
+  // NOTE: Resend documentation says content IS in the webhook payload,
+  // but in practice it's often missing. We use API fetch as fallback.
   // See: https://resend.com/docs/dashboard/receiving/introduction
-  // "When an email is received, a webhook will be triggered containing the email data including the body."
-  const emailContent = {
+  let emailContent = {
     html: emailData.html || '',
     text: emailData.text || '',
     headers: emailData.headers || {}
   }
 
-  // Log content presence for debugging
-  logger.info(
-    {
-      emailId: emailData.email_id,
-      hasHtml: !!emailData.html,
-      hasText: !!emailData.text,
-      htmlLength: emailContent.html.length,
-      textLength: emailContent.text.length
-    },
-    '📧 [RESEND-INBOUND] Using email content from webhook payload'
-  )
+  // Check if content is in webhook payload
+  const hasContentInPayload = !!(emailData.html || emailData.text)
+
+  if (hasContentInPayload) {
+    logger.info(
+      {
+        emailId: emailData.email_id,
+        hasHtml: !!emailData.html,
+        hasText: !!emailData.text,
+        htmlLength: emailContent.html.length,
+        textLength: emailContent.text.length
+      },
+      '📧 [RESEND-INBOUND] Using email content from webhook payload'
+    )
+  } else {
+    // Fallback: Fetch content from Resend API
+    logger.info(
+      { emailId: emailData.email_id },
+      '📧 [RESEND-INBOUND] No content in webhook payload, fetching from Resend API...'
+    )
+
+    const fetchedContent = await ResendWebhookService.fetchReceivedEmailContent(emailData.email_id)
+
+    if (fetchedContent) {
+      emailContent = fetchedContent
+      logger.info(
+        {
+          emailId: emailData.email_id,
+          hasHtml: !!fetchedContent.html,
+          hasText: !!fetchedContent.text,
+          htmlLength: fetchedContent.html.length,
+          textLength: fetchedContent.text.length
+        },
+        '✅ [RESEND-INBOUND] Email content fetched from Resend API'
+      )
+    } else {
+      logger.warn(
+        { emailId: emailData.email_id },
+        '⚠️ [RESEND-INBOUND] Could not fetch email content from API - saving without body'
+      )
+    }
+  }
 
   // ═══════════════════════════════════════════════════════════
   // 1.1 SECURITY: Sanitize HTML content to prevent XSS

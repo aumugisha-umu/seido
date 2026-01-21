@@ -2261,43 +2261,6 @@ export const createEmailNotificationServiceWithDeps = (
   )
 }
 
-/**
- * Factory auto-wired pour utilisation dans les API routes
- * Crée toutes les dépendances automatiquement
- *
- * @returns Instance configurée avec toutes les dépendances
- *
- * @example
- * ```typescript
- * // Dans une API route (après() closure)
- * const emailService = await createEmailNotificationService()
- * await emailService.sendQuoteSubmitted({...})
- * ```
- */
-export const createEmailNotificationService = async (): Promise<EmailNotificationService> => {
-  // Import dynamique pour éviter les dépendances circulaires
-  const { EmailService: EmailServiceClass } = await import('@/lib/services/domain/email.service')
-  const {
-    createServerNotificationRepository,
-    createServerUserRepository,
-    createServerBuildingRepository,
-    createServerLotRepository,
-    createServerInterventionRepository
-  } = await import('@/lib/services')
-
-  const notificationRepository = await createServerNotificationRepository()
-  const userRepository = await createServerUserRepository()
-  const buildingRepository = await createServerBuildingRepository()
-  const lotRepository = await createServerLotRepository()
-  const interventionRepository = await createServerInterventionRepository()
-  const emailService = new EmailServiceClass()
-
-  return new EmailNotificationService(
-    notificationRepository,
-    emailService,
-    interventionRepository,
-    userRepository,
-    buildingRepository,
-    lotRepository
-  )
-}
+// NOTE: Pour la factory auto-wired, utiliser:
+// import { createEmailNotificationService } from '@/lib/services/domain/email-notification.factory'
+// Cette séparation évite que webpack n'inclue 'fs' dans le bundle client.

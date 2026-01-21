@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server'
 import { createCustomNotification } from '@/app/actions/notification-actions'
-import { createEmailNotificationService } from '@/lib/services/domain/email-notification.service'
-import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { submitQuoteSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
@@ -294,7 +292,7 @@ export async function POST(request: NextRequest) {
 
       after(async () => {
         try {
-          const { createEmailNotificationService } = await import('@/lib/services/domain/email-notification.service')
+          const { createEmailNotificationService } = await import('@/lib/services/domain/email-notification.factory')
           const { createServerSupabaseClient } = await import('@/lib/services')
 
           const emailService = await createEmailNotificationService()

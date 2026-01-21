@@ -34,7 +34,9 @@ import {
   createServerUserService,
   createServerActionUserService
 } from './user.service'
-import { createEmailNotificationService } from './email-notification.service'
+// NOTE: EmailNotificationService est importé dynamiquement dans les méthodes privées
+// pour éviter que webpack n'inclue 'fs' dans le bundle client
+// import { createEmailNotificationService } from './email-notification.factory'
 import { createServerNotificationService } from './notification.service'
 import type {
   Intervention,
@@ -2140,7 +2142,8 @@ export class InterventionService {
    */
   private async sendInterventionCreatedEmail(intervention: Intervention, tenantId: string) {
     try {
-      const emailService = createEmailNotificationService()
+      const { createEmailNotificationService } = await import(/* webpackIgnore: true */ './email-notification.factory')
+      const emailService = await createEmailNotificationService()
 
       // Fetch tenant details
       const tenantResult = await this.userService?.getById(tenantId)
@@ -2210,7 +2213,8 @@ export class InterventionService {
    */
   private async sendInterventionApprovedEmail(intervention: Intervention, managerId: string, approvalNotes?: string) {
     try {
-      const emailService = createEmailNotificationService()
+      const { createEmailNotificationService } = await import(/* webpackIgnore: true */ './email-notification.factory')
+      const emailService = await createEmailNotificationService()
 
       // Fetch manager and tenant
       const managerResult = await this.userService?.getById(managerId)
@@ -2266,7 +2270,8 @@ export class InterventionService {
    */
   private async sendInterventionRejectedEmail(intervention: Intervention, managerId: string, rejectionReason: string) {
     try {
-      const emailService = createEmailNotificationService()
+      const { createEmailNotificationService } = await import(/* webpackIgnore: true */ './email-notification.factory')
+      const emailService = await createEmailNotificationService()
 
       // Fetch manager and tenant
       const managerResult = await this.userService?.getById(managerId)
@@ -2322,7 +2327,8 @@ export class InterventionService {
    */
   private async sendInterventionScheduledEmail(intervention: Intervention, slot: any) {
     try {
-      const emailService = createEmailNotificationService()
+      const { createEmailNotificationService } = await import(/* webpackIgnore: true */ './email-notification.factory')
+      const emailService = await createEmailNotificationService()
 
       // Get tenant, provider, property
       const tenants = await this.getInterventionTenants(intervention.id)
@@ -2395,7 +2401,8 @@ export class InterventionService {
    */
   private async sendInterventionCompletedEmail(intervention: Intervention, providerId: string, completionNotes?: string) {
     try {
-      const emailService = createEmailNotificationService()
+      const { createEmailNotificationService } = await import(/* webpackIgnore: true */ './email-notification.factory')
+      const emailService = await createEmailNotificationService()
 
       // Get provider, tenant, manager
       const providerResult = await this.userService?.getById(providerId)
@@ -2472,7 +2479,8 @@ export class InterventionService {
    */
   private async sendQuoteRequestEmail(intervention: Intervention, providerId: string, managerId: string) {
     try {
-      const emailService = createEmailNotificationService()
+      const { createEmailNotificationService } = await import(/* webpackIgnore: true */ './email-notification.factory')
+      const emailService = await createEmailNotificationService()
 
       // Get manager and provider
       const managerResult = await this.userService?.getById(managerId)

@@ -2,7 +2,6 @@ import { NextRequest, NextResponse, after } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { quoteRejectSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-import { createEmailNotificationService } from '@/lib/services/domain/email-notification.service'
 
 export async function POST(
   request: NextRequest,
@@ -82,7 +81,7 @@ export async function POST(
 
       after(async () => {
         try {
-          const { createEmailNotificationService } = await import('@/lib/services/domain/email-notification.service')
+          const { createEmailNotificationService } = await import('@/lib/services/domain/email-notification.factory')
           const { createServerSupabaseClient } = await import('@/lib/services')
 
           const emailService = await createEmailNotificationService()

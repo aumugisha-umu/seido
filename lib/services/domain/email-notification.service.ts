@@ -44,6 +44,9 @@ import InterventionScheduledEmail from '@/emails/templates/interventions/interve
 import InterventionCompletedEmail from '@/emails/templates/interventions/intervention-completed'
 import TimeSlotsProposedEmail from '@/emails/templates/interventions/time-slots-proposed'
 import QuoteRequestEmail from '@/emails/templates/quotes/quote-request'
+import QuoteSubmittedEmail from '@/emails/templates/quotes/quote-submitted'
+import QuoteApprovedEmail from '@/emails/templates/quotes/quote-approved'
+import QuoteRejectedEmail from '@/emails/templates/quotes/quote-rejected'
 
 import type {
   InterventionCreatedEmailProps,
@@ -55,6 +58,9 @@ import type {
   InterventionCompletedEmailProps,
   TimeSlotsProposedEmailProps,
   QuoteRequestEmailProps,
+  QuoteSubmittedEmailProps,
+  QuoteApprovedEmailProps,
+  QuoteRejectedEmailProps,
   EmailTimeSlot,
   EmailQuoteInfo,
   EmailAttachment
@@ -1804,11 +1810,19 @@ export class EmailNotificationService {
       createdAt: new Date(intervention.created_at || new Date().toISOString())
     }
 
+    // Générer l'adresse reply-to pour les réponses directes
+    const replyTo = EmailReplyService.generateInterventionReplyTo(intervention.id)
+
     return this.emailService.send({
       to: manager.email,
       subject: `Nouvelle demande d'intervention : ${intervention.title}`,
       react: InterventionCreatedEmail(emailProps),
-      tags: [{ name: 'type', value: 'intervention_created' }]
+      replyTo,
+      tags: [
+        { name: 'type', value: 'intervention_created' },
+        { name: 'intervention_id', value: intervention.id },
+        { name: 'reply_enabled', value: 'true' }
+      ]
     })
   }
 
@@ -1837,11 +1851,19 @@ export class EmailNotificationService {
       nextSteps: approvalNotes
     }
 
+    // Générer l'adresse reply-to pour les réponses directes
+    const replyTo = EmailReplyService.generateInterventionReplyTo(intervention.id)
+
     return this.emailService.send({
       to: tenant.email,
       subject: `Votre demande d'intervention a été approuvée`,
       react: InterventionApprovedEmail(emailProps),
-      tags: [{ name: 'type', value: 'intervention_approved' }]
+      replyTo,
+      tags: [
+        { name: 'type', value: 'intervention_approved' },
+        { name: 'intervention_id', value: intervention.id },
+        { name: 'reply_enabled', value: 'true' }
+      ]
     })
   }
 
@@ -1870,11 +1892,19 @@ export class EmailNotificationService {
       rejectedAt: new Date()
     }
 
+    // Générer l'adresse reply-to pour les réponses directes
+    const replyTo = EmailReplyService.generateInterventionReplyTo(intervention.id)
+
     return this.emailService.send({
       to: tenant.email,
       subject: `Votre demande d'intervention a été refusée`,
       react: InterventionRejectedEmail(emailProps),
-      tags: [{ name: 'type', value: 'intervention_rejected' }]
+      replyTo,
+      tags: [
+        { name: 'type', value: 'intervention_rejected' },
+        { name: 'intervention_id', value: intervention.id },
+        { name: 'reply_enabled', value: 'true' }
+      ]
     })
   }
 
@@ -1890,6 +1920,9 @@ export class EmailNotificationService {
     estimatedDuration?: number
   }) {
     const { intervention, property, tenant, provider, scheduledDate, estimatedDuration } = params
+
+    // Générer l'adresse reply-to pour les réponses directes
+    const replyTo = EmailReplyService.generateInterventionReplyTo(intervention.id)
 
     // Email pour le locataire
     const tenantProps: InterventionScheduledEmailProps = {
@@ -1911,7 +1944,12 @@ export class EmailNotificationService {
       to: tenant.email,
       subject: `Rendez-vous confirmé pour votre intervention`,
       react: InterventionScheduledEmail(tenantProps),
-      tags: [{ name: 'type', value: 'intervention_scheduled_tenant' }]
+      replyTo,
+      tags: [
+        { name: 'type', value: 'intervention_scheduled_tenant' },
+        { name: 'intervention_id', value: intervention.id },
+        { name: 'reply_enabled', value: 'true' }
+      ]
     })
 
     // Email pour le prestataire
@@ -1933,7 +1971,12 @@ export class EmailNotificationService {
       to: provider.email,
       subject: `Nouvelle intervention planifiée`,
       react: InterventionScheduledEmail(providerProps),
-      tags: [{ name: 'type', value: 'intervention_scheduled_provider' }]
+      replyTo,
+      tags: [
+        { name: 'type', value: 'intervention_scheduled_provider' },
+        { name: 'intervention_id', value: intervention.id },
+        { name: 'reply_enabled', value: 'true' }
+      ]
     })
   }
 
@@ -1950,6 +1993,9 @@ export class EmailNotificationService {
     hasDocuments: boolean
   }) {
     const { intervention, property, tenant, manager, provider, completionNotes, hasDocuments } = params
+
+    // Générer l'adresse reply-to pour les réponses directes
+    const replyTo = EmailReplyService.generateInterventionReplyTo(intervention.id)
 
     // Email pour le locataire
     const tenantProps: InterventionCompletedEmailProps = {
@@ -1971,7 +2017,12 @@ export class EmailNotificationService {
       to: tenant.email,
       subject: `Intervention terminée - Validation requise`,
       react: InterventionCompletedEmail(tenantProps),
-      tags: [{ name: 'type', value: 'intervention_completed_tenant' }]
+      replyTo,
+      tags: [
+        { name: 'type', value: 'intervention_completed_tenant' },
+        { name: 'intervention_id', value: intervention.id },
+        { name: 'reply_enabled', value: 'true' }
+      ]
     })
 
     // Email pour le gestionnaire
@@ -1994,7 +2045,12 @@ export class EmailNotificationService {
       to: manager.email,
       subject: `Intervention terminée par le prestataire`,
       react: InterventionCompletedEmail(managerProps),
-      tags: [{ name: 'type', value: 'intervention_completed_manager' }]
+      replyTo,
+      tags: [
+        { name: 'type', value: 'intervention_completed_manager' },
+        { name: 'intervention_id', value: intervention.id },
+        { name: 'reply_enabled', value: 'true' }
+      ]
     })
   }
 
@@ -2023,11 +2079,144 @@ export class EmailNotificationService {
       managerName: `${manager.first_name} ${manager.last_name}`
     }
 
+    // Générer l'adresse reply-to pour les réponses directes
+    const replyTo = EmailReplyService.generateInterventionReplyTo(intervention.id)
+
     return this.emailService.send({
       to: provider.email,
       subject: `Demande de devis pour intervention ${intervention.reference || ''}`,
       react: QuoteRequestEmail(emailProps),
-      tags: [{ name: 'type', value: 'quote_request' }]
+      replyTo,
+      tags: [
+        { name: 'type', value: 'quote_request' },
+        { name: 'intervention_id', value: intervention.id },
+        { name: 'reply_enabled', value: 'true' }
+      ]
+    })
+  }
+
+  /**
+   * Envoie un email au gestionnaire quand un prestataire soumet un devis
+   */
+  async sendQuoteSubmitted(params: {
+    quote: any
+    intervention: any
+    property: { address: string }
+    manager: any
+    provider: any
+  }) {
+    const { quote, intervention, property, manager, provider } = params
+    const replyTo = EmailReplyService.generateInterventionReplyTo(intervention.id)
+
+    const emailProps: QuoteSubmittedEmailProps = {
+      firstName: manager.first_name || 'Gestionnaire',
+      quoteRef: quote.reference || `DEV-${quote.id?.slice(0, 8)}`,
+      interventionRef: intervention.reference || 'REF-???',
+      interventionType: intervention.type || 'Intervention',
+      description: intervention.description || '',
+      propertyAddress: property.address,
+      quoteUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/gestionnaire/interventions/${intervention.id}`,
+      providerName: `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || provider.company_name || 'Prestataire',
+      providerCompany: provider.company_name,
+      totalHT: quote.amount || 0,
+      totalTTC: quote.amount ? quote.amount * 1.2 : 0, // TVA 20%
+      submittedAt: new Date(),
+      hasPdfAttachment: false
+    }
+
+    return this.emailService.send({
+      to: manager.email,
+      subject: `📋 Nouveau devis reçu - ${intervention.reference || intervention.title}`,
+      react: QuoteSubmittedEmail(emailProps),
+      replyTo,
+      tags: [
+        { name: 'type', value: 'quote_submitted' },
+        { name: 'intervention_id', value: intervention.id },
+        { name: 'reply_enabled', value: 'true' }
+      ]
+    })
+  }
+
+  /**
+   * Envoie un email au prestataire quand son devis est approuvé
+   */
+  async sendQuoteApproved(params: {
+    quote: any
+    intervention: any
+    property: { address: string }
+    manager: any
+    provider: any
+    approvalNotes?: string
+  }) {
+    const { quote, intervention, property, manager, provider, approvalNotes } = params
+    const replyTo = EmailReplyService.generateInterventionReplyTo(intervention.id)
+
+    const emailProps: QuoteApprovedEmailProps = {
+      firstName: provider.first_name || 'Prestataire',
+      quoteRef: quote.reference || `DEV-${quote.id?.slice(0, 8)}`,
+      interventionRef: intervention.reference || 'REF-???',
+      interventionType: intervention.type || 'Intervention',
+      description: intervention.description || '',
+      propertyAddress: property.address,
+      quoteUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/prestataire/interventions/${intervention.id}`,
+      managerName: `${manager.first_name || ''} ${manager.last_name || ''}`.trim() || 'Gestionnaire',
+      approvedAmount: quote.amount || 0,
+      approvedAt: new Date(),
+      nextSteps: approvalNotes
+    }
+
+    return this.emailService.send({
+      to: provider.email,
+      subject: `✅ Devis approuvé - ${intervention.reference || intervention.title}`,
+      react: QuoteApprovedEmail(emailProps),
+      replyTo,
+      tags: [
+        { name: 'type', value: 'quote_approved' },
+        { name: 'intervention_id', value: intervention.id },
+        { name: 'reply_enabled', value: 'true' }
+      ]
+    })
+  }
+
+  /**
+   * Envoie un email au prestataire quand son devis est rejeté
+   */
+  async sendQuoteRejected(params: {
+    quote: any
+    intervention: any
+    property: { address: string }
+    manager: any
+    provider: any
+    rejectionReason?: string
+    canResubmit?: boolean
+  }) {
+    const { quote, intervention, property, manager, provider, rejectionReason, canResubmit } = params
+    const replyTo = EmailReplyService.generateInterventionReplyTo(intervention.id)
+
+    const emailProps: QuoteRejectedEmailProps = {
+      firstName: provider.first_name || 'Prestataire',
+      quoteRef: quote.reference || `DEV-${quote.id?.slice(0, 8)}`,
+      interventionRef: intervention.reference || 'REF-???',
+      interventionType: intervention.type || 'Intervention',
+      description: intervention.description || '',
+      propertyAddress: property.address,
+      quoteUrl: `${process.env.NEXT_PUBLIC_SITE_URL}/prestataire/interventions/${intervention.id}`,
+      managerName: `${manager.first_name || ''} ${manager.last_name || ''}`.trim() || 'Gestionnaire',
+      rejectionReason: rejectionReason || 'Aucune raison spécifiée',
+      rejectedAt: new Date(),
+      canResubmit: canResubmit ?? true
+    }
+
+    return this.emailService.send({
+      to: provider.email,
+      subject: `❌ Devis refusé - ${intervention.reference || intervention.title}`,
+      react: QuoteRejectedEmail(emailProps),
+      replyTo,
+      tags: [
+        { name: 'type', value: 'quote_rejected' },
+        { name: 'intervention_id', value: intervention.id },
+        { name: 'reply_enabled', value: 'true' }
+      ]
     })
   }
 
@@ -2054,7 +2243,7 @@ export class EmailNotificationService {
  * @param lotRepository - Repository des lots
  * @returns Instance configurée
  */
-export const createEmailNotificationService = (
+export const createEmailNotificationServiceWithDeps = (
   notificationRepository: NotificationRepository,
   emailService: EmailService,
   interventionRepository: InterventionRepository,
@@ -2062,6 +2251,47 @@ export const createEmailNotificationService = (
   buildingRepository: BuildingRepository,
   lotRepository: LotRepository
 ): EmailNotificationService => {
+  return new EmailNotificationService(
+    notificationRepository,
+    emailService,
+    interventionRepository,
+    userRepository,
+    buildingRepository,
+    lotRepository
+  )
+}
+
+/**
+ * Factory auto-wired pour utilisation dans les API routes
+ * Crée toutes les dépendances automatiquement
+ *
+ * @returns Instance configurée avec toutes les dépendances
+ *
+ * @example
+ * ```typescript
+ * // Dans une API route (après() closure)
+ * const emailService = await createEmailNotificationService()
+ * await emailService.sendQuoteSubmitted({...})
+ * ```
+ */
+export const createEmailNotificationService = async (): Promise<EmailNotificationService> => {
+  // Import dynamique pour éviter les dépendances circulaires
+  const { EmailService: EmailServiceClass } = await import('@/lib/services/domain/email.service')
+  const {
+    createServerNotificationRepository,
+    createServerUserRepository,
+    createServerBuildingRepository,
+    createServerLotRepository,
+    createServerInterventionRepository
+  } = await import('@/lib/services')
+
+  const notificationRepository = await createServerNotificationRepository()
+  const userRepository = await createServerUserRepository()
+  const buildingRepository = await createServerBuildingRepository()
+  const lotRepository = await createServerLotRepository()
+  const interventionRepository = await createServerInterventionRepository()
+  const emailService = new EmailServiceClass()
+
   return new EmailNotificationService(
     notificationRepository,
     emailService,

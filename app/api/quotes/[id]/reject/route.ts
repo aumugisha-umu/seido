@@ -85,7 +85,7 @@ export async function POST(
           const { createEmailNotificationService } = await import('@/lib/services/domain/email-notification.service')
           const { createServerSupabaseClient } = await import('@/lib/services')
 
-          const emailService = createEmailNotificationService()
+          const emailService = await createEmailNotificationService()
           const supabaseClient = await createServerSupabaseClient()
 
           // Get provider and intervention

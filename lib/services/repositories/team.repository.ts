@@ -301,12 +301,12 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
       // 🔍 DEBUG: Log user ID and session status
       logger.info('🔍 [TEAM-REPO-DEBUG] Fetching teams for user:', userId)
 
-      // Check if Supabase session is valid
-      const { data: { session }, error: sessionError } = await this.supabase.auth.getSession()
-      logger.info('🔍 [TEAM-REPO-DEBUG] Supabase session status:', {
-        hasSession: !!session,
-        sessionUserId: session?.user?.id,
-        sessionError: sessionError?.message,
+      // Check if Supabase user is authenticated (using getUser() for secure server-side auth)
+      const { data: { user }, error: userError } = await this.supabase.auth.getUser()
+      logger.info('🔍 [TEAM-REPO-DEBUG] Supabase auth status:', {
+        hasUser: !!user,
+        authUserId: user?.id,
+        userError: userError?.message,
         requestedUserId: userId
       })
 

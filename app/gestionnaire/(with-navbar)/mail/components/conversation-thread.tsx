@@ -14,22 +14,39 @@ interface ConversationThreadProps {
 }
 
 function EmailThreadItem({ email }: { email: MailboxEmail }) {
+  // Fallback chain: body_html → body_text → snippet → empty
+  // This handles cases where HTML is empty (plain-text email replies)
   const sanitizedBody = useMemo(() => {
-    return DOMPurify.sanitize(email.body_html, {
+    const content = email.body_html || email.body_text || email.snippet || ''
+    if (!content.trim()) return ''
+
+    return DOMPurify.sanitize(content, {
       ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'div', 'span', 'table', 'tr', 'td', 'th', 'tbody', 'thead', 'img'],
       ALLOWED_ATTR: ['href', 'target', 'style', 'src', 'alt', 'loading', 'decoding'],
       ALLOW_DATA_ATTR: false
     })
-  }, [email.body_html])
+  }, [email.body_html, email.body_text, email.snippet])
+
+  // Determine if we have displayable content
+  const hasHtmlContent = sanitizedBody && sanitizedBody.trim() !== ''
+  const textFallback = email.body_text || email.snippet || ''
 
   return (
     <Card className="border">
       <CardContent className="p-6">
-        {/* Email body */}
-        <div
-          className="w-full break-words [&_*]:max-w-full [&_*]:box-border [&_div]:block [&_div]:w-full [&_table]:w-full prose prose-sm max-w-none"
-          dangerouslySetInnerHTML={{ __html: sanitizedBody }}
-        />
+        {/* Email body with fallback to plain text */}
+        {hasHtmlContent ? (
+          <div
+            className="w-full break-words [&_*]:max-w-full [&_*]:box-border [&_div]:block [&_div]:w-full [&_table]:w-full prose prose-sm max-w-none"
+            dangerouslySetInnerHTML={{ __html: sanitizedBody }}
+          />
+        ) : textFallback ? (
+          <pre className="whitespace-pre-wrap text-sm text-foreground font-sans">
+            {textFallback}
+          </pre>
+        ) : (
+          <p className="text-sm text-muted-foreground italic">Aucun contenu</p>
+        )}
 
         {/* Attachments */}
         {email.has_attachments && email.attachments.length > 0 && (

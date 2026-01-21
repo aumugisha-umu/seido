@@ -943,8 +943,9 @@ export const resendInboundWebhookSchema = z.object({
     subject: z.string(),
     message_id: z.string().optional(),
     // ✅ Email content is included directly in inbound webhook payload
-    html: z.string().optional().default(''),
-    text: z.string().optional().default(''),
+    // Note: Using nullable() + transform() because Resend can send null for plain-text emails
+    html: z.string().nullable().optional().transform(v => v ?? ''),
+    text: z.string().nullable().optional().transform(v => v ?? ''),
     headers: z.record(z.string()).optional().default({}),
     // ✅ Threading fields (snake_case as sent by Resend)
     in_reply_to: z.string().optional(),

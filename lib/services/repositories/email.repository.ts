@@ -110,7 +110,7 @@ export class EmailRepository extends BaseRepository<Email> {
     ): Promise<{ data: Email[]; count: number }> {
         let query = this.supabase
             .from(this.tableName)
-            .select('*', { count: 'exact' })
+            .select('*', { count: 'estimated' })
             .eq('team_id', teamId);
 
         // Source filter (email box selection)

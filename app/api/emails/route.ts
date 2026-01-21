@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getApiAuthContext } from '@/lib/api-auth-helper';
+import { getServiceRoleClient } from '@/lib/api-service-role-helper';
 import { EmailRepository } from '@/lib/services/repositories/email.repository';
 
 export async function GET(request: Request) {
@@ -38,7 +39,12 @@ export async function GET(request: Request) {
             });
         }
 
-        const emailRepo = new EmailRepository(supabase);
+        // USE SERVICE ROLE CLIENT to bypass slow RLS policies
+        // Security: User already validated as team manager above (lines 14-29)
+        // The emails table has 6 RLS policies that cause 25+ second timeouts
+        // when evaluated per-row, especially Policy #6 with 4-level JOINs
+        const supabaseAdmin = getServiceRoleClient();
+        const emailRepo = new EmailRepository(supabaseAdmin);
 
         const { searchParams } = new URL(request.url);
         const folder = searchParams.get('folder') || 'inbox';
@@ -63,7 +69,13 @@ export async function GET(request: Request) {
             total: result.count
         });
     } catch (error: any) {
-        console.error('List emails error:', error);
+        console.error('📧 [EMAILS-API] List emails error:', {
+            code: error.code,
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            stack: error.stack?.split('\n').slice(0, 3).join('\n')
+        });
         return NextResponse.json({ error: error.message }, { status: 500 });
     }
 }

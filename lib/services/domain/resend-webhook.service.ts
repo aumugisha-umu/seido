@@ -5,15 +5,14 @@
  *
  * Architecture:
  * - Vérifie la signature Svix des webhooks Resend
- * - IMPORTANT: Webhooks do NOT include email body content (html, text)!
- *   Must call fetchReceivedEmailContent() to get the actual content.
+ * - Pour les webhooks INBOUND (email.received), le contenu HTML/text EST dans le payload
  * - Télécharge les pièces jointes (URLs expirent en 7 jours)
  *
- * API Endpoints:
- * - SENT emails: GET /emails/{id} (use fetchEmailContent)
- * - RECEIVED/INBOUND emails: GET /emails/received/{id} (use fetchReceivedEmailContent)
+ * IMPORTANT: Ne pas confondre avec les webhooks de TRACKING (email.sent, email.delivered)
+ * qui eux ne contiennent PAS le body de l'email.
  *
- * See: https://resend.com/docs/api-reference/emails/retrieve-received-email
+ * See: https://resend.com/docs/dashboard/receiving/introduction
+ * "When an email is received, a webhook will be triggered containing the email data including the body."
  *
  * Sécurité:
  * - Vérification signature Svix (svix-id, svix-timestamp, svix-signature)
@@ -284,15 +283,14 @@ export class ResendWebhookService {
   }
 
   /**
-   * Fetch RECEIVED/INBOUND email content from Resend API
+   * @deprecated The inbound webhook payload DOES contain html/text for email.received events.
+   * This method is NOT needed - use emailData.html and emailData.text from the webhook payload directly.
+   * The /emails/received/:id API endpoint may not work as expected (returns 404 in many cases).
    *
-   * IMPORTANT: For inbound emails, use /emails/received/:id endpoint!
-   * The /emails/:id endpoint only works for SENT emails.
+   * This method is kept for potential future use with other webhook types or debugging purposes.
    *
-   * The webhook payload does NOT include email body content (html, text).
-   * We MUST call this API to fetch the actual email content.
-   *
-   * @see https://resend.com/docs/api-reference/emails/retrieve-received-email
+   * @see https://resend.com/docs/dashboard/receiving/introduction
+   * "When an email is received, a webhook will be triggered containing the email data including the body."
    *
    * @param emailId - ID of the received email
    * @returns Email content or null if not found/failed

@@ -421,13 +421,13 @@ interface LoggingContext {
  * Traitement asynchrone de l'email reçu
  *
  * Étapes:
- * 1. Récupérer le contenu de l'email via API Resend (GET /emails/received/:id)
- *    IMPORTANT: Le webhook ne contient PAS le body (html, text)!
+ * 1. Utiliser le contenu email directement depuis le payload webhook
+ *    NOTE: Pour les webhooks INBOUND (email.received), le contenu EST dans le payload!
  * 2. Vérifier que l'intervention existe
  * 3. Identifier l'expéditeur
  * 4. Créer l'email dans la table emails
  * 5. Créer le lien email ↔ intervention
- * 6. Télécharger les pièces jointes
+ * 6. Télécharger les pièces jointes (URLs doivent être fetch séparément)
  * 7. Notifier les gestionnaires
  */
 async function processEmailAsync(
@@ -476,37 +476,28 @@ async function processEmailAsync(
   }
 
   // ═══════════════════════════════════════════════════════════
-  // 1. Fetch email content from Resend API
+  // 1. Use email content directly from webhook payload
   // ═══════════════════════════════════════════════════════════
-  // IMPORTANT: The webhook does NOT include body content (html, text)!
-  // We must call the Resend API to fetch the actual email content.
-  // For INBOUND emails, use: GET /emails/received/:id
-  // See: https://resend.com/docs/api-reference/emails/retrieve-received-email
-  const fetchedContent = await ResendWebhookService.fetchReceivedEmailContent(emailData.email_id)
-
-  if (!fetchedContent) {
-    logger.error(
-      { emailId: emailData.email_id },
-      '❌ [RESEND-INBOUND] Failed to fetch email content from Resend API'
-    )
-    // Log failure but don't block - save email with empty content as fallback
-    // The email record will still be created for tracking purposes
+  // NOTE: For INBOUND emails (email.received), content IS in the webhook payload!
+  // This is different from tracking webhooks (email.sent/delivered) which don't have body.
+  // See: https://resend.com/docs/dashboard/receiving/introduction
+  // "When an email is received, a webhook will be triggered containing the email data including the body."
+  const emailContent = {
+    html: emailData.html || '',
+    text: emailData.text || '',
+    headers: emailData.headers || {}
   }
-
-  // Use fetched content or fallback to empty (email still tracked even without content)
-  const emailContent = fetchedContent || { html: '', text: '', headers: {} }
 
   // Log content presence for debugging
   logger.info(
     {
       emailId: emailData.email_id,
-      hasHtml: !!emailContent.html,
-      hasText: !!emailContent.text,
+      hasHtml: !!emailData.html,
+      hasText: !!emailData.text,
       htmlLength: emailContent.html.length,
-      textLength: emailContent.text.length,
-      fetchedFromApi: !!fetchedContent
+      textLength: emailContent.text.length
     },
-    '📧 [RESEND-INBOUND] Email content status'
+    '📧 [RESEND-INBOUND] Using email content from webhook payload'
   )
 
   // ═══════════════════════════════════════════════════════════
@@ -515,14 +506,6 @@ async function processEmailAsync(
   // Client-side uses DOMPurify for additional protection on display
   // ═══════════════════════════════════════════════════════════
   const sanitizedHtml = sanitizeHtmlServer(emailContent.html)
-
-  logger.info(
-    {
-      emailId: emailData.email_id,
-      htmlSanitized: emailContent.html.length > 0
-    },
-    '✅ [RESEND-INBOUND] Email content sanitized'
-  )
 
   // ═══════════════════════════════════════════════════════════
   // 2. Vérifier que l'intervention existe et récupérer team_id
@@ -611,6 +594,20 @@ async function processEmailAsync(
       { error: emailError },
       '❌ [RESEND-INBOUND] Failed to create email record'
     )
+
+    // ✅ Log failure to webhook_logs for debugging
+    await logWebhookEvent({
+      eventType: 'email.received',
+      resendEmailId: emailData.email_id,
+      recipientAddress: loggingContext.toAddress,
+      senderAddress: emailData.from,
+      subject: emailData.subject,
+      interventionId: parsed.id,
+      status: 'error',
+      errorMessage: `Email insert failed: ${emailError?.message || 'Unknown error'}`,
+      processingTimeMs: Date.now() - loggingContext.startTime
+    })
+
     return null
   }
 

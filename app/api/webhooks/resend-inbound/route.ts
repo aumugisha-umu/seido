@@ -861,11 +861,12 @@ async function notifyManagers(
 ): Promise<NotificationResult> {
   try {
     // Récupérer les gestionnaires assignés à l'intervention
+    // NOTE: Use explicit FK name to avoid ambiguity (intervention_assignments has user_id FK)
     const { data: assignments, error: assignmentsError } = await supabase
       .from('intervention_assignments')
       .select(`
         user_id,
-        users!inner (
+        users!intervention_assignments_user_id_fkey!inner (
           id,
           name,
           email,

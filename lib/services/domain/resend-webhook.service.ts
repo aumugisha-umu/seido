@@ -318,8 +318,9 @@ export class ResendWebhookService {
 
     logger.info({ emailId }, '📧 [RESEND-WEBHOOK] Fetching RECEIVED email content from Resend API...')
 
-    // ✅ CORRECT: Use /emails/received/:id for INBOUND emails
-    const response = await fetch(`https://api.resend.com/emails/received/${emailId}`, {
+    // Use /emails/receiving/:id for INBOUND emails (per Resend docs)
+    // See: https://resend.com/docs/api-reference/emails/retrieve-received-email
+    const response = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${apiKey}`,

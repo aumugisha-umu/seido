@@ -45,13 +45,15 @@ export async function GET(request: Request) {
         const limit = parseInt(searchParams.get('limit') || '50');
         const offset = parseInt(searchParams.get('offset') || '0');
         const search = searchParams.get('search') || undefined;
+        const source = searchParams.get('source') || undefined; // 'all', 'notification_replies', or connection UUID
 
-        console.log('📧 [EMAILS-API] Fetching emails:', { teamId, folder, limit, offset, search });
+        console.log('📧 [EMAILS-API] Fetching emails:', { teamId, folder, limit, offset, search, source });
 
         const result = await emailRepo.getEmailsByFolder(teamId, folder, {
             limit,
             offset,
-            search
+            search,
+            source
         });
 
         console.log('📧 [EMAILS-API] Result:', { emailCount: result.data.length, total: result.count });

@@ -19,6 +19,8 @@ import {
   ChevronDown,
   Settings,
   CheckCircle,
+  Mail,
+  Reply,
   type LucideIcon
 } from 'lucide-react'
 import Link from 'next/link'
@@ -40,6 +42,27 @@ export interface LinkedEntities {
   companies: LinkedEntity[]
 }
 
+// Types pour les email connections
+export interface EmailConnection {
+  id: string
+  email_address: string
+  provider: string
+  is_active: boolean
+  unread_count: number
+  email_count: number
+}
+
+// Types pour les notification replies groupées par intervention
+export interface NotificationReplyGroup {
+  intervention: {
+    id: string
+    title: string
+    reference?: string
+  }
+  unreadCount: number
+  emailCount: number
+}
+
 interface MailboxSidebarProps {
   currentFolder: string
   onFolderChange: (folder: string) => void
@@ -53,6 +76,15 @@ interface MailboxSidebarProps {
   linkedEntities: LinkedEntities
   onEntityClick: (type: string, entityId: string) => void
   selectedEntity?: { type: string; id: string } | null
+  // New props for email boxes
+  emailConnections?: EmailConnection[]
+  notificationRepliesCount?: number
+  selectedSource?: string | null // 'all', 'notification_replies', or connection UUID
+  onSourceChange?: (source: string) => void
+  // New props for notification replies by intervention
+  notificationReplyGroups?: NotificationReplyGroup[]
+  selectedInterventionId?: string | null
+  onInterventionClick?: (interventionId: string) => void
 }
 
 // Composant pour une section collapsible
@@ -137,10 +169,116 @@ export function MailboxSidebar({
   unreadCounts,
   linkedEntities,
   onEntityClick,
-  selectedEntity
+  selectedEntity,
+  emailConnections = [],
+  notificationRepliesCount = 0,
+  selectedSource = 'all',
+  onSourceChange,
+  notificationReplyGroups = [],
+  selectedInterventionId,
+  onInterventionClick
 }: MailboxSidebarProps) {
+  const [isEmailBoxesOpen, setIsEmailBoxesOpen] = useState(true)
+  const [isNotificationRepliesOpen, setIsNotificationRepliesOpen] = useState(true)
+
+  const handleSourceClick = (source: string) => {
+    onSourceChange?.(source)
+  }
+
+  const totalUnread = emailConnections.reduce((sum, conn) => sum + conn.unread_count, 0) + notificationRepliesCount
+
   return (
     <aside className="w-[250px] border-r flex flex-col h-full overflow-hidden flex-shrink-0">
+      {/* Email Boxes Section */}
+      {(emailConnections.length > 0 || notificationRepliesCount > 0) && (
+        <>
+          <div className="p-2 flex-shrink-0">
+            <Collapsible open={isEmailBoxesOpen} onOpenChange={setIsEmailBoxesOpen} className="space-y-1">
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-between px-2 py-1.5 h-auto font-medium text-muted-foreground hover:text-foreground"
+                >
+                  <div className="flex items-center gap-2">
+                    <Mail className="h-4 w-4" />
+                    <span className="text-xs uppercase tracking-wide">Boîtes email</span>
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 transition-transform duration-200",
+                      isEmailBoxesOpen && "rotate-180"
+                    )}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-0.5">
+                {/* All sources */}
+                <Button
+                  variant={selectedSource === 'all' ? "secondary" : "ghost"}
+                  size="sm"
+                  className={cn(
+                    "w-full justify-between pl-4 pr-2 h-8 text-sm font-normal",
+                    selectedSource === 'all' && "bg-primary/10 text-primary font-medium"
+                  )}
+                  onClick={() => handleSourceClick('all')}
+                >
+                  <span className="truncate text-left">Toutes les boîtes</span>
+                  {totalUnread > 0 && (
+                    <Badge variant="default" className="ml-2 h-5 px-1.5 text-xs flex-shrink-0">
+                      {totalUnread}
+                    </Badge>
+                  )}
+                </Button>
+
+                {/* Individual email connections */}
+                {emailConnections.map(conn => (
+                  <Button
+                    key={conn.id}
+                    variant={selectedSource === conn.id ? "secondary" : "ghost"}
+                    size="sm"
+                    className={cn(
+                      "w-full justify-between pl-4 pr-2 h-8 text-sm font-normal",
+                      selectedSource === conn.id && "bg-primary/10 text-primary font-medium"
+                    )}
+                    onClick={() => handleSourceClick(conn.id)}
+                  >
+                    <span className="truncate text-left">{conn.email_address}</span>
+                    {conn.unread_count > 0 && (
+                      <Badge variant="default" className="ml-2 h-5 px-1.5 text-xs flex-shrink-0">
+                        {conn.unread_count}
+                      </Badge>
+                    )}
+                  </Button>
+                ))}
+
+                {/* Notification replies virtual box */}
+                <Button
+                  variant={selectedSource === 'notification_replies' ? "secondary" : "ghost"}
+                  size="sm"
+                  className={cn(
+                    "w-full justify-between pl-4 pr-2 h-8 text-sm font-normal",
+                    selectedSource === 'notification_replies' && "bg-primary/10 text-primary font-medium"
+                  )}
+                  onClick={() => handleSourceClick('notification_replies')}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <Reply className="h-3.5 w-3.5 text-orange-500 flex-shrink-0" />
+                    <span className="truncate">Réponses notifs</span>
+                  </div>
+                  {notificationRepliesCount > 0 && (
+                    <Badge variant="default" className="ml-2 h-5 px-1.5 text-xs flex-shrink-0 bg-orange-500">
+                      {notificationRepliesCount}
+                    </Badge>
+                  )}
+                </Button>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+          <Separator />
+        </>
+      )}
+
       {/* Folders - Fixe en haut */}
       <div className="p-2 flex-shrink-0 space-y-1">
         <Button
@@ -205,6 +343,61 @@ export function MailboxSidebar({
       </div>
 
       <Separator />
+
+      {/* Notification Replies by Intervention */}
+      {notificationReplyGroups.length > 0 && (
+        <>
+          <div className="p-2 flex-shrink-0">
+            <Collapsible open={isNotificationRepliesOpen} onOpenChange={setIsNotificationRepliesOpen} className="space-y-1">
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-between px-2 py-1.5 h-auto font-medium text-muted-foreground hover:text-foreground"
+                >
+                  <div className="flex items-center gap-2">
+                    <Reply className="h-4 w-4 text-orange-500" />
+                    <span className="text-xs uppercase tracking-wide">Réponses par intervention</span>
+                  </div>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 transition-transform duration-200",
+                      isNotificationRepliesOpen && "rotate-180"
+                    )}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-0.5">
+                {notificationReplyGroups.map(group => {
+                  const isSelected = selectedInterventionId === group.intervention.id
+                  return (
+                    <Button
+                      key={group.intervention.id}
+                      variant={isSelected ? "secondary" : "ghost"}
+                      size="sm"
+                      className={cn(
+                        "w-full justify-between pl-4 pr-2 h-8 text-sm font-normal",
+                        isSelected && "bg-primary/10 text-primary font-medium"
+                      )}
+                      onClick={() => onInterventionClick?.(group.intervention.id)}
+                    >
+                      <span className="truncate text-left">
+                        {group.intervention.title || group.intervention.reference || `INT-${group.intervention.id.slice(0, 6)}`}
+                      </span>
+                      {group.unreadCount > 0 && (
+                        <Badge variant="default" className="ml-2 h-5 px-1.5 text-xs flex-shrink-0 bg-orange-500">
+                          {group.unreadCount}
+                        </Badge>
+                      )}
+                    </Button>
+                  )
+                })}
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+          <Separator />
+        </>
+      )}
 
       {/* Entités liées - Scrollable */}
       <div className="flex-1 overflow-y-auto p-2 space-y-2">

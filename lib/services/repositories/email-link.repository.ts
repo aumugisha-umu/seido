@@ -236,11 +236,17 @@ export class EmailLinkRepository extends BaseRepository<EmailLinkRow, CreateEmai
 
     /**
      * Récupère les emails liés à une entité (avec pagination)
+     *
+     * @param entityType - Type of entity (building, lot, intervention, etc.)
+     * @param entityId - UUID of the entity
+     * @param options.limit - Max results
+     * @param options.offset - Pagination offset
+     * @param options.webhookOnly - If true, only return emails with email_connection_id IS NULL (webhook inbound)
      */
     async getEmailsByEntity(
         entityType: EmailLinkEntityType,
         entityId: string,
-        options?: { limit?: number; offset?: number }
+        options?: { limit?: number; offset?: number; webhookOnly?: boolean }
     ): Promise<{ data: LinkedEmail[]; count: number }> {
         let query = this.supabase
             .from('email_links')
@@ -254,12 +260,18 @@ export class EmailLinkRepository extends BaseRepository<EmailLinkRow, CreateEmai
                     sent_at,
                     direction,
                     status,
-                    body_text
+                    body_text,
+                    email_connection_id
                 )
             `, { count: 'exact' })
             .eq('entity_type', entityType)
             .eq('entity_id', entityId)
             .order('linked_at', { ascending: false });
+
+        // Filter for webhook inbound emails only (notification replies)
+        if (options?.webhookOnly) {
+            query = query.is('email.email_connection_id', null);
+        }
 
         if (options?.limit) {
             query = query.range(

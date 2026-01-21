@@ -88,6 +88,14 @@ export class EmailRepository extends BaseRepository<Email> {
 
     /**
      * Récupère les emails par dossier avec compte total
+     *
+     * @param teamId - Team ID for RLS filtering
+     * @param folder - Folder: inbox, processed, sent, archive, drafts
+     * @param options.source - Email source filter:
+     *   - 'all': All sources (default)
+     *   - 'notification_replies': Webhook inbound only (email_connection_id IS NULL)
+     *   - UUID: Specific email connection ID
+     * @param options.interventionId - Filter by linked intervention (for notification replies)
      */
     async getEmailsByFolder(
         teamId: string,
@@ -96,12 +104,24 @@ export class EmailRepository extends BaseRepository<Email> {
             limit: number;
             offset: number;
             search?: string;
+            source?: string;
+            interventionId?: string;
         }
     ): Promise<{ data: Email[]; count: number }> {
         let query = this.supabase
             .from(this.tableName)
             .select('*', { count: 'exact' })
             .eq('team_id', teamId);
+
+        // Source filter (email box selection)
+        if (options.source === 'notification_replies') {
+            // Webhook inbound emails (no IMAP connection)
+            query = query.is('email_connection_id', null);
+        } else if (options.source && options.source !== 'all') {
+            // Specific IMAP connection
+            query = query.eq('email_connection_id', options.source);
+        }
+        // 'all' or undefined: no source filter
 
         // Search logic
         if (options.search) {

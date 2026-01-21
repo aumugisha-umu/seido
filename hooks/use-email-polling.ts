@@ -56,17 +56,41 @@ export function useEmailPolling({
   const lastCounts = useRef<EmailRefreshData['counts'] | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Track consecutive auth failures to stop polling
+  const authFailures = useRef(0)
+  const MAX_AUTH_FAILURES = 3
+
   const poll = useCallback(async () => {
     if (!enabled) return
+
+    // Stop polling if we've had too many auth failures
+    if (authFailures.current >= MAX_AUTH_FAILURES) {
+      console.log('[EMAIL-POLLING] Stopped due to auth failures')
+      return
+    }
 
     try {
       setIsPolling(true)
       setError(null)
 
       const response = await fetch('/api/emails/refresh')
+
+      // Handle auth failures - stop spamming the API
+      if (response.status === 401 || response.status === 403) {
+        authFailures.current++
+        console.warn(`[EMAIL-POLLING] Auth failure (${authFailures.current}/${MAX_AUTH_FAILURES})`)
+        if (authFailures.current >= MAX_AUTH_FAILURES) {
+          setError('Session expirée - actualisation désactivée')
+        }
+        return
+      }
+
       if (!response.ok) {
         throw new Error(`Poll failed: ${response.status}`)
       }
+
+      // Reset auth failures on success
+      authFailures.current = 0
 
       const data: EmailRefreshData = await response.json()
       if (!data.success) {
@@ -163,11 +187,18 @@ export function useEmailPolling({
     lastCounts.current = null
   }, [])
 
+  // Reset auth failures (e.g., when user re-authenticates)
+  const resetAuthFailures = useCallback(() => {
+    authFailures.current = 0
+    setError(null)
+  }, [])
+
   return {
     isPolling,
     lastPollAt,
     error,
     refresh,
-    resetKnownEmails
+    resetKnownEmails,
+    resetAuthFailures
   }
 }

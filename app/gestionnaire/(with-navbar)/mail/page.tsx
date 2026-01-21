@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { MailboxSidebar, LinkedEntities, LinkedEntity } from './components/mailbox-sidebar'
+import { MailboxSidebar, LinkedEntities, LinkedEntity, EmailConnection, NotificationReplyGroup } from './components/mailbox-sidebar'
 import { EmailList } from './components/email-list'
 import { EmailDetail } from './components/email-detail'
 import { toast } from 'sonner'
@@ -141,6 +141,15 @@ export default function EmailPage() {
   // Entity filter (when user clicks on entity in sidebar)
   const [entityFilter, setEntityFilter] = useState<EntityFilter | null>(null)
 
+  // Email box source filter (Phase 2: Multiple email boxes)
+  const [selectedSource, setSelectedSource] = useState<string>('all')
+  const [emailConnections, setEmailConnections] = useState<EmailConnection[]>([])
+  const [notificationRepliesCount, setNotificationRepliesCount] = useState(0)
+
+  // Notification replies grouped by intervention (Phase 3)
+  const [notificationReplyGroups, setNotificationReplyGroups] = useState<NotificationReplyGroup[]>([])
+  const [selectedInterventionId, setSelectedInterventionId] = useState<string | null>(null)
+
   // Collapse state for email list column
   const [isEmailListCollapsed, setIsEmailListCollapsed] = useState(false)
 
@@ -271,6 +280,35 @@ export default function EmailPage() {
     }
   }
 
+  // Fetch email connections with unread counts (Phase 2)
+  const fetchEmailConnections = async () => {
+    try {
+      const response = await fetch('/api/emails/connections')
+      if (response.ok) {
+        const data = await response.json()
+        setEmailConnections(data.connections || [])
+        setNotificationRepliesCount(data.notificationRepliesCount || 0)
+      }
+    } catch (error) {
+      console.error('Failed to fetch email connections:', error)
+    }
+  }
+
+  // Fetch notification replies grouped by intervention (Phase 3)
+  const fetchNotificationReplyGroups = async () => {
+    try {
+      const response = await fetch('/api/emails/notification-replies')
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setNotificationReplyGroups(data.groups || [])
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch notification reply groups:', error)
+    }
+  }
+
   // Fetch counts
   const fetchCounts = async () => {
     try {
@@ -282,11 +320,13 @@ export default function EmailPage() {
   }
 
   // Fetch emails
-  const fetchEmails = async (isLoadMore = false) => {
+  // source: 'all' | 'notification_replies' | connection UUID
+  const fetchEmails = async (isLoadMore = false, sourceOverride?: string) => {
     setIsLoading(true)
     try {
       const currentOffset = isLoadMore ? offset : 0
-      const data = await EmailClientService.getEmails(currentFolder, undefined, LIMIT, currentOffset)
+      const source = sourceOverride ?? selectedSource
+      const data = await EmailClientService.getEmails(currentFolder, undefined, LIMIT, currentOffset, source !== 'all' ? source : undefined)
 
       if (isLoadMore) {
         setRealEmails(prev => [...prev, ...data.emails])
@@ -321,11 +361,13 @@ export default function EmailPage() {
     // Critical data first
     fetchBuildings()
     fetchCounts()
+    fetchEmailConnections() // Fetch email boxes for sidebar (Phase 2)
 
     // Defer linked entities to reduce initial load competition
     // They're for sidebar filters, not needed for displaying emails
     const timer = setTimeout(() => {
       fetchLinkedEntities()
+      fetchNotificationReplyGroups() // Fetch notification replies by intervention (Phase 3)
     }, 500) // Load after 500ms to let emails load first
 
     return () => clearTimeout(timer)
@@ -373,9 +415,57 @@ export default function EmailPage() {
   // Auto-select first email when folder changes
   const handleFolderChange = (folder: string) => {
     setEntityFilter(null) // Reset entity filter when changing folder
+    setSelectedInterventionId(null) // Reset intervention filter
     setCurrentFolder(folder)
     setSelectedEmailId(undefined) // Will be set by fetchEmails/useEffect
     resetKnownEmails() // Reset polling tracker to avoid false "new emails" detection
+  }
+
+  // Handle email source change (Phase 2: Multiple email boxes)
+  const handleSourceChange = (source: string) => {
+    setSelectedSource(source)
+    setEntityFilter(null) // Reset entity filter when changing source
+    setSelectedInterventionId(null) // Reset intervention filter
+    setSelectedEmailId(undefined)
+    setOffset(0)
+    fetchEmails(false, source)
+    // Also refresh notification reply groups when switching to notification_replies
+    if (source === 'notification_replies') {
+      fetchNotificationReplyGroups()
+    }
+  }
+
+  // Handle intervention click (Phase 3: Filter by intervention in notification replies)
+  const handleInterventionClick = async (interventionId: string) => {
+    setSelectedInterventionId(interventionId)
+    setEntityFilter(null)
+    setSelectedSource('notification_replies') // Set source to notification replies
+    setIsLoading(true)
+    setSelectedEmailId(undefined)
+
+    try {
+      // Fetch emails linked to this specific intervention that are webhook inbound
+      const response = await fetch(`/api/entities/intervention/${interventionId}/emails?limit=${LIMIT}&webhookOnly=true`)
+      const data = await response.json()
+
+      if (data.success) {
+        const adaptedEmails = data.emails.map(adaptLinkedEmailToEmail)
+        setRealEmails(adaptedEmails)
+        setTotalEmails(data.pagination.total)
+        setOffset(data.emails.length)
+
+        if (adaptedEmails.length > 0) {
+          setSelectedEmailId(adaptedEmails[0].id)
+        }
+      } else {
+        toast.error('Erreur lors du chargement des emails')
+      }
+    } catch (error) {
+      console.error('Failed to fetch intervention emails:', error)
+      toast.error('Erreur lors du chargement des emails')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const handleLoadMore = () => {
@@ -400,14 +490,40 @@ export default function EmailPage() {
   const handleReply = async (replyText: string) => {
     if (!selectedEmail) return
 
-    if (!selectedEmail.email_connection_id) {
-      toast.error('Impossible de répondre : Aucune connexion email associée')
-      return
+    // For webhook emails (notification replies), use the first available email connection
+    let emailConnectionId = selectedEmail.email_connection_id
+
+    if (!emailConnectionId) {
+      // Check if team has any email connections
+      if (emailConnections.length === 0) {
+        toast.error('Configurez une boîte email pour répondre', {
+          description: 'Allez dans Paramètres > Emails pour connecter une boîte email.',
+          action: {
+            label: 'Configurer',
+            onClick: () => router.push('/gestionnaire/parametres/emails')
+          }
+        })
+        return
+      }
+
+      // Use the first active connection as default
+      const activeConnection = emailConnections.find(c => c.is_active)
+      if (!activeConnection) {
+        toast.error('Aucune boîte email active', {
+          description: 'Activez une de vos boîtes email dans les paramètres.'
+        })
+        return
+      }
+
+      emailConnectionId = activeConnection.id
+      toast.info(`Réponse via ${activeConnection.email_address}`, {
+        description: 'Cette réponse sera envoyée depuis votre boîte email configurée.'
+      })
     }
 
     try {
       await EmailClientService.sendEmail({
-        emailConnectionId: selectedEmail.email_connection_id,
+        emailConnectionId: emailConnectionId,
         to: selectedEmail.sender_email,
         subject: selectedEmail.subject.startsWith('Re:') ? selectedEmail.subject : `Re: ${selectedEmail.subject}`,
         body: replyText,
@@ -648,6 +764,15 @@ export default function EmailPage() {
             linkedEntities={linkedEntities}
             onEntityClick={handleEntityClick}
             selectedEntity={entityFilter}
+            // Phase 2: Multiple email boxes
+            emailConnections={emailConnections}
+            notificationRepliesCount={notificationRepliesCount}
+            selectedSource={selectedSource}
+            onSourceChange={handleSourceChange}
+            // Phase 3: Notification replies grouped by intervention
+            notificationReplyGroups={notificationReplyGroups}
+            selectedInterventionId={selectedInterventionId}
+            onInterventionClick={handleInterventionClick}
           />
 
           {/* Email List with optional filter indicator - collapsible */}

@@ -3,18 +3,29 @@ import { Email } from '@/lib/types/email-integration';
 export class EmailClientService {
     /**
      * Fetch emails from the API
+     *
+     * @param folder - Folder to fetch from: inbox, processed, sent, archive, drafts
+     * @param search - Optional search query
+     * @param limit - Max emails to return (default 50)
+     * @param offset - Pagination offset
+     * @param source - Email source filter:
+     *   - 'all': All sources (default)
+     *   - 'notification_replies': Webhook inbound only
+     *   - UUID: Specific email connection ID
      */
     static async getEmails(
         folder: string = 'inbox',
         search?: string,
         limit: number = 50,
-        offset: number = 0
+        offset: number = 0,
+        source?: string
     ): Promise<{ emails: Email[]; total: number }> {
         const params = new URLSearchParams();
         if (folder) params.append('folder', folder);
         if (search) params.append('search', search);
         params.append('limit', limit.toString());
         params.append('offset', offset.toString());
+        if (source) params.append('source', source);
 
         const response = await fetch(`/api/emails?${params.toString()}`);
         if (!response.ok) {

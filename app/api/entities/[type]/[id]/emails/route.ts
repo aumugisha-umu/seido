@@ -22,6 +22,7 @@ const VALID_ENTITY_TYPES: EmailLinkEntityType[] = [
  * Query params:
  * - limit: nombre max de résultats (default: 20)
  * - offset: décalage pour pagination (default: 0)
+ * - webhookOnly: si 'true', ne retourne que les emails webhook inbound (notification replies)
  */
 export async function GET(request: Request, { params }: RouteParams) {
     try {
@@ -48,6 +49,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         const { searchParams } = new URL(request.url);
         const limit = parseInt(searchParams.get('limit') || '20', 10);
         const offset = parseInt(searchParams.get('offset') || '0', 10);
+        const webhookOnly = searchParams.get('webhookOnly') === 'true';
 
         const emailLinkRepo = new EmailLinkRepository(supabase);
 
@@ -55,7 +57,7 @@ export async function GET(request: Request, { params }: RouteParams) {
         const { data: emails, count } = await emailLinkRepo.getEmailsByEntity(
             entityType,
             entityId,
-            { limit, offset }
+            { limit, offset, webhookOnly }
         );
 
         return NextResponse.json({

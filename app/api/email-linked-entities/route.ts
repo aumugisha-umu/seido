@@ -27,13 +27,41 @@ export async function GET() {
 
     const supabase = await createServerSupabaseClient()
 
-    // 1. Use RPC function to get distinct entities with counts (single optimized query)
-    const { data: linkedData, error: rpcError } = await supabase
+    // 1. Try RPC function first, fallback to direct query if not exists
+    let linkedData: Array<{ entity_type: string; entity_id: string; email_count: number }> | null = null
+
+    const { data: rpcData, error: rpcError } = await supabase
       .rpc('get_distinct_linked_entities', { p_team_id: userProfile.team_id })
 
     if (rpcError) {
-      logger.error({ error: rpcError }, '❌ [EMAIL-LINKED-ENTITIES] RPC error')
-      return NextResponse.json({ success: false, error: 'Error fetching links' }, { status: 500 })
+      // RPC function might not exist yet (migration not applied)
+      // Fallback to direct query
+      logger.warn({ error: rpcError.message }, '⚠️ [EMAIL-LINKED-ENTITIES] RPC failed, using fallback query')
+
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('email_links')
+        .select('entity_type, entity_id')
+        .eq('team_id', userProfile.team_id)
+
+      if (fallbackError) {
+        logger.error({ error: fallbackError }, '❌ [EMAIL-LINKED-ENTITIES] Fallback query error')
+        return NextResponse.json({ success: false, error: 'Error fetching links' }, { status: 500 })
+      }
+
+      // Deduplicate and count in JavaScript (slower but works without migration)
+      const countMap = new Map<string, { entity_type: string; entity_id: string; email_count: number }>()
+      fallbackData?.forEach((row) => {
+        const key = `${row.entity_type}:${row.entity_id}`
+        const existing = countMap.get(key)
+        if (existing) {
+          existing.email_count++
+        } else {
+          countMap.set(key, { entity_type: row.entity_type, entity_id: row.entity_id, email_count: 1 })
+        }
+      })
+      linkedData = Array.from(countMap.values())
+    } else {
+      linkedData = rpcData
     }
 
     // 2. Group by type and collect entity IDs with counts

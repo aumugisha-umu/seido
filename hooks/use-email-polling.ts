@@ -142,7 +142,13 @@ export function useEmailPolling({
       }
 
     } catch (err) {
-      console.error('[EMAIL-POLLING] Error:', err)
+      // Network errors (TypeError: Failed to fetch) - don't spam console
+      if (err instanceof TypeError && err.message.includes('fetch')) {
+        console.warn('[EMAIL-POLLING] Network error (offline or CORS)')
+        authFailures.current++ // Treat network errors like auth failures
+      } else {
+        console.warn('[EMAIL-POLLING] Error:', err instanceof Error ? err.message : err)
+      }
       setError(err instanceof Error ? err.message : 'Polling error')
     } finally {
       setIsPolling(false)

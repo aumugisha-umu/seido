@@ -41,6 +41,85 @@ const MAX_EMAIL_CONTENT_SIZE = 5 * 1024 * 1024 // 5MB
  */
 const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024 // 10MB
 
+/**
+ * Configuration du retry avec exponential backoff
+ */
+const RETRY_CONFIG = {
+  maxRetries: 3,
+  initialDelayMs: 1000,  // 1 second
+  maxDelayMs: 10000,     // 10 seconds
+  backoffMultiplier: 2,
+}
+
+// ══════════════════════════════════════════════════════════════
+// Helper Functions
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Sleep helper for retry delays
+ */
+const sleep = (ms: number): Promise<void> =>
+  new Promise(resolve => setTimeout(resolve, ms))
+
+/**
+ * Execute a function with exponential backoff retry
+ *
+ * @param fn - Async function to execute
+ * @param operationName - Name for logging purposes
+ * @returns Result of fn, or null if all retries failed
+ */
+async function withRetry<T>(
+  fn: () => Promise<T | null>,
+  operationName: string
+): Promise<T | null> {
+  let lastError: Error | null = null
+
+  for (let attempt = 0; attempt <= RETRY_CONFIG.maxRetries; attempt++) {
+    try {
+      const result = await fn()
+
+      // If result is null but no error, this is a valid "not found" response
+      // Don't retry for explicit null returns (like 404s)
+      if (result !== null || attempt === 0) {
+        return result
+      }
+
+      // If first attempt returns null, retry (might be temporary API issue)
+      if (attempt < RETRY_CONFIG.maxRetries) {
+        const delay = Math.min(
+          RETRY_CONFIG.initialDelayMs * Math.pow(RETRY_CONFIG.backoffMultiplier, attempt),
+          RETRY_CONFIG.maxDelayMs
+        )
+        logger.warn(
+          { operationName, attempt: attempt + 1, delayMs: delay },
+          `⏳ [RESEND-WEBHOOK] ${operationName} returned null, retrying...`
+        )
+        await sleep(delay)
+      }
+    } catch (error) {
+      lastError = error as Error
+
+      if (attempt < RETRY_CONFIG.maxRetries) {
+        const delay = Math.min(
+          RETRY_CONFIG.initialDelayMs * Math.pow(RETRY_CONFIG.backoffMultiplier, attempt),
+          RETRY_CONFIG.maxDelayMs
+        )
+        logger.warn(
+          { operationName, attempt: attempt + 1, delayMs: delay, error: lastError.message },
+          `⏳ [RESEND-WEBHOOK] ${operationName} failed, retrying...`
+        )
+        await sleep(delay)
+      }
+    }
+  }
+
+  logger.error(
+    { operationName, maxRetries: RETRY_CONFIG.maxRetries, error: lastError?.message },
+    `❌ [RESEND-WEBHOOK] ${operationName} failed after all retries`
+  )
+  return null
+}
+
 // ══════════════════════════════════════════════════════════════
 // Types
 // ══════════════════════════════════════════════════════════════
@@ -124,7 +203,7 @@ export class ResendWebhookService {
 
     // 2. Vérifier que le secret est configuré
     if (!WEBHOOK_SECRET) {
-      logger.error({}, '❌ [RESEND-WEBHOOK] RESEND_WEBHOOK_SECRET not configured')
+      logger.error({}, '❌ [RESEND-WEBHOOK] RESEND_INBOUND_WEBHOOK_SECRET not configured')
       return false
     }
 
@@ -198,13 +277,16 @@ export class ResendWebhookService {
   }
 
   /**
-   * Récupère le contenu complet d'un email via l'API Resend
+   * Récupère le contenu complet d'un email via l'API Resend (avec retry)
    *
    * IMPORTANT: Le webhook ne contient que les métadonnées!
    * Il faut appeler cette méthode pour obtenir le body et les headers.
    *
+   * Cette méthode inclut un retry automatique avec exponential backoff
+   * en cas d'échec temporaire de l'API Resend.
+   *
    * @param emailId - ID de l'email reçu (fourni dans le webhook)
-   * @returns Contenu de l'email ou null si échec
+   * @returns Contenu de l'email ou null si échec après tous les retries
    *
    * @example
    * ```typescript
@@ -217,79 +299,89 @@ export class ResendWebhookService {
    * ```
    */
   static async fetchEmailContent(emailId: string): Promise<EmailContent | null> {
+    return withRetry(
+      () => this.fetchEmailContentInternal(emailId),
+      `fetchEmailContent(${emailId})`
+    )
+  }
+
+  /**
+   * Internal implementation of fetchEmailContent without retry
+   * @private
+   */
+  private static async fetchEmailContentInternal(emailId: string): Promise<EmailContent | null> {
     const apiKey = process.env.RESEND_API_KEY
     if (!apiKey) {
       logger.error({}, '❌ [RESEND-WEBHOOK] RESEND_API_KEY not configured')
       return null
     }
 
-    try {
-      logger.info({ emailId }, '📧 [RESEND-WEBHOOK] Fetching email content from Resend API...')
+    logger.info({ emailId }, '📧 [RESEND-WEBHOOK] Fetching email content from Resend API...')
 
-      // Appeler l'API Resend pour récupérer l'email complet
-      const response = await fetch(`https://api.resend.com/emails/${emailId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json'
-        }
-      })
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        logger.error(
-          { emailId, status: response.status, error: errorText },
-          '❌ [RESEND-WEBHOOK] Failed to fetch email from Resend API'
-        )
-        return null
+    // Appeler l'API Resend pour récupérer l'email complet
+    const response = await fetch(`https://api.resend.com/emails/${emailId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
       }
+    })
 
-      const emailData = await response.json()
-
-      // ═══════════════════════════════════════════════════════════
-      // SECURITY: Validate email content size to prevent DoS
-      // ═══════════════════════════════════════════════════════════
-      const htmlSize = (emailData.html || '').length
-      const textSize = (emailData.text || '').length
-      const totalSize = htmlSize + textSize
-
-      if (totalSize > MAX_EMAIL_CONTENT_SIZE) {
+    if (!response.ok) {
+      const errorText = await response.text()
+      // Throw error for retry logic to catch (except for 404s)
+      if (response.status === 404) {
         logger.warn(
-          { emailId, htmlSize, textSize, totalSize, maxSize: MAX_EMAIL_CONTENT_SIZE },
-          '⚠️ [RESEND-WEBHOOK] Email content too large - rejecting'
+          { emailId, status: response.status },
+          '⚠️ [RESEND-WEBHOOK] Email not found in Resend (404) - not retrying'
         )
         return null
       }
+      throw new Error(`API returned ${response.status}: ${errorText}`)
+    }
 
-      logger.info(
-        { emailId, hasHtml: !!emailData.html, hasText: !!emailData.text, totalSize },
-        '✅ [RESEND-WEBHOOK] Email content fetched successfully'
-      )
+    const emailData = await response.json()
 
-      return {
-        html: emailData.html || '',
-        text: emailData.text || '',
-        headers: emailData.headers || {}
-      }
-    } catch (error) {
-      logger.error(
-        { error, emailId },
-        '❌ [RESEND-WEBHOOK] Error fetching email content'
+    // ═══════════════════════════════════════════════════════════
+    // SECURITY: Validate email content size to prevent DoS
+    // ═══════════════════════════════════════════════════════════
+    const htmlSize = (emailData.html || '').length
+    const textSize = (emailData.text || '').length
+    const totalSize = htmlSize + textSize
+
+    if (totalSize > MAX_EMAIL_CONTENT_SIZE) {
+      logger.warn(
+        { emailId, htmlSize, textSize, totalSize, maxSize: MAX_EMAIL_CONTENT_SIZE },
+        '⚠️ [RESEND-WEBHOOK] Email content too large - rejecting'
       )
       return null
+    }
+
+    logger.info(
+      { emailId, hasHtml: !!emailData.html, hasText: !!emailData.text, totalSize },
+      '✅ [RESEND-WEBHOOK] Email content fetched successfully'
+    )
+
+    return {
+      html: emailData.html || '',
+      text: emailData.text || '',
+      headers: emailData.headers || {}
     }
   }
 
   /**
-   * Télécharge une pièce jointe d'email
+   * Télécharge une pièce jointe d'email (avec retry)
    *
    * IMPORTANT: Les URLs de téléchargement expirent en 7 jours!
    * Télécharger IMMÉDIATEMENT lors de la réception du webhook.
    *
+   * Cette méthode inclut un retry automatique avec exponential backoff
+   * en cas d'échec temporaire.
+   *
    * @param emailId - ID de l'email
    * @param attachmentId - ID de la pièce jointe
    * @param attachmentMeta - Métadonnées de la pièce jointe (filename, content_type)
-   * @returns Pièce jointe téléchargée ou null si échec
+   * @returns Pièce jointe téléchargée ou null si échec après tous les retries
    *
    * @example
    * ```typescript
@@ -309,108 +401,115 @@ export class ResendWebhookService {
     attachmentId: string,
     attachmentMeta: Pick<WebhookAttachment, 'filename' | 'content_type'>
   ): Promise<DownloadedAttachment | null> {
+    return withRetry(
+      () => this.downloadAttachmentInternal(emailId, attachmentId, attachmentMeta),
+      `downloadAttachment(${emailId}, ${attachmentId})`
+    )
+  }
+
+  /**
+   * Internal implementation of downloadAttachment without retry
+   * @private
+   */
+  private static async downloadAttachmentInternal(
+    emailId: string,
+    attachmentId: string,
+    attachmentMeta: Pick<WebhookAttachment, 'filename' | 'content_type'>
+  ): Promise<DownloadedAttachment | null> {
     const apiKey = process.env.RESEND_API_KEY
     if (!apiKey) {
       logger.error({}, '❌ [RESEND-WEBHOOK] RESEND_API_KEY not configured')
       return null
     }
 
-    try {
-      logger.info(
-        { emailId, attachmentId, filename: attachmentMeta.filename },
-        '📎 [RESEND-WEBHOOK] Downloading attachment...'
-      )
+    logger.info(
+      { emailId, attachmentId, filename: attachmentMeta.filename },
+      '📎 [RESEND-WEBHOOK] Downloading attachment...'
+    )
 
-      // Récupérer l'URL de téléchargement via l'API Resend
-      const response = await fetch(
-        `https://api.resend.com/emails/${emailId}/attachments/${attachmentId}`,
-        {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${apiKey}`
-          }
+    // Récupérer l'URL de téléchargement via l'API Resend
+    const response = await fetch(
+      `https://api.resend.com/emails/${emailId}/attachments/${attachmentId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`
         }
-      )
-
-      if (!response.ok) {
-        const errorText = await response.text()
-        logger.error(
-          { emailId, attachmentId, status: response.status, error: errorText },
-          '❌ [RESEND-WEBHOOK] Failed to get attachment download URL'
-        )
-        return null
       }
+    )
 
-      const attachmentData = await response.json()
-      const downloadUrl = attachmentData.download_url || attachmentData.url
-
-      if (!downloadUrl) {
-        logger.error(
-          { emailId, attachmentId },
-          '❌ [RESEND-WEBHOOK] No download URL in attachment response'
-        )
-        return null
-      }
-
-      // ═══════════════════════════════════════════════════════════
-      // SECURITY: Check Content-Length BEFORE downloading
-      // This prevents downloading large malicious files
-      // ═══════════════════════════════════════════════════════════
-      const headResponse = await fetch(downloadUrl, { method: 'HEAD' })
-      const contentLength = parseInt(headResponse.headers.get('content-length') || '0', 10)
-
-      if (contentLength > MAX_ATTACHMENT_SIZE) {
+    if (!response.ok) {
+      const errorText = await response.text()
+      // 404 = attachment doesn't exist, don't retry
+      if (response.status === 404) {
         logger.warn(
-          { emailId, attachmentId, contentLength, maxSize: MAX_ATTACHMENT_SIZE },
-          '⚠️ [RESEND-WEBHOOK] Attachment too large - skipping download'
+          { emailId, attachmentId, status: response.status },
+          '⚠️ [RESEND-WEBHOOK] Attachment not found (404) - not retrying'
         )
         return null
       }
+      throw new Error(`API returned ${response.status}: ${errorText}`)
+    }
 
-      // Télécharger le fichier
-      const fileResponse = await fetch(downloadUrl)
-      if (!fileResponse.ok) {
-        logger.error(
-          { emailId, attachmentId, status: fileResponse.status },
-          '❌ [RESEND-WEBHOOK] Failed to download attachment file'
-        )
-        return null
-      }
+    const attachmentData = await response.json()
+    const downloadUrl = attachmentData.download_url || attachmentData.url
 
-      const buffer = await fileResponse.arrayBuffer()
-
-      // Double-check size after download (Content-Length can be spoofed)
-      if (buffer.byteLength > MAX_ATTACHMENT_SIZE) {
-        logger.warn(
-          { emailId, attachmentId, actualSize: buffer.byteLength, maxSize: MAX_ATTACHMENT_SIZE },
-          '⚠️ [RESEND-WEBHOOK] Downloaded attachment exceeded size limit - discarding'
-        )
-        return null
-      }
-
-      logger.info(
-        { emailId, attachmentId, filename: attachmentMeta.filename, size: buffer.byteLength },
-        '✅ [RESEND-WEBHOOK] Attachment downloaded successfully'
-      )
-
-      return {
-        buffer,
-        filename: attachmentMeta.filename,
-        contentType: attachmentMeta.content_type
-      }
-    } catch (error) {
+    if (!downloadUrl) {
       logger.error(
-        { error, emailId, attachmentId },
-        '❌ [RESEND-WEBHOOK] Error downloading attachment'
+        { emailId, attachmentId },
+        '❌ [RESEND-WEBHOOK] No download URL in attachment response'
       )
       return null
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // SECURITY: Check Content-Length BEFORE downloading
+    // This prevents downloading large malicious files
+    // ═══════════════════════════════════════════════════════════
+    const headResponse = await fetch(downloadUrl, { method: 'HEAD' })
+    const contentLength = parseInt(headResponse.headers.get('content-length') || '0', 10)
+
+    if (contentLength > MAX_ATTACHMENT_SIZE) {
+      logger.warn(
+        { emailId, attachmentId, contentLength, maxSize: MAX_ATTACHMENT_SIZE },
+        '⚠️ [RESEND-WEBHOOK] Attachment too large - skipping download'
+      )
+      return null
+    }
+
+    // Télécharger le fichier
+    const fileResponse = await fetch(downloadUrl)
+    if (!fileResponse.ok) {
+      throw new Error(`Download failed with status ${fileResponse.status}`)
+    }
+
+    const buffer = await fileResponse.arrayBuffer()
+
+    // Double-check size after download (Content-Length can be spoofed)
+    if (buffer.byteLength > MAX_ATTACHMENT_SIZE) {
+      logger.warn(
+        { emailId, attachmentId, actualSize: buffer.byteLength, maxSize: MAX_ATTACHMENT_SIZE },
+        '⚠️ [RESEND-WEBHOOK] Downloaded attachment exceeded size limit - discarding'
+      )
+      return null
+    }
+
+    logger.info(
+      { emailId, attachmentId, filename: attachmentMeta.filename, size: buffer.byteLength },
+      '✅ [RESEND-WEBHOOK] Attachment downloaded successfully'
+    )
+
+    return {
+      buffer,
+      filename: attachmentMeta.filename,
+      contentType: attachmentMeta.content_type
     }
   }
 
   /**
    * Vérifie si le service webhook est configuré
    *
-   * @returns true si RESEND_WEBHOOK_SECRET est défini
+   * @returns true si RESEND_INBOUND_WEBHOOK_SECRET est défini
    */
   static isConfigured(): boolean {
     return !!WEBHOOK_SECRET && !!process.env.RESEND_API_KEY

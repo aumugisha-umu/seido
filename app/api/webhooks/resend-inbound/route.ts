@@ -66,6 +66,76 @@ interface NotificationResult {
   failed: number
 }
 
+/**
+ * Status values for webhook logs
+ */
+type WebhookLogStatus =
+  | 'processed'
+  | 'invalid_address'
+  | 'invalid_hash'
+  | 'unknown_intervention'
+  | 'error'
+
+/**
+ * Webhook log entry data
+ */
+interface WebhookLogEntry {
+  eventType: string
+  resendEmailId: string
+  recipientAddress: string
+  senderAddress: string
+  subject?: string
+  interventionId?: string
+  userId?: string
+  status: WebhookLogStatus
+  errorMessage?: string
+  processingTimeMs: number
+}
+
+// ══════════════════════════════════════════════════════════════
+// Webhook Logging Helper
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Logs a webhook event to the email_webhook_logs table
+ *
+ * This provides an audit trail for debugging and security monitoring.
+ * Logs are retained for 90 days (cleanup via pg_cron or manual).
+ */
+async function logWebhookEvent(entry: WebhookLogEntry): Promise<void> {
+  try {
+    const supabase = createServiceRoleSupabaseClient()
+
+    const { error } = await supabase
+      .from('email_webhook_logs')
+      .insert({
+        event_type: entry.eventType,
+        resend_email_id: entry.resendEmailId,
+        recipient_address: entry.recipientAddress,
+        sender_address: entry.senderAddress,
+        subject: entry.subject || null,
+        intervention_id: entry.interventionId || null,
+        user_id: entry.userId || null,
+        status: entry.status,
+        error_message: entry.errorMessage || null,
+        processing_time_ms: entry.processingTimeMs
+      })
+
+    if (error) {
+      logger.warn(
+        { error, entry },
+        '⚠️ [RESEND-INBOUND] Failed to log webhook event to database'
+      )
+    }
+  } catch (err) {
+    // Don't let logging failure affect webhook processing
+    logger.warn(
+      { error: err },
+      '⚠️ [RESEND-INBOUND] Exception while logging webhook event'
+    )
+  }
+}
+
 // ══════════════════════════════════════════════════════════════
 // GET Handler (Verification endpoint)
 // ══════════════════════════════════════════════════════════════
@@ -193,6 +263,19 @@ export async function POST(request: NextRequest) {
         { to: toAddress, from: event.data.from },
         '⚠️ [RESEND-INBOUND] Invalid reply-to format - email ignored'
       )
+
+      // Log to audit table
+      await logWebhookEvent({
+        eventType: 'email.received',
+        resendEmailId: event.data.email_id,
+        recipientAddress: toAddress,
+        senderAddress: event.data.from,
+        subject: event.data.subject,
+        status: 'invalid_address',
+        errorMessage: 'Reply-to address format not recognized',
+        processingTimeMs: Date.now() - startTime
+      })
+
       // Retourner 200 pour éviter les retries de Resend
       return NextResponse.json({
         success: true,
@@ -222,6 +305,20 @@ export async function POST(request: NextRequest) {
         },
         '❌ [RESEND-INBOUND] Invalid hash - potential tampering attempt'
       )
+
+      // Log to audit table - SECURITY: This is a potential tampering attempt
+      await logWebhookEvent({
+        eventType: 'email.received',
+        resendEmailId: event.data.email_id,
+        recipientAddress: toAddress,
+        senderAddress: event.data.from,
+        subject: event.data.subject,
+        interventionId: parsed.id, // Keep for forensics even though hash is invalid
+        status: 'invalid_hash',
+        errorMessage: 'HMAC hash verification failed - potential tampering',
+        processingTimeMs: Date.now() - startTime
+      })
+
       // Retourner 200 pour éviter les retries de Resend
       // (on ne veut pas révéler qu'on a détecté une falsification)
       return NextResponse.json({
@@ -251,7 +348,11 @@ export async function POST(request: NextRequest) {
     // 7. Traitement asynchrone (ne pas bloquer la réponse)
     // ═══════════════════════════════════════════════════════════
     // Note: On utilise setImmediate/Promise pour ne pas bloquer
-    processEmailAsync(event.data, parsed).catch(err => {
+    const loggingContext = {
+      startTime,
+      toAddress
+    }
+    processEmailAsync(event.data, parsed, loggingContext).catch(err => {
       logger.error(
         { error: err, emailId: event.data.email_id, interventionId: parsed.id },
         '❌ [RESEND-INBOUND] Async processing failed'
@@ -288,6 +389,14 @@ export async function POST(request: NextRequest) {
 // ══════════════════════════════════════════════════════════════
 
 /**
+ * Context for webhook logging (passed from POST handler)
+ */
+interface LoggingContext {
+  startTime: number
+  toAddress: string
+}
+
+/**
  * Traitement asynchrone de l'email reçu
  *
  * Étapes:
@@ -301,7 +410,8 @@ export async function POST(request: NextRequest) {
  */
 async function processEmailAsync(
   emailData: ResendInboundWebhookPayload['data'],
-  parsed: { type: 'intervention'; id: string }
+  parsed: { type: 'intervention'; id: string },
+  loggingContext: LoggingContext
 ): Promise<ProcessedEmail | null> {
   const supabase = createServiceRoleSupabaseClient()
 
@@ -386,6 +496,20 @@ async function processEmailAsync(
       { interventionId: parsed.id, error: interventionError },
       '⚠️ [RESEND-INBOUND] Intervention not found - email ignored'
     )
+
+    // Log to audit table
+    await logWebhookEvent({
+      eventType: 'email.received',
+      resendEmailId: emailData.email_id,
+      recipientAddress: loggingContext.toAddress,
+      senderAddress: emailData.from,
+      subject: emailData.subject,
+      interventionId: parsed.id,
+      status: 'unknown_intervention',
+      errorMessage: 'Intervention not found in database',
+      processingTimeMs: Date.now() - loggingContext.startTime
+    })
+
     return null
   }
 
@@ -569,16 +693,32 @@ async function processEmailAsync(
   // ═══════════════════════════════════════════════════════════
   const notificationResult = await notifyManagers(supabase, intervention, sender, emailData.subject, content.text)
 
+  const processingTimeMs = Date.now() - loggingContext.startTime
+
   logger.info(
     {
       emailId: email.id,
       interventionId: intervention.id,
       sender: sender?.email || senderEmail,
       notificationsSent: notificationResult.sent,
-      notificationsFailed: notificationResult.failed
+      notificationsFailed: notificationResult.failed,
+      processingTimeMs
     },
     '✅ [RESEND-INBOUND] Email fully processed and linked to intervention'
   )
+
+  // Log success to audit table
+  await logWebhookEvent({
+    eventType: 'email.received',
+    resendEmailId: emailData.email_id,
+    recipientAddress: loggingContext.toAddress,
+    senderAddress: emailData.from,
+    subject: emailData.subject,
+    interventionId: intervention.id,
+    userId: sender?.id,
+    status: 'processed',
+    processingTimeMs
+  })
 
   return {
     emailId: email.id,

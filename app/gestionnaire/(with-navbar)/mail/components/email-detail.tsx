@@ -19,7 +19,9 @@ import {
   Home,
   FileText,
   User,
-  Briefcase
+  Briefcase,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -32,6 +34,7 @@ import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
 import DOMPurify from 'isomorphic-dompurify'
 import { useAuth } from '@/hooks/use-auth'
+import { stripEmailQuotes, stripTextEmailQuotes } from '@/lib/utils/email-quote-stripper'
 import { MailboxEmail, Building, getConversationEmails } from './types'
 import { MarkAsIrrelevantDialog } from './mark-irrelevant-dialog'
 import { ConversationThread } from './conversation-thread'
@@ -80,6 +83,7 @@ export function EmailDetail({
   const [showMarkDialog, setShowMarkDialog] = useState(false)
   const [showLinkDialog, setShowLinkDialog] = useState(false)
   const [showProcessedDialog, setShowProcessedDialog] = useState(false)
+  const [showQuotedContent, setShowQuotedContent] = useState(false)
 
   // Get current user from auth context
   const { user } = useAuth()
@@ -214,6 +218,19 @@ export function EmailDetail({
       }
     })
   }, [email.body_html])
+
+  // Apply quote stripping to clean up email replies
+  const strippedContent = useMemo(() => {
+    if (sanitizedBody && sanitizedBody.trim() !== '') {
+      return stripEmailQuotes(sanitizedBody)
+    }
+    // Fallback: strip from plain text
+    const textContent = email.body_text || email.snippet || ''
+    if (textContent) {
+      return stripTextEmailQuotes(textContent)
+    }
+    return { cleanHtml: '', hasQuotedContent: false }
+  }, [sanitizedBody, email.body_text, email.snippet])
 
   // Get content to display (HTML or fallback to text)
   const hasHtmlContent = sanitizedBody && sanitizedBody.trim() !== ''
@@ -432,19 +449,60 @@ export function EmailDetail({
         ) : (
           // Display single email content
           <div className="email-content-wrapper px-6 py-4">
-            {/* Email Content */}
+            {/* Email Content - Cleaned (quotes stripped) */}
             <div className="prose prose-neutral dark:prose-invert max-w-none overflow-hidden">
               {hasHtmlContent ? (
                 <div
                   className="break-words [&_.mb-4.pb-4.border-b:first-child]:hidden [&>div.mb-4.pb-4.border-b]:hidden"
-                  dangerouslySetInnerHTML={{ __html: sanitizedBody }}
+                  dangerouslySetInnerHTML={{ __html: strippedContent.cleanHtml || sanitizedBody }}
                 />
               ) : (
                 <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">
-                  {textContent}
+                  {strippedContent.cleanHtml || textContent}
                 </pre>
               )}
             </div>
+
+            {/* Quoted Content Toggle */}
+            {strippedContent.hasQuotedContent && strippedContent.quotedHtml && (
+              <div className="mt-4">
+                <button
+                  onClick={() => setShowQuotedContent(!showQuotedContent)}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-muted/50"
+                  aria-expanded={showQuotedContent}
+                  aria-controls="quoted-content"
+                >
+                  {showQuotedContent ? (
+                    <ChevronDown className="h-3 w-3" aria-hidden="true" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3" aria-hidden="true" />
+                  )}
+                  <span>
+                    {showQuotedContent ? 'Masquer le message cité' : 'Afficher le message cité'}
+                  </span>
+                </button>
+
+                {showQuotedContent && (
+                  <div
+                    id="quoted-content"
+                    className="mt-2 pl-3 border-l-2 border-muted opacity-70"
+                  >
+                    <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none overflow-hidden">
+                      {hasHtmlContent ? (
+                        <div
+                          className="break-words text-muted-foreground"
+                          dangerouslySetInnerHTML={{ __html: strippedContent.quotedHtml }}
+                        />
+                      ) : (
+                        <pre className="whitespace-pre-wrap font-sans text-xs text-muted-foreground leading-relaxed">
+                          {strippedContent.quotedHtml}
+                        </pre>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Attachments */}
             {email.has_attachments && email.attachments.length > 0 && (

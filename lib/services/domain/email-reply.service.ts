@@ -84,7 +84,8 @@ export class EmailReplyService {
     if (!REPLY_TO_SECRET) {
       logger.warn({}, '⚠️ [EMAIL-REPLY] REPLY_TO_SECRET not configured - using fallback')
       // En dev sans secret, retourner une adresse de fallback (pas de tracking)
-      return `noreply@${INBOUND_DOMAIN}`
+      const fallbackAddress = `noreply@${INBOUND_DOMAIN}`
+      return fallbackAddress
     }
 
     const hash = this.generateHash('intervention', interventionId)

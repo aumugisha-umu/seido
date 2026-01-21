@@ -67,6 +67,23 @@ interface NotificationResult {
 }
 
 // ══════════════════════════════════════════════════════════════
+// GET Handler (Verification endpoint)
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * GET /api/webhooks/resend-inbound
+ *
+ * Endpoint de vérification pour Resend (health check)
+ */
+export async function GET() {
+  return NextResponse.json({
+    status: 'ok',
+    endpoint: 'resend-inbound-webhook',
+    methods: ['POST']
+  })
+}
+
+// ══════════════════════════════════════════════════════════════
 // POST Handler
 // ══════════════════════════════════════════════════════════════
 
@@ -77,6 +94,17 @@ interface NotificationResult {
  */
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
+
+  logger.info({
+    method: request.method,
+    url: request.url,
+    headers: {
+      hasSvixId: !!request.headers.get('svix-id'),
+      hasSvixTimestamp: !!request.headers.get('svix-timestamp'),
+      hasSvixSignature: !!request.headers.get('svix-signature'),
+      contentType: request.headers.get('content-type')
+    }
+  }, '📧 [RESEND-INBOUND] Webhook request received')
 
   try {
     // ═══════════════════════════════════════════════════════════
@@ -100,7 +128,11 @@ export async function POST(request: NextRequest) {
 
     if (!isValidSignature) {
       logger.error(
-        { svixId },
+        { 
+          svixId,
+          hasSvixHeaders: { id: !!svixId, timestamp: !!svixTimestamp, signature: !!svixSignature },
+          hasSecret: !!process.env.RESEND_INBOUND_WEBHOOK_SECRET
+        },
         '❌ [RESEND-INBOUND] Invalid webhook signature - rejecting request'
       )
       return NextResponse.json(

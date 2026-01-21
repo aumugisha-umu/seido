@@ -28,7 +28,7 @@ import { logger } from '@/lib/logger'
  * Secret Svix pour vérifier les signatures webhook Resend
  * Obtenu depuis Resend Dashboard → Webhooks
  */
-const WEBHOOK_SECRET = process.env.RESEND_WEBHOOK_SECRET || ''
+const WEBHOOK_SECRET = process.env.RESEND_INBOUND_WEBHOOK_SECRET || ''
 
 /**
  * Limite de taille pour le contenu email (HTML + Text)

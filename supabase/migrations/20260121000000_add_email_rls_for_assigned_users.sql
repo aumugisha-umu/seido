@@ -27,6 +27,7 @@ CREATE POLICY "Assigned users can view emails linked to their interventions"
 
 -- Policy for tenants (locataires) who requested the intervention
 -- This allows them to see emails linked to interventions on their lots
+-- Uses lot_contacts.user_id -> users.auth_user_id chain (role = 'locataire')
 CREATE POLICY "Tenants can view emails linked to their intervention requests"
   ON emails FOR SELECT
   USING (
@@ -40,11 +41,11 @@ CREATE POLICY "Tenants can view emails linked to their intervention requests"
       INNER JOIN lot_contacts lc
         ON l.id = lc.lot_id
       INNER JOIN users u
-        ON lc.email = u.email
+        ON lc.user_id = u.id
       WHERE el.email_id = emails.id
         AND el.entity_type = 'intervention'
         AND u.auth_user_id = auth.uid()
-        AND lc.is_tenant = true
+        AND u.role = 'locataire'
     )
   );
 
@@ -61,6 +62,7 @@ CREATE POLICY "Assigned users can view email links for their interventions"
   );
 
 -- Policy for tenants to view email links for their intervention requests
+-- Uses lot_contacts.user_id -> users.auth_user_id chain (role = 'locataire')
 CREATE POLICY "Tenants can view email links for their intervention requests"
   ON email_links FOR SELECT
   USING (
@@ -70,10 +72,10 @@ CREATE POLICY "Tenants can view email links for their intervention requests"
       FROM interventions i
       INNER JOIN lots l ON i.lot_id = l.id
       INNER JOIN lot_contacts lc ON l.id = lc.lot_id
-      INNER JOIN users u ON lc.email = u.email
+      INNER JOIN users u ON lc.user_id = u.id
       WHERE i.id = email_links.entity_id
         AND u.auth_user_id = auth.uid()
-        AND lc.is_tenant = true
+        AND u.role = 'locataire'
     )
   );
 
@@ -97,6 +99,7 @@ CREATE POLICY "Assigned users can view attachments of linked intervention emails
   );
 
 -- Policy for tenants to view attachments of their intervention emails
+-- Uses lot_contacts.user_id -> users.auth_user_id chain (role = 'locataire')
 CREATE POLICY "Tenants can view attachments of linked intervention emails"
   ON email_attachments FOR SELECT
   USING (
@@ -107,11 +110,11 @@ CREATE POLICY "Tenants can view attachments of linked intervention emails"
       INNER JOIN interventions i ON el.entity_id = i.id
       INNER JOIN lots l ON i.lot_id = l.id
       INNER JOIN lot_contacts lc ON l.id = lc.lot_id
-      INNER JOIN users u ON lc.email = u.email
+      INNER JOIN users u ON lc.user_id = u.id
       WHERE e.id = email_attachments.email_id
         AND el.entity_type = 'intervention'
         AND u.auth_user_id = auth.uid()
-        AND lc.is_tenant = true
+        AND u.role = 'locataire'
     )
   );
 

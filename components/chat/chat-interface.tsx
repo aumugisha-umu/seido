@@ -153,12 +153,10 @@ function MessageBubble({
 
   return (
     <div
-      className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'} ${
-        showAvatar ? 'items-end' : 'items-start'
-      }`}
+      className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'} items-start`}
     >
       {showAvatar && (message.user || isEmailMessage) && (
-        <Avatar className="w-8 h-8">
+        <Avatar className="w-8 h-8 flex-shrink-0">
           <AvatarImage src={message.user?.avatar_url} />
           <AvatarFallback className={isEmailMessage ? 'bg-orange-100 text-orange-700' : undefined}>
             {isEmailMessage ? <Mail className="w-4 h-4" /> : avatarInitial}
@@ -167,13 +165,13 @@ function MessageBubble({
       )}
 
       <div
-        className={`flex flex-col gap-1 max-w-[70%] ${
+        className={`flex flex-col max-w-[70%] ${
           isOwn ? 'items-end' : 'items-start'
         }`}
       >
         {/* Author name with email badge for email messages */}
         {!isOwn && (message.user || isEmailMessage) && (
-          <div className="flex items-center gap-1.5 ml-2">
+          <div className="flex items-center gap-1.5 mb-1">
             <span className="text-xs text-muted-foreground">
               {displayName}
             </span>
@@ -221,7 +219,7 @@ function MessageBubble({
           </div>
         )}
 
-        <div className="flex items-center gap-1 px-2">
+        <div className="flex items-center gap-1 px-2 mt-1">
           <span className="text-xs text-muted-foreground">
             {formatTime(message.created_at)}
           </span>
@@ -733,8 +731,8 @@ export function ChatInterface({
             <div className="p-4 space-y-4">
               {messages.map((message, index) => {
                 const isOwn = message.user_id === currentUserId
-                const showAvatar = index === 0 ||
-                  messages[index - 1].user_id !== message.user_id
+                // Always show avatar for every message
+                const showAvatar = true
 
                 return (
                   <MessageBubble

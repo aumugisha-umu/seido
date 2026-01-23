@@ -151,15 +151,21 @@ export async function POST(request: NextRequest) {
           .delete()
           .eq('intervention_id', interventionId)
 
-        // Insert the appointment slot
-        const { error: insertSlotError } = await supabase
+        // Insert the appointment slot and get back the ID
+        const { data: insertedDirectSlot, error: insertSlotError } = await supabase
           .from('intervention_time_slots')
           .insert([directTimeSlot])
+          .select('id, slot_date, start_time, end_time')
+          .single()
 
         if (insertSlotError) {
           logger.error({ error: insertSlotError }, "❌ Error creating appointment slot:")
           throw new Error('Erreur lors de la création du rendez-vous')
         }
+
+        // Store for email generation (used in after() closure)
+        // @ts-ignore - Used in after() closure
+        var insertedDirectSlotWithId = insertedDirectSlot
 
         notificationMessage = `Un rendez-vous a été proposé pour votre intervention "${intervention.title}" le ${new Date(directSchedule.date).toLocaleDateString('fr-FR')} à ${directSchedule.startTime}. Veuillez confirmer votre disponibilité.`
 
@@ -194,15 +200,20 @@ export async function POST(request: NextRequest) {
           .delete()
           .eq('intervention_id', interventionId)
 
-        // Insert the proposed slots
-        const { error: insertSlotsError } = await supabase
+        // Insert the proposed slots and get back their IDs
+        const { data: insertedSlots, error: insertSlotsError } = await supabase
           .from('intervention_time_slots')
           .insert(timeSlots)
+          .select('id, slot_date, start_time, end_time')
 
         if (insertSlotsError) {
           logger.error({ error: insertSlotsError }, "❌ Error inserting time slots:")
           throw new Error('Erreur lors de la création des créneaux')
         }
+
+        // Store inserted slots with IDs for email generation
+        // @ts-ignore - Used in after() closure
+        var insertedSlotsWithIds = insertedSlots
 
         logger.info({ slotsCount: timeSlots.length }, "📅 Proposed slots created (awaiting preferences):")
         break
@@ -336,27 +347,50 @@ export async function POST(request: NextRequest) {
       const emailPlanningType = planningType
       const emailManagerName = user.name || `${user.first_name} ${user.last_name}`
 
-      // Construire la liste des créneaux proposés pour l'email
-      let emailSlots: Array<{ date: string; startTime: string; endTime: string }> = []
+      // Construire la liste des créneaux proposés pour l'email (avec IDs pour emails interactifs)
+      let emailSlots: Array<{ id?: string; date: string; startTime: string; endTime: string }> = []
 
       if (planningType === 'direct' && directSchedule) {
-        // Un seul créneau fixé
-        const [hours, minutes] = directSchedule.startTime.split(':').map(Number)
-        const endHours = (hours + 1) % 24
-        const endTime = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+        // Un seul créneau fixé - utiliser l'ID de la DB si disponible
+        // @ts-ignore - Variable set in switch case above
+        if (typeof insertedDirectSlotWithId !== 'undefined' && insertedDirectSlotWithId) {
+          emailSlots = [{
+            id: insertedDirectSlotWithId.id,
+            date: insertedDirectSlotWithId.slot_date,
+            startTime: insertedDirectSlotWithId.start_time,
+            endTime: insertedDirectSlotWithId.end_time
+          }]
+        } else {
+          // Fallback without ID (non-interactive)
+          const [hours, minutes] = directSchedule.startTime.split(':').map(Number)
+          const endHours = (hours + 1) % 24
+          const endTime = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
 
-        emailSlots = [{
-          date: directSchedule.date,
-          startTime: directSchedule.startTime,
-          endTime: endTime
-        }]
+          emailSlots = [{
+            date: directSchedule.date,
+            startTime: directSchedule.startTime,
+            endTime: endTime
+          }]
+        }
       } else if (planningType === 'propose' && proposedSlots) {
-        // Plusieurs créneaux proposés
-        emailSlots = proposedSlots.map(slot => ({
-          date: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime
-        }))
+        // Plusieurs créneaux proposés - utiliser les slots insérés avec leurs IDs
+        // @ts-ignore - Variable set in switch case above
+        if (typeof insertedSlotsWithIds !== 'undefined' && insertedSlotsWithIds) {
+          // Use IDs from database for interactive email buttons
+          emailSlots = insertedSlotsWithIds.map((slot: any) => ({
+            id: slot.id,
+            date: slot.slot_date,
+            startTime: slot.start_time,
+            endTime: slot.end_time
+          }))
+        } else {
+          // Fallback without IDs (non-interactive)
+          emailSlots = proposedSlots.map(slot => ({
+            date: slot.date,
+            startTime: slot.startTime,
+            endTime: slot.endTime
+          }))
+        }
       }
       // Note: planningType === 'organize' n'a pas de créneaux prédéfinis
 

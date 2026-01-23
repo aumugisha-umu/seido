@@ -11,6 +11,7 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EmailReplyHint } from '@/emails/components/email-reply-hint'
 import type { QuoteRejectedEmailProps } from '@/emails/utils/types'
 
 export const QuoteRejectedEmail = ({
@@ -130,6 +131,9 @@ export const QuoteRejectedEmail = ({
         )}
 
         {canResubmit && <EmailButton href={quoteUrl}>Soumettre un nouveau devis</EmailButton>}
+
+        {/* Indication de réponse par email */}
+        <EmailReplyHint />
 
         <Text className="text-gray-500 text-xs leading-relaxed text-center mt-6 mb-0">
           {canResubmit

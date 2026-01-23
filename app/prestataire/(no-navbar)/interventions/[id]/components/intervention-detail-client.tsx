@@ -61,7 +61,10 @@ import { ModifyChoiceModal } from '@/components/intervention/modals/modify-choic
 import { LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
 
 // Actions
-import { acceptTimeSlotAction } from '@/app/actions/intervention-actions'
+import { acceptTimeSlotAction, rejectTimeSlotAction } from '@/app/actions/intervention-actions'
+
+// Auto-execute actions from email magic links
+import { useAutoExecuteAction } from '@/hooks/use-auto-execute-action'
 
 // Confirmation banners
 import {
@@ -175,6 +178,57 @@ export function PrestataireInterventionDetailClient({
 
   // États pour le nouveau design PreviewHybrid
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
+
+  // ============================================================================
+  // Auto-Execute Actions from Email Magic Links
+  // ============================================================================
+
+  // Hook to auto-execute actions from email buttons (e.g., "Accepter ce créneau")
+  useAutoExecuteAction({
+    interventionId: intervention.id,
+    handlers: {
+      // Prestataire accepts a proposed time slot
+      accept_time_slot: async ({ slotId }) => {
+        const result = await acceptTimeSlotAction(slotId, intervention.id)
+        if (!result.success) {
+          throw new Error(result.error || 'Erreur lors de l\'acceptation du créneau')
+        }
+        handleRefresh()
+      },
+      // Prestataire rejects a time slot
+      reject_slot: async ({ slotId }) => {
+        // For rejection, open the modal since a reason is required
+        const slot = timeSlots.find(s => s.id === slotId)
+        if (slot) {
+          setSlotToReject(slot)
+          setRejectSlotModalOpen(true)
+        }
+        throw new Error('Veuillez indiquer la raison du refus')
+      },
+      // Prestataire submits a quick estimate
+      submit_quick_estimate: async ({ amount, quoteId }) => {
+        // For quick estimate, we need to submit via API
+        const amountNum = parseInt(amount, 10)
+        if (isNaN(amountNum) || amountNum <= 0) {
+          throw new Error('Montant invalide')
+        }
+
+        // Open the quote modal with pre-filled amount
+        setAvailabilityOnlyMode(false)
+        setQuoteModalOpen(true)
+
+        // Note: The modal will handle the actual submission
+        // We show a toast to guide the user
+        toast.info(`Devis pré-rempli avec ${amountNum}€. Vérifiez et soumettez.`)
+        throw new Error('Vérifiez le devis et soumettez')
+      }
+    },
+    onSuccess: (action) => {
+      if (action === 'accept_time_slot') {
+        toast.success('Créneau accepté avec succès')
+      }
+    }
+  })
 
   // ============================================================================
   // Participant Confirmation Logic

@@ -1,0 +1,183 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2026-01-22",
+  "project": {
+    "name": "SEIDO",
+    "description": "Plateforme de gestion immobilière multi-rôles",
+    "framework": "nextjs",
+    "language": "typescript"
+  },
+  "entryPoints": {
+    "memoryBank": ".claude/memory-bank/",
+    "agents": ".claude/agents/",
+    "rules": ".claude/rules/",
+    "scripts": ".claude/scripts/"
+  },
+  "domains": {
+    "intervention": {
+      "description": "Gestion workflow interventions (11 statuts)",
+      "services": ["lib/services/domain/intervention-service.ts"],
+      "repositories": ["lib/services/repositories/intervention.repository.ts"],
+      "components": ["components/intervention/"],
+      "api": ["app/api/intervention*/"],
+      "hooks": [
+        "hooks/use-interventions.ts",
+        "hooks/use-realtime-interventions.ts"
+      ],
+      "docs": ["docs/guides/cycle-complet-intervention.md"]
+    },
+    "notification": {
+      "description": "Système de notifications cross-role",
+      "services": [
+        "lib/services/domain/notification.service.ts",
+        "lib/services/domain/email-notification.service.ts",
+        "lib/services/domain/notification-dispatcher.service.ts"
+      ],
+      "repositories": ["lib/services/repositories/notification-repository.ts"],
+      "actions": ["app/actions/notification-actions.ts"],
+      "hooks": ["hooks/use-realtime-notifications-v2.ts"],
+      "docs": ["docs/notification-migration-status.md"]
+    },
+    "building": {
+      "description": "Gestion des biens immobiliers (immeubles, lots)",
+      "services": [
+        "lib/services/domain/building.service.ts",
+        "lib/services/domain/lot.service.ts"
+      ],
+      "repositories": [
+        "lib/services/repositories/building.repository.ts",
+        "lib/services/repositories/lot.repository.ts"
+      ],
+      "components": ["components/biens/"]
+    },
+    "auth": {
+      "description": "Authentification et autorisation multi-rôle",
+      "core": ["lib/server-context.ts"],
+      "supabase": ["lib/services/core/supabase-client.ts"],
+      "hooks": ["hooks/use-auth.ts"],
+      "routes": ["app/auth/"],
+      "patterns": {
+        "serverAuth": "getServerAuthContext(role)",
+        "clientAuth": "useAuth()"
+      }
+    },
+    "email": {
+      "description": "Synchronisation et envoi d'emails (IMAP/SMTP/Gmail OAuth)",
+      "services": [
+        "lib/services/domain/email.service.ts",
+        "lib/services/domain/imap.service.ts",
+        "lib/services/domain/smtp.service.ts",
+        "lib/services/domain/email-sync.service.ts",
+        "lib/services/domain/gmail-oauth.service.ts",
+        "lib/services/domain/email-notification.factory.ts",
+        "lib/services/domain/email-reply.service.ts",
+        "lib/services/domain/email-to-conversation.service.ts"
+      ],
+      "repositories": [
+        "lib/services/repositories/email.repository.ts",
+        "lib/services/repositories/email-link.repository.ts"
+      ],
+      "hooks": ["hooks/use-realtime-emails-v2.ts"],
+      "templates": ["lib/emails/"]
+    },
+    "design": {
+      "description": "Design system UX/UI SEIDO",
+      "index": "docs/design/ux-ui-decision-guide.md",
+      "personas": [
+        "docs/design/persona-gestionnaire-unifie.md",
+        "docs/design/persona-prestataire.md",
+        "docs/design/persona-locataire.md"
+      ],
+      "tokens": "app/globals.css",
+      "components": "components/ui/"
+    },
+    "realtime": {
+      "description": "Architecture temps réel (single channel)",
+      "context": "contexts/realtime-context.tsx",
+      "hooks": [
+        "hooks/use-realtime-notifications-v2.ts",
+        "hooks/use-realtime-chat-v2.ts",
+        "hooks/use-realtime-interventions.ts",
+        "hooks/use-realtime-emails-v2.ts"
+      ],
+      "tables": [
+        "notifications",
+        "conversation_messages",
+        "interventions",
+        "intervention_quotes",
+        "intervention_time_slots",
+        "emails"
+      ]
+    }
+  },
+  "keyPatterns": {
+    "serverAuth": {
+      "file": "lib/server-context.ts",
+      "function": "getServerAuthContext()",
+      "usage": "Toutes les pages Server Components"
+    },
+    "repository": {
+      "pattern": "lib/services/repositories/*.repository.ts",
+      "count": 21,
+      "base": "lib/services/core/base-repository.ts"
+    },
+    "domainService": {
+      "pattern": "lib/services/domain/*.service.ts",
+      "count": 31
+    },
+    "serverAction": {
+      "pattern": "app/actions/*.ts",
+      "count": 16
+    },
+    "entityCreation": {
+      "recommended": "Server Action + redirect()",
+      "alternative": "API Route + toast + router.push"
+    }
+  },
+  "database": {
+    "types": "lib/database.types.ts",
+    "migrations": "supabase/migrations/",
+    "tablesCount": 38,
+    "migrationsCount": 131,
+    "enumsCount": 39,
+    "functionsCount": 77,
+    "rlsFunctions": [
+      "is_admin()",
+      "is_gestionnaire()",
+      "is_team_manager(team_id)",
+      "get_building_team_id(building_id)",
+      "get_lot_team_id(lot_id)",
+      "is_tenant_of_lot(lot_id)",
+      "can_view_building(building_id)",
+      "can_view_lot(lot_id)",
+      "get_current_user_id()",
+      "is_assigned_to_intervention(intervention_id)"
+    ],
+    "views": [
+      "interventions_active",
+      "buildings_active",
+      "lots_active",
+      "contracts_active",
+      "activity_logs_with_user"
+    ],
+    "denormalizedTeamId": [
+      "conversation_messages",
+      "building_contacts",
+      "lot_contacts",
+      "intervention_time_slots"
+    ]
+  },
+  "testing": {
+    "unit": "lib/services/__tests__/",
+    "e2e": "tests/",
+    "helpers": "docs/refacto/Tests/HELPERS-GUIDE.md"
+  },
+  "infrastructure": {
+    "repositories": 21,
+    "domainServices": 31,
+    "apiRoutes": 113,
+    "hooks": 58,
+    "components": 369,
+    "serverActions": 16
+  }
+}

@@ -11,6 +11,7 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EmailReplyHint } from '@/emails/components/email-reply-hint'
 import type { InterventionScheduledEmailProps } from '@/emails/utils/types'
 
 export const InterventionScheduledEmail = ({
@@ -196,6 +197,9 @@ export const InterventionScheduledEmail = ({
 
         {/* Bouton CTA */}
         <EmailButton href={interventionUrl}>Voir tous les détails</EmailButton>
+
+        {/* Indication de réponse par email */}
+        <EmailReplyHint />
 
         {/* Note */}
         <Text className="text-gray-500 text-xs leading-relaxed text-center mt-6 mb-0">

@@ -16,7 +16,7 @@
  * ```
  */
 
-import type { EmailNotificationService } from './email-notification.service'
+import type { EmailNotificationService } from './email-notification'
 
 /**
  * Crée une instance de EmailNotificationService avec toutes les dépendances auto-wired
@@ -25,7 +25,7 @@ import type { EmailNotificationService } from './email-notification.service'
  */
 export const createEmailNotificationService = async (): Promise<EmailNotificationService> => {
   // Imports dynamiques avec webpackIgnore pour éviter que webpack n'inclue 'fs' dans le bundle client
-  const { EmailNotificationService } = await import(/* webpackIgnore: true */ './email-notification.service')
+  const { EmailNotificationService } = await import(/* webpackIgnore: true */ './email-notification')
   const { EmailService } = await import(/* webpackIgnore: true */ './email.service')
   const {
     createServerNotificationRepository,

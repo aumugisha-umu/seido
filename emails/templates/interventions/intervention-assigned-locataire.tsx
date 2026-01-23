@@ -12,6 +12,8 @@ import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
 import { EmailAttachments } from '@/emails/components/email-attachments'
+import { EmailReplyHint } from '@/emails/components/email-reply-hint'
+import { TimeSlotCard } from '@/emails/components/email-action-buttons'
 import type { InterventionAssignedLocataireEmailProps } from '@/emails/utils/types'
 
 export const InterventionAssignedLocataireEmail = ({
@@ -28,7 +30,11 @@ export const InterventionAssignedLocataireEmail = ({
   createdAt,
   timeSlots,
   attachments,
+  slotActions,
+  enableInteractiveButtons = false,
 }: InterventionAssignedLocataireEmailProps) => {
+  // Determine if we should show interactive buttons
+  const showInteractiveButtons = enableInteractiveButtons && slotActions && slotActions.length > 0
   // Couleurs et icones selon l'urgence
   const urgencyConfig = {
     critique: { color: '#EF4444', icon: '🚨', label: 'Critique', bg: '#FEE2E2' },
@@ -148,16 +154,49 @@ export const InterventionAssignedLocataireEmail = ({
             <Text className="text-gray-600 text-sm mb-3 mt-0">
               Voici les creneaux proposes pour cette intervention :
             </Text>
-            <ul className="text-gray-700 text-sm pl-4 m-0">
-              {timeSlots.map((slot, index) => (
-                <li key={index} className="py-1">
-                  <strong>{formatSlotDate(slot.date)}</strong> de {slot.startTime} a {slot.endTime}
-                </li>
-              ))}
-            </ul>
-            <Text className="text-gray-500 text-xs mt-3 mb-0">
-              Vous serez informe une fois le creneau confirme.
-            </Text>
+
+            {/* Mode interactif: cartes avec boutons d'action */}
+            {showInteractiveButtons ? (
+              <div>
+                {slotActions!.map((slot, index) => {
+                  const dateStr = slot.date.toLocaleDateString('fr-FR', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long'
+                  })
+                  const timeRange = `${slot.startTime} - ${slot.endTime}`
+
+                  return (
+                    <TimeSlotCard
+                      key={slot.slotId || index}
+                      dateFormatted={dateStr}
+                      timeRange={timeRange}
+                      index={index}
+                      acceptUrl={slot.acceptUrl}
+                      refuseUrl={slot.refuseUrl}
+                      showActions={true}
+                    />
+                  )
+                })}
+                <Text className="text-gray-500 text-xs mt-4 mb-0">
+                  💡 Cliquez sur un bouton pour accepter ou refuser directement ce creneau.
+                </Text>
+              </div>
+            ) : (
+              /* Mode classique: liste simple sans boutons */
+              <>
+                <ul className="text-gray-700 text-sm pl-4 m-0">
+                  {timeSlots.map((slot, index) => (
+                    <li key={index} className="py-1">
+                      <strong>{formatSlotDate(slot.date)}</strong> de {slot.startTime} a {slot.endTime}
+                    </li>
+                  ))}
+                </ul>
+                <Text className="text-gray-500 text-xs mt-3 mb-0">
+                  Vous serez informe une fois le creneau confirme.
+                </Text>
+              </>
+            )}
           </div>
         )}
 
@@ -176,6 +215,9 @@ export const InterventionAssignedLocataireEmail = ({
         {/* Bouton CTA */}
         <EmailButton href={interventionUrl}>Suivre l&apos;intervention</EmailButton>
 
+        {/* Indication de réponse par email */}
+        <EmailReplyHint />
+
         {/* Note de pied */}
         <Text className="text-gray-500 text-xs leading-relaxed text-center mt-6 mb-0">
           Vous recevez cet email car vous etes locataire du bien concerne.<br />
@@ -188,7 +230,11 @@ export const InterventionAssignedLocataireEmail = ({
   )
 }
 
-// Props par defaut pour previsualisation
+// Date de base fixe pour éviter les erreurs d'hydratation (server/client)
+const BASE_PREVIEW_DATE = new Date('2026-01-27T10:00:00.000Z')
+const previewFutureDate = (days: number) => new Date(BASE_PREVIEW_DATE.getTime() + days * 24 * 60 * 60 * 1000)
+
+// Props par defaut pour previsualisation (mode interactif)
 InterventionAssignedLocataireEmail.PreviewProps = {
   firstName: 'Emma',
   interventionRef: 'INT-2024-042',
@@ -201,12 +247,32 @@ InterventionAssignedLocataireEmail.PreviewProps = {
   interventionUrl: 'https://seido.app/locataire/interventions/INT-2024-042',
   managerName: 'Jean Dupont',
   urgency: 'haute',
-  createdAt: new Date(),
+  createdAt: BASE_PREVIEW_DATE,
   timeSlots: [
-    { date: new Date('2024-12-26'), startTime: '09:00', endTime: '12:00' },
-    { date: new Date('2024-12-27'), startTime: '14:00', endTime: '17:00' },
+    { date: previewFutureDate(2), startTime: '09:00', endTime: '12:00' },
+    { date: previewFutureDate(3), startTime: '14:00', endTime: '17:00' },
   ],
   // Note: Pas de quoteInfo pour le locataire
+  // Mode interactif avec boutons d'action
+  enableInteractiveButtons: true,
+  slotActions: [
+    {
+      slotId: 'slot-001',
+      date: previewFutureDate(2),
+      startTime: '09:00',
+      endTime: '12:00',
+      acceptUrl: 'https://seido.app/auth/email-callback?token_hash=xxx&action=confirm_slot&param_slotId=slot-001',
+      refuseUrl: 'https://seido.app/auth/email-callback?token_hash=yyy&action=reject_slot&param_slotId=slot-001',
+    },
+    {
+      slotId: 'slot-002',
+      date: previewFutureDate(3),
+      startTime: '14:00',
+      endTime: '17:00',
+      acceptUrl: 'https://seido.app/auth/email-callback?token_hash=xxx&action=confirm_slot&param_slotId=slot-002',
+      refuseUrl: 'https://seido.app/auth/email-callback?token_hash=yyy&action=reject_slot&param_slotId=slot-002',
+    },
+  ],
 } as InterventionAssignedLocataireEmailProps
 
 export default InterventionAssignedLocataireEmail

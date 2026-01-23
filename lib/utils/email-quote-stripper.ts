@@ -102,7 +102,7 @@ export function stripEmailQuotes(html: string): QuoteStrippingResult {
   // We'll work with the HTML string directly since we need SSR compatibility
 
   let cleanHtml = html
-  let quotedParts: string[] = []
+  const quotedParts: string[] = []
   let hasQuotedContent = false
 
   // Step 1: Remove Gmail quote containers

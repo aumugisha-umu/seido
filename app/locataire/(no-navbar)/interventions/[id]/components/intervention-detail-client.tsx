@@ -49,6 +49,7 @@ import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-mo
 
 // Hooks
 import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
+import { useAutoExecuteAction } from '@/hooks/use-auto-execute-action'
 
 // Confirmation banners
 import {
@@ -107,6 +108,56 @@ export function LocataireInterventionDetailClient({
   const router = useRouter()
   const planning = useInterventionPlanning()
   const [activeTab, setActiveTab] = useState('general')
+
+  // ============================================================================
+  // Auto-Execute Actions from Email Magic Links
+  // ============================================================================
+
+  // Hook to auto-execute actions from email buttons (e.g., "Accepter ce créneau")
+  useAutoExecuteAction({
+    interventionId: intervention.id,
+    handlers: {
+      // Locataire accepts a proposed time slot
+      confirm_slot: async ({ slotId }) => {
+        const result = await selectTimeSlotAction(intervention.id, slotId)
+        if (!result.success) {
+          throw new Error(result.error || 'Erreur lors de la sélection du créneau')
+        }
+        router.refresh()
+      },
+      // Locataire rejects a time slot
+      reject_slot: async ({ slotId }) => {
+        // For rejection, we open the modal since a reason is usually required
+        const slot = timeSlots.find(s => s.id === slotId)
+        if (slot) {
+          planning.openRejectSlotModal(slot as any)
+        }
+        throw new Error('Veuillez indiquer la raison du refus')
+      },
+      // Locataire validates completed work
+      validate_intervention: async ({ type }) => {
+        if (type === 'approve') {
+          const result = await validateByTenantAction(intervention.id)
+          if (!result.success) {
+            throw new Error(result.error || 'Erreur lors de la validation')
+          }
+          router.refresh()
+        } else if (type === 'contest') {
+          // Contest requires opening a modal or navigating to a form
+          // For now, redirect to the intervention page where they can add a comment
+          toast.info('Veuillez utiliser le chat pour signaler le problème')
+          setActiveTab('conversations')
+        }
+      }
+    },
+    onSuccess: (action) => {
+      if (action === 'confirm_slot') {
+        toast.success('Créneau confirmé avec succès')
+      } else if (action === 'validate_intervention') {
+        toast.success('Intervention validée avec succès')
+      }
+    }
+  })
 
   // États pour le nouveau design PreviewHybrid
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')

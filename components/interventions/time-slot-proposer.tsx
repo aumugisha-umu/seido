@@ -69,7 +69,7 @@ interface TimeSlotProposerProps {
 const generateTimeOptions = () => {
   const options = []
   for (let hour = 7; hour <= 19; hour++) {
-    for (let minute of [0, 30]) {
+    for (const minute of [0, 30]) {
       const time = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`
       options.push(time)
     }

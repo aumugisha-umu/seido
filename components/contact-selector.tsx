@@ -182,7 +182,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
 
     // NOUVEAU : Initialiser les sélections avec TOUS les contacts (immeuble + lot si applicable)
     const buildingContactsOfType = selectedContacts[_contactType] || []
-    let allContactsOfType = [...buildingContactsOfType]
+    const allContactsOfType = [...buildingContactsOfType]
 
     // Si on est dans le contexte d'un lot, inclure aussi ses contacts
     if (contextLotId && lotContactAssignments[contextLotId]) {

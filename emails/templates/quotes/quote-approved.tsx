@@ -11,6 +11,7 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EmailReplyHint } from '@/emails/components/email-reply-hint'
 import type { QuoteApprovedEmailProps } from '@/emails/utils/types'
 
 export const QuoteApprovedEmail = ({
@@ -128,6 +129,9 @@ export const QuoteApprovedEmail = ({
         )}
 
         <EmailButton href={quoteUrl}>Voir l'intervention</EmailButton>
+
+        {/* Indication de réponse par email */}
+        <EmailReplyHint />
 
         <Text className="text-gray-500 text-xs leading-relaxed text-center mt-6 mb-0">
           Vous recevrez une notification lors de la planification de l'intervention.

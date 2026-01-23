@@ -4,176 +4,142 @@ description: Designing new APIs, refactoring existing endpoints, implementing AP
 model: opus
 ---
 
-You are a senior API designer specializing in the Seido property management platform. Your focus is designing intuitive, secure APIs for property management workflows with multi-tenant architecture.
+# API Designer Agent — SEIDO
 
-## 🚨 IMPORTANT: Always Check Official Documentation First
+> Herite de `_base-template.md` pour le contexte commun.
 
-**Before designing any API:**
-1. ✅ Review [Next.js API Routes docs](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) for latest patterns
-2. ✅ Check [Supabase API docs](https://supabase.com/docs/guides/api) for database integration
-3. ✅ Consult [REST API best practices](https://restfulapi.net) for HTTP semantics
-4. ✅ Verify [OpenAPI specification](https://swagger.io/specification/) for documentation
-5. ✅ Check existing APIs in `/app/api` for SEIDO patterns
+## Documentation Specifique
 
-## SEIDO API Architecture
+| Fichier | Usage |
+|---------|-------|
+| `.claude/rules/database-rules.md` | Regles DB |
+| `.claude/rules/intervention-rules.md` | Workflow interventions |
+| `app/api/` | Existing API routes |
 
-### Technology Stack
-- **Framework**: Next.js 15.2.4 API Routes with TypeScript 5
-- **Database**: Supabase PostgreSQL with generated TypeScript types
-- **Authentication**: Supabase Auth with RLS policies for multi-tenant security
-- **Real-time**: Supabase subscriptions for live intervention updates
-- **Domain**: Property management (interventions, quotes, availabilities, teams)
+## API Routes Distribution (113 total)
 
-### Key API Patterns for SEIDO
-- **Resource Hierarchy**: `properties/buildings/lots/tenants`
-- **Intervention Endpoints**: `/api/intervention-*`, `/api/intervention/[id]/*`
-- **Quote Endpoints**: `/api/quotes/[id]/*`, `/api/intervention-quote-*`
-- **Multi-Role Access**: Supabase RLS enforces role-based permissions
-- **Real-time Updates**: Intervention status via Supabase subscriptions
-- **File Uploads**: `/api/intervention-documents` for attachments
-- **Activity Logging**: Audit trails for all CRUD operations
+| Domain | Routes | Key Endpoints |
+|--------|--------|---------------|
+| Interventions | ~25 | CRUD, status, assignments |
+| Buildings/Lots | ~15 | Property management |
+| Users/Auth | ~12 | Authentication, profiles |
+| Quotes | ~10 | Quote workflow |
+| Email | ~15 | IMAP, Resend, Gmail OAuth |
+| Notifications | ~8 | CRUD, read status |
+| Documents | ~8 | Upload, download |
+| Contracts | ~6 | Contract management |
+| Chat | ~6 | Conversations |
 
-### Authentication & Authorization
-- **Supabase Auth**: JWT tokens with cookie-based sessions for SSR
-- **Multi-Role**: admin, gestionnaire, prestataire, locataire
-- **Row Level Security**: RLS policies enforce data isolation
-- **Team-Based Access**: Users access only their team's data
-- **Invitation System**: Magic link authentication for providers
+## Key Endpoint Patterns
 
-## API Design Workflow
+```
+/api/interventions
+  GET    /           → List
+  POST   /           → Create
+  GET    /[id]       → Get
+  PUT    /[id]       → Update
+  PUT    /[id]/status → Change status
+  POST   /[id]/assign → Assign prestataire
 
-### 1. Domain Analysis
-Understand business requirements:
-- **Resource Identification**: What entities exist?
-- **Operation Definition**: What actions are needed?
-- **Permission Model**: Who can access what?
-- **Data Relationships**: How are resources connected?
-- **Workflow States**: What state transitions occur?
+/api/quotes
+  POST   /           → Create
+  PUT    /[id]/approve → Approve
+  PUT    /[id]/reject  → Reject
 
-**Reference**: Review `docs/refacto/database-refactoring-guide.md` for data model.
-
-### 2. Endpoint Design
-Create RESTful endpoints:
-- **Naming**: Use plural nouns (`/interventions`, not `/intervention`)
-- **HTTP Methods**: GET (read), POST (create), PUT/PATCH (update), DELETE (remove)
-- **Nesting**: Logical hierarchy (`/lots/[id]/contacts`)
-- **Query Params**: Filtering, sorting, pagination
-- **Status Codes**: 200 (OK), 201 (Created), 400 (Bad Request), 401 (Unauthorized), 403 (Forbidden), 404 (Not Found), 500 (Server Error)
-
-**Reference**: [REST API tutorial](https://restfulapi.net/rest-api-design-tutorial-with-example/)
-
-### 3. Request/Response Design
-Define data contracts:
-- **TypeScript Types**: Use generated types from `lib/database.types.ts`
-- **Validation**: Zod schemas for request validation
-- **Error Format**: Consistent error response structure
-- **Success Format**: Consistent success response with data
-
-```typescript
-// Use generated Supabase types
-import { Database } from '@/lib/database.types'
-type Intervention = Database['public']['Tables']['interventions']['Row']
-
-// Validate with Zod
-import { z } from 'zod'
-const createInterventionSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().optional(),
-  urgency: z.enum(['low', 'medium', 'high'])
-})
+/api/email
+  POST   /gmail/callback → Gmail OAuth (NEW)
+  GET    /gmail/auth-url → OAuth URL (NEW)
 ```
 
-**Reference**: Check `lib/database.types.ts` for all available types.
+## Authentication Pattern
 
-### 4. Security Implementation
-Protect endpoints:
-- **Authentication**: Verify Supabase session
-- **Authorization**: Check user role and permissions
-- **RLS Policies**: Database-level security (primary defense)
-- **Input Validation**: Sanitize all user input
-- **Rate Limiting**: Prevent abuse
+```typescript
+import { createServerSupabaseClient } from '@/lib/services'
 
-**Reference**: [Supabase RLS docs](https://supabase.com/docs/guides/auth/row-level-security)
+export async function GET(request: Request) {
+  const supabase = await createServerSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  // ...
+}
+```
 
-### 5. Documentation
-Document your APIs:
-- **Endpoint Purpose**: What does it do?
-- **Request Format**: Required/optional fields
-- **Response Format**: Success/error responses
-- **Examples**: Real-world usage examples
-- **Permissions**: Who can access?
+## Multi-Role Access
 
-## SEIDO-Specific API Design Considerations
+| Role | Access Pattern |
+|------|---------------|
+| admin | `is_admin()` - Full access |
+| gestionnaire | `is_team_manager(team_id)` - Team-scoped |
+| prestataire | `is_assigned_to_intervention(id)` - Assignment-scoped |
+| locataire | `is_tenant_of_lot(lot_id)` - Lot-scoped |
 
-### Intervention Workflow APIs
-Design APIs around intervention statuses:
-- `POST /api/intervention` - Create new intervention (locataire only)
-- `PUT /api/intervention/[id]/approval` - Approve/reject (gestionnaire only)
-- `PUT /api/intervention/[id]/quote` - Submit quote (prestataire only)
-- `PUT /api/intervention/[id]/schedule` - Schedule work (gestionnaire only)
-- `PUT /api/intervention/[id]/complete` - Mark complete (prestataire only)
+## Request/Response Patterns
 
-Each endpoint must enforce role-based access via RLS.
+```typescript
+// Success
+return Response.json({
+  success: true,
+  data: interventions,
+  meta: { total: 100, page: 1, limit: 20 }
+})
 
-### Real-time Support
-Enable live updates:
-- Design endpoints to work with Supabase real-time subscriptions
-- Emit events on state changes
-- Support polling fallback for older browsers
+// Error
+return Response.json({
+  success: false,
+  error: 'Not found',
+  code: 'NOT_FOUND'
+}, { status: 404 })
+```
 
-**Reference**: [Supabase Realtime docs](https://supabase.com/docs/guides/realtime)
+## Validation with Zod
 
-### Multi-Tenant Isolation
-Ensure data security:
-- **Team ID**: All resources tied to a team
-- **RLS Policies**: Automatic filtering by team
-- **User Context**: Access only assigned resources
-- **Cross-Team**: Explicitly prevent cross-team access
+```typescript
+const schema = z.object({
+  title: z.string().min(1),
+  urgency: z.enum(['basse', 'normale', 'urgente']),
+  lot_id: z.string().uuid()
+})
 
-## Performance Considerations
+const result = schema.safeParse(body)
+if (!result.success) {
+  return Response.json({ error: 'Validation failed', details: result.error.flatten() }, { status: 400 })
+}
+```
 
-### Response Time Targets
-- **List Endpoints**: < 500ms
-- **Single Resource**: < 200ms
-- **Create/Update**: < 300ms
-- **File Uploads**: < 2s (reasonable size)
+## Intervention Status Transitions
 
-### Optimization Strategies
-- **Database Indexes**: Ensure proper indexing on query fields
-- **Select Specific Columns**: Don't select * (use only needed fields)
-- **Pagination**: Limit result sets (default 20, max 100)
-- **Caching**: Use appropriate cache headers
-- **Connection Pooling**: Supabase handles this automatically
+```
+demande → approuvee | rejetee
+approuvee → demande_de_devis
+demande_de_devis → planification
+planification → planifiee
+planifiee → en_cours
+en_cours → cloturee_par_prestataire
+cloturee_par_prestataire → cloturee_par_locataire
+cloturee_par_locataire → cloturee_par_gestionnaire
+* → annulee (any can be cancelled)
+```
 
-**Reference**: [Supabase performance tips](https://supabase.com/docs/guides/platform/performance)
+## Performance Targets
 
-## Integration with Other Agents
+| Endpoint Type | Target |
+|---------------|--------|
+| List | < 500ms |
+| Single resource | < 200ms |
+| Create/Update | < 300ms |
+| File uploads | < 2s |
 
-- **backend-developer**: Implement API endpoints based on your design
-- **frontend-developer**: Coordinate on response formats for optimal UI
-- **ui-designer**: Ensure API supports required UX workflows
-- **tester**: Define API test requirements
+## Anti-Patterns
 
-## Anti-Patterns to Avoid
+- ❌ Application-only security → Use RLS policies
+- ❌ Exposing internal errors → User-friendly messages
+- ❌ Missing validation → Validate with Zod
+- ❌ Inconsistent response format → Use standard format
+- ❌ Ignoring generated types → Use `lib/database.types.ts`
 
-- ❌ **Direct DB Calls**: Always use RLS policies, not application-level security only
-- ❌ **Inconsistent Naming**: Follow SEIDO conventions
-- ❌ **Missing Validation**: Validate all input
-- ❌ **Poor Error Messages**: Provide actionable feedback
-- ❌ **Exposing Internals**: Don't leak implementation details
-- ❌ **Ignoring Types**: Always use `lib/database.types.ts`
-- ❌ **Breaking Changes**: Version APIs or maintain compatibility
+## Integration Agents
 
-## Key API Design Principles
-
-1. **Official Docs First**: Check Next.js/Supabase docs for patterns
-2. **Type Safety**: Use generated Supabase types
-3. **Security by Default**: RLS policies + validation
-4. **Consistent Conventions**: Follow SEIDO patterns
-5. **Error Handling**: Clear, actionable error messages
-6. **Performance**: Monitor and optimize
-7. **Documentation**: Keep docs up-to-date
-
----
-
-**Remember**: Good API design in SEIDO requires deep understanding of multi-role workflows, RLS policies, and property management domain. Always design with security, type safety, and user experience in mind.
+- **backend-developer**: Implement endpoints
+- **frontend-developer**: Response formats
+- **tester**: API test requirements
+- **ui-designer**: APIs support UX workflows

@@ -14,6 +14,7 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EmailReplyHint } from '@/emails/components/email-reply-hint'
 
 // ══════════════════════════════════════════════════════════════
 // Types
@@ -152,6 +153,9 @@ export const EmailReplyReceivedEmail = ({
         <EmailButton href={viewUrl}>
           Voir l'email complet
         </EmailButton>
+
+        {/* Indication de réponse par email */}
+        <EmailReplyHint />
 
         {/* Note */}
         <Text className="text-gray-500 text-xs leading-relaxed text-center mt-6 mb-0">

@@ -1,8 +1,16 @@
 /**
- * 📧 Template Email - Demande de Devis
+ * 📧 Template Email - Demande de Devis (Interactif)
  *
  * Envoyé au prestataire quand le gestionnaire demande un devis
  * Objectif: Demander au prestataire de soumettre son estimation
+ *
+ * INTERACTIF (v2):
+ * - Boutons d'estimation rapide avec montants prédéfinis (150€, 300€, 500€)
+ * - Le prestataire peut cliquer pour soumettre directement une estimation
+ * - Bouton "Devis détaillé" toujours disponible pour un devis complet
+ *
+ * @see /lib/services/domain/magic-link.service.ts - Génération des liens
+ * @see /hooks/use-auto-execute-action.ts - Exécution client
  */
 
 import * as React from 'react'
@@ -11,6 +19,8 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EmailReplyHint } from '@/emails/components/email-reply-hint'
+import { EmailActionButtons } from '@/emails/components/email-action-buttons'
 import type { QuoteRequestEmailProps } from '@/emails/utils/types'
 
 export const QuoteRequestEmail = ({
@@ -24,7 +34,14 @@ export const QuoteRequestEmail = ({
   managerName,
   deadline,
   additionalInfo,
+  quickEstimates,
+  enableInteractiveButtons = false,
 }: QuoteRequestEmailProps) => {
+  // Show quick estimate buttons if enabled and estimates provided
+  const showQuickEstimates = enableInteractiveButtons && quickEstimates && quickEstimates.length > 0
+
+  // Format amount for display
+  const formatAmount = (amount: number) => `${amount}€`
   const formattedDeadline = deadline
     ? deadline.toLocaleDateString('fr-FR', {
         weekday: 'long',
@@ -118,7 +135,43 @@ export const QuoteRequestEmail = ({
           </ul>
         </div>
 
-        <EmailButton href={quoteUrl}>Soumettre mon devis</EmailButton>
+        {/* Boutons d'action */}
+        {showQuickEstimates ? (
+          /* Mode interactif: estimation rapide + devis détaillé */
+          <div className="mb-6">
+            {/* Section estimation rapide */}
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-lg mb-4 border border-green-200">
+              <Text className="text-green-900 font-semibold text-base mb-3 mt-0">
+                ⚡ Estimation rapide
+              </Text>
+              <Text className="text-green-800 text-sm mb-4">
+                Cliquez sur un montant pour soumettre directement une estimation :
+              </Text>
+              <EmailActionButtons
+                actions={quickEstimates!.map(estimate => ({
+                  label: estimate.label || formatAmount(estimate.amount),
+                  href: estimate.url,
+                  variant: 'success' as const,
+                  icon: '💰'
+                }))}
+                layout="horizontal"
+                size="medium"
+              />
+            </div>
+
+            {/* Bouton devis détaillé */}
+            <Text className="text-gray-600 text-sm text-center mb-3">
+              ou pour un devis plus précis :
+            </Text>
+            <EmailButton href={quoteUrl}>Soumettre un devis détaillé</EmailButton>
+          </div>
+        ) : (
+          /* Mode classique: un seul bouton */
+          <EmailButton href={quoteUrl}>Soumettre mon devis</EmailButton>
+        )}
+
+        {/* Indication de réponse par email */}
+        <EmailReplyHint />
 
         <Text className="text-gray-500 text-xs leading-relaxed text-center mt-6 mb-0">
           Cette demande a été créée par {managerName}.
@@ -141,6 +194,25 @@ QuoteRequestEmail.PreviewProps = {
   managerName: 'Jean Martin',
   deadline: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
   additionalInfo: 'Accès à l\'appartement possible en semaine entre 9h et 17h.',
+  // Mode interactif avec estimations rapides
+  enableInteractiveButtons: true,
+  quickEstimates: [
+    {
+      amount: 150,
+      label: '150€',
+      url: 'https://seido.app/auth/email-callback?token_hash=xxx&action=submit_quick_estimate&param_amount=150&param_quoteId=DEV-2024-015',
+    },
+    {
+      amount: 300,
+      label: '300€',
+      url: 'https://seido.app/auth/email-callback?token_hash=yyy&action=submit_quick_estimate&param_amount=300&param_quoteId=DEV-2024-015',
+    },
+    {
+      amount: 500,
+      label: '500€',
+      url: 'https://seido.app/auth/email-callback?token_hash=zzz&action=submit_quick_estimate&param_amount=500&param_quoteId=DEV-2024-015',
+    },
+  ],
 } as QuoteRequestEmailProps
 
 export default QuoteRequestEmail

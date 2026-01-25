@@ -303,6 +303,6 @@ const authResult = await requireApiRole('gestionnaire')
 *Focus: Correction bugs flow interventions*
 
 ## Files Recently Modified
-### 2026-01-25 22:33:18 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/hooks/use-intervention-types.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/hooks/use-team-contacts.ts`
+### 2026-01-25 22:41:14 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`

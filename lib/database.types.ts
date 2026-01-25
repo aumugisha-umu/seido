@@ -1077,6 +1077,73 @@ export type Database = {
           },
         ]
       }
+      email_webhook_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          intervention_id: string | null
+          processing_time_ms: number | null
+          recipient_address: string
+          resend_email_id: string
+          sender_address: string
+          status: string
+          subject: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          intervention_id?: string | null
+          processing_time_ms?: number | null
+          recipient_address: string
+          resend_email_id: string
+          sender_address: string
+          status: string
+          subject?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          intervention_id?: string | null
+          processing_time_ms?: number | null
+          recipient_address?: string
+          resend_email_id?: string
+          sender_address?: string
+          status?: string
+          subject?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_webhook_logs_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_webhook_logs_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_webhook_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emails: {
         Row: {
           bcc_addresses: string[] | null
@@ -3811,6 +3878,7 @@ export type Database = {
         Args: { slot_id_param: string }
         Returns: boolean
       }
+      cleanup_old_webhook_logs: { Args: never; Returns: number }
       delete_team_cascade: { Args: { p_team_id: string }; Returns: Json }
       expire_old_invitations: { Args: never; Returns: number }
       get_accessible_building_ids: {
@@ -3837,6 +3905,14 @@ export type Database = {
       get_current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      get_distinct_linked_entities: {
+        Args: { p_team_id: string }
+        Returns: {
+          email_count: number
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["email_link_entity_type"]
+        }[]
       }
       get_intervention_team_id: {
         Args: { p_intervention_id: string }
@@ -4081,6 +4157,7 @@ export type Database = {
         | "status_change"
         | "reminder"
         | "deadline"
+        | "email_reply_received"
       payment_frequency: "mensuel" | "trimestriel" | "semestriel" | "annuel"
       property_document_type:
         | "bail"
@@ -4400,6 +4477,7 @@ export const Constants = {
         "status_change",
         "reminder",
         "deadline",
+        "email_reply_received",
       ],
       payment_frequency: ["mensuel", "trimestriel", "semestriel", "annuel"],
       property_document_type: [

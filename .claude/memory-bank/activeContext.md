@@ -303,6 +303,9 @@ const authResult = await requireApiRole('gestionnaire')
 *Focus: Correction bugs flow interventions*
 
 ## Files Recently Modified
-### 2026-01-25 22:41:14 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`
+### 2026-01-25 23:00:10 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/supabase/migrations/20260125000000_add_revision_charges_type.sql`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/interventions/intervention-type-icon.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/admin/(with-navbar)/intervention-types/page.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/admin/(with-navbar)/intervention-types/intervention-types-management.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/dashboard-header.tsx`

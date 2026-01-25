@@ -34,12 +34,18 @@
 - [x] **PWA Push Notifications** (2026-01-25)
 - [x] Chat message bubble enhancements (2026-01-25)
 - [x] **Participant confirmation flow** (2026-01-25)
-- [ ] Intervention types refactoring
+- [x] **Intervention types dynamiques** (2026-01-25)
 
 ## Sprint Actuel (Jan 2026)
 
-### 2026-01-25 - Fix Confirmation Participant + Code Cleanup
+### 2026-01-25 - Intervention Types Dynamiques + Confirmation Participant
 **Ce qui a été fait:**
+- **Types d'intervention dynamiques complets**
+  - Migration `20260125000000_add_revision_charges_type.sql` - Ajout type manquant
+  - Interface admin `/admin/intervention-types` - CRUD complet avec accordéon par catégorie
+  - Navigation admin mise à jour avec lien "Types intervention"
+  - TYPE_CONFIG enrichi avec `revision_charges`
+  - 37 types dans 3 catégories (bien, bail, locataire)
 - **Fix statut intervention avec confirmation requise**
   - `create-manager-intervention/route.ts` - CAS 2 avec `!requiresParticipantConfirmation`
   - `create-manager-intervention/route.ts` - Time slot `status`/`selected_by_manager` conditionnels

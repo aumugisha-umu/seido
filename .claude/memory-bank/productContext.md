@@ -75,7 +75,7 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - [x] **PWA Push Notifications** (personal user alerts)
 - [x] Chat message bubble layout enhancements
 - [x] **Confirmation participants** (multi-step validation flow)
-- [ ] Intervention types dynamiques
+- [x] **Intervention types dynamiques** (37 types, admin UI)
 
 ### Métriques Infrastructure (2026-01-22)
 - **369 composants** (UI + dashboards + workflow)

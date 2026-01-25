@@ -251,6 +251,39 @@ await createInterventionNotification(interventionId)
 
 ---
 
+## Auto-Escalation vers Ultrathink Orchestrator
+
+**Declencheurs automatiques :**
+
+| Condition | Action |
+|-----------|--------|
+| 3 tentatives echouees sur le meme bug | → Invoquer `ultrathink-orchestrator` |
+| Probleme multi-domaines (DB + API + UI) | → Invoquer `ultrathink-orchestrator` |
+| Decision architecturale majeure (> 10 fichiers) | → Invoquer `ultrathink-orchestrator` |
+| "Je ne comprends pas pourquoi..." apres analyse | → Invoquer `ultrathink-orchestrator` |
+
+**Invocation :**
+```
+Utiliser Task tool avec subagent_type: ultrathink-orchestrator
+Model: opus (capacite de raisonnement maximale)
+L'agent orchestre ensuite les agents specialises selon la matrice de delegation
+```
+
+**Methodologie Ultrathink (6 phases) :**
+
+| Phase | Nom | Objectif |
+|-------|-----|----------|
+| 1 | THINK DIFFERENT | Questionner chaque hypothese |
+| 2 | OBSESS OVER DETAILS | Lire le code comme une oeuvre d'art |
+| 3 | PLAN LIKE DA VINCI | Architecture claire avant execution |
+| 4 | CRAFT, DON'T CODE | Artisanat, noms qui chantent |
+| 5 | ITERATE RELENTLESSLY | Tests, screenshots, raffinement |
+| 6 | SIMPLIFY RUTHLESSLY | Retirer tout le superflu |
+
+> Details complets : `.claude/agents/ultrathink-orchestrator.md`
+
+---
+
 ## Essential References
 
 **Official Docs :**
@@ -265,6 +298,6 @@ await createInterventionNotification(interventionId)
 
 ---
 
-**Last Updated**: 2026-01-23
+**Last Updated**: 2026-01-25
 **Status**: Production Ready
 **Current Focus**: User Experience (Google OAuth, Onboarding, Avatars, Notifications)

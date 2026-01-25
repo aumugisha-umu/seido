@@ -34,7 +34,7 @@ import {
   CalendarCheck
 } from 'lucide-react'
 import { TimeSlot, UserRole } from '../types'
-import { formatDateShort, formatTimeRange } from '../utils/helpers'
+import { formatDateShort, formatTimeRange, formatTime } from '../utils/helpers'
 import { permissions } from '../utils/permissions'
 
 export interface TimeSlotCardProps {
@@ -230,7 +230,11 @@ export const TimeSlotCard = ({
           <span className="text-slate-300">•</span>
           <Clock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
           <span className="text-sm">
-            {formatTimeRange(slot.start_time, slot.end_time)}
+            {/* Mode date fixe (selected_by_manager): afficher seulement l'heure de début */}
+            {slot.selected_by_manager
+              ? formatTime(slot.start_time)
+              : formatTimeRange(slot.start_time, slot.end_time)
+            }
           </span>
         </div>
 
@@ -264,7 +268,11 @@ export const TimeSlotCard = ({
           <div className="flex items-center gap-1">
             <Clock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
             <span className="text-sm text-muted-foreground">
-              {formatTimeRange(slot.start_time, slot.end_time)}
+              {/* Mode date fixe (selected_by_manager): afficher seulement l'heure de début */}
+              {slot.selected_by_manager
+                ? formatTime(slot.start_time)
+                : formatTimeRange(slot.start_time, slot.end_time)
+              }
             </span>
           </div>
         </div>

@@ -33,7 +33,9 @@
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "claude": "powershell -ExecutionPolicy Bypass -File scripts/open-claude-code.ps1",
+    "claude:open": "powershell -ExecutionPolicy Bypass -File scripts/open-claude-code.ps1"
   },
   "dependencies": {
     "@faker-js/faker": "^10.1.0",

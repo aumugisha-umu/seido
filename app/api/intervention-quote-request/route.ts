@@ -237,28 +237,8 @@ export async function POST(request: NextRequest) {
 
     logger.info({}, "✅ Intervention updated to quote request successfully")
 
-    // Send notifications to all providers about quote request
-    try {
-      const notificationPromises = eligibleProviders.map(provider => {
-        const individualMessage = individualMessages[provider.id] || additionalNotes
-
-        return notificationService.notifyQuoteRequest(
-          intervention,
-          provider,
-          user.id,
-          deadline,
-          individualMessage
-        )
-      })
-
-      await Promise.all(notificationPromises)
-      logger.info({ eligibleProviders: eligibleProviders.length }, "📧 Quote request notifications sent to provider(s)")
-    } catch (notifError) {
-      logger.warn({ notifError: notifError }, "⚠️ Could not send quote request notifications:")
-      // Don't fail the request for notification errors
-    }
-
     // Send status change notifications (only if status actually changed)
+    // Note: Quote request notifications to providers are handled via email by notifyInterventionStatusChange
     if (intervention.status === 'approuvee') {
       try {
         const notifResult = await notifyInterventionStatusChange({

@@ -5,6 +5,7 @@ import useEmblaCarousel from "embla-carousel-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import type { LucideIcon } from "lucide-react"
+import { ProgressMini } from "./progress-mini"
 
 // ============================================================================
 // TYPES
@@ -22,6 +23,13 @@ export interface KPICardData {
     badge?: {
         text: string
         variant: 'warning' | 'danger' | 'success'
+    }
+    /** Progress bar data for intervention card */
+    progressBar?: {
+        completed: number
+        total: number
+        percentage: number
+        periodLabel: string
     }
 }
 
@@ -151,6 +159,17 @@ export function KPICarousel({ cards, className }: KPICarouselProps) {
                                                     </span>
                                                 )}
                                             </div>
+                                            {/* Progress bar for intervention card */}
+                                            {card.progressBar && (
+                                                <div className="mt-3">
+                                                    <ProgressMini
+                                                        completed={card.progressBar.completed}
+                                                        total={card.progressBar.total}
+                                                        percentage={card.progressBar.percentage}
+                                                        periodLabel={card.progressBar.periodLabel}
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
                                     </CardContent>
                                 </Card>
@@ -204,6 +223,13 @@ interface StatsToCardsOptions {
     tenantCount?: number
     contractStats?: ContractStats
     onContractClick?: () => void
+    /** Progress data for period completion tracking */
+    progressData?: {
+        completed: number
+        total: number
+        percentage: number
+        periodLabel: string
+    }
 }
 
 export function statsToKPICards({
@@ -215,7 +241,8 @@ export function statsToKPICards({
     occupancyRate,
     tenantCount = 0,
     contractStats,
-    onContractClick
+    onContractClick,
+    progressData
 }: StatsToCardsOptions): KPICardData[] {
     const cards: KPICardData[] = []
 
@@ -274,15 +301,16 @@ export function statsToKPICards({
         })
     }
 
-    // Interventions - Shows active + completed counts
+    // Interventions - Shows active + completed counts + progress bar
     cards.push({
         id: 'interventions',
         label: 'En cours',
         value: activeCount,
-        sublabel: completedCount > 0 ? `en cours · ${completedCount} terminee${completedCount > 1 ? 's' : ''}` : 'interventions',
+        sublabel: completedCount > 0 ? `en cours · ${completedCount} terminée${completedCount > 1 ? 's' : ''}` : 'interventions',
         icon: Wrench,
         iconColor: 'text-blue-600',
-        variant: 'default'
+        variant: 'default',
+        progressBar: progressData
     })
 
     return cards

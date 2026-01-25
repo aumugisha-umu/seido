@@ -31,10 +31,60 @@
 - [x] Email conversation threading
 - [x] Memory Bank implementation
 - [x] **Optimisation ecosysteme .claude/** (2026-01-23)
+- [x] **PWA Push Notifications** (2026-01-25)
+- [x] Chat message bubble enhancements (2026-01-25)
+- [x] **Participant confirmation flow** (2026-01-25)
 - [ ] Intervention types refactoring
-- [ ] Participant confirmation
 
 ## Sprint Actuel (Jan 2026)
+
+### 2026-01-25 - Fix Confirmation Participant + Code Cleanup
+**Ce qui a été fait:**
+- **Fix statut intervention avec confirmation requise**
+  - `create-manager-intervention/route.ts` - CAS 2 avec `!requiresParticipantConfirmation`
+  - `create-manager-intervention/route.ts` - Time slot `status`/`selected_by_manager` conditionnels
+  - `intervention-confirm-participation/route.ts` - Vérification tous confirmés + auto-update
+  - Flow: `planification` + slot `pending` → tous confirment → `planifiee` + slot `selected`
+- **Suppression Logs DEBUG** (84+ lignes)
+  - `create-manager-intervention/route.ts` - 1 log DEBUG verbeux
+  - `availability-response/route.ts` - 18 logs DEBUG supprimés
+  - `assignment-section-v2.tsx` - 4 console.log supprimés
+  - `intervention-create-form.tsx` - Code commenté (22 lignes)
+- **Migration `is_selected` → `status`** (pattern moderne)
+  - 4 fichiers API routes migrés
+  - 1 fichier service migré
+  - Pattern: `is_selected: true` → `status: 'selected'`
+  - Pattern: `.eq('is_selected', false)` → `.neq('status', 'selected')`
+
+**Fichiers modifiés:**
+- `app/api/create-manager-intervention/route.ts`
+- `app/api/intervention/[id]/availability-response/route.ts`
+- `app/api/intervention/[id]/select-slot/route.ts`
+- `app/api/intervention-schedule/route.ts`
+- `lib/services/domain/email-notification/data-enricher.ts`
+- `components/intervention/assignment-section-v2.tsx`
+- `components/interventions/intervention-create-form.tsx`
+
+### 2026-01-25 - Dashboard Redesign + Intervention Flow Audit
+**Ce qui a été fait:**
+- **Redesign Progress Tracker Dashboard**
+  - Intégration progression dans KPI card "En cours" (au lieu de section séparée)
+  - Nouveau composant `progress-mini.tsx` (~80 lignes)
+  - Suppression `progress-tracker.tsx` (261 lignes → 0)
+  - Gain d'espace: ~70px verticalement sur le dashboard
+- **PWA Push Notifications** complètement implémentées
+  - Table `push_subscriptions` pour stocker les subscriptions
+  - Service `lib/send-push-notification.ts` utilisant web-push
+- **Email Reply Sync** amélioré
+  - Quote stripping plus robuste
+  - Threading automatique des réponses email → conversations
+
+**Commits:**
+- `9b11d08` feat(notification): Implement push notifications
+- `1d83ff3` refactor(chat): Simplify message bubble layout
+- `8669422` refactor(email): Improve email quote stripping
+- `cdc216e` feat(email): Sync email replies to threads
+- `3febddf` feat(email): Enhanced email content display
 
 ### 2026-01-23 - Optimisation Ecosysteme .claude/
 **Ce qui a ete fait:**
@@ -100,7 +150,7 @@
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-01-23)
+## Metriques Projet (2026-01-25)
 
 | Metrique | Valeur |
 |----------|--------|
@@ -109,7 +159,7 @@
 | API Routes | 113 |
 | Hooks | 58 |
 | Components | 369 |
-| DB Tables | 39 |
+| DB Tables | **40** |
 | DB Enums | 39 |
 | DB Functions | 77 |
 | Migrations | 131+ |
@@ -137,7 +187,8 @@
 | 2026-01 | Gmail OAuth | Email conversation threading | Sync bidirectionnelle |
 | 2026-01 | Audit + Sync Memory Bank | 100% documentation a jour | Metriques precises |
 | 2026-01 | Props Email Standardises | Coherence templates ↔ service | Preview fiable |
-| **2026-01-23** | **Optimisation .claude/** | **Reduction duplication** | **-62% lignes, -6000 tokens/session** |
+| 2026-01-23 | Optimisation .claude/ | Reduction duplication | -62% lignes, -6000 tokens/session |
+| **2026-01-25** | **PWA Push Notifications** | **Notifications temps reel mobile** | **4 canaux complets** |
 
 ---
-*Derniere mise a jour: 2026-01-23*
+*Derniere mise a jour: 2026-01-25*

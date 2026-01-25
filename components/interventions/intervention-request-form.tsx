@@ -4,6 +4,7 @@
  * Tenant Intervention Request Form
  * Client component for tenants to request interventions
  * Uses React Hook Form + Zod validation
+ * ✅ 2026-01-25: Now uses dynamic intervention types from database
  */
 
 import { useState } from 'react'
@@ -43,26 +44,20 @@ import {
 } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 
+// ✅ Dynamic intervention types combobox
+import { InterventionTypeCombobox } from '@/components/intervention/intervention-type-combobox'
+
 // Server Action
 import { createInterventionAction } from '@/app/actions/intervention-actions'
 
-// Validation schema
+// Validation schema - ✅ Now accepts any type code from database
 const requestFormSchema = z.object({
   title: z.string()
     .min(3, 'Le titre doit contenir au moins 3 caractères')
     .max(255, 'Le titre est trop long'),
   description: z.string()
     .min(10, 'La description doit contenir au moins 10 caractères'),
-  type: z.enum([
-    'plomberie',
-    'electricite',
-    'chauffage',
-    'serrurerie',
-    'peinture',
-    'menage',
-    'jardinage',
-    'autre'
-  ]),
+  type: z.string().min(1, "Le type d'intervention est obligatoire").max(100),
   urgency: z.enum(['basse', 'normale', 'haute', 'urgente']).default('normale'),
   requested_date: z.date().optional(),
   specific_location: z.string().optional()
@@ -183,33 +178,21 @@ export function InterventionRequestForm({
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Type field */}
+          {/* Type field - ✅ Now uses dynamic types from database */}
           <FormField
             control={form.control}
             name="type"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Catégorie d'intervention</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Sélectionnez une catégorie" />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    <SelectItem value="plomberie">Plomberie</SelectItem>
-                    <SelectItem value="electricite">Électricité</SelectItem>
-                    <SelectItem value="chauffage">Chauffage</SelectItem>
-                    <SelectItem value="serrurerie">Serrurerie</SelectItem>
-                    <SelectItem value="peinture">Peinture</SelectItem>
-                    <SelectItem value="menage">Ménage</SelectItem>
-                    <SelectItem value="jardinage">Jardinage</SelectItem>
-                    <SelectItem value="autre">Autre</SelectItem>
-                  </SelectContent>
-                </Select>
+                <FormControl>
+                  <InterventionTypeCombobox
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    placeholder="Sélectionnez une catégorie"
+                    categoryFilter="bien"
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}

@@ -125,12 +125,12 @@ export class InterventionDataEnricher {
 
       if (includeTimeSlots) {
         if (confirmedSlotOnly) {
-          // Only fetch confirmed slot
+          // Only fetch confirmed slot (modern status pattern)
           const { data: confirmed } = await supabase
             .from('intervention_time_slots')
             .select('id, slot_date, start_time, end_time')
             .eq('intervention_id', interventionId)
-            .eq('is_selected', true)
+            .eq('status', 'selected')
             .single()
 
           if (confirmed) {

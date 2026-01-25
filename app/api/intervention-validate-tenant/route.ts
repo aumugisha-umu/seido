@@ -85,6 +85,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // ✅ BUG FIX 2026-01-25: Limit contest count to prevent infinite loops
+    const MAX_CONTEST_COUNT = 3
+
     logger.info({ interventionId, validationStatus }, "📝 Tenant validating intervention")
 
     // Get intervention details
@@ -139,11 +142,23 @@ export async function POST(request: NextRequest) {
     let notificationTitle = ''
     let notificationMessage = ''
 
+    // ✅ BUG FIX 2026-01-25: Check contest count from intervention metadata
+    const currentContestCount = (intervention.metadata as Record<string, unknown>)?.contest_count as number || 0
+
     if (validationStatus === 'approved') {
       newStatus = 'cloturee_par_locataire'
       notificationTitle = 'Intervention validée par le locataire'
       notificationMessage = `L'intervention "${intervention.title}" a été validée par le locataire ${user.name}. Elle peut maintenant être finalisée administrativement.`
     } else if (validationStatus === 'contested') {
+      // ✅ BUG FIX 2026-01-25: Prevent infinite contest loops
+      if (currentContestCount >= MAX_CONTEST_COUNT) {
+        logger.warn({ interventionId, contestCount: currentContestCount }, "⚠️ Maximum contest count reached")
+        return NextResponse.json({
+          success: false,
+          error: `Vous avez atteint le nombre maximum de contestations (${MAX_CONTEST_COUNT}). Veuillez contacter directement votre gestionnaire pour résoudre ce problème.`
+        }, { status: 400 })
+      }
+
       // Return to 'planifiee' for provider to redo work
       newStatus = 'planifiee'
       notificationTitle = 'Intervention contestée par le locataire'
@@ -175,7 +190,7 @@ export async function POST(request: NextRequest) {
     const updatedComment = existingComment + (existingComment ? ' | ' : '') + commentParts.join(' | ')
 
     // Update intervention
-    const updateData = {
+    const updateData: Record<string, unknown> = {
       status: newStatus,
       tenant_comment: updatedComment,
       updated_at: new Date().toISOString()
@@ -183,6 +198,18 @@ export async function POST(request: NextRequest) {
 
     if (validationStatus === 'approved') {
       updateData.tenant_validated_date = new Date().toISOString()
+    }
+
+    // ✅ BUG FIX 2026-01-25: Increment contest count when contested
+    if (validationStatus === 'contested') {
+      const newContestCount = currentContestCount + 1
+      updateData.metadata = {
+        ...(intervention.metadata as Record<string, unknown> || {}),
+        contest_count: newContestCount,
+        last_contest_date: new Date().toISOString(),
+        last_contest_reason: contestReason
+      }
+      logger.info({ interventionId, newContestCount }, "📊 Contest count incremented")
     }
 
     if (satisfactionRating && !isNaN(parseInt(satisfactionRating))) {

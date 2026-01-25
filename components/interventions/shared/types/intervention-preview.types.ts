@@ -115,6 +115,8 @@ export interface TimeSlot {
     name: string
   }
   responses?: TimeSlotResponse[]
+  /** Indique si le créneau a été sélectionné directement par le gestionnaire (mode "date fixe") */
+  selected_by_manager?: boolean
 }
 
 /**
@@ -278,6 +280,8 @@ export interface QuotesCardProps {
 export interface PlanningCardProps {
   timeSlots: TimeSlot[]
   scheduledDate?: string
+  /** Heure de début du créneau confirmé (format HH:MM ou HH:MM:SS) */
+  scheduledStartTime?: string
   userRole: UserRole
   currentUserId: string
   onAddSlot?: () => void

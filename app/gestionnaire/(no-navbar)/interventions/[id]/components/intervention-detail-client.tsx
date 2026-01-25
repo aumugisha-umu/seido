@@ -474,7 +474,9 @@ export function InterventionDetailClient({
         user_id: r.user_id,
         response: r.response as 'accepted' | 'rejected' | 'pending',
         user: r.user ? { name: r.user.name, role: r.user.role || '' } : undefined
-      }))
+      })),
+      // Mode "date fixe": le gestionnaire a sélectionné directement une date
+      selected_by_manager: slot.selected_by_manager || false
     }))
     , [timeSlots])
 
@@ -1930,6 +1932,7 @@ export function InterventionDetailClient({
                   <PlanningCard
                     timeSlots={transformedTimeSlots}
                     scheduledDate={scheduledDate || undefined}
+                    scheduledStartTime={scheduledStartTime || undefined}
                     userRole="manager"
                     currentUserId={serverUserId}
                     onAddSlot={handleOpenProgrammingModalWithData}

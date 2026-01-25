@@ -360,7 +360,7 @@ const urgencyEnum = z.enum(['basse', 'normale', 'haute', 'urgente'], {
 export const createInterventionSchema = z.object({
   lot_id: uuidSchema,
   title: z.string().min(1).max(200).trim(),
-  description: z.string().min(1).max(5000).trim(),
+  description: z.string().min(10, 'La description doit contenir au moins 10 caractères').max(5000).trim(),
   urgency: urgencyEnum.optional(), // Optional - defaults applied in service layer
   type: z.string().min(1, "Le type d'intervention est obligatoire").max(100).trim(),
 })
@@ -372,7 +372,12 @@ export const createInterventionSchema = z.object({
 export const createManagerInterventionSchema = z.object({
   // Basic intervention data
   title: z.string().min(1).max(200).trim(),
-  description: z.string().max(5000).trim().optional(),
+  // ✅ FIX: Description optionnelle pour gestionnaire - accepte vide ou ≥10 caractères
+  description: z.string().max(5000).trim().optional()
+    .refine(
+      (val) => !val || val.length === 0 || val.length >= 10,
+      { message: 'La description doit contenir au moins 10 caractères si renseignée' }
+    ),
   type: z.string().min(1, "Le type d'intervention est obligatoire").max(100).trim(),
   urgency: urgencyEnum.optional().default('normale'),
   location: z.string().max(500).trim().optional(),
@@ -390,7 +395,8 @@ export const createManagerInterventionSchema = z.object({
   providerInstructions: z.record(z.string(), z.string()).optional().default({}),
 
   // Scheduling
-  schedulingType: z.enum(['none', 'fixed', 'flexible', 'slots']).optional(),
+  // ✅ FIX 2026-01-25: Removed 'none' (unused, confusing)
+  schedulingType: z.enum(['fixed', 'flexible', 'slots']).optional(),
   fixedDateTime: z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
     time: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be HH:MM'),
@@ -404,6 +410,8 @@ export const createManagerInterventionSchema = z.object({
   // Options
   expectsQuote: z.boolean().optional(),
   includeTenants: z.boolean().optional().default(true),
+  // ✅ FIX 2026-01-25: Explicit tenant selection (prevents auto-assignment of ALL tenants)
+  selectedTenantIds: z.array(uuidSchema).optional().default([]),
 
   // Messages
   messageType: z.enum(['none', 'global', 'individual']).optional(),
@@ -420,6 +428,30 @@ export const createManagerInterventionSchema = z.object({
 
   // Contract ID (for linking intervention to a specific contract on an occupied lot)
   contractId: uuidSchema.optional().nullable(),
+}).superRefine((data, ctx) => {
+  // ✅ FIX 2026-01-25: Validation conditionnelle selon schedulingType
+
+  // Validation Date Fixe : date ET heure obligatoires
+  if (data.schedulingType === 'fixed') {
+    if (!data.fixedDateTime?.date || !data.fixedDateTime?.time) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Date et heure obligatoires pour une planification fixe",
+        path: ['fixedDateTime']
+      })
+    }
+  }
+
+  // Validation Créneaux : au moins un créneau requis
+  if (data.schedulingType === 'slots') {
+    if (!data.timeSlots || data.timeSlots.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Au moins un créneau horaire est requis",
+        path: ['timeSlots']
+      })
+    }
+  }
 })
 
 /**
@@ -495,7 +527,7 @@ export const submitQuoteSchema = z.object({
   interventionId: uuidSchema,
   providerId: uuidSchema,
   amount: z.number().positive().max(1000000), // max 1M EUR
-  description: z.string().min(1).max(5000).trim(),
+  description: z.string().min(10, 'La description du devis doit contenir au moins 10 caractères').max(5000).trim(),
   validUntil: dateStringSchema.optional(),
   estimatedDuration: z.number().int().min(1).max(480).optional(), // minutes
 })

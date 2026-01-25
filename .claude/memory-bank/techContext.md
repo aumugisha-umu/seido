@@ -4,7 +4,7 @@
 
 | Couche | Technologie | Version |
 |--------|-------------|---------|
-| Framework | Next.js | 15.2.4 |
+| Framework | Next.js | 15.2.6 |
 | React | React | 19 |
 | Language | TypeScript | 5 (strict) |
 | Styling | Tailwind CSS | v4 |
@@ -99,7 +99,7 @@ lib/services/domain/
 
 ## Base de Données
 
-### Tables Principales (39 total)
+### Tables Principales (40 total)
 
 | Phase | Tables |
 |-------|--------|
@@ -207,5 +207,5 @@ type UserRole = 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
 | **EMAIL_REPLY_SIGNING_SECRET** | Secret HMAC reply-to |
 
 ---
-*Dernière mise à jour: 2026-01-23*
+*Dernière mise à jour: 2026-01-25*
 *Régénérer types: npm run supabase:types*

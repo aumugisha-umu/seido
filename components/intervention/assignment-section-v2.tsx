@@ -400,12 +400,6 @@ export function AssignmentSectionV2({
     selectedManagers.filter(m => !m.isCurrentUser).length > 0 ||
     allTenants.length > 0
 
-  // Debug log
-  console.log("🔍 AssignmentSectionV2 - Tenants received:", tenants)
-  console.log("🔍 AssignmentSectionV2 - Building tenants:", buildingTenants)
-  console.log("🔍 AssignmentSectionV2 - All tenants (combined):", allTenants)
-  console.log("🔍 AssignmentSectionV2 - Has other participants:", hasOtherParticipants)
-
   return (
     <div className="space-y-4">
       {/* Unified Contact Selection Section */}
@@ -862,6 +856,16 @@ export function AssignmentSectionV2({
                     </div>
                   </div>
 
+                  {/* ✅ FIX 2026-01-25: Warning visuel si date/heure manquante */}
+                  {(!fixedDateTime.date || !fixedDateTime.time) && (
+                    <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg border border-amber-200">
+                      <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                      <p className="text-xs text-amber-700">
+                        Veuillez sélectionner une date et une heure pour continuer
+                      </p>
+                    </div>
+                  )}
+
                   {/* Section confirmation (optionnelle) - visible seulement si autres participants */}
                   {hasOtherParticipants && onRequiresConfirmationChange && (
                     <div className="border border-slate-200 rounded-lg p-4 bg-slate-50/50">
@@ -904,6 +908,16 @@ export function AssignmentSectionV2({
                     onUpdateTimeSlot={onUpdateTimeSlot}
                     onRemoveTimeSlot={onRemoveTimeSlot}
                   />
+
+                  {/* ✅ FIX 2026-01-25: Warning visuel si aucun créneau défini */}
+                  {(!timeSlots || timeSlots.length === 0) && (
+                    <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg border border-amber-200">
+                      <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
+                      <p className="text-xs text-amber-700">
+                        Ajoutez au moins un créneau horaire pour continuer
+                      </p>
+                    </div>
+                  )}
 
                   {/* Section confirmation OBLIGATOIRE pour le mode créneaux */}
                   {hasOtherParticipants && onConfirmationRequiredChange && (

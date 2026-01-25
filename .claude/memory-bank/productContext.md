@@ -72,6 +72,8 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - [x] Gmail OAuth integration (conversation threading)
 - [x] Email link tracking (email_links table)
 - [x] Memory Bank implementation
+- [x] **PWA Push Notifications** (personal user alerts)
+- [x] Chat message bubble layout enhancements
 - [ ] Intervention types dynamiques
 - [ ] Confirmation participants
 
@@ -87,5 +89,5 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - [ ] Integration calendrier - Priorité: Moyenne
 
 ---
-*Dernière mise à jour: 2026-01-22*
+*Dernière mise à jour: 2026-01-25*
 *Références: docs/design/persona-gestionnaire-unifie.md, persona-prestataire.md, persona-locataire.md*

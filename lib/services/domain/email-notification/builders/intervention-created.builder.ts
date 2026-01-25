@@ -104,7 +104,12 @@ export async function buildInterventionCreatedEmail(
       // Template for tenant: "An intervention is planned for your unit"
       let slotActions: EmailTimeSlotWithActions[] | undefined
 
-      if (canUseInteractive) {
+      // FIX: Ne générer les action links que si la confirmation est explicitement requise
+      // Si requires_participant_confirmation est false ou null, pas de boutons d'action
+      // Cela évite d'envoyer des emails interactifs pour les interventions "date fixe" sans confirmation
+      const requiresConfirmation = intervention.requires_participant_confirmation === true
+
+      if (canUseInteractive && requiresConfirmation) {
         slotActions = await generateSlotActionLinks(
           recipient.email,
           intervention.id,

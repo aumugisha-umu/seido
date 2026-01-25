@@ -306,7 +306,9 @@ export function LocataireInterventionDetailClient({
         user_id: r.user_id,
         response: r.response as 'accepted' | 'rejected' | 'pending',
         user: r.user ? { name: r.user.name, role: r.user.role || '' } : undefined
-      }))
+      })),
+      // Mode "date fixe": le gestionnaire a sélectionné directement une date
+      selected_by_manager: slot.selected_by_manager || false
     }))
   , [timeSlots])
 
@@ -362,7 +364,9 @@ export function LocataireInterventionDetailClient({
   }, [intervention, currentUser])
 
   // Date planifiée (si un créneau est sélectionné)
-  const scheduledDate = timeSlots.find(s => s.status === 'selected')?.slot_date || null
+  const confirmedSlot = timeSlots.find(s => s.status === 'selected')
+  const scheduledDate = confirmedSlot?.slot_date || null
+  const scheduledStartTime = confirmedSlot?.start_time || null
 
   // Messages mock (à remplacer par de vraies données si disponibles)
   const mockMessages: Message[] = useMemo(() => [], [])
@@ -624,6 +628,7 @@ export function LocataireInterventionDetailClient({
                   <PlanningCard
                     timeSlots={transformedTimeSlots}
                     scheduledDate={scheduledDate || undefined}
+                    scheduledStartTime={scheduledStartTime || undefined}
                     userRole="tenant"
                     currentUserId={currentUser.id}
                     onSelectSlot={handleSelectSlot}

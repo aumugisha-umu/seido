@@ -126,6 +126,8 @@ export async function POST(request: NextRequest) {
       // Options
       expectsQuote,
       includeTenants,
+      // ✅ FIX 2026-01-25: Explicit tenant IDs from contract selection
+      selectedTenantIds,
 
       // Confirmation des participants
       requiresParticipantConfirmation,
@@ -274,6 +276,19 @@ export async function POST(request: NextRequest) {
       logger.info({}, "✅ Building-wide intervention - tenants via intervention_assignments")
     }
 
+    // ✅ BUG FIX 2026-01: Validate team_id is required to prevent orphan interventions
+    if (!interventionTeamId) {
+      logger.error({
+        selectedLotId: safeSelectedLotId,
+        selectedBuildingId: safeSelectedBuildingId,
+        bodyTeamId: teamId
+      }, "❌ team_id could not be determined - intervention would be orphaned")
+      return NextResponse.json({
+        success: false,
+        error: 'Impossible de déterminer l\'équipe pour cette intervention. Le lot ou le bâtiment n\'est pas associé à une équipe.'
+      }, { status: 400 })
+    }
+
     // ✅ Mapping functions centralisées dans lib/utils/intervention-mappers.ts
 
     // Generate unique reference for the intervention
@@ -318,15 +333,16 @@ export async function POST(request: NextRequest) {
       interventionStatus = 'demande_de_devis'
       logger.info({}, "✅ Statut déterminé: DEMANDE_DE_DEVIS (prestataires + devis requis)")
 
-      // CAS 2: Planifiée directement si conditions strictes remplies
+      // CAS 2: Planifiée directement si conditions strictes remplies (SANS confirmation requise)
     } else if (
       selectedManagerIds.length === 1 && // Que le gestionnaire créateur
       (!selectedProviderIds || selectedProviderIds.length === 0) && // Pas de prestataires
       schedulingType === 'fixed' && // Date/heure fixe
-      fixedDateTime?.date && fixedDateTime?.time // Date et heure définies
+      fixedDateTime?.date && fixedDateTime?.time && // Date et heure définies
+      !requiresParticipantConfirmation // ✅ FIX 2026-01-25: Pas de confirmation requise des participants
     ) {
       interventionStatus = 'planifiee'
-      logger.info({}, "✅ Statut déterminé: PLANIFIEE (seul gestionnaire + date fixe)")
+      logger.info({}, "✅ Statut déterminé: PLANIFIEE (seul gestionnaire + date fixe, sans confirmation)")
 
       // CAS 3: Planification dans tous les autres cas
     } else {
@@ -593,24 +609,26 @@ export async function POST(request: NextRequest) {
     // Only contracts with status='actif' are considered (not 'a_venir')
     // ✅ UPDATED 2026-01-05: Respect includeTenants toggle from wizard
     // ✅ UPDATED 2026-01-06: Support building-level tenant assignment
+    // ✅ FIX 2026-01-25: Respect selectedTenantIds from wizard (explicit contract selection)
     if (lotId && includeTenants !== false) {
-      // LOT-LEVEL: Assign tenants from the lot's active contracts
-      logger.info({ includeTenants }, "👤 Extracting and assigning tenants from active contracts...")
+      // LOT-LEVEL: Assign tenants based on explicit selection from wizard
+      const explicitTenantIds = selectedTenantIds || []
 
-      try {
-        const { createServerContractService } = await import('@/lib/services')
-        const contractService = await createServerContractService()
-        const tenantsResult = await contractService.getActiveTenantsByLot(lotId)
+      if (explicitTenantIds.length > 0) {
+        // ✅ FIX: Use ONLY the explicitly selected tenants from the wizard
+        // This respects the contract selection made by the user
+        logger.info({
+          selectedTenantIds: explicitTenantIds,
+          count: explicitTenantIds.length
+        }, "👤 Assigning explicitly selected tenants from wizard...")
 
-        if (!tenantsResult.success) {
-          logger.error({ error: tenantsResult.error }, "⚠️ Error fetching tenants from active contracts")
-        } else if (tenantsResult.data.tenants.length > 0) {
-          // Prepare tenant assignments from active contracts
-          const tenantAssignments = tenantsResult.data.tenants.map((tenant, index) => ({
+        try {
+          // Prepare tenant assignments from explicit selection
+          const tenantAssignments = explicitTenantIds.map((userId: string, index: number) => ({
             intervention_id: intervention.id,
-            user_id: tenant.user_id,
+            user_id: userId,
             role: 'locataire',
-            is_primary: tenant.is_primary || index === 0, // Use contract is_primary or first tenant
+            is_primary: index === 0, // First selected tenant is primary
             assigned_by: user.id
           }))
 
@@ -623,16 +641,22 @@ export async function POST(request: NextRequest) {
             logger.error({ error: tenantAssignError }, "⚠️ Error assigning tenants")
           } else {
             logger.info({
-              count: tenantAssignments.length,
-              tenants: tenantsResult.data.tenants.map(t => ({ name: t.name, contract: t.contract_title }))
-            }, "✅ Tenants auto-assigned from active contracts")
+              count: tenantAssignments.length
+            }, "✅ Tenants assigned from explicit selection")
           }
-        } else {
-          logger.info({}, "ℹ️ No active tenants found in contracts for this lot")
+        } catch (error) {
+          logger.error({ error }, "❌ Error in tenant assignment")
+          // Don't fail the entire operation for tenant assignment errors
         }
-      } catch (error) {
-        logger.error({ error }, "❌ Error in tenant auto-assignment")
-        // Don't fail the entire operation for tenant assignment errors
+      } else {
+        // ✅ FIX: No tenants selected (no contract chosen or lot unoccupied)
+        // Don't auto-assign ANY tenants - this was the bug causing 7 tenants to be assigned
+        logger.info({
+          lotId,
+          includeTenants,
+          selectedTenantIdsProvided: !!selectedTenantIds,
+          contractId: contractId || null
+        }, "ℹ️ No tenants explicitly selected - skipping tenant auto-assignment")
       }
     } else if (buildingId && !lotId && includeTenants !== false) {
       // 🆕 BUILDING-LEVEL: Assign tenants from selected lots in the building
@@ -699,8 +723,10 @@ export async function POST(request: NextRequest) {
       logger.info({}, "ℹ️ Tenant auto-assignment skipped (includeTenants=false)")
     }
 
-    // Handle scheduling slots if provided (flexible/slots = multiple slots)
-    if ((schedulingType === 'flexible' || schedulingType === 'slots') && timeSlots && timeSlots.length > 0) {
+    // Handle scheduling slots if provided (slots mode only)
+    // ✅ FIX 2026-01-25: Removed 'flexible' - only 'slots' mode should create multiple slots
+    // This prevents accidental slot creation if timeSlots array is injected in flexible mode
+    if (schedulingType === 'slots' && timeSlots && timeSlots.length > 0) {
       logger.info({ count: timeSlots.length }, "📅 Creating time slots")
 
       const timeSlotsToInsert = timeSlots
@@ -710,7 +736,7 @@ export async function POST(request: NextRequest) {
           slot_date: slot.date,
           start_time: slot.startTime,
           end_time: slot.endTime,
-          is_selected: false,
+          status: 'pending', // Modern status pattern (replaces is_selected: false)
           proposed_by: user.id // Track who proposed these slots
         }))
 
@@ -728,15 +754,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle fixed date/time (create single slot)
-    logger.info({
-      schedulingType,
-      typeCheck: schedulingType === 'fixed',
-      fixedDateTime,
-      hasDate: !!fixedDateTime?.date,
-      hasTime: !!fixedDateTime?.time,
-      conditionResult: schedulingType === 'fixed' && !!fixedDateTime?.date && !!fixedDateTime?.time
-    }, "🔍 [DEBUG] Checking fixed slot creation condition")
-
     if (schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time) {
       // Calculate end_time as start_time + 1 hour (to satisfy valid_time_range constraint)
       const [hours, minutes] = fixedDateTime.time.split(':').map(Number)
@@ -750,21 +767,60 @@ export async function POST(request: NextRequest) {
         duration: '1 hour'
       }, "📅 Creating fixed slot with 1-hour default duration")
 
-      const { error: fixedSlotError } = await supabase
+      const { data: fixedSlot, error: fixedSlotError } = await supabase
         .from('intervention_time_slots')
         .insert({
           intervention_id: intervention.id,
           slot_date: fixedDateTime.date,
           start_time: fixedDateTime.time,
           end_time: end_time, // ✅ 1 hour after start_time
-          is_selected: true, // Pre-selected because it's fixed
+          // ✅ FIX 2026-01-25: Si confirmation requise, créneau en attente. Sinon: confirmé directement
+          status: requiresParticipantConfirmation ? 'pending' : 'selected',
+          selected_by_manager: !requiresParticipantConfirmation, // Confirmé seulement si pas de confirmation requise
           proposed_by: user.id, // ✅ Set creator as proposer (uses public.users.id, not auth.users.id)
         })
+        .select('id')
+        .single()
 
       if (fixedSlotError) {
         logger.error({ error: fixedSlotError }, "⚠️ Error creating fixed slot")
       } else {
-        logger.info("✅ Fixed slot created")
+        logger.info({ slotId: fixedSlot?.id }, "✅ Fixed slot created")
+
+        // ✅ FIX 2026-01-25: Mettre à jour l'intervention avec le slot sélectionné
+        if (fixedSlot?.id) {
+          const { error: updateSlotError } = await supabase
+            .from('interventions')
+            .update({ selected_slot_id: fixedSlot.id })
+            .eq('id', intervention.id)
+
+          if (updateSlotError) {
+            logger.warn({ error: updateSlotError, slotId: fixedSlot.id }, "⚠️ Failed to set selected_slot_id on intervention")
+          } else {
+            logger.info({ interventionId: intervention.id, slotId: fixedSlot.id }, "✅ Intervention linked to selected slot")
+          }
+        }
+
+        // 🆕 FIX: Si date fixe SANS confirmation requise, supprimer les réponses 'pending'
+        // Le trigger PostgreSQL crée automatiquement des responses pour tous les participants
+        // Mais en mode date fixe sans confirmation, aucune réponse n'est attendue des locataires
+        // ✅ FIX 2026-01-25: Utiliser Service Role pour bypass RLS (le gestionnaire ne peut pas
+        // supprimer les réponses des locataires avec son propre client - RLS bloque silencieusement)
+        if (!requiresParticipantConfirmation && fixedSlot?.id) {
+          const serviceClient = createServiceRoleSupabaseClient()
+
+          const { error: cleanupError } = await serviceClient
+            .from('time_slot_responses')
+            .delete()
+            .eq('time_slot_id', fixedSlot.id)
+            .eq('response', 'pending')
+
+          if (cleanupError) {
+            logger.warn({ error: cleanupError, slotId: fixedSlot.id }, "⚠️ Failed to cleanup pending responses for fixed slot")
+          } else {
+            logger.info({ slotId: fixedSlot.id }, "🧹 Cleaned up pending responses for fixed slot (no confirmation required)")
+          }
+        }
       }
     }
 

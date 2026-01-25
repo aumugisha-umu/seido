@@ -129,7 +129,7 @@ export default function NouvelleInterventionClient({
   })
 
   const [schedulingType, setSchedulingType] = useState<"fixed" | "slots" | "flexible">("flexible")
-  const [fixedDateTime, setFixedDateTime] = useState({ date: "", time: "" })
+  const [fixedDateTime, setFixedDateTime] = useState({ date: "", time: "09:00" }) // ✅ Heure par défaut pour éviter oublis
   const [timeSlots, setTimeSlots] = useState<Array<{ date: string; startTime: string; endTime: string }>>([])
   const [globalMessage, setGlobalMessage] = useState("")
 
@@ -1477,8 +1477,22 @@ export default function NouvelleInterventionClient({
         }
         break
 
-      case 4: // Planification (pas de champs requis)
-        // Les champs de cette étape sont optionnels
+      case 4: // Planification - validation selon le mode
+        // ✅ FIX 2026-01-25: Validation conditionnelle selon schedulingType
+        if (schedulingType === 'fixed') {
+          if (!fixedDateTime.date) {
+            errors.push("Veuillez sélectionner une date pour l'intervention")
+          }
+          if (!fixedDateTime.time) {
+            errors.push("Veuillez sélectionner une heure pour l'intervention")
+          }
+        }
+        if (schedulingType === 'slots') {
+          if (!timeSlots || timeSlots.length === 0) {
+            errors.push("Veuillez ajouter au moins un créneau horaire")
+          }
+        }
+        // Mode 'flexible' : aucune validation requise (c'est le comportement souhaité)
         break
     }
 
@@ -1600,7 +1614,14 @@ export default function NouvelleInterventionClient({
         sourceEmailId: sourceEmailId || undefined,
 
         // Contract link (for occupied lots with active contracts)
-        contractId: selectedContractId || undefined
+        contractId: selectedContractId || undefined,
+
+        // ✅ FIX 2026-01-25: Explicit tenant selection for lot interventions
+        // Only include tenant IDs from the selected contract (filteredTenants)
+        // This prevents auto-assignment of ALL active tenants when no contract is selected
+        selectedTenantIds: selectedLogement?.type === 'lot' && includeTenants && filteredTenants.length > 0
+          ? filteredTenants.map((t: { user_id: string }) => t.user_id).filter(Boolean)
+          : []
       }
 
       logger.info("📝 Sending intervention data:", interventionData)
@@ -2045,7 +2066,15 @@ export default function NouvelleInterventionClient({
                 building: selectedLogement?.building,
                 address: selectedLogement?.address,
                 floor: selectedLogement?.floor,
-                tenant: selectedLogement?.tenant,
+                // ✅ FIX: Ne passer tenant QUE si des locataires sont réellement inclus
+                // Évite le fallback dans InterventionConfirmationSummary qui afficherait
+                // un locataire même si l'utilisateur n'en a pas sélectionné
+                tenant: (
+                  // Cas 1: Lot avec contrat sélectionné et locataires inclus
+                  (selectedLogement?.type === 'lot' && includeTenants && selectedContractId && filteredTenants.length > 0) ||
+                  // Cas 2: Immeuble avec locataires inclus
+                  (selectedLogement?.type === 'building' && includeTenants && buildingTenants?.hasActiveTenants)
+                ) ? selectedLogement?.tenant : undefined,
               },
               intervention: {
                 title: formData.title,
@@ -2079,7 +2108,8 @@ export default function NouvelleInterventionClient({
                 // 🆕 Ajouter les locataires d'immeuble (depuis buildingTenants)
                 // ✅ Utiliser clé composite lot+user pour éviter les doublons React
                 // (un même locataire peut apparaître dans plusieurs lots)
-                ...(buildingTenants && includeTenants
+                // ✅ FIX 2026-01-25: UNIQUEMENT pour interventions IMMEUBLE (pas de lot sélectionné)
+                ...(buildingTenants && includeTenants && !selectedLotId
                   ? buildingTenants.byLot
                       .filter(lot => !excludedLotIds.has(lot.lotId))
                       .flatMap(lot => lot.tenants.map((tenant) => ({
@@ -2108,7 +2138,13 @@ export default function NouvelleInterventionClient({
                     slots: [{
                       date: fixedDateTime.date,
                       startTime: fixedDateTime.time || '09:00',
-                      endTime: fixedDateTime.time || '09:00',
+                      endTime: (() => {
+                        // Calcul endTime = startTime + 1h
+                        const time = fixedDateTime.time || '09:00'
+                        const [hours, minutes] = time.split(':').map(Number)
+                        const endHour = (hours + 1) % 24
+                        return `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+                      })(),
                     }],
                   }
                 : schedulingType === 'immediate'

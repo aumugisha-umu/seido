@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback, useMemo, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useRealtimeInterventions } from "@/hooks/use-realtime-interventions"
@@ -23,8 +23,8 @@ import {
 import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
 import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
 import { UrgentInterventionsSection } from "@/components/dashboards/manager/urgent-interventions-section"
-import { ProgressTracker } from "@/components/dashboards/manager/progress-tracker"
 import { KPICarousel, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
+import { useToast } from "@/hooks/use-toast"
 import { GestionnaireFAB } from "@/components/ui/fab"
 import { PeriodSelector, getDefaultPeriod, type Period } from "@/components/ui/period-selector"
 import { OnboardingButton, OnboardingModal } from "@/components/onboarding"
@@ -45,12 +45,16 @@ interface ManagerDashboardProps {
 
 export function ManagerDashboardV2({ stats, contactStats, contractStats, interventions: initialInterventions, pendingCount }: ManagerDashboardProps) {
     const router = useRouter()
+    const { toast } = useToast()
 
     // Local state for interventions (enables realtime updates)
     const [interventions, setInterventions] = useState(initialInterventions)
 
     // Period filter state - defaults to 30 days
     const [period, setPeriod] = useState<Period>(getDefaultPeriod('30d'))
+
+    // Celebration flag for 100% completion (show toast once per session)
+    const [hasShownCelebration, setHasShownCelebration] = useState(false)
 
     // Calculate tenant count from contactStats
     const tenantCount = contactStats?.contactsByType?.locataire?.total || 0
@@ -88,6 +92,48 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
             return true
         })
     }, [interventions, period])
+
+    // Calculate progress data for the period (integrated into "En cours" KPI card)
+    const progressData = useMemo(() => {
+        // Exclude rejected and cancelled from valid interventions
+        const validInterventions = filteredInterventions.filter(i =>
+            !['rejetee', 'annulee'].includes(i.status)
+        )
+
+        // Count completed interventions
+        const completed = validInterventions.filter(i =>
+            ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire'].includes(i.status)
+        ).length
+
+        const total = validInterventions.length
+        const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
+
+        // Generate period label
+        const periodLabel = period.value === '7d' ? 'cette semaine'
+            : period.value === '30d' ? 'ce mois'
+            : period.value === '90d' ? 'ce trimestre'
+            : 'au total'
+
+        return { completed, total, percentage, periodLabel }
+    }, [filteredInterventions, period])
+
+    // Celebration toast when reaching 100% completion
+    useEffect(() => {
+        if (progressData.percentage === 100 && progressData.total > 0 && !hasShownCelebration) {
+            toast({
+                title: "Toutes les interventions sont complètes !",
+                description: `Vous avez finalisé ${progressData.total} intervention${progressData.total > 1 ? 's' : ''} ${progressData.periodLabel}.`,
+                variant: "default",
+                duration: 5000
+            })
+            setHasShownCelebration(true)
+        }
+    }, [progressData, hasShownCelebration, toast])
+
+    // Reset celebration flag when period changes
+    useEffect(() => {
+        setHasShownCelebration(false)
+    }, [period.value])
 
     // Realtime updates for interventions
     useRealtimeInterventions({
@@ -202,7 +248,8 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                             occupancyRate: stats.occupancyRate,
                             tenantCount,
                             contractStats,
-                            onContractClick: () => router.push('/gestionnaire/biens/contrats')
+                            onContractClick: () => router.push('/gestionnaire/biens/contrats'),
+                            progressData
                         })}
                     />
                 </div>
@@ -218,14 +265,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                         occupancyRate={stats.occupancyRate}
                         tenantCount={tenantCount}
                         contractStats={contractStats}
-                    />
-                </div>
-
-                {/* Progress Tracker - Shows completion progress for the period */}
-                <div className="dashboard__progress mb-6">
-                    <ProgressTracker
-                        interventions={filteredInterventions}
-                        period={period}
+                        progressData={progressData}
                     />
                 </div>
 

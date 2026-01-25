@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerNotificationService } from '@/lib/services'
-import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { availabilityResponseSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
@@ -11,15 +10,11 @@ interface RouteParams {
 }
 
 export async function POST(request: NextRequest, { params }: RouteParams) {
-  logger.info({}, "🚀 [DEBUG] availability-response route started")
-
   try {
     const resolvedParams = await params
     const id = resolvedParams.id
-    logger.info({ id: id }, "✅ [DEBUG] params resolved, intervention ID:")
 
     if (!id) {
-      logger.error({}, "❌ [DEBUG] No intervention ID provided")
       return NextResponse.json({
         success: false,
         error: 'ID d\'intervention manquant'
@@ -32,21 +27,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     const { supabase, userProfile: user } = authResult.data
 
-    logger.info({ id: user.id, role: user.role }, "✅ [DEBUG] User found:")
-
     // Verify user is a tenant (already checked by getApiAuthContext, but keeping for clarity)
     if (user.role !== 'locataire' && user.role !== 'admin') {
-      logger.error({ user: user.role }, "❌ [DEBUG] User is not a tenant:")
       return NextResponse.json({
         success: false,
         error: 'Seuls les locataires peuvent répondre aux disponibilités'
       }, { status: 403 })
     }
 
-    logger.info({}, "✅ [DEBUG] User role verified: locataire")
-
     // Parse request body
-    logger.info({}, "📝 [DEBUG] Parsing request body")
     const body = await request.json()
 
     // ✅ ZOD VALIDATION
@@ -63,14 +52,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     const validatedData = validation.data
     const { available, availabilitySlots, reason } = validatedData
 
-    logger.info({
-      available,
-      availabilitySlotsCount: availabilitySlots?.length || 0,
-      reasonLength: reason?.length || 0
-    }, "📝 [DEBUG] Tenant availability response:")
-
     // Get intervention details
-    logger.info({}, "🏠 [DEBUG] Getting intervention details")
     const { data: intervention, error: interventionError } = await supabase
       .from('interventions')
       .select(`
@@ -85,33 +67,28 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .single()
 
     if (interventionError || !intervention) {
-      logger.error({ interventionError: interventionError?.message || "No intervention" }, "❌ [DEBUG] Intervention not found")
+      logger.error({ interventionError: interventionError?.message || "No intervention" }, "❌ Intervention not found")
       return NextResponse.json({
         success: false,
         error: 'Intervention non trouvée'
       }, { status: 404 })
     }
 
-    logger.info({ id: intervention.id, status: intervention.status }, "✅ [DEBUG] Intervention found:")
-
     // Verify user is the tenant for this intervention
-    logger.info({}, "🔐 [DEBUG] Verifying tenant permissions")
     const isUserTenant = intervention.lot?.lot_contacts?.some(
       (contact: { user_id: string; is_primary: boolean }) => contact.user_id === user.id
     )
 
     if (!isUserTenant) {
-      logger.error({
+      logger.warn({
         userId: user.id,
         lotContacts: intervention.lot?.lot_contacts?.map((c: { user_id: string; is_primary: boolean }) => c.user_id) || []
-      }, "❌ [DEBUG] User is not a tenant for this intervention")
+      }, "⚠️ User is not a tenant for this intervention")
       return NextResponse.json({
         success: false,
         error: 'Vous n\'êtes pas autorisé pour cette intervention'
       }, { status: 403 })
     }
-
-    logger.info({}, "✅ [DEBUG] Tenant permissions verified")
 
     // Process response based on availability flag
     let newStatus = intervention.status
@@ -131,7 +108,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         .eq('intervention_id', id)
 
       if (deleteError) {
-        logger.warn({ deleteError: deleteError }, "⚠️ Could not delete existing tenant availabilities:")
+        logger.warn({ deleteError: deleteError }, "⚠️ Could not delete existing tenant availabilities")
       }
 
       // Insert new tenant availabilities
@@ -152,7 +129,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         .insert(availabilityData)
 
       if (insertError) {
-        logger.error({ error: insertError }, "❌ Error saving tenant availabilities:")
+        logger.error({ error: insertError }, "❌ Error saving tenant availabilities")
         return NextResponse.json({
           success: false,
           error: 'Erreur lors de la sauvegarde des disponibilités'
@@ -183,17 +160,16 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .eq('id', id)
 
     if (updateError) {
-      logger.error({ error: updateError }, "❌ Error updating intervention status:")
+      logger.error({ error: updateError }, "❌ Error updating intervention status")
       return NextResponse.json({
         success: false,
         error: 'Erreur lors de la mise à jour du statut'
       }, { status: 500 })
     }
 
-    logger.info({ newStatus }, "✅ [DEBUG] Intervention status updated to:")
+    logger.info({ newStatus }, "✅ Intervention status updated")
 
     // Create notification for managers and providers
-    logger.info({}, "🔔 [DEBUG] Creating notifications")
     try {
       const notificationService = await createServerNotificationService()
 
@@ -265,7 +241,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         logger.info({ count: assignments.length }, '✅ Availability response notifications sent to contacts')
       }
     } catch (notificationError) {
-      logger.error({ error: notificationError }, '❌ Error sending availability response notifications:')
+      logger.error({ error: notificationError }, '❌ Error sending availability response notifications')
       // Don't fail the request for notification errors
     }
 
@@ -286,12 +262,11 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           logger.warn({}, '⚠️ Could not trigger automatic matching')
         }
       } catch (matchingError) {
-        logger.warn({ error: matchingError }, "⚠️ Error triggering matching:")
+        logger.warn({ error: matchingError }, "⚠️ Error triggering matching")
         // Don't fail the request for matching errors
       }
     }
 
-    logger.info({}, "🎉 [DEBUG] Route successful, sending response")
     return NextResponse.json({
       success: true,
       message: statusMessage,
@@ -299,8 +274,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     })
 
   } catch (error) {
-    logger.error({ error }, '❌ [DEBUG] Critical error in availability-response route:')
-    logger.error({ error: error instanceof Error ? error.stack : 'No stack trace' }, '❌ [DEBUG] Error stack:')
+    logger.error({ error: error instanceof Error ? error.message : String(error) }, '❌ Critical error in availability-response route')
     return NextResponse.json({
       success: false,
       error: 'Erreur serveur'

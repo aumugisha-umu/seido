@@ -8,7 +8,8 @@ import {
   createServerUserRepository,
   createServerBuildingRepository,
   createServerLotRepository,
-  createServerInterventionRepository
+  createServerInterventionRepository,
+  createServerActionInterventionCommentRepository
 } from '@/lib/services'
 import { NotificationService } from '@/lib/services/domain/notification.service'
 import { EmailNotificationService } from '@/lib/services/domain/email-notification.service'
@@ -238,9 +239,6 @@ export async function PUT(
       updated_at: new Date().toISOString()
     }
 
-    // Note: Comments about slot selection are now stored in intervention_comments table
-    // The comment parameter should be saved via the comments system if needed
-
     // Update intervention
     logger.info({ data: updateData }, "💾 [SELECT-SLOT] Updating intervention with data:")
     const { data: updatedIntervention, error: updateInterventionError } = await supabase
@@ -262,8 +260,51 @@ export async function PUT(
 
     logger.info({ interventionId, scheduledDateTime }, "✅ [SELECT-SLOT] Intervention scheduled for")
 
-    // Clear any existing time slots and matches for this intervention
-    await supabase.from('intervention_time_slots').delete().eq('intervention_id', interventionId)
+    // ✅ BUG FIX 2026-01-25: Save slot selection comment in intervention_comments table
+    if (comment) {
+      try {
+        const commentRepository = await createServerActionInterventionCommentRepository()
+        const slotComment = `📅 **Créneau confirmé:** ${selectedSlot.date} de ${selectedSlot.startTime} à ${selectedSlot.endTime}\n\n${comment}`
+        await commentRepository.createComment(interventionId, user.id, slotComment)
+        logger.info({ interventionId }, "💬 Slot selection comment saved")
+      } catch (commentError) {
+        logger.warn({ commentError }, "⚠️ Could not save slot selection comment (non-blocking)")
+      }
+    }
+
+    // Clear unselected time slots and matches for this intervention (keep confirmed slot)
+    // First, mark the selected slot as confirmed (if it exists in DB)
+    const { data: confirmedSlot } = await supabase
+      .from('intervention_time_slots')
+      .select('id')
+      .eq('intervention_id', interventionId)
+      .eq('slot_date', selectedSlot.date)
+      .eq('start_time', selectedSlot.startTime)
+      .single()
+
+    if (confirmedSlot) {
+      // Mark this slot as selected (modern status pattern)
+      await supabase
+        .from('intervention_time_slots')
+        .update({ status: 'selected' })
+        .eq('id', confirmedSlot.id)
+
+      // Delete other non-selected slots
+      await supabase
+        .from('intervention_time_slots')
+        .delete()
+        .eq('intervention_id', interventionId)
+        .neq('status', 'selected')
+    } else {
+      // Slot was custom (not from proposals), delete all previous non-selected slots
+      await supabase
+        .from('intervention_time_slots')
+        .delete()
+        .eq('intervention_id', interventionId)
+        .neq('status', 'selected')
+    }
+
+    // Clear availability matches (these are temporary coordination data)
     await supabase.from('availability_matches').delete().eq('intervention_id', interventionId)
 
     // Create notifications for all participants

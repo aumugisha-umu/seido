@@ -178,6 +178,7 @@ export interface Intervention {
   provider_guidelines?: string | null
   specific_location?: string | null
   requires_quote?: boolean | null
+  requires_participant_confirmation?: boolean | null
   quote_deadline?: string | null
   quote_notes?: string | null
   selected_quote_id?: string | null

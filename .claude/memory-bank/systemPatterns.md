@@ -183,7 +183,40 @@ supabase.auth.verifyOtp() + redirect(next)
 
 > 📚 Source: lib/services/domain/magic-link.service.ts, app/auth/email-callback/route.ts
 
-### 10. Module Facade Pattern (Refactoring Large Files)
+### 10. Intervention Confirmation Flow (Multi-Step Validation)
+
+Pattern pour interventions nécessitant confirmation des participants avant planification :
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ CRÉATION (date fixe + confirmation requise)                 │
+│ → intervention.status = 'planification' (NOT 'planifiee')   │
+│ → time_slot.status = 'pending' (NOT 'selected')             │
+│ → assignments.requires_confirmation = true                  │
+│ → assignments.confirmation_status = 'pending'               │
+└──────────────────────────┬──────────────────────────────────┘
+                           │ /api/intervention-confirm-participation
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│ PARTICIPANT CONFIRME                                        │
+│ → assignment.confirmation_status = 'confirmed'              │
+│                                                             │
+│ SI TOUS LES PARTICIPANTS CONFIRMÉS:                         │
+│   → intervention.status = 'planifiee'                       │
+│   → time_slot.status = 'selected'                           │
+│   → time_slot.selected_by_manager = true                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Fichiers clés :**
+- `app/api/create-manager-intervention/route.ts` - Logique CAS 2 avec `!requiresParticipantConfirmation`
+- `app/api/intervention-confirm-participation/route.ts` - Vérification "tous confirmés"
+
+**Règle critique :** Le statut `planifiee` n'est atteint QUE lorsque tous les participants requis ont confirmé.
+
+> 📚 Fix 2026-01-25 - Corrige le bug où l'intervention passait à `planifiee` immédiatement
+
+### 11. Module Facade Pattern (Refactoring Large Files)
 
 Pattern utilisé pour découper les gros fichiers (>500 lignes) en modules maintenables avec rétrocompatibilité :
 
@@ -268,5 +301,5 @@ tests/               # Infrastructure E2E
 - `email-link.repository.ts` - Tracking liens emails
 
 ---
-*Dernière mise à jour: 2026-01-23*
+*Dernière mise à jour: 2026-01-25*
 *Références: lib/services/README.md, lib/server-context.ts*

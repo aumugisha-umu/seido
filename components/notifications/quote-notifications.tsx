@@ -47,8 +47,8 @@ export function QuoteNotifications({
           mockNotifications.push({
             id: '1',
             type: 'quote_request',
-            title: 'Nouvelle demande de devis',
-            message: 'Devis demandé pour "Réparation plomberie - INT-2025-001"',
+            title: 'Nouvelle demande d\'estimation',
+            message: 'Estimation demandée pour "Réparation plomberie - INT-2025-001"',
             interventionId: 'int-001',
             interventionTitle: 'Réparation plomberie',
             timestamp: new Date().toISOString(),
@@ -61,8 +61,8 @@ export function QuoteNotifications({
           mockNotifications.push({
             id: '2',
             type: 'quote_submitted',
-            title: 'Nouveau devis reçu',
-            message: 'Plomberie Pro a soumis un devis de 450€',
+            title: 'Nouvelle estimation reçue',
+            message: 'Plomberie Pro a soumis une estimation de 450€',
             interventionId: 'int-001',
             interventionTitle: 'Réparation plomberie',
             providerName: 'Plomberie Pro',
@@ -144,7 +144,7 @@ export function QuoteNotifications({
       <Card className="text-center py-8">
         <CardContent>
           <Bell className="w-8 h-8 mx-auto mb-2 text-slate-400" />
-          <p className="text-slate-600 text-sm">Aucune notification de devis</p>
+          <p className="text-slate-600 text-sm">Aucune notification d'estimation</p>
         </CardContent>
       </Card>
     )
@@ -242,7 +242,7 @@ export function QuoteNotificationsPanel({
     <div className="w-80 max-h-96 overflow-y-auto">
       <div className="px-4 py-3 border-b border-slate-200">
         <div className="flex items-center justify-between">
-          <h3 className="font-medium text-slate-900">Notifications Devis</h3>
+          <h3 className="font-medium text-slate-900">Notifications Estimations</h3>
           {unreadCount > 0 && (
             <Badge variant="secondary" className="bg-sky-100 text-sky-800">
               {unreadCount}

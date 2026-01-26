@@ -26,7 +26,7 @@ import {
 } from 'lucide-react'
 import { PlanningCardProps } from '../types'
 import { TimeSlotCard } from '../atoms'
-import { formatDate } from '../utils/helpers'
+import { formatDate, formatTime } from '../utils/helpers'
 import { permissions } from '../utils'
 
 /**
@@ -35,6 +35,7 @@ import { permissions } from '../utils'
 export const PlanningCard = ({
   timeSlots = [],
   scheduledDate,
+  scheduledStartTime,
   userRole,
   currentUserId,
   onAddSlot,
@@ -97,6 +98,7 @@ export const PlanningCard = ({
                 </p>
                 <p className="text-lg font-semibold text-green-800">
                   {formatDate(scheduledDate)}
+                  {scheduledStartTime && ` • ${formatTime(scheduledStartTime)}`}
                 </p>
               </div>
             </div>
@@ -190,12 +192,15 @@ export const PlanningCard = ({
  */
 export interface CompactPlanningProps {
   scheduledDate?: string | null
+  /** Heure de début du créneau confirmé */
+  scheduledStartTime?: string | null
   slotsCount?: number
   className?: string
 }
 
 export const CompactPlanning = ({
   scheduledDate,
+  scheduledStartTime,
   slotsCount = 0,
   className
 }: CompactPlanningProps) => {
@@ -203,7 +208,10 @@ export const CompactPlanning = ({
     return (
       <div className={cn('flex items-center gap-2', className)}>
         <CalendarCheck className="h-4 w-4 text-green-600" />
-        <span className="text-sm font-medium">{formatDate(scheduledDate)}</span>
+        <span className="text-sm font-medium">
+          {formatDate(scheduledDate)}
+          {scheduledStartTime && ` • ${formatTime(scheduledStartTime)}`}
+        </span>
       </div>
     )
   }

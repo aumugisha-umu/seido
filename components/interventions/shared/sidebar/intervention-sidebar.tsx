@@ -34,6 +34,7 @@ export const InterventionSidebar = ({
   activeConversation,
   onConversationClick,
   onGroupConversationClick,
+  onParticipantClick,
   showConversationButtons = false,
   assignmentMode,
   unreadCounts = {},
@@ -58,6 +59,7 @@ export const InterventionSidebar = ({
             activeConversation={activeConversation}
             onConversationClick={onConversationClick}
             onGroupConversationClick={onGroupConversationClick}
+            onParticipantClick={onParticipantClick}
             assignmentMode={assignmentMode}
             unreadCounts={unreadCounts}
             hideGroupConversationButton={true}

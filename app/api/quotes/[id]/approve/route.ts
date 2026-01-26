@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { quoteApproveSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
-import { createEmailNotificationService } from '@/lib/services/domain/email-notification.service'
 
 export async function POST(
   request: NextRequest,
@@ -72,7 +71,7 @@ export async function POST(
     if (quoteError) {
       logger.error({ error: quoteError }, '❌ [API-APPROVE] Database error while fetching quote:')
       return NextResponse.json({
-        error: 'Devis non trouvé',
+        error: 'Estimation non trouvée',
         debug: { quoteError }
       }, { status: 404 })
     }
@@ -80,7 +79,7 @@ export async function POST(
     if (!quote) {
       logger.error({ id: id }, '❌ [API-APPROVE] Quote not found with ID:')
       return NextResponse.json({
-        error: 'Devis non trouvé',
+        error: 'Estimation non trouvée',
         debug: { searchedId: id }
       }, { status: 404 })
     }
@@ -168,59 +167,78 @@ export async function POST(
 
     logger.info({}, '🎉 [API-APPROVE] Process completed successfully!')
 
-    // Send email to provider
-    try {
-      const emailService = createEmailNotificationService()
+    // Send email to provider (via after())
+    {
+      // Capture variables for after() closure
+      const emailQuote = { ...quote }
+      const emailIntervention = quote.intervention
+      const emailManager = { ...userData }
+      const emailComments = comments
+      const emailProviderId = quote.provider_id
+      const emailInterventionId = quote.intervention_id
 
-      // Get provider
-      const { data: provider } = await supabase
-        .from('users')
-        .select('id, email, first_name, last_name, company_name')
-        .eq('id', quote.provider_id)
-        .single()
+      after(async () => {
+        try {
+          const { createEmailNotificationService } = await import('@/lib/services/domain/email-notification.factory')
+          const { createServerSupabaseClient } = await import('@/lib/services')
 
-      if (provider) {
-        // Get property address
-        const { data: interventionDetails } = await supabase
-          .from('interventions')
-          .select(`
-            lot_id,
-            building_id,
-            lots(buildings(address, city)),
-            buildings(address, city)
-          `)
-          .eq('id', quote.intervention_id)
-          .single()
+          const emailService = await createEmailNotificationService()
+          const supabaseClient = await createServerSupabaseClient()
 
-        let propertyAddress = 'Adresse non spécifiée'
-        if (interventionDetails) {
-          if (interventionDetails.lot_id && interventionDetails.lots) {
-            const lot = interventionDetails.lots as any
-            const building = lot.buildings
-            propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
-          } else if (interventionDetails.building_id && interventionDetails.buildings) {
-            const building = interventionDetails.buildings as any
-            propertyAddress = `${building.address}, ${building.city}`
+          // Get provider
+          const { data: provider } = await supabaseClient
+            .from('users')
+            .select('id, email, first_name, last_name, company_name')
+            .eq('id', emailProviderId)
+            .single()
+
+          if (provider) {
+            // Get property address
+            const { data: interventionDetails } = await supabaseClient
+              .from('interventions')
+              .select(`
+                lot_id,
+                building_id,
+                lots(buildings(address, city)),
+                buildings(address, city)
+              `)
+              .eq('id', emailInterventionId)
+              .single()
+
+            let propertyAddress = 'Adresse non spécifiée'
+            if (interventionDetails) {
+              if (interventionDetails.lot_id && interventionDetails.lots) {
+                const lot = interventionDetails.lots as any
+                const building = lot.buildings
+                propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+              } else if (interventionDetails.building_id && interventionDetails.buildings) {
+                const building = interventionDetails.buildings as any
+                propertyAddress = `${building.address}, ${building.city}`
+              }
+            }
+
+            await emailService.sendQuoteApproved({
+              quote: emailQuote,
+              intervention: emailIntervention as any,
+              property: { address: propertyAddress },
+              manager: emailManager,
+              provider,
+              approvalNotes: emailComments,
+            })
+            logger.info({ quoteId: emailQuote.id }, '📧 [API] Quote approved email sent (via after())')
           }
+        } catch (emailError) {
+          logger.error({
+            quoteId: emailQuote.id,
+            error: emailError instanceof Error ? emailError.message : String(emailError)
+          }, '⚠️ [API] Email notifications failed (via after())')
         }
-
-        await emailService.sendQuoteApproved({
-          quote,
-          intervention: quote.intervention as any,
-          property: { address: propertyAddress },
-          manager: userData,
-          provider,
-          approvalNotes: comments,
-        })
-        logger.info({ quoteId: quote.id }, '📧 Quote approved email sent')
-      }
-    } catch (emailError) {
-      logger.warn({ emailError }, '⚠️ Could not send quote approval email')
+      })
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Devis approuvé avec succès'
+      message: 'Estimation approuvée avec succès'
     })
 
   } catch (error) {

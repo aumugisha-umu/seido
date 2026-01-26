@@ -47,9 +47,10 @@ export default async function PrestataireDashboardPage() {
   }
 
   // Calculer les statistiques
+  // Note: 'en_cours' removed from workflow - interventions go directly from 'planifiee' to finalization
   const stats = {
     interventionsCount: allInterventions.length,
-    activeCount: allInterventions.filter(i => ['en_cours', 'planifiee', 'planification'].includes(i.status)).length,
+    activeCount: allInterventions.filter(i => ['planifiee', 'planification'].includes(i.status)).length,
     completedCount: allInterventions.filter(i => ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire'].includes(i.status)).length
   }
 
@@ -58,6 +59,7 @@ export default async function PrestataireDashboardPage() {
       stats={stats}
       interventions={allInterventions}
       pendingCount={pendingActionsCount}
+      userId={profile.id}
     />
   )
 }

@@ -269,7 +269,7 @@ await expect(dashboardContent).toBeVisible({ timeout: 5000 })
 ✅ ✅ ✅ PROFIL UTILISATEUR CRÉÉ SERVER-SIDE! ✅ ✅ ✅
 🎉 NOUVEAU PATTERN FONCTIONNE!
    - ID: 67749c58-27ec-4b03-9ba5-256c359f91ff
-   - Email: arthur+test-1759446207864-147@seido.pm
+   - Email: arthur+test-1759446207864-147@seido-app.com
    - Role: gestionnaire
    - Team ID: 2c7d8897-ee5d-470c-bf02-22c5a6c126c5
 ```

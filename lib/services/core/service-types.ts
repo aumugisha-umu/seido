@@ -124,39 +124,36 @@ export type TeamMemberRole = Database['public']['Enums']['team_member_role']
  * Intervention Status (10 active states - French)
  * i18n will be added later when multiple languages are supported
  *
- * Note: 'en_cours' is DEPRECATED - kept in DB enum for backward compatibility
- * but no longer used in the application workflow.
- * Interventions now go directly from 'planifiee' to 'cloturee_par_*'
+ * Workflow: planifiee → cloturee_par_prestataire (direct transition)
  */
+// Note: demande_de_devis removed - quote status tracked via intervention_quotes table
 export type InterventionStatus =
   | 'demande'                        // Initial request from tenant
   | 'rejetee'                        // Rejected by manager
   | 'approuvee'                      // Approved by manager
-  | 'demande_de_devis'               // Quote requested from provider
   | 'planification'                  // Finding available time slot
   | 'planifiee'                      // Time slot confirmed
-  | 'en_cours'                       // DEPRECATED: kept for DB compatibility only
   | 'cloturee_par_prestataire'       // Provider finished work
   | 'cloturee_par_locataire'         // Tenant validated work
   | 'cloturee_par_gestionnaire'      // Manager finalized intervention
   | 'annulee'                        // Cancelled
+  | 'contestee'                      // Disputed intervention
 
 /**
- * Display labels for intervention status (active statuses only)
- * Note: 'en_cours' is excluded as it's deprecated
+ * Display labels for intervention status
  */
+// Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
 export const STATUS_LABELS_FR: Partial<Record<InterventionStatus, string>> = {
   demande: "Demande",
   rejetee: "Rejetée",
   approuvee: "Approuvée",
-  demande_de_devis: "Devis demandé",
   planification: "Planification",
   planifiee: "Planifiée",
-  // en_cours: DEPRECATED - not displayed
   cloturee_par_prestataire: "Clôturée par prestataire",
   cloturee_par_locataire: "Clôturée par locataire",
   cloturee_par_gestionnaire: "Terminée",
-  annulee: "Annulée"
+  annulee: "Annulée",
+  contestee: "Contestée"
 }
 
 export interface Intervention {
@@ -181,6 +178,7 @@ export interface Intervention {
   provider_guidelines?: string | null
   specific_location?: string | null
   requires_quote?: boolean | null
+  requires_participant_confirmation?: boolean | null
   quote_deadline?: string | null
   quote_notes?: string | null
   selected_quote_id?: string | null

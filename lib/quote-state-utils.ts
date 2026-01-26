@@ -1,5 +1,5 @@
 /**
- * Utilitaires pour analyser l'état des devis et déterminer les actions appropriées
+ * Utilitaires pour analyser l'état des estimations et déterminer les actions appropriées
  */
 
 export interface Quote {
@@ -41,7 +41,7 @@ export interface QuoteActionConfig {
 }
 
 /**
- * Analyse l'état des devis d'une intervention
+ * Analyse l'état des estimations d'une intervention
  */
 export function analyzeQuoteState(quotes: Quote[] = []): QuoteState {
   const sentQuotes = quotes.filter(q => q.status === 'sent')
@@ -67,30 +67,30 @@ export function analyzeQuoteState(quotes: Quote[] = []): QuoteState {
 }
 
 /**
- * Génère la configuration du bouton de gestion des devis pour les gestionnaires
+ * Génère la configuration du bouton de gestion des estimations pour les gestionnaires
  */
 export function getQuoteManagementActionConfig(quotes: Quote[] = []): QuoteActionConfig {
   const state = analyzeQuoteState(quotes)
 
-  // Cas 1: Aucun devis - permettre de demander des devis
+  // Cas 1: Aucune estimation - permettre de demander des estimations
   if (state.isEmpty) {
     return {
       key: 'request_quotes',
-      label: 'Demander des devis',
+      label: 'Demander des estimations',
       variant: 'default',
       isDisabled: false,
       shouldShow: true,
       badge: undefined,
-      tooltip: 'Solliciter des devis auprès de prestataires',
-      description: 'Envoyer une demande de devis aux prestataires'
+      tooltip: 'Solliciter des estimations auprès de prestataires',
+      description: 'Envoyer une demande d\'estimation aux prestataires'
     }
   }
 
-  // Cas 2: Devis reçus à traiter (PRIORITÉ HAUTE)
+  // Cas 2: Estimations reçues à traiter (PRIORITÉ HAUTE)
   if (state.sentCount > 0) {
     return {
       key: 'process_quotes',
-      label: 'Traiter le devis',
+      label: 'Traiter l\'estimation',
       variant: 'default',
       isDisabled: false,
       shouldShow: true,
@@ -100,64 +100,64 @@ export function getQuoteManagementActionConfig(quotes: Quote[] = []): QuoteActio
         variant: 'warning'
       } : undefined,
       tooltip: state.sentCount > 1
-        ? `${state.sentCount} devis en attente de validation`
-        : 'Devis en attente de validation',
-      description: 'Examiner et valider les devis reçus'
+        ? `${state.sentCount} estimations en attente de validation`
+        : 'Estimation en attente de validation',
+      description: 'Examiner et valider les estimations reçues'
     }
   }
 
-  // Cas 3: Tous rejetés ou annulés (aucun devis actif)
+  // Cas 3: Toutes rejetées ou annulées (aucune estimation active)
   if (state.hasOnlyInactiveQuotes) {
     return {
       key: 'request_quotes',
-      label: 'Nouvelle demande de devis',
+      label: 'Nouvelle demande d\'estimation',
       variant: 'default',
       isDisabled: false,
       shouldShow: true,
       badge: undefined,
-      tooltip: 'Faire une nouvelle demande de devis',
-      description: 'Faire une nouvelle demande de devis'
+      tooltip: 'Faire une nouvelle demande d\'estimation',
+      description: 'Faire une nouvelle demande d\'estimation'
     }
   }
 
-  // Cas 4: Uniquement des devis acceptés (pas de pending ni sent)
+  // Cas 4: Uniquement des estimations acceptées (pas de pending ni sent)
   if (state.acceptedCount > 0 && state.pendingCount === 0 && state.sentCount === 0) {
     return {
       key: 'view_quotes',
-      label: 'Voir les devis',
+      label: 'Voir les estimations',
       variant: 'secondary',
       isDisabled: false,
       shouldShow: true,
       badge: undefined,
-      tooltip: 'Consulter les devis acceptés',
-      description: 'Consulter les devis acceptés'
+      tooltip: 'Consulter les estimations acceptées',
+      description: 'Consulter les estimations acceptées'
     }
   }
 
   // Fallback (ne devrait pas arriver)
   return {
     key: 'request_quotes',
-    label: 'Demander des devis',
+    label: 'Demander des estimations',
     variant: 'default',
     isDisabled: false,
     shouldShow: true,
     badge: undefined,
-    tooltip: 'Solliciter des devis auprès de prestataires',
-    description: 'Envoyer une demande de devis aux prestataires'
+    tooltip: 'Solliciter des estimations auprès de prestataires',
+    description: 'Envoyer une demande d\'estimation aux prestataires'
   }
 }
 
 /**
- * Génère la configuration pour gérer les devis existants (action secondaire)
- * NOTE: Bouton désactivé - les utilisateurs accèdent aux devis via l'onglet Devis
+ * Génère la configuration pour gérer les estimations existantes (action secondaire)
+ * NOTE: Bouton désactivé - les utilisateurs accèdent aux estimations via l'onglet Estimations
  */
 export function getExistingQuotesManagementConfig(quotes: Quote[] = []): QuoteActionConfig | null {
-  // Bouton "Gérer les devis" retiré - navigation via onglet Devis uniquement
+  // Bouton "Gérer les estimations" retiré - navigation via onglet Estimations uniquement
   return null
 }
 
 /**
- * Génère un message d'état vide contextuel pour la section des devis
+ * Génère un message d'état vide contextuel pour la section des estimations
  */
 export function getQuoteEmptyStateMessage(quotes: Quote[] = []): {
   title: string
@@ -169,8 +169,8 @@ export function getQuoteEmptyStateMessage(quotes: Quote[] = []): {
 
   if (state.isEmpty) {
     return {
-      title: 'En attente de devis',
-      description: 'Les prestataires contactés n\'ont pas encore soumis leurs propositions. Vous recevrez une notification dès qu\'un devis sera disponible.',
+      title: 'En attente d\'estimation',
+      description: 'Les prestataires contactés n\'ont pas encore soumis leurs propositions. Vous recevrez une notification dès qu\'une estimation sera disponible.',
       actionLabel: 'Relancer les prestataires',
       variant: 'info'
     }
@@ -178,22 +178,22 @@ export function getQuoteEmptyStateMessage(quotes: Quote[] = []): {
 
   if (state.hasOnlyRejectedQuotes) {
     return {
-      title: 'Nouveaux devis attendus',
-      description: `${state.rejectedCount} devis ${state.rejectedCount > 1 ? 'ont été rejetés' : 'a été rejeté'}. Les prestataires ont été notifiés et vont soumettre de nouvelles propositions.`,
+      title: 'Nouvelles estimations attendues',
+      description: `${state.rejectedCount} estimation${state.rejectedCount > 1 ? 's ont été rejetées' : ' a été rejetée'}. Les prestataires ont été notifiés et vont soumettre de nouvelles propositions.`,
       actionLabel: 'Voir l\'historique',
       variant: 'warning'
     }
   }
 
   return {
-    title: 'Aucun devis disponible',
-    description: 'Aucun devis n\'est disponible pour cette intervention.',
+    title: 'Aucune estimation disponible',
+    description: 'Aucune estimation n\'est disponible pour cette intervention.',
     variant: 'default'
   }
 }
 
 /**
- * Détermine si on doit rediriger vers l'onglet devis ou afficher un message
+ * Détermine si on doit rediriger vers l'onglet estimations ou afficher un message
  */
 export function shouldNavigateToQuotes(quotes: Quote[] = []): boolean {
   const state = analyzeQuoteState(quotes)
@@ -201,41 +201,41 @@ export function shouldNavigateToQuotes(quotes: Quote[] = []): boolean {
 }
 
 /**
- * Génère un résumé textuel de l'état des devis pour l'affichage
+ * Génère un résumé textuel de l'état des estimations pour l'affichage
  */
 export function getQuoteStateSummary(quotes: Quote[] = []): string {
   const state = analyzeQuoteState(quotes)
 
   if (state.isEmpty) {
-    return 'Aucun devis reçu'
+    return 'Aucune estimation reçue'
   }
 
   if (state.hasOnlyInactiveQuotes) {
     const inactiveParts: string[] = []
     if (state.rejectedCount > 0) {
-      inactiveParts.push(`${state.rejectedCount} rejeté${state.rejectedCount > 1 ? 's' : ''}`)
+      inactiveParts.push(`${state.rejectedCount} rejetée${state.rejectedCount > 1 ? 's' : ''}`)
     }
     if (state.cancelledCount > 0) {
-      inactiveParts.push(`${state.cancelledCount} annulé${state.cancelledCount > 1 ? 's' : ''}`)
+      inactiveParts.push(`${state.cancelledCount} annulée${state.cancelledCount > 1 ? 's' : ''}`)
     }
     return inactiveParts.join(', ')
   }
 
   const parts: string[] = []
   if (state.sentCount > 0) {
-    parts.push(`${state.sentCount} reçu${state.sentCount > 1 ? 's' : ''}`)
+    parts.push(`${state.sentCount} reçue${state.sentCount > 1 ? 's' : ''}`)
   }
   if (state.pendingCount > 0) {
     parts.push(`${state.pendingCount} en attente`)
   }
   if (state.acceptedCount > 0) {
-    parts.push(`${state.acceptedCount} approuvé${state.acceptedCount > 1 ? 's' : ''}`)
+    parts.push(`${state.acceptedCount} approuvée${state.acceptedCount > 1 ? 's' : ''}`)
   }
   if (state.rejectedCount > 0) {
-    parts.push(`${state.rejectedCount} rejeté${state.rejectedCount > 1 ? 's' : ''}`)
+    parts.push(`${state.rejectedCount} rejetée${state.rejectedCount > 1 ? 's' : ''}`)
   }
   if (state.cancelledCount > 0) {
-    parts.push(`${state.cancelledCount} annulé${state.cancelledCount > 1 ? 's' : ''}`)
+    parts.push(`${state.cancelledCount} annulée${state.cancelledCount > 1 ? 's' : ''}`)
   }
 
   return parts.join(', ')

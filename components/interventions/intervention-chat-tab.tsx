@@ -16,6 +16,7 @@ import { MessageSquare, Users, UserCheck, Shield, Briefcase } from 'lucide-react
 import { ChatInterface } from '@/components/chat/chat-interface'
 import { sendMessageAction } from '@/app/actions/conversation-actions'
 import { toast } from 'sonner'
+import { formatErrorMessage } from '@/lib/utils/error-formatter'
 import type { Database } from '@/lib/database.types'
 
 type Thread = Database['public']['Tables']['conversation_threads']['Row'] & {
@@ -228,8 +229,8 @@ export function InterventionChatTab({
       console.error('❌ [INTERVENTION-CHAT-TAB] Error type:', typeof result.error)
       console.error('❌ [INTERVENTION-CHAT-TAB] Error stringified:', JSON.stringify(result.error, null, 2))
 
-      toast.error(result.error || 'Erreur lors de l\'envoi du message')
-      throw new Error(result.error)
+      toast.error(formatErrorMessage(result.error, 'Erreur lors de l\'envoi du message'))
+      throw new Error(formatErrorMessage(result.error))
     }
 
     // Réinitialiser le message initial après envoi

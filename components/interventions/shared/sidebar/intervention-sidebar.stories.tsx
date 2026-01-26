@@ -21,13 +21,13 @@ const meta = {
     },
     currentStatus: {
       control: 'select',
+      // Note: 'en_cours' removed from workflow - interventions go directly from 'planifiee' to finalization
       options: [
         'demande',
         'approuvee',
         'demande_de_devis',
         'planification',
         'planifiee',
-        'en_cours',
         'cloturee_par_gestionnaire'
       ]
     }
@@ -73,7 +73,7 @@ export const ProviderView: Story = {
   args: {
     participants: mockParticipants,
     currentUserRole: 'provider',
-    currentStatus: 'en_cours',
+    currentStatus: 'planifiee', // Changed from 'en_cours' (removed from workflow)
     onStartConversation: (id) => console.log('Conversation:', id),
     onOpenGroupChat: () => console.log('Open group chat')
   }

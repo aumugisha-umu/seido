@@ -3,18 +3,29 @@ import { Email } from '@/lib/types/email-integration';
 export class EmailClientService {
     /**
      * Fetch emails from the API
+     *
+     * @param folder - Folder to fetch from: inbox, processed, sent, archive, drafts
+     * @param search - Optional search query
+     * @param limit - Max emails to return (default 50)
+     * @param offset - Pagination offset
+     * @param source - Email source filter:
+     *   - 'all': All sources (default)
+     *   - 'notification_replies': Webhook inbound only
+     *   - UUID: Specific email connection ID
      */
     static async getEmails(
         folder: string = 'inbox',
         search?: string,
         limit: number = 50,
-        offset: number = 0
+        offset: number = 0,
+        source?: string
     ): Promise<{ emails: Email[]; total: number }> {
         const params = new URLSearchParams();
         if (folder) params.append('folder', folder);
         if (search) params.append('search', search);
         params.append('limit', limit.toString());
         params.append('offset', offset.toString());
+        if (source) params.append('source', source);
 
         const response = await fetch(`/api/emails?${params.toString()}`);
         if (!response.ok) {
@@ -31,7 +42,7 @@ export class EmailClientService {
     /**
      * Fetch email counts
      */
-    static async getCounts(): Promise<{ inbox: number; sent: number; archive: number; drafts: number }> {
+    static async getCounts(): Promise<{ inbox: number; processed: number; sent: number; archive: number; drafts: number }> {
         const response = await fetch('/api/emails/counts');
         if (!response.ok) {
             throw new Error('Failed to fetch email counts');
@@ -65,13 +76,30 @@ export class EmailClientService {
     }
 
     /**
-     * Sync emails manually (trigger cron)
+     * Sync emails manually for the current user's team
+     * Uses /api/emails/sync (user-accessible) instead of /api/cron/sync-emails (cron-protected)
      */
-    static async syncEmails(): Promise<void> {
-        const response = await fetch('/api/cron/sync-emails');
+    static async syncEmails(): Promise<{
+        success: boolean;
+        results: any[];
+        summary?: {
+            connections: number;
+            successful: number;
+            errors: number;
+            newEmails: number;
+        };
+    }> {
+        const response = await fetch('/api/emails/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
         if (!response.ok) {
-            throw new Error('Failed to sync emails');
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to sync emails');
         }
+
+        return response.json();
     }
     /**
      * Update an email

@@ -66,7 +66,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
     if ('status' in data && data.status) {
       validateEnum(
         data.status,
-        ['brouillon', 'a_venir', 'actif', 'expire', 'resilie', 'renouvele'] as const,
+        ['a_venir', 'actif', 'expire', 'resilie', 'renouvele'] as const,
         'status'
       )
     }
@@ -407,7 +407,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
         .from(this.tableName)
         .select('id', { count: 'exact', head: true })
         .eq('lot_id', lotId)
-        .in('status', ['actif', 'a_venir', 'brouillon']) // Contrats non terminés
+        .in('status', ['actif', 'a_venir']) // Contrats non terminés (actifs ou à venir)
         .is('deleted_at', null)
         // Chevauchement STRICT : start_date < endDate AND end_date > startDate
         // Exclut les cas où fin = début (autorise 1 jour d'écart)
@@ -456,7 +456,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
         .from(this.tableName)
         .select('id, title, start_date, end_date, status')
         .eq('lot_id', lotId)
-        .in('status', ['actif', 'a_venir', 'brouillon'])
+        .in('status', ['actif', 'a_venir'])
         .is('deleted_at', null)
         // Chevauchement STRICT : start_date < endDate AND end_date > startDate
         .lt('start_date', endDate)
@@ -482,6 +482,102 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
     } catch (error) {
       logger.error({ error, lotId, startDate, endDate }, '❌ [CONTRACT-REPO] findOverlappingContracts error')
       return createErrorResponse(handleError(error as Error, 'contract:findOverlappingContracts'))
+    }
+  }
+
+  /**
+   * Vérifie si un locataire a déjà un contrat actif sur ce lot pour cette période.
+   * Utilisé pour détecter les doublons potentiels (même locataire = probablement erreur).
+   *
+   * @param lotId - ID du lot
+   * @param tenantUserId - ID du locataire à vérifier
+   * @param startDate - Date de début du nouveau contrat (format YYYY-MM-DD)
+   * @param endDate - Date de fin du nouveau contrat (format YYYY-MM-DD)
+   * @param excludeContractId - ID du contrat à exclure (pour édition)
+   */
+  async findTenantActiveContractsOnLot(
+    lotId: string,
+    tenantUserId: string,
+    startDate: string,
+    endDate: string,
+    excludeContractId?: string
+  ) {
+    try {
+      let query = this.supabase
+        .from(this.tableName)
+        .select(`
+          id, title, start_date, end_date, status,
+          contract_contacts!inner(user_id, role)
+        `)
+        .eq('lot_id', lotId)
+        .eq('contract_contacts.user_id', tenantUserId)
+        .eq('contract_contacts.role', 'locataire')
+        .in('status', ['actif', 'a_venir'])
+        .is('deleted_at', null)
+        .lt('start_date', endDate)
+        .gt('end_date', startDate)
+
+      if (excludeContractId) {
+        query = query.neq('id', excludeContractId)
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        logger.error({ error, lotId, tenantUserId }, '❌ [CONTRACT-REPO] findTenantActiveContractsOnLot error')
+        return createErrorResponse(handleError(error, 'contract:findTenantActiveContractsOnLot'))
+      }
+
+      logger.debug(
+        { lotId, tenantUserId, startDate, endDate, foundCount: data?.length || 0 },
+        '🔍 [CONTRACT-REPO] findTenantActiveContractsOnLot check'
+      )
+
+      return { success: true as const, data: data || [] }
+    } catch (error) {
+      logger.error({ error, lotId, tenantUserId }, '❌ [CONTRACT-REPO] findTenantActiveContractsOnLot error')
+      return createErrorResponse(handleError(error as Error, 'contract:findTenantActiveContractsOnLot'))
+    }
+  }
+
+  /**
+   * Récupère TOUS les contrats actifs ou à venir sur un lot (non expirés, non supprimés)
+   * Utilisé pour calculer la vraie prochaine date disponible en tenant compte
+   * de tous les contrats futurs, pas seulement ceux qui chevauchent une période donnée.
+   */
+  async findAllActiveOrUpcomingContractsOnLot(
+    lotId: string,
+    excludeContractId?: string
+  ) {
+    try {
+      let query = this.supabase
+        .from(this.tableName)
+        .select('id, title, start_date, end_date, status')
+        .eq('lot_id', lotId)
+        .in('status', ['actif', 'a_venir'])
+        .is('deleted_at', null)
+        .order('end_date', { ascending: false })
+
+      if (excludeContractId) {
+        query = query.neq('id', excludeContractId)
+      }
+
+      const { data, error } = await query
+
+      if (error) {
+        logger.error({ error, lotId }, '❌ [CONTRACT-REPO] findAllActiveOrUpcomingContractsOnLot error')
+        return createErrorResponse(handleError(error, 'contract:findAllActiveOrUpcomingContractsOnLot'))
+      }
+
+      logger.debug(
+        { lotId, foundCount: data?.length || 0 },
+        '🔍 [CONTRACT-REPO] findAllActiveOrUpcomingContractsOnLot'
+      )
+
+      return { success: true as const, data: data || [] }
+    } catch (error) {
+      logger.error({ error, lotId }, '❌ [CONTRACT-REPO] findAllActiveOrUpcomingContractsOnLot error')
+      return createErrorResponse(handleError(error as Error, 'contract:findAllActiveOrUpcomingContractsOnLot'))
     }
   }
 

@@ -98,7 +98,7 @@ export function IntegratedQuotesCard({
     error: quoteRequestError
   } = useInterventionQuoting()
 
-  // Charger les devis
+  // Charger les estimations
   const fetchQuotes = useCallback(async () => {
     try {
       setIsLoading(true)
@@ -109,7 +109,7 @@ export function IntegratedQuotesCard({
         setQuotes(data.quotes || [])
       } else {
         const errorData = await response.json()
-        setError(errorData.error || 'Erreur lors du chargement des devis')
+        setError(errorData.error || 'Erreur lors du chargement des estimations')
       }
     } catch (err) {
       logger.error('Error fetching quotes:', err)
@@ -145,11 +145,11 @@ export function IntegratedQuotesCard({
     if (action === 'approve') {
       await handleQuoteApprove(quoteId, comments)
     } else {
-      await handleQuoteReject(quoteId, comments || 'Devis non retenu')
+      await handleQuoteReject(quoteId, comments || 'Estimation non retenue')
     }
   }
 
-  // Approuver un devis
+  // Approuver une estimation
   const handleQuoteApprove = async (quoteId: string, comments?: string) => {
     setIsSubmitting(true)
     try {
@@ -176,17 +176,17 @@ export function IntegratedQuotesCard({
         const errorData = await response.json()
         const errorMessage = errorData.error || 'Erreur lors de l\'approbation'
         setError(errorMessage)
-        quoteToast.quoteError(errorMessage, 'l\'approbation du devis')
+        quoteToast.quoteError(errorMessage, 'l\'approbation de l\'estimation')
       }
     } catch (err) {
       logger.error('Error approving quote:', err)
-      setError('Erreur lors de l\'approbation du devis')
+      setError('Erreur lors de l\'approbation de l\'estimation')
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  // Rejeter un devis
+  // Rejeter une estimation
   const handleQuoteReject = async (quoteId: string, reason: string) => {
     setIsSubmitting(true)
     try {
@@ -213,11 +213,11 @@ export function IntegratedQuotesCard({
         const errorData = await response.json()
         const errorMessage = errorData.error || 'Erreur lors du rejet'
         setError(errorMessage)
-        quoteToast.quoteError(errorMessage, 'le rejet du devis')
+        quoteToast.quoteError(errorMessage, 'le rejet de l\'estimation')
       }
     } catch (err) {
       logger.error('Error rejecting quote:', err)
-      setError('Erreur lors du rejet du devis')
+      setError('Erreur lors du rejet de l\'estimation')
     } finally {
       setIsSubmitting(false)
     }
@@ -238,7 +238,7 @@ export function IntegratedQuotesCard({
   const approvedQuotes = quotes.filter(q => q.status === 'accepted')
   const _rejectedQuotes = quotes.filter(q => q.status === 'rejected')
 
-  // Si l'intervention n'est pas en phase de devis
+  // Si l'intervention n'est pas en phase d'estimation
   if (intervention.status !== 'demande_de_devis' && quotes.length === 0) {
     return (
       <Card>
@@ -246,7 +246,7 @@ export function IntegratedQuotesCard({
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center space-x-2">
               <FileText className="h-5 w-5 text-blue-500" />
-              <span>Gestion des Devis</span>
+              <span>Gestion des Estimations</span>
             </CardTitle>
             <Badge className={getStatusColor(intervention.status)}>
               {intervention.status}
@@ -258,20 +258,20 @@ export function IntegratedQuotesCard({
             <div className="text-center py-8">
               <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
               <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Prêt pour demande de devis
+                Prêt pour demande d'estimation
               </h3>
               <p className="text-gray-600 mb-4">
-                Cette intervention est approuvée. Vous pouvez maintenant demander des devis.
+                Cette intervention est approuvée. Vous pouvez maintenant demander des estimations.
               </p>
               <Button onClick={() => handleQuoteRequest(intervention)}>
                 <Plus className="h-4 w-4 mr-2" />
-                Demander des devis
+                Demander des estimations
               </Button>
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
               <FileText className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-              <p>Les devis ne sont pas encore disponibles pour cette intervention</p>
+              <p>Les estimations ne sont pas encore disponibles pour cette intervention</p>
             </div>
           )}
         </CardContent>
@@ -285,13 +285,13 @@ export function IntegratedQuotesCard({
         <CardHeader>
           <CardTitle className="flex items-center space-x-2 text-slate-900">
             <FileText className="h-5 w-5 text-sky-600" />
-            <span>Gestion des Devis</span>
+            <span>Gestion des Estimations</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-sky-500"></div>
-            <span className="ml-2 text-slate-600">Chargement des devis...</span>
+            <span className="ml-2 text-slate-600">Chargement des estimations...</span>
           </div>
         </CardContent>
       </Card>
@@ -305,7 +305,7 @@ export function IntegratedQuotesCard({
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center space-x-2 text-slate-900">
               <FileText className="h-5 w-5 text-sky-600" />
-              <span>Gestion des Devis</span>
+              <span>Gestion des Estimations</span>
             </CardTitle>
             <div className="flex items-center space-x-2">
               <Badge className={getStatusColor(intervention.status)}>
@@ -332,7 +332,7 @@ export function IntegratedQuotesCard({
               <div className="text-lg font-semibold text-sky-600">
                 {quotes.length}
               </div>
-              <div className="text-xs text-slate-600">Total devis</div>
+              <div className="text-xs text-slate-600">Total estimations</div>
             </div>
             <div>
               <div className="text-lg font-semibold text-amber-600">
@@ -359,7 +359,7 @@ export function IntegratedQuotesCard({
             <Alert>
               <Clock className="h-4 w-4" />
               <AlertDescription>
-                Deadline pour les devis: {new Date(intervention.quote_deadline).toLocaleDateString('fr-FR')}
+                Deadline pour les estimations: {new Date(intervention.quote_deadline).toLocaleDateString('fr-FR')}
               </AlertDescription>
             </Alert>
           )}
@@ -371,12 +371,12 @@ export function IntegratedQuotesCard({
             </Alert>
           )}
 
-          {/* Devis en attente avec actions selon Design System */}
+          {/* Estimations en attente avec actions selon Design System */}
           {pendingQuotes.length > 0 && (
             <div>
               <h4 className="font-medium mb-3 flex items-center text-slate-900">
                 <Clock className="h-4 w-4 mr-2 text-amber-600" />
-                Devis en attente de validation ({pendingQuotes.length})
+                Estimations en attente de validation ({pendingQuotes.length})
               </h4>
               <div className="space-y-3">
                 {pendingQuotes.map((quote) => (
@@ -402,7 +402,7 @@ export function IntegratedQuotesCard({
                         </div>
                       </div>
 
-                      {/* Description du devis */}
+                      {/* Description de l'estimation */}
                       <div className="mb-3 p-3 bg-slate-50 rounded-lg">
                         <p className="text-sm text-slate-700">{quote.description}</p>
                         {quote.work_details && (
@@ -449,12 +449,12 @@ export function IntegratedQuotesCard({
             </div>
           )}
 
-          {/* Devis approuvé selon Design System */}
+          {/* Estimation approuvée selon Design System */}
           {approvedQuotes.length > 0 && (
             <div>
               <h4 className="font-medium mb-3 flex items-center text-slate-900">
                 <CheckCircle className="h-4 w-4 mr-2 text-emerald-600" />
-                Devis Approuvé
+                Estimation Approuvée
               </h4>
               {approvedQuotes.map((quote) => (
                 <Card key={quote.id} className="border-l-4 border-l-emerald-500">
@@ -492,14 +492,14 @@ export function IntegratedQuotesCard({
             <div className="text-center py-4">
               <Button onClick={() => handleQuoteRequest(intervention)} variant="outline">
                 <FileText className="h-4 w-4 mr-2" />
-                Demander des devis
+                Demander des estimations
               </Button>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Composant de comparaison des devis (si nécessaire) */}
+      {/* Composant de comparaison des estimations (si nécessaire) */}
       {quotes.length > 0 && (
         <QuotesComparison
           intervention={intervention}
@@ -510,7 +510,7 @@ export function IntegratedQuotesCard({
         />
       )}
 
-      {/* Modal de demande de devis */}
+      {/* Modal de demande d'estimation */}
       {quoteRequestModal.isOpen && (
         <QuoteRequestModal
           intervention={quoteRequestModal.intervention}
@@ -528,7 +528,7 @@ export function IntegratedQuotesCard({
         />
       )}
 
-      {/* Modal de validation de devis */}
+      {/* Modal de validation d'estimation */}
       <QuoteValidationModal
         isOpen={validationModal.isOpen}
         onClose={closeValidationModal}

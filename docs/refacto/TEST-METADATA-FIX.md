@@ -71,7 +71,7 @@ const teamName = firstName !== emailUsername
 ### Input
 ```bash
 # Signup avec métadonnées complètes
-Email: arthur+test05@seido.pm
+Email: arthur+test05@seido-app.com
 First Name: Jean
 Last Name: Dupont
 Role: gestionnaire
@@ -94,7 +94,7 @@ Role: gestionnaire
     full_name: 'Jean Dupont',
     role: 'gestionnaire'
   },
-  email: 'arthur+test05@seido.pm'
+  email: 'arthur+test05@seido-app.com'
 }
 
 📝 [AUTH-CONFIRM] Extracted metadata: {
@@ -121,10 +121,10 @@ SELECT
   raw_user_meta_data->>'first_name' as metadata_firstname,
   raw_user_meta_data->>'last_name' as metadata_lastname
 FROM auth.users
-WHERE email = 'arthur+test05@seido.pm';
+WHERE email = 'arthur+test05@seido-app.com';
 
 -- Attendu:
--- email: arthur+test05@seido.pm
+-- email: arthur+test05@seido-app.com
 -- metadata_firstname: Jean
 -- metadata_lastname: Dupont
 ```
@@ -133,7 +133,7 @@ WHERE email = 'arthur+test05@seido.pm';
 ```sql
 SELECT id, email, name, first_name, last_name, role, team_id
 FROM users
-WHERE email = 'arthur+test05@seido.pm';
+WHERE email = 'arthur+test05@seido-app.com';
 
 -- Attendu:
 -- name: "Jean Dupont"
@@ -148,7 +148,7 @@ WHERE email = 'arthur+test05@seido.pm';
 SELECT t.name, t.created_by, u.email as creator_email
 FROM teams t
 JOIN users u ON t.created_by = u.id
-WHERE u.email = 'arthur+test05@seido.pm';
+WHERE u.email = 'arthur+test05@seido-app.com';
 
 -- Attendu:
 -- name: "Équipe de Jean"
@@ -160,7 +160,7 @@ SELECT tm.role, tm.team_id, u.email, t.name as team_name
 FROM team_members tm
 JOIN users u ON tm.user_id = u.id
 JOIN teams t ON tm.team_id = t.id
-WHERE u.email = 'arthur+test05@seido.pm';
+WHERE u.email = 'arthur+test05@seido-app.com';
 
 -- Attendu:
 -- role: "admin"
@@ -181,7 +181,7 @@ WHERE u.email = 'arthur+test05@seido.pm';
 ### Input
 ```bash
 # Signup avec métadonnées manquantes (simulation edge case)
-Email: test-fallback@seido.pm
+Email: test-fallback@seido-app.com
 # Métadonnées non transmises (edge case technique)
 ```
 
@@ -192,13 +192,13 @@ Email: test-fallback@seido.pm
 🔍 [AUTH-CONFIRM] Full user metadata: {
   raw_user_meta_data: null,  // ← Métadonnées absentes
   user_metadata: null,
-  email: 'test-fallback@seido.pm'
+  email: 'test-fallback@seido-app.com'
 }
 
 📝 [AUTH-CONFIRM] Extracted metadata: {
   firstName: 'test-fallback',  // ← Fallback sur email
   lastName: '',
-  fullName: 'test-fallback@seido.pm',
+  fullName: 'test-fallback@seido-app.com',
   source: 'email_fallback'  // ← Confirme fallback
 }
 
@@ -213,7 +213,7 @@ Email: test-fallback@seido.pm
 **Table `users`** :
 ```sql
 -- Attendu:
--- name: "test-fallback@seido.pm"
+-- name: "test-fallback@seido-app.com"
 -- first_name: NULL  (car firstName === emailUsername)
 -- last_name: NULL
 ```
@@ -272,7 +272,7 @@ SELECT
   t.name as team_name
 FROM users u
 LEFT JOIN teams t ON u.team_id = t.id
-WHERE u.email = 'arthur+test05@seido.pm';
+WHERE u.email = 'arthur+test05@seido-app.com';
 
 -- 2. Métadonnées Supabase Auth
 SELECT
@@ -281,7 +281,7 @@ SELECT
   user_metadata,
   created_at
 FROM auth.users
-WHERE email = 'arthur+test05@seido.pm';
+WHERE email = 'arthur+test05@seido-app.com';
 
 -- 3. Membership team
 SELECT
@@ -291,14 +291,14 @@ SELECT
 FROM team_members tm
 JOIN users u ON tm.user_id = u.id
 JOIN teams t ON tm.team_id = t.id
-WHERE u.email = 'arthur+test05@seido.pm';
+WHERE u.email = 'arthur+test05@seido-app.com';
 ```
 
 ### Nettoyage entre tests
 ```sql
 -- Supprimer utilisateur de test (CASCADE sur team_members et teams)
-DELETE FROM auth.users WHERE email LIKE 'arthur+test%@seido.pm';
-DELETE FROM users WHERE email LIKE 'arthur+test%@seido.pm';
+DELETE FROM auth.users WHERE email LIKE 'arthur+test%@seido-app.com';
+DELETE FROM users WHERE email LIKE 'arthur+test%@seido-app.com';
 ```
 
 ---

@@ -17,7 +17,6 @@ import {
   CheckCircle2,
   FileText,
   Calendar,
-  Play,
   AlertTriangle,
   AlertCircle,
   TrendingUp,
@@ -45,7 +44,7 @@ export type BadgeType =
   | 'urgency'   // Niveau d'urgence
   | 'role'      // Rôle utilisateur
   | 'contract'  // Statut de contrat
-  | 'quote'     // Statut de devis
+  | 'quote'     // Statut d'estimation
   | 'slot'      // Statut de créneau
   | 'mode'      // Mode d'assignation
   | 'custom'    // Badge personnalisé
@@ -170,10 +169,9 @@ export const BADGE_CONFIG: Record<BadgeType, Record<string, BadgeValueConfig>> =
     demande:                    { color: 'red',     label: 'Demande',           icon: Clock },
     rejetee:                    { color: 'red',     label: 'Rejetée',           icon: XCircle },
     approuvee:                  { color: 'green',   label: 'Approuvée',         icon: CheckCircle },
-    demande_de_devis:           { color: 'blue',    label: 'Devis demandé',     icon: FileText },
+    demande_de_devis:           { color: 'blue',    label: 'Estimation demandée', icon: FileText },
     planification:              { color: 'yellow',  label: 'Planification',     icon: Calendar },
     planifiee:                  { color: 'purple',  label: 'Planifiée',         icon: Calendar },
-    en_cours:                   { color: 'indigo',  label: 'En cours',          icon: Play },
     cloturee_par_prestataire:   { color: 'orange',  label: 'Clôturée (prest.)', icon: CheckCircle2 },
     cloturee_par_locataire:     { color: 'emerald', label: 'Clôturée (loc.)',   icon: CheckCircle2 },
     cloturee_par_gestionnaire:  { color: 'green',   label: 'Clôturée',          icon: CheckCircle2 },
@@ -208,12 +206,12 @@ export const BADGE_CONFIG: Record<BadgeType, Record<string, BadgeValueConfig>> =
     renouvele: { color: 'blue',   label: 'Renouvelé', icon: RefreshCw },
   },
 
-  // Statuts de devis
+  // Statuts d'estimation
   quote: {
     pending:  { color: 'amber',  label: 'En attente', icon: Clock },
-    sent:     { color: 'blue',   label: 'Envoyé',     icon: Send },
-    approved: { color: 'green',  label: 'Validé',     icon: CheckCircle2 },
-    rejected: { color: 'red',    label: 'Refusé',     icon: XCircle },
+    sent:     { color: 'blue',   label: 'Envoyée',    icon: Send },
+    approved: { color: 'green',  label: 'Validée',    icon: CheckCircle2 },
+    rejected: { color: 'red',    label: 'Refusée',    icon: XCircle },
   },
 
   // Statuts de créneau

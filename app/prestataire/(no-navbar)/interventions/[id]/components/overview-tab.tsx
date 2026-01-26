@@ -23,6 +23,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { formatErrorMessage } from '@/lib/utils/error-formatter'
 import { FileText, Edit, XCircle, Clock, CheckCircle2, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -161,8 +162,9 @@ export function OverviewTab({
   // This decouples TYPE display from DATA display (slots/dates are shown separately)
   const schedulingType = intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null
 
-  // Check if quote is required (status or active quotes)
-  const requireQuote = intervention.status === 'demande_de_devis' ||
+  // Check if quote is required (from requires_quote flag or active quotes)
+  // Note: demande_de_devis status removed - quote status tracked via intervention_quotes
+  const requireQuote = intervention.requires_quote ||
     quotes.some(q => ['pending', 'sent', 'accepted'].includes(q.status))
 
   // Filter quotes by current provider
@@ -194,7 +196,7 @@ export function OverviewTab({
         toast.success('Travaux démarrés avec succès')
         onRefresh()
       } else {
-        toast.error(result.error || 'Erreur lors du démarrage des travaux')
+        toast.error(formatErrorMessage(result.error, 'Erreur lors du démarrage des travaux'))
       }
     } catch (error) {
       console.error('Error starting work:', error)
@@ -220,7 +222,7 @@ export function OverviewTab({
         setWorkReport('')
         onRefresh()
       } else {
-        toast.error(result.error || 'Erreur lors de la finalisation des travaux')
+        toast.error(formatErrorMessage(result.error, 'Erreur lors de la finalisation des travaux'))
       }
     } catch (error) {
       console.error('Error completing work:', error)
@@ -244,7 +246,7 @@ export function OverviewTab({
         setTimeSlotDialogOpen(false)
         onRefresh()
       } else {
-        toast.error(result.error || 'Erreur lors de la proposition des créneaux')
+        toast.error(formatErrorMessage(result.error, 'Erreur lors de la proposition des créneaux'))
       }
     } catch (error) {
       console.error('Error proposing time slots:', error)
@@ -275,13 +277,13 @@ export function OverviewTab({
           onModifyChoice={onModifyChoice}
         />
 
-        {/* Section Mes Devis - Visible uniquement si le prestataire a des devis */}
+        {/* Section Mes Estimations - Visible uniquement si le prestataire a des estimations */}
         {myQuotes.length > 0 && (
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <FileText className="w-5 h-5 text-primary" />
-                Mes devis ({myQuotes.length})
+                Mes estimations ({myQuotes.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -318,7 +320,7 @@ export function OverviewTab({
                         </Badge>
                       </div>
 
-                      {/* Description du devis */}
+                      {/* Description de l'estimation */}
                       {quote.description && (
                         <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
                           {quote.description}
@@ -367,17 +369,17 @@ export function OverviewTab({
                         </div>
                       )}
 
-                      {/* Message si le devis ne peut plus être modifié */}
+                      {/* Message si l'estimation ne peut plus être modifiée */}
                       {!canModify && quote.status === 'accepted' && (
                         <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-700 flex items-center gap-2">
                           <CheckCircle2 className="w-4 h-4" />
-                          Ce devis a été approuvé par le gestionnaire
+                          Cette estimation a été approuvée par le gestionnaire
                         </div>
                       )}
                       {!canModify && quote.status === 'rejected' && (
                         <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-center gap-2">
                           <XCircle className="w-4 h-4" />
-                          Ce devis a été rejeté
+                          Cette estimation a été rejetée
                         </div>
                       )}
                     </div>

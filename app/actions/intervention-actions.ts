@@ -8,7 +8,8 @@
 
 import {
   createServerActionInterventionService,
-  createServerActionSupabaseClient
+  createServerActionSupabaseClient,
+  createServiceRoleSupabaseClient
 } from '@/lib/services'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -17,6 +18,7 @@ import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
 import { createQuoteRequestsForProviders } from '@/app/api/create-manager-intervention/create-quote-requests'
 import { createInterventionNotification } from './notification-actions'
+import { mapInterventionType } from '@/lib/utils/intervention-mappers'
 
 // Type aliases
 type InterventionUrgency = Database['public']['Enums']['intervention_urgency']
@@ -53,27 +55,28 @@ function revalidateInterventionCaches(interventionId: string, teamId?: string) {
 }
 
 // Validation schemas
+// NOTE: type uses z.string() to accept all intervention types from intervention_types table
+// (bien, bail, locataire categories - 36+ types) instead of hardcoded enum
 const InterventionCreateSchema = z.object({
   title: z.string().min(3).max(255),
   description: z.string().min(10),
-  type: z.enum(['plomberie', 'electricite', 'menuiserie', 'peinture', 'chauffage', 'climatisation', 'serrurerie', 'vitrerie', 'nettoyage', 'jardinage', 'autre'] as const),
+  type: z.string().min(1, "Le type d'intervention est obligatoire"),
   urgency: z.enum(['basse', 'normale', 'haute', 'urgente'] as const).optional().default('normale'),
   lot_id: z.string().uuid().optional().nullable(),
   building_id: z.string().uuid().optional().nullable(),
-  specific_location: z.string().optional().nullable(),
-  tenant_comment: z.string().optional().nullable(),
-  team_id: z.string().uuid()
+  team_id: z.string().uuid(),
+  contract_id: z.string().uuid().optional().nullable()  // Lien vers le contrat source
 })
 
 const InterventionUpdateSchema = z.object({
   title: z.string().min(3).max(255).optional(),
   description: z.string().min(10).optional(),
-  type: z.enum(['plomberie', 'electricite', 'menuiserie', 'peinture', 'chauffage', 'climatisation', 'serrurerie', 'vitrerie', 'nettoyage', 'jardinage', 'autre'] as const).optional(),
+  type: z.string().min(1).optional(),
   urgency: z.enum(['basse', 'normale', 'haute', 'urgente'] as const).optional(),
-  specific_location: z.string().optional().nullable(),
   provider_guidelines: z.string().max(5000).optional().nullable(),
   estimated_cost: z.number().positive().optional().nullable(),
-  final_cost: z.number().positive().optional().nullable()
+  final_cost: z.number().positive().optional().nullable(),
+  contract_id: z.string().uuid().optional().nullable()
 })
 
 const TimeSlotSchema = z.object({
@@ -84,10 +87,11 @@ const TimeSlotSchema = z.object({
 })
 
 const InterventionFiltersSchema = z.object({
-  // Note: 'en_cours' is deprecated and no longer used in the workflow
-  status: z.enum(['demande', 'rejetee', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'] as const).optional(),
+  // Note: 'en_cours' and 'demande_de_devis' are removed from the workflow
+  // Quote status is now tracked via intervention_quotes table with QuoteStatusBadge
+  status: z.enum(['demande', 'rejetee', 'approuvee', 'planification', 'planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'] as const).optional(),
   urgency: z.enum(['basse', 'normale', 'haute', 'urgente'] as const).optional(),
-  type: z.enum(['plomberie', 'electricite', 'menuiserie', 'peinture', 'chauffage', 'climatisation', 'serrurerie', 'vitrerie', 'nettoyage', 'jardinage', 'autre'] as const).optional(),
+  type: z.string().optional(),
   building_id: z.string().uuid().optional(),
   lot_id: z.string().uuid().optional(),
   tenant_id: z.string().uuid().optional(),
@@ -146,14 +150,16 @@ export async function createInterventionAction(
     lot_id?: string
     building_id?: string
     team_id: string
-    tenant_comment?: string
-    specific_location?: string
+    contract_id?: string  // Lien vers le contrat source (optionnel)
     requested_date?: Date
   },
-  options?: { redirectTo?: string }
+  options?: {
+    redirectTo?: string
+    useServiceRole?: boolean  // Bypass RLS pour création batch (auth vérifiée au niveau applicatif)
+  }
 ): Promise<ActionResult<Intervention>> {
   try {
-    // Auth check
+    // Auth check - TOUJOURS vérifié, même avec useServiceRole
     const user = await getAuthenticatedUser()
     if (!user) {
       return { success: false, error: 'Authentication required' }
@@ -162,7 +168,7 @@ export async function createInterventionAction(
     // Validate input data
     const validatedData = InterventionCreateSchema.safeParse({
       ...data,
-      type: data.type as InterventionType,
+      type: data.type,  // Accepts all types from intervention_types table
       urgency: (data.urgency || 'normale') as InterventionUrgency
     })
 
@@ -171,23 +177,40 @@ export async function createInterventionAction(
       return { success: false, error: 'Données invalides: ' + validatedData.error.errors.map(e => e.message).join(', ') }
     }
 
-    const supabase = await createServerActionSupabaseClient()
+    // Choisir le client selon l'option useServiceRole
+    // Service role bypasse RLS mais l'auth est vérifiée au niveau applicatif ci-dessus
+    const supabase = options?.useServiceRole
+      ? createServiceRoleSupabaseClient()
+      : await createServerActionSupabaseClient()
 
-    // Create intervention with status 'demande' (tenant request)
+    // Map type for legacy compatibility (e.g., 'jardinage' → 'espaces_verts')
+    const mappedType = mapInterventionType(validatedData.data.type)
+
+    // ✅ Déterminer si c'est une intervention pré-planifiée (création depuis bail)
+    // Si requested_date est fourni → status 'planifiee' avec créneau à 9h00
+    const isPreScheduled = !!data.requested_date
+
+    // Create intervention (status dynamique selon contexte)
     const { data: intervention, error } = await supabase
       .from('interventions')
       .insert({
         title: validatedData.data.title,
         description: validatedData.data.description,
-        type: validatedData.data.type,
+        type: mappedType,
         urgency: validatedData.data.urgency,
-        status: 'demande' as InterventionStatus,
+        // ✅ Status dynamique: 'planifiee' si date fournie (bail), sinon 'demande' (locataire)
+        status: (isPreScheduled ? 'planifiee' : 'demande') as InterventionStatus,
         lot_id: validatedData.data.lot_id || null,
         building_id: validatedData.data.building_id || null,
         team_id: validatedData.data.team_id,
-        tenant_comment: validatedData.data.tenant_comment || null,
-        specific_location: validatedData.data.specific_location || null,
-        created_by: user.id
+        contract_id: validatedData.data.contract_id || null,
+        created_by: user.id,
+        // ✅ Date planifiée à 9h00 si fournie
+        scheduled_date: data.requested_date
+          ? data.requested_date.toISOString().split('T')[0] + 'T09:00:00.000Z'
+          : null,
+        // ✅ Méthode de planification directe si pré-planifié (valeurs: 'direct', 'slots', 'flexible')
+        scheduling_method: isPreScheduled ? 'direct' : null
       })
       .select()
       .single()
@@ -195,6 +218,38 @@ export async function createInterventionAction(
     if (error) {
       logger.error({ error }, 'Failed to create intervention')
       return { success: false, error: 'Échec de la création de l\'intervention' }
+    }
+
+    // ✅ Créer un créneau horaire fixé à 9h00 si pré-planifié (création depuis bail)
+    if (isPreScheduled && data.requested_date && intervention) {
+      const slotDate = data.requested_date.toISOString().split('T')[0] // YYYY-MM-DD
+
+      const { data: timeSlot, error: slotError } = await supabase
+        .from('intervention_time_slots')
+        .insert({
+          intervention_id: intervention.id,
+          slot_date: slotDate,
+          start_time: '09:00',
+          end_time: '10:00',  // 1 heure par défaut
+          is_selected: true,
+          status: 'selected',
+          proposed_by: user.id,
+          selected_by_manager: true
+        })
+        .select('id')
+        .single()
+
+      if (slotError) {
+        logger.warn({ error: slotError }, 'Failed to create time slot for pre-scheduled intervention')
+      } else if (timeSlot) {
+        // Mettre à jour l'intervention avec le slot sélectionné
+        await supabase
+          .from('interventions')
+          .update({ selected_slot_id: timeSlot.id })
+          .eq('id', intervention.id)
+
+        logger.info({ slotId: timeSlot.id, interventionId: intervention.id }, 'Time slot created and linked')
+      }
     }
 
     // Invalidate caches
@@ -987,7 +1042,7 @@ export async function cancelQuoteAction(
 
     // Only managers can cancel quote requests
     if (!['gestionnaire', 'admin'].includes(user.role)) {
-      return { success: false, error: 'Seuls les gestionnaires peuvent annuler une demande de devis' }
+      return { success: false, error: 'Seuls les gestionnaires peuvent annuler une demande d\'estimation' }
     }
 
     logger.info('❌ [SERVER-ACTION] Cancelling quote request:', {
@@ -996,7 +1051,7 @@ export async function cancelQuoteAction(
       userId: user.id
     })
 
-    const supabase = await createServerSupabaseClient()
+    const supabase = await createServerActionSupabaseClient()
 
     // Verify the quote exists and is pending
     const { data: quote, error: fetchError } = await supabase
@@ -1007,7 +1062,7 @@ export async function cancelQuoteAction(
       .single()
 
     if (fetchError || !quote) {
-      return { success: false, error: 'Devis non trouvé' }
+      return { success: false, error: 'Estimation non trouvée' }
     }
 
     if (quote.status !== 'pending') {
@@ -1478,7 +1533,7 @@ export async function cancelTimeSlotAction(
       userId: user.id
     })
 
-    const supabase = await createServerSupabaseClient()
+    const supabase = await createServerActionSupabaseClient()
 
     // Get the time slot with intervention info
     const { data: slot, error: fetchError } = await supabase
@@ -2370,8 +2425,8 @@ export async function programInterventionAction(
     })
 
     // Check if intervention can be scheduled
-    // Allow 'demande_de_devis' to enable planning while waiting for quote
-    if (!['approuvee', 'planification', 'demande_de_devis'].includes(intervention.status)) {
+    // Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
+    if (!['approuvee', 'planification'].includes(intervention.status)) {
       return {
         success: false,
         error: `L'intervention ne peut pas être planifiée (statut actuel: ${intervention.status})`
@@ -2386,21 +2441,8 @@ export async function programInterventionAction(
       }
     }
 
-    // Check for active quote requests (pending or sent)
-    // This determines if we should keep 'demande_de_devis' status or transition to 'planification'
-    const { data: activeQuotes, error: quotesError } = await supabase
-      .from('intervention_quotes')
-      .select('id, status')
-      .eq('intervention_id', interventionId)
-      .in('status', ['pending', 'sent'])
-
-    if (quotesError) {
-      logger.error('❌ [SERVER-ACTION] Error checking active quotes:', quotesError)
-    }
-
-    const hasActiveQuotes = activeQuotes && activeQuotes.length > 0
-
-    logger.info(`📊 [SERVER-ACTION] Active quotes check: ${hasActiveQuotes ? 'YES' : 'NO'} (${activeQuotes?.length || 0} quotes)`)
+    // Note: We no longer check for active quotes to determine status
+    // Quote status is now tracked via intervention_quotes table and shown via QuoteStatusBadge
 
     const { option, directSchedule, proposedSlots } = planningData
 
@@ -2529,14 +2571,11 @@ export async function programInterventionAction(
       managerCommentParts.push(`Planification autonome activée`)
     }
 
-    // Update intervention status
-    // Keep 'demande_de_devis' if active quotes exist, otherwise transition to 'planification'
-    // Note: Manager comments are now stored in intervention_comments table
-    const newStatus = (intervention.status === 'demande_de_devis' && hasActiveQuotes)
-      ? 'demande_de_devis' as InterventionStatus
-      : 'planification' as InterventionStatus
+    // Update intervention status to planification
+    // Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
+    const newStatus = 'planification' as InterventionStatus
 
-    logger.info(`📅 [SERVER-ACTION] Status decision: ${intervention.status} → ${newStatus} (hasActiveQuotes: ${hasActiveQuotes})`)
+    logger.info(`📅 [SERVER-ACTION] Status decision: ${intervention.status} → ${newStatus}`)
 
     const updateData: any = {
       status: newStatus,
@@ -2642,19 +2681,19 @@ export async function programInterventionAction(
           logger.info('⏭️ [SERVER-ACTION] Skipped quote creation - all selected providers already have active quotes')
         }
 
-        // Update intervention status to 'demande_de_devis' after creating quote requests
-        const { error: statusUpdateError } = await supabase
+        // Set requires_quote flag on intervention (status no longer changes to demande_de_devis)
+        const { error: requiresQuoteError } = await supabase
           .from('interventions')
-          .update({ status: 'demande_de_devis' })
+          .update({ requires_quote: true })
           .eq('id', interventionId)
 
-        if (statusUpdateError) {
-          logger.error('❌ [SERVER-ACTION] Error updating intervention status to demande_de_devis:', statusUpdateError)
+        if (requiresQuoteError) {
+          logger.error('❌ [SERVER-ACTION] Error setting requires_quote flag:', requiresQuoteError)
         } else {
-          logger.info('✅ [SERVER-ACTION] Intervention status updated to demande_de_devis')
-          // Update the returned intervention status
+          logger.info('✅ [SERVER-ACTION] Intervention requires_quote flag set to true')
+          // Update the returned intervention
           if (updatedIntervention) {
-            updatedIntervention.status = 'demande_de_devis'
+            updatedIntervention.requires_quote = true
           }
         }
 
@@ -2665,9 +2704,8 @@ export async function programInterventionAction(
       }
     }
 
-    const finalStatus = planningData.requireQuote && planningData.selectedProviders?.length > 0
-      ? 'demande_de_devis'
-      : (planningData.option === 'organize' ? 'planification' : 'planifiee')
+    // Note: demande_de_devis removed - always use planification or planifiee based on option
+    const finalStatus = planningData.option === 'organize' ? 'planification' : 'planifiee'
 
     logger.info('✅ [SERVER-ACTION] Intervention programmed successfully', { finalStatus })
 

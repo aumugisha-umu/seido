@@ -1,4 +1,4 @@
-﻿"use client"
+"use client"
 
 import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
@@ -133,14 +133,46 @@ export default function ContentNavigator({
   // Détecter si c'est le contexte dashboard (embedded sans bordure)
   const isDashboardEmbedded = className.includes('bg-transparent') || className.includes('border-0')
 
+  // #region agent log
+  useEffect(() => {
+    const outerDiv = document.querySelector('[data-content-navigator-outer]') as HTMLElement
+    const paddingDiv = document.querySelector('[data-content-navigator-padding]') as HTMLElement
+    const tabContentDiv = document.querySelector('[data-content-navigator-tab-content]') as HTMLElement
+    
+    if (outerDiv && paddingDiv && tabContentDiv) {
+      const logData = {
+        location: 'content-navigator.tsx:136',
+        message: 'Height measurements',
+        data: {
+          outerHeight: outerDiv.offsetHeight,
+          outerScrollHeight: outerDiv.scrollHeight,
+          paddingHeight: paddingDiv.offsetHeight,
+          paddingScrollHeight: paddingDiv.scrollHeight,
+          tabContentHeight: tabContentDiv.offsetHeight,
+          tabContentScrollHeight: tabContentDiv.scrollHeight,
+          windowHeight: window.innerHeight
+        },
+        timestamp: Date.now(),
+        sessionId: 'debug-session',
+        runId: 'run1',
+        hypothesisId: 'A'
+      }
+      fetch('http://127.0.0.1:7242/ingest/6e12353c-b19d-479f-90dc-6917014c3318', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(logData)
+      }).catch(() => {})
+    }
+  })
+  // #endregion
   return (
-    <div className={`flex-1 min-h-0 flex flex-col overflow-hidden ${!isDashboardEmbedded ? 'border border-slate-200 rounded-lg shadow-sm bg-white' : ''} ${className}`}>
+    <div data-content-navigator-outer className={`flex-1 min-h-0 flex flex-col ${!isDashboardEmbedded ? 'border border-slate-200 rounded-lg shadow-sm bg-white' : ''} ${className}`}>
       {/* Padding container - pas de padding sur dashboard embedded */}
-      <div className={`${isDashboardEmbedded
-          ? 'space-y-1 flex-1 flex flex-col min-h-0'
+      <div data-content-navigator-padding className={`${isDashboardEmbedded
+          ? 'space-y-1 flex-1 flex flex-col min-h-0 overflow-hidden'
           : isCompact
-            ? 'p-4 space-y-1 flex-1 flex flex-col min-h-0'
-            : 'p-6 space-y-2 flex-1 flex flex-col min-h-0'
+            ? 'p-4 space-y-1 flex-1 flex flex-col min-h-0 overflow-hidden'
+            : 'p-6 space-y-2 flex-1 flex flex-col min-h-0 overflow-hidden'
         }`}>
         {/* Navigation Controls */}
         <div className={`${isCompact ? 'space-y-1 flex-shrink-0' : 'space-y-2 flex-shrink-0'}`}>
@@ -230,85 +262,72 @@ export default function ContentNavigator({
 
               {/* Filters Button - Compact */}
               {filters.length > 0 && (
-                <div className="relative flex-shrink-0">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowFilters(!showFilters)}
-                    className={`${isCompact ? 'h-8' : 'h-10'} px-3 text-slate-600 hover:text-slate-900 border-slate-200`}
-                  >
-                    <Filter className="h-4 w-4" />
-                    <ChevronDown className={`h-4 w-4 ml-1 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
-                  </Button>
+                <Popover open={showFilters} onOpenChange={setShowFilters}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={`${isCompact ? 'h-8' : 'h-10'} px-3 text-slate-600 hover:text-slate-900 border-slate-200`}
+                    >
+                      <Filter className="h-4 w-4" />
+                      <ChevronDown className={`h-4 w-4 ml-1 transition-transform duration-200 ${showFilters ? 'rotate-180' : ''}`} />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 max-w-[calc(100vw-2rem)] p-4" align="end" sideOffset={8}>
+                    <div className="space-y-4">
+                      {getVisibleFilters().map((filter) => (
+                        <div key={filter.id}>
+                          <label className="text-sm font-medium text-slate-700 mb-2 block">
+                            {filter.label}
+                          </label>
+                          <Select
+                            value={filterValues[filter.id] || filter.defaultValue || filter.options[0]?.value}
+                            onValueChange={(value) => handleFilterChange(filter.id, value)}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {filter.options.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      ))}
+                    </div>
 
-                  {/* Filters Dropdown Panel - Mobile */}
-                  {showFilters && (
-                    <>
-                      {/* Backdrop */}
-                      <div
-                        className="fixed inset-0 z-10 bg-black/20"
+                    {/* Actions */}
+                    <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-slate-500 hover:text-slate-700"
+                        onClick={() => {
+                          if (onResetFilters) {
+                            onResetFilters()
+                          } else {
+                            filters.forEach(filter => {
+                              handleFilterChange(filter.id, filter.defaultValue || filter.options[0]?.value)
+                            })
+                          }
+                        }}
+                      >
+                        Réinitialiser
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setShowFilters(false)}
-                      />
-
-                      {/* Dropdown Panel */}
-                      <div className="absolute top-full right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-xl z-20 p-4 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-                        <div className="space-y-4">
-                          {getVisibleFilters().map((filter) => (
-                            <div key={filter.id}>
-                              <label className="text-sm font-medium text-slate-700 mb-2 block">
-                                {filter.label}
-                              </label>
-                              <Select
-                                value={filterValues[filter.id] || filter.defaultValue || filter.options[0]?.value}
-                                onValueChange={(value) => handleFilterChange(filter.id, value)}
-                              >
-                                <SelectTrigger className="w-full">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {filter.options.map((option) => (
-                                    <SelectItem key={option.value} value={option.value}>
-                                      {option.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                          ))}
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="text-slate-500 hover:text-slate-700"
-                            onClick={() => {
-                              if (onResetFilters) {
-                                onResetFilters()
-                              } else {
-                                // Fallback: Reset all filters to default one by one
-                                filters.forEach(filter => {
-                                  handleFilterChange(filter.id, filter.defaultValue || filter.options[0]?.value)
-                                })
-                              }
-                            }}
-                          >
-                            Réinitialiser
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setShowFilters(false)}
-                            className="text-slate-500 hover:text-slate-700"
-                          >
-                            Fermer
-                          </Button>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
+                        className="text-slate-500 hover:text-slate-700"
+                      >
+                        Fermer
+                      </Button>
+                    </div>
+                  </PopoverContent>
+                </Popover>
               )}
             </div>
           </div>
@@ -363,85 +382,72 @@ export default function ContentNavigator({
 
             {/* Desktop Filters Button - Icon only, before search */}
             {filters.length > 0 && (
-              <div className="relative flex-shrink-0">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowFilters(!showFilters)}
-                  className="h-10 w-10 p-0 text-slate-600 hover:text-slate-900 border-slate-200"
-                  title="Filtres"
-                >
-                  <Filter className="h-4 w-4" />
-                </Button>
+              <Popover open={showFilters} onOpenChange={setShowFilters}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-10 w-10 p-0 text-slate-600 hover:text-slate-900 border-slate-200"
+                    title="Filtres"
+                  >
+                    <Filter className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-4" align="start" sideOffset={8}>
+                  <div className="space-y-4">
+                    {getVisibleFilters().map((filter) => (
+                      <div key={filter.id}>
+                        <label className="text-sm font-medium text-slate-700 mb-2 block">
+                          {filter.label}
+                        </label>
+                        <Select
+                          value={filterValues[filter.id] || filter.defaultValue || filter.options[0]?.value}
+                          onValueChange={(value) => handleFilterChange(filter.id, value)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {filter.options.map((option) => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
 
-                {/* Filters Dropdown Panel - Desktop */}
-                {showFilters && (
-                  <>
-                    {/* Backdrop */}
-                    <div
-                      className="fixed inset-0 z-10 bg-black/20 lg:bg-transparent"
+                  {/* Actions */}
+                  <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-slate-500 hover:text-slate-700"
+                      onClick={() => {
+                        if (onResetFilters) {
+                          onResetFilters()
+                        } else {
+                          filters.forEach(filter => {
+                            handleFilterChange(filter.id, filter.defaultValue || filter.options[0]?.value)
+                          })
+                        }
+                      }}
+                    >
+                      Réinitialiser
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={() => setShowFilters(false)}
-                    />
-
-                    {/* Dropdown Panel */}
-                    <div className="absolute top-full right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-lg shadow-xl z-20 p-4 animate-in fade-in-0 slide-in-from-top-2 duration-200">
-                      <div className="space-y-4">
-                        {getVisibleFilters().map((filter) => (
-                          <div key={filter.id}>
-                            <label className="text-sm font-medium text-slate-700 mb-2 block">
-                              {filter.label}
-                            </label>
-                            <Select
-                              value={filterValues[filter.id] || filter.defaultValue || filter.options[0]?.value}
-                              onValueChange={(value) => handleFilterChange(filter.id, value)}
-                            >
-                              <SelectTrigger className="w-full">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {filter.options.map((option) => (
-                                  <SelectItem key={option.value} value={option.value}>
-                                    {option.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-100">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-slate-500 hover:text-slate-700"
-                          onClick={() => {
-                            if (onResetFilters) {
-                              onResetFilters()
-                            } else {
-                              // Fallback: Reset all filters to default one by one
-                              filters.forEach(filter => {
-                                handleFilterChange(filter.id, filter.defaultValue || filter.options[0]?.value)
-                              })
-                            }
-                          }}
-                        >
-                          Réinitialiser
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowFilters(false)}
-                          className="text-slate-500 hover:text-slate-700"
-                        >
-                          Fermer
-                        </Button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
+                      className="text-slate-500 hover:text-slate-700"
+                    >
+                      Fermer
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             )}
 
             {/* Desktop Search Bar - Takes all available space */}
@@ -466,7 +472,7 @@ export default function ContentNavigator({
         </div>
 
         {/* Tab Content */}
-        <div className="mt-2 flex-1 flex flex-col min-h-0 overflow-y-auto">
+        <div data-content-navigator-tab-content className="mt-2 flex-1 flex flex-col min-h-0 overflow-hidden">
           {activeTabData?.content}
         </div>
       </div>

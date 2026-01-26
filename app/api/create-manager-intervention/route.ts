@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { Database } from '@/lib/database.types'
 import { createServerUserService, createServerLotService, createServerBuildingService, createServerInterventionService } from '@/lib/services'
 import { logger } from '@/lib/logger'
@@ -12,6 +12,8 @@ import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-cl
 import { NotificationRepository } from '@/lib/services/repositories/notification-repository'
 import { EmailNotificationService } from '@/lib/services/domain/email-notification.service'
 import { EmailService } from '@/lib/services/domain/email.service'
+// ✅ Static import for EmailLinkRepository (was dynamic import before)
+import { EmailLinkRepository } from '@/lib/services/repositories/email-link.repository'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "🔧 create-manager-intervention API route called")
@@ -124,10 +126,18 @@ export async function POST(request: NextRequest) {
       // Options
       expectsQuote,
       includeTenants,
+      // ✅ FIX 2026-01-25: Explicit tenant IDs from contract selection
+      selectedTenantIds,
 
       // Confirmation des participants
       requiresParticipantConfirmation,
       confirmationRequiredUserIds,
+
+      // Source email (validated as UUID by Zod)
+      sourceEmailId,
+
+      // Contract ID (for linking intervention to a specific contract)
+      contractId,
     } = validation.data
 
     // Fields not in schema validation (passed through from body)
@@ -135,7 +145,7 @@ export async function POST(request: NextRequest) {
       managerAvailabilities,
       individualMessages,
       teamId,
-      excludedLotIds = [] // For building interventions: lots to exclude from tenant assignment
+      excludedLotIds = [], // For building interventions: lots to exclude from tenant assignment
     } = body
 
     // Validate required fields (description is optional per Zod schema)
@@ -266,6 +276,19 @@ export async function POST(request: NextRequest) {
       logger.info({}, "✅ Building-wide intervention - tenants via intervention_assignments")
     }
 
+    // ✅ BUG FIX 2026-01: Validate team_id is required to prevent orphan interventions
+    if (!interventionTeamId) {
+      logger.error({
+        selectedLotId: safeSelectedLotId,
+        selectedBuildingId: safeSelectedBuildingId,
+        bodyTeamId: teamId
+      }, "❌ team_id could not be determined - intervention would be orphaned")
+      return NextResponse.json({
+        success: false,
+        error: 'Impossible de déterminer l\'équipe pour cette intervention. Le lot ou le bâtiment n\'est pas associé à une équipe.'
+      }, { status: 400 })
+    }
+
     // ✅ Mapping functions centralisées dans lib/utils/intervention-mappers.ts
 
     // Generate unique reference for the intervention
@@ -305,20 +328,23 @@ export async function POST(request: NextRequest) {
       hasFixedDateTime: schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time
     }, "🔍 Analyse des conditions pour déterminer le statut")
 
-    // CAS 1: Demande de devis si prestataires assignés + devis requis
+    // CAS 1: Planification si prestataires assignés + devis requis
+    // ✅ FIX 2026-01-26: Le statut demande_de_devis a été supprimé
+    // Les devis sont maintenant gérés via requires_quote + intervention_quotes
     if (selectedProviderIds && selectedProviderIds.length > 0 && expectsQuote) {
-      interventionStatus = 'demande_de_devis'
-      logger.info({}, "✅ Statut déterminé: DEMANDE_DE_DEVIS (prestataires + devis requis)")
+      interventionStatus = 'planification'
+      logger.info({}, "✅ Statut déterminé: PLANIFICATION (prestataires + devis requis - géré via requires_quote)")
 
-      // CAS 2: Planifiée directement si conditions strictes remplies
+      // CAS 2: Planifiée directement si conditions strictes remplies (SANS confirmation requise)
     } else if (
       selectedManagerIds.length === 1 && // Que le gestionnaire créateur
       (!selectedProviderIds || selectedProviderIds.length === 0) && // Pas de prestataires
       schedulingType === 'fixed' && // Date/heure fixe
-      fixedDateTime?.date && fixedDateTime?.time // Date et heure définies
+      fixedDateTime?.date && fixedDateTime?.time && // Date et heure définies
+      !requiresParticipantConfirmation // ✅ FIX 2026-01-25: Pas de confirmation requise des participants
     ) {
       interventionStatus = 'planifiee'
-      logger.info({}, "✅ Statut déterminé: PLANIFIEE (seul gestionnaire + date fixe)")
+      logger.info({}, "✅ Statut déterminé: PLANIFIEE (seul gestionnaire + date fixe, sans confirmation)")
 
       // CAS 3: Planification dans tous les autres cas
     } else {
@@ -353,6 +379,12 @@ export async function POST(request: NextRequest) {
     // Add building_id only if it exists (for building-wide interventions)
     if (buildingId) {
       interventionData.building_id = buildingId
+    }
+
+    // Add contract_id if provided (for linking intervention to a specific contract)
+    if (contractId) {
+      interventionData.contract_id = contractId
+      logger.info({ contractId }, "📄 Linking intervention to contract")
     }
 
     logger.info({ interventionData }, "📝 Creating intervention with data")
@@ -579,24 +611,26 @@ export async function POST(request: NextRequest) {
     // Only contracts with status='actif' are considered (not 'a_venir')
     // ✅ UPDATED 2026-01-05: Respect includeTenants toggle from wizard
     // ✅ UPDATED 2026-01-06: Support building-level tenant assignment
+    // ✅ FIX 2026-01-25: Respect selectedTenantIds from wizard (explicit contract selection)
     if (lotId && includeTenants !== false) {
-      // LOT-LEVEL: Assign tenants from the lot's active contracts
-      logger.info({ includeTenants }, "👤 Extracting and assigning tenants from active contracts...")
+      // LOT-LEVEL: Assign tenants based on explicit selection from wizard
+      const explicitTenantIds = selectedTenantIds || []
 
-      try {
-        const { createServerContractService } = await import('@/lib/services')
-        const contractService = await createServerContractService()
-        const tenantsResult = await contractService.getActiveTenantsByLot(lotId)
+      if (explicitTenantIds.length > 0) {
+        // ✅ FIX: Use ONLY the explicitly selected tenants from the wizard
+        // This respects the contract selection made by the user
+        logger.info({
+          selectedTenantIds: explicitTenantIds,
+          count: explicitTenantIds.length
+        }, "👤 Assigning explicitly selected tenants from wizard...")
 
-        if (!tenantsResult.success) {
-          logger.error({ error: tenantsResult.error }, "⚠️ Error fetching tenants from active contracts")
-        } else if (tenantsResult.data.tenants.length > 0) {
-          // Prepare tenant assignments from active contracts
-          const tenantAssignments = tenantsResult.data.tenants.map((tenant, index) => ({
+        try {
+          // Prepare tenant assignments from explicit selection
+          const tenantAssignments = explicitTenantIds.map((userId: string, index: number) => ({
             intervention_id: intervention.id,
-            user_id: tenant.user_id,
+            user_id: userId,
             role: 'locataire',
-            is_primary: tenant.is_primary || index === 0, // Use contract is_primary or first tenant
+            is_primary: index === 0, // First selected tenant is primary
             assigned_by: user.id
           }))
 
@@ -609,16 +643,22 @@ export async function POST(request: NextRequest) {
             logger.error({ error: tenantAssignError }, "⚠️ Error assigning tenants")
           } else {
             logger.info({
-              count: tenantAssignments.length,
-              tenants: tenantsResult.data.tenants.map(t => ({ name: t.name, contract: t.contract_title }))
-            }, "✅ Tenants auto-assigned from active contracts")
+              count: tenantAssignments.length
+            }, "✅ Tenants assigned from explicit selection")
           }
-        } else {
-          logger.info({}, "ℹ️ No active tenants found in contracts for this lot")
+        } catch (error) {
+          logger.error({ error }, "❌ Error in tenant assignment")
+          // Don't fail the entire operation for tenant assignment errors
         }
-      } catch (error) {
-        logger.error({ error }, "❌ Error in tenant auto-assignment")
-        // Don't fail the entire operation for tenant assignment errors
+      } else {
+        // ✅ FIX: No tenants selected (no contract chosen or lot unoccupied)
+        // Don't auto-assign ANY tenants - this was the bug causing 7 tenants to be assigned
+        logger.info({
+          lotId,
+          includeTenants,
+          selectedTenantIdsProvided: !!selectedTenantIds,
+          contractId: contractId || null
+        }, "ℹ️ No tenants explicitly selected - skipping tenant auto-assignment")
       }
     } else if (buildingId && !lotId && includeTenants !== false) {
       // 🆕 BUILDING-LEVEL: Assign tenants from selected lots in the building
@@ -685,8 +725,10 @@ export async function POST(request: NextRequest) {
       logger.info({}, "ℹ️ Tenant auto-assignment skipped (includeTenants=false)")
     }
 
-    // Handle scheduling slots if provided (flexible/slots = multiple slots)
-    if ((schedulingType === 'flexible' || schedulingType === 'slots') && timeSlots && timeSlots.length > 0) {
+    // Handle scheduling slots if provided (slots mode only)
+    // ✅ FIX 2026-01-25: Removed 'flexible' - only 'slots' mode should create multiple slots
+    // This prevents accidental slot creation if timeSlots array is injected in flexible mode
+    if (schedulingType === 'slots' && timeSlots && timeSlots.length > 0) {
       logger.info({ count: timeSlots.length }, "📅 Creating time slots")
 
       const timeSlotsToInsert = timeSlots
@@ -696,7 +738,7 @@ export async function POST(request: NextRequest) {
           slot_date: slot.date,
           start_time: slot.startTime,
           end_time: slot.endTime,
-          is_selected: false,
+          status: 'pending', // Modern status pattern (replaces is_selected: false)
           proposed_by: user.id // Track who proposed these slots
         }))
 
@@ -714,15 +756,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle fixed date/time (create single slot)
-    logger.info({
-      schedulingType,
-      typeCheck: schedulingType === 'fixed',
-      fixedDateTime,
-      hasDate: !!fixedDateTime?.date,
-      hasTime: !!fixedDateTime?.time,
-      conditionResult: schedulingType === 'fixed' && !!fixedDateTime?.date && !!fixedDateTime?.time
-    }, "🔍 [DEBUG] Checking fixed slot creation condition")
-
     if (schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time) {
       // Calculate end_time as start_time + 1 hour (to satisfy valid_time_range constraint)
       const [hours, minutes] = fixedDateTime.time.split(':').map(Number)
@@ -736,21 +769,60 @@ export async function POST(request: NextRequest) {
         duration: '1 hour'
       }, "📅 Creating fixed slot with 1-hour default duration")
 
-      const { error: fixedSlotError } = await supabase
+      const { data: fixedSlot, error: fixedSlotError } = await supabase
         .from('intervention_time_slots')
         .insert({
           intervention_id: intervention.id,
           slot_date: fixedDateTime.date,
           start_time: fixedDateTime.time,
           end_time: end_time, // ✅ 1 hour after start_time
-          is_selected: true, // Pre-selected because it's fixed
+          // ✅ FIX 2026-01-25: Si confirmation requise, créneau en attente. Sinon: confirmé directement
+          status: requiresParticipantConfirmation ? 'pending' : 'selected',
+          selected_by_manager: !requiresParticipantConfirmation, // Confirmé seulement si pas de confirmation requise
           proposed_by: user.id, // ✅ Set creator as proposer (uses public.users.id, not auth.users.id)
         })
+        .select('id')
+        .single()
 
       if (fixedSlotError) {
         logger.error({ error: fixedSlotError }, "⚠️ Error creating fixed slot")
       } else {
-        logger.info("✅ Fixed slot created")
+        logger.info({ slotId: fixedSlot?.id }, "✅ Fixed slot created")
+
+        // ✅ FIX 2026-01-25: Mettre à jour l'intervention avec le slot sélectionné
+        if (fixedSlot?.id) {
+          const { error: updateSlotError } = await supabase
+            .from('interventions')
+            .update({ selected_slot_id: fixedSlot.id })
+            .eq('id', intervention.id)
+
+          if (updateSlotError) {
+            logger.warn({ error: updateSlotError, slotId: fixedSlot.id }, "⚠️ Failed to set selected_slot_id on intervention")
+          } else {
+            logger.info({ interventionId: intervention.id, slotId: fixedSlot.id }, "✅ Intervention linked to selected slot")
+          }
+        }
+
+        // 🆕 FIX: Si date fixe SANS confirmation requise, supprimer les réponses 'pending'
+        // Le trigger PostgreSQL crée automatiquement des responses pour tous les participants
+        // Mais en mode date fixe sans confirmation, aucune réponse n'est attendue des locataires
+        // ✅ FIX 2026-01-25: Utiliser Service Role pour bypass RLS (le gestionnaire ne peut pas
+        // supprimer les réponses des locataires avec son propre client - RLS bloque silencieusement)
+        if (!requiresParticipantConfirmation && fixedSlot?.id) {
+          const serviceClient = createServiceRoleSupabaseClient()
+
+          const { error: cleanupError } = await serviceClient
+            .from('time_slot_responses')
+            .delete()
+            .eq('time_slot_id', fixedSlot.id)
+            .eq('response', 'pending')
+
+          if (cleanupError) {
+            logger.warn({ error: cleanupError, slotId: fixedSlot.id }, "⚠️ Failed to cleanup pending responses for fixed slot")
+          } else {
+            logger.info({ slotId: fixedSlot.id }, "🧹 Cleaned up pending responses for fixed slot (no confirmation required)")
+          }
+        }
       }
     }
 
@@ -922,84 +994,146 @@ export async function POST(request: NextRequest) {
 
     logger.info({}, "🎉 Manager intervention creation completed successfully")
 
-    // ✅ NOTIFICATIONS: Send notifications to team members (FIRE-AND-FORGET)
-    // ✅ OPTIMIZED: Ne pas bloquer la réponse API - notifications envoyées en background
-    {
-      logger.info({ interventionId: intervention.id }, "📬 [API] Triggering background in-app notifications")
+    // ✅ EMAIL LINK: Create automatic link if intervention was created from an email
+    // sourceEmailId is already validated as UUID by Zod schema
+    if (sourceEmailId) {
+      try {
+        logger.info({ sourceEmailId, interventionId: intervention.id }, "🔗 [API] Creating email-intervention link")
 
-      // ✅ Use Service Role to bypass RLS for notification context fetching
-      const serviceRoleClient = createServiceRoleSupabaseClient()
-      const notificationRepository = new NotificationRepository(serviceRoleClient)
-      const notificationService = new NotificationService(notificationRepository)
+        // ✅ SECURITY: Verify email exists and belongs to user's team before linking
+        const { data: emailExists, error: emailCheckError } = await supabase
+          .from('emails')
+          .select('id')
+          .eq('id', sourceEmailId)
+          .eq('team_id', intervention.team_id)
+          .single()
 
-      // ✅ Fire-and-forget - ne pas attendre (~300-500ms de gain)
-      notificationService.notifyInterventionCreated({
-        interventionId: intervention.id,
-        teamId: intervention.team_id,
-        createdBy: user.id
-      }).then(() => {
-        logger.info({
-          reference: intervention.reference,
+        if (emailCheckError || !emailExists) {
+          logger.warn({
+            sourceEmailId,
+            interventionId: intervention.id,
+            error: emailCheckError?.message
+          }, "⚠️ [API] Email not found or not in team, skipping link creation")
+          // Non-blocking: continue without creating the link
+        } else {
+          // Email exists and belongs to the team, create the link
+          const emailLinkRepo = new EmailLinkRepository(supabase)
+
+          await emailLinkRepo.createLink({
+            email_id: sourceEmailId,
+            entity_type: 'intervention',
+            entity_id: intervention.id,
+            linked_by: user.id
+          })
+
+          logger.info({
+            sourceEmailId,
+            interventionId: intervention.id
+          }, "✅ [API] Email-intervention link created successfully")
+        }
+
+      } catch (linkError) {
+        // Non-blocking: log error but don't fail intervention creation
+        logger.error({
+          error: linkError instanceof Error ? linkError.message : String(linkError),
+          sourceEmailId,
           interventionId: intervention.id
-        }, "✅ [API] In-app notifications created successfully (background)")
-      }).catch((error) => {
-        logger.error(error, "⚠️ [API] Failed to create in-app notifications (background)")
+        }, "⚠️ [API] Failed to create email-intervention link")
+      }
+    }
+
+    // ✅ NOTIFICATIONS: Send notifications to team members
+    // ✅ FIXED 2026-01: Use after() to ensure execution in serverless environments (Vercel)
+    // The after() API runs code after the response is sent while keeping the function alive
+    {
+      logger.info({ interventionId: intervention.id }, "📬 [API] Scheduling in-app notifications via after()")
+
+      // Capture variables for closure before after()
+      const notificationInterventionId = intervention.id
+      const notificationTeamId = intervention.team_id
+      const notificationCreatedBy = user.id
+      const notificationReference = intervention.reference
+
+      after(async () => {
+        try {
+          // ✅ Use Service Role to bypass RLS for notification context fetching
+          const serviceRoleClient = createServiceRoleSupabaseClient()
+          const notificationRepository = new NotificationRepository(serviceRoleClient)
+          const notificationService = new NotificationService(notificationRepository)
+
+          await notificationService.notifyInterventionCreated({
+            interventionId: notificationInterventionId,
+            teamId: notificationTeamId,
+            createdBy: notificationCreatedBy
+          })
+
+          logger.info({
+            reference: notificationReference,
+            interventionId: notificationInterventionId
+          }, "✅ [API] In-app notifications created successfully (via after())")
+        } catch (error) {
+          logger.error({
+            interventionId: notificationInterventionId,
+            error: error instanceof Error ? error.message : String(error)
+          }, "⚠️ [API] Failed to create in-app notifications (via after())")
+        }
       })
     }
 
-    // ✅ EMAILS: Send email notifications to assigned users (FIRE-AND-FORGET)
-    // Ne pas bloquer la réponse API - les emails sont envoyés en background
-    try {
-      logger.info({ interventionId: intervention.id }, "📧 [API] Triggering background email notifications")
+    // ✅ EMAILS: Send email notifications to assigned users
+    // ✅ FIXED 2026-01: Use after() to ensure execution in serverless environments (Vercel)
+    // The after() API runs code after the response is sent while keeping the function alive
+    {
+      logger.info({ interventionId: intervention.id }, "📧 [API] Scheduling email notifications via after()")
 
-      // Use Service Role client for email notification service
-      const serviceRoleClient = createServiceRoleSupabaseClient()
+      // Capture variables for closure before after()
+      const emailInterventionId = intervention.id
 
-      // Create all required repositories
-      const emailNotificationRepository = new NotificationRepository(serviceRoleClient)
-      const emailService = new EmailService()
-      const interventionRepository = await createServerInterventionRepository()
-      const userRepository = await createServerUserRepository()
-      const buildingRepository = await createServerBuildingRepository()
-      const lotRepository = await createServerLotRepository()
+      after(async () => {
+        try {
+          logger.info({ interventionId: emailInterventionId }, "📧 [EMAIL-NOTIFICATION] Starting email send (via after())")
 
-      // Create the EmailNotificationService
-      const emailNotificationService = new EmailNotificationService(
-        emailNotificationRepository,
-        emailService,
-        interventionRepository,
-        userRepository,
-        buildingRepository,
-        lotRepository
-      )
+          // Use Service Role client for email notification service
+          const serviceRoleClient = createServiceRoleSupabaseClient()
 
-      // ✅ FIX: Fire-and-forget - ne pas attendre l'envoi des emails (~8-10s de gain)
-      // Les emails sont envoyés en background, l'API retourne immédiatement
-      emailNotificationService.sendInterventionCreatedBatch(
-        intervention.id,
-        'intervention'
-      ).then(emailResult => {
-        logger.info({
-          interventionId: intervention.id,
-          sentCount: emailResult.sentCount,
-          failedCount: emailResult.failedCount,
-          success: emailResult.success
-        }, "📧 [API] Background email notifications completed")
-      }).catch(error => {
-        logger.error({
-          interventionId: intervention.id,
-          error: error instanceof Error ? error.message : String(error)
-        }, "⚠️ [API] Background email notifications failed")
+          // Create all required repositories
+          const emailNotificationRepository = new NotificationRepository(serviceRoleClient)
+          const emailService = new EmailService()
+          const interventionRepository = await createServerInterventionRepository()
+          const userRepository = await createServerUserRepository()
+          const buildingRepository = await createServerBuildingRepository()
+          const lotRepository = await createServerLotRepository()
+
+          // Create the EmailNotificationService
+          const emailNotificationService = new EmailNotificationService(
+            emailNotificationRepository,
+            emailService,
+            interventionRepository,
+            userRepository,
+            buildingRepository,
+            lotRepository
+          )
+
+          // ✅ Now using await - after() keeps the function alive
+          const emailResult = await emailNotificationService.sendInterventionCreatedBatch(
+            emailInterventionId,
+            'intervention'
+          )
+
+          logger.info({
+            interventionId: emailInterventionId,
+            sentCount: emailResult.sentCount,
+            failedCount: emailResult.failedCount,
+            success: emailResult.success
+          }, "📧 [API] Email notifications completed (via after())")
+
+        } catch (error) {
+          logger.error({
+            interventionId: emailInterventionId,
+            error: error instanceof Error ? error.message : String(error)
+          }, "⚠️ [API] Email notifications failed (via after())")
+        }
       })
-
-      logger.info({ interventionId: intervention.id }, "📧 [API] Email notifications triggered (non-blocking)")
-
-    } catch (error) {
-      // Non-blocking: log error but don't fail the intervention creation
-      logger.error({
-        error: error instanceof Error ? error.message : 'Unknown error',
-        interventionId: intervention.id
-      }, "⚠️ [API] Failed to trigger email notifications")
     }
 
     // ⚡ NO-CACHE: Mutations ne doivent pas être cachées

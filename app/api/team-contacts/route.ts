@@ -8,20 +8,24 @@ export async function GET(request: NextRequest) {
     const authResult = await getApiAuthContext()
     if (!authResult.success) return authResult.error
 
-    const { supabase } = authResult.data
+    const { supabase, userProfile } = authResult.data
 
-    const { searchParams } = new URL(request.url)
-    const teamId = searchParams.get('teamId')
-    const type = searchParams.get('type') // 'prestataire', 'locataire', 'gestionnaire'
-
-    if (!teamId) {
+    // Get teamId from authenticated user profile
+    if (!userProfile?.team_id) {
       return NextResponse.json({
         success: false,
-        error: 'teamId est requis'
-      }, { status: 400 })
+        error: 'Équipe non trouvée'
+      }, { status: 403 })
     }
 
-    logger.info({ teamId, type: type || 'all' }, "🔍 [TEAM-CONTACTS] Fetching team contacts")
+    const teamId = userProfile.team_id
+
+    // Support optional search query for filtering
+    const { searchParams } = new URL(request.url)
+    const searchQuery = searchParams.get('search')
+    const type = searchParams.get('type') // 'prestataire', 'locataire', 'gestionnaire'
+
+    logger.info({ teamId, type: type || 'all', searchQuery }, "🔍 [TEAM-CONTACTS] Fetching team contacts")
 
     // Get all users from the team
     let query = supabase
@@ -59,6 +63,12 @@ export async function GET(request: NextRequest) {
           logger.info({ type }, "⚠️ [TEAM-CONTACTS] Unknown type, no additional filter applied")
           break
       }
+    }
+
+    // Filter by search query if provided (name or email)
+    if (searchQuery && searchQuery.length >= 2) {
+      logger.info({ searchQuery }, "🔍 [TEAM-CONTACTS] Filtering by search query")
+      query = query.or(`name.ilike.%${searchQuery}%,email.ilike.%${searchQuery}%`)
     }
 
     const { data: contacts, error } = await query

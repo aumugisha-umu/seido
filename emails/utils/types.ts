@@ -192,10 +192,19 @@ export interface InterventionAssignedPrestataireEmailProps extends BaseIntervent
   createdAt: Date
   /** Créneaux proposés pour l'intervention */
   timeSlots?: EmailTimeSlot[]
+  /** Type de planification (direct = heure fixe, propose = plage horaire) */
+  planningType?: 'direct' | 'propose' | 'organize'
   /** Informations sur le devis demandé (prestataire seulement) */
   quoteInfo?: EmailQuoteInfo
   /** Pièces jointes de l'intervention */
   attachments?: EmailAttachment[]
+  /**
+   * Créneaux avec boutons d'action (emails interactifs)
+   * Si fourni, chaque créneau aura ses propres boutons Accepter/Refuser
+   */
+  slotActions?: EmailTimeSlotWithActions[]
+  /** Si true, affiche les boutons d'action sur chaque créneau */
+  enableInteractiveButtons?: boolean
 }
 
 /**
@@ -216,6 +225,13 @@ export interface InterventionAssignedLocataireEmailProps extends BaseInterventio
   /** Pièces jointes de l'intervention */
   attachments?: EmailAttachment[]
   // Note: Pas de quoteInfo pour le locataire (info prestataire uniquement)
+  /**
+   * Créneaux avec boutons d'action (emails interactifs)
+   * Si fourni, chaque créneau aura ses propres boutons Accepter/Refuser
+   */
+  slotActions?: EmailTimeSlotWithActions[]
+  /** Si true, affiche les boutons d'action sur chaque créneau */
+  enableInteractiveButtons?: boolean
 }
 
 /**
@@ -264,6 +280,18 @@ export interface InterventionScheduledEmailProps extends BaseInterventionEmailPr
 }
 
 /**
+ * Créneau avec URLs d'action pour emails interactifs
+ */
+export interface EmailTimeSlotWithActions extends EmailTimeSlot {
+  /** ID du créneau (pour identification) */
+  slotId: string
+  /** URL magic link pour accepter ce créneau spécifique */
+  acceptUrl?: string
+  /** URL magic link pour refuser ce créneau spécifique */
+  refuseUrl?: string
+}
+
+/**
  * Props pour le template "Créneaux proposés"
  * Envoyé au locataire ET au prestataire quand le gestionnaire propose des créneaux
  */
@@ -278,6 +306,13 @@ export interface TimeSlotsProposedEmailProps extends BaseInterventionEmailProps 
   responseDeadline?: Date
   /** Rôle du destinataire */
   recipientRole: 'locataire' | 'prestataire'
+  /**
+   * Créneaux avec boutons d'action (emails interactifs)
+   * Si fourni, chaque créneau aura ses propres boutons Accepter/Refuser
+   */
+  slotActions?: EmailTimeSlotWithActions[]
+  /** Si true, affiche les boutons d'action sur chaque créneau */
+  enableInteractiveButtons?: boolean
 }
 
 /**
@@ -295,6 +330,18 @@ export interface InterventionCompletedEmailProps extends BaseInterventionEmailPr
   hasDocuments: boolean
   /** Nom du destinataire */
   recipientRole: 'locataire' | 'gestionnaire'
+  /**
+   * URL magic link pour valider l'intervention (locataire uniquement)
+   * Action: validate_intervention avec type=approve
+   */
+  validateUrl?: string
+  /**
+   * URL magic link pour signaler un problème (locataire uniquement)
+   * Action: validate_intervention avec type=contest
+   */
+  contestUrl?: string
+  /** Si true, affiche les boutons Valider/Signaler pour le locataire */
+  enableInteractiveButtons?: boolean
 }
 
 /**
@@ -322,6 +369,18 @@ export interface BaseQuoteEmailProps extends BaseEmailProps {
 }
 
 /**
+ * Configuration des boutons d'estimation rapide
+ */
+export interface QuickEstimateConfig {
+  /** Montant en euros */
+  amount: number
+  /** Label du bouton (optionnel, déduit du montant sinon) */
+  label?: string
+  /** URL magic link pour soumettre cette estimation */
+  url: string
+}
+
+/**
  * Props pour "Demande de devis envoyée"
  * Envoyé au prestataire quand le gestionnaire demande un devis
  */
@@ -332,6 +391,13 @@ export interface QuoteRequestEmailProps extends BaseQuoteEmailProps {
   deadline?: Date
   /** Informations complémentaires */
   additionalInfo?: string
+  /**
+   * Boutons d'estimation rapide (emails interactifs)
+   * Si fourni, affiche des boutons avec montants prédéfinis
+   */
+  quickEstimates?: QuickEstimateConfig[]
+  /** Si true, affiche les boutons d'estimation rapide */
+  enableInteractiveButtons?: boolean
 }
 
 /**

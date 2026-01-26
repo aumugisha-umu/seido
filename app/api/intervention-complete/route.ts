@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import {
@@ -108,8 +108,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if intervention can be completed
-    // Note: 'en_cours' is DEPRECATED - completion now from 'planifiee' directly
-    if (!['planifiee', 'en_cours'].includes(intervention.status)) { // en_cours kept for backward compatibility
+    // Interventions can be completed directly from 'planifiee'
+    if (intervention.status !== 'planifiee') {
       return NextResponse.json({
         success: false,
         error: `L'intervention ne peut pas être terminée (statut actuel: ${intervention.status})`
@@ -304,24 +304,62 @@ export async function POST(request: NextRequest) {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // EMAIL NOTIFICATIONS: Intervention terminée
+    // EMAIL NOTIFICATIONS: Intervention terminée (via after())
     // ═══════════════════════════════════════════════════════════════════════════
-    try {
-      const emailResult = await emailNotificationService.sendInterventionEmails({
-        interventionId: intervention.id,
-        eventType: 'completed',
-        excludeUserId: user.id,  // L'utilisateur qui complète ne reçoit pas d'email
-        onlyRoles: ['locataire', 'gestionnaire'],  // Locataire pour validation + gestionnaires info
-        excludeNonPersonal: true
-      })
+    {
+      // Capture variables for after() closure
+      const emailInterventionId = intervention.id
+      const emailExcludeUserId = user.id
 
-      logger.info({
-        emailsSent: emailResult.sentCount,
-        emailsFailed: emailResult.failedCount
-      }, "📧 Completion emails sent")
-    } catch (emailError) {
-      // Don't fail for email errors
-      logger.warn({ emailError }, "⚠️ Could not send completion emails:")
+      after(async () => {
+        try {
+          // Re-initialize email service inside after()
+          const { EmailNotificationService } = await import('@/lib/services/domain/email-notification.service')
+          const { EmailService } = await import('@/lib/services/domain/email.service')
+          const {
+            createServerNotificationRepository,
+            createServerInterventionRepository,
+            createServerUserRepository,
+            createServerBuildingRepository,
+            createServerLotRepository
+          } = await import('@/lib/services')
+
+          const notificationRepo = await createServerNotificationRepository()
+          const interventionRepo = await createServerInterventionRepository()
+          const userRepo = await createServerUserRepository()
+          const buildingRepo = await createServerBuildingRepository()
+          const lotRepo = await createServerLotRepository()
+          const emailSvc = new EmailService()
+
+          const emailNotificationSvc = new EmailNotificationService(
+            notificationRepo,
+            emailSvc,
+            interventionRepo,
+            userRepo,
+            buildingRepo,
+            lotRepo
+          )
+
+          const emailResult = await emailNotificationSvc.sendInterventionEmails({
+            interventionId: emailInterventionId,
+            eventType: 'completed',
+            excludeUserId: emailExcludeUserId,
+            onlyRoles: ['locataire', 'gestionnaire'],
+            excludeNonPersonal: true
+          })
+
+          logger.info({
+            interventionId: emailInterventionId,
+            emailsSent: emailResult.sentCount,
+            emailsFailed: emailResult.failedCount
+          }, "📧 [API] Completion emails sent (via after())")
+        } catch (emailError) {
+          logger.error({
+            interventionId: emailInterventionId,
+            error: emailError instanceof Error ? emailError.message : String(emailError)
+          }, "⚠️ [API] Email notifications failed (via after())")
+        }
+      })
     }
 
     return NextResponse.json({

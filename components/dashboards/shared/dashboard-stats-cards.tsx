@@ -4,10 +4,19 @@ import { AlertTriangle, Building2, Users, FileText, Wrench, AlertCircle, CheckCi
 import { cn } from "@/lib/utils"
 import type { ContractStats } from "@/lib/types/contract.types"
 import { StatsCard, type TrendData } from "./stats-card"
+import { ProgressMini } from "./progress-mini"
 
 // ============================================================================
 // TYPES
 // ============================================================================
+
+/** Progress data for the intervention completion tracking */
+export interface ProgressData {
+    completed: number
+    total: number
+    percentage: number
+    periodLabel: string
+}
 
 interface DashboardStatsCardsProps {
     pendingCount: number
@@ -27,6 +36,8 @@ interface DashboardStatsCardsProps {
         contrats?: TrendData
         interventions?: TrendData
     }
+    /** Progress tracking data for period completion */
+    progressData?: ProgressData
 }
 
 // ============================================================================
@@ -42,7 +53,8 @@ export function DashboardStatsCards({
     occupancyRate,
     contractStats,
     tenantCount = 0,
-    trendData
+    trendData,
+    progressData
 }: DashboardStatsCardsProps) {
     const isManager = buildingsCount !== undefined
 
@@ -119,19 +131,29 @@ export function DashboardStatsCards({
                 />
             )}
 
-            {/* Card 5: Interventions (Renamed from "En cours") - Shows completed count */}
+            {/* Card 5: Interventions (Renamed from "En cours") - Shows completed count + progress */}
             <StatsCard
                 id="interventions"
                 label="En cours"
                 value={activeCount}
                 sublabel="interventions"
                 secondaryValue={
-                    completedCount > 0 ? (
-                        <span className="text-success font-medium flex items-center gap-1">
-                            <CheckCircle2 className="h-3 w-3" />
-                            {completedCount} terminee{completedCount > 1 ? 's' : ''}
-                        </span>
-                    ) : null
+                    <div className="flex flex-col gap-1.5 w-full mt-1">
+                        {completedCount > 0 && (
+                            <span className="text-success font-medium flex items-center gap-1 text-xs">
+                                <CheckCircle2 className="h-3 w-3" />
+                                {completedCount} terminée{completedCount > 1 ? 's' : ''}
+                            </span>
+                        )}
+                        {progressData && (
+                            <ProgressMini
+                                completed={progressData.completed}
+                                total={progressData.total}
+                                percentage={progressData.percentage}
+                                periodLabel={progressData.periodLabel}
+                            />
+                        )}
+                    </div>
                 }
                 icon={Wrench}
                 iconColor="text-blue-600"

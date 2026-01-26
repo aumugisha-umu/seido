@@ -101,13 +101,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "activity_logs_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "activity_logs_lot_id_fkey"
             columns: ["lot_id"]
             isOneToOne: false
@@ -589,6 +582,7 @@ export type Database = {
       contracts: {
         Row: {
           charges_amount: number | null
+          charges_type: Database["public"]["Enums"]["charges_type"]
           comments: string | null
           contract_type: Database["public"]["Enums"]["contract_type"]
           created_at: string
@@ -617,6 +611,7 @@ export type Database = {
         }
         Insert: {
           charges_amount?: number | null
+          charges_type?: Database["public"]["Enums"]["charges_type"]
           comments?: string | null
           contract_type?: Database["public"]["Enums"]["contract_type"]
           created_at?: string
@@ -645,6 +640,7 @@ export type Database = {
         }
         Update: {
           charges_amount?: number | null
+          charges_type?: Database["public"]["Enums"]["charges_type"]
           comments?: string | null
           contract_type?: Database["public"]["Enums"]["contract_type"]
           created_at?: string
@@ -862,8 +858,9 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          email_id: string | null
           id: string
-          intervention_id: string
+          intervention_id: string | null
           last_message_at: string | null
           message_count: number | null
           team_id: string
@@ -874,8 +871,9 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          email_id?: string | null
           id?: string
-          intervention_id: string
+          intervention_id?: string | null
           last_message_at?: string | null
           message_count?: number | null
           team_id: string
@@ -886,8 +884,9 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          email_id?: string | null
           id?: string
-          intervention_id?: string
+          intervention_id?: string | null
           last_message_at?: string | null
           message_count?: number | null
           team_id?: string
@@ -904,17 +903,17 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "conversation_threads_intervention_id_fkey"
-            columns: ["intervention_id"]
+            foreignKeyName: "conversation_threads_email_id_fkey"
+            columns: ["email_id"]
             isOneToOne: false
-            referencedRelation: "interventions"
+            referencedRelation: "emails"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "conversation_threads_intervention_id_fkey"
             columns: ["intervention_id"]
             isOneToOne: false
-            referencedRelation: "interventions_active"
+            referencedRelation: "interventions"
             referencedColumns: ["id"]
           },
           {
@@ -1009,6 +1008,121 @@ export type Database = {
           },
         ]
       }
+      email_links: {
+        Row: {
+          email_id: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["email_link_entity_type"]
+          id: string
+          linked_at: string
+          linked_by: string | null
+          notes: string | null
+          team_id: string
+        }
+        Insert: {
+          email_id: string
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["email_link_entity_type"]
+          id?: string
+          linked_at?: string
+          linked_by?: string | null
+          notes?: string | null
+          team_id: string
+        }
+        Update: {
+          email_id?: string
+          entity_id?: string
+          entity_type?: Database["public"]["Enums"]["email_link_entity_type"]
+          id?: string
+          linked_at?: string
+          linked_by?: string | null
+          notes?: string | null
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_links_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_links_linked_by_fkey"
+            columns: ["linked_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_links_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_webhook_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          intervention_id: string | null
+          processing_time_ms: number | null
+          recipient_address: string
+          resend_email_id: string
+          sender_address: string
+          status: string
+          subject: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          intervention_id?: string | null
+          processing_time_ms?: number | null
+          recipient_address: string
+          resend_email_id: string
+          sender_address: string
+          status: string
+          subject?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          intervention_id?: string | null
+          processing_time_ms?: number | null
+          recipient_address?: string
+          resend_email_id?: string
+          sender_address?: string
+          status?: string
+          subject?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_webhook_logs_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "email_webhook_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emails: {
         Row: {
           bcc_addresses: string[] | null
@@ -1023,6 +1137,7 @@ export type Database = {
           from_address: string
           id: string
           in_reply_to: string | null
+          in_reply_to_header: string | null
           intervention_id: string | null
           lot_id: string | null
           message_id: string | null
@@ -1048,6 +1163,7 @@ export type Database = {
           from_address: string
           id?: string
           in_reply_to?: string | null
+          in_reply_to_header?: string | null
           intervention_id?: string | null
           lot_id?: string | null
           message_id?: string | null
@@ -1073,6 +1189,7 @@ export type Database = {
           from_address?: string
           id?: string
           in_reply_to?: string | null
+          in_reply_to_header?: string | null
           intervention_id?: string | null
           lot_id?: string | null
           message_id?: string | null
@@ -1119,13 +1236,6 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "emails_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -1307,13 +1417,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "intervention_assignments_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "intervention_assignments_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -1356,13 +1459,6 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_comments_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -1457,13 +1553,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "intervention_documents_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "intervention_documents_message_id_fkey"
             columns: ["message_id"]
             isOneToOne: false
@@ -1530,13 +1619,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "intervention_links_child_intervention_id_fkey"
-            columns: ["child_intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "intervention_links_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -1548,13 +1630,6 @@ export type Database = {
             columns: ["parent_intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_links_parent_intervention_id_fkey"
-            columns: ["parent_intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -1653,13 +1728,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "intervention_quotes_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "intervention_quotes_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
@@ -1751,13 +1819,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "intervention_reports_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "intervention_reports_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
@@ -1846,13 +1907,6 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_time_slots_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -1975,6 +2029,7 @@ export type Database = {
           assignment_mode: Database["public"]["Enums"]["assignment_mode"]
           building_id: string | null
           completed_date: string | null
+          contract_id: string | null
           created_at: string
           created_by: string | null
           deleted_at: string | null
@@ -2008,6 +2063,7 @@ export type Database = {
           assignment_mode?: Database["public"]["Enums"]["assignment_mode"]
           building_id?: string | null
           completed_date?: string | null
+          contract_id?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -2041,6 +2097,7 @@ export type Database = {
           assignment_mode?: Database["public"]["Enums"]["assignment_mode"]
           building_id?: string | null
           completed_date?: string | null
+          contract_id?: string | null
           created_at?: string
           created_by?: string | null
           deleted_at?: string | null
@@ -2083,6 +2140,20 @@ export type Database = {
             columns: ["building_id"]
             isOneToOne: false
             referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts_active"
             referencedColumns: ["id"]
           },
           {
@@ -2557,70 +2628,85 @@ export type Database = {
       }
       team_email_connections: {
         Row: {
+          auth_method: string | null
           created_at: string | null
           email_address: string
           id: string
-          imap_host: string
-          imap_password_encrypted: string
+          imap_host: string | null
+          imap_password_encrypted: string | null
           imap_port: number
           imap_use_ssl: boolean | null
-          imap_username: string
+          imap_username: string | null
           is_active: boolean | null
           last_error: string | null
           last_sync_at: string | null
           last_uid: number | null
+          oauth_access_token: string | null
+          oauth_refresh_token: string | null
+          oauth_scope: string | null
+          oauth_token_expires_at: string | null
           provider: string
-          smtp_host: string
-          smtp_password_encrypted: string
+          smtp_host: string | null
+          smtp_password_encrypted: string | null
           smtp_port: number
           smtp_use_tls: boolean | null
-          smtp_username: string
+          smtp_username: string | null
           sync_from_date: string | null
           team_id: string
           updated_at: string | null
         }
         Insert: {
+          auth_method?: string | null
           created_at?: string | null
           email_address: string
           id?: string
-          imap_host: string
-          imap_password_encrypted: string
+          imap_host?: string | null
+          imap_password_encrypted?: string | null
           imap_port?: number
           imap_use_ssl?: boolean | null
-          imap_username: string
+          imap_username?: string | null
           is_active?: boolean | null
           last_error?: string | null
           last_sync_at?: string | null
           last_uid?: number | null
+          oauth_access_token?: string | null
+          oauth_refresh_token?: string | null
+          oauth_scope?: string | null
+          oauth_token_expires_at?: string | null
           provider: string
-          smtp_host: string
-          smtp_password_encrypted: string
+          smtp_host?: string | null
+          smtp_password_encrypted?: string | null
           smtp_port?: number
           smtp_use_tls?: boolean | null
-          smtp_username: string
+          smtp_username?: string | null
           sync_from_date?: string | null
           team_id: string
           updated_at?: string | null
         }
         Update: {
+          auth_method?: string | null
           created_at?: string | null
           email_address?: string
           id?: string
-          imap_host?: string
-          imap_password_encrypted?: string
+          imap_host?: string | null
+          imap_password_encrypted?: string | null
           imap_port?: number
           imap_use_ssl?: boolean | null
-          imap_username?: string
+          imap_username?: string | null
           is_active?: boolean | null
           last_error?: string | null
           last_sync_at?: string | null
           last_uid?: number | null
+          oauth_access_token?: string | null
+          oauth_refresh_token?: string | null
+          oauth_scope?: string | null
+          oauth_token_expires_at?: string | null
           provider?: string
-          smtp_host?: string
-          smtp_password_encrypted?: string
+          smtp_host?: string | null
+          smtp_password_encrypted?: string | null
           smtp_port?: number
           smtp_use_tls?: boolean | null
-          smtp_username?: string
+          smtp_username?: string | null
           sync_from_date?: string | null
           team_id?: string
           updated_at?: string | null
@@ -2974,6 +3060,13 @@ export type Database = {
             referencedRelation: "teams"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "users_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -3028,13 +3121,6 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "activity_logs_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -3316,179 +3402,6 @@ export type Database = {
           },
         ]
       }
-      interventions_active: {
-        Row: {
-          assignment_mode: Database["public"]["Enums"]["assignment_mode"] | null
-          building_id: string | null
-          completed_date: string | null
-          created_at: string | null
-          created_by: string | null
-          deleted_at: string | null
-          deleted_by: string | null
-          description: string | null
-          estimated_cost: number | null
-          final_cost: number | null
-          has_attachments: boolean | null
-          id: string | null
-          is_contested: boolean | null
-          lot_id: string | null
-          metadata: Json | null
-          provider_guidelines: string | null
-          reference: string | null
-          requested_date: string | null
-          requires_quote: boolean | null
-          scheduled_date: string | null
-          scheduling_method: string | null
-          scheduling_type:
-            | Database["public"]["Enums"]["intervention_scheduling_type"]
-            | null
-          selected_slot_id: string | null
-          specific_location: string | null
-          status: Database["public"]["Enums"]["intervention_status"] | null
-          team_id: string | null
-          title: string | null
-          type: string | null
-          updated_at: string | null
-          urgency: Database["public"]["Enums"]["intervention_urgency"] | null
-        }
-        Insert: {
-          assignment_mode?:
-            | Database["public"]["Enums"]["assignment_mode"]
-            | null
-          building_id?: string | null
-          completed_date?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          deleted_at?: string | null
-          deleted_by?: string | null
-          description?: string | null
-          estimated_cost?: number | null
-          final_cost?: number | null
-          has_attachments?: boolean | null
-          id?: string | null
-          is_contested?: boolean | null
-          lot_id?: string | null
-          metadata?: Json | null
-          provider_guidelines?: string | null
-          reference?: string | null
-          requested_date?: string | null
-          requires_quote?: boolean | null
-          scheduled_date?: string | null
-          scheduling_method?: string | null
-          scheduling_type?:
-            | Database["public"]["Enums"]["intervention_scheduling_type"]
-            | null
-          selected_slot_id?: string | null
-          specific_location?: string | null
-          status?: Database["public"]["Enums"]["intervention_status"] | null
-          team_id?: string | null
-          title?: string | null
-          type?: string | null
-          updated_at?: string | null
-          urgency?: Database["public"]["Enums"]["intervention_urgency"] | null
-        }
-        Update: {
-          assignment_mode?:
-            | Database["public"]["Enums"]["assignment_mode"]
-            | null
-          building_id?: string | null
-          completed_date?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          deleted_at?: string | null
-          deleted_by?: string | null
-          description?: string | null
-          estimated_cost?: number | null
-          final_cost?: number | null
-          has_attachments?: boolean | null
-          id?: string | null
-          is_contested?: boolean | null
-          lot_id?: string | null
-          metadata?: Json | null
-          provider_guidelines?: string | null
-          reference?: string | null
-          requested_date?: string | null
-          requires_quote?: boolean | null
-          scheduled_date?: string | null
-          scheduling_method?: string | null
-          scheduling_type?:
-            | Database["public"]["Enums"]["intervention_scheduling_type"]
-            | null
-          selected_slot_id?: string | null
-          specific_location?: string | null
-          status?: Database["public"]["Enums"]["intervention_status"] | null
-          team_id?: string | null
-          title?: string | null
-          type?: string | null
-          updated_at?: string | null
-          urgency?: Database["public"]["Enums"]["intervention_urgency"] | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "interventions_building_id_fkey"
-            columns: ["building_id"]
-            isOneToOne: false
-            referencedRelation: "buildings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_building_id_fkey"
-            columns: ["building_id"]
-            isOneToOne: false
-            referencedRelation: "buildings_active"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_deleted_by_fkey"
-            columns: ["deleted_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_lot_id_fkey"
-            columns: ["lot_id"]
-            isOneToOne: false
-            referencedRelation: "lots"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_lot_id_fkey"
-            columns: ["lot_id"]
-            isOneToOne: false
-            referencedRelation: "lots_active"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_lot_id_fkey"
-            columns: ["lot_id"]
-            isOneToOne: false
-            referencedRelation: "lots_with_contacts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_selected_slot_id_fkey"
-            columns: ["selected_slot_id"]
-            isOneToOne: false
-            referencedRelation: "intervention_time_slots"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_team_id_fkey"
-            columns: ["team_id"]
-            isOneToOne: false
-            referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       lots_active: {
         Row: {
           active_interventions: number | null
@@ -3654,6 +3567,10 @@ export type Database = {
         }
         Returns: string
       }
+      can_create_email_conversation: {
+        Args: { p_email_id: string; p_team_id: string }
+        Returns: boolean
+      }
       can_manage_contract: { Args: { contract_uuid: string }; Returns: boolean }
       can_manage_intervention: {
         Args: { p_intervention_id: string }
@@ -3694,6 +3611,8 @@ export type Database = {
         Args: { slot_id_param: string }
         Returns: boolean
       }
+      cleanup_old_webhook_logs: { Args: never; Returns: number }
+      delete_team_cascade: { Args: { p_team_id: string }; Returns: Json }
       expire_old_invitations: { Args: never; Returns: number }
       get_accessible_building_ids: {
         Args: never
@@ -3719,6 +3638,14 @@ export type Database = {
       get_current_user_role: {
         Args: never
         Returns: Database["public"]["Enums"]["user_role"]
+      }
+      get_distinct_linked_entities: {
+        Args: { p_team_id: string }
+        Returns: {
+          email_count: number
+          entity_id: string
+          entity_type: Database["public"]["Enums"]["email_link_entity_type"]
+        }[]
       }
       get_intervention_team_id: {
         Args: { p_intervention_id: string }
@@ -3835,6 +3762,7 @@ export type Database = {
         | "send_notification"
         | "login"
         | "logout"
+        | "import"
       activity_entity_type:
         | "user"
         | "team"
@@ -3847,8 +3775,10 @@ export type Database = {
         | "message"
         | "quote"
         | "report"
+        | "import"
       activity_status: "success" | "failure" | "pending"
       assignment_mode: "single" | "group" | "separate"
+      charges_type: "forfaitaire" | "provision"
       contract_contact_role:
         | "locataire"
         | "colocataire"
@@ -3874,6 +3804,7 @@ export type Database = {
         | "group"
         | "tenant_to_managers"
         | "provider_to_managers"
+        | "email_internal"
       country:
         | "belgique"
         | "france"
@@ -3884,6 +3815,13 @@ export type Database = {
         | "autre"
       document_visibility_level: "equipe" | "locataire" | "intervention"
       email_direction: "received" | "sent"
+      email_link_entity_type:
+        | "building"
+        | "lot"
+        | "contract"
+        | "contact"
+        | "company"
+        | "intervention"
       email_status: "unread" | "read" | "archived" | "deleted"
       guarantee_type:
         | "pas_de_garantie"
@@ -3910,15 +3848,14 @@ export type Database = {
         | "garantie"
         | "bon_de_commande"
         | "autre"
+        | "email"
       intervention_scheduling_type: "flexible" | "fixed" | "slots"
       intervention_status:
         | "demande"
         | "rejetee"
         | "approuvee"
-        | "demande_de_devis"
         | "planification"
         | "planifiee"
-        | "en_cours"
         | "cloturee_par_prestataire"
         | "cloturee_par_locataire"
         | "cloturee_par_gestionnaire"
@@ -3951,6 +3888,7 @@ export type Database = {
         | "status_change"
         | "reminder"
         | "deadline"
+        | "email_reply_received"
       payment_frequency: "mensuel" | "trimestriel" | "semestriel" | "annuel"
       property_document_type:
         | "bail"
@@ -4129,6 +4067,7 @@ export const Constants = {
         "send_notification",
         "login",
         "logout",
+        "import",
       ],
       activity_entity_type: [
         "user",
@@ -4142,9 +4081,11 @@ export const Constants = {
         "message",
         "quote",
         "report",
+        "import",
       ],
       activity_status: ["success", "failure", "pending"],
       assignment_mode: ["single", "group", "separate"],
+      charges_type: ["forfaitaire", "provision"],
       contract_contact_role: [
         "locataire",
         "colocataire",
@@ -4172,6 +4113,7 @@ export const Constants = {
         "group",
         "tenant_to_managers",
         "provider_to_managers",
+        "email_internal",
       ],
       country: [
         "belgique",
@@ -4184,6 +4126,14 @@ export const Constants = {
       ],
       document_visibility_level: ["equipe", "locataire", "intervention"],
       email_direction: ["received", "sent"],
+      email_link_entity_type: [
+        "building",
+        "lot",
+        "contract",
+        "contact",
+        "company",
+        "intervention",
+      ],
       email_status: ["unread", "read", "archived", "deleted"],
       guarantee_type: [
         "pas_de_garantie",
@@ -4212,16 +4162,15 @@ export const Constants = {
         "garantie",
         "bon_de_commande",
         "autre",
+        "email",
       ],
       intervention_scheduling_type: ["flexible", "fixed", "slots"],
       intervention_status: [
         "demande",
         "rejetee",
         "approuvee",
-        "demande_de_devis",
         "planification",
         "planifiee",
-        "en_cours",
         "cloturee_par_prestataire",
         "cloturee_par_locataire",
         "cloturee_par_gestionnaire",
@@ -4257,6 +4206,7 @@ export const Constants = {
         "status_change",
         "reminder",
         "deadline",
+        "email_reply_received",
       ],
       payment_frequency: ["mensuel", "trimestriel", "semestriel", "annuel"],
       property_document_type: [

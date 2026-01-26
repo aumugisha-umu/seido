@@ -189,14 +189,14 @@ export const InterventionDetailHeader = ({
       case "approuvée":
       case "approuve":
         actions.push(
-          { key: "request-quote", label: "Demander devis", icon: FileText, variant: "default" },
+          { key: "request-quote", label: "Demander estimation", icon: FileText, variant: "default" },
           { key: "schedule", label: "Planifier directement", icon: Calendar, variant: "default" }
         )
         break
       case "demande de devis":
         actions.push(
-          { key: "validate-quote", label: "Valider devis", icon: CheckCircle, variant: "success" },
-          { key: "reject-quote", label: "Rejeter devis", icon: XCircle, variant: "destructive" }
+          { key: "validate-quote", label: "Valider estimation", icon: CheckCircle, variant: "success" },
+          { key: "reject-quote", label: "Rejeter estimation", icon: XCircle, variant: "destructive" }
         )
         break
       case "planification":

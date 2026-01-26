@@ -1,7 +1,17 @@
 "use client"
 
 import { Skeleton } from '@/components/ui/skeleton'
-import type { CardComponentProps, ActionConfig } from '../data-navigator/types'
+import type { ActionConfig } from './types'
+
+// CardComponentProps is defined generically to support any card component
+export interface CardComponentProps<T> {
+    item: T
+    mode?: 'view' | 'select'
+    isSelected?: boolean
+    onSelect?: (id: string) => void
+    actions?: ActionConfig<T>[]
+    compact?: boolean
+}
 
 interface DataCardsProps<T = any> {
     data: T[]
@@ -68,6 +78,7 @@ export function DataCards<T extends { id: string }>({
                     isSelected={selectedId === item.id}
                     onSelect={onSelect}
                     actions={actions}
+                    compact={compact}
                 />
             ))}
         </div>

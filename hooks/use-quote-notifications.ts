@@ -34,12 +34,12 @@ export function useQuoteNotifications({
       const mockNotifications: QuoteNotification[] = []
 
       if (userRole === 'prestataire') {
-        // Notifications pour prestataires : demandes de devis
+        // Notifications pour prestataires : demandes d'estimations
         mockNotifications.push({
           id: 'notif-1',
           type: 'quote_request',
-          title: 'Nouvelle demande de devis',
-          message: 'Devis demandé pour "Réparation plomberie urgente"',
+          title: 'Nouvelle demande d\'estimation',
+          message: 'Estimation demandée pour "Réparation plomberie urgente"',
           interventionId: 'int-001',
           interventionTitle: 'Réparation plomberie urgente',
           timestamp: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // Il y a 30 min
@@ -47,13 +47,13 @@ export function useQuoteNotifications({
           urgent: true
         })
       } else if (userRole === 'gestionnaire') {
-        // Notifications pour gestionnaires : devis reçus
+        // Notifications pour gestionnaires : estimations reçues
         mockNotifications.push(
           {
             id: 'notif-2',
             type: 'quote_submitted',
-            title: 'Nouveau devis reçu',
-            message: 'Plomberie Express a soumis un devis de 380€',
+            title: 'Nouvelle estimation reçue',
+            message: 'Plomberie Express a soumis une estimation de 380€',
             interventionId: 'int-001',
             interventionTitle: 'Réparation plomberie urgente',
             providerName: 'Plomberie Express',
@@ -65,8 +65,8 @@ export function useQuoteNotifications({
           {
             id: 'notif-3',
             type: 'quote_submitted',
-            title: 'Nouveau devis reçu',
-            message: 'Artisan Pro a soumis un devis de 420€',
+            title: 'Nouvelle estimation reçue',
+            message: 'Artisan Pro a soumis une estimation de 420€',
             interventionId: 'int-002',
             interventionTitle: 'Installation électrique',
             providerName: 'Artisan Pro',
@@ -77,12 +77,12 @@ export function useQuoteNotifications({
           }
         )
       } else if (userRole === 'locataire') {
-        // Notifications pour locataires : statut des devis
+        // Notifications pour locataires : statut des estimations
         mockNotifications.push({
           id: 'notif-4',
           type: 'quote_approved',
-          title: 'Devis approuvé',
-          message: 'Le devis de Plomberie Pro (380€) a été approuvé',
+          title: 'Estimation approuvée',
+          message: 'L\'estimation de Plomberie Pro (380€) a été approuvée',
           interventionId: 'int-001',
           interventionTitle: 'Réparation plomberie urgente',
           providerName: 'Plomberie Pro',
@@ -179,8 +179,8 @@ export function useQuoteNotifications({
         newNotification = {
           id: `notif-${Date.now()}`,
           type: 'quote_approved',
-          title: 'Devis approuvé',
-          message: `Votre devis a été approuvé !`,
+          title: 'Estimation approuvée',
+          message: `Votre estimation a été approuvée !`,
           interventionId: `int-${Date.now()}`,
           interventionTitle: 'Intervention validée',
           timestamp: now,
@@ -193,8 +193,8 @@ export function useQuoteNotifications({
         newNotification = {
           id: `notif-${Date.now()}`,
           type: 'quote_rejected',
-          title: 'Devis rejeté',
-          message: `Votre devis n'a pas été retenu`,
+          title: 'Estimation rejetée',
+          message: `Votre estimation n'a pas été retenue`,
           interventionId: `int-${Date.now()}`,
           interventionTitle: 'Intervention non retenue',
           timestamp: now,

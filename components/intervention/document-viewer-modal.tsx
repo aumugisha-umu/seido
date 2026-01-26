@@ -180,7 +180,7 @@ export const DocumentViewerModal = ({
       case 'photo_avant': return 'Photo avant'
       case 'photo_apres': return 'Photo après'
       case 'facture': return 'Facture'
-      case 'devis': return 'Devis'
+      case 'devis': return 'Estimation'
       case 'plan': return 'Plan'
       case 'certificat': return 'Certificat'
       case 'garantie': return 'Garantie'

@@ -9,6 +9,7 @@ import { CompanySearch } from "@/components/ui/company-search"
 import { Building2, Plus } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import type { CompanyLookupResult } from '@/lib/types/cbeapi.types'
+import { getVatCodeForCountry } from "@/lib/constants/vat"
 
 interface Company {
   id: string
@@ -48,11 +49,51 @@ export function Step2Company({
   const { toast } = useToast()
 
   // Formater le numéro de TVA : supprimer espaces et caractères spéciaux, mettre en majuscule
-  const formatVatNumber = (value: string): string => {
+  const normalizeVatNumber = (value: string): string => {
     return value
       .replace(/\s+/g, '') // Supprimer tous les espaces
       .replace(/[^A-Za-z0-9]/g, '') // Garder seulement lettres et chiffres
       .toUpperCase() // Tout en majuscule
+  }
+
+  // Formater le numéro de TVA pour l'affichage avec espaces
+  const formatVatNumberDisplay = (value: string): string => {
+    const clean = normalizeVatNumber(value)
+    if (!clean) return ''
+
+    // Extraire le code pays (2 ou 3 lettres) ou utiliser le pays sélectionné
+    let countryCode = clean.startsWith('CHE') ? 'CHE' : clean.substring(0, 2)
+    let digits = clean.substring(countryCode.length)
+
+    // Si pas de code pays détecté mais que ce sont uniquement des chiffres, utiliser le pays sélectionné
+    if (!/^[A-Z]{2,3}$/.test(countryCode) && /^\d+$/.test(clean)) {
+      countryCode = getVatCodeForCountry(country)
+      digits = clean
+    }
+
+    // Formatage selon le pays
+    if (countryCode === 'BE' && digits.length === 10) {
+      // BE: BE 0123 456 789
+      return `${countryCode} ${digits.substring(0, 4)} ${digits.substring(4, 7)} ${digits.substring(7, 10)}`
+    } else if (countryCode === 'FR' && digits.length === 11) {
+      // FR: FR 12 345 678 901
+      return `${countryCode} ${digits.substring(0, 2)} ${digits.substring(2, 5)} ${digits.substring(5, 8)} ${digits.substring(8, 11)}`
+    } else if (countryCode === 'NL' && digits.length === 12) {
+      // NL: NL 123456789 B01
+      return `${countryCode} ${digits.substring(0, 9)} ${digits.substring(9, 12)}`
+    } else if (countryCode === 'DE' && digits.length === 9) {
+      // DE: DE 123 456 789
+      return `${countryCode} ${digits.substring(0, 3)} ${digits.substring(3, 6)} ${digits.substring(6, 9)}`
+    } else if (countryCode === 'LU' && digits.length === 8) {
+      // LU: LU 123 456 78
+      return `${countryCode} ${digits.substring(0, 3)} ${digits.substring(3, 6)} ${digits.substring(6, 8)}`
+    } else if (countryCode === 'CHE' && digits.length === 9) {
+      // CHE: CHE 123 456 789
+      return `${countryCode} ${digits.substring(0, 3)} ${digits.substring(3, 6)} ${digits.substring(6, 9)}`
+    }
+
+    // Format par défaut : espace après le code pays
+    return `${countryCode} ${digits}`
   }
 
   // Fonction pour pré-remplir le formulaire avec les données d'une entreprise
@@ -146,7 +187,7 @@ export function Step2Company({
               Société <span className="text-red-500">*</span>
             </Label>
             <CompanySelector
-              teamId={teamId}
+              companies={companies}
               value={companyId || null}
               onChange={(id) => onFieldChange('companyId', id)}
               placeholder="Sélectionnez une société..."
@@ -166,23 +207,14 @@ export function Step2Company({
             <h3 className="font-semibold text-foreground">Détails de la nouvelle société</h3>
           </div>
 
-          {/* Barres de recherche côte à côte */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <CompanySearch
-              searchType="name"
-              teamId={teamId}
-              onSelect={handleCompanySelect}
-              label="Rechercher par nom d'entreprise"
-              placeholder="Tapez le nom de l'entreprise..."
-            />
-            <CompanySearch
-              searchType="vat"
-              teamId={teamId}
-              onSelect={handleCompanySelect}
-              label="Rechercher par numéro de TVA"
-              placeholder="BE0123456789"
-            />
-          </div>
+          {/* Recherche unifiée */}
+          <CompanySearch
+            searchType="auto"
+            teamId={teamId}
+            onSelect={handleCompanySelect}
+            label="Rechercher une société"
+            placeholder="Nom d'entreprise ou numéro de TVA..."
+          />
 
           {/* Séparateur */}
           <div className="relative">
@@ -216,12 +248,21 @@ export function Step2Company({
               </Label>
               <Input
                 id="vat-number"
-                value={vatNumber || ''}
-                onChange={(e) => onFieldChange('vatNumber', formatVatNumber(e.target.value))}
-                placeholder="BE0123456789"
+                value={vatNumber ? formatVatNumberDisplay(vatNumber) : ''}
+                onChange={(e) => {
+                  const normalized = normalizeVatNumber(e.target.value)
+                  // Si ce sont uniquement des chiffres, ajouter le préfixe du pays sélectionné
+                  if (normalized && /^\d+$/.test(normalized)) {
+                    const vatCode = getVatCodeForCountry(country)
+                    onFieldChange('vatNumber', `${vatCode}${normalized}`)
+                  } else {
+                    onFieldChange('vatNumber', normalized)
+                  }
+                }}
+                placeholder="0123456789"
               />
               <p className="text-sm text-muted-foreground">
-                Format: BE0123456789, FR12345678901, etc.
+                Format: BE 0123 456 789, FR 12 345 678 901, etc.
               </p>
             </div>
           </div>

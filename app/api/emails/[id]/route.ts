@@ -2,9 +2,13 @@ import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { EmailRepository } from '@/lib/services/repositories/email.repository';
 
-export async function PATCH(
+/**
+ * GET /api/emails/[id]
+ * Récupère un email complet par son ID avec ses pièces jointes
+ */
+export async function GET(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const supabase = await createSupabaseServerClient();
@@ -15,7 +19,47 @@ export async function PATCH(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const emailId = params.id;
+        const { id: emailId } = await params;
+        const emailRepo = new EmailRepository(supabase);
+
+        // Récupérer l'email (RLS vérifie l'accès)
+        const result = await emailRepo.findById(emailId);
+
+        if (!result.success) {
+            return NextResponse.json(
+                { success: false, error: result.error?.message || 'Email not found' },
+                { status: 404 }
+            );
+        }
+
+        // Récupérer les pièces jointes
+        const attachments = await emailRepo.getAttachments(emailId);
+
+        return NextResponse.json({
+            success: true,
+            email: { ...result.data, attachments }
+        });
+
+    } catch (error: any) {
+        console.error('Get email error:', error);
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+export async function PATCH(
+    request: Request,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    try {
+        const supabase = await createSupabaseServerClient();
+
+        // Check authentication
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { id: emailId } = await params;
         const updates = await request.json();
 
         const emailRepo = new EmailRepository(supabase);

@@ -3,6 +3,7 @@ import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { managerFinalizationSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
 
 
 export async function POST(
@@ -168,59 +169,19 @@ export async function POST(
 
     logger.info({ finalStatus }, "✅ Manager finalization () completed successfully")
 
-    // Send final notifications
+    // Send final notifications via server action (handles in-app, push, and email)
     try {
-      // Notify all participants
-      const { data: assignments } = await supabase
-        .from('intervention_assignments')
-        .select(`
-          user:users!user_id(id, name, email, role),
-          is_primary,
-          role
-        `)
-        .eq('intervention_id', interventionId)
+      const notifResult = await notifyInterventionStatusChange({
+        interventionId: interventionId,
+        oldStatus: intervention.status,
+        newStatus: newInterventionStatus
+      })
 
-      const tenantNotificationPromise = intervention.tenant_id ?
-        notificationService.createNotification({
-          userId: intervention.tenant_id,
-          teamId: intervention.team_id,
-          createdBy: user.id,
-          type: 'intervention',
-          title: 'Intervention finalisée',
-          message: `L'intervention "${intervention.title}" a été finalisée par l'administration.`,
-          isPersonal: true, // Locataire toujours personnel
-          metadata: {
-            interventionId: interventionId,
-            interventionTitle: intervention.title,
-            finalStatus,
-            managerName: user.name
-          },
-          relatedEntityType: 'intervention',
-          relatedEntityId: interventionId
-        }) : Promise.resolve()
-
-      const contactNotificationPromises = assignments?.map(assignment =>
-        notificationService.createNotification({
-          userId: assignment.user.id,
-          teamId: intervention.team_id,
-          createdBy: user.id,
-          type: 'intervention',
-          title: 'Intervention finalisée',
-          message: `${user.name} a finalisé l'intervention "${intervention.title}"`,
-          isPersonal: assignment.is_primary ?? (assignment.role === 'prestataire'), // ✅ Primary ou prestataire assigné
-          metadata: {
-            interventionId: interventionId,
-            interventionTitle: intervention.title,
-            finalStatus,
-            managerName: user.name
-          },
-          relatedEntityType: 'intervention',
-          relatedEntityId: interventionId
-        })
-      ) || []
-
-      await Promise.all([tenantNotificationPromise, ...contactNotificationPromises])
-      logger.info({}, "📧 Finalization notifications sent")
+      if (notifResult.success) {
+        logger.info({ count: notifResult.data?.length }, "📧 Finalization notifications sent")
+      } else {
+        logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed")
+      }
     } catch (notifError) {
       logger.warn({ notifError: notifError }, "⚠️ Could not send finalization notifications:")
     }

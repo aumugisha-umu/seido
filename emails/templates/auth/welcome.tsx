@@ -22,7 +22,7 @@ export const WelcomeEmail = ({
   const roleMessages = {
     admin: 'Vous avez accès à toutes les fonctionnalités d\'administration de la plateforme.',
     gestionnaire: 'Vous pouvez gérer vos biens, interventions et équipes en toute simplicité.',
-    prestataire: 'Vous recevrez des demandes d\'intervention et pourrez soumettre vos devis.',
+    prestataire: 'Vous recevrez des demandes d\'intervention et pourrez soumettre vos estimations.',
     locataire: 'Vous pouvez soumettre des demandes d\'intervention pour votre logement.',
   }
 
@@ -82,7 +82,7 @@ export const WelcomeEmail = ({
             <ul className="text-gray-700 text-sm leading-relaxed pl-5 m-0">
               <li>Complétez votre profil professionnel</li>
               <li>Consultez vos demandes d'intervention</li>
-              <li>Soumettez vos devis rapidement</li>
+              <li>Soumettez vos estimations rapidement</li>
               <li>Gérez vos disponibilités</li>
             </ul>
           )}

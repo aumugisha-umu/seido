@@ -38,10 +38,10 @@ export function Step1Type({
 
       {/* Type de contact et Spécialité sur la même ligne */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Type de contact */}
+        {/* Catégorie de contact */}
         <div className="space-y-3">
           <Label htmlFor="contact-type" className="text-base font-medium">
-            Type de contact <span className="text-red-500">*</span>
+            Catégorie <span className="text-red-500">*</span>
           </Label>
           <Select value={contactType} onValueChange={onContactTypeChange}>
             <SelectTrigger id="contact-type" className="w-full">
@@ -94,7 +94,7 @@ export function Step1Type({
       {/* Personne ou Société */}
       <div className="space-y-3">
         <Label className="text-base font-medium">
-          Type de contact <span className="text-red-500">*</span>
+          Personne ou Entreprise <span className="text-red-500">*</span>
         </Label>
         <RadioGroup
           value={personOrCompany}

@@ -8,28 +8,48 @@ export async function GET(request: Request) {
 
         const { supabase, userProfile } = authResult.data;
 
-        if (!userProfile?.team_id) {
-            return NextResponse.json({ error: 'User has no team' }, { status: 403 });
+        // Récupérer le team_id depuis team_members (source de vérité)
+        const { data: membership, error: membershipError } = await supabase
+            .from('team_members')
+            .select('team_id')
+            .eq('user_id', userProfile?.id)
+            .in('role', ['gestionnaire', 'admin'])
+            .is('left_at', null)
+            .single();
+
+        if (membershipError || !membership?.team_id) {
+            return NextResponse.json({ error: 'User is not a team manager' }, { status: 403 });
         }
 
-        const teamId = userProfile.team_id;
+        const teamId = membership.team_id;
 
         // Fetch counts in parallel
-        const [inboxUnread, sentCount, archiveCount] = await Promise.all([
-            // Inbox Unread
+        const [inboxUnread, processedCount, sentCount, archiveCount] = await Promise.all([
+            // Inbox: Unread received emails
             supabase
                 .from('emails')
                 .select('*', { count: 'exact', head: true })
                 .eq('team_id', teamId)
                 .eq('direction', 'received')
-                .eq('status', 'unread'),
+                .eq('status', 'unread')
+                .is('deleted_at', null),
+
+            // Processed: Read received emails (not archived)
+            supabase
+                .from('emails')
+                .select('*', { count: 'exact', head: true })
+                .eq('team_id', teamId)
+                .eq('direction', 'received')
+                .eq('status', 'read')
+                .is('deleted_at', null),
 
             // Sent (Total)
             supabase
                 .from('emails')
                 .select('*', { count: 'exact', head: true })
                 .eq('team_id', teamId)
-                .eq('direction', 'sent'),
+                .eq('direction', 'sent')
+                .is('deleted_at', null),
 
             // Archive (Total)
             supabase
@@ -37,11 +57,13 @@ export async function GET(request: Request) {
                 .select('*', { count: 'exact', head: true })
                 .eq('team_id', teamId)
                 .eq('status', 'archived')
+                .is('deleted_at', null)
         ]);
 
         return NextResponse.json({
             counts: {
                 inbox: inboxUnread.count || 0,
+                processed: processedCount.count || 0,
                 sent: sentCount.count || 0,
                 archive: archiveCount.count || 0,
                 drafts: 0 // Not implemented yet

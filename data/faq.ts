@@ -16,7 +16,7 @@ export const faq: FAQItem[] = [
   {
     id: 1,
     question: "SEIDO est-il conforme au RGPD ?",
-    answer: "Oui, à 100%. Toutes vos données sont hébergées en Europe (Supabase Frankfurt, Allemagne) et ne quittent jamais l'Union Européenne. Nous utilisons un chiffrement AES-256 pour la transmission et le stockage. Vous gardez le contrôle total : exportation, suppression et accès à vos données à tout moment. Notre DPO est disponible pour toute question à privacy@seido.pm.",
+    answer: "Oui, à 100%. Toutes vos données sont hébergées en Europe (Supabase Frankfurt, Allemagne) et ne quittent jamais l'Union Européenne. Nous utilisons un chiffrement AES-256 pour la transmission et le stockage. Vous gardez le contrôle total : exportation, suppression et accès à vos données à tout moment. Notre DPO est disponible pour toute question à privacy@seido-app.com.",
     category: 'security'
   },
   {
@@ -46,7 +46,7 @@ export const faq: FAQItem[] = [
   {
     id: 6,
     question: "Proposez-vous une démo personnalisée ?",
-    answer: "Oui ! Réservez une démo privée de 30 minutes avec notre équipe. Nous adaptons la présentation à votre situation : nombre de lots, types de biens, problématiques spécifiques. Vous verrez SEIDO en action avec des cas d'usage réels. Contactez-nous à demo@seido.pm ou utilisez le calendrier sur notre page contact.",
+    answer: "Oui ! Réservez une démo privée de 30 minutes avec notre équipe. Nous adaptons la présentation à votre situation : nombre de lots, types de biens, problématiques spécifiques. Vous verrez SEIDO en action avec des cas d'usage réels. Contactez-nous à demo@seido-app.com ou utilisez le calendrier sur notre page contact.",
     category: 'general'
   },
   {

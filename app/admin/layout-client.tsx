@@ -1,6 +1,6 @@
 "use client"
 
-import { useNavigationRefresh } from "@/hooks/use-navigation-refresh"
+// import { useNavigationRefresh } from "@/hooks/use-navigation-refresh"
 
 /**
  * 🎯 ADMIN LAYOUT CLIENT - Fonctionnalités interactives
@@ -11,7 +11,8 @@ import { useNavigationRefresh } from "@/hooks/use-navigation-refresh"
 
 export function AdminLayoutClient() {
   // ✅ Navigation refresh hook (client-side seulement)
-  useNavigationRefresh()
+  // DISABLED: This was causing slow page loads by triggering server re-renders on every navigation
+  // useNavigationRefresh()
 
   return null // Pas d'UI supplémentaire pour l'admin layout
 }

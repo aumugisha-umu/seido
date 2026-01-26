@@ -1,9 +1,27 @@
-import { Building2, Home, MapPin, Users, AlertCircle, Eye, Edit, Archive } from 'lucide-react'
+import { Building2, Home, MapPin, Users, AlertCircle, Eye, Edit } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { BuildingCardCompact } from '@/components/patrimoine/building-card-compact'
 import { LotCardWrapper } from '@/components/patrimoine/lot-card-unified'
 import { getLotCategoryConfig } from '@/lib/lot-types'
 import type { DataTableConfig } from '@/components/data-navigator/types'
+
+// Lot type for building expansion view
+export interface BuildingLotItem {
+    id: string
+    reference: string
+    status?: string
+    is_occupied?: boolean
+    floor?: number
+    apartment_number?: string
+    category?: string
+    surface_area?: number
+    rooms?: number
+    lot_contacts?: Array<{
+        id?: string
+        user?: { id: string; name: string; email?: string; role: string }
+    }>
+    interventions_count?: number
+}
 
 // Building type
 export interface BuildingData {
@@ -12,7 +30,7 @@ export interface BuildingData {
     address: string
     city?: string
     postal_code?: string
-    lots?: Array<{ id: string; status?: string }>
+    lots?: BuildingLotItem[]
     building_contacts?: Array<{ user?: { id: string; name: string; role: string } }>
     interventions_count?: number
 }
@@ -98,7 +116,9 @@ export const buildingsTableConfig: DataTableConfig<BuildingData> = {
             width: '100px',
             cell: (building) => {
                 const totalLots = building.lots?.length || 0
-                const occupiedLots = building.lots?.filter(lot => lot.status === 'occupied').length || 0
+                const occupiedLots = building.lots?.filter(lot =>
+                    lot.is_occupied || lot.status === 'occupied'
+                ).length || 0
                 return (
                     <div className="flex items-center gap-2">
                         <div className="flex items-center gap-1">
@@ -213,34 +233,21 @@ export const buildingsTableConfig: DataTableConfig<BuildingData> = {
     // Row click navigation
     rowHref: (building) => `/gestionnaire/biens/immeubles/${building.id}`,
 
-    // Actions
+    // Actions - Use href for SPA navigation
     actions: [
         {
             id: 'view',
             label: 'Voir les détails',
             icon: Eye,
-            onClick: (building) => {
-                window.location.href = `/gestionnaire/biens/immeubles/${building.id}`
-            }
+            href: (building) => `/gestionnaire/biens/immeubles/${building.id}`
         },
         {
             id: 'edit',
             label: 'Modifier',
             icon: Edit,
-            onClick: (building) => {
-                window.location.href = `/gestionnaire/biens/immeubles/modifier/${building.id}`
-            }
-        },
-        {
-            id: 'archive',
-            label: 'Archiver',
-            icon: Archive,
-            onClick: (building) => {
-                console.log('Archive building:', building.id)
-            },
-            variant: 'destructive',
-            className: 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+            href: (building) => `/gestionnaire/biens/immeubles/modifier/${building.id}`
         }
+        // Archive action removed - not yet implemented
     ],
 
     // Empty state
@@ -250,9 +257,7 @@ export const buildingsTableConfig: DataTableConfig<BuildingData> = {
         icon: Building2,
         showCreateButton: true,
         createButtonText: 'Ajouter un immeuble',
-        createButtonAction: () => {
-            window.location.href = '/gestionnaire/biens/immeubles/nouveau'
-        }
+        createButtonHref: '/gestionnaire/biens/immeubles/nouveau'
     }
 }
 
@@ -415,42 +420,27 @@ export const lotsTableConfig: DataTableConfig<LotData> = {
     // Row click navigation
     rowHref: (lot) => `/gestionnaire/biens/lots/${lot.id}`,
 
-    // Actions
+    // Actions - Use href for SPA navigation
     actions: [
         {
             id: 'view',
             label: 'Voir les détails',
             icon: Eye,
-            onClick: (lot) => {
-                window.location.href = `/gestionnaire/biens/lots/${lot.id}`
-            }
+            href: (lot) => `/gestionnaire/biens/lots/${lot.id}`
         },
         {
             id: 'edit',
             label: 'Modifier',
             icon: Edit,
-            onClick: (lot) => {
-                window.location.href = `/gestionnaire/biens/lots/modifier/${lot.id}`
-            }
+            href: (lot) => `/gestionnaire/biens/lots/modifier/${lot.id}`
         },
         {
             id: 'manage_tenants',
             label: 'Gérer les locataires',
             icon: Users,
-            onClick: (lot) => {
-                window.location.href = `/gestionnaire/contacts?lot=${lot.id}`
-            }
-        },
-        {
-            id: 'archive',
-            label: 'Archiver',
-            icon: Archive,
-            onClick: (lot) => {
-                console.log('Archive lot:', lot.id)
-            },
-            variant: 'destructive',
-            className: 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+            href: (lot) => `/gestionnaire/contacts?lot=${lot.id}`
         }
+        // Archive action removed - not yet implemented
     ],
 
     // Empty state
@@ -460,8 +450,6 @@ export const lotsTableConfig: DataTableConfig<LotData> = {
         icon: Home,
         showCreateButton: true,
         createButtonText: 'Ajouter un lot',
-        createButtonAction: () => {
-            window.location.href = '/gestionnaire/biens/lots/nouveau'
-        }
+        createButtonHref: '/gestionnaire/biens/lots/nouveau'
     }
 }

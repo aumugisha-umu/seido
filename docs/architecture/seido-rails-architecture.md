@@ -1,5 +1,15 @@
 # SEIDO Architecture - Ruby on Rails
 
+> ⚠️ **DOCUMENT POUR LE REBUILD FUTUR**
+>
+> Ce document décrit l'architecture **Ruby on Rails** prévue pour le **rebuild** futur de SEIDO.
+>
+> **L'application actuelle** est basée sur **Next.js 15 + Supabase** (voir `.claude/CLAUDE.md`).
+>
+> Ce document sert de spécification pour une future migration vers Rails si décidée.
+
+---
+
 > **Document Version**: 1.0.0
 > **Last Updated**: 2025-12-30
 > **Target Framework**: Ruby on Rails 7.1.3 + PostgreSQL 15
@@ -244,10 +254,10 @@ bin/rails tailwindcss:watch  # CSS compilation
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin1@seido.pm | password123 |
-| Gestionnaire | gestionnaire1@seido.pm | password123 |
-| Prestataire | prestataire1@seido.pm | password123 |
-| Locataire | locataire1@seido.pm | password123 |
+| Admin | admin1@seido-app.com | password123 |
+| Gestionnaire | gestionnaire1@seido-app.com | password123 |
+| Prestataire | prestataire1@seido-app.com | password123 |
+| Locataire | locataire1@seido-app.com | password123 |
 
 ---
 
@@ -21083,7 +21093,7 @@ created_users = { admin: [], gestionnaire: [], prestataire: [], locataire: [], p
 ROLES.each do |role, config|
   config[:count].times do |i|
     user = User.create!(
-      email: "#{role}#{i + 1}@seido.pm",
+      email: "#{role}#{i + 1}@seido-app.com",
       password: DEFAULT_PASSWORD,
       password_confirmation: DEFAULT_PASSWORD,
       first_name: Faker::Name.first_name,
@@ -24367,7 +24377,7 @@ RSpec.configure do |config|
         description: 'API de gestion immobilière SEIDO',
         contact: {
           name: 'SEIDO Support',
-          email: 'support@seido.pm'
+          email: 'support@seido-app.com'
         }
       },
       servers: [

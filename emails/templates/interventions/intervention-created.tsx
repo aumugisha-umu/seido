@@ -12,6 +12,7 @@ import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
 import { EmailAttachments } from '@/emails/components/email-attachments'
+import { EmailReplyHint } from '@/emails/components/email-reply-hint'
 import type { InterventionCreatedEmailProps } from '@/emails/utils/types'
 
 export const InterventionCreatedEmail = ({
@@ -147,6 +148,9 @@ export const InterventionCreatedEmail = ({
 
         {/* Bouton CTA */}
         <EmailButton href={interventionUrl}>Voir la demande et décider</EmailButton>
+
+        {/* Indication de réponse par email */}
+        <EmailReplyHint />
 
         {/* Note de pied */}
         <Text className="text-gray-500 text-xs leading-relaxed text-center mt-6 mb-0">

@@ -40,7 +40,7 @@ const { error: memberError } = await supabaseAdmin
 ### Test 1: Nouveau Signup
 1. Aller sur `/auth/signup`
 2. Remplir formulaire:
-   - Email: `arthur+test04@seido.pm`
+   - Email: `arthur+test04@seido-app.com`
    - Password: `TestComplete2025!`
    - First Name: `Arthur`
    - Last Name: `Test`
@@ -65,13 +65,13 @@ const { error: memberError } = await supabaseAdmin
 -- 1. Vérifier profil utilisateur
 SELECT id, email, name, role, team_id
 FROM users
-WHERE email = 'arthur+test04@seido.pm';
+WHERE email = 'arthur+test04@seido-app.com';
 
 -- 2. Vérifier team créée
 SELECT t.id, t.name, t.created_by, u.email as creator_email
 FROM teams t
 JOIN users u ON t.created_by = u.id
-WHERE u.email = 'arthur+test04@seido.pm';
+WHERE u.email = 'arthur+test04@seido-app.com';
 
 -- 3. Vérifier team_members (CRITIQUE - doit avoir 1 row)
 SELECT tm.id, tm.team_id, tm.user_id, tm.role, tm.joined_at,
@@ -79,7 +79,7 @@ SELECT tm.id, tm.team_id, tm.user_id, tm.role, tm.joined_at,
 FROM team_members tm
 JOIN users u ON tm.user_id = u.id
 JOIN teams t ON tm.team_id = t.id
-WHERE u.email = 'arthur+test04@seido.pm';
+WHERE u.email = 'arthur+test04@seido-app.com';
 ```
 
 **Résultat attendu**:

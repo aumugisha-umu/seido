@@ -182,6 +182,12 @@ export const inviteUserSchema = z.object({
   postalCode: z.string().max(20).trim().optional().nullable(),
   city: z.string().max(100).trim().optional().nullable(),
   country: z.string().length(2).trim().optional().nullable(),
+  // Champs liaison à une entité (optionnel)
+  linkedEntityType: z.enum(['building', 'lot', 'contract', 'intervention']).optional().nullable(),
+  linkedBuildingId: uuidSchema.optional().nullable(),
+  linkedLotId: uuidSchema.optional().nullable(),
+  linkedContractId: uuidSchema.optional().nullable(),
+  linkedInterventionId: uuidSchema.optional().nullable(),
 }).superRefine((data, ctx) => {
   // Email obligatoire si shouldInviteToApp === true
   if (data.shouldInviteToApp) {
@@ -326,14 +332,13 @@ export const sendContactInvitationSchema = z.object({
  * Intervention status enum
  * Exported for use in validation across the app
  */
+// Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
 export const interventionStatusEnum = z.enum([
   'demande',
   'rejetee',
   'approuvee',
-  'demande_de_devis',
   'planification',
   'planifiee',
-  'en_cours',
   'cloturee_par_prestataire',
   'cloturee_par_locataire',
   'cloturee_par_gestionnaire',
@@ -355,7 +360,7 @@ const urgencyEnum = z.enum(['basse', 'normale', 'haute', 'urgente'], {
 export const createInterventionSchema = z.object({
   lot_id: uuidSchema,
   title: z.string().min(1).max(200).trim(),
-  description: z.string().min(1).max(5000).trim(),
+  description: z.string().min(10, 'La description doit contenir au moins 10 caractères').max(5000).trim(),
   urgency: urgencyEnum.optional(), // Optional - defaults applied in service layer
   type: z.string().min(1, "Le type d'intervention est obligatoire").max(100).trim(),
 })
@@ -367,7 +372,12 @@ export const createInterventionSchema = z.object({
 export const createManagerInterventionSchema = z.object({
   // Basic intervention data
   title: z.string().min(1).max(200).trim(),
-  description: z.string().max(5000).trim().optional(),
+  // ✅ FIX: Description optionnelle pour gestionnaire - accepte vide ou ≥10 caractères
+  description: z.string().max(5000).trim().optional()
+    .refine(
+      (val) => !val || val.length === 0 || val.length >= 10,
+      { message: 'La description doit contenir au moins 10 caractères si renseignée' }
+    ),
   type: z.string().min(1, "Le type d'intervention est obligatoire").max(100).trim(),
   urgency: urgencyEnum.optional().default('normale'),
   location: z.string().max(500).trim().optional(),
@@ -385,7 +395,8 @@ export const createManagerInterventionSchema = z.object({
   providerInstructions: z.record(z.string(), z.string()).optional().default({}),
 
   // Scheduling
-  schedulingType: z.enum(['none', 'fixed', 'flexible', 'slots']).optional(),
+  // ✅ FIX 2026-01-25: Removed 'none' (unused, confusing)
+  schedulingType: z.enum(['fixed', 'flexible', 'slots']).optional(),
   fixedDateTime: z.object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD'),
     time: z.string().regex(/^\d{2}:\d{2}$/, 'Time must be HH:MM'),
@@ -399,6 +410,8 @@ export const createManagerInterventionSchema = z.object({
   // Options
   expectsQuote: z.boolean().optional(),
   includeTenants: z.boolean().optional().default(true),
+  // ✅ FIX 2026-01-25: Explicit tenant selection (prevents auto-assignment of ALL tenants)
+  selectedTenantIds: z.array(uuidSchema).optional().default([]),
 
   // Messages
   messageType: z.enum(['none', 'global', 'individual']).optional(),
@@ -408,6 +421,37 @@ export const createManagerInterventionSchema = z.object({
   // En mode "fixed" avec toggle activé ou en mode "slots"
   requiresParticipantConfirmation: z.boolean().optional().default(false),
   confirmationRequiredUserIds: z.array(uuidSchema).optional().default([]),
+
+  // Source email ID (for interventions created from an email)
+  // ✅ SECURITY: Validated as UUID to prevent injection
+  sourceEmailId: uuidSchema.optional(),
+
+  // Contract ID (for linking intervention to a specific contract on an occupied lot)
+  contractId: uuidSchema.optional().nullable(),
+}).superRefine((data, ctx) => {
+  // ✅ FIX 2026-01-25: Validation conditionnelle selon schedulingType
+
+  // Validation Date Fixe : date ET heure obligatoires
+  if (data.schedulingType === 'fixed') {
+    if (!data.fixedDateTime?.date || !data.fixedDateTime?.time) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Date et heure obligatoires pour une planification fixe",
+        path: ['fixedDateTime']
+      })
+    }
+  }
+
+  // Validation Créneaux : au moins un créneau requis
+  if (data.schedulingType === 'slots') {
+    if (!data.timeSlots || data.timeSlots.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Au moins un créneau horaire est requis",
+        path: ['timeSlots']
+      })
+    }
+  }
 })
 
 /**
@@ -483,7 +527,7 @@ export const submitQuoteSchema = z.object({
   interventionId: uuidSchema,
   providerId: uuidSchema,
   amount: z.number().positive().max(1000000), // max 1M EUR
-  description: z.string().min(1).max(5000).trim(),
+  description: z.string().min(10, 'La description du devis doit contenir au moins 10 caractères').max(5000).trim(),
   validUntil: dateStringSchema.optional(),
   estimatedDuration: z.number().int().min(1).max(480).optional(), // minutes
 })
@@ -902,6 +946,57 @@ export const generateMagicLinksSchema = z.object({
   additionalNotes: z.string().max(2000).trim().optional().nullable(),
   individualMessages: z.record(z.string().max(2000).trim()).optional(),
 })
+
+// ============================================================================
+// WEBHOOK SCHEMAS
+// ============================================================================
+
+/**
+ * POST /api/webhooks/resend-inbound
+ *
+ * Schema for Resend inbound email webhook events.
+ *
+ * IMPORTANT: For inbound emails, the content (html, text, headers) is included
+ * DIRECTLY in the webhook payload. The /emails/{id} API is for SENT emails only!
+ *
+ * @see https://resend.com/docs/dashboard/receiving/introduction
+ * @see https://resend.com/blog/inbound-emails
+ */
+export const resendInboundWebhookSchema = z.object({
+  type: z.literal('email.received'),
+  created_at: z.string(),
+  data: z.object({
+    email_id: z.string().min(1),
+    created_at: z.string(),
+    from: z.string().min(1),
+    to: z.array(z.string()).min(1),
+    cc: z.array(z.string()).optional().default([]),
+    bcc: z.array(z.string()).optional().default([]),
+    subject: z.string(),
+    message_id: z.string().optional(),
+    // ✅ Email content is included directly in inbound webhook payload
+    // Note: Using nullable() + transform() because Resend can send null for plain-text emails
+    html: z.string().nullable().optional().transform(v => v ?? ''),
+    text: z.string().nullable().optional().transform(v => v ?? ''),
+    headers: z.record(z.string()).optional().default({}),
+    // ✅ Threading fields (snake_case as sent by Resend)
+    in_reply_to: z.string().optional(),
+    thread_id: z.string().optional(),
+    // Attachments (download URLs, not content - must be fetched separately)
+    attachments: z.array(z.object({
+      id: z.string(),
+      filename: z.string(),
+      content_type: z.string(),
+      content_disposition: z.string().optional(),
+      content_id: z.string().optional()
+    })).optional().default([])
+  })
+})
+
+/**
+ * Type exported for use in webhook handler
+ */
+export type ResendInboundWebhookPayload = z.infer<typeof resendInboundWebhookSchema>
 
 // ============================================================================
 // HELPER FUNCTION

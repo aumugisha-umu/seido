@@ -116,7 +116,7 @@ export function LandingPage() {
                         </h1>
 
                         <p className="landing-subtitle text-white/90 mb-6 md:mb-8 drop-shadow-lg max-w-2xl">
-                            Grâce au suivi des interventions techniques sur une plateforme unique : <span className="font-bold">demandes</span>, <span className="font-bold">devis</span>, <span className="font-bold">planning</span>, <span className="font-bold">photos</span> et <span className="font-bold">factures</span>, collaborez avec vos locataires et prestataires pour plus de transparence, plus d'efficacité, et moins de relances.
+                            Grâce au suivi des interventions techniques sur une plateforme unique : <span className="font-bold">demandes</span>, <span className="font-bold">estimations</span>, <span className="font-bold">planning</span>, <span className="font-bold">photos</span> et <span className="font-bold">factures</span>, collaborez avec vos locataires et prestataires pour plus de transparence, plus d'efficacité, et moins de relances.
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-8 md:mb-10 max-w-2xl">
@@ -209,7 +209,7 @@ export function LandingPage() {
                     {[
                         { icon: MessageSquare, title: "Téléphone arabe", desc: "L’info circule mal, les délais explosent." },
                         { icon: AlertTriangle, title: "Trou noir", desc: "Après l’ordre: plus de visibilité." },
-                        { icon: FileText, title: "Jungle admin", desc: "Devis, photos, factures dispersés." }
+                        { icon: FileText, title: "Jungle admin", desc: "Estimations, photos, factures dispersées." }
                     ].map((item, i) => (
                         <FadeIn key={i} delay={i * 100} className="h-full">
                             <div className="p-8 rounded-3xl border border-white/5 bg-white/5 backdrop-blur-sm h-full hover:-translate-y-2 hover:bg-white/10 transition-all duration-300 hover:shadow-xl hover:shadow-blue-500/10 group">
@@ -263,7 +263,7 @@ export function LandingPage() {
                                     </li>
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />
-                                        <span><strong>Devis simplifiés</strong> : demander, comparer, valider.</span>
+                                        <span><strong>Estimations simplifiées</strong> : demander, comparer, valider.</span>
                                     </li>
                                     <li className="flex items-start landing-body-sm text-white/80">
                                         <CheckCircle2 className="w-4 h-4 text-blue-400 mr-2 mt-0.5 flex-shrink-0" />

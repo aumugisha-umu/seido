@@ -12,33 +12,37 @@ interface UseGlobalNotificationsReturn {
 
 interface UseGlobalNotificationsOptions {
   teamId?: string
+  userId?: string // ✅ NEW: Accept userId from server to bypass useAuth() delay
 }
 
 export const useGlobalNotifications = (options: UseGlobalNotificationsOptions = {}): UseGlobalNotificationsReturn => {
-  const { teamId: propTeamId } = options
+  const { teamId: propTeamId, userId: propUserId } = options
   const { user } = useAuth()
   const { teamStatus, hasTeam } = useTeamStatus()
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Use prop teamId if available
+  // ✅ PERF: Use server-provided userId/teamId to bypass client auth delay
+  const effectiveUserId = propUserId || user?.id
   const userTeamId = propTeamId
-
-  // Removed: Client-side team fetching (now passed via props)
+  // If server provided teamId, we can trust the user has team access
+  const effectiveTeamStatus = propTeamId ? 'verified' : teamStatus
+  const effectiveHasTeam = propTeamId ? true : hasTeam
 
   const fetchUnreadCount = useCallback(async () => {
     logger.info('🔍 [GLOBAL-NOTIFICATIONS] fetchUnreadCount called with:', {
-      userId: user?.id,
-      teamStatus,
-      hasTeam,
+      effectiveUserId,
+      effectiveTeamStatus,
+      effectiveHasTeam,
       userTeamId
     })
 
     // Note: On ne requiert plus userTeamId car les prestataires/locataires peuvent recevoir
     // des notifications d'équipes auxquelles ils ne font pas partie (via intervention assignments)
     // La sécurité est assurée par RLS (user_id = get_current_user_id())
-    if (!user?.id || teamStatus !== 'verified') {
+    // ✅ PERF: Use effective values to avoid waiting for client auth
+    if (!effectiveUserId || effectiveTeamStatus !== 'verified') {
       logger.info('❌ [GLOBAL-NOTIFICATIONS] Conditions not met, skipping fetch')
       setUnreadCount(0)
       setLoading(false)
@@ -73,7 +77,7 @@ export const useGlobalNotifications = (options: UseGlobalNotificationsOptions = 
 
       // Fetch team notifications seulement si l'utilisateur a une équipe
       let teamCount = 0
-      if (hasTeam && userTeamId) {
+      if (effectiveHasTeam && userTeamId) {
         const teamParams = new URLSearchParams({
           limit: '50',
           team_id: userTeamId,
@@ -106,22 +110,22 @@ export const useGlobalNotifications = (options: UseGlobalNotificationsOptions = 
     } finally {
       setLoading(false)
     }
-  }, [user?.id, teamStatus, hasTeam, userTeamId])
+  }, [effectiveUserId, effectiveTeamStatus, effectiveHasTeam, userTeamId])
 
 
 
   // Fetch unread count when all conditions are met
-  // Note: On ne requiert plus userTeamId pour les prestataires/locataires
+  // ✅ PERF: Use effective values to start fetching immediately with server data
   useEffect(() => {
-    if (user?.id && teamStatus === 'verified') {
+    if (effectiveUserId && effectiveTeamStatus === 'verified') {
       fetchUnreadCount()
     }
-  }, [user?.id, teamStatus, fetchUnreadCount])
+  }, [effectiveUserId, effectiveTeamStatus, fetchUnreadCount])
 
   // Realtime subscription via centralized RealtimeProvider
-  // Note: On ne requiert plus userTeamId car les prestataires peuvent recevoir des notifs cross-team
+  // ✅ PERF: Use effective values for immediate subscription
   useRealtimeNotificationsV2({
-    enabled: teamStatus === 'verified' && !!user?.id,
+    enabled: effectiveTeamStatus === 'verified' && !!effectiveUserId,
     onInsert: useCallback((notification) => {
       logger.info('[GLOBAL-NOTIFICATIONS] New notification received via Realtime v2')
       // Increment unread count if notification is unread

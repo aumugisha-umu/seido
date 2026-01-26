@@ -28,6 +28,12 @@ interface ConfirmationRequiredBannerProps {
   onReject?: () => void
   /** État de chargement */
   isLoading?: boolean
+  /** Indique si des créneaux sont proposés en attente de réponse */
+  hasProposedSlots?: boolean
+  /** Nombre de créneaux proposés */
+  proposedSlotsCount?: number
+  /** Callback pour voir les créneaux (ouvre l'onglet/modale planning) */
+  onViewSlots?: () => void
 }
 
 export function ConfirmationRequiredBanner({
@@ -36,7 +42,10 @@ export function ConfirmationRequiredBanner({
   scheduledTime,
   onConfirm,
   onReject,
-  isLoading = false
+  isLoading = false,
+  hasProposedSlots = false,
+  proposedSlotsCount = 0,
+  onViewSlots
 }: ConfirmationRequiredBannerProps) {
   const [showRejectDialog, setShowRejectDialog] = useState(false)
   const [rejectReason, setRejectReason] = useState("")
@@ -115,14 +124,21 @@ export function ConfirmationRequiredBanner({
           </div>
           <div className="flex-1 min-w-0">
             <h4 className="font-semibold text-amber-800 text-base">
-              Confirmation requise
+              {hasProposedSlots ? 'Créneaux proposés' : 'Confirmation requise'}
             </h4>
             <p className="text-sm text-amber-700 mt-1">
-              Vous devez confirmer votre disponibilité pour participer à cette intervention.
+              {hasProposedSlots ? (
+                <>
+                  <strong>{proposedSlotsCount} créneau{proposedSlotsCount > 1 ? 'x' : ''}</strong> proposé{proposedSlotsCount > 1 ? 's' : ''} en attente de votre réponse.
+                  Veuillez indiquer vos disponibilités pour planifier l&apos;intervention.
+                </>
+              ) : (
+                'Vous devez confirmer votre disponibilité pour participer à cette intervention.'
+              )}
             </p>
 
-            {/* Date/heure si disponible */}
-            {formattedDate && (
+            {/* Date/heure si disponible (mode confirmation standard) */}
+            {!hasProposedSlots && formattedDate && (
               <div className="flex items-center gap-4 mt-2 text-sm text-amber-700">
                 <div className="flex items-center gap-1.5">
                   <Calendar className="h-4 w-4" />
@@ -139,29 +155,44 @@ export function ConfirmationRequiredBanner({
 
             {/* Boutons d'action */}
             <div className="flex flex-wrap gap-2 mt-4">
-              <Button
-                size="sm"
-                onClick={handleConfirm}
-                disabled={isSubmitting || isLoading}
-                className="bg-green-600 hover:bg-green-700 text-white"
-              >
-                {isSubmitting ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                ) : (
-                  <CheckCircle className="h-4 w-4 mr-2" />
-                )}
-                Je confirme ma disponibilité
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setShowRejectDialog(true)}
-                disabled={isSubmitting || isLoading}
-                className="border-amber-300 text-amber-800 hover:bg-amber-100"
-              >
-                <X className="h-4 w-4 mr-2" />
-                Je ne suis pas disponible
-              </Button>
+              {hasProposedSlots ? (
+                /* Mode créneaux: bouton pour voir les créneaux */
+                <Button
+                  size="sm"
+                  onClick={onViewSlots}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  <Calendar className="h-4 w-4 mr-2" />
+                  Voir les créneaux
+                </Button>
+              ) : (
+                /* Mode confirmation standard: boutons confirmer/refuser */
+                <>
+                  <Button
+                    size="sm"
+                    onClick={handleConfirm}
+                    disabled={isSubmitting || isLoading}
+                    className="bg-green-600 hover:bg-green-700 text-white"
+                  >
+                    {isSubmitting ? (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                    )}
+                    Je confirme ma disponibilité
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setShowRejectDialog(true)}
+                    disabled={isSubmitting || isLoading}
+                    className="border-amber-300 text-amber-800 hover:bg-amber-100"
+                  >
+                    <X className="h-4 w-4 mr-2" />
+                    Je ne suis pas disponible
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

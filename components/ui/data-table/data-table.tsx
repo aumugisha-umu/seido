@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useMemo } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import {
     Table,
@@ -43,6 +42,7 @@ export function DataTable<T extends Record<string, any>>({
     onSort,
     onRowClick
 }: DataTableProps<T>) {
+    const router = useRouter()
     const [sortColumn, setSortColumn] = useState<string | null>(null)
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc')
 
@@ -212,7 +212,11 @@ export function DataTable<T extends Record<string, any>>({
                                                                     key={`item-${actionKey}`}
                                                                     onClick={(e) => {
                                                                         e.stopPropagation()
-                                                                        action.onClick(item)
+                                                                        if (action.href) {
+                                                                            router.push(action.href(item))
+                                                                        } else if (action.onClick) {
+                                                                            action.onClick(item)
+                                                                        }
                                                                     }}
                                                                     className={action.className}
                                                                 >

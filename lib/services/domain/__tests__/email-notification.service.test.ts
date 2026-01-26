@@ -31,7 +31,7 @@ import type { LotRepository } from '@/lib/services/repositories/lot-repository'
 // ══════════════════════════════════════════════════════════════
 
 const mockNotificationRepository = {
-  getNotificationRecipients: vi.fn()
+  getInterventionWithManagers: vi.fn()
 } as unknown as NotificationRepository
 
 const mockEmailService = {
@@ -43,8 +43,10 @@ const mockInterventionRepository = {
   getById: vi.fn()
 } as unknown as InterventionRepository
 
+// ✅ NOTIFICATION FIX (Jan 2026): Now uses findByIdsWithAuth for auth filtering
 const mockUserRepository = {
-  getById: vi.fn()
+  getById: vi.fn(),
+  findByIdsWithAuth: vi.fn()
 } as unknown as UserRepository
 
 const mockBuildingRepository = {
@@ -111,7 +113,7 @@ describe('EmailNotificationService', () => {
 
       // Should not call repositories
       expect(mockInterventionRepository.getById).not.toHaveBeenCalled()
-      expect(mockNotificationRepository.getNotificationRecipients).not.toHaveBeenCalled()
+      expect(mockUserRepository.findByIdsWithAuth).not.toHaveBeenCalled()
     })
 
     it('should send emails to multiple recipients successfully', async () => {
@@ -174,7 +176,8 @@ describe('EmailNotificationService', () => {
         if (id === 'tenant-1') return mockTenant as any
         return null
       })
-      vi.mocked(mockNotificationRepository.getNotificationRecipients).mockResolvedValue(mockRecipients as any)
+      // ✅ NOTIFICATION FIX (Jan 2026): findByIdsWithAuth returns { success, data } format
+      vi.mocked(mockUserRepository.findByIdsWithAuth).mockResolvedValue({ success: true, data: mockRecipients } as any)
 
       // Mock email service success
       vi.mocked(mockEmailService.send).mockResolvedValue({
@@ -236,7 +239,7 @@ describe('EmailNotificationService', () => {
       vi.mocked(mockBuildingRepository.getById).mockResolvedValue(null)
       vi.mocked(mockLotRepository.getById).mockResolvedValue(null)
       vi.mocked(mockUserRepository.getById).mockResolvedValue(null)
-      vi.mocked(mockNotificationRepository.getNotificationRecipients).mockResolvedValue(mockRecipients as any)
+      vi.mocked(mockUserRepository.findByIdsWithAuth).mockResolvedValue({ success: true, data: mockRecipients } as any)
 
       // First email succeeds, second fails
       vi.mocked(mockEmailService.send)
@@ -271,7 +274,7 @@ describe('EmailNotificationService', () => {
       }
 
       vi.mocked(mockInterventionRepository.getById).mockResolvedValue(mockIntervention as any)
-      vi.mocked(mockNotificationRepository.getNotificationRecipients).mockResolvedValue([])
+      vi.mocked(mockUserRepository.findByIdsWithAuth).mockResolvedValue({ success: true, data: [] })
 
       const service = createEmailNotificationService()
       const result = await service.sendInterventionCreatedBatch('intervention-1', 'intervention' as any)

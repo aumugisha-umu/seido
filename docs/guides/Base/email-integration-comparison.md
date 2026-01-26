@@ -124,7 +124,7 @@ class UniversalEmailParser {
 ### Architecture technique
 
 ```
-alias@seido.pm → gestionnaire@seido.pm → Gmail Push API → Webhook Seido → Intervention
+alias@seido-app.com → gestionnaire@seido-app.com → Gmail Push API → Webhook Seido → Intervention
 ```
 
 ### Étapes spécifiques (résumé)
@@ -209,7 +209,7 @@ interface TeamEmailConfig {
   email_strategy: 'seido_alias' | 'byoe';
   
   // Pour alias Seido
-  seido_alias?: string; // "mon-agence@seido.pm"
+  seido_alias?: string; // "mon-agence@seido-app.com"
   
   // Pour BYOE  
   external_email?: {

@@ -35,14 +35,14 @@ export function QuoteCancellationModal({
             </div>
             <div>
               <AlertDialogTitle className="text-lg font-semibold text-slate-900">
-                Annuler le devis
+                Annuler l'estimation
               </AlertDialogTitle>
             </div>
           </div>
         </AlertDialogHeader>
         
         <AlertDialogDescription className="text-slate-600 mt-4">
-          Êtes-vous sûr de vouloir annuler ce devis ? Cette action est définitive et ne peut pas être annulée.
+          Êtes-vous sûr de vouloir annuler cette estimation ? Cette action est définitive et ne peut pas être annulée.
           <br /><br />
           Les gestionnaires seront automatiquement notifiés de l'annulation.
         </AlertDialogDescription>

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
@@ -8,7 +8,8 @@ import {
   createServerUserRepository,
   createServerBuildingRepository,
   createServerLotRepository,
-  createServerInterventionRepository
+  createServerInterventionRepository,
+  createServerActionInterventionCommentRepository
 } from '@/lib/services'
 import { NotificationService } from '@/lib/services/domain/notification.service'
 import { EmailNotificationService } from '@/lib/services/domain/email-notification.service'
@@ -238,9 +239,6 @@ export async function PUT(
       updated_at: new Date().toISOString()
     }
 
-    // Note: Comments about slot selection are now stored in intervention_comments table
-    // The comment parameter should be saved via the comments system if needed
-
     // Update intervention
     logger.info({ data: updateData }, "💾 [SELECT-SLOT] Updating intervention with data:")
     const { data: updatedIntervention, error: updateInterventionError } = await supabase
@@ -262,8 +260,51 @@ export async function PUT(
 
     logger.info({ interventionId, scheduledDateTime }, "✅ [SELECT-SLOT] Intervention scheduled for")
 
-    // Clear any existing time slots and matches for this intervention
-    await supabase.from('intervention_time_slots').delete().eq('intervention_id', interventionId)
+    // ✅ BUG FIX 2026-01-25: Save slot selection comment in intervention_comments table
+    if (comment) {
+      try {
+        const commentRepository = await createServerActionInterventionCommentRepository()
+        const slotComment = `📅 **Créneau confirmé:** ${selectedSlot.date} de ${selectedSlot.startTime} à ${selectedSlot.endTime}\n\n${comment}`
+        await commentRepository.createComment(interventionId, user.id, slotComment)
+        logger.info({ interventionId }, "💬 Slot selection comment saved")
+      } catch (commentError) {
+        logger.warn({ commentError }, "⚠️ Could not save slot selection comment (non-blocking)")
+      }
+    }
+
+    // Clear unselected time slots and matches for this intervention (keep confirmed slot)
+    // First, mark the selected slot as confirmed (if it exists in DB)
+    const { data: confirmedSlot } = await supabase
+      .from('intervention_time_slots')
+      .select('id')
+      .eq('intervention_id', interventionId)
+      .eq('slot_date', selectedSlot.date)
+      .eq('start_time', selectedSlot.startTime)
+      .single()
+
+    if (confirmedSlot) {
+      // Mark this slot as selected (modern status pattern)
+      await supabase
+        .from('intervention_time_slots')
+        .update({ status: 'selected' })
+        .eq('id', confirmedSlot.id)
+
+      // Delete other non-selected slots
+      await supabase
+        .from('intervention_time_slots')
+        .delete()
+        .eq('intervention_id', interventionId)
+        .neq('status', 'selected')
+    } else {
+      // Slot was custom (not from proposals), delete all previous non-selected slots
+      await supabase
+        .from('intervention_time_slots')
+        .delete()
+        .eq('intervention_id', interventionId)
+        .neq('status', 'selected')
+    }
+
+    // Clear availability matches (these are temporary coordination data)
     await supabase.from('availability_matches').delete().eq('intervention_id', interventionId)
 
     // Create notifications for all participants
@@ -336,24 +377,62 @@ export async function PUT(
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // EMAIL NOTIFICATIONS: Créneau confirmé (intervention planifiée)
+    // EMAIL NOTIFICATIONS: Créneau confirmé (intervention planifiée) (via after())
     // ═══════════════════════════════════════════════════════════════════════════
-    try {
-      const emailResult = await emailNotificationService.sendInterventionEmails({
-        interventionId: intervention.id,
-        eventType: 'scheduled',
-        excludeUserId: user.id,  // L'utilisateur qui confirme ne reçoit pas d'email
-        excludeRoles: ['gestionnaire'],  // Exclure les gestionnaires (seuls locataire + prestataire reçoivent)
-        excludeNonPersonal: true  // Seulement les assignés directement
-      })
+    {
+      // Capture variables for after() closure
+      const emailInterventionId = intervention.id
+      const emailExcludeUserId = user.id
 
-      logger.info({
-        emailsSent: emailResult.sentCount,
-        emailsFailed: emailResult.failedCount
-      }, "📧 Scheduled intervention emails sent")
-    } catch (emailError) {
-      // Don't fail the API call for email errors
-      logger.warn({ emailError }, "⚠️ Could not send scheduling confirmation emails:")
+      after(async () => {
+        try {
+          // Re-initialize email service inside after()
+          const { EmailNotificationService } = await import('@/lib/services/domain/email-notification.service')
+          const { EmailService } = await import('@/lib/services/domain/email.service')
+          const {
+            createServerNotificationRepository,
+            createServerInterventionRepository,
+            createServerUserRepository,
+            createServerBuildingRepository,
+            createServerLotRepository
+          } = await import('@/lib/services')
+
+          const notificationRepo = await createServerNotificationRepository()
+          const interventionRepo = await createServerInterventionRepository()
+          const userRepo = await createServerUserRepository()
+          const buildingRepo = await createServerBuildingRepository()
+          const lotRepo = await createServerLotRepository()
+          const emailSvc = new EmailService()
+
+          const emailNotificationSvc = new EmailNotificationService(
+            notificationRepo,
+            emailSvc,
+            interventionRepo,
+            userRepo,
+            buildingRepo,
+            lotRepo
+          )
+
+          const emailResult = await emailNotificationSvc.sendInterventionEmails({
+            interventionId: emailInterventionId,
+            eventType: 'scheduled',
+            excludeUserId: emailExcludeUserId,
+            excludeRoles: ['gestionnaire'],
+            excludeNonPersonal: true
+          })
+
+          logger.info({
+            interventionId: emailInterventionId,
+            emailsSent: emailResult.sentCount,
+            emailsFailed: emailResult.failedCount
+          }, "📧 [API] Scheduled intervention emails sent (via after())")
+        } catch (emailError) {
+          logger.error({
+            interventionId: emailInterventionId,
+            error: emailError instanceof Error ? emailError.message : String(emailError)
+          }, "⚠️ [API] Email notifications failed (via after())")
+        }
+      })
     }
 
     return NextResponse.json({

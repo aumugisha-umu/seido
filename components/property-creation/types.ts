@@ -206,17 +206,6 @@ export interface ManagerSelectorProps {
   required?: boolean
 }
 
-export interface BuildingSelectorProps {
-  buildings: Building[]
-  selectedBuildingId?: string
-  onBuildingSelect: (buildingId: string) => void
-  searchQuery: string
-  onSearchChange: (_query: string) => void
-  isLoading?: boolean
-  disabled?: boolean
-  emptyStateAction?: () => void
-}
-
 // Creation result interfaces
 export interface PropertyCreationResult {
   building?: Building

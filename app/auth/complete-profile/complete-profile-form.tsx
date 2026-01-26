@@ -55,7 +55,16 @@ export function CompleteProfileForm({ userData }: CompleteProfileFormProps) {
   useEffect(() => {
     if (state.success && state.data?.redirectTo) {
       logger.info('[COMPLETE-PROFILE-FORM] Profile created, redirecting to:', state.data.redirectTo)
-      window.location.href = state.data.redirectTo
+      
+      // Délai minimal pour laisser les cookies s'écrire
+      const timer = setTimeout(() => {
+        logger.info('[COMPLETE-PROFILE-FORM] Executing navigation...')
+        if (state.data?.redirectTo) {
+          window.location.href = state.data.redirectTo
+        }
+      }, 100)
+      
+      return () => clearTimeout(timer)
     }
   }, [state])
 

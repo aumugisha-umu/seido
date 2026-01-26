@@ -22,7 +22,7 @@ import { usePropertyCreationContext } from "../context"
 import { PropertyStepWrapper } from "../composed/steps/PropertyStepWrapper"
 import { PropertyInfoForm } from "../composed/forms/PropertyInfoForm"
 import { NavigationControls } from "../composed/navigation/NavigationControls"
-import { BuildingSelector } from "../atoms"
+import PropertySelector from "@/components/property-selector"
 import ContactSelector from "@/components/contact-selector"
 import type { LotFormData } from "../types"
 import { logger, logError } from '@/lib/logger'
@@ -95,9 +95,8 @@ export function LotCreationWizard() {
 
 // Building Association Step Component
 function BuildingAssociationStep() {
-  const { formData, actions } = usePropertyCreationContext()
+  const { formData, actions, teamData } = usePropertyCreationContext()
   const { data: managerData, loading: buildingsLoading } = useManagerStats()
-  const [buildingSearchQuery, setBuildingSearchQuery] = React.useState("")
 
   const lotData = formData as LotFormData
   const buildings = managerData?.buildings || []
@@ -185,20 +184,20 @@ function BuildingAssociationStep() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <BuildingSelector
-              buildings={buildings}
-              selectedBuildingId={lotData.selectedBuilding}
+            <PropertySelector
+              mode="select"
+              showOnlyBuildings={true}
+              initialData={{
+                buildings: buildings,
+                lots: [],
+                teamId: teamData.userTeam?.id || null
+              }}
               onBuildingSelect={(buildingId) => {
                 // Update selected building in form data
                 logger.info("Building selected:", buildingId)
               }}
-              searchQuery={buildingSearchQuery}
-              onSearchChange={setBuildingSearchQuery}
-              isLoading={buildingsLoading}
-              emptyStateAction={() => {
-                // Navigate to building creation
-                window.location.href = '/gestionnaire/biens/immeubles/nouveau'
-              }}
+              selectedBuildingId={lotData.selectedBuilding || undefined}
+              showViewToggle={false}
             />
           </CardContent>
         </Card>

@@ -34,7 +34,9 @@ import {
   createServerUserService,
   createServerActionUserService
 } from './user.service'
-import { createEmailNotificationService } from './email-notification.service'
+// NOTE: EmailNotificationService est importé dynamiquement dans les méthodes privées
+// pour éviter que webpack n'inclue 'fs' dans le bundle client
+// import { createEmailNotificationService } from './email-notification.factory'
 import { createServerNotificationService } from './notification.service'
 import type {
   Intervention,
@@ -142,20 +144,19 @@ interface DashboardStats {
 
 /**
  * Valid status transitions mapping
- * Note: 'en_cours' is DEPRECATED - interventions go directly from 'planifiee' to 'cloturee_par_*'
+ * Workflow: planifiee → cloturee_par_prestataire (direct transition)
  */
 const VALID_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> = {
   'demande': ['rejetee', 'approuvee'],
   'rejetee': [], // Terminal state
-  'approuvee': ['demande_de_devis', 'planification', 'annulee'],
-  'demande_de_devis': ['planification', 'annulee'],
+  'approuvee': ['planification', 'annulee'], // demande_de_devis removed - quote status tracked via intervention_quotes table
   'planification': ['planifiee', 'annulee'],
   'planifiee': ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'], // Direct to closure
-  'en_cours': ['cloturee_par_prestataire', 'annulee'], // DEPRECATED - kept for backward compatibility
   'cloturee_par_prestataire': ['cloturee_par_locataire', 'cloturee_par_gestionnaire'], // Manager can finalize directly
   'cloturee_par_locataire': ['cloturee_par_gestionnaire'],
   'cloturee_par_gestionnaire': [], // Terminal state
-  'annulee': [] // Terminal state
+  'annulee': [], // Terminal state
+  'contestee': ['cloturee_par_gestionnaire', 'annulee'] // Disputed can be finalized
 }
 
 /**
@@ -302,6 +303,40 @@ export class InterventionService {
       return createSuccessResponse(data || [])
     } catch (error) {
       return createErrorResponse(handleError(error, 'interventions:getByLot'))
+    }
+  }
+
+  /**
+   * Get interventions by contract
+   * Returns all interventions linked to a specific contract (bail)
+   */
+  async getByContract(contractId: string) {
+    try {
+      const { data, error } = await this.interventionRepo.supabase
+        .from('interventions')
+        .select(`
+          *,
+          building:building_id(id, name, address),
+          lot:lot_id(id, reference, category),
+          selected_time_slot:intervention_time_slots!intervention_id(
+            id,
+            slot_date,
+            start_time,
+            end_time,
+            status
+          )
+        `)
+        .eq('contract_id', contractId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        return createErrorResponse(handleError(error, 'interventions:getByContract'))
+      }
+
+      return createSuccessResponse(data || [])
+    } catch (error) {
+      return createErrorResponse(handleError(error, 'interventions:getByContract'))
     }
   }
 
@@ -1138,21 +1173,27 @@ export class InterventionService {
 
   /**
    * Request quote from provider
+   * Note: This no longer changes the intervention status. The quote state is tracked
+   * via the intervention_quotes table and displayed via QuoteStatusBadge.
    */
   async requestQuote(id: string, managerId: string, providerId: string) {
     try {
       // First assign the provider if not already assigned
       await this.assignUser(id, providerId, 'prestataire', managerId)
 
-      // Update status
-      const result = await this.validateAndUpdateStatus(
-        id,
-        'demande_de_devis',
-        managerId,
-        { requires_quote: true }
-      )
+      // Get current intervention to return after update
+      const interventionResult = await this.interventionRepo.findById(id)
+      if (!interventionResult.success || !interventionResult.data) {
+        return interventionResult
+      }
 
-      if (result.success && result.data) {
+      // Update requires_quote flag without changing status
+      const updateResult = await this.update(id, {
+        requires_quote: true,
+        updated_at: new Date().toISOString()
+      })
+
+      if (updateResult) {
         // Create quote request in quotes table
         if (this.quoteRepo) {
           await this.quoteRepo.create({
@@ -1160,21 +1201,21 @@ export class InterventionService {
             provider_id: providerId,
             status: 'demande',
             requested_by: managerId,
-            team_id: result.data.team_id
+            team_id: interventionResult.data.team_id
           })
         }
 
         // Send notifications
-        await this.notifyQuoteRequested(result.data, providerId, managerId)
+        await this.notifyQuoteRequested(interventionResult.data, providerId, managerId)
 
         // Send email to provider
-        await this.sendQuoteRequestEmail(result.data, providerId, managerId)
+        await this.sendQuoteRequestEmail(interventionResult.data, providerId, managerId)
 
         // Log activity
         await this.logActivity('quote_requested', id, managerId, { provider: providerId })
       }
 
-      return result
+      return { success: true, data: updateResult }
     } catch (error) {
       return createErrorResponse(handleError(error, 'interventions:requestQuote'))
     }
@@ -1814,10 +1855,10 @@ export class InterventionService {
 
     // Define which roles can perform which transitions
     // Note: 'en_cours' is DEPRECATED but kept for backward compatibility
+    // Note: 'demande_de_devis' removed - quote status tracked via intervention_quotes table
     const transitionPermissions: Record<InterventionStatus, User['role'][]> = {
       'approuvee': ['gestionnaire', 'admin'],
       'rejetee': ['gestionnaire', 'admin'],
-      'demande_de_devis': ['gestionnaire', 'admin'],
       'planification': ['gestionnaire', 'admin'],
       'planifiee': ['gestionnaire', 'admin', 'prestataire'],
       'en_cours': ['prestataire'], // DEPRECATED - kept for backward compatibility
@@ -1974,8 +2015,8 @@ export class InterventionService {
     try {
       await this.notificationRepo.create({
         type: 'quote_requested',
-        title: 'Devis demandé',
-        message: `Un devis est demandé pour l'intervention "${intervention.title}"`,
+        title: 'Estimation demandée',
+        message: `Une estimation est demandée pour l'intervention "${intervention.title}"`,
         team_id: intervention.team_id,
         intervention_id: intervention.id,
         created_by: requestedBy,
@@ -2106,7 +2147,8 @@ export class InterventionService {
    */
   private async sendInterventionCreatedEmail(intervention: Intervention, tenantId: string) {
     try {
-      const emailService = createEmailNotificationService()
+      const { createEmailNotificationService } = await import(/* webpackIgnore: true */ './email-notification.factory')
+      const emailService = await createEmailNotificationService()
 
       // Fetch tenant details
       const tenantResult = await this.userService?.getById(tenantId)
@@ -2176,7 +2218,8 @@ export class InterventionService {
    */
   private async sendInterventionApprovedEmail(intervention: Intervention, managerId: string, approvalNotes?: string) {
     try {
-      const emailService = createEmailNotificationService()
+      const { createEmailNotificationService } = await import(/* webpackIgnore: true */ './email-notification.factory')
+      const emailService = await createEmailNotificationService()
 
       // Fetch manager and tenant
       const managerResult = await this.userService?.getById(managerId)
@@ -2232,7 +2275,8 @@ export class InterventionService {
    */
   private async sendInterventionRejectedEmail(intervention: Intervention, managerId: string, rejectionReason: string) {
     try {
-      const emailService = createEmailNotificationService()
+      const { createEmailNotificationService } = await import(/* webpackIgnore: true */ './email-notification.factory')
+      const emailService = await createEmailNotificationService()
 
       // Fetch manager and tenant
       const managerResult = await this.userService?.getById(managerId)
@@ -2288,7 +2332,8 @@ export class InterventionService {
    */
   private async sendInterventionScheduledEmail(intervention: Intervention, slot: any) {
     try {
-      const emailService = createEmailNotificationService()
+      const { createEmailNotificationService } = await import(/* webpackIgnore: true */ './email-notification.factory')
+      const emailService = await createEmailNotificationService()
 
       // Get tenant, provider, property
       const tenants = await this.getInterventionTenants(intervention.id)
@@ -2361,7 +2406,8 @@ export class InterventionService {
    */
   private async sendInterventionCompletedEmail(intervention: Intervention, providerId: string, completionNotes?: string) {
     try {
-      const emailService = createEmailNotificationService()
+      const { createEmailNotificationService } = await import(/* webpackIgnore: true */ './email-notification.factory')
+      const emailService = await createEmailNotificationService()
 
       // Get provider, tenant, manager
       const providerResult = await this.userService?.getById(providerId)
@@ -2438,7 +2484,8 @@ export class InterventionService {
    */
   private async sendQuoteRequestEmail(intervention: Intervention, providerId: string, managerId: string) {
     try {
-      const emailService = createEmailNotificationService()
+      const { createEmailNotificationService } = await import(/* webpackIgnore: true */ './email-notification.factory')
+      const emailService = await createEmailNotificationService()
 
       // Get manager and provider
       const managerResult = await this.userService?.getById(managerId)

@@ -40,7 +40,7 @@ import {
   HelpCircle
 } from 'lucide-react'
 import { InterventionDetailsCardProps } from '../types'
-import { formatDate, formatAmount } from '../utils/helpers'
+import { formatDate, formatAmount, formatTimeRange } from '../utils/helpers'
 
 /**
  * Configuration du statut planning
@@ -85,7 +85,7 @@ const getPlanningStatusConfig = (status: 'pending' | 'proposed' | 'scheduled' | 
 }
 
 /**
- * Configuration du statut devis
+ * Configuration du statut estimation
  */
 const getQuotesStatusConfig = (
   status: 'pending' | 'received' | 'approved',
@@ -96,15 +96,15 @@ const getQuotesStatusConfig = (
     case 'approved':
       return {
         icon: CheckCircle2,
-        label: 'Devis validé',
+        label: 'Estimation validée',
         color: 'text-green-600',
         bgColor: 'bg-green-50'
       }
     case 'received':
-      // Il y a des devis reçus (envoyés par prestataires)
+      // Il y a des estimations reçues (envoyées par prestataires)
       return {
         icon: FileText,
-        label: `${receivedCount} devis reçu${receivedCount > 1 ? 's' : ''}`,
+        label: `${receivedCount} estimation${receivedCount > 1 ? 's' : ''} reçue${receivedCount > 1 ? 's' : ''}`,
         color: 'text-blue-600',
         bgColor: 'bg-blue-50'
       }
@@ -151,7 +151,7 @@ const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatu
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-medium text-muted-foreground">
-          Planning et Devis
+          Planning et Estimations
         </h4>
         {isClickable && (
           <button
@@ -191,7 +191,7 @@ const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatu
             <p className="text-sm font-medium">Planning</p>
             <p className="text-xs text-muted-foreground truncate">
               {planning.scheduledDate
-                ? formatDate(planning.scheduledDate)
+                ? `${formatDate(planning.scheduledDate)}${planning.scheduledStartTime && planning.scheduledEndTime ? ` • ${formatTimeRange(planning.scheduledStartTime, planning.scheduledEndTime)}` : ''}`
                 : planningConfig.description}
             </p>
           </div>
@@ -262,7 +262,7 @@ const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatu
           </div>
         </div>
 
-        {/* Devis Status */}
+        {/* Estimation Status */}
         <div className={cn(
           'flex items-center gap-3 p-3 rounded-lg bg-slate-50 transition-colors',
           isClickable && 'hover:bg-slate-100'
@@ -276,7 +276,7 @@ const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatu
             <QuotesIcon className={cn('h-4 w-4', quotesConfig.color)} aria-hidden="true" />
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">Devis</p>
+            <p className="text-sm font-medium">Estimation</p>
             <p className="text-xs text-muted-foreground truncate">
               {planning.selectedQuoteAmount
                 ? formatAmount(planning.selectedQuoteAmount)
@@ -287,17 +287,17 @@ const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatu
             <Badge
               variant="outline"
               className="text-xs bg-green-50 text-green-600 border-transparent shrink-0"
-              aria-label="Devis validé"
+              aria-label="Estimation validée"
             >
-              Validé
+              Validée
             </Badge>
           ) : planning.receivedQuotesCount && planning.receivedQuotesCount > 0 ? (
             <Badge
               variant="outline"
               className="text-xs bg-blue-50 text-blue-600 border-transparent shrink-0"
-              aria-label={`${planning.receivedQuotesCount} devis reçu${planning.receivedQuotesCount > 1 ? 's' : ''}`}
+              aria-label={`${planning.receivedQuotesCount} estimation${planning.receivedQuotesCount > 1 ? 's' : ''} reçue${planning.receivedQuotesCount > 1 ? 's' : ''}`}
             >
-              {planning.receivedQuotesCount} reçu{planning.receivedQuotesCount > 1 ? 's' : ''}
+              {planning.receivedQuotesCount} reçue{planning.receivedQuotesCount > 1 ? 's' : ''}
             </Badge>
           ) : planning.requestedQuotesCount && planning.requestedQuotesCount > 0 ? (
             <Badge
@@ -311,9 +311,9 @@ const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatu
             <Badge
               variant="outline"
               className="text-xs bg-slate-100 text-slate-500 border-transparent shrink-0"
-              aria-label="Aucun devis"
+              aria-label="Aucune estimation"
             >
-              Aucun
+              Aucune
             </Badge>
           )}
         </div>

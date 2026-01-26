@@ -15,6 +15,7 @@ import { ImportStepInvitation } from './import-step-invitation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, X } from 'lucide-react';
+import Image from 'next/image';
 
 interface ImportWizardProps {
   onClose?: () => void;
@@ -66,6 +67,13 @@ export function ImportWizard({ onClose }: ImportWizardProps) {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
+            <Image
+              src="/images/Logo/Picto_Seido_Color.png"
+              alt="SEIDO"
+              width={32}
+              height={32}
+              className="h-8 w-8 object-contain"
+            />
             <CardTitle>{stepTitles[state.step]}</CardTitle>
           </div>
           {onClose && (

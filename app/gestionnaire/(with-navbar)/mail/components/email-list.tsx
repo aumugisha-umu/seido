@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -51,28 +51,34 @@ export function EmailList({
     return () => observer.disconnect()
   }, [onLoadMore, emails.length]) // Re-observe when list changes
 
-  const filteredEmails = emails.filter((email) => {
-    const query = searchQuery.toLowerCase()
-    const matchesSearch =
-      email.sender_name.toLowerCase().includes(query) ||
-      email.subject.toLowerCase().includes(query) ||
-      email.snippet.toLowerCase().includes(query)
+  // Filter emails (memoized to prevent unnecessary re-filtering)
+  const filteredEmails = useMemo(() => {
+    return emails.filter((email) => {
+      const query = searchQuery.toLowerCase()
+      const matchesSearch =
+        email.sender_name.toLowerCase().includes(query) ||
+        email.subject.toLowerCase().includes(query) ||
+        email.snippet.toLowerCase().includes(query)
 
-    const matchesAttachments = !hasAttachments || email.has_attachments
+      const matchesAttachments = !hasAttachments || email.has_attachments
 
-    // Date filter (simplified for dummy data)
-    const matchesDate = dateFilter === 'all' || true
+      // Date filter (simplified for dummy data)
+      const matchesDate = dateFilter === 'all' || true
 
-    return matchesSearch && matchesAttachments && matchesDate
-  })
+      return matchesSearch && matchesAttachments && matchesDate
+    })
+  }, [emails, searchQuery, hasAttachments, dateFilter])
 
-  // Group emails by conversation
-  const groupedItems = groupEmailsByConversation(filteredEmails)
+  // Group emails by conversation (memoized for performance)
+  const groupedItems = useMemo(
+    () => groupEmailsByConversation(filteredEmails),
+    [filteredEmails]
+  )
 
   return (
-    <div className="w-[400px] border-r flex flex-col h-full" role="region" aria-label="Liste d'emails">
-      {/* Search Bar (Balanced variant) */}
-      <div className="p-4 border-b space-y-3">
+    <div className="w-[400px] border-r flex flex-col h-full overflow-hidden flex-shrink-0" role="region" aria-label="Liste d'emails">
+      {/* Search Bar - Sticky Header */}
+      <div className="p-4 border-b space-y-3 flex-shrink-0 bg-card">
         <div className="relative">
           <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" aria-hidden="true" />
           <Input
@@ -171,8 +177,8 @@ export function EmailList({
         )}
       </ScrollArea>
 
-      {/* Pagination / Count Display */}
-      <div className="p-3 border-t text-xs text-muted-foreground text-center">
+      {/* Pagination / Count Display - Sticky Footer */}
+      <div className="p-3 border-t text-xs text-muted-foreground text-center flex-shrink-0 bg-card">
         Affichage de {filteredEmails.length} sur {totalEmails || filteredEmails.length} éléments
       </div>
     </div>

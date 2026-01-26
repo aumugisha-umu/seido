@@ -16,13 +16,13 @@ const meta = {
   argTypes: {
     currentStatus: {
       control: 'select',
+      // Note: 'en_cours' removed from workflow - interventions go directly from 'planifiee' to finalization
       options: [
         'demande',
         'approuvee',
         'demande_de_devis',
         'planification',
         'planifiee',
-        'en_cours',
         'cloturee_par_prestataire',
         'cloturee_par_locataire',
         'cloturee_par_gestionnaire',
@@ -75,12 +75,7 @@ export const Planifiee: Story = {
   }
 }
 
-export const EnCours: Story = {
-  args: {
-    currentStatus: 'en_cours',
-    variant: 'default'
-  }
-}
+// Note: 'EnCours' story removed - status no longer in workflow
 
 export const ClotureParPrestataire: Story = {
   args: {

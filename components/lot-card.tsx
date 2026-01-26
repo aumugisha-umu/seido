@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Home, Eye, Users, Wrench, MapPin, Building2, Edit, MoreVertical, Archive } from "lucide-react"
+import { Home, Eye, Users, MapPin, Building2, Edit, MoreVertical, Archive } from "lucide-react"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -57,6 +57,7 @@ interface LotCardProps {
   isSelected?: boolean
   onSelect?: (lotId: string | null, buildingId?: string) => void
   showBuilding?: boolean
+  compact?: boolean  // Hide extra details (floor, surface, rooms)
 }
 
 export default function LotCard({
@@ -65,10 +66,10 @@ export default function LotCard({
   mode = "view",
   isSelected = false,
   onSelect,
-  showBuilding = false
+  showBuilding = false,
+  compact = false
 }: LotCardProps) {
   const router = useRouter()
-  const lotInterventions = interventions.filter(i => i.lot_id === lot.id)
 
   // ✅ Phase 2: Calculate occupancy from lot_contacts (not tenant_id)
   const tenants = lot.lot_contacts?.filter(lc => lc.user?.role === 'locataire') || []
@@ -112,9 +113,9 @@ export default function LotCard({
                 <div className="min-w-0 flex-1">
                   <h3 className="font-semibold text-base text-slate-900 truncate">{lot.reference}</h3>
                   {showBuilding && lot.building && (
-                    <div className="flex items-center text-xs text-slate-600 mt-1">
-                      <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
-                      <span className="truncate">{buildingAddress}</span>
+                    <div className="flex items-start text-xs text-slate-600 mt-1">
+                      <MapPin className="h-3 w-3 mr-1 flex-shrink-0 mt-0.5" />
+                      <span>{buildingAddress}</span>
                     </div>
                   )}
                   {lot.apartment_number && (
@@ -287,8 +288,8 @@ export default function LotCard({
                 })()}
               </div>
 
-              {/* Property Details */}
-              {(lot.floor || lot.surface_area || lot.rooms) && (
+              {/* Property Details - Hidden in compact mode */}
+              {!compact && (lot.floor || lot.surface_area || lot.rooms) && (
                 <div className="flex items-center space-x-4 text-xs text-slate-600 mb-2">
                   {lot.floor !== undefined && <span>📍 Étage {lot.floor}</span>}
                   {lot.surface_area && <span>📐 {lot.surface_area}m²</span>}
@@ -296,24 +297,13 @@ export default function LotCard({
                 </div>
               )}
 
-              {/* Building Info */}
+              {/* Building Info - Visible in all modes including compact */}
               {showBuilding && lot.building?.name && (
-                <div className="flex items-center text-xs text-slate-500 mb-2">
+                <div className="flex items-center text-xs text-slate-500">
                   <Building2 className="h-3 w-3 mr-1" />
-                  <span className="truncate">{lot.building.name}</span>
+                  <span>{lot.building.name}</span>
                 </div>
               )}
-
-              {/* Interventions Count */}
-              <div className="flex items-center text-xs text-slate-600">
-                <Wrench className="h-3 w-3 mr-1" />
-                <span>
-                  {lotInterventions.length > 0 
-                    ? `${lotInterventions.length} intervention(s)` 
-                    : 'Aucune intervention'
-                  }
-                </span>
-              </div>
             </div>
           </div>
         </div>

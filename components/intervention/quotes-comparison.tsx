@@ -338,10 +338,10 @@ export const QuotesComparison = ({
         <CardContent className="text-center py-8">
           <FileText className="h-12 w-12 text-slate-400 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-slate-900 mb-2">
-            Aucun devis reçu
+            Aucune estimation reçue
           </h3>
           <p className="text-slate-600">
-            Les devis soumis par les prestataires appara&icirc;tront ici pour comparaison.
+            Les estimations soumises par les prestataires appara&icirc;tront ici pour comparaison.
           </p>
         </CardContent>
       </Card>
@@ -355,7 +355,7 @@ export const QuotesComparison = ({
         <Card>
           <CardContent className="p-4 text-center">
             <div className="text-2xl font-bold text-slate-900">{quotes.length}</div>
-            <div className="text-sm text-slate-600">Devis reçus</div>
+            <div className="text-sm text-slate-600">Estimations reçues</div>
           </CardContent>
         </Card>
         <Card>
@@ -380,12 +380,12 @@ export const QuotesComparison = ({
         </Card>
       </div>
 
-      {/* Devis en attente */}
+      {/* Estimations en attente */}
       {pendingQuotes.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center gap-2">
             <Clock className="h-5 w-5" />
-            Devis en attente ({pendingQuotes.length})
+            Estimations en attente ({pendingQuotes.length})
           </h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {pendingQuotes
@@ -397,12 +397,12 @@ export const QuotesComparison = ({
         </div>
       )}
 
-      {/* Devis approuvés */}
+      {/* Estimations approuvées */}
       {approvedQuotes.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold text-green-700 mb-4 flex items-center gap-2">
             <CheckCircle className="h-5 w-5" />
-            Devis approuvés ({approvedQuotes.length})
+            Estimations approuvées ({approvedQuotes.length})
           </h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {approvedQuotes.map(quote => (
@@ -412,12 +412,12 @@ export const QuotesComparison = ({
         </div>
       )}
 
-      {/* Devis rejetés */}
+      {/* Estimations rejetées */}
       {rejectedQuotes.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold text-red-700 mb-4 flex items-center gap-2">
             <X className="h-5 w-5" />
-            Devis rejetés ({rejectedQuotes.length})
+            Estimations rejetées ({rejectedQuotes.length})
           </h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {rejectedQuotes.map(quote => (
@@ -431,11 +431,11 @@ export const QuotesComparison = ({
       <Dialog open={showApprovalModal} onOpenChange={setShowApprovalModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Approuver le devis</DialogTitle>
+            <DialogTitle>Approuver l'estimation</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-slate-600">
-              Voulez-vous approuver le devis de <strong>{selectedQuote?.provider.name}</strong>
+              Voulez-vous approuver l'estimation de <strong>{selectedQuote?.provider.name}</strong>
               pour un montant de <strong>{selectedQuote?.total_amount.toFixed(2)} €</strong> ?
             </p>
             <div>
@@ -454,7 +454,7 @@ export const QuotesComparison = ({
               Annuler
             </Button>
             <Button onClick={confirmApproval} disabled={isLoading}>
-              Approuver le devis
+              Approuver l'estimation
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -464,11 +464,11 @@ export const QuotesComparison = ({
       <Dialog open={showRejectionModal} onOpenChange={setShowRejectionModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rejeter le devis</DialogTitle>
+            <DialogTitle>Rejeter l'estimation</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <p className="text-slate-600">
-              Voulez-vous rejeter le devis de <strong>{selectedQuote?.provider.name}</strong> ?
+              Voulez-vous rejeter l'estimation de <strong>{selectedQuote?.provider.name}</strong> ?
             </p>
             <div>
               <Label htmlFor="rejection-reason">Motif du rejet *</Label>
@@ -476,7 +476,7 @@ export const QuotesComparison = ({
                 id="rejection-reason"
                 value={rejectionReason}
                 onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Expliquez pourquoi ce devis est rejeté..."
+                placeholder="Expliquez pourquoi cette estimation est rejetée..."
                 rows={3}
                 required
               />
@@ -491,7 +491,7 @@ export const QuotesComparison = ({
               onClick={confirmRejection}
               disabled={isLoading || !rejectionReason.trim()}
             >
-              Rejeter le devis
+              Rejeter l'estimation
             </Button>
           </DialogFooter>
         </DialogContent>

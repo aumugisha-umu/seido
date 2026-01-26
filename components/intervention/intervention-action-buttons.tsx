@@ -5,14 +5,10 @@ import {
   CheckCircle,
   XCircle,
   Calendar,
-  Play,
   Clock,
   UserCheck,
   AlertTriangle,
-  AlertCircle,
-  TrendingUp,
   FileText,
-  Euro,
   Edit3,
   Trash2,
   Edit
@@ -130,7 +126,7 @@ export function InterventionActionButtons({
   // Hook for quote management
   const quoting = useInterventionQuoting()
 
-  // Fonction pour détecter le devis existant du prestataire connecté
+  // Fonction pour détecter l'estimation existante du prestataire connecté
   const getCurrentUserQuote = () => {
     if (userRole !== 'prestataire' || !intervention.quotes) return null
     return intervention.quotes.find(quote =>
@@ -145,7 +141,7 @@ export function InterventionActionButtons({
     return getActionStylingFromLib(actionKey, userRole as 'gestionnaire' | 'locataire' | 'prestataire')
   }
 
-  // Fonction helper pour filtrer les disponibilités selon les devis approuvés
+  // Fonction helper pour filtrer les disponibilités selon les estimations approuvées
   const getFilteredAvailabilitiesForModal = () => {
     if (!intervention.availabilities) {
       return []
@@ -215,26 +211,26 @@ export function InterventionActionButtons({
               const isQuoteRequest = !currentUserQuote.amount || currentUserQuote.amount === 0
 
               if (isQuoteRequest) {
-                // Ne plus afficher "Rejeter la demande" - uniquement "Soumettre un devis"
+                // Ne plus afficher "Rejeter la demande" - uniquement "Soumettre une estimation"
                 actions.push({
                   key: 'submit_quote',
-                  label: 'Soumettre un devis',
+                  label: 'Soumettre une estimation',
                   icon: FileText,
-                  description: 'Soumettre votre devis pour cette intervention'
+                  description: 'Soumettre votre estimation pour cette intervention'
                 })
               } else {
                 actions.push(
                   {
                     key: 'edit_quote',
-                    label: 'Modifier le devis',
+                    label: 'Modifier l\'estimation',
                     icon: Edit3,
-                    description: 'Modifier votre devis en attente d\'évaluation'
+                    description: 'Modifier votre estimation en attente d\'évaluation'
                   },
                   {
                     key: 'cancel_quote',
-                    label: 'Annuler le devis',
+                    label: 'Annuler l\'estimation',
                     icon: Trash2,
-                    description: 'Annuler votre devis actuel'
+                    description: 'Annuler votre estimation actuelle'
                   }
                 )
               }
@@ -242,31 +238,31 @@ export function InterventionActionButtons({
               actions.push(
                 {
                   key: 'edit_quote',
-                  label: 'Modifier le devis',
+                  label: 'Modifier l\'estimation',
                   icon: Edit3,
-                  description: 'Modifier votre devis envoyé'
+                  description: 'Modifier votre estimation envoyée'
                 },
                 {
                   key: 'cancel_quote',
-                  label: 'Annuler le devis',
+                  label: 'Annuler l\'estimation',
                   icon: Trash2,
-                  description: 'Annuler votre devis'
+                  description: 'Annuler votre estimation'
                 }
               )
             } else if (currentUserQuote.status === 'accepted') {
               actions.push({
                 key: 'view_quote',
-                label: 'Voir le devis',
+                label: 'Voir l\'estimation',
                 icon: FileText,
-                description: 'Consulter votre devis approuvé'
+                description: 'Consulter votre estimation approuvée'
               })
             }
           } else {
             actions.push({
               key: 'submit_quote',
-              label: 'Soumettre un devis',
+              label: 'Soumettre une estimation',
               icon: FileText,
-              description: 'Proposer votre devis pour cette intervention'
+              description: 'Proposer votre estimation pour cette intervention'
             })
           }
         }
@@ -359,8 +355,6 @@ export function InterventionActionButtons({
           )
         }
         break
-
-      // Note: 'en_cours' status is deprecated - interventions go directly from 'planifiee' to 'cloturee_par_*'
 
       case 'cloturee_par_prestataire':
         if (userRole === 'locataire' && isInterventionTenant(intervention, userId)) {
@@ -475,12 +469,12 @@ export function InterventionActionButtons({
           break
 
         case 'process_quotes':
-          // Naviguer vers l'onglet devis pour traiter les devis reçus
+          // Naviguer vers l'onglet estimations pour traiter les estimations reçues
           window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=devis`
           return
 
         case 'view_quotes':
-          // Naviguer vers l'onglet devis en mode consultation
+          // Naviguer vers l'onglet estimations en mode consultation
           window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=devis`
           return
 

@@ -12,6 +12,8 @@ import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
 import { EmailAttachments } from '@/emails/components/email-attachments'
+import { EmailReplyHint } from '@/emails/components/email-reply-hint'
+import { TimeSlotCard } from '@/emails/components/email-action-buttons'
 import type { InterventionAssignedPrestataireEmailProps } from '@/emails/utils/types'
 
 export const InterventionAssignedPrestataireEmail = ({
@@ -27,9 +29,14 @@ export const InterventionAssignedPrestataireEmail = ({
   urgency,
   createdAt,
   timeSlots,
+  planningType,
   quoteInfo,
   attachments,
+  slotActions,
+  enableInteractiveButtons = false,
 }: InterventionAssignedPrestataireEmailProps) => {
+  // Determine if we should show interactive buttons
+  const showInteractiveButtons = enableInteractiveButtons && slotActions && slotActions.length > 0
   // Couleurs et icones selon l'urgence
   const urgencyConfig = {
     critique: { color: '#EF4444', icon: '🚨', label: 'Critique', bg: '#FEE2E2' },
@@ -149,29 +156,67 @@ export const InterventionAssignedPrestataireEmail = ({
             <Text className="text-gray-600 text-sm mb-3 mt-0">
               Le gestionnaire propose les creneaux suivants pour cette intervention :
             </Text>
-            <ul className="text-gray-700 text-sm pl-4 m-0">
-              {timeSlots.map((slot, index) => (
-                <li key={index} className="py-1">
-                  <strong>{formatSlotDate(slot.date)}</strong> de {slot.startTime} a {slot.endTime}
-                </li>
-              ))}
-            </ul>
+
+            {/* Mode interactif: cartes avec boutons d'action */}
+            {showInteractiveButtons ? (
+              <div>
+                {slotActions!.map((slot, index) => {
+                  const dateStr = slot.date.toLocaleDateString('fr-FR', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long'
+                  })
+                  // Mode direct: heure fixe uniquement / Mode propose: plage horaire
+                  const timeRange = planningType === 'direct'
+                    ? `à ${slot.startTime}`
+                    : `${slot.startTime} - ${slot.endTime}`
+
+                  return (
+                    <TimeSlotCard
+                      key={slot.slotId || index}
+                      dateFormatted={dateStr}
+                      timeRange={timeRange}
+                      index={index}
+                      acceptUrl={slot.acceptUrl}
+                      refuseUrl={slot.refuseUrl}
+                      showActions={true}
+                    />
+                  )
+                })}
+                <Text className="text-gray-500 text-xs mt-4 mb-0">
+                  💡 Cliquez sur un bouton pour accepter ou refuser directement ce creneau.
+                </Text>
+              </div>
+            ) : (
+              /* Mode classique: liste simple sans boutons */
+              <ul className="text-gray-700 text-sm pl-4 m-0">
+                {timeSlots.map((slot, index) => (
+                  <li key={index} className="py-1">
+                    {planningType === 'direct' ? (
+                      <><strong>{formatSlotDate(slot.date)}</strong> à {slot.startTime}</>
+                    ) : (
+                      <><strong>{formatSlotDate(slot.date)}</strong> de {slot.startTime} à {slot.endTime}</>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
-        {/* Section Devis (prestataire uniquement) */}
+        {/* Section Estimation (prestataire uniquement) */}
         {quoteInfo && (
           <div
             className="bg-amber-50 p-6 rounded-lg mb-6"
             style={{ borderLeft: '4px solid #F59E0B' }}
           >
             <Heading as="h3" className="text-gray-900 text-sm font-semibold mt-0 mb-3">
-              💰 Devis {quoteInfo.isRequired ? 'requis' : 'optionnel'}
+              💰 Estimation {quoteInfo.isRequired ? 'requise' : 'optionnelle'}
             </Heading>
             <Text className="text-gray-700 text-sm m-0">
               {quoteInfo.isRequired
-                ? 'Un devis est requis avant de commencer cette intervention.'
-                : 'Vous pouvez soumettre un devis si necessaire.'}
+                ? 'Une estimation est requise avant de commencer cette intervention.'
+                : 'Vous pouvez soumettre une estimation si necessaire.'}
             </Text>
             {quoteInfo.estimatedAmount && (
               <Text className="text-gray-600 text-sm mt-2 mb-0">
@@ -193,13 +238,16 @@ export const InterventionAssignedPrestataireEmail = ({
           </Text>
           <ul className="text-gray-700 text-sm leading-relaxed pl-5 mt-2 mb-0">
             <li>Consultez les details complets de l&apos;intervention</li>
-            <li>Proposez vos disponibilites ou un devis si demande</li>
+            <li>Proposez vos disponibilites ou une estimation si demandee</li>
             <li>Contactez le gestionnaire si vous avez des questions</li>
           </ul>
         </div>
 
         {/* Bouton CTA */}
         <EmailButton href={interventionUrl}>Voir l&apos;intervention</EmailButton>
+
+        {/* Indication de réponse par email */}
+        <EmailReplyHint />
 
         {/* Note de pied */}
         <Text className="text-gray-500 text-xs leading-relaxed text-center mt-6 mb-0">
@@ -213,7 +261,11 @@ export const InterventionAssignedPrestataireEmail = ({
   )
 }
 
-// Props par defaut pour previsualisation
+// Date de base fixe pour éviter les erreurs d'hydratation (server/client)
+const BASE_PREVIEW_DATE = new Date('2026-01-27T10:00:00.000Z')
+const previewFutureDate = (days: number) => new Date(BASE_PREVIEW_DATE.getTime() + days * 24 * 60 * 60 * 1000)
+
+// Props par defaut pour previsualisation (mode interactif)
 InterventionAssignedPrestataireEmail.PreviewProps = {
   firstName: 'Marc',
   interventionRef: 'INT-2024-042',
@@ -226,16 +278,37 @@ InterventionAssignedPrestataireEmail.PreviewProps = {
   interventionUrl: 'https://seido.app/prestataire/interventions/INT-2024-042',
   managerName: 'Jean Dupont',
   urgency: 'haute',
-  createdAt: new Date(),
+  createdAt: BASE_PREVIEW_DATE,
+  planningType: 'propose',
   timeSlots: [
-    { date: new Date('2024-12-26'), startTime: '09:00', endTime: '12:00' },
-    { date: new Date('2024-12-27'), startTime: '14:00', endTime: '17:00' },
+    { date: previewFutureDate(2), startTime: '09:00', endTime: '12:00' },
+    { date: previewFutureDate(3), startTime: '14:00', endTime: '17:00' },
   ],
   quoteInfo: {
     isRequired: true,
     estimatedAmount: 350,
-    deadline: new Date('2024-12-25'),
+    deadline: previewFutureDate(1),
   },
+  // Mode interactif avec boutons d'action
+  enableInteractiveButtons: true,
+  slotActions: [
+    {
+      slotId: 'slot-001',
+      date: previewFutureDate(2),
+      startTime: '09:00',
+      endTime: '12:00',
+      acceptUrl: 'https://seido.app/auth/email-callback?token_hash=xxx&action=accept_time_slot&param_slotId=slot-001',
+      refuseUrl: 'https://seido.app/auth/email-callback?token_hash=yyy&action=reject_slot&param_slotId=slot-001',
+    },
+    {
+      slotId: 'slot-002',
+      date: previewFutureDate(3),
+      startTime: '14:00',
+      endTime: '17:00',
+      acceptUrl: 'https://seido.app/auth/email-callback?token_hash=xxx&action=accept_time_slot&param_slotId=slot-002',
+      refuseUrl: 'https://seido.app/auth/email-callback?token_hash=yyy&action=reject_slot&param_slotId=slot-002',
+    },
+  ],
 } as InterventionAssignedPrestataireEmailProps
 
 export default InterventionAssignedPrestataireEmail

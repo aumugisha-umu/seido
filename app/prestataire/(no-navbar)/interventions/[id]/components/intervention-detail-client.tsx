@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { formatErrorMessage } from '@/lib/utils/error-formatter'
 import { createBrowserSupabaseClient } from '@/lib/services'
 
 // Composants partagés pour le nouveau design
@@ -60,7 +61,10 @@ import { ModifyChoiceModal } from '@/components/intervention/modals/modify-choic
 import { LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
 
 // Actions
-import { acceptTimeSlotAction } from '@/app/actions/intervention-actions'
+import { acceptTimeSlotAction, rejectTimeSlotAction } from '@/app/actions/intervention-actions'
+
+// Auto-execute actions from email magic links
+import { useAutoExecuteAction } from '@/hooks/use-auto-execute-action'
 
 // Confirmation banners
 import {
@@ -126,14 +130,14 @@ interface PrestataireInterventionDetailClientProps {
 }
 
 // Status labels
+// Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
 const statusLabels: Record<string, { label: string; color: string }> = {
   'demande': { label: 'Demande', color: 'bg-gray-100 text-gray-800' },
   'rejetee': { label: 'Rejetée', color: 'bg-red-100 text-red-800' },
   'approuvee': { label: 'Approuvée', color: 'bg-green-100 text-green-800' },
-  'demande_de_devis': { label: 'Devis demandé', color: 'bg-yellow-100 text-yellow-800' },
   'planification': { label: 'Planification', color: 'bg-blue-100 text-blue-800' },
   'planifiee': { label: 'Planifiée', color: 'bg-blue-100 text-blue-800' },
-  'en_cours': { label: 'En cours', color: 'bg-blue-100 text-blue-800' },
+  // Note: 'en_cours' removed from workflow
   'cloturee_par_prestataire': { label: 'Terminée (prestataire)', color: 'bg-purple-100 text-purple-800' },
   'cloturee_par_locataire': { label: 'Validée (locataire)', color: 'bg-purple-100 text-purple-800' },
   'cloturee_par_gestionnaire': { label: 'Clôturée', color: 'bg-gray-100 text-gray-800' },
@@ -153,7 +157,7 @@ export function PrestataireInterventionDetailClient({
   parentLink
 }: PrestataireInterventionDetailClientProps) {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState('general')
   const [refreshing, setRefreshing] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
   const [availabilityOnlyMode, setAvailabilityOnlyMode] = useState(false) // Hide estimation section
@@ -174,6 +178,57 @@ export function PrestataireInterventionDetailClient({
 
   // États pour le nouveau design PreviewHybrid
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
+
+  // ============================================================================
+  // Auto-Execute Actions from Email Magic Links
+  // ============================================================================
+
+  // Hook to auto-execute actions from email buttons (e.g., "Accepter ce créneau")
+  useAutoExecuteAction({
+    interventionId: intervention.id,
+    handlers: {
+      // Prestataire accepts a proposed time slot
+      accept_time_slot: async ({ slotId }) => {
+        const result = await acceptTimeSlotAction(slotId, intervention.id)
+        if (!result.success) {
+          throw new Error(result.error || 'Erreur lors de l\'acceptation du créneau')
+        }
+        handleRefresh()
+      },
+      // Prestataire rejects a time slot
+      reject_slot: async ({ slotId }) => {
+        // For rejection, open the modal since a reason is required
+        const slot = timeSlots.find(s => s.id === slotId)
+        if (slot) {
+          setSlotToReject(slot)
+          setRejectSlotModalOpen(true)
+        }
+        throw new Error('Veuillez indiquer la raison du refus')
+      },
+      // Prestataire submits a quick estimate
+      submit_quick_estimate: async ({ amount, quoteId }) => {
+        // For quick estimate, we need to submit via API
+        const amountNum = parseInt(amount, 10)
+        if (isNaN(amountNum) || amountNum <= 0) {
+          throw new Error('Montant invalide')
+        }
+
+        // Open the quote modal with pre-filled amount
+        setAvailabilityOnlyMode(false)
+        setQuoteModalOpen(true)
+
+        // Note: The modal will handle the actual submission
+        // We show a toast to guide the user
+        toast.info(`Devis pré-rempli avec ${amountNum}€. Vérifiez et soumettez.`)
+        throw new Error('Vérifiez le devis et soumettez')
+      }
+    },
+    onSuccess: (action) => {
+      if (action === 'accept_time_slot') {
+        toast.success('Créneau accepté avec succès')
+      }
+    }
+  })
 
   // ============================================================================
   // Participant Confirmation Logic
@@ -214,6 +269,29 @@ export function PrestataireInterventionDetailClient({
   const showConfirmationBanner = participantPermissions.canConfirm
   const showConfirmedBanner = hasConfirmed(assignmentConfirmationInfo)
   const showRejectedBanner = hasRejected(assignmentConfirmationInfo)
+
+  // Detect if there are time slots with pending responses from the current user
+  const pendingSlotsForCurrentUser = useMemo(() => {
+    return timeSlots.filter(slot => {
+      // Only consider active slots
+      if (['cancelled', 'selected', 'confirmed', 'rejected'].includes(slot.status)) {
+        return false
+      }
+      // Check if current user has a pending response
+      const slotWithResponses = slot as TimeSlot & { responses?: Array<{ user_id: string; response: string }> }
+      const userResponse = slotWithResponses.responses?.find(r => r.user_id === currentUser.id)
+      // Slot needs attention if no response OR response is pending
+      return !userResponse || userResponse.response === 'pending'
+    })
+  }, [timeSlots, currentUser.id])
+
+  const hasProposedSlots = pendingSlotsForCurrentUser.length > 0
+  const proposedSlotsCount = pendingSlotsForCurrentUser.length
+
+  // Handler to navigate to planning tab when clicking "Voir les créneaux"
+  const handleViewSlots = () => {
+    setActiveTab('planning')
+  }
 
   // Callback after confirmation/rejection
   const handleConfirmationResponse = () => {
@@ -324,7 +402,9 @@ export function PrestataireInterventionDetailClient({
         user_id: r.user_id,
         response: r.response as 'accepted' | 'rejected' | 'pending',
         user: r.user ? { name: r.user.name, role: r.user.role || '' } : undefined
-      }))
+      })),
+      // Mode "date fixe": le gestionnaire a sélectionné directement une date
+      selected_by_manager: slot.selected_by_manager || false
     }))
   , [timeSlots])
 
@@ -351,9 +431,10 @@ export function PrestataireInterventionDetailClient({
       authorRole: 'tenant'
     })
 
+    // Note: 'en_cours' and 'demande_de_devis' removed from workflow
     const statusOrder = [
-      'demande', 'approuvee', 'demande_de_devis', 'planification',
-      'planifiee', 'en_cours', 'cloturee_par_prestataire',
+      'demande', 'approuvee', 'planification',
+      'planifiee', 'cloturee_par_prestataire',
       'cloturee_par_locataire', 'cloturee_par_gestionnaire'
     ]
 
@@ -379,7 +460,9 @@ export function PrestataireInterventionDetailClient({
   }, [intervention])
 
   // Date planifiée (si un créneau est sélectionné)
-  const scheduledDate = timeSlots.find(s => s.status === 'selected')?.slot_date || null
+  const confirmedSlot = timeSlots.find(s => s.status === 'selected')
+  const scheduledDate = confirmedSlot?.slot_date || null
+  const scheduledStartTime = confirmedSlot?.start_time || null
 
   // Messages mock (à remplacer par de vraies données si disponibles)
   const mockMessages: Message[] = useMemo(() => [], [])
@@ -415,7 +498,7 @@ export function PrestataireInterventionDetailClient({
         toast.success('Créneau accepté avec succès')
         handleRefresh()
       } else {
-        toast.error(result.error || 'Erreur lors de l\'acceptation du créneau')
+        toast.error(formatErrorMessage(result.error, 'Erreur lors de l\'acceptation du créneau'))
       }
     } catch (error) {
       console.error('Error accepting slot:', error)
@@ -502,12 +585,12 @@ export function PrestataireInterventionDetailClient({
 
       if (error) throw error
 
-      const successMessage = isSent ? 'Devis annulé avec succès' : 'Devis supprimé avec succès'
+      const successMessage = isSent ? 'Estimation annulée avec succès' : 'Estimation supprimée avec succès'
       toast.success(successMessage)
       handleRefresh()
     } catch (error) {
       console.error('Error deleting quote:', error)
-      toast.error('Erreur lors de la suppression du devis')
+      toast.error('Erreur lors de la suppression de l\'estimation')
     }
   }
 
@@ -554,14 +637,14 @@ export function PrestataireInterventionDetailClient({
   const statusInfo = statusLabels[intervention.status] || statusLabels['demande']
 
   // Helper functions for DetailPageHeader
+  // Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
   const getStatusBadge = (): DetailPageHeaderBadge => {
     const statusConfig: Record<string, { label: string; color: string; dotColor: string; icon?: any }> = {
       'demande': { label: 'Demande', color: 'bg-blue-50 border-blue-200 text-blue-900', dotColor: 'bg-blue-500', icon: null },
       'approuvee': { label: 'Approuvée', color: 'bg-green-50 border-green-200 text-green-900', dotColor: 'bg-green-500', icon: null },
-      'demande_de_devis': { label: 'Demande de devis', color: 'bg-amber-50 border-amber-200 text-amber-900', dotColor: 'bg-amber-500', icon: null },
       'planification': { label: 'Planification', color: 'bg-purple-50 border-purple-200 text-purple-900', dotColor: 'bg-purple-500', icon: null },
       'planifiee': { label: 'Planifiée', color: 'bg-indigo-50 border-indigo-200 text-indigo-900', dotColor: 'bg-indigo-500', icon: null },
-      'en_cours': { label: 'En cours', color: 'bg-cyan-50 border-cyan-200 text-cyan-900', dotColor: 'bg-cyan-500', icon: null },
+      // Note: 'en_cours' removed from workflow
       'cloturee_par_prestataire': { label: 'Clôturée (Prestataire)', color: 'bg-emerald-50 border-emerald-200 text-emerald-900', dotColor: 'bg-emerald-500', icon: null },
       'cloturee_par_gestionnaire': { label: 'Clôturée', color: 'bg-slate-50 border-slate-200 text-slate-900', dotColor: 'bg-slate-500', icon: null },
       'annulee': { label: 'Annulée', color: 'bg-red-50 border-red-200 text-red-900', dotColor: 'bg-red-500', icon: null },
@@ -712,7 +795,15 @@ export function PrestataireInterventionDetailClient({
               <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
                 <ContentWrapper>
                   {/* Bannières de confirmation si nécessaire */}
-                  {showConfirmationBanner && (
+                  {/* Show slot banner if there are pending slots, otherwise show confirmation banner */}
+                  {hasProposedSlots ? (
+                    <ConfirmationRequiredBanner
+                      interventionId={intervention.id}
+                      hasProposedSlots={true}
+                      proposedSlotsCount={proposedSlotsCount}
+                      onViewSlots={handleViewSlots}
+                    />
+                  ) : showConfirmationBanner && (
                     <ConfirmationRequiredBanner
                       interventionId={intervention.id}
                       scheduledDate={intervention.scheduled_date}
@@ -792,6 +883,7 @@ export function PrestataireInterventionDetailClient({
                   <PlanningCard
                     timeSlots={transformedTimeSlots}
                     scheduledDate={scheduledDate || undefined}
+                    scheduledStartTime={scheduledStartTime || undefined}
                     userRole="provider"
                     currentUserId={currentUser.id}
                     onAddSlot={handleOpenAvailabilityModal}

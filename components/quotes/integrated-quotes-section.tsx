@@ -111,7 +111,7 @@ export function IntegratedQuotesSection({
     if (title) return title
 
     if (userContext === 'prestataire') {
-      return `Devis`
+      return `Estimation`
     }
 
     // Retourner une chaîne vide pour ne pas afficher de titre global
@@ -124,8 +124,8 @@ export function IntegratedQuotesSection({
 
     if (userContext === 'prestataire') {
       return {
-        title: "Aucun devis soumis",
-        description: "Soumettez un devis pour cette intervention pour continuer le processus",
+        title: "Aucune estimation soumise",
+        description: "Soumettez une estimation pour cette intervention pour continuer le processus",
         icon: Receipt
       }
     }
@@ -203,13 +203,13 @@ export function IntegratedQuotesSection({
             )}
           </div>
 
-          {/* Section Devis reçus */}
+          {/* Section Estimations reçues */}
           <div>
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center space-x-2">
                 <FileText className="h-5 w-5 text-green-600" />
                 <h3 className="text-lg font-semibold text-gray-900">
-                  Devis reçus ({quotes.length})
+                  Estimations reçues ({quotes.length})
                 </h3>
               </div>
               <Button

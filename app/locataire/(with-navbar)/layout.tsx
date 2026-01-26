@@ -23,6 +23,8 @@ export default async function WithNavbarLayout({
         userName={userName}
         userInitial={userInitial}
         userEmail={user.email || ''}
+        userId={profile.id}
+        avatarUrl={profile.avatar_url || undefined}
       />
       <main className="flex-1 overflow-y-auto">
         {children}

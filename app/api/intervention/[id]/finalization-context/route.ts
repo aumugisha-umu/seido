@@ -57,8 +57,8 @@ export async function GET(
       }, { status: 403 })
     }
 
-    // Check finalizable status
-    if (!['cloturee_par_prestataire', 'cloturee_par_locataire', 'contestee'].includes(intervention.status)) {
+    // Check finalizable status (planifiee allows direct finalization by manager)
+    if (!['planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire', 'contestee'].includes(intervention.status)) {
       return NextResponse.json({
         success: false,
         error: `Cette intervention ne peut pas être finalisée dans son état actuel: ${intervention.status}`

@@ -11,6 +11,7 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EmailReplyHint } from '@/emails/components/email-reply-hint'
 import type { InterventionRejectedEmailProps } from '@/emails/utils/types'
 
 export const InterventionRejectedEmail = ({
@@ -124,6 +125,9 @@ export const InterventionRejectedEmail = ({
         <div className="text-center mb-6">
           <EmailButton href={interventionUrl}>Voir les détails</EmailButton>
         </div>
+
+        {/* Indication de réponse par email */}
+        <EmailReplyHint />
 
         {/* Contact */}
         <div className="bg-gray-50 p-5 rounded-lg">

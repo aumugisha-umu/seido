@@ -1,8 +1,7 @@
 "use client"
 
-import { AlertTriangle } from "lucide-react"
-import { StatsCard } from "@/components/dashboards/shared/stats-card"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
+import { PendingActionsSection } from "@/components/dashboards/shared/pending-actions-section"
 
 // ============================================================================
 // TYPES
@@ -12,31 +11,36 @@ interface ProviderDashboardV2Props {
     stats: any
     interventions: any[]
     pendingCount: number
+    /** Current user ID for role-specific action checks */
+    userId?: string
 }
 
 // ============================================================================
 // COMPONENT
 // ============================================================================
 
-export function ProviderDashboardV2({ stats, interventions, pendingCount }: ProviderDashboardV2Props) {
+/**
+ * ProviderDashboardV2 - Dashboard prestataire avec actions en attente
+ *
+ * Affiche:
+ * 1. Section "Actions requises" avec cartes interactives (si des actions existent)
+ * 2. Navigator avec toutes les interventions
+ */
+export function ProviderDashboardV2({
+    stats,
+    interventions,
+    pendingCount,
+    userId
+}: ProviderDashboardV2Props) {
     return (
         <div className="dashboard">
-            <div className="dashboard__container">
-                {/* Actions Requises Card - Full width, hidden when no pending */}
-                {pendingCount > 0 && (
-                    <div className="mb-6">
-                        <StatsCard
-                            id="actions"
-                            label="ACTIONS REQUISES"
-                            value={pendingCount}
-                            sublabel="Urgent"
-                            icon={AlertTriangle}
-                            iconColor="text-amber-500"
-                            variant="warning"
-                            className="w-full"
-                        />
-                    </div>
-                )}
+            <div className="dashboard__container space-y-6">
+                {/* Pending Actions Section - Orange wrapper with horizontal scroll */}
+                <PendingActionsSection
+                    interventions={interventions}
+                    userRole="prestataire"
+                    userId={userId}
+                />
 
                 {/* Interventions Section with tabs inside the card */}
                 <div className="dashboard__content">

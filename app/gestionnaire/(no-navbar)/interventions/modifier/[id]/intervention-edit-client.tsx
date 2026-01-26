@@ -217,11 +217,12 @@ export default function InterventionEditClient({
     return hasExistingTenants || isLotOccupied || hasBuildingTenants
   })
 
-  const [excludedLotIds, setExcludedLotIds] = useState<Set<string>>(() => {
+  // ✅ Utiliser Array au lieu de Set pour éviter les re-renders inutiles (Set comparé par référence)
+  const [excludedLotIds, setExcludedLotIds] = useState<string[]>(() => {
     // For building interventions: determine which lots are currently excluded
     if (initialData.buildingTenants) {
       const currentTenantUserIds = new Set(initialData.currentTenantIds)
-      const excludedLots = new Set<string>()
+      const excludedLots: string[] = []
 
       for (const lotGroup of initialData.buildingTenants.byLot) {
         // If none of this lot's tenants are assigned, it's excluded
@@ -229,25 +230,21 @@ export default function InterventionEditClient({
           currentTenantUserIds.has(t.user_id)
         )
         if (!hasAssignedTenant) {
-          excludedLots.add(lotGroup.lotId)
+          excludedLots.push(lotGroup.lotId)
         }
       }
       return excludedLots
     }
-    return new Set()
+    return []
   })
 
   // Handler for lot toggle (building interventions)
   const handleLotToggle = (lotId: string) => {
-    setExcludedLotIds(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(lotId)) {
-        newSet.delete(lotId)
-      } else {
-        newSet.add(lotId)
-      }
-      return newSet
-    })
+    setExcludedLotIds(prev =>
+      prev.includes(lotId)
+        ? prev.filter(id => id !== lotId)
+        : [...prev, lotId]
+    )
   }
 
   // File upload - pass interventionId for existing intervention
@@ -383,7 +380,7 @@ export default function InterventionEditClient({
         if (initialData.buildingTenants) {
           // Building: get tenants from included lots (exclude lots in excludedLotIds)
           tenantUserIds = initialData.buildingTenants.byLot
-            .filter(lot => !excludedLotIds.has(lot.lotId))
+            .filter(lot => !excludedLotIds.includes(lot.lotId))
             .flatMap(lot => lot.tenants.map(t => t.user_id))
           // Deduplicate
           tenantUserIds = [...new Set(tenantUserIds)]
@@ -471,7 +468,7 @@ export default function InterventionEditClient({
       if (initialData.buildingTenants) {
         // Immeuble : locataires des lots non-exclus
         selectedTenants = initialData.buildingTenants.byLot
-          .filter(lot => !excludedLotIds.has(lot.lotId))
+          .filter(lot => !excludedLotIds.includes(lot.lotId))
           .flatMap(lot => lot.tenants.map(t => ({
             id: t.user_id,
             name: t.name,

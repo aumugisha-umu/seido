@@ -27,7 +27,6 @@ import {
   FileText,
   AlertCircle,
   XCircle,
-  Wrench,
   ClipboardCheck,
   Clock
 } from 'lucide-react'
@@ -71,10 +70,9 @@ interface TimelineStep {
 const TIMELINE_STEPS: TimelineStep[] = [
   { status: 'demande', label: 'Demande', icon: AlertCircle },
   { status: 'approuvee', label: 'Approuvée', icon: CheckCircle2 },
-  { status: 'demande_de_devis', label: 'Devis', icon: FileText },
+  { status: 'demande_de_devis', label: 'Estimation', icon: FileText },
   { status: 'planification', label: 'Planification', icon: Calendar },
   { status: 'planifiee', label: 'Planifiée', icon: Calendar },
-  { status: 'en_cours', label: 'En cours', icon: Wrench },
   { status: 'cloturee_par_prestataire', label: 'Terminé (Prestataire)', icon: ClipboardCheck },
   { status: 'cloturee_par_locataire', label: 'Validé (Locataire)', icon: ClipboardCheck },
   { status: 'cloturee_par_gestionnaire', label: 'Clôturée', icon: CheckCircle2 }
@@ -133,7 +131,7 @@ const CompactTimeline = ({
   const getCompactIndex = (status: string): number => {
     if (['demande', 'rejetee'].includes(status)) return 0
     if (['approuvee', 'demande_de_devis'].includes(status)) return 1
-    if (['planification', 'planifiee', 'en_cours'].includes(status)) return 2
+    if (['planification', 'planifiee'].includes(status)) return 2
     if (['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire'].includes(status)) return 3
     return 0
   }

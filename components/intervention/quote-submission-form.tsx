@@ -32,7 +32,7 @@ import {
   getPriorityLabel
 } from "@/lib/intervention-utils"
 import { FileUploader } from "@/components/ui/file-uploader"
-import { TimeSlotCard } from "./time-slot-card"
+import { TimeSlotCard } from "@/components/interventions/shared/atoms/time-slot-card"
 import { RejectSlotModal } from "./modals/reject-slot-modal"
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
@@ -205,7 +205,7 @@ export function QuoteSubmissionForm({
   // Mettre à jour le formulaire quand existingQuote change
   useEffect(() => {
     if (existingQuote) {
-      logger.info('📝 [QuoteForm] Pré-remplissage avec devis existant:', existingQuote)
+      logger.info('📝 [QuoteForm] Pré-remplissage avec estimation existante:', existingQuote)
       setFormData({
         laborCost: existingQuote.laborCost?.toString() || '',
         materialsCost: existingQuote.materialsCost?.toString() || '0',
@@ -258,9 +258,9 @@ export function QuoteSubmissionForm({
 
   // Marquer la quote_request comme consultée lors du chargement du formulaire
   // Ne pas faire ça si on est en mode édition (existingQuote.id existe)
-  // car dans ce cas, quoteRequest.id est l'ID du devis, pas de la demande
+  // car dans ce cas, quoteRequest.id est l'ID de l'estimation, pas de la demande
   useEffect(() => {
-    // Seulement pour les nouvelles demandes de devis (status 'pending'), pas pour l'édition
+    // Seulement pour les nouvelles demandes d'estimation (status 'pending'), pas pour l'édition
     if (quoteRequest && quoteRequest.status === 'pending' && !existingQuote?.id) {
       logger.info('👁️ [QuoteForm] Marquage de la demande comme consultée:', quoteRequest.id)
 
@@ -343,14 +343,14 @@ export function QuoteSubmissionForm({
             await submitAvailabilities(currentFormData)
             // Success message for quote + availabilities
             if (isEditMode) {
-              quoteToast.systemNotification('Devis et disponibilités mis à jour', 'Votre devis et vos disponibilités ont été mis à jour avec succès', 'info')
+              quoteToast.systemNotification('Estimation et disponibilités mises à jour', 'Votre estimation et vos disponibilités ont été mises à jour avec succès', 'info')
             } else {
-              quoteToast.systemNotification('Devis et disponibilités enregistrés', `Votre devis de ${calculateTotal().toFixed(2)}€ et vos disponibilités ont été enregistrés avec succès`, 'info')
+              quoteToast.systemNotification('Estimation et disponibilités enregistrées', `Votre estimation de ${calculateTotal().toFixed(2)}€ et vos disponibilités ont été enregistrées avec succès`, 'info')
             }
           } else {
             // Success message for quote only
             if (isEditMode) {
-              quoteToast.systemNotification('Devis modifié', `Votre devis de ${calculateTotal().toFixed(2)}€ a été mis à jour`, 'info')
+              quoteToast.systemNotification('Estimation modifiée', `Votre estimation de ${calculateTotal().toFixed(2)}€ a été mise à jour`, 'info')
             } else {
               quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
             }
@@ -365,7 +365,7 @@ export function QuoteSubmissionForm({
 
           const errorAction = hideEstimationSection
             ? 'l\'enregistrement des disponibilités'
-            : (isEditMode ? 'la modification du devis' : 'la soumission du devis')
+            : (isEditMode ? 'la modification de l\'estimation' : 'la soumission de l\'estimation')
 
           quoteToast.quoteError(errorMessage, errorAction)
         } finally {
@@ -395,7 +395,7 @@ export function QuoteSubmissionForm({
     const result = await response.json()
 
     if (!response.ok) {
-      throw new Error(result.error || 'Erreur lors de la soumission du devis')
+      throw new Error(result.error || 'Erreur lors de la soumission de l\'estimation')
     }
 
     logger.info('✅ Quote submitted successfully', { quoteId: result.quote?.id })
@@ -774,12 +774,12 @@ export function QuoteSubmissionForm({
       const result = await response.json()
 
       if (!response.ok) {
-        throw new Error(result.error || 'Erreur lors de la soumission du devis')
+        throw new Error(result.error || 'Erreur lors de la soumission de l\'estimation')
       }
 
       // Toast de succès selon Design System
       if (existingQuote?.id) {
-        quoteToast.systemNotification('Devis modifié', `Votre devis de ${calculateTotal().toFixed(2)}€ a été mis à jour`, 'info')
+        quoteToast.systemNotification('Estimation modifiée', `Votre estimation de ${calculateTotal().toFixed(2)}€ a été mise à jour`, 'info')
       } else {
         quoteToast.quoteSubmitted(calculateTotal(), intervention.title)
       }
@@ -793,7 +793,7 @@ export function QuoteSubmissionForm({
       setError(errorMessage)
 
       // Toast d'erreur selon Design System
-      const errorAction = existingQuote?.id ? 'la modification du devis' : 'la soumission du devis'
+      const errorAction = existingQuote?.id ? 'la modification de l\'estimation' : 'la soumission de l\'estimation'
       quoteToast.quoteError(errorMessage, errorAction)
     } finally {
       setIsLoading(false)
@@ -897,14 +897,14 @@ export function QuoteSubmissionForm({
                         key={slot.id}
                         slot={slot}
                         currentUserId={currentUserId || ''}
-                        userRole="prestataire"
-                        onAccept={handleAcceptSlot}
-                        onReject={handleOpenRejectModal}
-                        onWithdraw={handleWithdrawResponse}
-                        showActions={true}
-                        compact={true}
-                        accepting={acceptingSlotId}
-                        withdrawing={withdrawingSlotId}
+                        userRole="provider"
+                        onApprove={(slotId) => handleAcceptSlot(slotId)}
+                        onReject={(slotId) => {
+                          const slotToReject = slots.find(s => s.id === slotId)
+                          if (slotToReject) handleOpenRejectModal(slotToReject)
+                        }}
+                        onOpenResponseModal={(slotId) => handleWithdrawResponse(slotId)}
+                        variant="compact"
                       />
                     ))}
                   </div>
@@ -916,7 +916,7 @@ export function QuoteSubmissionForm({
                 <AlertCircle className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-blue-800">
                   <span className="font-medium">À propos des créneaux :</span> Vous pouvez accepter plusieurs créneaux.
-                  Le gestionnaire sélectionnera le créneau définitif après validation de votre devis.
+                  Le gestionnaire sélectionnera le créneau définitif après validation de votre estimation.
                 </AlertDescription>
               </Alert>
             </CardContent>
@@ -1094,7 +1094,7 @@ export function QuoteSubmissionForm({
                     <div>
                       <p className="text-sm font-medium text-amber-800">Information importante</p>
                       <p className="text-sm text-amber-700 mt-1">
-                        Ces disponibilités seront partagées avec le gestionnaire pour faciliter la planification de l'intervention une fois votre devis validé.
+                        Ces disponibilités seront partagées avec le gestionnaire pour faciliter la planification de l'intervention une fois votre estimation validée.
                       </p>
                     </div>
                   </div>
@@ -1142,7 +1142,7 @@ export function QuoteSubmissionForm({
                   ) : (
                     <>
                       <Euro className="h-5 w-5 mr-2" />
-                      {existingQuote && quoteRequest?.status !== 'pending' ? 'Confirmer la modification' : 'Soumettre le devis'}
+                      {existingQuote && quoteRequest?.status !== 'pending' ? 'Confirmer la modification' : 'Soumettre l\'estimation'}
                     </>
                   )}
                 </Button>

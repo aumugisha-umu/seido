@@ -44,11 +44,28 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
   const [isEditing, setIsEditing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false)
-  const [formData, setFormData] = useState({
-    firstName: user?.first_name || "",
-    lastName: user?.last_name || "",
-    phone: user?.phone || ""
-  })
+
+  // ✅ Helper pour extraire prénom/nom depuis le nom complet (défini avant useState)
+  const getInitialFormData = () => {
+    if (!user) return { firstName: "", lastName: "", phone: "" }
+
+    let firstName = user.first_name || ""
+    let lastName = user.last_name || ""
+
+    if ((!firstName || !lastName) && user.name) {
+      const nameParts = user.name.trim().split(/\s+/)
+      if (nameParts.length >= 2) {
+        firstName = firstName || nameParts[0]
+        lastName = lastName || nameParts.slice(1).join(' ')
+      } else if (nameParts.length === 1) {
+        firstName = firstName || nameParts[0]
+      }
+    }
+
+    return { firstName, lastName, phone: user.phone || "" }
+  }
+
+  const [formData, setFormData] = useState(getInitialFormData)
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false)
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false)
 
@@ -82,12 +99,25 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
 
   const config = roleConfig[role]
 
-  // Mettre à jour formData quand l'utilisateur change
+  // Mettre à jour formData quand l'utilisateur change (utilise la même logique que getInitialFormData)
   useEffect(() => {
     if (user) {
+      let firstName = user.first_name || ""
+      let lastName = user.last_name || ""
+
+      if ((!firstName || !lastName) && user.name) {
+        const nameParts = user.name.trim().split(/\s+/)
+        if (nameParts.length >= 2) {
+          firstName = firstName || nameParts[0]
+          lastName = lastName || nameParts.slice(1).join(' ')
+        } else if (nameParts.length === 1) {
+          firstName = firstName || nameParts[0]
+        }
+      }
+
       setFormData({
-        firstName: user.first_name || "",
-        lastName: user.last_name || "",
+        firstName,
+        lastName,
         phone: user.phone || ""
       })
     }
@@ -388,6 +418,17 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
               </CardDescription>
             </CardHeader>
             <CardContent>
+              {/* Affichage de l'email actuel */}
+              <div className="mb-6 p-4 bg-muted/50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Mail className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Adresse email</p>
+                    <p className="font-medium">{user.email}</p>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Button
                   variant="outline"

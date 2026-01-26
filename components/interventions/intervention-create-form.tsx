@@ -45,6 +45,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 
+// ✅ Dynamic intervention types combobox
+import { InterventionTypeCombobox } from '@/components/intervention/intervention-type-combobox'
+
 // Server Actions
 import {
   createInterventionAction,
@@ -57,28 +60,19 @@ import type { Database } from '@/lib/database.types'
 type UserRole = Database['public']['Enums']['user_role']
 type InterventionStatus = Database['public']['Enums']['intervention_status']
 
-// Validation schema
+// Validation schema - ✅ Now accepts any type code from database
 const managerFormSchema = z.object({
   title: z.string()
     .min(3, 'Le titre doit contenir au moins 3 caractères')
     .max(255, 'Le titre est trop long'),
   description: z.string()
     .min(10, 'La description doit contenir au moins 10 caractères'),
-  type: z.enum([
-    'plomberie',
-    'electricite',
-    'chauffage',
-    'serrurerie',
-    'peinture',
-    'menage',
-    'jardinage',
-    'autre'
-  ]),
+  type: z.string().min(1, "Le type d'intervention est obligatoire").max(100),
   urgency: z.enum(['basse', 'normale', 'haute', 'urgente']).default('normale'),
+  // ✅ FIX 2026-01-26: Removed demande_de_devis - quotes now managed via requires_quote
   status: z.enum([
     'demande',
     'approuvee',
-    'demande_de_devis',
     'planification'
   ] as const).default('demande'),
   requested_date: z.date().optional(),
@@ -132,7 +126,7 @@ export function InterventionCreateForm({
     defaultValues: {
       title: '',
       description: '',
-      type: 'autre',
+      type: 'autre_technique', // ✅ Default to "Autre (technique)" - most flexible option
       urgency: 'normale',
       status: 'demande',
       specific_location: '',
@@ -279,26 +273,12 @@ export function InterventionCreateForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Catégorie</FormLabel>
-                    <Select
+                    {/* ✅ Now uses dynamic types from database */}
+                    <InterventionTypeCombobox
+                      value={field.value}
                       onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Catégorie d'intervention" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="plomberie">Plomberie</SelectItem>
-                        <SelectItem value="electricite">Électricité</SelectItem>
-                        <SelectItem value="chauffage">Chauffage</SelectItem>
-                        <SelectItem value="serrurerie">Serrurerie</SelectItem>
-                        <SelectItem value="peinture">Peinture</SelectItem>
-                        <SelectItem value="menage">Ménage</SelectItem>
-                        <SelectItem value="jardinage">Jardinage</SelectItem>
-                        <SelectItem value="autre">Autre</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      placeholder="Catégorie d'intervention"
+                    />
                     <FormMessage />
                   </FormItem>
                 )}
@@ -351,9 +331,6 @@ export function InterventionCreateForm({
                       <SelectContent>
                         <SelectItem value="demande">Demande</SelectItem>
                         <SelectItem value="approuvee">Approuvée</SelectItem>
-                        <SelectItem value="demande_de_devis">
-                          Demande de devis
-                        </SelectItem>
                         <SelectItem value="planification">
                           Planification
                         </SelectItem>
@@ -500,29 +477,6 @@ export function InterventionCreateForm({
                 )}
               />
             </div>
-
-            {/* Manager comment - REMOVED: Now using intervention_comments table
-            <FormField
-              control={form.control}
-              name="manager_comment"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Commentaire gestionnaire</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Notes internes pour l'équipe de gestion..."
-                      className="min-h-[80px] resize-none"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Ce commentaire ne sera visible que par les gestionnaires
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            */}
           </CardContent>
         </Card>
 

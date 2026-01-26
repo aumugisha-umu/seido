@@ -205,7 +205,7 @@ export function OnboardingModal({
 
     const handleGoToImport = useCallback(() => {
         handleOpenChange(false) // Ferme la modale + marque comme vu
-        router.push('/gestionnaire/biens/import')
+        router.push('/gestionnaire/import')
     }, [handleOpenChange, router])
 
     // Keyboard navigation

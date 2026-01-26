@@ -22,6 +22,8 @@ export const DEFAULT_CONTRACT_STATUS: ContractStatus = 'a_venir'
 
 export type PaymentFrequency = 'mensuel' | 'trimestriel' | 'semestriel' | 'annuel'
 
+export type ChargesType = 'forfaitaire' | 'provision'
+
 export type ContractDocumentType =
   | 'bail'
   | 'avenant'
@@ -66,6 +68,7 @@ export interface Contract {
   payment_frequency_value: number
   rent_amount: number
   charges_amount: number
+  charges_type: ChargesType
   guarantee_type: GuaranteeType
   guarantee_amount: number | null
   guarantee_notes: string | null
@@ -295,6 +298,7 @@ export interface ContractFormData {
   paymentFrequencyValue: number
   rentAmount: number
   chargesAmount: number
+  chargesType: ChargesType
 
   // Step 4: Contacts & Garantie
   contacts: {
@@ -329,6 +333,7 @@ export interface ValidatedContractData {
   payment_frequency_value: number
   rent_amount: number
   charges_amount: number
+  charges_type: ChargesType
   guarantee_type: GuaranteeType
   guarantee_amount?: number
   guarantee_notes?: string
@@ -519,6 +524,22 @@ export const PAYMENT_FREQUENCY_LABELS: Record<PaymentFrequency, string> = {
   trimestriel: 'Trimestriel',
   semestriel: 'Semestriel',
   annuel: 'Annuel'
+}
+
+/**
+ * Labels francais pour les types de charges
+ */
+export const CHARGES_TYPE_LABELS: Record<ChargesType, string> = {
+  forfaitaire: 'Forfaitaire',
+  provision: 'Provision'
+}
+
+/**
+ * Descriptions francaises pour les types de charges (tooltips)
+ */
+export const CHARGES_TYPE_DESCRIPTIONS: Record<ChargesType, string> = {
+  forfaitaire: 'Montant fixe sans régularisation annuelle',
+  provision: 'Avance régularisée annuellement selon les charges réelles'
 }
 
 /**

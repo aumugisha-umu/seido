@@ -21,7 +21,6 @@ export type * from "./types"
 export {
   AddressInput,
   PropertyNameInput,
-  BuildingSelector,
   ManagerSelector
 } from "./atoms"
 

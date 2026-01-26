@@ -40,8 +40,8 @@ Après avoir résolu le problème RLS, un nouveau problème a été découvert :
 ### Preuve
 ```
 Found 17 test users in auth.users
-  ⚠️ arthur+test-1759439145234-323@seido.pm → MISSING from public.users (trigger failed?)
-  ⚠️ arthur+test-1759438958275-929@seido.pm → MISSING from public.users (trigger failed?)
+  ⚠️ arthur+test-1759439145234-323@seido-app.com → MISSING from public.users (trigger failed?)
+  ⚠️ arthur+test-1759438958275-929@seido-app.com → MISSING from public.users (trigger failed?)
   ...
 ```
 

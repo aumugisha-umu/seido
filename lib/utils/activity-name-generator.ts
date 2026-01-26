@@ -15,7 +15,7 @@ export const ENTITY_TYPE_FR: Record<string, string> = {
   'contact': 'Contact',
   'notification': 'Notification',
   'message': 'Message',
-  'quote': 'Devis',
+  'quote': 'Estimation',
   'report': 'Rapport'
 }
 

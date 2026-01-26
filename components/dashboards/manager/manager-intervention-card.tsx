@@ -30,7 +30,8 @@ import { cn } from "@/lib/utils"
 import {
     getStatusColor,
     getStatusLabel,
-    getStatusActionMessage,
+    getPendingParticipantsMessage,
+    getPendingResponderNames,
     getPriorityColor,
     getPriorityLabel
 } from "@/lib/intervention-utils"
@@ -56,6 +57,16 @@ interface ManagerInterventionCardProps {
     onActionComplete?: () => void
 }
 
+/**
+ * Helper pour trouver le créneau confirmé parmi les time_slots
+ * Priorité: slot avec status 'selected', sinon le premier slot disponible
+ */
+const getConfirmedSlot = (slots: Array<{ id: string; slot_date: string; start_time: string; end_time: string; status: string }> | undefined | null) => {
+    if (!slots || slots.length === 0) return null
+    // Priorité: slot confirmé (status 'selected'), sinon premier de la liste
+    return slots.find(s => s.status === 'selected') || slots[0]
+}
+
 export function ManagerInterventionCard({
     intervention,
     userContext = 'gestionnaire',
@@ -72,7 +83,19 @@ export function ManagerInterventionCard({
 
     // Action banner logic
     const isAlert = shouldShowAlertBadge(intervention, userContext)
-    const actionMessage = getStatusActionMessage(intervention.status, userContext)
+    // Message dynamique basé sur les réponses réelles aux créneaux
+    const baseActionMessage = getPendingParticipantsMessage(intervention.status, intervention.timeSlots, userContext)
+
+    // Extraire les prénoms des personnes en attente pour un message personnalisé
+    const pendingNames = getPendingResponderNames(intervention.timeSlots)
+
+    // Utiliser les prénoms si disponibles pour le statut planification, sinon message générique
+    const actionMessage = intervention.status === 'planification' && pendingNames.length > 0
+        ? `En attente de ${pendingNames.join(', ')}`
+        : baseActionMessage
+
+    // Get confirmed time slot for scheduled interventions
+    const confirmedSlot = getConfirmedSlot(intervention.selected_time_slot)
 
     // Generate intervention URL based on user context
     const getInterventionUrl = (interventionId: string) => {
@@ -160,7 +183,7 @@ export function ManagerInterventionCard({
                 if (userContext === 'gestionnaire') {
                     actions.push(
                         {
-                            label: "Demander des devis",
+                            label: "Demander des estimations",
                             icon: FileText,
                             onClick: () => handleActionClick('request_quotes'),
                         },
@@ -176,14 +199,14 @@ export function ManagerInterventionCard({
             case 'demande_de_devis':
                 if (userContext === 'gestionnaire') {
                     actions.push({
-                        label: "Gérer les devis",
+                        label: "Gérer les estimations",
                         icon: Euro,
                         onClick: () => handleActionClick('manage_quotes'),
                     })
                 }
                 if (userContext === 'prestataire') {
                     actions.push({
-                        label: "Soumettre un devis",
+                        label: "Soumettre une estimation",
                         icon: FileText,
                         onClick: () => handleActionClick('submit_quote'),
                     })
@@ -242,16 +265,6 @@ export function ManagerInterventionCard({
                         label: "Replanifier",
                         icon: Calendar,
                         onClick: () => handleActionClick('reschedule'),
-                    })
-                }
-                break
-
-            case 'en_cours':
-                if (userContext === 'prestataire' || userContext === 'gestionnaire') {
-                    actions.push({
-                        label: "Marquer comme terminé",
-                        icon: CheckCircle,
-                        onClick: () => handleActionClick('complete_work'),
                     })
                 }
                 break
@@ -366,13 +379,30 @@ export function ManagerInterventionCard({
                         </span>
                     </div>
 
-                    {/* Action attendue */}
-                    <div className={cn(
-                        "text-xs font-medium",
-                        isAlert ? 'text-orange-600' : 'text-blue-600'
-                    )}>
-                        → {actionMessage}
-                    </div>
+                    {/* Action attendue ou Créneau planifié */}
+                    {intervention.status === 'planifiee' && confirmedSlot ? (
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400">
+                            <Calendar className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span>
+                                {new Date(confirmedSlot.slot_date).toLocaleDateString('fr-FR', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: 'numeric'
+                                })}
+                            </span>
+                            <span className="text-blue-600 dark:text-blue-500">•</span>
+                            <span className="font-bold">
+                                {confirmedSlot.start_time?.slice(0, 5)}
+                            </span>
+                        </div>
+                    ) : (
+                        <div className={cn(
+                            "text-xs font-medium",
+                            isAlert ? 'text-orange-600' : 'text-blue-600'
+                        )}>
+                            → {actionMessage}
+                        </div>
+                    )}
                 </div>
 
                 {/* Menu d'actions */}
@@ -479,27 +509,69 @@ export function ManagerInterventionCard({
                 </div>
             </div>
 
-            {/* Banner d'action - pleine largeur */}
+            {/* Banner d'action avec badges intégrés */}
             <div className={cn(
-                "border rounded-lg px-3 py-2 mb-3 w-full",
+                "border rounded-lg px-3 py-2.5 mb-3 w-full",
                 isAlert
-                    ? 'bg-orange-50 border-orange-200 dark:bg-orange-500/10 dark:border-orange-500/30'
-                    : 'bg-blue-50 border-blue-200 dark:bg-blue-500/10 dark:border-blue-500/30',
+                    ? 'bg-orange-50/80 border-orange-200 dark:bg-orange-500/15 dark:border-orange-500/40'
+                    : 'bg-blue-50/80 border-blue-200 dark:bg-blue-500/15 dark:border-blue-500/40',
             )}>
-                <div className="flex items-center gap-2">
-                    <div className={cn(
-                        "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
-                        isAlert ? 'bg-orange-100 dark:bg-orange-500/20' : 'bg-blue-100 dark:bg-blue-500/20'
-                    )}>
-                        <Clock className={cn("h-3 w-3", isAlert ? 'text-orange-600' : 'text-blue-600')} />
+                {intervention.status === 'planifiee' && confirmedSlot ? (
+                    <div className="flex flex-col gap-2">
+                        {/* Ligne 1: Date/heure + Badges */}
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <div className="flex items-center gap-2 text-sm font-semibold text-blue-900 dark:text-blue-200">
+                                <Calendar className="h-4 w-4 flex-shrink-0" />
+                                <span className="font-bold">
+                                    {new Date(confirmedSlot.slot_date).toLocaleDateString('fr-FR', {
+                                        day: 'numeric',
+                                        month: 'long',
+                                        year: 'numeric'
+                                    })}
+                                </span>
+                                <span className="text-blue-700 dark:text-blue-400">•</span>
+                                <span className="font-extrabold text-base">
+                                    {confirmedSlot.start_time?.slice(0, 5)}
+                                </span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <Badge className={cn(getPriorityColor(urgency), "text-xs border")}>
+                                    {getPriorityLabel(urgency)}
+                                </Badge>
+                                <Badge className={cn(getStatusColor(intervention.status), "text-xs border")}>
+                                    {getStatusLabel(intervention.status)}
+                                </Badge>
+                            </div>
+                        </div>
                     </div>
-                    <p className={cn(
-                        "text-sm font-medium",
-                        isAlert ? 'text-orange-800 dark:text-orange-300' : 'text-blue-800 dark:text-blue-300'
-                    )}>
-                        {actionMessage}
-                    </p>
-                </div>
+                ) : (
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                        {/* Action message */}
+                        <div className="flex items-center gap-2">
+                            <div className={cn(
+                                "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
+                                isAlert ? 'bg-orange-100 dark:bg-orange-500/25' : 'bg-blue-100 dark:bg-blue-500/25'
+                            )}>
+                                <Clock className={cn("h-3 w-3", isAlert ? 'text-orange-600' : 'text-blue-600')} />
+                            </div>
+                            <p className={cn(
+                                "text-sm font-medium",
+                                isAlert ? 'text-orange-900 dark:text-orange-200' : 'text-blue-900 dark:text-blue-200'
+                            )}>
+                                {actionMessage}
+                            </p>
+                        </div>
+                        {/* Badges */}
+                        <div className="flex items-center gap-1.5">
+                            <Badge className={cn(getPriorityColor(urgency), "text-xs border")}>
+                                {getPriorityLabel(urgency)}
+                            </Badge>
+                            <Badge className={cn(getStatusColor(intervention.status), "text-xs border")}>
+                                {getStatusLabel(intervention.status)}
+                            </Badge>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Description */}
@@ -508,25 +580,9 @@ export function ManagerInterventionCard({
             </p>
 
             {/* Location */}
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-3" title={formatInterventionLocation(intervention).address || undefined}>
+            <div className="flex items-center gap-1.5 text-sm text-muted-foreground mt-auto" title={formatInterventionLocation(intervention).address || undefined}>
                 <MapPin className="h-4 w-4 flex-shrink-0" />
                 <span className="truncate">{formatInterventionLocation(intervention).primary}</span>
-            </div>
-
-            {/* Footer: Date + Urgence + Status */}
-            <div className="pt-3 border-t border-border text-sm text-muted-foreground mt-auto flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                    <Calendar className="h-4 w-4" />
-                    <span>Créé le {new Date(intervention.created_at).toLocaleDateString('fr-FR')}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <Badge className={cn(getPriorityColor(urgency), "text-xs border flex-shrink-0")}>
-                        {getPriorityLabel(urgency)}
-                    </Badge>
-                    <Badge className={cn(getStatusColor(intervention.status), "text-xs border flex-shrink-0")}>
-                        {getStatusLabel(intervention.status)}
-                    </Badge>
-                </div>
             </div>
         </div>
     )

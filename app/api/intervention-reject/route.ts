@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
 import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
-import { createServerInterventionService } from '@/lib/services'
+import { createServerInterventionService, createServerActionInterventionCommentRepository } from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { interventionRejectSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
@@ -80,11 +80,6 @@ export async function POST(request: NextRequest) {
 
     logger.info("🔄 Updating intervention status to 'rejetee'...")
 
-    // Build manager comment with rejection reason and internal comment
-    const managerCommentParts = [`REJETÉ: ${rejectionReason}`]
-    // Note: Comments (rejection reason, internal notes) are now stored in intervention_comments table
-    // The reason and internalComment parameters should be saved as comments via the comments system
-
     // Update intervention status
     const updatedIntervention = await interventionService.update(interventionId, {
       status: 'rejetee' as Database['public']['Enums']['intervention_status'],
@@ -92,6 +87,16 @@ export async function POST(request: NextRequest) {
     })
 
     logger.info({}, "❌ Intervention rejected successfully")
+
+    // ✅ BUG FIX 2026-01-25: Save rejection reason as comment in intervention_comments table
+    try {
+      const commentRepository = await createServerActionInterventionCommentRepository()
+      const rejectionComment = `❌ **Rejet:** ${rejectionReason}${internalComment ? `\n\n_Note interne:_ ${internalComment}` : ''}`
+      await commentRepository.createComment(interventionId, user.id, rejectionComment)
+      logger.info({ interventionId }, "💬 Rejection comment saved")
+    } catch (commentError) {
+      logger.warn({ commentError }, "⚠️ Could not save rejection comment (non-blocking)")
+    }
 
     // Send notifications with proper logic (personal/team)
     try {

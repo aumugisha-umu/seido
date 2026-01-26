@@ -72,7 +72,7 @@ Pour les Clients ayant souscrit un abonnement payant, celui-ci prend effet le jo
 
 ### Résiliation de l'abonnement
 
-Le Client peut résilier son abonnement payant à tout moment avant la reconduction de celui-ci, directement depuis son espace client sur la **Plateforme**, ou en contactant le service client par e-mail à l'adresse support@seido.pm.
+Le Client peut résilier son abonnement payant à tout moment avant la reconduction de celui-ci, directement depuis son espace client sur la **Plateforme**, ou en contactant le service client par e-mail à l'adresse support@seido-app.com.
 
 La résiliation prend effet à la fin de la période d'abonnement en cours (mensuelle ou annuelle selon la formule souscrite). Le Client conserve l'accès à toutes les fonctionnalités payantes jusqu'à l'expiration de la période pour laquelle il a payé.
 
@@ -152,7 +152,7 @@ En dehors des situations précitées, **SEIDO** demande l'autorisation du Client
 
 **SEIDO** ne partagera les données du Client que comme décrit ci-dessus et veillera à ce que toutes les parties impliquées traitent celles-ci conformément à la clause ou suivent des pratiques au moins aussi protectrices que celles décrites dans la clause et agissent à tout moment comme le permettent les réglementations applicables, lois et Règlements sur la protection des données.
 
-Le Client dispose d'un droit d'accès, de modification, de rectification et de suppression des données qui le concernent. Ces informations ne seront aucunement communiquées à des tiers. Toute demande relative aux informations conservées par **SEIDO** doit être adressée à rgpd@seido.pm.
+Le Client dispose d'un droit d'accès, de modification, de rectification et de suppression des données qui le concernent. Ces informations ne seront aucunement communiquées à des tiers. Toute demande relative aux informations conservées par **SEIDO** doit être adressée à rgpd@seido-app.com.
 
 Le Client peut également, s'il le souhaite, contacter l'Autorité de la Protection des Données pour toute question relative à ses droits et/ou déposer plainte auprès de l'Autorité de la Protection des Données quant au traitement de ses données à caractère personnel par **SEIDO**, aux adresses suivantes : dpo@apd-gba.be ou Rue de la Presse, 35 à 1000 Bruxelles.
 
@@ -208,7 +208,7 @@ L'utilisation de **SEIDO** par le Client confère à celui-ci le droit de licenc
 
 Le service d'assistance technique s'applique à tous les services fournis par **SEIDO**. Les Clients peuvent être assistés par e-mail, téléphone, ou **via le chat intégré à la plateforme**, et ce tous les jours ouvrables de 09h00 à 18h00.
 
-Le service d'assistance technique est joignable aux coordonnées suivantes : **sur le chat disponible sur la plateforme,** par email à l'adresse support@seido.pm ou par téléphone au +32474028838.
+Le service d'assistance technique est joignable aux coordonnées suivantes : **sur le chat disponible sur la plateforme,** par email à l'adresse support@seido-app.com ou par téléphone au +32474028838.
 
 **L'alinéa qui précède s'applique notamment aux services d'intégration avec les prestataires partenaires proposés via la plateforme.**
 
@@ -314,7 +314,7 @@ Le Client dispose d'un droit d'accès, de modification, de rectification et de s
 
 **Pour exercer ces droits, contacter :**
 
-- **Email** : rgpd@seido.pm
+- **Email** : rgpd@seido-app.com
 - **Adresse postale** : UMUMENTUM SRL, Rue de Grand-Bigard 14, 1082 Berchem-Sainte-Agathe (Belgique)
 
 **Recours auprès de l'autorité de contrôle :**
@@ -516,9 +516,9 @@ Rue de Grand-Bigard 14
 
 Belgique
 
-**Email** : rgpd@seido.pm
+**Email** : rgpd@seido-app.com
 
-**Support** : support@seido.pm
+**Support** : support@seido-app.com
 
 ## 12. Conformité RGPD
 

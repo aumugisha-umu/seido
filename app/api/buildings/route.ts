@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
-import { createBuildingService } from '@/lib/services/domain/building.service'
+import { createServerBuildingService } from '@/lib/services/domain/building.service'
 import { createBuildingRepository } from '@/lib/services/repositories/building.repository'
 import type { CreateBuildingDTO } from '@/lib/services/core/service-types'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
@@ -26,27 +26,24 @@ export async function GET(request: NextRequest) {
     const page = searchParams.get('page')
     const limit = searchParams.get('limit')
 
-    logger.info({ queryTeamId, userId: userProfile.id, role: userProfile.role }, '🏢 [BUILDINGS-API] GET request')
+    logger.info({ queryTeamId, userId: userProfile.id, role: userProfile.role, teamId: userProfile.team_id }, '🏢 [BUILDINGS-API] GET request')
+
+    // Vérifier que l'utilisateur a une équipe
+    if (!userProfile.team_id) {
+      logger.warn({ userId: userProfile.id }, '⚠️ [BUILDINGS-API] No team found for user')
+      return NextResponse.json({
+        success: false,
+        error: 'No team'
+      }, { status: 403 })
+    }
+
+    const teamId = userProfile.team_id
 
     // Initialiser le service
-    const buildingService = createBuildingService(supabase)
+    const buildingService = await createServerBuildingService()
 
-    // Determine effective team ID
-    // If user has a team, force it. Otherwise allow query param (for admins)
-    const effectiveTeamId = userProfile.team_id || queryTeamId;
-
-    // Récupérer les bâtiments
-    let result
-    if (effectiveTeamId) {
-      result = await buildingService.getBuildingsByTeam(effectiveTeamId)
-    } else if (page && limit) {
-      result = await buildingService.getAll({
-        page: parseInt(page),
-        limit: parseInt(limit)
-      })
-    } else {
-      result = await buildingService.getAll()
-    }
+    // Récupérer les bâtiments de l'équipe
+    const result = await buildingService.getBuildingsByTeam(teamId)
 
     if (!result.success) {
       logger.error({ error: result.error }, '❌ [BUILDINGS-API] Error fetching buildings')
@@ -69,7 +66,13 @@ export async function GET(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error({ error }, '❌ [BUILDINGS-API] Unexpected error')
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
+    logger.error({
+      errorMessage,
+      errorStack,
+      errorType: error?.constructor?.name
+    }, '❌ [BUILDINGS-API] Unexpected error')
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'
@@ -112,7 +115,7 @@ export async function POST(request: NextRequest) {
     }, '🏢 [BUILDINGS-API] POST request - Creating building')
 
     // Initialiser le service
-    const buildingService = createBuildingService(supabase)
+    const buildingService = await createServerBuildingService()
 
     // Créer le bâtiment
     const result = await buildingService.create({
@@ -174,7 +177,13 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    logger.error({ error }, '❌ [BUILDINGS-API] Unexpected error in POST')
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    const errorStack = error instanceof Error ? error.stack : undefined
+    logger.error({
+      errorMessage,
+      errorStack,
+      errorType: error?.constructor?.name
+    }, '❌ [BUILDINGS-API] Unexpected error in POST')
     return NextResponse.json({
       success: false,
       error: 'Erreur interne du serveur'

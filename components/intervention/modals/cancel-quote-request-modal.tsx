@@ -30,14 +30,14 @@ export function CancelQuoteRequestModal({
     <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Annuler la demande de devis</AlertDialogTitle>
+          <AlertDialogTitle>Annuler la demande d'estimation</AlertDialogTitle>
           <AlertDialogDescription className="space-y-2">
             <span className="block">
-              Êtes-vous sûr de vouloir annuler la demande de devis envoyée à{" "}
+              Êtes-vous sûr de vouloir annuler la demande d'estimation envoyée à{" "}
               <span className="font-semibold text-slate-900">{providerName}</span> ?
             </span>
             <span className="block text-sm text-amber-600">
-              Cette action est irréversible. Le prestataire ne pourra plus soumettre de devis pour cette demande.
+              Cette action est irréversible. Le prestataire ne pourra plus soumettre d'estimation pour cette demande.
             </span>
           </AlertDialogDescription>
         </AlertDialogHeader>

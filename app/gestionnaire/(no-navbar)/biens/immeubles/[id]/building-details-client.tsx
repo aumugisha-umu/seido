@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Eye, FileText, Wrench, Plus, Home, Info, Building2, MapPin, Calendar, User, Archive, Edit as EditIcon } from "lucide-react"
+import { Eye, FileText, Wrench, Plus, Home, Info, Building2, MapPin, Calendar, User, Archive, Edit as EditIcon, Mail } from "lucide-react"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
 import { BuildingContactsNavigator } from "@/components/contacts/building-contacts-navigator"
@@ -16,6 +16,7 @@ import type { Building, Lot } from '@/lib/services'
 import { BuildingStatsBadges } from './building-stats-badges'
 import { ContactsGridPreview } from '@/components/ui/contacts-grid-preview'
 import { BuildingLotsGrid } from '@/components/patrimoine/lot-card-unified'
+import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 
 interface BuildingContact {
   id: string
@@ -349,6 +350,7 @@ export default function BuildingDetailsClient({
     { id: "overview", label: "Vue d'ensemble", icon: Eye, count: null },
     { id: "interventions", label: "Interventions", icon: Wrench, count: stats.totalInterventions },
     { id: "documents", label: "Documents", icon: FileText, count: null },
+    { id: "emails", label: "Emails", icon: Mail, count: null },
   ]
 
   // Prepare header data
@@ -577,6 +579,15 @@ export default function BuildingDetailsClient({
                   onDocumentDownload={handleDocumentDownload}
                 />
               </div>
+            </TabsContent>
+
+            {/* Emails Tab */}
+            <TabsContent value="emails" className="mt-0 flex-1 flex flex-col min-h-0">
+              <EntityEmailsTab
+                entityType="building"
+                entityId={building.id}
+                entityName={building.name}
+              />
             </TabsContent>
               </div>
             </Tabs>

@@ -170,7 +170,7 @@ export function InterventionsNavigator({
     toutes: () => filteredInterventions,
     demandes_group: () => filteredInterventions.filter(i => ["demande", "approuvee"].includes(i.status)),
     en_cours_group: () => filteredInterventions.filter(i => [
-      "demande_de_devis", "planification", "planifiee", "en_cours", "cloturee_par_prestataire"
+      "demande_de_devis", "planification", "planifiee", "cloturee_par_prestataire"
     ].includes(i.status)),
     cloturees_group: () => filteredInterventions.filter(i => [
       "cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee", "rejetee"
@@ -179,7 +179,7 @@ export function InterventionsNavigator({
     // Dashboard preset filters
     actions_en_attente: () => filterPendingActions(filteredInterventions, userContext),
     en_cours: () => filteredInterventions.filter(i => [
-      "demande", "approuvee", "demande_de_devis", "planification", "planifiee", "en_cours"
+      "demande", "approuvee", "demande_de_devis", "planification", "planifiee"
     ].includes(i.status)),
     terminees: () => filteredInterventions.filter(i => [
       "cloturee_par_prestataire", "cloturee_par_locataire", "cloturee_par_gestionnaire", "annulee"
@@ -187,7 +187,7 @@ export function InterventionsNavigator({
 
     // Prestataire preset filters (specific order: en_cours, terminees, toutes)
     prestataire_en_cours: () => filteredInterventions.filter(i => [
-      "demande_de_devis", "planification", "planifiee", "en_cours", "approuvee"
+      "demande_de_devis", "planification", "planifiee", "approuvee"
     ].includes(i.status)),
     prestataire_terminees: () => filteredInterventions.filter(i => [
       "cloturee_par_prestataire", "cloturee_par_locataire", "cloturee_par_gestionnaire"

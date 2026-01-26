@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -107,6 +107,13 @@ export default function NouvelleInterventionClient({
     } : null
   })
 
+  // ✅ FIX 2026-01-26: Move router/auth hooks to the top to avoid "Cannot access before initialization"
+  // These hooks must be called before any useMemo/useCallback that reference their values
+  const router = useRouter()
+  const { toast } = useToast()
+  const searchParams = useSearchParams()
+  const { user, loading: authLoading } = useAuth()
+
   const [currentStep, setCurrentStep] = useState(1)
   const [maxStepReached, setMaxStepReached] = useState(1)
   const [selectedLogement, setSelectedLogement] = useState<any>(null)
@@ -114,7 +121,7 @@ export default function NouvelleInterventionClient({
   const [selectedLotId, setSelectedLotId] = useState<string | undefined>()
   const [formData, setFormData] = useState({
     title: "",
-    type: "",
+    type: "autre_technique", // ✅ Valeur par défaut: "Autre (technique)" - option la plus flexible
     urgency: "normale", // ✅ Valeur par défaut requise
     description: "",
     availabilities: [] as Array<{ date: string; startTime: string; endTime: string }>,
@@ -129,7 +136,7 @@ export default function NouvelleInterventionClient({
   })
 
   const [schedulingType, setSchedulingType] = useState<"fixed" | "slots" | "flexible">("flexible")
-  const [fixedDateTime, setFixedDateTime] = useState({ date: "", time: "" })
+  const [fixedDateTime, setFixedDateTime] = useState({ date: "", time: "09:00" }) // ✅ Heure par défaut pour éviter oublis
   const [timeSlots, setTimeSlots] = useState<Array<{ date: string; startTime: string; endTime: string }>>([])
   const [globalMessage, setGlobalMessage] = useState("")
 
@@ -149,78 +156,67 @@ export default function NouvelleInterventionClient({
 
   const [expectsQuote, setExpectsQuote] = useState(false)
 
+  // Source email ID (when intervention is created from an email)
+  const [sourceEmailId, setSourceEmailId] = useState<string | null>(null)
+
   // Toggle pour inclure les locataires (lots occupés uniquement)
   const [includeTenants, setIncludeTenants] = useState<boolean>(true)
+
+  // Contract selection for occupied lots
+  const [selectedContractId, setSelectedContractId] = useState<string | null>(null)
+  const [availableContracts, setAvailableContracts] = useState<Array<{
+    id: string
+    title: string
+    tenantNames: string[]
+    startDate: string
+    endDate: string
+  }>>([])
 
   // État pour les locataires d'un immeuble (groupés par lot)
   const [buildingTenants, setBuildingTenants] = useState<BuildingTenantsResult | null>(null)
   const [loadingBuildingTenants, setLoadingBuildingTenants] = useState(false)
 
   // État pour les lots exclus (sélection granulaire par lot)
-  const [excludedLotIds, setExcludedLotIds] = useState<Set<string>>(new Set())
+  // ✅ Utiliser Array au lieu de Set pour éviter les re-renders inutiles (Set comparé par référence)
+  const [excludedLotIds, setExcludedLotIds] = useState<string[]>([])
 
   // Handler pour toggle un lot
   const handleLotToggle = (lotId: string) => {
-    setExcludedLotIds(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(lotId)) {
-        newSet.delete(lotId)
-      } else {
-        newSet.add(lotId)
-      }
-      return newSet
-    })
+    setExcludedLotIds(prev =>
+      prev.includes(lotId)
+        ? prev.filter(id => id !== lotId)
+        : [...prev, lotId]
+    )
   }
 
   // États pour la confirmation des participants
   const [requiresConfirmation, setRequiresConfirmation] = useState(false)
   const [confirmationRequired, setConfirmationRequired] = useState<string[]>([])
 
+  // ✅ FIX: Tracker si l'utilisateur a manuellement modifié la sélection de confirmation
+  // Ceci permet de préserver sa sélection lors des re-renders ou toggles
+  const userHasModifiedConfirmation = useRef(false)
+
   // Handler pour toggle la confirmation d'un participant
   const handleConfirmationRequiredChange = (userId: string, required: boolean) => {
+    userHasModifiedConfirmation.current = true  // ✅ Marquer comme modifié par l'utilisateur
     setConfirmationRequired(prev =>
       required ? [...prev, userId] : prev.filter(id => id !== userId)
     )
   }
 
   // Handler pour le toggle "Demander confirmation" - sélectionne tous par défaut
+  // ✅ SIMPLIFIÉ: Utilise buildAllParticipantIds (défini plus bas) pour éviter la duplication
   const handleRequiresConfirmationChange = (requires: boolean) => {
     setRequiresConfirmation(requires)
 
     if (requires) {
-      // Collecter tous les IDs de participants (sauf utilisateur courant)
-      const allParticipantIds: string[] = []
-
-      // Gestionnaires sélectionnés (sauf utilisateur courant)
-      const currentUserId = user?.id
-      for (const managerId of selectedManagerIds) {
-        const manager = managers.find((m: any) => String(m.id) === managerId)
-        if (manager && !(manager as any).isCurrentUser && managerId !== currentUserId) {
-          allParticipantIds.push(managerId)
-        }
+      // Seulement auto-peupler si l'utilisateur n'a pas modifié manuellement
+      // ET si la liste est vide (première activation)
+      if (!userHasModifiedConfirmation.current && confirmationRequired.length === 0) {
+        setConfirmationRequired(buildAllParticipantIds())
       }
-
-      // Prestataires sélectionnés
-      allParticipantIds.push(...selectedProviderIds)
-
-      // Locataires (lot-level ou building-level)
-      if (selectedLogement?.type === 'lot' && selectedLogement?.tenants) {
-        // Pour lot-level, les IDs sont générés - on les ajoute aussi
-        selectedLogement.tenants.forEach((_: any, i: number) => {
-          allParticipantIds.push(`tenant-${selectedLogement?.id || 'unknown'}-${i}`)
-        })
-      } else if (selectedLogement?.type === 'building' && buildingTenants && includeTenants) {
-        // Pour building-level, utiliser les vrais user_id
-        for (const lotGroup of buildingTenants.byLot) {
-          if (!excludedLotIds.has(lotGroup.lotId)) {
-            for (const tenant of lotGroup.tenants) {
-              allParticipantIds.push(tenant.user_id)
-            }
-          }
-        }
-      }
-
-      setConfirmationRequired(allParticipantIds)
+      // Si l'utilisateur a déjà modifié, on garde sa sélection
     }
     // Note: on ne vide PAS la sélection quand on désactive le toggle
     // pour permettre à l'utilisateur de réactiver sans perdre sa sélection
@@ -232,13 +228,91 @@ export default function NouvelleInterventionClient({
   const [loading, setLoading] = useState(false)
   const [currentUserTeam, setCurrentUserTeam] = useState<any>(null)
 
+  // ✅ Filtrer les locataires selon le contrat sélectionné
+  // Si aucun contrat n'est sélectionné (null), on ne montre pas de locataires
+  const filteredTenants = useMemo(() => {
+    // Pas de lot sélectionné ou pas occupé
+    if (!selectedLogement?.tenants || selectedLogement.type !== 'lot') {
+      return []
+    }
+
+    // Aucun contrat sélectionné → pas de locataires à afficher
+    if (!selectedContractId) {
+      return []
+    }
+
+    // Contrat sélectionné → filtrer les locataires par contract_id
+    return selectedLogement.tenants.filter(
+      (tenant: any) => tenant.contract_id === selectedContractId
+    )
+  }, [selectedLogement, selectedContractId])
+
+  // ✅ Fonction utilitaire centralisée pour construire la liste des participants à confirmer
+  // Utilisé par handleRequiresConfirmationChange et useEffect de schedulingType
+  const buildAllParticipantIds = useCallback((): string[] => {
+    const ids: string[] = []
+    const currentUserId = user?.id
+
+    // 1. Gestionnaires sélectionnés (sauf utilisateur courant)
+    for (const managerId of selectedManagerIds) {
+      const manager = managers.find((m: any) => String(m.id) === managerId)
+      if (manager && !(manager as any).isCurrentUser && managerId !== currentUserId) {
+        ids.push(managerId)
+      }
+    }
+
+    // 2. Prestataires sélectionnés (tous)
+    ids.push(...selectedProviderIds)
+
+    // 3. Locataires (logique unifiée)
+    if (selectedLogement?.type === 'lot' && selectedContractId && includeTenants) {
+      // Lot-level: utiliser filteredTenants (filtrés par contrat sélectionné)
+      filteredTenants.forEach((tenant: any) => {
+        if (tenant.user_id) {
+          ids.push(tenant.user_id)
+        }
+      })
+    } else if (selectedLogement?.type === 'building' && buildingTenants && includeTenants) {
+      // Building-level: parcourir les lots non exclus
+      for (const lotGroup of buildingTenants.byLot) {
+        if (!excludedLotIds.includes(lotGroup.lotId)) {
+          for (const tenant of lotGroup.tenants) {
+            ids.push(tenant.user_id)
+          }
+        }
+      }
+    }
+
+    return [...new Set(ids)] // Dédupliquer
+  }, [
+    selectedManagerIds,
+    selectedProviderIds,
+    selectedLogement,
+    selectedContractId,
+    filteredTenants,
+    buildingTenants,
+    includeTenants,
+    excludedLotIds,
+    managers,
+    user?.id
+  ])
+
   // Ref pour le modal ContactSelector
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
 
-  const router = useRouter()
-  const { toast } = useToast()
-  const searchParams = useSearchParams()
-  const { user, loading: authLoading } = useAuth()
+  // ✅ FIX: Ref to track mount status (persists across Strict Mode remounts)
+  // Unlike local variables in useEffect, refs persist and only change on final unmount
+  const isMountedRef = useRef(true)
+
+  // ✅ FIX: Manage mount lifecycle - only set to false on final unmount
+  useEffect(() => {
+    isMountedRef.current = true
+    return () => {
+      isMountedRef.current = false
+    }
+  }, []) // Empty deps = runs once on mount, cleanup on final unmount
+
+  // ✅ NOTE: router, toast, searchParams, user hooks moved to top of component (lines 112-115)
 
   // ✅ NEW: Lazy service initialization - Services créés uniquement quand auth est prête
   const [services, setServices] = useState<{
@@ -266,7 +340,10 @@ export default function NouvelleInterventionClient({
     files: fileUpload.files,
     // Multi-provider mode
     assignmentMode,
-    providerInstructions
+    providerInstructions,
+    // Contract selection
+    selectedContractId,
+    availableContracts
   }
   const { saveAndRedirect } = useSaveFormState(formState)
 
@@ -290,6 +367,9 @@ export default function NouvelleInterventionClient({
     // Multi-provider mode
     if (restoredState.assignmentMode) setAssignmentMode(restoredState.assignmentMode)
     if (restoredState.providerInstructions) setProviderInstructions(restoredState.providerInstructions)
+    // Contract selection
+    if (restoredState.selectedContractId) setSelectedContractId(restoredState.selectedContractId)
+    if (restoredState.availableContracts) setAvailableContracts(restoredState.availableContracts)
     // Note: files ne sont pas restaurés car ils ne sont pas sérialisables
   })
 
@@ -590,6 +670,135 @@ export default function NouvelleInterventionClient({
     }
   }, [])
 
+  // ✅ Extract primitive value BEFORE useEffect to avoid reference changes
+  // This prevents multiple useEffect executions from searchParams object changing
+  const fromEmailParam = searchParams.get('fromEmail')
+
+  // ✅ NEW: Pré-remplissage depuis email (création d'intervention depuis la boîte mail)
+  // ✅ OPTIMIZED: PDF is generated in background while user fills form (instant redirect)
+  // ✅ FIX: Uses isMountedRef instead of local variable to survive React Strict Mode remounts
+  useEffect(() => {
+    if (isPreFilled) return // Prevent re-execution if already pre-filled
+
+    if (fromEmailParam !== 'true') return
+
+    // Récupérer les données depuis sessionStorage
+    const emailDataStr = sessionStorage.getItem('intervention-from-email')
+    if (!emailDataStr) {
+      logger.warn('⚠️ [PRE-FILL-EMAIL] No email data found in sessionStorage')
+      return
+    }
+
+    try {
+      const emailData = JSON.parse(emailDataStr)
+      logger.info('📧 [PRE-FILL-EMAIL] Pre-filling from email:', {
+        emailId: emailData.emailId,
+        title: emailData.title?.substring(0, 50),
+        pdfPending: emailData.pdfPending
+      })
+
+      // 1. Stocker l'emailId pour liaison après création
+      if (emailData.emailId) {
+        setSourceEmailId(emailData.emailId)
+      }
+
+      // 2. Pré-remplir le formulaire (titre et description)
+      setFormData(prev => ({
+        ...prev,
+        title: emailData.title || prev.title,
+        description: emailData.description || prev.description
+      }))
+
+      // 3. ✅ BACKGROUND PDF GENERATION: Fetch PDF asynchronously
+      // User can start filling the form immediately while PDF generates (~5s)
+      if (emailData.pdfPending && emailData.emailId) {
+        logger.debug({ emailId: emailData.emailId }, '[PRE-FILL-EMAIL] Starting background PDF generation')
+
+        // Fire-and-forget: generate PDF in background
+        fetch(`/api/emails/${emailData.emailId}/pdf`)
+          .then(response => response.json())
+          .then(pdfResult => {
+            // ✅ FIX: Use ref instead of local variable - persists across Strict Mode remounts
+            if (!isMountedRef.current) {
+              return
+            }
+
+            if (pdfResult.success && !pdfResult.fallback && pdfResult.pdfUrl) {
+              // Download the PDF from the signed URL
+              return fetch(pdfResult.pdfUrl)
+                .then(response => {
+                  if (!response.ok) throw new Error(`PDF download failed: ${response.status}`)
+                  return response.blob()
+                })
+                .then(blob => {
+                  // ✅ FIX: Check ref again after async download
+                  if (!isMountedRef.current) {
+                    return
+                  }
+
+                  // Create File object and add to form
+                  const pdfFile = new File([blob], pdfResult.filename || 'email.pdf', {
+                    type: 'application/pdf'
+                  })
+
+                  fileUpload.addFiles([pdfFile], 'email') // ✅ Set document type to 'email' for email PDFs
+                  logger.info({ filename: pdfFile.name, size: pdfFile.size }, '[PRE-FILL-EMAIL] PDF attachment added')
+                })
+            } else {
+              logger.debug({
+                success: pdfResult.success,
+                fallback: pdfResult.fallback,
+                hasUrl: !!pdfResult.pdfUrl,
+                error: pdfResult.error
+              }, '[PRE-FILL-EMAIL] PDF not available')
+            }
+          })
+          .catch(pdfError => {
+            if (!isMountedRef.current) return
+            logger.warn({ error: pdfError }, '[PRE-FILL-EMAIL] Background PDF generation failed')
+            // Non-blocking: intervention can be created without PDF
+          })
+      }
+      // Legacy support: if pdfUrl already exists (old flow), download it directly
+      else if (emailData.pdfUrl && emailData.pdfFilename) {
+        logger.info('📄 [PRE-FILL-EMAIL] Downloading pre-generated PDF...')
+
+        fetch(emailData.pdfUrl)
+          .then(response => {
+            if (!response.ok) throw new Error('PDF download failed')
+            return response.blob()
+          })
+          .then(blob => {
+            if (!isMountedRef.current) return
+
+            const pdfFile = new File([blob], emailData.pdfFilename, {
+              type: 'application/pdf'
+            })
+
+            fileUpload.addFiles([pdfFile], 'email') // ✅ Set document type to 'email' for email PDFs
+            logger.info('✅ [PRE-FILL-EMAIL] PDF attachment added')
+          })
+          .catch(pdfError => {
+            if (!isMountedRef.current) return
+            logger.warn('⚠️ [PRE-FILL-EMAIL] Could not add PDF attachment:', pdfError)
+          })
+      }
+
+      // 4. Nettoyer sessionStorage
+      sessionStorage.removeItem('intervention-from-email')
+
+      // 5. Marquer comme pré-rempli
+      setIsPreFilled(true)
+
+      logger.info('✅ [PRE-FILL-EMAIL] Form pre-filled from email')
+
+    } catch (parseError) {
+      logger.error('❌ [PRE-FILL-EMAIL] Failed to parse email data:', parseError)
+      sessionStorage.removeItem('intervention-from-email')
+    }
+    // ✅ No cleanup needed here - isMountedRef is managed by its own useEffect
+  }, [fromEmailParam, isPreFilled]) // ✅ Use primitive value instead of searchParams object
+
   // ✅ NEW: Pré-remplissage depuis lot/immeuble (gestionnaire)
   useEffect(() => {
     if (!services) {
@@ -599,8 +808,9 @@ export default function NouvelleInterventionClient({
 
     if (isPreFilled) return // Prevent re-execution if already pre-filled
 
-    const lotId = searchParams.get("lotId")
-    const buildingId = searchParams.get("buildingId")
+    // ✅ Support both camelCase (legacy) and snake_case (from finalization modal)
+    const lotId = searchParams.get("lotId") || searchParams.get("lot_id")
+    const buildingId = searchParams.get("buildingId") || searchParams.get("building_id")
 
     if (lotId) {
       // Pré-remplir avec un lot spécifique
@@ -619,46 +829,80 @@ export default function NouvelleInterventionClient({
     }
   }, [services, searchParams, isPreFilled])
 
+  // ✅ NEW: Pré-remplissage depuis intervention de suivi (follow-up après finalisation)
+  useEffect(() => {
+    if (isPreFilled) return // Prevent re-execution if already pre-filled
+
+    const fromInterventionId = searchParams.get("from_intervention")
+    if (!fromInterventionId) return
+
+    // ⚠️ Attendre que services soit prêt AVANT de modifier le formulaire
+    // pour éviter les exécutions multiples du setFormData
+    if (!services) {
+      logger.info("⏳ [PRE-FILL-FOLLOWUP] Services not ready, waiting...")
+      return
+    }
+
+    logger.info("🔄 [PRE-FILL-FOLLOWUP] Pre-filling from follow-up intervention:", fromInterventionId)
+
+    // 1. Lire les paramètres (snake_case envoyés par la modale de finalisation)
+    const lotId = searchParams.get("lot_id")
+    const buildingId = searchParams.get("building_id")
+    const title = searchParams.get("title")
+    const type = searchParams.get("type")
+    const context = searchParams.get("context")
+
+    // 2. Pré-remplir le formulaire (une seule fois, services est prêt)
+    if (title || type || context) {
+      setFormData(prev => ({
+        ...prev,
+        title: title || prev.title,
+        type: type || prev.type,
+        description: context ? `${context}\n\n` : prev.description
+      }))
+      logger.info("📝 [PRE-FILL-FOLLOWUP] Form data pre-filled:", { title, type, context })
+    }
+
+    // 3. Charger le lot ou immeuble
+    if (lotId) {
+      logger.info("🏠 [PRE-FILL-FOLLOWUP] Loading lot:", lotId)
+      loadSpecificLot(lotId).then(() => {
+        setIsPreFilled(true)
+        logger.info("✅ [PRE-FILL-FOLLOWUP] Lot loaded, form ready")
+      })
+    } else if (buildingId) {
+      logger.info("🏢 [PRE-FILL-FOLLOWUP] Loading building:", buildingId)
+      handleBuildingSelect(buildingId).then(() => {
+        setCurrentStep(2)
+        setIsPreFilled(true)
+        logger.info("✅ [PRE-FILL-FOLLOWUP] Building loaded, moved to step 2")
+      })
+    } else {
+      setIsPreFilled(true)
+      logger.info("✅ [PRE-FILL-FOLLOWUP] No lot/building, but form data set")
+    }
+  }, [services, searchParams, isPreFilled])
+
   // Reset ou pré-sélection des confirmations selon le mode de planification
+  // ✅ SIMPLIFIÉ: Utilise buildAllParticipantIds pour éviter la duplication
   useEffect(() => {
     if (schedulingType !== 'fixed' && schedulingType !== 'slots') {
       // Mode flexible : pas de confirmation
       setRequiresConfirmation(false)
       setConfirmationRequired([])
+      userHasModifiedConfirmation.current = false
     } else if (schedulingType === 'slots') {
       // Mode créneaux : sélectionner tous les participants par défaut
-      const allParticipantIds: string[] = []
-
-      // Gestionnaires sélectionnés (sauf utilisateur courant)
-      const currentUserId = user?.id
-      for (const managerId of selectedManagerIds) {
-        const manager = managers.find((m: any) => String(m.id) === managerId)
-        if (manager && !(manager as any).isCurrentUser && managerId !== currentUserId) {
-          allParticipantIds.push(managerId)
-        }
+      if (!userHasModifiedConfirmation.current) {
+        setConfirmationRequired(buildAllParticipantIds())
       }
-
-      // Prestataires sélectionnés
-      allParticipantIds.push(...selectedProviderIds)
-
-      // Locataires (lot-level ou building-level)
-      if (selectedLogement?.type === 'lot' && selectedLogement?.tenants) {
-        selectedLogement.tenants.forEach((_: any, i: number) => {
-          allParticipantIds.push(`tenant-${selectedLogement?.id || 'unknown'}-${i}`)
-        })
-      } else if (selectedLogement?.type === 'building' && buildingTenants && includeTenants) {
-        for (const lotGroup of buildingTenants.byLot) {
-          if (!excludedLotIds.has(lotGroup.lotId)) {
-            for (const tenant of lotGroup.tenants) {
-              allParticipantIds.push(tenant.user_id)
-            }
-          }
-        }
-      }
-
-      setConfirmationRequired(allParticipantIds)
     }
-  }, [schedulingType, selectedManagerIds, selectedProviderIds, selectedLogement, buildingTenants, includeTenants, excludedLotIds, managers, user?.id])
+  }, [schedulingType, buildAllParticipantIds])
+
+  // ✅ Reset le flag de modification quand le mode de planification change
+  useEffect(() => {
+    userHasModifiedConfirmation.current = false
+  }, [schedulingType])
 
   const getRelatedContacts = () => {
     return [...managers, ...providers]
@@ -697,29 +941,28 @@ export default function NouvelleInterventionClient({
   }
 
   // Fonctions de gestion des contacts
+  // ✅ SIMPLIFIÉ: Suppression de la normalisation redondante (les IDs sont déjà des strings)
   const handleManagerSelect = (managerId: string) => {
-    logger.info("👤 Sélection du gestionnaire:", { managerId, type: typeof managerId })
-    const normalizedManagerId = String(managerId)
+    logger.info("👤 Sélection du gestionnaire:", { managerId })
     setSelectedManagerIds(prevIds => {
       logger.info("👤 IDs gestionnaires actuels:", prevIds)
-      const normalizedPrevIds = prevIds.map(id => String(id))
-      if (normalizedPrevIds.includes(normalizedManagerId)) {
+      if (prevIds.includes(managerId)) {
         // Si déjà sélectionné, le retirer
-        const newIds = normalizedPrevIds.filter(id => id !== normalizedManagerId)
+        const newIds = prevIds.filter(id => id !== managerId)
         logger.info("👤 Gestionnaire retiré, nouveaux IDs:", newIds)
         // Retirer aussi de la liste de confirmation
-        setConfirmationRequired(prev => prev.filter(id => id !== normalizedManagerId))
+        setConfirmationRequired(prev => prev.filter(id => id !== managerId))
         return newIds
       } else {
         // Sinon l'ajouter
-        const newIds = [...normalizedPrevIds, normalizedManagerId]
+        const newIds = [...prevIds, managerId]
         logger.info("👤 Gestionnaire ajouté, nouveaux IDs:", newIds)
         // Si confirmation active, l'ajouter automatiquement à la liste
         if (requiresConfirmation) {
           // Vérifier que ce n'est pas l'utilisateur courant
-          const manager = managers.find((m: any) => String(m.id) === normalizedManagerId)
-          if (manager && !(manager as any).isCurrentUser && normalizedManagerId !== user?.id) {
-            setConfirmationRequired(prev => [...prev, normalizedManagerId])
+          const manager = managers.find((m: any) => String(m.id) === managerId)
+          if (manager && !(manager as any).isCurrentUser && managerId !== user?.id) {
+            setConfirmationRequired(prev => [...prev, managerId])
           }
         }
         return newIds
@@ -728,26 +971,24 @@ export default function NouvelleInterventionClient({
   }
 
   const handleProviderSelect = (providerId: string) => {
-    logger.info("🔧 Sélection du prestataire:", { providerId, type: typeof providerId })
-    logger.info("🔧 Provider sélectionné depuis la liste:", providers.find(p => String(p.id) === String(providerId)))
-    const normalizedProviderId = String(providerId)
+    logger.info("🔧 Sélection du prestataire:", { providerId })
+    logger.info("🔧 Provider sélectionné depuis la liste:", providers.find(p => String(p.id) === providerId))
     setSelectedProviderIds(prevIds => {
       logger.info("🔧 IDs prestataires actuels:", prevIds)
-      const normalizedPrevIds = prevIds.map(id => String(id))
-      if (normalizedPrevIds.includes(normalizedProviderId)) {
+      if (prevIds.includes(providerId)) {
         // Si déjà sélectionné, le retirer
-        const newIds = normalizedPrevIds.filter(id => id !== normalizedProviderId)
+        const newIds = prevIds.filter(id => id !== providerId)
         logger.info("🔧 Prestataire retiré, nouveaux IDs:", newIds)
         // Si on passe à 1 ou 0 prestataire, revenir au mode single
         if (newIds.length <= 1) {
           setAssignmentMode('single')
         }
         // Retirer aussi de la liste de confirmation
-        setConfirmationRequired(prev => prev.filter(id => id !== normalizedProviderId))
+        setConfirmationRequired(prev => prev.filter(id => id !== providerId))
         return newIds
       } else {
-        // ✅ Multi-sélection : ajouter le prestataire
-        const newIds = [...normalizedPrevIds, normalizedProviderId]
+        // Multi-sélection : ajouter le prestataire
+        const newIds = [...prevIds, providerId]
         logger.info("🔧 Prestataire ajouté, nouveaux IDs:", newIds)
         // Si on passe à plusieurs prestataires, suggérer le mode group par défaut
         if (newIds.length > 1 && assignmentMode === 'single') {
@@ -755,7 +996,7 @@ export default function NouvelleInterventionClient({
         }
         // Si confirmation active, l'ajouter automatiquement à la liste
         if (requiresConfirmation) {
-          setConfirmationRequired(prev => [...prev, normalizedProviderId])
+          setConfirmationRequired(prev => [...prev, providerId])
         }
         return newIds
       }
@@ -816,10 +1057,12 @@ export default function NouvelleInterventionClient({
   const handleBuildingSelect = async (buildingId: string | null) => {
     setSelectedBuildingId(buildingId || undefined)
     setSelectedLotId(undefined)
-    // Reset building tenants and excluded lots when changing selection
+    // Reset building tenants, excluded lots, and contract selection when changing selection
     setBuildingTenants(null)
-    setExcludedLotIds(new Set())
+    setExcludedLotIds([])
     setIncludeTenants(false)
+    setSelectedContractId(null)
+    setAvailableContracts([])
 
     if (!buildingId) {
       setSelectedLogement(null)
@@ -920,8 +1163,10 @@ export default function NouvelleInterventionClient({
   }
 
   const handleLotSelect = async (lotId: string | null, buildingId?: string) => {
-    // Reset building tenants when switching to lot selection
+    // Reset building tenants and contract selection when switching lots
     setBuildingTenants(null)
+    setSelectedContractId(null)
+    setAvailableContracts([])
 
     if (!lotId) {
       setSelectedLotId(undefined)
@@ -970,9 +1215,11 @@ export default function NouvelleInterventionClient({
             || tenantsResult.data.tenants[0]
 
           const tenants = tenantsResult.data.tenants.map(t => ({
+            user_id: t.user_id,
             name: t.name,
             email: t.email,
-            phone: t.phone
+            phone: t.phone,
+            contract_id: t.contract_id  // Pour filtrer par contrat sélectionné
           }))
 
           // Mettre à jour selectedLogement avec les tenants
@@ -984,9 +1231,39 @@ export default function NouvelleInterventionClient({
             tenants
           } : prev)
 
-          logger.info("✅ [LOT-SELECT] Tenant data loaded (early):", {
+          // ✅ Extract unique contracts from tenants (with dates)
+          const contractsMap = new Map<string, { id: string; title: string; tenantNames: string[]; startDate: string; endDate: string }>()
+          tenantsResult.data.tenants.forEach(tenant => {
+            if (tenant.contract_id) {
+              const existing = contractsMap.get(tenant.contract_id)
+              if (existing) {
+                existing.tenantNames.push(tenant.name)
+              } else {
+                contractsMap.set(tenant.contract_id, {
+                  id: tenant.contract_id,
+                  title: tenant.contract_title,
+                  tenantNames: [tenant.name],
+                  startDate: tenant.contract_start_date,
+                  endDate: tenant.contract_end_date
+                })
+              }
+            }
+          })
+
+          const contracts = Array.from(contractsMap.values())
+          setAvailableContracts(contracts)
+
+          // Auto-select if only one contract
+          if (contracts.length === 1) {
+            setSelectedContractId(contracts[0].id)
+          } else {
+            setSelectedContractId(null)
+          }
+
+          logger.info("✅ [LOT-SELECT] Tenant and contract data loaded (early):", {
             primaryTenant: primaryTenant.name,
-            tenantsCount: tenants.length
+            tenantsCount: tenants.length,
+            contractsCount: contracts.length
           })
         }
       } catch (tenantError) {
@@ -1010,7 +1287,7 @@ export default function NouvelleInterventionClient({
         let tenantName: string | null = lotData.tenant?.name || null
         let tenantEmail: string | null = null
         let tenantPhone: string | null = null
-        let tenants: Array<{ name: string; email: string | null; phone: string | null }> = []
+        let tenants: Array<{ user_id: string; name: string; email: string | null; phone: string | null; contract_id: string | null }> = []
 
         try {
           const tenantsResult = await getActiveTenantsByLotAction(lotIdStr)
@@ -1023,11 +1300,13 @@ export default function NouvelleInterventionClient({
             tenantEmail = primaryTenant.email
             tenantPhone = primaryTenant.phone
 
-            // Stocker tous les locataires
+            // Stocker tous les locataires avec contract_id pour filtrage
             tenants = tenantsResult.data.tenants.map(t => ({
+              user_id: t.user_id,
               name: t.name,
               email: t.email,
-              phone: t.phone
+              phone: t.phone,
+              contract_id: t.contract_id  // Pour filtrer par contrat sélectionné
             }))
 
             logger.info("✅ [LOT-SELECT] Tenant data loaded from contracts:", {
@@ -1200,8 +1479,22 @@ export default function NouvelleInterventionClient({
         }
         break
 
-      case 4: // Planification (pas de champs requis)
-        // Les champs de cette étape sont optionnels
+      case 4: // Planification - validation selon le mode
+        // ✅ FIX 2026-01-25: Validation conditionnelle selon schedulingType
+        if (schedulingType === 'fixed') {
+          if (!fixedDateTime.date) {
+            errors.push("Veuillez sélectionner une date pour l'intervention")
+          }
+          if (!fixedDateTime.time) {
+            errors.push("Veuillez sélectionner une heure pour l'intervention")
+          }
+        }
+        if (schedulingType === 'slots') {
+          if (!timeSlots || timeSlots.length === 0) {
+            errors.push("Veuillez ajouter au moins un créneau horaire")
+          }
+        }
+        // Mode 'flexible' : aucune validation requise (c'est le comportement souhaité)
         break
     }
 
@@ -1237,6 +1530,9 @@ export default function NouvelleInterventionClient({
 
 
   const handleCreateIntervention = async () => {
+    // ✅ Protection contre les doubles clics
+    if (isCreating) return
+
     setIsCreating(true)
     setError("")
 
@@ -1301,8 +1597,9 @@ export default function NouvelleInterventionClient({
             ? includeTenants
             : false,
         // Excluded lots (for building interventions with granular selection)
+        // ✅ excludedLotIds est déjà un array, pas besoin de Array.from()
         excludedLotIds: selectedLogement?.type === 'building' && includeTenants
-          ? Array.from(excludedLotIds)
+          ? excludedLotIds
           : [],
 
         // Confirmation des participants
@@ -1317,7 +1614,20 @@ export default function NouvelleInterventionClient({
             : [],
 
         // Team context
-        teamId: currentUserTeam?.id || initialBuildingsData.teamId
+        teamId: currentUserTeam?.id || initialBuildingsData.teamId,
+
+        // Source email (for automatic linking after creation)
+        sourceEmailId: sourceEmailId || undefined,
+
+        // Contract link (for occupied lots with active contracts)
+        contractId: selectedContractId || undefined,
+
+        // ✅ FIX 2026-01-25: Explicit tenant selection for lot interventions
+        // Only include tenant IDs from the selected contract (filteredTenants)
+        // This prevents auto-assignment of ALL active tenants when no contract is selected
+        selectedTenantIds: selectedLogement?.type === 'lot' && includeTenants && filteredTenants.length > 0
+          ? filteredTenants.map((t: { user_id: string }) => t.user_id).filter(Boolean)
+          : []
       }
 
       logger.info("📝 Sending intervention data:", interventionData)
@@ -1466,42 +1776,110 @@ export default function NouvelleInterventionClient({
                   <h3 className="text-lg font-medium">Détails de l'intervention</h3>
                 </div>
 
-                {/* Localisation compacte + bouton modifier */}
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Home className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium text-sm">
-                      {selectedLogement.type === 'lot'
-                        ? (selectedLogement.building
-                            ? `${selectedLogement.building} › Lot ${selectedLogement.name}`
-                            : `Lot ${selectedLogement.name}`)
-                        : selectedLogement.name}
-                    </span>
-                    {selectedLogement.address && (
-                      <>
-                        <span className="text-muted-foreground">•</span>
-                        <span className="text-sm text-muted-foreground">{selectedLogement.address}</span>
-                      </>
-                    )}
-
-                    {/* Badge occupation (lots uniquement) */}
-                    {selectedLogement.type === 'lot' && (
-                      <Badge variant={selectedLogement.is_occupied ? "default" : "secondary"} className="ml-1">
-                        {selectedLogement.is_occupied ? "Occupé" : "Vacant"}
-                      </Badge>
-                    )}
+                {/* Localisation + Contrat - Grille alignée avec le formulaire en dessous (2fr_1fr) */}
+                <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
+                  {/* Localisation compacte + bouton modifier - Aligné avec Titre/Description */}
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <Home className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="font-medium text-sm">
+                        {selectedLogement.type === 'lot'
+                          ? (selectedLogement.building
+                              ? `${selectedLogement.building} › Lot ${selectedLogement.name}`
+                              : `Lot ${selectedLogement.name}`)
+                          : selectedLogement.name}
+                      </span>
+                      {selectedLogement.address && (
+                        <>
+                          <span className="text-muted-foreground">•</span>
+                          <span className="text-sm text-muted-foreground">{selectedLogement.address}</span>
+                        </>
+                      )}
+                      {/* Badge occupation (lots uniquement) */}
+                      {selectedLogement.type === 'lot' && (
+                        <Badge variant={selectedLogement.is_occupied ? "default" : "secondary"} className="ml-1 flex-shrink-0">
+                          {selectedLogement.is_occupied ? "Occupé" : "Vacant"}
+                        </Badge>
+                      )}
+                    </div>
+                    {/* Bouton modifier -> retour étape 1 */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCurrentStep(1)}
+                      className="h-8 px-2 text-muted-foreground hover:text-foreground flex-shrink-0 ml-2"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      <span className="sr-only">Modifier le bien</span>
+                    </Button>
                   </div>
 
-                  {/* Bouton modifier -> retour étape 1 */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setCurrentStep(1)}
-                    className="h-8 px-2 text-muted-foreground hover:text-foreground"
-                  >
-                    <Pencil className="h-4 w-4" />
-                    <span className="sr-only">Modifier le bien</span>
-                  </Button>
+                  {/* Contract Selection - Aligné avec Type+Urgence / Files */}
+                  {selectedLogement?.type === 'lot' &&
+                   selectedLogement?.is_occupied &&
+                   availableContracts.length > 0 ? (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900">
+                      <label className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2 block">
+                        Lier à un contrat
+                      </label>
+                      <Select
+                        value={selectedContractId || 'none'}
+                        onValueChange={(value) => {
+                          const newContractId = value === 'none' ? null : value
+                          setSelectedContractId(newContractId)
+                          setIncludeTenants(newContractId !== null)
+                        }}
+                      >
+                        <SelectTrigger className="bg-white dark:bg-slate-900 h-auto py-2 w-full">
+                          <SelectValue placeholder="Sélectionner...">
+                            {selectedContractId && availableContracts.find(c => c.id === selectedContractId) ? (
+                              <div className="flex flex-col items-start text-left">
+                                <span className="font-medium text-sm">
+                                  {availableContracts.find(c => c.id === selectedContractId)?.title}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {availableContracts.find(c => c.id === selectedContractId)?.tenantNames.join(', ')}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">Aucun</span>
+                            )}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">
+                            <span className="text-muted-foreground">Aucun contrat</span>
+                          </SelectItem>
+                          {availableContracts.map((contract) => {
+                            const formatDate = (dateStr: string) => {
+                              const date = new Date(dateStr)
+                              return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
+                            }
+                            const dateRange = `${formatDate(contract.startDate)} - ${formatDate(contract.endDate)}`
+
+                            return (
+                              <SelectItem key={contract.id} value={contract.id}>
+                                <div className="flex flex-col">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{contract.title}</span>
+                                    <span className="text-xs text-muted-foreground bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                      {dateRange}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">
+                                    {contract.tenantNames.join(', ')}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            )
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    /* Placeholder vide pour maintenir la grille alignée */
+                    <div />
+                  )}
                 </div>
               </div>
 
@@ -1631,8 +2009,8 @@ export default function NouvelleInterventionClient({
               <AssignmentSectionV2
                 managers={managers as any[]}
                 providers={providers as any[]}
-                tenants={(selectedLogement?.tenants || []).map((t: any, i: number) => ({
-                  id: `tenant-${selectedLogement?.id || 'unknown'}-${i}`,
+                tenants={filteredTenants.map((t: any, i: number) => ({
+                  id: t.user_id || `tenant-${selectedLogement?.id || 'unknown'}-${i}`,
                   name: t.name || 'Locataire',
                   email: t.email || '',
                   phone: t.phone || '',
@@ -1672,9 +2050,9 @@ export default function NouvelleInterventionClient({
                     [providerId]: instructions
                   }))
                 }}
-                // Tenant toggle props (for occupied lots OR buildings with tenants)
+                // Tenant toggle props (for occupied lots with selected contract OR buildings with tenants)
                 showTenantsSection={
-                  (selectedLogement?.type === 'lot' && selectedLogement?.is_occupied === true) ||
+                  (selectedLogement?.type === 'lot' && selectedLogement?.is_occupied === true && selectedContractId !== null) ||
                   (selectedLogement?.type === 'building' && buildingTenants?.hasActiveTenants === true)
                 }
                 includeTenants={includeTenants}
@@ -1706,7 +2084,15 @@ export default function NouvelleInterventionClient({
                 building: selectedLogement?.building,
                 address: selectedLogement?.address,
                 floor: selectedLogement?.floor,
-                tenant: selectedLogement?.tenant,
+                // ✅ FIX: Ne passer tenant QUE si des locataires sont réellement inclus
+                // Évite le fallback dans InterventionConfirmationSummary qui afficherait
+                // un locataire même si l'utilisateur n'en a pas sélectionné
+                tenant: (
+                  // Cas 1: Lot avec contrat sélectionné et locataires inclus
+                  (selectedLogement?.type === 'lot' && includeTenants && selectedContractId && filteredTenants.length > 0) ||
+                  // Cas 2: Immeuble avec locataires inclus
+                  (selectedLogement?.type === 'building' && includeTenants && buildingTenants?.hasActiveTenants)
+                ) ? selectedLogement?.tenant : undefined,
               },
               intervention: {
                 title: formData.title,
@@ -1726,33 +2112,26 @@ export default function NouvelleInterventionClient({
                   speciality: contact.speciality,
                   isCurrentUser: contact.isCurrentUser,
                 })),
-                // ✅ Ajouter tous les locataires du lot sélectionné (depuis les contrats actifs)
-                ...(selectedLogement?.tenants && selectedLogement.tenants.length > 0
-                  ? selectedLogement.tenants.map((tenant: { name: string; email: string | null; phone: string | null }, index: number) => ({
-                      id: `tenant-${selectedLogement.id}-${index}`,
+                // ✅ Ajouter les locataires du lot filtrés par contrat sélectionné
+                ...(filteredTenants.length > 0 && includeTenants && selectedContractId
+                  ? filteredTenants.map((tenant: { user_id: string; name: string; email: string | null; phone: string | null; contract_id: string | null }, index: number) => ({
+                      id: tenant.user_id || `tenant-${selectedLogement?.id}-${index}`,
                       name: tenant.name,
                       role: 'Locataire',
                       email: tenant.email || undefined,
                       phone: tenant.phone || undefined,
                       isCurrentUser: false,
                     }))
-                  // Fallback si pas de liste mais juste le nom
-                  : selectedLogement?.tenant ? [{
-                      id: `tenant-${selectedLogement.id}`,
-                      name: selectedLogement.tenant,
-                      role: 'Locataire',
-                      email: selectedLogement.tenantEmail || undefined,
-                      phone: selectedLogement.tenantPhone || undefined,
-                      isCurrentUser: false,
-                    }]
                   : []),
                 // 🆕 Ajouter les locataires d'immeuble (depuis buildingTenants)
-                // ✅ Utiliser user_id pour matcher avec confirmationRequired
-                ...(buildingTenants && includeTenants
+                // ✅ Utiliser clé composite lot+user pour éviter les doublons React
+                // (un même locataire peut apparaître dans plusieurs lots)
+                // ✅ FIX 2026-01-25: UNIQUEMENT pour interventions IMMEUBLE (pas de lot sélectionné)
+                ...(buildingTenants && includeTenants && !selectedLotId
                   ? buildingTenants.byLot
-                      .filter(lot => !excludedLotIds.has(lot.lotId))
+                      .filter(lot => !excludedLotIds.includes(lot.lotId))
                       .flatMap(lot => lot.tenants.map((tenant) => ({
-                        id: tenant.user_id,
+                        id: `${lot.lotId}-${tenant.user_id}`,
                         name: tenant.name,
                         role: 'Locataire',
                         email: tenant.email || undefined,
@@ -1777,7 +2156,13 @@ export default function NouvelleInterventionClient({
                     slots: [{
                       date: fixedDateTime.date,
                       startTime: fixedDateTime.time || '09:00',
-                      endTime: fixedDateTime.time || '09:00',
+                      endTime: (() => {
+                        // Calcul endTime = startTime + 1h
+                        const time = fixedDateTime.time || '09:00'
+                        const [hours, minutes] = time.split(':').map(Number)
+                        const endHour = (hours + 1) % 24
+                        return `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+                      })(),
                     }],
                   }
                 : schedulingType === 'immediate'

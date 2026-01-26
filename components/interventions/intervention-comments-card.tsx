@@ -15,6 +15,7 @@ import { MessageSquare, Trash2, Plus } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
+import { formatErrorMessage } from '@/lib/utils/error-formatter'
 import { addInterventionComment, deleteInterventionComment } from '@/app/actions/intervention-comment-actions'
 import { AddCommentModal } from '@/components/interventions/modals/add-comment-modal'
 import type { Database } from '@/lib/database.types'
@@ -72,8 +73,8 @@ export function InterventionCommentsCard({
           setIsModalOpen(false)
           resolve()
         } else {
-          toast.error(result.error)
-          reject(new Error(result.error))
+          toast.error(formatErrorMessage(result.error, 'Erreur lors de l\'ajout du commentaire'))
+          reject(new Error(formatErrorMessage(result.error)))
         }
       })
     })
@@ -87,7 +88,7 @@ export function InterventionCommentsCard({
         setComments(comments.filter(c => c.id !== commentId))
         toast.success('Commentaire supprimé')
       } else {
-        toast.error(result.error)
+        toast.error(formatErrorMessage(result.error, 'Erreur lors de la suppression'))
       }
     })
   }

@@ -91,21 +91,74 @@
 
 | Métrique | Valeur | Détails |
 |----------|--------|---------|
-| **API Routes** | 94 routes | 100% authentifiées, 100% rate-limited |
+| **API Routes** | 97 routes | 100% authentifiées, 100% rate-limited |
 | **Composants UI** | 270+ composants | 50+ shadcn/ui + 76 intervention workflow + 19 shared + dashboards |
 | **Storybook Stories** | 19 stories | Documentation interactive composants intervention |
-| **Services** | 24 services | Domain services (business logic) |
-| **Repositories** | 21 repositories | Data access layer avec caching |
-| **Custom Hooks** | 56 hooks | Auth, data fetching, UI state, real-time, analytics |
+| **Services** | 27 services | Domain services (business logic) |
+| **Repositories** | 20 repositories | Data access layer avec caching |
+| **Custom Hooks** | 60 hooks | Auth, data fetching, UI state, real-time, analytics |
+| **Server Actions** | 15 fichiers | Auth, CRUD entities, notifications |
 | **Validation Schemas** | 59 schémas Zod | 780+ lignes, 95% routes validées |
 | **Email Templates** | 18 templates React Email | Auth, interventions, quotes |
-| **Migrations DB** | 87 migrations | Phases 1, 2, 3, 4 (contracts) + RLS fixes appliquées |
+| **Migrations DB** | 104 migrations | Phases 1-4 + intervention types + avatars (Jan 2026) |
 | **Test Coverage** | 60% (unit) | Cible: 80% |
 | **Build Status** | ✅ 0 erreurs TS | Production ready |
 
 ---
 
-## 🚀 Dernières Mises à Jour - Décembre 2025
+## 🚀 Dernières Mises à Jour - Janvier 2026
+
+### 🔐 Google OAuth & Onboarding (Jan 9, 2026)
+
+**Authentification Google OAuth** intégrée + modal d'onboarding pour nouveaux utilisateurs.
+
+**Fonctionnalités** :
+- 🔑 **Connexion Google** - Bouton OAuth sur login et signup via Supabase Auth
+- 🎠 **Modal d'onboarding** - Carousel 5 slides pour nouveaux utilisateurs
+- 📷 **Système d'avatars** - Upload et affichage dans le header + page profil
+- 🔄 **Parsing intelligent** - Extraction prénom/nom depuis le nom complet Google
+
+**Fichiers** :
+| Fichier | Rôle |
+|---------|------|
+| `app/auth/login/login-form.tsx` | Bouton Google OAuth |
+| `app/auth/signup/signup-form.tsx` | Bouton Google OAuth |
+| `components/auth/onboarding-modal.tsx` | Modal carousel 5 slides |
+| `app/api/upload-avatar/route.ts` | Upload avatar vers Supabase Storage |
+| `components/profile-page.tsx` | Affichage et upload avatar |
+| `components/dashboard-header.tsx` | Avatar dans le header |
+
+**Migration** : `20260109120000_create_avatars_bucket.sql`
+
+---
+
+### ✅ Confirmation Participants (Jan 8, 2026)
+
+**Système de confirmation** pour les participants aux interventions.
+
+**Fonctionnalités** :
+- 📋 **Flag de confirmation** - `requires_confirmation` sur les assignments
+- ⏳ **Status de confirmation** - pending/confirmed/declined
+- 📅 **Timestamp** - Date de confirmation enregistrée
+
+**Migration** : `20260108000000_add_participant_confirmation.sql`
+
+---
+
+### 📋 Types d'Intervention Dynamiques (Jan 5, 2026)
+
+**Refactoring intervention_type** de ENUM vers VARCHAR avec tables de référence.
+
+**Changements** :
+- 📂 **3 catégories** - Organisation hiérarchique des types
+- 🔧 **35+ types** - Plomberie, électricité, serrurerie, etc.
+- 🎨 **Icônes et couleurs** - Support UI pour chaque type
+
+**Migration** : `20260105000000_intervention_types_categories.sql`
+
+---
+
+## 🚀 Mises à Jour - Décembre 2025
 
 ### 📥 Import Excel/CSV Biens (Dec 17, 2025)
 
@@ -1774,10 +1827,10 @@ npm run dev
 ```
 
 **Utilisateurs de test** (après seed de la base) :
-- **Admin**: `admin@seido.pm` / `password123`
-- **Gestionnaire**: `gestionnaire@seido.pm` / `password123`
-- **Prestataire**: `prestataire@seido.pm` / `password123`
-- **Locataire**: `locataire@seido.pm` / `password123`
+- **Admin**: `admin@seido-app.com` / `password123`
+- **Gestionnaire**: `gestionnaire@seido-app.com` / `password123`
+- **Prestataire**: `prestataire@seido-app.com` / `password123`
+- **Locataire**: `locataire@seido-app.com` / `password123`
 
 ---
 

@@ -94,15 +94,7 @@ const nextConfig = {
     ]
   },
 
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      // Optimize for client bundle
-      config.resolve.alias = {
-        ...config.resolve.alias,
-        'lodash': 'lodash-es'
-      }
-    }
-
+  webpack: (config) => {
     return config
   }
 }

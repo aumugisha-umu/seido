@@ -1,7 +1,7 @@
 "use client"
 
-import { useNavigationRefresh } from "@/hooks/use-navigation-refresh"
-import { useSessionFocusRefresh } from "@/hooks/use-session-focus-refresh"
+// import { useNavigationRefresh } from "@/hooks/use-navigation-refresh"
+// import { useSessionFocusRefresh } from "@/hooks/use-session-focus-refresh"
 import { useSessionKeepalive } from "@/hooks/use-session-keepalive"
 
 /**
@@ -13,9 +13,11 @@ import { useSessionKeepalive } from "@/hooks/use-session-keepalive"
 
 export function PrestataireLayoutClient() {
   // ✅ Navigation refresh hook (client-side seulement)
-  useNavigationRefresh()
+  // DISABLED: This was causing slow page loads by triggering server re-renders on every navigation
+  // useNavigationRefresh()
   // ✅ Refresh session on focus/visibility + soft refresh section
-  useSessionFocusRefresh()
+  // DISABLED: This was causing slow page loads by triggering server re-renders on tab focus
+  // useSessionFocusRefresh()
   // ✅ Maintain session alive during user activity
   useSessionKeepalive()
 

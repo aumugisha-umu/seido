@@ -122,17 +122,20 @@ export class EmailService {
 
       // 3. Envoyer via Resend avec logo CID attaché
       logger.info({ to, subject, hasLogo: !!this.logoAttachment }, '📧 [EMAIL-SERVICE] Sending email via Resend...')
-      const { data, error } = await this.resend.emails.send({
+      
+      const resendPayload = {
         from: from || this.defaultFrom,
         to: Array.isArray(to) ? to : [to],
         subject,
         html,
         text,
-        reply_to: replyTo,
+        replyTo: replyTo,
         tags,
         // Attacher le logo avec CID (Content-ID) pour affichage inline
         attachments: this.logoAttachment ? [this.logoAttachment] : undefined,
-      })
+      }
+
+      const { data, error } = await this.resend.emails.send(resendPayload)
 
       if (error) {
         logger.error({ error, to, subject }, '❌ [EMAIL-SERVICE] Failed to send email')
@@ -201,7 +204,7 @@ export class EmailService {
             subject: email.subject,
             html,
             text,
-            reply_to: email.replyTo,
+            replyTo: email.replyTo,
             tags: email.tags,
             // Attacher le logo avec CID (Content-ID) pour affichage inline
             attachments: this.logoAttachment ? [this.logoAttachment] : undefined,

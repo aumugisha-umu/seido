@@ -1,7 +1,7 @@
 /**
- * 📧 Template Email - Devis Approuvé
+ * 📧 Template Email - Estimation Approuvée
  *
- * Envoyé au prestataire quand le gestionnaire approuve le devis
+ * Envoyé au prestataire quand le gestionnaire approuve l'estimation
  * Objectif: Confirmer l'approbation et indiquer les prochaines étapes
  */
 
@@ -11,6 +11,7 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EmailReplyHint } from '@/emails/components/email-reply-hint'
 import type { QuoteApprovedEmailProps } from '@/emails/utils/types'
 
 export const QuoteApprovedEmail = ({
@@ -39,8 +40,8 @@ export const QuoteApprovedEmail = ({
     new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount)
 
   return (
-    <EmailLayout preview={`✅ Devis ${quoteRef} approuvé - ${formatEuro(approvedAmount)}`}>
-      <EmailHeader subject="Devis approuvé" />
+    <EmailLayout preview={`✅ Estimation ${quoteRef} approuvée - ${formatEuro(approvedAmount)}`}>
+      <EmailHeader subject="Estimation approuvée" />
 
       <Section className="bg-white px-8 py-8">
         <Text className="text-gray-700 text-base leading-relaxed mb-5 mt-0">
@@ -48,13 +49,13 @@ export const QuoteApprovedEmail = ({
         </Text>
 
         <Text className="text-gray-700 text-base leading-relaxed mb-6">
-          Bonne nouvelle ! <strong>{managerName}</strong> a approuvé votre devis.
+          Bonne nouvelle ! <strong>{managerName}</strong> a approuvé votre estimation.
         </Text>
 
         {/* Encadré confirmation */}
         <div className="bg-green-50 border-l-4 border-green-500 p-6 rounded-lg mb-6">
-          <Text className="text-green-900 font-bold text-2xl m-0">✅ Devis approuvé</Text>
-          <Text className="text-green-700 text-sm mt-2 mb-0">Approuvé le {formattedDate}</Text>
+          <Text className="text-green-900 font-bold text-2xl m-0">✅ Estimation approuvée</Text>
+          <Text className="text-green-700 text-sm mt-2 mb-0">Approuvée le {formattedDate}</Text>
         </div>
 
         {/* Montant approuvé */}
@@ -72,7 +73,7 @@ export const QuoteApprovedEmail = ({
           <table className="w-full text-sm">
             <tbody>
               <tr>
-                <td className="text-gray-600 py-2 pr-4 font-medium">Référence devis :</td>
+                <td className="text-gray-600 py-2 pr-4 font-medium">Référence estimation :</td>
                 <td className="text-gray-900 py-2 font-semibold">{quoteRef}</td>
               </tr>
               <tr>
@@ -128,6 +129,9 @@ export const QuoteApprovedEmail = ({
         )}
 
         <EmailButton href={quoteUrl}>Voir l'intervention</EmailButton>
+
+        {/* Indication de réponse par email */}
+        <EmailReplyHint />
 
         <Text className="text-gray-500 text-xs leading-relaxed text-center mt-6 mb-0">
           Vous recevrez une notification lors de la planification de l'intervention.

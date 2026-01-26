@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import {
   Select,
   SelectContent,
@@ -8,78 +8,39 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Building2, Loader2 } from 'lucide-react'
-import { createBrowserCompanyRepository } from '@/lib/services/repositories/company.repository'
-import { logger } from '@/lib/logger'
+import { Building2 } from 'lucide-react'
+
+interface Company {
+  id: string
+  name: string
+  vat_number?: string | null
+  city?: string | null
+}
 
 interface CompanySelectorProps {
-  teamId: string
+  /** Liste des sociétés (passées depuis le serveur, pas de fetch client) */
+  companies: Company[]
   value: string | null
   onChange: (companyId: string) => void
   placeholder?: string
   disabled?: boolean
+  /** @deprecated Plus utilisé - les sociétés sont passées en prop */
+  teamId?: string
 }
 
 /**
  * CompanySelector Component
  * Dropdown pour sélectionner une société existante de l'équipe
+ *
+ * ✅ Utilise les sociétés pré-chargées côté serveur (pas de fetch client)
  */
 export function CompanySelector({
-  teamId,
+  companies,
   value,
   onChange,
   placeholder = "Sélectionner une société",
   disabled = false
 }: CompanySelectorProps) {
-  const [companies, setCompanies] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const fetchCompanies = async () => {
-      try {
-        setLoading(true)
-        setError(null)
-
-        const repository = createBrowserCompanyRepository()
-        const result = await repository.findActiveByTeam(teamId)
-
-        if (result.success && result.data) {
-          setCompanies(result.data)
-          logger.info(`[COMPANY-SELECTOR] Loaded ${result.data.length} companies for team ${teamId}`)
-        } else {
-          logger.error('[COMPANY-SELECTOR] Failed to load companies:', result.error)
-          setError('Erreur lors du chargement des sociétés')
-        }
-      } catch (err) {
-        logger.error('[COMPANY-SELECTOR] Exception loading companies:', err)
-        setError('Erreur lors du chargement des sociétés')
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (teamId) {
-      fetchCompanies()
-    }
-  }, [teamId])
-
-  if (loading) {
-    return (
-      <div className="flex items-center gap-2 p-3 border rounded-md bg-gray-50">
-        <Loader2 className="h-4 w-4 animate-spin text-gray-400" />
-        <span className="text-sm text-gray-500">Chargement des sociétés...</span>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="p-3 border border-red-200 rounded-md bg-red-50">
-        <p className="text-sm text-red-600">{error}</p>
-      </div>
-    )
-  }
 
   if (companies.length === 0) {
     return (

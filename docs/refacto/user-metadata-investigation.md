@@ -18,7 +18,7 @@ Après signup et confirmation email:
 ```javascript
 ✅ [DAL] Complete user profile loaded: {
   id: '8fe621df-484c-47d0-bb68-a7f81694ed3b',
-  email: 'arthur+test04@seido.pm',
+  email: 'arthur+test04@seido-app.com',
   name: 'Utilisateur',           // ← Problème
   display_name: 'Utilisateur',   // ← Problème
   role: 'gestionnaire',
@@ -110,7 +110,7 @@ SELECT
   user_metadata,
   email_confirmed_at
 FROM auth.users
-WHERE email = 'arthur+test04@seido.pm';
+WHERE email = 'arthur+test04@seido-app.com';
 ```
 
 **Objectif**: Vérifier si les métadonnées sont stockées dans la table `auth.users`

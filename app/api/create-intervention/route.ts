@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { createServerUserService, createServerTenantService, createServerBuildingService, createServerTeamService, createServerInterventionService } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
@@ -440,54 +440,60 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ✅ SEND EMAIL NOTIFICATIONS to gestionnaires and prestataires
+    // ✅ SEND EMAIL NOTIFICATIONS to gestionnaires and prestataires (via after())
     // NOTE: This is done AFTER file uploads so that attachments are included in the emails
     if (effectiveTeamId) {
-      try {
-        const { EmailNotificationService } = await import('@/lib/services/domain/email-notification.service')
-        const { EmailService } = await import('@/lib/services/domain/email.service')
-        const {
-          createServerNotificationRepository,
-          createServerInterventionRepository,
-          createServerUserRepository,
-          createServerBuildingRepository,
-          createServerLotRepository
-        } = await import('@/lib/services')
+      // Capture variables for after() closure
+      const emailInterventionId = intervention.id
+      const emailExcludeUserId = user.id
 
-        // Use factory functions (same pattern as notifyInterventionStatusChange)
-        const notificationRepo = await createServerNotificationRepository()
-        const interventionRepo = await createServerInterventionRepository()
-        const userRepo = await createServerUserRepository()
-        const buildingRepo = await createServerBuildingRepository()
-        const lotRepo = await createServerLotRepository()
-        const emailService = new EmailService()
+      after(async () => {
+        try {
+          const { EmailNotificationService } = await import('@/lib/services/domain/email-notification.service')
+          const { EmailService } = await import('@/lib/services/domain/email.service')
+          const {
+            createServerNotificationRepository,
+            createServerInterventionRepository,
+            createServerUserRepository,
+            createServerBuildingRepository,
+            createServerLotRepository
+          } = await import('@/lib/services')
 
-        const emailNotificationService = new EmailNotificationService(
-          notificationRepo,
-          emailService,
-          interventionRepo,
-          userRepo,
-          buildingRepo,
-          lotRepo
-        )
+          // Use factory functions (same pattern as notifyInterventionStatusChange)
+          const notificationRepo = await createServerNotificationRepository()
+          const interventionRepo = await createServerInterventionRepository()
+          const userRepo = await createServerUserRepository()
+          const buildingRepo = await createServerBuildingRepository()
+          const lotRepo = await createServerLotRepository()
+          const emailService = new EmailService()
 
-        logger.info({ interventionId: intervention.id }, '📧 [CREATE-INTERVENTION] Sending email notifications')
+          const emailNotificationService = new EmailNotificationService(
+            notificationRepo,
+            emailService,
+            interventionRepo,
+            userRepo,
+            buildingRepo,
+            lotRepo
+          )
 
-        const emailResult = await emailNotificationService.sendInterventionEmails({
-          interventionId: intervention.id,
-          eventType: 'created',
-          excludeUserId: user.id  // Don't email the creator (locataire)
-        })
+          logger.info({ interventionId: emailInterventionId }, '📧 [CREATE-INTERVENTION] Sending email notifications (via after())')
 
-        logger.info({
-          interventionId: intervention.id,
-          emailsSent: emailResult.sentCount,
-          emailsFailed: emailResult.failedCount
-        }, '✅ Intervention email notifications sent')
-      } catch (emailError) {
-        // Don't fail the creation if emails fail
-        logger.error({ error: emailError }, '❌ Error sending email notifications (intervention still created)')
-      }
+          const emailResult = await emailNotificationService.sendInterventionEmails({
+            interventionId: emailInterventionId,
+            eventType: 'created',
+            excludeUserId: emailExcludeUserId  // Don't email the creator (locataire)
+          })
+
+          logger.info({
+            interventionId: emailInterventionId,
+            emailsSent: emailResult.sentCount,
+            emailsFailed: emailResult.failedCount
+          }, '✅ [API] Email notifications completed (via after())')
+        } catch (emailError) {
+          // Don't fail the creation if emails fail
+          logger.error({ error: emailError }, '⚠️ [API] Email notifications failed (via after())')
+        }
+      })
     }
 
     logger.info({}, "🎉 Intervention creation completed successfully")

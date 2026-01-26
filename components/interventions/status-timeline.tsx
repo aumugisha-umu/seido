@@ -11,10 +11,8 @@ import {
   Circle,
   XCircle,
   Clock,
-  AlertCircle,
   FileText,
   Calendar,
-  Play,
   Flag
 } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
@@ -61,9 +59,9 @@ const statusFlow: Record<InterventionStatus, TimelineStep> = {
   },
   'demande_de_devis': {
     status: 'demande_de_devis',
-    label: 'Devis demandé',
+    label: 'Estimation demandée',
     icon: FileText,
-    description: "Un devis a été demandé au prestataire"
+    description: "Une estimation a été demandée au prestataire"
   },
   'planification': {
     status: 'planification',
@@ -76,15 +74,6 @@ const statusFlow: Record<InterventionStatus, TimelineStep> = {
     label: 'Planifiée',
     icon: Clock,
     description: "L'intervention est planifiée à une date précise"
-  },
-  // DEPRECATED: 'en_cours' status is no longer used in the workflow
-  // Interventions now go directly from 'planifiee' to 'cloturee_par_*'
-  // Kept for backward compatibility with existing DB data
-  'en_cours': {
-    status: 'en_cours',
-    label: 'En cours',
-    icon: Play,
-    description: "L'intervention est en cours de réalisation"
   },
   'cloturee_par_prestataire': {
     status: 'cloturee_par_prestataire',
@@ -113,14 +102,12 @@ const statusFlow: Record<InterventionStatus, TimelineStep> = {
 }
 
 // Main workflow path (excludes rejected/cancelled)
-// Note: 'en_cours' is DEPRECATED - kept for backward compatibility with existing data
-// New workflow: planifiee → cloturee_par_prestataire (skip en_cours)
+// Workflow: planifiee → cloturee_par_prestataire (no intermediate status)
 const mainWorkflow: InterventionStatus[] = [
   'demande',
   'approuvee',
   'planification',
   'planifiee',
-  'en_cours', // DEPRECATED: kept for existing interventions in DB
   'cloturee_par_prestataire',
   'cloturee_par_locataire',
   'cloturee_par_gestionnaire'

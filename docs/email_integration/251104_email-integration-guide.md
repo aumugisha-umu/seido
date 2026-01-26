@@ -807,7 +807,7 @@ CREATE TABLE team_email_aliases (
   team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
 
   -- Alias configuration
-  alias_email VARCHAR(255) NOT NULL UNIQUE, -- e.g., team1@seido.pm
+  alias_email VARCHAR(255) NOT NULL UNIQUE, -- e.g., team1@seido-app.com
   is_active BOOLEAN DEFAULT TRUE,
 
   -- Metadata
@@ -831,7 +831,7 @@ CREATE TABLE gmail_watch_state (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
 
   -- Gmail account
-  user_email VARCHAR(255) NOT NULL UNIQUE, -- gestionnaires@seido.pm
+  user_email VARCHAR(255) NOT NULL UNIQUE, -- gestionnaires@seido-app.com
 
   -- Watch state
   history_id BIGINT NOT NULL, -- Last processed historyId
@@ -1063,7 +1063,7 @@ EXECUTE FUNCTION update_updated_at_column();
 
 COMMENT ON TABLE emails IS 'Stores all received emails with full metadata and search capabilities';
 COMMENT ON TABLE email_attachments IS 'Stores attachment metadata (actual files in Supabase Storage)';
-COMMENT ON TABLE team_email_aliases IS 'Maps email aliases (team1@seido.pm) to teams';
+COMMENT ON TABLE team_email_aliases IS 'Maps email aliases (team1@seido-app.com) to teams';
 COMMENT ON TABLE gmail_watch_state IS 'Tracks Gmail watch state for push notifications';
 
 COMMENT ON COLUMN emails.search_vector IS 'Auto-generated tsvector for full-text search (French)';
@@ -1541,7 +1541,7 @@ export class EmailService {
       // 2. Fetch history changes from Gmail
       const gmail = google.gmail({ version: 'v1', auth: this.gmailClient });
       const history = await gmail.users.history.list({
-        userId: 'gestionnaires@seido.pm',
+        userId: 'gestionnaires@seido-app.com',
         startHistoryId: lastHistoryId.toString(),
         historyTypes: ['messageAdded']
       });
@@ -1591,7 +1591,7 @@ export class EmailService {
       // 2. Fetch full message from Gmail API
       const gmail = google.gmail({ version: 'v1', auth: this.gmailClient });
       const message = await gmail.users.messages.get({
-        userId: 'gestionnaires@seido.pm',
+        userId: 'gestionnaires@seido-app.com',
         id: messageId,
         format: 'raw'
       });
@@ -1760,7 +1760,7 @@ export class EmailService {
     const { data } = await supabase
       .from('gmail_watch_state')
       .select('history_id')
-      .eq('user_email', 'gestionnaires@seido.pm')
+      .eq('user_email', 'gestionnaires@seido-app.com')
       .single();
 
     return data?.history_id || 0;
@@ -1774,7 +1774,7 @@ export class EmailService {
     await supabase
       .from('gmail_watch_state')
       .update({ history_id: parseInt(historyId) })
-      .eq('user_email', 'gestionnaires@seido.pm');
+      .eq('user_email', 'gestionnaires@seido-app.com');
   }
 
   /**
@@ -1842,7 +1842,7 @@ import { createServerSupabaseClient } from './supabase-client';
  */
 export async function getGmailClient() {
   const oauth2Client = new google.auth.OAuth2(
-    process.env.GOOGLE_CLIENT_ID,
+    process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
     process.env.GOOGLE_REDIRECT_URI
   );
@@ -1895,7 +1895,7 @@ export async function setupGmailWatch() {
     const gmail = google.gmail({ version: 'v1', auth: await getGmailClient() });
 
     const res = await gmail.users.watch({
-      userId: 'gestionnaires@seido.pm',
+      userId: 'gestionnaires@seido-app.com',
       requestBody: {
         labelIds: ['INBOX'],
         topicName: process.env.GOOGLE_PUBSUB_TOPIC,
@@ -1908,7 +1908,7 @@ export async function setupGmailWatch() {
     await supabase
       .from('gmail_watch_state')
       .upsert({
-        user_email: 'gestionnaires@seido.pm',
+        user_email: 'gestionnaires@seido-app.com',
         history_id: parseInt(res.data.historyId!),
         watch_expiration: new Date(parseInt(res.data.expiration!)).toISOString(),
         renewed_count: 0,
@@ -1934,7 +1934,7 @@ export async function renewGmailWatch() {
     const { data: watchState } = await supabase
       .from('gmail_watch_state')
       .select('*')
-      .eq('user_email', 'gestionnaires@seido.pm')
+      .eq('user_email', 'gestionnaires@seido-app.com')
       .single();
 
     if (!watchState) {
@@ -1954,7 +1954,7 @@ export async function renewGmailWatch() {
     // Renew watch
     const gmail = google.gmail({ version: 'v1', auth: await getGmailClient() });
     const res = await gmail.users.watch({
-      userId: 'gestionnaires@seido.pm',
+      userId: 'gestionnaires@seido-app.com',
       requestBody: {
         labelIds: ['INBOX'],
         topicName: process.env.GOOGLE_PUBSUB_TOPIC,
@@ -1971,7 +1971,7 @@ export async function renewGmailWatch() {
         renewed_count: watchState.renewed_count + 1,
         last_renewed_at: new Date().toISOString()
       })
-      .eq('user_email', 'gestionnaires@seido.pm');
+      .eq('user_email', 'gestionnaires@seido-app.com');
 
     console.log('Gmail watch renewed successfully');
     return res.data;
@@ -3003,13 +3003,13 @@ export async function scanFile(filePath: string): Promise<{
   - URL: https://workspace.google.com/intl/fr/pricing/
   - Plan: Business Standard ($12/utilisateur/mois)
   - Domaine: seido.pm (vérification propriété requise)
-  - Utilisateur principal: gestionnaires@seido.pm
+  - Utilisateur principal: gestionnaires@seido-app.com
 - [ ] **Vérifier propriété domaine seido.pm**
   - Via TXT record DNS ou fichier HTML
   - Délai validation: 24-48h généralement
 
 #### Jour 2-3: Configuration compte principal
-- [ ] **Créer utilisateur gestionnaires@seido.pm**
+- [ ] **Créer utilisateur gestionnaires@seido-app.com**
   - Via Google Admin Console (admin.google.com)
   - Rôle: Super Admin (REQUIS)
   - Mot de passe fort + 2FA activé
@@ -3018,24 +3018,24 @@ export async function scanFile(filePath: string): Promise<{
   - Accéder à section "User email aliases"
 
 #### Jour 4: Création alias test
-- [ ] **Créer premier alias manuellement**: test@seido.pm
-  - Admin Console → Users → gestionnaires@seido.pm → User email aliases
+- [ ] **Créer premier alias manuellement**: test@seido-app.com
+  - Admin Console → Users → gestionnaires@seido-app.com → User email aliases
   - Délai activation: quelques minutes à 24h
 - [ ] **Tester réception email**
-  - Envoyer email depuis compte externe → test@seido.pm
-  - Vérifier réception dans gestionnaires@seido.pm (via Gmail web)
+  - Envoyer email depuis compte externe → test@seido-app.com
+  - Vérifier réception dans gestionnaires@seido-app.com (via Gmail web)
 
 #### Jour 5: Validation finale
-- [ ] **Créer 2-3 alias supplémentaires** (team1@, team2@, team3@seido.pm)
+- [ ] **Créer 2-3 alias supplémentaires** (team1@, team2@, team3@seido-app.com)
 - [ ] **Documenter credentials**
-  - Email: gestionnaires@seido.pm
+  - Email: gestionnaires@seido-app.com
   - Mot de passe: (stocker dans 1Password/Vault)
   - Recovery email configuré
 - [ ] **Validation go/no-go** pour Phase 1 technique
 
 **Livrables**:
 - ✅ Google Workspace actif
-- ✅ Compte gestionnaires@seido.pm avec Super Admin
+- ✅ Compte gestionnaires@seido-app.com avec Super Admin
 - ✅ 3+ alias testés et fonctionnels
 - ✅ Domaine seido.pm vérifié
 
@@ -3056,7 +3056,7 @@ export async function scanFile(filePath: string): Promise<{
 - [ ] Activer APIs (Gmail, Admin SDK, Pub/Sub)
 - [ ] Configurer OAuth 2.0 credentials
 - [ ] ~~Créer compte Google Workspace~~ (déjà fait Phase 0)
-- [ ] Activer domain-wide delegation pour gestionnaires@seido.pm
+- [ ] Activer domain-wide delegation pour gestionnaires@seido-app.com
 
 #### Jour 3-4: Pub/Sub Configuration
 - [ ] Créer Pub/Sub topic "gmail-notifications"
@@ -3257,7 +3257,7 @@ const REQUIRED_SCOPES = [
 ];
 
 // Si erreur persiste, utiliser création manuelle temporaire
-// Admin Console → Users → gestionnaires@seido.pm → User email aliases
+// Admin Console → Users → gestionnaires@seido-app.com → User email aliases
 ```
 
 ### 9.2 Blocker: Quota Gmail API
@@ -3400,7 +3400,7 @@ const sanitizedHtml = DOMPurify.sanitize(email.body_html, {
 | **TOTAL/mois** | **$12.32** | **$13.58** | **$15.15** | **$27.75** |
 | **Coût/équipe/mois** | $1.23 | $0.27 | $0.15 | $0.06 |
 
-**² Google Workspace**: 1 seul compte requis (gestionnaires@seido.pm) car aliases illimités (max 30/compte)
+**² Google Workspace**: 1 seul compte requis (gestionnaires@seido-app.com) car aliases illimités (max 30/compte)
 
 **📊 Conclusion Scalabilité**:
 - ✅ **Architecture serverless**: Scaling automatique sans coût fixe
@@ -3484,10 +3484,10 @@ export function trackEmailProcessing(duration: number, emailCount: number) {
   - [ ] Push subscription configurée
 
 - [ ] **Google Workspace**
-  - [ ] Compte gestionnaires@seido.pm créé
+  - [ ] Compte gestionnaires@seido-app.com créé
   - [ ] Domain-wide delegation activée
   - [ ] Scopes OAuth approuvés
-  - [ ] Test alias créé (test@seido.pm)
+  - [ ] Test alias créé (test@seido-app.com)
 
 - [ ] **Supabase**
   - [ ] Migration appliquée (4 tables)
@@ -3497,7 +3497,7 @@ export function trackEmailProcessing(duration: number, emailCount: number) {
   - [ ] TypeScript types générés
 
 - [ ] **Variables d'Environnement**
-  - [ ] GOOGLE_CLIENT_ID
+  - [ ] NEXT_PUBLIC_GOOGLE_CLIENT_ID
   - [ ] GOOGLE_CLIENT_SECRET
   - [ ] GOOGLE_REDIRECT_URI
   - [ ] GOOGLE_REFRESH_TOKEN
@@ -3507,7 +3507,7 @@ export function trackEmailProcessing(duration: number, emailCount: number) {
 ### 11.2 Tests Fonctionnels
 
 - [ ] **Email Reception**
-  - [ ] Envoyer email → test@seido.pm
+  - [ ] Envoyer email → test@seido-app.com
   - [ ] Vérifier réception webhook (< 5s)
   - [ ] Vérifier stockage DB correct
   - [ ] Vérifier attachments stockés
@@ -3616,7 +3616,7 @@ export function trackEmailProcessing(duration: number, emailCount: number) {
 import { google } from 'googleapis';
 
 const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
+  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
   'https://seido.pm/api/auth/google/callback'
 );
@@ -3675,9 +3675,9 @@ LIMIT 20;
 ### 13.1 Contacts
 
 **Équipe SEIDO**:
-- **Tech Lead**: [Nom] - tech@seido.pm
-- **DevOps**: [Nom] - devops@seido.pm
-- **Support**: support@seido.pm
+- **Tech Lead**: [Nom] - tech@seido-app.com
+- **DevOps**: [Nom] - devops@seido-app.com
+- **Support**: support@seido-app.com
 
 **Google Cloud Support**:
 - Console: https://console.cloud.google.com/support
@@ -3689,7 +3689,7 @@ LIMIT 20;
 
 1. **Vérifier Gmail watch**:
    ```sql
-   SELECT * FROM gmail_watch_state WHERE user_email = 'gestionnaires@seido.pm';
+   SELECT * FROM gmail_watch_state WHERE user_email = 'gestionnaires@seido-app.com';
    ```
 
 2. **Si expiré, renouveler**:
@@ -3705,7 +3705,7 @@ LIMIT 20;
 4. **Tester manuellement**:
    ```bash
    gcloud pubsub topics publish gmail-notifications \
-     --message='{"emailAddress":"gestionnaires@seido.pm","historyId":"123"}' \
+     --message='{"emailAddress":"gestionnaires@seido-app.com","historyId":"123"}' \
      --project=seido-production
    ```
 
@@ -3750,15 +3750,15 @@ Ce guide fournit une feuille de route complète pour l'implémentation de l'int�
    - [ ] Domaine: seido.pm
 
 2. **Demain (après vérification domaine)**:
-   - [ ] Créer utilisateur `gestionnaires@seido.pm`
+   - [ ] Créer utilisateur `gestionnaires@seido-app.com`
    - [ ] Activer rôle Super Admin
    - [ ] Configurer 2FA pour sécurité
 
 3. **Jour 3-4**:
    - [ ] Créer 3 alias test manuellement:
-     - `test@seido.pm`
-     - `team1@seido.pm`
-     - `team2@seido.pm`
+     - `test@seido-app.com`
+     - `team1@seido-app.com`
+     - `team2@seido-app.com`
    - [ ] Tester réception emails
 
 4. **Jour 5 - Validation Go/No-Go**:
@@ -3823,7 +3823,7 @@ PHASE 4-5 (Features Avancées)
 ⚠️ Oui mais nécessite refonte architecture (Microsoft Graph API). Gmail API recommandé.
 
 **Q: Que se passe-t-il si on dépasse 30 alias (limite Google) ?**
-💡 Créer 2ème compte `gestionnaires2@seido.pm` ($12/mois additionnel) = 60 alias totaux.
+💡 Créer 2ème compte `gestionnaires2@seido-app.com` ($12/mois additionnel) = 60 alias totaux.
 
 **Q: Les emails sont-ils chiffrés ?**
 ✅ Oui. AES-256 at rest (Supabase), TLS 1.3 in transit.

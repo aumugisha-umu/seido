@@ -115,6 +115,8 @@ export interface TimeSlot {
     name: string
   }
   responses?: TimeSlotResponse[]
+  /** Indique si le créneau a été sélectionné directement par le gestionnaire (mode "date fixe") */
+  selected_by_manager?: boolean
 }
 
 /**
@@ -278,6 +280,8 @@ export interface QuotesCardProps {
 export interface PlanningCardProps {
   timeSlots: TimeSlot[]
   scheduledDate?: string
+  /** Heure de début du créneau confirmé (format HH:MM ou HH:MM:SS) */
+  scheduledStartTime?: string
   userRole: UserRole
   currentUserId: string
   onAddSlot?: () => void
@@ -357,6 +361,10 @@ export interface InterventionDetailsCardProps {
   planning?: {
     /** Date planifiée */
     scheduledDate?: string | null
+    /** Heure de début du créneau confirmé */
+    scheduledStartTime?: string | null
+    /** Heure de fin du créneau confirmé */
+    scheduledEndTime?: string | null
     /** Statut du planning: pending (rien), proposed (créneaux proposés), scheduled (confirmé), completed */
     status: 'pending' | 'proposed' | 'scheduled' | 'completed'
     /** Nombre de créneaux proposés (pour status='proposed') */
@@ -432,6 +440,8 @@ export interface InterventionSidebarProps {
   onConversationClick?: (participantId: string) => void
   /** Callback pour conversation de groupe */
   onGroupConversationClick?: () => void
+  /** Callback quand on clique sur un participant (navigation vers tab Contacts) */
+  onParticipantClick?: () => void
   /** Afficher les boutons de conversation */
   showConversationButtons?: boolean
   /** Mode d'assignation (single/group/separate) */

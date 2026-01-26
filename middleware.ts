@@ -32,8 +32,9 @@ import { getRateLimiterForRoute, getClientIdentifier } from '@/lib/rate-limit'
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // 🚦 RATE LIMITING: Appliquer sur toutes les routes API
-  if (pathname.startsWith('/api/')) {
+  // 🚦 RATE LIMITING: Appliquer sur toutes les routes API (sauf webhooks)
+  // Les webhooks externes ont leur propre mécanisme de sécurité (signature Svix)
+  if (pathname.startsWith('/api/') && !pathname.startsWith('/api/webhooks/')) {
     try {
       const ratelimiter = getRateLimiterForRoute(pathname)
       const identifier = getClientIdentifier(request)

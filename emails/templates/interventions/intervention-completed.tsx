@@ -1,8 +1,16 @@
 /**
- * 📧 Template Email - Intervention Terminée
+ * 📧 Template Email - Intervention Terminée (Interactif)
  *
  * Envoyé au locataire et gestionnaire quand le prestataire clôture l'intervention
  * Objectif: Confirmer la clôture et demander validation
+ *
+ * INTERACTIF (v2):
+ * - Pour le locataire: boutons Valider et Signaler un problème
+ * - Les boutons utilisent des magic links avec actions intégrées
+ * - L'action est auto-exécutée après authentification
+ *
+ * @see /lib/services/domain/magic-link.service.ts - Génération des liens
+ * @see /hooks/use-auto-execute-action.ts - Exécution client
  */
 
 import * as React from 'react'
@@ -11,6 +19,8 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EmailReplyHint } from '@/emails/components/email-reply-hint'
+import { EmailActionButtons } from '@/emails/components/email-action-buttons'
 import type { InterventionCompletedEmailProps } from '@/emails/utils/types'
 
 export const InterventionCompletedEmail = ({
@@ -26,7 +36,12 @@ export const InterventionCompletedEmail = ({
   completionNotes,
   hasDocuments,
   recipientRole,
+  validateUrl,
+  contestUrl,
+  enableInteractiveButtons = false,
 }: InterventionCompletedEmailProps) => {
+  // Show interactive buttons only for tenants with valid URLs
+  const showInteractiveButtons = enableInteractiveButtons && recipientRole === 'locataire' && (validateUrl || contestUrl)
   const formattedDate = completedAt.toLocaleDateString('fr-FR', {
     weekday: 'long',
     year: 'numeric',
@@ -164,10 +179,31 @@ export const InterventionCompletedEmail = ({
           </div>
         )}
 
-        {/* Bouton CTA */}
-        <EmailButton href={interventionUrl}>
-          {isTenant ? 'Valider l\'intervention' : 'Examiner le rapport'}
-        </EmailButton>
+        {/* Boutons d'action */}
+        {showInteractiveButtons ? (
+          /* Mode interactif: 2 boutons côte à côte pour le locataire */
+          <div className="mb-6">
+            <EmailActionButtons
+              actions={[
+                ...(validateUrl ? [{ label: 'Valider les travaux', href: validateUrl, variant: 'success' as const, icon: '✅' }] : []),
+                ...(contestUrl ? [{ label: 'Signaler un problème', href: contestUrl, variant: 'danger' as const, icon: '⚠️' }] : []),
+              ]}
+              layout="horizontal"
+              size="medium"
+            />
+            <Text className="text-gray-500 text-xs text-center mt-3 mb-0">
+              💡 Cliquez sur un bouton pour valider ou signaler directement.
+            </Text>
+          </div>
+        ) : (
+          /* Mode classique: un seul bouton CTA */
+          <EmailButton href={interventionUrl}>
+            {isTenant ? 'Valider l\'intervention' : 'Examiner le rapport'}
+          </EmailButton>
+        )}
+
+        {/* Indication de réponse par email */}
+        <EmailReplyHint />
 
         {/* Note */}
         <Text className="text-gray-500 text-xs leading-relaxed text-center mt-6 mb-0">
@@ -182,7 +218,7 @@ export const InterventionCompletedEmail = ({
   )
 }
 
-// Props par défaut pour prévisualisation (locataire)
+// Props par défaut pour prévisualisation (locataire avec mode interactif)
 InterventionCompletedEmail.PreviewProps = {
   firstName: 'Marie',
   interventionRef: 'INT-2024-042',
@@ -198,6 +234,10 @@ InterventionCompletedEmail.PreviewProps = {
     'Fuite réparée avec succès. J\'ai remplacé le joint défectueux du siphon et vérifié toutes les connexions. Aucune autre fuite détectée. Le robinet fonctionne parfaitement.',
   hasDocuments: true,
   recipientRole: 'locataire',
+  // Mode interactif avec boutons Valider/Signaler
+  enableInteractiveButtons: true,
+  validateUrl: 'https://seido.app/auth/email-callback?token_hash=xxx&action=validate_intervention&param_type=approve',
+  contestUrl: 'https://seido.app/auth/email-callback?token_hash=yyy&action=validate_intervention&param_type=contest',
 } as InterventionCompletedEmailProps
 
 export default InterventionCompletedEmail

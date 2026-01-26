@@ -1,8 +1,8 @@
 /**
- * 📧 Template Email - Devis Soumis
+ * 📧 Template Email - Estimation Soumise
  *
- * Envoyé au gestionnaire quand le prestataire soumet son devis
- * Objectif: Alerter le gestionnaire pour qu'il examine le devis
+ * Envoyé au gestionnaire quand le prestataire soumet son estimation
+ * Objectif: Alerter le gestionnaire pour qu'il examine l'estimation
  */
 
 import * as React from 'react'
@@ -11,6 +11,7 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EmailReplyHint } from '@/emails/components/email-reply-hint'
 import type { QuoteSubmittedEmailProps } from '@/emails/utils/types'
 
 export const QuoteSubmittedEmail = ({
@@ -40,8 +41,8 @@ export const QuoteSubmittedEmail = ({
     new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount)
 
   return (
-    <EmailLayout preview={`Devis ${quoteRef} reçu - ${formatEuro(totalTTC)}`}>
-      <EmailHeader subject="Nouveau devis reçu" />
+    <EmailLayout preview={`Estimation ${quoteRef} reçue - ${formatEuro(totalTTC)}`}>
+      <EmailHeader subject="Nouvelle estimation reçue" />
 
       <Section className="bg-white px-8 py-8">
         <Text className="text-gray-700 text-base leading-relaxed mb-5 mt-0">
@@ -50,7 +51,7 @@ export const QuoteSubmittedEmail = ({
 
         <Text className="text-gray-700 text-base leading-relaxed mb-6">
           <strong>{providerName}</strong>
-          {providerCompany && <> de {providerCompany}</>} vient de soumettre un devis qui nécessite
+          {providerCompany && <> de {providerCompany}</>} vient de soumettre une estimation qui nécessite
           votre validation.
         </Text>
 
@@ -64,7 +65,7 @@ export const QuoteSubmittedEmail = ({
         {hasPdfAttachment && (
           <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg mb-6">
             <Text className="text-green-800 text-sm font-medium m-0">
-              📎 Un devis détaillé en PDF est disponible
+              📎 Une estimation détaillée en PDF est disponible
             </Text>
           </div>
         )}
@@ -123,19 +124,22 @@ export const QuoteSubmittedEmail = ({
             ⚡ Décision requise
           </Text>
           <Text className="text-gray-700 text-sm leading-relaxed m-0">
-            Veuillez examiner ce devis et prendre une décision :
+            Veuillez examiner cette estimation et prendre une décision :
           </Text>
           <ul className="text-gray-700 text-sm leading-relaxed pl-5 mt-2 mb-0">
             <li>
               <strong>Approuver</strong> pour autoriser les travaux
             </li>
             <li>
-              <strong>Rejeter</strong> si le devis ne convient pas
+              <strong>Rejeter</strong> si l'estimation ne convient pas
             </li>
           </ul>
         </div>
 
-        <EmailButton href={quoteUrl}>Examiner le devis</EmailButton>
+        <EmailButton href={quoteUrl}>Examiner l'estimation</EmailButton>
+
+        {/* Indication de réponse par email */}
+        <EmailReplyHint />
 
         <Text className="text-gray-500 text-xs leading-relaxed text-center mt-6 mb-0">
           Le prestataire sera notifié de votre décision.

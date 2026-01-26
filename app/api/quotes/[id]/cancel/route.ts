@@ -20,7 +20,7 @@ export async function PATCH(
 
     logger.info({ quoteId, userId: localUser.id }, '🔍 [QUOTE-CANCEL] Attempting to cancel quote')
 
-    // Vérifier que le devis existe et appartient à l'utilisateur actuel
+    // Vérifier que l'estimation existe et appartient à l'utilisateur actuel
     const { data: quote, error: fetchError } = await supabase
       .from('intervention_quotes')
       .select(`
@@ -57,7 +57,7 @@ export async function PATCH(
         quoteFound: !!quote
       }, '❌ [QUOTE-CANCEL] Quote not found or unauthorized:')
       return NextResponse.json(
-        { error: 'Devis non trouvé ou non autorisé' },
+        { error: 'Estimation non trouvée ou non autorisée' },
         { status: 404 }
       )
     }
@@ -69,15 +69,15 @@ export async function PATCH(
       currentUserId: localUser.id
     }, '✅ [QUOTE-CANCEL] Quote found:')
 
-    // Vérifier que le devis est en attente (peut être annulé)
+    // Vérifier que l'estimation est en attente (peut être annulée)
     if (quote.status !== 'pending') {
       return NextResponse.json(
-        { error: 'Ce devis ne peut plus être annulé' },
+        { error: 'Cette estimation ne peut plus être annulée' },
         { status: 400 }
       )
     }
 
-    // Annuler le devis (le marquer comme annulé)
+    // Annuler l'estimation (la marquer comme annulée)
     const { error: updateError } = await supabase
       .from('intervention_quotes')
       .update({
@@ -89,7 +89,7 @@ export async function PATCH(
     if (updateError) {
       logger.error({ error: updateError }, '❌ Error cancelling quote:')
       return NextResponse.json(
-        { error: 'Erreur lors de l\'annulation du devis' },
+        { error: 'Erreur lors de l\'annulation de l\'estimation' },
         { status: 500 }
       )
     }
@@ -134,8 +134,8 @@ export async function PATCH(
     const notificationsToCreate = Array.from(managersToNotify).map(managerId => ({
       user_id: managerId,
       type: 'quote_cancelled',
-      title: 'Devis annulé',
-      message: `Un devis pour l'intervention "${intervention.title}" (${intervention.reference}) a été annulé par le prestataire`,
+      title: 'Estimation annulée',
+      message: `Une estimation pour l'intervention "${intervention.title}" (${intervention.reference}) a été annulée par le prestataire`,
       metadata: {
         intervention_id: intervention.id,
         quote_id: quoteId,
@@ -178,7 +178,7 @@ export async function PATCH(
     return NextResponse.json(
       { 
         success: true,
-        message: 'Devis annulé avec succès'
+        message: 'Estimation annulée avec succès'
       },
       { status: 200 }
     )
@@ -186,7 +186,7 @@ export async function PATCH(
   } catch (error) {
     logger.error({ error: error }, '❌ Error in quote cancellation:')
     return NextResponse.json(
-      { error: 'Erreur serveur lors de l\'annulation du devis' },
+      { error: 'Erreur serveur lors de l\'annulation de l\'estimation' },
       { status: 500 }
     )
   }

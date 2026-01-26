@@ -68,8 +68,6 @@ export class TenantService {
    * Get comprehensive tenant data by user ID
    */
   async getTenantData(userId: string): Promise<TenantData | null> {
-    logger.info("👤 getTenantData called for userId:", userId)
-
     try {
       // Handle JWT-only IDs
       let actualUserId = userId
@@ -79,13 +77,8 @@ export class TenantService {
 
         if (userResult?.success && userResult.data) {
           actualUserId = userResult.data.id
-          logger.info("🔄 [TENANT-SERVICE] Resolved JWT user ID:", {
-            original: userId,
-            authUserId,
-            actualUserId: actualUserId
-          })
         } else {
-          logger.error("❌ [TENANT-SERVICE] Could not resolve JWT user ID:", userId)
+          logger.error("[TENANT-SERVICE] Could not resolve JWT user ID:", userId)
           return null
         }
       }
@@ -93,7 +86,7 @@ export class TenantService {
       // Get user data
       const userResult = await this.userService.getById(actualUserId)
       if (!userResult.success) {
-        logger.error("❌ [TENANT-SERVICE] User not found:", actualUserId)
+        logger.error("[TENANT-SERVICE] User not found:", actualUserId)
         return null
       }
 
@@ -124,13 +117,6 @@ export class TenantService {
         teamData = { id: user.team_id, name: 'Team' }
       }
 
-      logger.info("✅ [TENANT-SERVICE] getTenantData complete:", {
-        userId: actualUserId,
-        lotsCount: lots.length,
-        contractStatus,
-        interventionsCount: interventions.length
-      })
-
       return {
         user,
         lots,
@@ -140,7 +126,7 @@ export class TenantService {
       }
 
     } catch (error) {
-      logger.error("❌ [TENANT-SERVICE] Error getting tenant data:", error)
+      logger.error("[TENANT-SERVICE] Error getting tenant data:", error)
       return null
     }
   }
@@ -170,12 +156,9 @@ export class TenantService {
     end_date?: string
   }>> {
     try {
-      logger.info("🏠 [TENANT-SERVICE] Getting lots for tenant via contracts:", userId)
-
       const supabase = this.getSupabaseClient()
 
       // Query contract_contacts to find tenant's active contracts with lot data
-      // Note: Only using columns that exist in the lots table schema
       const { data, error } = await supabase
         .from('contract_contacts')
         .select(`
@@ -211,15 +194,13 @@ export class TenantService {
         .in('role', ['locataire', 'colocataire'])
 
       if (error) {
-        logger.warn("⚠️ [TENANT-SERVICE] Could not get tenant contracts:", error.message)
+        logger.warn("[TENANT-SERVICE] Could not get tenant contracts:", error.message)
         return []
       }
 
       if (!data || data.length === 0) {
-        logger.info("ℹ️ [TENANT-SERVICE] No contracts found for tenant:", userId)
         return []
       }
-
 
       // Filter to only ACTIVE or UPCOMING contracts
       const validStatuses = ['actif', 'a_venir']
@@ -232,7 +213,6 @@ export class TenantService {
       )
 
       if (activeContracts.length === 0) {
-        logger.info("ℹ️ [TENANT-SERVICE] No active contracts found for tenant:", userId)
         return []
       }
 
@@ -248,16 +228,10 @@ export class TenantService {
         }
       })
 
-      logger.info("✅ [TENANT-SERVICE] Found tenant lots from active contracts:", {
-        totalContracts: data.length,
-        activeContracts: activeContracts.length,
-        lots: lotsWithDetails.length
-      })
-
       return lotsWithDetails
 
     } catch (error) {
-      logger.error("❌ [TENANT-SERVICE] Error getting tenant lots:", error)
+      logger.error("[TENANT-SERVICE] Error getting tenant lots:", error)
       return []
     }
   }
@@ -268,19 +242,13 @@ export class TenantService {
    */
   private async getTenantInterventions(userId: string, teamId?: string): Promise<Intervention[]> {
     try {
-      logger.info("🔧 [TENANT-SERVICE] Getting interventions for tenant:", { userId, teamId })
-
       const result = await this.interventionService.getMyInterventions(userId, 'locataire', teamId)
       if (result.success && result.data) {
-        logger.info("✅ [TENANT-SERVICE] Found tenant interventions:", result.data.length)
         return result.data
       }
-
-      logger.info("ℹ️ [TENANT-SERVICE] No interventions found for tenant:", userId)
       return []
-
     } catch (error) {
-      logger.error("❌ [TENANT-SERVICE] Error getting tenant interventions:", error)
+      logger.error("[TENANT-SERVICE] Error getting tenant interventions:", error)
       return []
     }
   }
@@ -299,7 +267,7 @@ export class TenantService {
       return user.role === 'locataire' || user.role === 'tenant'
 
     } catch (error) {
-      logger.error("❌ [TENANT-SERVICE] Error validating tenant:", error)
+      logger.error("[TENANT-SERVICE] Error validating tenant:", error)
       return false
     }
   }

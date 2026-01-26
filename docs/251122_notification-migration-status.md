@@ -263,3 +263,22 @@ const result = await createInterventionNotification(interventionId)
 - **14 legacy files** remain functional (can be migrated incrementally)
 
 **Production ready**: The errors 400 (PGRST204) are resolved. Interventions can be created without issues.
+
+
+───────────────────────────┬─────────────────────────────────────────┬───────────────────┐
+ │          Statut           │           Boutons Principaux            │   Dot Menu (⋮)    │
+ ├───────────────────────────┼─────────────────────────────────────────┼───────────────────┤
+ │ demande                   │ Approuver, Rejeter, Demander détails    │ -                 │
+ ├───────────────────────────┼─────────────────────────────────────────┼───────────────────┤
+ │ approuvee                 │ Planifier, Demander devis               │ Modifier, Annuler │
+ ├───────────────────────────┼─────────────────────────────────────────┼───────────────────┤
+ │ planification             │ Proposer/modifier créneaux,  demande/traitement devis  │ Modifier, Annuler │
+ ├───────────────────────────┼─────────────────────────────────────────┼───────────────────┤
+ │ planifiee                 │ Cloturer                                │ Modifier, Annuler │
+ ├───────────────────────────┼─────────────────────────────────────────┼───────────────────┤
+ │ cloturee_par_prestataire  │ Relancer locataire, cloturer            │ -                 │
+ ├───────────────────────────┼─────────────────────────────────────────┼───────────────────┤
+ │ cloturee_par_locataire    │ Cloturer                                │ -                 │
+ ├───────────────────────────┼─────────────────────────────────────────┼───────────────────┤
+ │ cloturee_par_gestionnaire │ Planifier suivi                         │ -                 │
+ └───────────────────────────┴─────────────────────────────────────────┴───────────────────┘

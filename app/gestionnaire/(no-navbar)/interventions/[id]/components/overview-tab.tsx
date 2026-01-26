@@ -30,6 +30,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { toast } from 'sonner'
+import { formatErrorMessage } from '@/lib/utils/error-formatter'
 import { assignUserAction, unassignUserAction } from '@/app/actions/intervention-actions'
 import { createBrowserSupabaseClient } from '@/lib/services'
 import { UserPlus, AlertCircle } from 'lucide-react'
@@ -235,7 +236,7 @@ export function OverviewTab({
         setSelectedUserId('')
         onRefresh()
       } else {
-        toast.error(result.error)
+        toast.error(formatErrorMessage(result.error, 'Erreur lors de l\'attribution'))
       }
     } catch (error) {
       console.error('Error assigning user:', error)
@@ -260,7 +261,7 @@ export function OverviewTab({
         toast.success('Attribution retirée avec succès')
         onRefresh()
       } else {
-        toast.error(result.error)
+        toast.error(formatErrorMessage(result.error, 'Erreur lors du retrait de l\'attribution'))
       }
     } catch (error) {
       console.error('Error removing assignment:', error)

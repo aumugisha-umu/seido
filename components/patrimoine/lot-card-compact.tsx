@@ -26,7 +26,6 @@ interface LotData {
         address?: string
         city?: string
     }
-    interventions_count?: number
 }
 
 export function LotCardCompact({ item, actions }: CardComponentProps<LotData>) {

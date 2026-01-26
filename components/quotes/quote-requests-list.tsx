@@ -52,7 +52,7 @@ export function QuoteRequestsList({
           Aucune demande envoyée
         </h3>
         <p className="text-gray-600">
-          Les demandes de devis apparaîtront ici une fois envoyées aux prestataires.
+          Les demandes d'estimation apparaîtront ici une fois envoyées aux prestataires.
         </p>
       </div>
     )

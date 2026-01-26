@@ -120,21 +120,21 @@ export function QuoteRequestCard({
       switch (quoteStatus || request.quote_status) {
         case 'approved':
           return {
-            label: 'Devis approuvé',
+            label: 'Estimation approuvée',
             variant: 'default' as const,
             className: 'bg-green-100 text-green-800 border-green-200',
             icon: '✅'
           }
         case 'rejected':
           return {
-            label: 'Devis rejeté',
+            label: 'Estimation rejetée',
             variant: 'destructive' as const,
             className: 'bg-red-100 text-red-800 border-red-200',
             icon: '❌'
           }
         case 'pending':
           return {
-            label: 'Devis reçu',
+            label: 'Estimation reçue',
             variant: 'secondary' as const,
             className: 'bg-green-100 text-green-800 border-green-200',
             icon: '💰'
@@ -143,7 +143,7 @@ export function QuoteRequestCard({
           // Default for received quotes
           if (isReceivedQuote()) {
             return {
-              label: 'Devis envoyé',
+              label: 'Estimation envoyée',
               variant: 'default' as const,
               className: 'bg-green-100 text-green-800 border-green-200',
               icon: '💰'

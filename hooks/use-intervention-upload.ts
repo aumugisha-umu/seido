@@ -24,9 +24,10 @@ export type InterventionDocumentType = Database['public']['Enums']['intervention
 
 // Document type options with French labels
 export const DOCUMENT_TYPES: { value: InterventionDocumentType; label: string }[] = [
+  { value: 'email', label: 'Email' },
   { value: 'photo_avant', label: 'Photo avant travaux' },
   { value: 'photo_apres', label: 'Photo après travaux' },
-  { value: 'devis', label: 'Devis' },
+  { value: 'devis', label: 'Estimation' },
   { value: 'facture', label: 'Facture' },
   { value: 'rapport', label: 'Rapport d\'intervention' },
   { value: 'plan', label: 'Plan' },
@@ -91,7 +92,8 @@ export const useInterventionUpload = ({
   }, [])
 
   // Add files with validation and preview generation
-  const addFiles = useCallback((newFiles: File[]) => {
+  // Optional defaultDocumentType allows setting type for specific file sources (e.g., 'email' for email PDFs)
+  const addFiles = useCallback((newFiles: File[], defaultDocumentType: InterventionDocumentType = 'photo_avant') => {
     const validatedFiles: FileWithPreview[] = []
     const errors: string[] = []
 
@@ -127,7 +129,7 @@ export const useInterventionUpload = ({
         preview,
         progress: 0,
         status: 'pending',
-        documentType: 'photo_avant' // Default type
+        documentType: defaultDocumentType
       })
     })
 

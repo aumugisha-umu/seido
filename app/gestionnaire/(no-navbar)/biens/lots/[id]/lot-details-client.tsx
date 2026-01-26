@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck, Info, Building2, MapPin, Calendar, Archive, Edit as EditIcon, Trash2, Home, ScrollText, Shield } from "lucide-react"
+import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck, Info, Building2, MapPin, Calendar, Archive, Edit as EditIcon, Trash2, Home, ScrollText, Shield, Mail } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { determineAssignmentType } from '@/lib/services'
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
@@ -19,6 +19,7 @@ import { LotContactsGridPreview } from '@/components/ui/lot-contacts-grid-previe
 import { ContractsNavigator } from '@/components/contracts/contracts-navigator'
 import { ContactCardCompact } from '@/components/contacts/contact-card-compact'
 import type { ContractWithRelations } from '@/lib/types/contract.types'
+import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 
 // Helper function to get French label for lot category
 function getCategoryLabel(category: string): string {
@@ -371,6 +372,7 @@ export default function LotDetailsClient({
     { id: "contracts", label: "Contrats", icon: ScrollText, count: contracts.length },
     { id: "interventions", label: "Interventions", icon: Wrench, count: interventionStats.total },
     { id: "documents", label: "Documents", icon: FileText },
+    { id: "emails", label: "Emails", icon: Mail },
   ]
 
   // Prepare header data
@@ -718,6 +720,16 @@ export default function LotDetailsClient({
               emptyDescription="Aucune intervention avec documents n'a été réalisée dans ce lot."
               onDocumentView={handleDocumentView}
               onDocumentDownload={handleDocumentDownload}
+            />
+          </div>
+        )}
+
+        {activeTab === "emails" && (
+          <div className="flex-1 flex flex-col min-h-0">
+            <EntityEmailsTab
+              entityType="lot"
+              entityId={lot.id}
+              entityName={lot.reference || `Lot ${lot.apartment_number}`}
             />
           </div>
         )}

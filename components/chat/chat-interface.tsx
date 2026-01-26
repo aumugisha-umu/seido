@@ -15,9 +15,11 @@ import {
   AlertCircle,
   Users,
   Lock,
-  Eye
+  Eye,
+  Mail
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatErrorMessage } from '@/lib/utils/error-formatter'
 
 // UI Components
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -126,37 +128,83 @@ function MessageBubble({
     }
   }
 
+  // Check if message is from email reply
+  const metadata = message.metadata as {
+    source?: 'email'
+    sender_email?: string
+    sender_name?: string
+    is_external?: boolean
+    email_id?: string
+  } | null
+
+  const isEmailMessage = metadata?.source === 'email'
+
+  // For email messages, prefer metadata sender info (especially for external senders)
+  const displayName = isEmailMessage && metadata?.sender_name
+    ? metadata.sender_name
+    : message.user?.name || 'Utilisateur'
+
+  const displayEmail = isEmailMessage ? metadata?.sender_email : null
+
+  // Avatar fallback initial
+  const avatarInitial = isEmailMessage && metadata?.sender_name
+    ? metadata.sender_name.charAt(0).toUpperCase()
+    : message.user?.name?.charAt(0)?.toUpperCase() || '?'
+
   return (
     <div
-      className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'} ${
-        showAvatar ? 'items-end' : 'items-start'
-      }`}
+      className={`flex gap-2 ${isOwn ? 'flex-row-reverse' : 'flex-row'} items-start`}
     >
-      {showAvatar && message.user && (
-        <Avatar className="w-8 h-8">
-          <AvatarImage src={message.user.avatar_url} />
-          <AvatarFallback>
-            {message.user.name.charAt(0).toUpperCase()}
+      {showAvatar && (message.user || isEmailMessage) && (
+        <Avatar className="w-8 h-8 flex-shrink-0">
+          <AvatarImage src={message.user?.avatar_url} />
+          <AvatarFallback className={isEmailMessage ? 'bg-orange-100 text-orange-700' : undefined}>
+            {isEmailMessage ? <Mail className="w-4 h-4" /> : avatarInitial}
           </AvatarFallback>
         </Avatar>
       )}
 
       <div
-        className={`flex flex-col gap-1 max-w-[70%] ${
+        className={`flex flex-col max-w-[70%] ${
           isOwn ? 'items-end' : 'items-start'
         }`}
       >
-        {!isOwn && message.user && (
-          <span className="text-xs text-muted-foreground ml-2">
-            {message.user.name}
-          </span>
+        {/* Author name with email badge for email messages */}
+        {!isOwn && (message.user || isEmailMessage) && (
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-xs text-muted-foreground">
+              {displayName}
+            </span>
+            {isEmailMessage && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge variant="outline" className="h-4 px-1.5 text-[10px] gap-0.5 bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100">
+                      <Mail className="w-2.5 h-2.5" />
+                      Email
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="top">
+                    <div className="text-xs">
+                      <p className="font-medium">Via réponse email</p>
+                      {displayEmail && (
+                        <p className="text-muted-foreground">{displayEmail}</p>
+                      )}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
         )}
 
         <div
           className={`px-3 py-2 rounded-lg ${
             isOwn
               ? 'bg-primary text-primary-foreground'
-              : 'bg-muted'
+              : isEmailMessage
+                ? 'bg-orange-50 border border-orange-200'
+                : 'bg-muted'
           }`}
         >
           <p className="text-sm whitespace-pre-wrap break-words">
@@ -171,7 +219,7 @@ function MessageBubble({
           </div>
         )}
 
-        <div className="flex items-center gap-1 px-2">
+        <div className="flex items-center gap-1 px-2 mt-1">
           <span className="text-xs text-muted-foreground">
             {formatTime(message.created_at)}
           </span>
@@ -415,7 +463,7 @@ export function ChatInterface({
       toast.success(`${documentIds.length} fichier(s) uploadé(s)`)
     },
     onUploadError: (error) => {
-      toast.error(error)
+      toast.error(formatErrorMessage(error, 'Erreur lors de l\'upload'))
     }
   })
 
@@ -466,14 +514,14 @@ export function ChatInterface({
         if (threadResult.success && threadResult.data) {
           setThread(threadResult.data)
         } else {
-          toast.error(threadResult.error || 'Erreur lors du chargement de la conversation')
+          toast.error(formatErrorMessage(threadResult.error, 'Erreur lors du chargement de la conversation'))
         }
 
         // Handle messages result
         if (messagesResult.success && messagesResult.data) {
           setMessages(messagesResult.data)
         } else {
-          toast.error(messagesResult.error || 'Erreur lors du chargement des messages')
+          toast.error(formatErrorMessage(messagesResult.error, 'Erreur lors du chargement des messages'))
         }
 
         // Handle participants result
@@ -609,7 +657,7 @@ export function ChatInterface({
     userRole === 'gestionnaire'
 
   return (
-    <Card className={`flex flex-col h-[600px] ${className}`}>
+    <Card className={`flex flex-col h-full ${className}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-2 flex-1">
@@ -683,8 +731,8 @@ export function ChatInterface({
             <div className="p-4 space-y-4">
               {messages.map((message, index) => {
                 const isOwn = message.user_id === currentUserId
-                const showAvatar = index === 0 ||
-                  messages[index - 1].user_id !== message.user_id
+                // Always show avatar for every message
+                const showAvatar = true
 
                 return (
                   <MessageBubble

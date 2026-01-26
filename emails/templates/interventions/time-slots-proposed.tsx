@@ -1,8 +1,16 @@
 /**
- * Template Email - Créneaux Proposés
+ * Template Email - Créneaux Proposés (Interactif)
  *
  * Envoyé au locataire ET au prestataire quand le gestionnaire propose des créneaux
  * Objectif: Informer les parties des créneaux disponibles et les inviter à choisir
+ *
+ * INTERACTIF (v2):
+ * - Chaque créneau peut avoir ses propres boutons Accepter/Refuser
+ * - Les boutons utilisent des magic links avec actions intégrées
+ * - L'action est auto-exécutée après authentification
+ *
+ * @see /lib/services/domain/magic-link.service.ts - Génération des liens
+ * @see /hooks/use-auto-execute-action.ts - Exécution client
  */
 
 import * as React from 'react'
@@ -11,6 +19,8 @@ import { EmailLayout } from '@/emails/components/email-layout'
 import { EmailHeader } from '@/emails/components/email-header'
 import { EmailFooter } from '@/emails/components/email-footer'
 import { EmailButton } from '@/emails/components/email-button'
+import { EmailReplyHint } from '@/emails/components/email-reply-hint'
+import { TimeSlotCard } from '@/emails/components/email-action-buttons'
 import type { TimeSlotsProposedEmailProps } from '@/emails/utils/types'
 
 export const TimeSlotsProposedEmail = ({
@@ -26,7 +36,11 @@ export const TimeSlotsProposedEmail = ({
   proposedSlots,
   responseDeadline,
   recipientRole,
+  slotActions,
+  enableInteractiveButtons = false,
 }: TimeSlotsProposedEmailProps) => {
+  // Determine if we should show interactive buttons
+  const showInteractiveButtons = enableInteractiveButtons && slotActions && slotActions.length > 0
   // Messages personnalisés selon le type de planification
   const planningMessages = {
     direct: 'Un rendez-vous a été proposé',
@@ -40,13 +54,17 @@ export const TimeSlotsProposedEmail = ({
     organize: 'Vous pouvez proposer vos propres créneaux et vous organiser directement avec les autres parties.'
   }
 
-  // Formatter les créneaux
+  // Formatter les créneaux (adapté selon le mode de planification)
   const formatSlot = (slot: { date: Date; startTime: string; endTime: string }) => {
     const dateStr = slot.date.toLocaleDateString('fr-FR', {
       weekday: 'long',
       day: 'numeric',
       month: 'long'
     })
+    // Mode direct: heure fixe uniquement / Mode propose: plage horaire complète
+    if (planningType === 'direct') {
+      return `${dateStr} à ${slot.startTime}`
+    }
     return `${dateStr} de ${slot.startTime} à ${slot.endTime}`
   }
 
@@ -90,17 +108,51 @@ export const TimeSlotsProposedEmail = ({
             <Heading as="h2" className="text-gray-900 text-lg font-semibold mt-0 mb-4">
               {planningType === 'direct' ? '📌 Créneau fixé' : '📋 Créneaux disponibles'}
             </Heading>
-            <ul className="text-gray-700 text-base leading-relaxed pl-0 m-0 list-none">
-              {proposedSlots.map((slot, index) => (
-                <li
-                  key={index}
-                  className="py-3 px-4 mb-2 bg-white rounded border border-gray-200 flex items-center"
-                >
-                  <span className="text-blue-600 font-semibold mr-3">#{index + 1}</span>
-                  <span>{formatSlot(slot)}</span>
-                </li>
-              ))}
-            </ul>
+
+            {/* Mode interactif: cartes avec boutons d'action */}
+            {showInteractiveButtons ? (
+              <div>
+                {slotActions!.map((slot, index) => {
+                  const dateStr = slot.date.toLocaleDateString('fr-FR', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long'
+                  })
+                  // Mode direct: heure fixe uniquement / Mode propose: plage horaire
+                  const timeRange = planningType === 'direct'
+                    ? `à ${slot.startTime}`
+                    : `${slot.startTime} - ${slot.endTime}`
+
+                  return (
+                    <TimeSlotCard
+                      key={slot.slotId || index}
+                      dateFormatted={dateStr}
+                      timeRange={timeRange}
+                      index={index}
+                      acceptUrl={slot.acceptUrl}
+                      refuseUrl={slot.refuseUrl}
+                      showActions={true}
+                    />
+                  )
+                })}
+                <Text className="text-gray-500 text-xs mt-4 mb-0">
+                  💡 Cliquez sur un bouton pour accepter ou refuser directement ce créneau.
+                </Text>
+              </div>
+            ) : (
+              /* Mode classique: liste simple sans boutons */
+              <ul className="text-gray-700 text-base leading-relaxed pl-0 m-0 list-none">
+                {proposedSlots.map((slot, index) => (
+                  <li
+                    key={index}
+                    className="py-3 px-4 mb-2 bg-white rounded border border-gray-200 flex items-center"
+                  >
+                    <span className="text-blue-600 font-semibold mr-3">#{index + 1}</span>
+                    <span>{formatSlot(slot)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         )}
 
@@ -183,6 +235,9 @@ export const TimeSlotsProposedEmail = ({
             : 'Choisir un créneau'}
         </EmailButton>
 
+        {/* Indication de réponse par email */}
+        <EmailReplyHint />
+
         {/* Note */}
         <Text className="text-gray-500 text-xs leading-relaxed text-center mt-6 mb-0">
           Ce message a été envoyé automatiquement. Cliquez sur le bouton ci-dessus pour répondre.
@@ -194,7 +249,7 @@ export const TimeSlotsProposedEmail = ({
   )
 }
 
-// Props par défaut pour prévisualisation
+// Props par défaut pour prévisualisation (mode interactif)
 TimeSlotsProposedEmail.PreviewProps = {
   firstName: 'Marie',
   interventionRef: 'INT-2024-042',
@@ -213,6 +268,34 @@ TimeSlotsProposedEmail.PreviewProps = {
   ],
   responseDeadline: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
   recipientRole: 'locataire',
+  // Mode interactif avec boutons d'action
+  enableInteractiveButtons: true,
+  slotActions: [
+    {
+      slotId: 'slot-001',
+      date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+      startTime: '09:00',
+      endTime: '11:00',
+      acceptUrl: 'https://seido.app/auth/email-callback?token_hash=xxx&action=confirm_slot&param_slotId=slot-001',
+      refuseUrl: 'https://seido.app/auth/email-callback?token_hash=yyy&action=reject_slot&param_slotId=slot-001',
+    },
+    {
+      slotId: 'slot-002',
+      date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000),
+      startTime: '14:00',
+      endTime: '16:00',
+      acceptUrl: 'https://seido.app/auth/email-callback?token_hash=xxx&action=confirm_slot&param_slotId=slot-002',
+      refuseUrl: 'https://seido.app/auth/email-callback?token_hash=yyy&action=reject_slot&param_slotId=slot-002',
+    },
+    {
+      slotId: 'slot-003',
+      date: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000),
+      startTime: '10:00',
+      endTime: '12:00',
+      acceptUrl: 'https://seido.app/auth/email-callback?token_hash=xxx&action=confirm_slot&param_slotId=slot-003',
+      refuseUrl: 'https://seido.app/auth/email-callback?token_hash=yyy&action=reject_slot&param_slotId=slot-003',
+    },
+  ],
 } as TimeSlotsProposedEmailProps
 
 export default TimeSlotsProposedEmail

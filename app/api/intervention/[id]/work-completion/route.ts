@@ -3,6 +3,8 @@ import { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { workCompletionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
+import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
+import { createServerActionNotificationRepository } from '@/lib/services'
 
 
 export async function POST(
@@ -90,8 +92,8 @@ export async function POST(
     }
 
     // Check if intervention is in correct status
-    // Note: 'en_cours' is DEPRECATED - now accepts 'planifiee' for direct completion
-    if (!['planifiee', 'en_cours'].includes(intervention.status)) { // en_cours kept for backward compatibility
+    // Interventions can be completed directly from 'planifiee'
+    if (intervention.status !== 'planifiee') {
       return NextResponse.json({
         success: false,
         error: `Le rapport ne peut être soumis que pour les interventions planifiées (statut actuel: ${intervention.status})`
@@ -176,64 +178,19 @@ export async function POST(
 
     logger.info({}, "✅ Work completion report submitted successfully")
 
-    // Send notifications
+    // Send notifications via server action (handles in-app, push, and email)
     try {
-      // Notify tenant and gestionnaires
-      const { data: contacts } = await supabase
-        .from('intervention_contacts')
-        .select(`
-          user:user_id(id, name, email, role)
-        `)
-        .eq('intervention_id', interventionId)
-        .in('role', ['gestionnaire'])
+      const notifResult = await notifyInterventionStatusChange({
+        interventionId: interventionId,
+        oldStatus: 'planifiee',
+        newStatus: 'cloturee_par_prestataire'
+      })
 
-      const tenantNotificationPromise = intervention.tenant_id ?
-        notificationService.createNotification({
-          userId: intervention.tenant_id,
-          teamId: intervention.team_id,
-          createdBy: user.id,
-          type: 'intervention',
-          title: 'Travaux terminés',
-          message: `Les travaux pour "${intervention.title}" sont terminés. Veuillez valider la réalisation.`,
-          isPersonal: true, // Locataire toujours personnel
-          metadata: {
-            interventionId: interventionId,
-            interventionTitle: intervention.title,
-            providerName: user.name,
-            actionRequired: 'tenant_validation'
-          },
-          relatedEntityType: 'intervention',
-          relatedEntityId: interventionId
-        }) : Promise.resolve()
-
-      // Get managers from intervention_assignments instead of intervention_contacts
-      const { data: managerAssignments } = await supabase
-        .from('intervention_assignments')
-        .select('user:users!user_id(id, name, email, role), is_primary')
-        .eq('intervention_id', interventionId)
-        .eq('role', 'gestionnaire')
-
-      const managerNotificationPromises = managerAssignments?.map(assignment =>
-        notificationService.createNotification({
-          userId: assignment.user.id,
-          teamId: intervention.team_id,
-          createdBy: user.id,
-          type: 'intervention',
-          title: 'Rapport de fin de travaux reçu',
-          message: `${user.name} a soumis un rapport de fin pour "${intervention.title}"`,
-          isPersonal: assignment.is_primary ?? false, // ✅ Basé sur assignation (FIX du BUG hardcodé)
-          metadata: {
-            interventionId: interventionId,
-            interventionTitle: intervention.title,
-            providerName: user.name
-          },
-          relatedEntityType: 'intervention',
-          relatedEntityId: interventionId
-        })
-      ) || []
-
-      await Promise.all([tenantNotificationPromise, ...managerNotificationPromises])
-      logger.info({}, "📧 Work completion notifications sent")
+      if (notifResult.success) {
+        logger.info({ count: notifResult.data?.length }, "📧 Work completion notifications sent")
+      } else {
+        logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed")
+      }
     } catch (notifError) {
       logger.warn({ notifError: notifError }, "⚠️ Could not send work completion notifications:")
     }

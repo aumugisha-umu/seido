@@ -64,8 +64,7 @@ export function useTenantPendingActions(userId: string): UseTenantPendingActions
           'planification',     // Renseigner ses disponibilités
           'quote_submitted',   // Consulter/valider les devis reçus
           'demande',          // Suivi de la demande initiale
-          'planifiee',        // Intervention planifiée - être informé
-          'en_cours'          // Intervention en cours - suivi
+          'planifiee'         // Intervention planifiée - être informé
         ].includes(intervention.status)
       })
 
@@ -87,9 +86,6 @@ export function useTenantPendingActions(userId: string): UseTenantPendingActions
             break
           case 'planifiee':
             description = 'Votre intervention a été planifiée'
-            break
-          case 'en_cours':
-            description = 'L\'intervention est actuellement en cours'
             break
           default:
             description = 'Action requise pour cette intervention'

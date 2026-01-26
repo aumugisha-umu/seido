@@ -157,7 +157,7 @@ export function QuoteCard({
             className="text-red-600 hover:text-red-700 border-red-200"
           >
             <Trash2 className="h-4 w-4 mr-1" />
-            Annuler devis
+            Annuler estimation
           </Button>
         )
       }
@@ -170,7 +170,7 @@ export function QuoteCard({
     if (userContext === 'prestataire' && quote.isCurrentUserQuote) {
       return (
         <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">
-          Votre devis
+          Votre estimation
         </Badge>
       )
     }

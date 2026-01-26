@@ -12,6 +12,7 @@ import { TabsContent } from '@/components/ui/tabs'
 import { DocumentsTab } from '@/app/gestionnaire/(no-navbar)/interventions/[id]/components/documents-tab'
 import { selectTimeSlotAction, validateByTenantAction } from '@/app/actions/intervention-actions'
 import { toast } from 'sonner'
+import { formatErrorMessage } from '@/lib/utils/error-formatter'
 import { Building2, MapPin, Calendar } from 'lucide-react'
 
 // Composants partagés pour le nouveau design
@@ -48,6 +49,7 @@ import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-mo
 
 // Hooks
 import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
+import { useAutoExecuteAction } from '@/hooks/use-auto-execute-action'
 
 // Confirmation banners
 import {
@@ -106,6 +108,56 @@ export function LocataireInterventionDetailClient({
   const router = useRouter()
   const planning = useInterventionPlanning()
   const [activeTab, setActiveTab] = useState('general')
+
+  // ============================================================================
+  // Auto-Execute Actions from Email Magic Links
+  // ============================================================================
+
+  // Hook to auto-execute actions from email buttons (e.g., "Accepter ce créneau")
+  useAutoExecuteAction({
+    interventionId: intervention.id,
+    handlers: {
+      // Locataire accepts a proposed time slot
+      confirm_slot: async ({ slotId }) => {
+        const result = await selectTimeSlotAction(intervention.id, slotId)
+        if (!result.success) {
+          throw new Error(result.error || 'Erreur lors de la sélection du créneau')
+        }
+        router.refresh()
+      },
+      // Locataire rejects a time slot
+      reject_slot: async ({ slotId }) => {
+        // For rejection, we open the modal since a reason is usually required
+        const slot = timeSlots.find(s => s.id === slotId)
+        if (slot) {
+          planning.openRejectSlotModal(slot as any)
+        }
+        throw new Error('Veuillez indiquer la raison du refus')
+      },
+      // Locataire validates completed work
+      validate_intervention: async ({ type }) => {
+        if (type === 'approve') {
+          const result = await validateByTenantAction(intervention.id)
+          if (!result.success) {
+            throw new Error(result.error || 'Erreur lors de la validation')
+          }
+          router.refresh()
+        } else if (type === 'contest') {
+          // Contest requires opening a modal or navigating to a form
+          // For now, redirect to the intervention page where they can add a comment
+          toast.info('Veuillez utiliser le chat pour signaler le problème')
+          setActiveTab('conversations')
+        }
+      }
+    },
+    onSuccess: (action) => {
+      if (action === 'confirm_slot') {
+        toast.success('Créneau confirmé avec succès')
+      } else if (action === 'validate_intervention') {
+        toast.success('Intervention validée avec succès')
+      }
+    }
+  })
 
   // États pour le nouveau design PreviewHybrid
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
@@ -254,7 +306,9 @@ export function LocataireInterventionDetailClient({
         user_id: r.user_id,
         response: r.response as 'accepted' | 'rejected' | 'pending',
         user: r.user ? { name: r.user.name, role: r.user.role || '' } : undefined
-      }))
+      })),
+      // Mode "date fixe": le gestionnaire a sélectionné directement une date
+      selected_by_manager: slot.selected_by_manager || false
     }))
   , [timeSlots])
 
@@ -281,9 +335,10 @@ export function LocataireInterventionDetailClient({
       authorRole: 'tenant'
     })
 
+    // Note: 'en_cours' and 'demande_de_devis' removed from workflow
     const statusOrder = [
-      'demande', 'approuvee', 'demande_de_devis', 'planification',
-      'planifiee', 'en_cours', 'cloturee_par_prestataire',
+      'demande', 'approuvee', 'planification',
+      'planifiee', 'cloturee_par_prestataire',
       'cloturee_par_locataire', 'cloturee_par_gestionnaire'
     ]
 
@@ -309,7 +364,9 @@ export function LocataireInterventionDetailClient({
   }, [intervention, currentUser])
 
   // Date planifiée (si un créneau est sélectionné)
-  const scheduledDate = timeSlots.find(s => s.status === 'selected')?.slot_date || null
+  const confirmedSlot = timeSlots.find(s => s.status === 'selected')
+  const scheduledDate = confirmedSlot?.slot_date || null
+  const scheduledStartTime = confirmedSlot?.start_time || null
 
   // Messages mock (à remplacer par de vraies données si disponibles)
   const mockMessages: Message[] = useMemo(() => [], [])
@@ -333,7 +390,7 @@ export function LocataireInterventionDetailClient({
         toast.success('Créneau sélectionné avec succès')
         router.refresh()
       } else {
-        toast.error(result.error)
+        toast.error(formatErrorMessage(result.error, 'Erreur lors de la sélection du créneau'))
       }
     } catch (error) {
       console.error('Error selecting slot:', error)
@@ -349,7 +406,7 @@ export function LocataireInterventionDetailClient({
         toast.success('Travaux validés avec succès')
         router.refresh()
       } else {
-        toast.error(result.error)
+        toast.error(formatErrorMessage(result.error, 'Erreur lors de la validation des travaux'))
       }
     } catch (error) {
       console.error('Error validating work:', error)
@@ -369,14 +426,14 @@ export function LocataireInterventionDetailClient({
   // Gestionnaires use /gestionnaire/interventions/modifier/[id] page instead
 
   // Helper functions for DetailPageHeader
+  // Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
   const getStatusBadge = (): DetailPageHeaderBadge => {
     const statusConfig: Record<string, { label: string; color: string; dotColor: string }> = {
       'demande': { label: 'Demande', color: 'bg-blue-50 border-blue-200 text-blue-900', dotColor: 'bg-blue-500' },
       'approuvee': { label: 'Approuvée', color: 'bg-green-50 border-green-200 text-green-900', dotColor: 'bg-green-500' },
-      'demande_de_devis': { label: 'Demande de devis', color: 'bg-amber-50 border-amber-200 text-amber-900', dotColor: 'bg-amber-500' },
       'planification': { label: 'Planification', color: 'bg-purple-50 border-purple-200 text-purple-900', dotColor: 'bg-purple-500' },
       'planifiee': { label: 'Planifiée', color: 'bg-indigo-50 border-indigo-200 text-indigo-900', dotColor: 'bg-indigo-500' },
-      'en_cours': { label: 'En cours', color: 'bg-cyan-50 border-cyan-200 text-cyan-900', dotColor: 'bg-cyan-500' },
+      // Note: 'en_cours' removed from workflow
       'cloturee_par_locataire': { label: 'Clôturée', color: 'bg-emerald-50 border-emerald-200 text-emerald-900', dotColor: 'bg-emerald-500' },
       'cloturee_par_gestionnaire': { label: 'Clôturée', color: 'bg-slate-50 border-slate-200 text-slate-900', dotColor: 'bg-slate-500' },
       'annulee': { label: 'Annulée', color: 'bg-red-50 border-red-200 text-red-900', dotColor: 'bg-red-500' },
@@ -571,6 +628,7 @@ export function LocataireInterventionDetailClient({
                   <PlanningCard
                     timeSlots={transformedTimeSlots}
                     scheduledDate={scheduledDate || undefined}
+                    scheduledStartTime={scheduledStartTime || undefined}
                     userRole="tenant"
                     currentUserId={currentUser.id}
                     onSelectSlot={handleSelectSlot}

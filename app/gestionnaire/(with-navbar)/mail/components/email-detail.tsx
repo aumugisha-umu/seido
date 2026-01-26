@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Textarea } from '@/components/ui/textarea'
@@ -14,7 +14,14 @@ import {
   Wrench,
   Ban,
   Download,
-  CheckCircle2
+  CheckCircle2,
+  Link as LinkIcon,
+  Home,
+  FileText,
+  User,
+  Briefcase,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -26,23 +33,25 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
 import DOMPurify from 'isomorphic-dompurify'
+import { useAuth } from '@/hooks/use-auth'
+import { stripEmailQuotes, stripTextEmailQuotes } from '@/lib/utils/email-quote-stripper'
 import { MailboxEmail, Building, getConversationEmails } from './types'
 import { MarkAsIrrelevantDialog } from './mark-irrelevant-dialog'
 import { ConversationThread } from './conversation-thread'
-import { LinkToBuildingDropdown } from './link-to-building-dropdown'
 import { MarkAsProcessedDialog } from './mark-as-processed-dialog'
 import { InternalChatPanel } from './internal-chat-panel'
+import { LinkToEntityDialog } from './link-to-entity-dialog'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+  EmailLinkWithDetails,
+  EMAIL_LINK_DISPLAY_CONFIG,
+  EmailLinkEntityType
+} from '@/lib/types/email-links'
 
 interface EmailDetailProps {
   email: MailboxEmail
   allEmails: MailboxEmail[]
   buildings: Building[]
+  teamId?: string
   onReply?: (replyText: string) => void
   onArchive?: () => void
   onDelete?: () => void
@@ -51,12 +60,14 @@ interface EmailDetailProps {
   onSoftDelete?: (emailId: string) => void
   onBlacklist?: (emailId: string, senderEmail: string, reason?: string) => void
   onMarkAsProcessed?: () => void
+  onLinksUpdated?: () => void
 }
 
 export function EmailDetail({
   email,
   allEmails,
   buildings,
+  teamId,
   onReply,
   onArchive,
   onDelete,
@@ -64,13 +75,76 @@ export function EmailDetail({
   onCreateIntervention,
   onSoftDelete,
   onBlacklist,
-  onMarkAsProcessed
+  onMarkAsProcessed,
+  onLinksUpdated
 }: EmailDetailProps) {
   const [showReplyBox, setShowReplyBox] = useState(false)
   const [replyText, setReplyText] = useState('')
   const [showMarkDialog, setShowMarkDialog] = useState(false)
   const [showLinkDialog, setShowLinkDialog] = useState(false)
   const [showProcessedDialog, setShowProcessedDialog] = useState(false)
+  const [showQuotedContent, setShowQuotedContent] = useState(false)
+
+  // Get current user from auth context
+  const { user } = useAuth()
+  const currentUserId = user?.id
+  const userRole = user?.role as 'gestionnaire' | 'admin' | undefined
+
+  // Debug: Log teamId prop
+  console.log('🔍 [EMAIL-DETAIL] teamId prop received:', teamId)
+
+  // Email links state with in-memory cache to avoid re-fetching same email
+  const [emailLinks, setEmailLinks] = useState<EmailLinkWithDetails[]>([])
+  const [isLoadingLinks, setIsLoadingLinks] = useState(false)
+  const emailLinksCache = useRef<Map<string, EmailLinkWithDetails[]>>(new Map())
+
+  // Fetch email links with caching
+  const fetchEmailLinks = useCallback(async (forceRefresh = false) => {
+    if (!email.id) return
+
+    // Check cache first (unless force refresh)
+    if (!forceRefresh && emailLinksCache.current.has(email.id)) {
+      setEmailLinks(emailLinksCache.current.get(email.id)!)
+      return
+    }
+
+    setIsLoadingLinks(true)
+    try {
+      const response = await fetch(`/api/emails/${email.id}/links`)
+      if (!response.ok) {
+        console.error('Failed to fetch email links - HTTP error:', response.status, response.statusText)
+        return
+      }
+      const data = await response.json()
+      const links = data.links || []
+
+      // Store in cache and update state
+      emailLinksCache.current.set(email.id, links)
+      setEmailLinks(links)
+    } catch (error) {
+      console.error('Failed to fetch email links - Network error:', error instanceof Error ? error.message : error)
+    } finally {
+      setIsLoadingLinks(false)
+    }
+  }, [email.id])
+
+  // Load links when email changes
+  useEffect(() => {
+    fetchEmailLinks()
+  }, [fetchEmailLinks])
+
+  // Icon mapping for link types
+  const getLinkIcon = (type: EmailLinkEntityType) => {
+    switch (type) {
+      case 'building': return <BuildingIcon className="h-3 w-3" />
+      case 'lot': return <Home className="h-3 w-3" />
+      case 'contract': return <FileText className="h-3 w-3" />
+      case 'contact': return <User className="h-3 w-3" />
+      case 'company': return <Briefcase className="h-3 w-3" />
+      case 'intervention': return <Wrench className="h-3 w-3" />
+      default: return <LinkIcon className="h-3 w-3" />
+    }
+  }
 
   // Sanitize HTML body to prevent XSS attacks - Simple version
   const sanitizedBody = useMemo(() => {
@@ -113,8 +187,9 @@ export function EmailDetail({
             node.removeAttribute('data-slot')
           }
           
-          // Nettoyer les attributs width/height sur images et tables
-          if (node.tagName === 'IMG' || node.tagName === 'TABLE') {
+          // Nettoyer les attributs width/height sur tables uniquement
+          // Les images gardent leurs dimensions pour un rendu correct des emails HTML
+          if (node.tagName === 'TABLE') {
             node.removeAttribute('width')
             node.removeAttribute('height')
           }
@@ -143,6 +218,19 @@ export function EmailDetail({
       }
     })
   }, [email.body_html])
+
+  // Apply quote stripping to clean up email replies
+  const strippedContent = useMemo(() => {
+    if (sanitizedBody && sanitizedBody.trim() !== '') {
+      return stripEmailQuotes(sanitizedBody)
+    }
+    // Fallback: strip from plain text
+    const textContent = email.body_text || email.snippet || ''
+    if (textContent) {
+      return stripTextEmailQuotes(textContent)
+    }
+    return { cleanHtml: '', hasQuotedContent: false }
+  }, [sanitizedBody, email.body_text, email.snippet])
 
   // Get content to display (HTML or fallback to text)
   const hasHtmlContent = sanitizedBody && sanitizedBody.trim() !== ''
@@ -245,8 +333,8 @@ export function EmailDetail({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => setShowLinkDialog(true)}>
-                  <BuildingIcon className="mr-2 h-4 w-4" aria-hidden="true" />
-                  {email.building_id ? 'Changer le lien' : 'Lier à un immeuble'}
+                  <LinkIcon className="mr-2 h-4 w-4" aria-hidden="true" />
+                  {emailLinks.length > 0 ? 'Gérer les liaisons' : 'Lier à une entité'}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowProcessedDialog(true)}>
                   <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -282,7 +370,7 @@ export function EmailDetail({
           </div>
         </div>
 
-        {/* 3. Ligne 3: Badges */}
+        {/* 3. Ligne 3: Badges et Liens */}
         <div className="flex items-center gap-2 flex-wrap">
           {email.has_attachments && (
             <Badge variant="secondary" className="transition-all md:group-hover/header:px-2">
@@ -293,7 +381,31 @@ export function EmailDetail({
               <span className="md:hidden">{email.attachments.length}</span>
             </Badge>
           )}
-          {email.building_name && (
+
+          {/* Email Links - Show all badges */}
+          {emailLinks.length > 0 && (
+            <>
+              {emailLinks.map((link) => {
+                const config = EMAIL_LINK_DISPLAY_CONFIG[link.entity_type]
+                return (
+                  <Badge
+                    key={link.id}
+                    variant="outline"
+                    className={`${config.color} cursor-pointer transition-all md:group-hover/header:px-2`}
+                    onClick={() => setShowLinkDialog(true)}
+                  >
+                    {getLinkIcon(link.entity_type)}
+                    <span className="hidden md:group-hover/header:inline md:group-hover/header:ml-1.5 truncate max-w-[120px]">
+                      {link.entity_name}
+                    </span>
+                  </Badge>
+                )
+              })}
+            </>
+          )}
+
+          {/* Legacy building/lot display (for backward compatibility) */}
+          {email.building_name && emailLinks.length === 0 && (
             <Badge variant="outline" className="transition-all md:group-hover/header:px-2">
               <BuildingIcon className="h-3 w-3" />
               <span className="hidden md:group-hover/header:inline md:group-hover/header:ml-1.5">{email.building_name}</span>
@@ -302,6 +414,20 @@ export function EmailDetail({
               )}
             </Badge>
           )}
+
+          {/* Link button when no links */}
+          {emailLinks.length === 0 && !email.building_name && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs text-muted-foreground hover:text-foreground"
+              onClick={() => setShowLinkDialog(true)}
+            >
+              <LinkIcon className="h-3 w-3 mr-1" />
+              Lier
+            </Button>
+          )}
+
           {email.labels.map((label) => (
             <Badge
               key={label}
@@ -314,7 +440,7 @@ export function EmailDetail({
       </div>
 
       {/* Zone 2: Contenu Central - Scrollable & Épuré */}
-      <div className="flex-1 overflow-y-auto bg-muted min-h-0">
+      <div className="flex-1 overflow-y-auto bg-white dark:bg-background min-h-0">
         {isConversationParent && conversationEmails ? (
           // Display conversation thread
           <div className="max-w-4xl mx-auto px-8 py-6">
@@ -322,20 +448,61 @@ export function EmailDetail({
           </div>
         ) : (
           // Display single email content
-          <div className="email-content-wrapper">
-            {/* Email Content */}
+          <div className="email-content-wrapper px-6 py-4">
+            {/* Email Content - Cleaned (quotes stripped) */}
             <div className="prose prose-neutral dark:prose-invert max-w-none overflow-hidden">
               {hasHtmlContent ? (
                 <div
                   className="break-words [&_.mb-4.pb-4.border-b:first-child]:hidden [&>div.mb-4.pb-4.border-b]:hidden"
-                  dangerouslySetInnerHTML={{ __html: sanitizedBody }}
+                  dangerouslySetInnerHTML={{ __html: strippedContent.cleanHtml || sanitizedBody }}
                 />
               ) : (
                 <pre className="whitespace-pre-wrap font-sans text-sm text-foreground leading-relaxed">
-                  {textContent}
+                  {strippedContent.cleanHtml || textContent}
                 </pre>
               )}
             </div>
+
+            {/* Quoted Content Toggle */}
+            {strippedContent.hasQuotedContent && strippedContent.quotedHtml && (
+              <div className="mt-4">
+                <button
+                  onClick={() => setShowQuotedContent(!showQuotedContent)}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded hover:bg-muted/50"
+                  aria-expanded={showQuotedContent}
+                  aria-controls="quoted-content"
+                >
+                  {showQuotedContent ? (
+                    <ChevronDown className="h-3 w-3" aria-hidden="true" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3" aria-hidden="true" />
+                  )}
+                  <span>
+                    {showQuotedContent ? 'Masquer le message cité' : 'Afficher le message cité'}
+                  </span>
+                </button>
+
+                {showQuotedContent && (
+                  <div
+                    id="quoted-content"
+                    className="mt-2 pl-3 border-l-2 border-muted opacity-70"
+                  >
+                    <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none overflow-hidden">
+                      {hasHtmlContent ? (
+                        <div
+                          className="break-words text-muted-foreground"
+                          dangerouslySetInnerHTML={{ __html: strippedContent.quotedHtml }}
+                        />
+                      ) : (
+                        <pre className="whitespace-pre-wrap font-sans text-xs text-muted-foreground leading-relaxed">
+                          {strippedContent.quotedHtml}
+                        </pre>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Attachments */}
             {email.has_attachments && email.attachments.length > 0 && (
@@ -423,11 +590,14 @@ export function EmailDetail({
       </div>
 
       {/* Zone 3: Internal Chat Panel - Sticky Bottom */}
-      <InternalChatPanel
-        emailId={email.id}
-        currentUserId="current-user-id" // TODO: Get from auth context
-        userRole="gestionnaire"
-      />
+      {teamId && currentUserId && (
+        <InternalChatPanel
+          emailId={email.id}
+          teamId={teamId}
+          currentUserId={currentUserId}
+          userRole={userRole}
+        />
+      )}
 
       {/* Mark as Irrelevant Dialog */}
       <MarkAsIrrelevantDialog
@@ -444,26 +614,18 @@ export function EmailDetail({
         onArchive={onArchive}
       />
 
-      {/* Link to Building Dialog */}
-      <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Lier à un immeuble</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <LinkToBuildingDropdown
-              emailId={email.id}
-              buildings={buildings}
-              currentBuildingId={email.building_id}
-              currentLotId={email.lot_id}
-              onLink={(buildingId, lotId) => {
-                handleLinkBuilding(buildingId, lotId)
-                setShowLinkDialog(false)
-              }}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Link to Entity Dialog */}
+      <LinkToEntityDialog
+        open={showLinkDialog}
+        onOpenChange={setShowLinkDialog}
+        emailId={email.id}
+        teamId={teamId}
+        currentLinks={emailLinks}
+        onLinksUpdated={() => {
+          fetchEmailLinks(true) // Force refresh to update cache
+          onLinksUpdated?.()
+        }}
+      />
 
       {/* Mark as Processed Dialog */}
       <MarkAsProcessedDialog
@@ -471,8 +633,7 @@ export function EmailDetail({
         onOpenChange={setShowProcessedDialog}
         onConfirm={() => {
           onMarkAsProcessed?.()
-          onArchive?.() // Auto-archive when marked as processed
-          toast.success(isConversationParent ? 'Conversation marked as processed and archived' : 'Email marked as processed and archived')
+          // Email will move to "Traités" folder (status: read)
         }}
         isConversation={isConversationParent}
       />

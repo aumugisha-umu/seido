@@ -32,13 +32,13 @@ export function useQuoteCancellation({ onSuccess }: UseQuoteCancellationProps = 
       const data: CancelQuoteResponse = await response.json()
 
       if (!response.ok) {
-        throw new Error(data.error || 'Erreur lors de l\'annulation du devis')
+        throw new Error(data.error || 'Erreur lors de l\'annulation de l\'estimation')
       }
 
       // Notification de succès
       toast({
-        title: "Devis annulé",
-        description: "Votre devis a été annulé avec succès. Les gestionnaires ont été notifiés.",
+        title: "Estimation annulée",
+        description: "Votre estimation a été annulée avec succès. Les gestionnaires ont été notifiés.",
         variant: "default",
         className: "bg-green-50 border-green-200 text-green-800"
       })
@@ -49,11 +49,11 @@ export function useQuoteCancellation({ onSuccess }: UseQuoteCancellationProps = 
       return { success: true }
     } catch (error) {
       logger.error('❌ Error cancelling quote:', error)
-      
+
       // Notification d'erreur
       toast({
         title: "Erreur",
-        description: error instanceof Error ? error.message : "Impossible d'annuler le devis",
+        description: error instanceof Error ? error.message : "Impossible d'annuler l'estimation",
         variant: "destructive"
       })
 

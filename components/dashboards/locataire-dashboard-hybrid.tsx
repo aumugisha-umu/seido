@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Card, CardContent } from "@/components/ui/card"
+import { CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -19,8 +19,8 @@ import { useNotificationPopover } from "@/hooks/use-notification-popover"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import UserMenu from "@/components/user-menu"
 import NotificationPopover from "@/components/notification-popover"
-import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
 import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
+import { PendingActionsSection } from "@/components/dashboards/shared/pending-actions-section"
 
 interface LocataireDashboardHybridProps {
   tenantData: TenantData | null
@@ -257,20 +257,11 @@ export default function LocataireDashboardHybrid({
           </div>
         )}
 
-        {/* --- STATS CARDS (Reusable Component) --- */}
-        {(() => {
-          const pendingCount = filteredInterventions.filter(i => ['demande', 'planification'].includes(i.status)).length
-          const activeCount = filteredInterventions.filter(i => ['en_cours', 'planifiee'].includes(i.status)).length
-          const completedCount = filteredInterventions.filter(i => ['cloturee_par_prestataire'].includes(i.status)).length
-
-          return (
-            <DashboardStatsCards
-              pendingCount={pendingCount}
-              activeCount={activeCount}
-              completedCount={completedCount}
-            />
-          )
-        })()}
+        {/* --- PENDING ACTIONS SECTION: Orange wrapper with horizontal scroll --- */}
+        <PendingActionsSection
+          interventions={filteredInterventions}
+          userRole="locataire"
+        />
 
         {/* --- INTERVENTIONS SECTION (Reusable Component) --- */}
         <DashboardInterventionsSection

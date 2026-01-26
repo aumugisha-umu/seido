@@ -23,6 +23,7 @@ interface LoginPageProps {
     message?: string
     reason?: string
     error?: string
+    redirect?: string  // URL de redirection après connexion (depuis magic link expiré)
   }>
 }
 
@@ -39,6 +40,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   const showConfirmationError = params.error && ['expired_token', 'invalid_token', 'confirmation_failed'].includes(params.error)
   const showOAuthError = params.error && OAUTH_ERRORS.includes(params.error as typeof OAUTH_ERRORS[number])
   const oauthErrorMessage = params.message ? decodeURIComponent(params.message) : null
+  const showLinkExpired = params.error === 'link_expired'
+  const redirectAfterLogin = params.redirect || null  // URL vers laquelle rediriger après connexion
 
   logger.info('🔄 [LOGIN-SERVER] Login page rendered server-side', {
     confirmed: params.confirmed,
@@ -142,8 +145,17 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </Alert>
       )}
 
+      {showLinkExpired && (
+        <Alert variant="destructive" className="mb-4 bg-amber-500/10 border-amber-500/30 text-amber-200">
+          <AlertDescription>
+            <strong>Lien expiré ou déjà utilisé</strong><br />
+            {params.message ? decodeURIComponent(params.message) : 'Connectez-vous pour accéder à la page demandée.'}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Formulaire de connexion - composant client */}
-      <LoginForm />
+      <LoginForm redirectTo={redirectAfterLogin} />
 
       <div className="flex items-center justify-between mt-4">
         <Link

@@ -25,7 +25,8 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  Send
+  Send,
+  Ban
 } from 'lucide-react'
 import { QuotesCardProps, Quote } from '../types'
 import { formatAmount, formatDateShort } from '../utils/helpers'
@@ -54,11 +55,11 @@ const QuoteItem = ({
   onCancel
 }: QuoteItemProps) => {
   const canManage = permissions.canManageQuotes(userRole)
-  // Valider/Refuser seulement pour les devis reçus (sent)
+  // Valider/Refuser seulement pour les estimations reçues (sent)
   const canShowApproveReject = showActions && canManage && quote.status === 'sent'
   // Annuler seulement pour les demandes en attente (pending)
   const canShowCancel = showActions && canManage && quote.status === 'pending'
-  // Indique si c'est une demande en attente (pas encore de devis reçu)
+  // Indique si c'est une demande en attente (pas encore d'estimation reçue)
   const isPendingRequest = quote.status === 'pending'
 
   const getStatusConfig = () => {
@@ -89,6 +90,15 @@ const QuoteItem = ({
           text: 'text-blue-700',
           border: 'border-blue-200',
           leftBorder: 'border-l-blue-500'
+        }
+      case 'cancelled':
+        return {
+          icon: Ban,
+          label: 'Annulée',
+          bg: 'bg-gray-50',
+          text: 'text-gray-600',
+          border: 'border-gray-200',
+          leftBorder: 'border-l-gray-400'
         }
       default:
         return {
@@ -150,7 +160,7 @@ const QuoteItem = ({
       {/* Description ou message d'attente */}
       {isPendingRequest ? (
         <p className="text-sm text-muted-foreground mt-3 italic">
-          En attente de devis du prestataire...
+          En attente d'estimation du prestataire...
         </p>
       ) : quote.description ? (
         <p className="text-sm text-muted-foreground mt-3 line-clamp-2">
@@ -158,10 +168,10 @@ const QuoteItem = ({
         </p>
       ) : null}
 
-      {/* Actions - Valider/Refuser pour devis reçus (sent), Annuler pour demandes (pending) */}
+      {/* Actions - Valider/Refuser pour estimations reçues (sent), Annuler pour demandes (pending) */}
       {(canShowApproveReject || canShowCancel) && (
         <div className="flex items-center gap-2 mt-3 pt-3 border-t border-dashed border-slate-200">
-          {/* Valider/Refuser - seulement pour les devis reçus */}
+          {/* Valider/Refuser - seulement pour les estimations reçues */}
           {canShowApproveReject && (
             <>
               <Button
@@ -169,7 +179,7 @@ const QuoteItem = ({
                 size="sm"
                 onClick={onApprove}
                 className="text-green-600 border-green-200 hover:bg-green-50"
-                aria-label={`Valider le devis de ${quote.provider_name || 'prestataire'}`}
+                aria-label={`Valider l'estimation de ${quote.provider_name || 'prestataire'}`}
               >
                 <Check className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
                 Valider
@@ -179,7 +189,7 @@ const QuoteItem = ({
                 size="sm"
                 onClick={onReject}
                 className="text-red-600 border-red-200 hover:bg-red-50"
-                aria-label={`Refuser le devis de ${quote.provider_name || 'prestataire'}`}
+                aria-label={`Refuser l'estimation de ${quote.provider_name || 'prestataire'}`}
               >
                 <X className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
                 Refuser
@@ -194,7 +204,7 @@ const QuoteItem = ({
               size="sm"
               onClick={onCancel}
               className="text-red-600 border-red-200 hover:bg-red-50"
-              aria-label={`Annuler la demande de devis pour ${quote.provider_name || 'prestataire'}`}
+              aria-label={`Annuler la demande d'estimation pour ${quote.provider_name || 'prestataire'}`}
             >
               <X className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
               Annuler
@@ -207,7 +217,7 @@ const QuoteItem = ({
 }
 
 /**
- * Card de gestion des devis
+ * Card de gestion des estimations
  *
  * @param showActions - Contrôle l'affichage des boutons Valider/Refuser.
  *                      Par défaut true, permet de masquer les actions pour un affichage lecture seule.
@@ -226,9 +236,9 @@ export const QuotesCard = ({
   const canSubmit = permissions.canSubmitQuote(userRole)
   const canView = permissions.canViewQuotes(userRole)
 
-  // Sépare les devis par statut - 4 groupes distincts
+  // Sépare les estimations par statut - 4 groupes distincts
   const requestedQuotes = quotes.filter(q => q.status === 'pending')  // Demandes en attente du prestataire
-  const receivedQuotes = quotes.filter(q => q.status === 'sent')      // Devis reçus, en attente de validation
+  const receivedQuotes = quotes.filter(q => q.status === 'sent')      // Estimations reçues, en attente de validation
   const approvedQuotes = quotes.filter(q => q.status === 'approved')
   const otherQuotes = quotes.filter(q => !['pending', 'sent', 'approved'].includes(q.status))
 
@@ -244,7 +254,7 @@ export const QuotesCard = ({
             <Euro className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             Estimation
             {quotes.length > 0 && (
-              <Badge variant="secondary" className="text-xs" aria-label={`${quotes.length} devis`}>
+              <Badge variant="secondary" className="text-xs" aria-label={`${quotes.length} estimation(s)`}>
                 {quotes.length}
               </Badge>
             )}
@@ -256,40 +266,40 @@ export const QuotesCard = ({
               size="sm"
               onClick={onAddQuote}
               disabled={isLoading}
-              aria-label="Créer un nouveau devis"
+              aria-label="Créer une nouvelle estimation"
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
-              Nouveau devis
+              Nouvelle estimation
             </Button>
           )}
         </div>
       </CardHeader>
 
       <CardContent className="space-y-6 flex-1 overflow-y-auto">
-        {/* Message si aucun devis */}
+        {/* Message si aucune estimation */}
         {quotes.length === 0 && (
           <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
             <FileText className="h-10 w-10 mb-2 text-slate-300" aria-hidden="true" />
-            <p className="text-sm">Aucun devis pour le moment</p>
+            <p className="text-sm">Aucune estimation pour le moment</p>
             {canSubmit && onAddQuote && (
               <Button
                 variant="link"
                 size="sm"
                 onClick={onAddQuote}
                 className="mt-2"
-                aria-label="Créer un devis"
+                aria-label="Créer une estimation"
               >
-                Créer un devis
+                Créer une estimation
               </Button>
             )}
           </div>
         )}
 
-        {/* Devis validés */}
+        {/* Estimations validées */}
         {approvedQuotes.length > 0 && (
           <div className="space-y-3">
             <p className="text-xs font-semibold text-green-600 uppercase tracking-wider">
-              Devis validé
+              Estimation validée
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {approvedQuotes.map((quote) => (
@@ -324,11 +334,11 @@ export const QuotesCard = ({
           </div>
         )}
 
-        {/* Devis reçus - en attente de validation */}
+        {/* Estimations reçues - en attente de validation */}
         {receivedQuotes.length > 0 && (
           <div className="space-y-3">
             <p className="text-xs font-semibold text-blue-600 uppercase tracking-wider">
-              Devis reçus ({receivedQuotes.length})
+              Estimations reçues ({receivedQuotes.length})
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {receivedQuotes.map((quote) => (

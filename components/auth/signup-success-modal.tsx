@@ -113,7 +113,7 @@ export const SignupSuccessModal = ({
           {
             icon: Users,
             title: 'Répondre aux demandes',
-            description: 'Envoyez vos devis et planifiez vos interventions'
+            description: 'Envoyez vos estimations et planifiez vos interventions'
           }
         ]
 

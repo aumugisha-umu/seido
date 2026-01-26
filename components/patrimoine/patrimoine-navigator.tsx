@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,7 @@ import { buildingsTableConfig, lotsTableConfig, type BuildingData, type LotData 
 import { useDataNavigator } from '@/hooks/use-data-navigator'
 import { DataTable } from '@/components/ui/data-table/data-table'
 import { DataCards } from '@/components/ui/data-table/data-cards'
+import { BuildingCardExpandable } from './building-card-expandable'
 import { Building2, Home, Search, Filter, LayoutGrid, List } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -36,6 +37,16 @@ export function PatrimoineNavigator({
     className
 }: PatrimoineNavigatorProps) {
     const [activeTab, setActiveTab] = useState<'buildings' | 'lots'>('buildings')
+    const [expandedBuildings, setExpandedBuildings] = useState<string[]>([])
+
+    // Toggle building expansion (allows multiple buildings to be expanded)
+    const toggleBuildingExpansion = useCallback((buildingId: string) => {
+        setExpandedBuildings(prev =>
+            prev.includes(buildingId)
+                ? prev.filter(id => id !== buildingId)
+                : [...prev, buildingId]
+        )
+    }, [])
 
     // Get current config and data based on active tab
     const currentConfig = activeTab === 'buildings' ? buildingsTableConfig : lotsTableConfig
@@ -56,8 +67,8 @@ export function PatrimoineNavigator({
         defaultView: 'cards'
     })
 
-    // Render content based on view mode
-    const renderContent = (data: any[], config: typeof buildingsTableConfig | typeof lotsTableConfig) => {
+    // Render content based on view mode - Buildings specific
+    const renderBuildingsContent = () => {
         if (!mounted) {
             return (
                 <div className="animate-pulse space-y-2">
@@ -68,32 +79,98 @@ export function PatrimoineNavigator({
             )
         }
 
-        const emptyConfig = config.emptyState || {
+        const data = filteredData as BuildingData[]
+        const emptyConfig = buildingsTableConfig.emptyState || {
             title: 'Aucune donnée',
             description: 'Aucun élément à afficher'
         }
 
         if (viewMode === 'list') {
             return (
-                <DataTable
-                    data={data as any}
-                    columns={config.columns as any}
-                    actions={config.actions}
+                <DataTable<BuildingData>
+                    data={data}
+                    columns={buildingsTableConfig.columns}
+                    actions={buildingsTableConfig.actions}
                     loading={loading}
                     emptyMessage={emptyConfig.description}
-                    onRowClick={createRowClickHandler(config.rowHref)}
+                    onRowClick={createRowClickHandler(buildingsTableConfig.rowHref)}
                 />
             )
         }
 
+        // Card view with expandable cards
+        if (loading) {
+            return (
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+                    {[...Array(3)].map((_, i) => (
+                        <div key={i} className="h-40 bg-gray-200 rounded-lg animate-pulse" />
+                    ))}
+                </div>
+            )
+        }
+
+        if (data.length === 0) {
+            return (
+                <div className="text-center py-12 text-slate-500">
+                    {emptyConfig.description}
+                </div>
+            )
+        }
+
+        return (
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+                {data.map((building) => (
+                    <BuildingCardExpandable
+                        key={building.id}
+                        item={building}
+                        isExpanded={expandedBuildings.includes(building.id)}
+                        onToggleExpand={() => toggleBuildingExpansion(building.id)}
+                    />
+                ))}
+            </div>
+        )
+    }
+
+    // Render content based on view mode - Lots specific
+    const renderLotsContent = () => {
+        if (!mounted) {
+            return (
+                <div className="animate-pulse space-y-2">
+                    {[...Array(3)].map((_, i) => (
+                        <div key={i} className="h-32 bg-gray-200 rounded-lg" />
+                    ))}
+                </div>
+            )
+        }
+
+        const data = filteredData as LotData[]
+        const emptyConfig = lotsTableConfig.emptyState || {
+            title: 'Aucune donnée',
+            description: 'Aucun élément à afficher'
+        }
+
+        if (viewMode === 'list') {
+            return (
+                <DataTable<LotData>
+                    data={data}
+                    columns={lotsTableConfig.columns}
+                    actions={lotsTableConfig.actions}
+                    loading={loading}
+                    emptyMessage={emptyConfig.description}
+                    onRowClick={createRowClickHandler(lotsTableConfig.rowHref)}
+                />
+            )
+        }
+
+        // Card view
         return (
             <DataCards
-                data={data as any}
-                CardComponent={config.views.card.component as any}
-                actions={config.actions}
+                data={data}
+                CardComponent={lotsTableConfig.views.card.component}
+                actions={lotsTableConfig.actions}
                 loading={loading}
                 emptyMessage={emptyConfig.description}
-                compact={config.views.card.compact}
+                compact={lotsTableConfig.views.card.compact}
             />
         )
     }
@@ -265,11 +342,11 @@ export function PatrimoineNavigator({
 
                     {/* Tab Contents */}
                     <TabsContent value="buildings" className={dataClass}>
-                        {renderContent(filteredData as BuildingData[], buildingsTableConfig)}
+                        {renderBuildingsContent()}
                     </TabsContent>
 
                     <TabsContent value="lots" className={dataClass}>
-                        {renderContent(filteredData as LotData[], lotsTableConfig)}
+                        {renderLotsContent()}
                     </TabsContent>
                 </Tabs>
             </div>

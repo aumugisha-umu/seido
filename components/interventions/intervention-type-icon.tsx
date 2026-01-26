@@ -243,6 +243,12 @@ const TYPE_CONFIG: Record<string, TypeConfig> = {
         textColor: 'text-green-600',
         label: 'Révision de loyer'
     },
+    revision_charges: {
+        icon: TrendingUp,
+        bgColor: 'bg-emerald-600',
+        textColor: 'text-emerald-600',
+        label: 'Révision des charges'
+    },
     regularisation_charges: {
         icon: Calculator,
         bgColor: 'bg-violet-500',

@@ -4,7 +4,7 @@
  * Quotes Tab Component
  * Manages intervention quotes with two sections:
  * - Demandes envoyées (quotes without amount - waiting for provider submission)
- * - Devis reçus (quotes with amount - ready for approval/rejection)
+ * - Estimations reçues (quotes with amount - ready for approval/rejection)
  */
 
 import { useState } from 'react'
@@ -36,7 +36,7 @@ export function QuotesTab({
   quotes,
   canManage = false
 }: QuotesTabProps) {
-  // Séparer les demandes (amount = 0) et les devis reçus (amount > 0)
+  // Séparer les demandes (amount = 0) et les estimations reçues (amount > 0)
   const pendingRequests = quotes.filter(q =>
     q.status === 'pending' && (!q.amount || q.amount === 0)
   )
@@ -78,7 +78,7 @@ export function QuotesTab({
                     Aucune demande en cours
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Les demandes de devis envoyées aux prestataires apparaîtront ici
+                    Les demandes d'estimation envoyées aux prestataires apparaîtront ici
                   </p>
                 </div>
               ) : (
@@ -96,7 +96,7 @@ export function QuotesTab({
         </Card>
       </Collapsible>
 
-      {/* Section Devis reçus */}
+      {/* Section Estimations reçues */}
       <Collapsible open={quotesExpanded} onOpenChange={setQuotesExpanded}>
         <Card>
           <CollapsibleTrigger asChild>
@@ -104,7 +104,7 @@ export function QuotesTab({
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="w-5 h-5 text-green-600" />
-                  Devis reçus ({receivedQuotes.length})
+                  Estimations reçues ({receivedQuotes.length})
                 </CardTitle>
                 <ChevronDown
                   className={cn(
@@ -121,10 +121,10 @@ export function QuotesTab({
                 <div className="text-center py-8">
                   <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
                   <p className="text-lg font-medium text-muted-foreground mb-2">
-                    Aucun devis reçu
+                    Aucune estimation reçue
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Les devis soumis par les prestataires apparaîtront ici
+                    Les estimations soumises par les prestataires apparaîtront ici
                   </p>
                 </div>
               ) : (

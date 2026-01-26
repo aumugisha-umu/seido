@@ -178,7 +178,17 @@ export class ContractService {
       endDate
     )
 
-    if (isSuccessResponse(overlapResult) && overlapResult.data) {
+    // ✅ Gérer l'erreur de vérification (fail-safe) - ne pas créer si vérification échoue
+    if (!isSuccessResponse(overlapResult)) {
+      logger.error({ error: overlapResult.error, lotId: data.lot_id }, 'Overlap check failed - blocking creation')
+      throw new ValidationException(
+        'Impossible de vérifier les chevauchements de contrats. Veuillez réessayer.',
+        'contracts',
+        'overlap_check_failed'
+      )
+    }
+
+    if (overlapResult.data) {
       throw new ConflictException(
         'Un contrat existe déjà pour ce lot sur cette période. Les dates de début et fin ne peuvent pas chevaucher un contrat existant.',
         'contracts',
@@ -447,6 +457,8 @@ export class ContractService {
         role: ContractContactRole
         contract_id: string
         contract_title: string
+        contract_start_date: string
+        contract_end_date: string
         is_primary: boolean
       }>
       hasActiveTenants: boolean
@@ -463,9 +475,10 @@ export class ContractService {
         return { success: false, error: contractsResult.error }
       }
 
-      // Filter to only 'actif' status (not 'a_venir', not 'brouillon', etc.)
+      // Filter to 'actif' AND 'a_venir' status (not 'brouillon', 'termine', etc.)
+      // Include both current and upcoming contracts for intervention creation
       const activeContracts = (contractsResult.data || []).filter(
-        contract => contract.status === 'actif'
+        contract => contract.status === 'actif' || contract.status === 'a_venir'
       )
 
       // Extract tenants from active contracts
@@ -478,6 +491,8 @@ export class ContractService {
         role: ContractContactRole
         contract_id: string
         contract_title: string
+        contract_start_date: string
+        contract_end_date: string
         is_primary: boolean
       }> = []
 
@@ -503,6 +518,8 @@ export class ContractService {
                     role: contact.role,
                     contract_id: contract.id,
                     contract_title: contract.title,
+                    contract_start_date: contract.start_date,
+                    contract_end_date: contract.end_date,
                     is_primary: contact.is_primary
                   }
                 }
@@ -519,6 +536,8 @@ export class ContractService {
                 role: contact.role,
                 contract_id: contract.id,
                 contract_title: contract.title,
+                contract_start_date: contract.start_date,
+                contract_end_date: contract.end_date,
                 is_primary: contact.is_primary
               })
             }

@@ -64,10 +64,10 @@ const STATUS_CONFIG: Record<InterventionStatus, {
   demande: { label: 'Demande', color: 'bg-muted-foreground', icon: Clock },
   rejetee: { label: 'Rejetée', color: 'bg-red-500', icon: XCircle },
   approuvee: { label: 'Approuvée', color: 'bg-green-500', icon: CheckCircle },
-  demande_de_devis: { label: 'Devis demandé', color: 'bg-yellow-500', icon: AlertTriangle },
+  demande_de_devis: { label: 'Estimation demandée', color: 'bg-yellow-500', icon: AlertTriangle },
   planification: { label: 'Planification', color: 'bg-blue-400', icon: Calendar },
   planifiee: { label: 'Planifiée', color: 'bg-blue-500', icon: Calendar },
-  en_cours: { label: 'En cours', color: 'bg-blue-600', icon: Clock },
+  // Note: 'en_cours' removed from workflow - interventions go directly from 'planifiee' to finalization
   cloturee_par_prestataire: { label: 'Terminée (Prestataire)', color: 'bg-purple-500', icon: CheckCircle },
   cloturee_par_locataire: { label: 'Validée (Locataire)', color: 'bg-purple-600', icon: CheckCircle },
   cloturee_par_gestionnaire: { label: 'Clôturée', color: 'bg-green-600', icon: CheckCircle },

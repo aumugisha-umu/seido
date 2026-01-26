@@ -1,7 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { createCustomNotification } from '@/app/actions/notification-actions'
-import { createEmailNotificationService } from '@/lib/services/domain/email-notification.service'
-import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { submitQuoteSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
@@ -120,7 +118,7 @@ export async function POST(request: NextRequest) {
         logger.error({ quoteError, quoteId }, "❌ Quote not found or doesn't belong to provider")
         return NextResponse.json({
           success: false,
-          error: 'Devis non trouvé ou non autorisé'
+          error: 'Estimation non trouvée ou non autorisée'
         }, { status: 404 })
       }
 
@@ -140,7 +138,7 @@ export async function POST(request: NextRequest) {
         logger.error({ existingQuoteError }, "❌ Error checking for existing quote")
         return NextResponse.json({
           success: false,
-          error: 'Erreur lors de la vérification du devis existant'
+          error: 'Erreur lors de la vérification de l\'estimation existante'
         }, { status: 500 })
       }
 
@@ -171,7 +169,7 @@ export async function POST(request: NextRequest) {
         logger.error({ updateError }, "❌ Error updating quote")
         return NextResponse.json({
           success: false,
-          error: 'Erreur lors de la mise à jour du devis'
+          error: 'Erreur lors de la mise à jour de l\'estimation'
         }, { status: 500 })
       }
 
@@ -200,7 +198,7 @@ export async function POST(request: NextRequest) {
         logger.error({ createError }, "❌ Error creating quote")
         return NextResponse.json({
           success: false,
-          error: 'Erreur lors de la création du devis'
+          error: 'Erreur lors de la création de l\'estimation'
         }, { status: 500 })
       }
 
@@ -260,8 +258,8 @@ export async function POST(request: NextRequest) {
             userId: manager.user.id,
             teamId: intervention.team_id,
             type: 'intervention',
-            title: 'Nouveau devis reçu',
-            message: `${user.name} a soumis un devis de ${totalAmount.toFixed(2)}€ pour l'intervention "${intervention.title}"`,
+            title: 'Nouvelle estimation reçue',
+            message: `${user.name} a soumis une estimation de ${totalAmount.toFixed(2)}€ pour l'intervention "${intervention.title}"`,
             isPersonal: manager.is_primary ?? true,
             metadata: {
               interventionId,
@@ -283,57 +281,75 @@ export async function POST(request: NextRequest) {
       logger.warn({ notifError }, "⚠️ Could not send notifications")
     }
 
-    // Send email to manager
-    try {
-      const emailService = createEmailNotificationService()
+    // Send email to manager (via after())
+    {
+      // Capture variables for after() closure
+      const emailQuote = { ...finalQuote }
+      const emailIntervention = { ...intervention }
+      const emailInterventionId = interventionId
+      const emailProvider = { ...user }
+      const emailTeamId = intervention.team_id
 
-      // Get manager (first one found)
-      const { data: teamMembers } = await supabase
-        .from('team_members')
-        .select('users(id, email, first_name, last_name)')
-        .eq('team_id', intervention.team_id)
-        .eq('role', 'gestionnaire')
-        .limit(1)
-        .single()
+      after(async () => {
+        try {
+          const { createEmailNotificationService } = await import('@/lib/services/domain/email-notification.factory')
+          const { createServerSupabaseClient } = await import('@/lib/services')
 
-      if (teamMembers && teamMembers.users) {
-        const manager = teamMembers.users as any
+          const emailService = await createEmailNotificationService()
+          const supabaseClient = await createServerSupabaseClient()
 
-        // Get property address
-        const { data: interventionDetails } = await supabase
-          .from('interventions')
-          .select(`
-            lot_id,
-            building_id,
-            lots(reference, buildings(address, city)),
-            buildings(address, city)
-          `)
-          .eq('id', interventionId)
-          .single()
+          // Get manager (first one found)
+          const { data: teamMembers } = await supabaseClient
+            .from('team_members')
+            .select('users(id, email, first_name, last_name)')
+            .eq('team_id', emailTeamId)
+            .eq('role', 'gestionnaire')
+            .limit(1)
+            .single()
 
-        let propertyAddress = 'Adresse non spécifiée'
-        if (interventionDetails) {
-          if (interventionDetails.lot_id && interventionDetails.lots) {
-            const lot = interventionDetails.lots as any
-            const building = lot.buildings
-            propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
-          } else if (interventionDetails.building_id && interventionDetails.buildings) {
-            const building = interventionDetails.buildings as any
-            propertyAddress = `${building.address}, ${building.city}`
+          if (teamMembers && teamMembers.users) {
+            const manager = teamMembers.users as any
+
+            // Get property address
+            const { data: interventionDetails } = await supabaseClient
+              .from('interventions')
+              .select(`
+                lot_id,
+                building_id,
+                lots(reference, buildings(address, city)),
+                buildings(address, city)
+              `)
+              .eq('id', emailInterventionId)
+              .single()
+
+            let propertyAddress = 'Adresse non spécifiée'
+            if (interventionDetails) {
+              if (interventionDetails.lot_id && interventionDetails.lots) {
+                const lot = interventionDetails.lots as any
+                const building = lot.buildings
+                propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+              } else if (interventionDetails.building_id && interventionDetails.buildings) {
+                const building = interventionDetails.buildings as any
+                propertyAddress = `${building.address}, ${building.city}`
+              }
+            }
+
+            await emailService.sendQuoteSubmitted({
+              quote: emailQuote,
+              intervention: emailIntervention as any,
+              property: { address: propertyAddress },
+              manager,
+              provider: emailProvider,
+            })
+            logger.info({ quoteId: emailQuote.id }, '📧 [API] Quote submitted email sent (via after())')
           }
+        } catch (emailError) {
+          logger.error({
+            quoteId: emailQuote.id,
+            error: emailError instanceof Error ? emailError.message : String(emailError)
+          }, '⚠️ [API] Email notifications failed (via after())')
         }
-
-        await emailService.sendQuoteSubmitted({
-          quote: finalQuote,
-          intervention: intervention as any,
-          property: { address: propertyAddress },
-          manager,
-          provider: user,
-        })
-        logger.info({ quoteId: finalQuote.id }, '📧 Quote submitted email sent')
-      }
-    } catch (emailError) {
-      logger.warn({ emailError }, '⚠️ Could not send quote submission email')
+      })
     }
 
     return NextResponse.json({
@@ -347,7 +363,7 @@ export async function POST(request: NextRequest) {
         status: finalQuote.status,
         updated_at: finalQuote.updated_at
       },
-      message: existingQuote ? 'Devis modifié avec succès' : 'Devis soumis avec succès'
+      message: existingQuote ? 'Estimation modifiée avec succès' : 'Estimation soumise avec succès'
     })
 
   } catch (error) {
@@ -355,7 +371,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: false,
-      error: 'Erreur lors de la soumission du devis'
+      error: 'Erreur lors de la soumission de l\'estimation'
     }, { status: 500 })
   }
 }

@@ -34,7 +34,7 @@
 
 ### ⚠️ Prérequis: Se Déconnecter
 
-**Vous êtes connecté avec**: `arthur+24@seido.pm` (ou arthur+30 ou arthur+31)
+**Vous êtes connecté avec**: `arthur+24@seido-app.com` (ou arthur+30 ou arthur+31)
 
 **Options**:
 
@@ -57,7 +57,7 @@ http://localhost:3000/auth/logout
    ```
    Prénom: Arthur
    Nom: Test32
-   Email: arthur+32@seido.pm   ← NOUVEL EMAIL
+   Email: arthur+32@seido-app.com   ← NOUVEL EMAIL
    Role: gestionnaire
    Mot de passe: Password123!
    ```
@@ -74,7 +74,7 @@ http://localhost:3000/auth/logout
 ```
 ✅ [SIGNUP-ACTION] User created in auth.users: {
   userId: 'xxx-xxx',
-  email: 'arthur+32@seido.pm',
+  email: 'arthur+32@seido-app.com',
   hasActionLink: true
 }
 ✅ [SIGNUP-ACTION] Confirmation email sent successfully via Resend: xxx
@@ -97,8 +97,8 @@ http://localhost:3000/auth/logout
 
 **Logs serveur attendus**:
 ```
-✅ [AUTH-CONFIRM] OTP verified for: arthur+32@seido.pm
-📧 [AUTH-CONFIRM] Email confirmation (signup) for: arthur+32@seido.pm
+✅ [AUTH-CONFIRM] OTP verified for: arthur+32@seido-app.com
+📧 [AUTH-CONFIRM] Email confirmation (signup) for: arthur+32@seido-app.com
 ✅ [AUTH-CONFIRM] Welcome email sent: xxx
 ```
 
@@ -124,7 +124,7 @@ SELECT
   message,
   metadata
 FROM public.trigger_debug_logs
-WHERE email = 'arthur+32@seido.pm'
+WHERE email = 'arthur+32@seido-app.com'
 ORDER BY created_at ASC;
 ```
 
@@ -168,7 +168,7 @@ SELECT
   u.team_id,
   u.created_at
 FROM public.users u
-WHERE u.email = 'arthur+32@seido.pm';
+WHERE u.email = 'arthur+32@seido-app.com';
 ```
 
 **✅ Résultat attendu**: 1 ligne avec
@@ -188,7 +188,7 @@ SELECT
 FROM public.teams t
 LEFT JOIN public.users u ON t.created_by = u.id
 WHERE t.id = (
-  SELECT team_id FROM public.users WHERE email = 'arthur+32@seido.pm'
+  SELECT team_id FROM public.users WHERE email = 'arthur+32@seido-app.com'
 );
 ```
 
@@ -209,7 +209,7 @@ SELECT
   (u.id = t.created_by) as user_is_team_creator
 FROM public.users u
 LEFT JOIN public.teams t ON u.team_id = t.id
-WHERE u.email = 'arthur+32@seido.pm';
+WHERE u.email = 'arthur+32@seido-app.com';
 ```
 
 **✅ Résultat attendu**:
@@ -223,7 +223,7 @@ WHERE u.email = 'arthur+32@seido.pm';
 
 2. **Formulaire**:
    ```
-   Email: arthur+32@seido.pm
+   Email: arthur+32@seido-app.com
    Mot de passe: Password123!
    ```
 
@@ -276,7 +276,7 @@ WHERE u.email = 'arthur+32@seido.pm';
 
 2. **Logs Supabase Database** (Dashboard → Database → Logs)
    - Filtrer par niveau: ERROR, WARNING
-   - Rechercher: `arthur+32@seido.pm`
+   - Rechercher: `arthur+32@seido-app.com`
 
 3. **Console serveur Next.js** (terminal où `npm run dev` tourne)
    - Rechercher: `[SIGNUP-ACTION]`, `[AUTH-CONFIRM]`

@@ -9,15 +9,15 @@ import { createServerClient } from '@supabase/ssr'
 import { interventionQuoteRequestSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
 /**
- * Identifie les prestataires éligibles pour recevoir une demande de devis
- * Exclut ceux ayant déjà un devis pending/accepted
+ * Identifie les prestataires éligibles pour recevoir une demande d'estimation
+ * Exclut ceux ayant déjà une estimation pending/accepted
  */
 async function getEligibleProviders(
   supabase: ReturnType<typeof createServerClient<Database>>,
   interventionId: string,
   requestedProviderIds: string[]
 ): Promise<{ eligibleIds: string[], ineligibleIds: string[], ineligibleReasons: Record<string, string> }> {
-  // Récupérer les devis existants pour cette intervention
+  // Récupérer les estimations existantes pour cette intervention
   const { data: existingQuotes, error: quotesError } = await supabase
     .from('intervention_quotes')
     .select('provider_id, status, amount')
@@ -26,21 +26,21 @@ async function getEligibleProviders(
 
   if (quotesError) {
     logger.error({ error: quotesError }, '❌ Error fetching existing quotes:')
-    throw new Error('Erreur lors de la vérification des devis existants')
+    throw new Error('Erreur lors de la vérification des estimations existantes')
   }
 
   const ineligibleIds: string[] = []
   const ineligibleReasons: Record<string, string> = {}
 
-  // Identifier les prestataires avec des devis pending/sent/accepted
+  // Identifier les prestataires avec des estimations pending/sent/accepted
   if (existingQuotes && existingQuotes.length > 0) {
     existingQuotes.forEach(quote => {
       if (quote.status === 'pending' || quote.status === 'sent' || quote.status === 'accepted') {
         ineligibleIds.push(quote.provider_id)
         ineligibleReasons[quote.provider_id] =
           quote.status === 'pending' ? 'a déjà une demande en attente' :
-          quote.status === 'sent' ? 'a déjà soumis un devis en attente de validation' :
-          'a déjà un devis approuvé'
+          quote.status === 'sent' ? 'a déjà soumis une estimation en attente de validation' :
+          'a déjà une estimation approuvée'
       }
     })
   }
@@ -118,10 +118,12 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if intervention can receive quote request
-    if (intervention.status !== 'approuvee' && intervention.status !== 'demande_de_devis') {
+    // Note: demande_de_devis status removed - quote requests can be made from approuvee or planification
+    const allowedStatuses = ['approuvee', 'planification']
+    if (!allowedStatuses.includes(intervention.status)) {
       return NextResponse.json({
         success: false,
-        error: `Une demande de devis ne peut être faite que pour les interventions approuvées ou en demande de devis (statut actuel: ${intervention.status})`
+        error: `Une demande d'estimation ne peut être faite que pour les interventions approuvées ou en planification (statut actuel: ${intervention.status})`
       }, { status: 400 })
     }
 
@@ -190,31 +192,22 @@ export async function POST(request: NextRequest) {
 
       return NextResponse.json({
         success: false,
-        error: `Aucun prestataire éligible pour recevoir une demande de devis. ${reasonsList}`
+        error: `Aucun prestataire éligible pour recevoir une demande d'estimation. ${reasonsList}`
       }, { status: 400 })
     }
 
     // Filter providers to only include eligible ones
     const eligibleProviders = providers.filter(p => eligibleIds.includes(p.id))
 
-    // Update intervention status and add quote information (only if not already in quote request status)
-    let updatedIntervention = intervention
-    if (intervention.status === 'approuvee') {
-      logger.info("🔄 Updating intervention status to 'demande_de_devis'...")
-      updatedIntervention = await interventionService.update(interventionId, {
-        status: 'demande_de_devis' as Database['public']['Enums']['intervention_status'],
-        quote_deadline: deadline || null,
-        quote_notes: additionalNotes || null,
-        updated_at: new Date().toISOString()
-      })
-    } else {
-      logger.info("ℹ️ Intervention already in 'demande_de_devis' status, updating quote information...")
-      updatedIntervention = await interventionService.update(interventionId, {
-        quote_deadline: deadline || null,
-        quote_notes: additionalNotes || null,
-        updated_at: new Date().toISOString()
-      })
-    }
+    // Update intervention to set requires_quote flag and quote information
+    // Note: We no longer change status to demande_de_devis - quote status is tracked via intervention_quotes
+    logger.info("🔄 Setting requires_quote=true and updating quote information...")
+    const updatedIntervention = await interventionService.update(interventionId, {
+      requires_quote: true,
+      quote_deadline: deadline || null,
+      quote_notes: additionalNotes || null,
+      updated_at: new Date().toISOString()
+    })
 
     // Create intervention_quotes using the clean helper function
     const quoteResult = await createQuoteRequestsForProviders({
@@ -231,51 +224,14 @@ export async function POST(request: NextRequest) {
     if (!quoteResult.success) {
       return NextResponse.json({
         success: false,
-        error: 'Échec de la création des demandes de devis'
+        error: 'Échec de la création des demandes d\'estimation'
       }, { status: 500 })
     }
 
-    logger.info({}, "✅ Intervention updated to quote request successfully")
+    logger.info({}, "✅ Quote request created successfully (status unchanged, quote tracked via intervention_quotes)")
 
-    // Send notifications to all providers about quote request
-    try {
-      const notificationPromises = eligibleProviders.map(provider => {
-        const individualMessage = individualMessages[provider.id] || additionalNotes
-
-        return notificationService.notifyQuoteRequest(
-          intervention,
-          provider,
-          user.id,
-          deadline,
-          individualMessage
-        )
-      })
-
-      await Promise.all(notificationPromises)
-      logger.info({ eligibleProviders: eligibleProviders.length }, "📧 Quote request notifications sent to provider(s)")
-    } catch (notifError) {
-      logger.warn({ notifError: notifError }, "⚠️ Could not send quote request notifications:")
-      // Don't fail the request for notification errors
-    }
-
-    // Send status change notifications (only if status actually changed)
-    if (intervention.status === 'approuvee') {
-      try {
-        const notifResult = await notifyInterventionStatusChange({
-          interventionId: intervention.id,
-          oldStatus: 'approuvee',
-          newStatus: 'demande_de_devis'
-        })
-
-        if (notifResult.success) {
-          logger.info({ count: notifResult.data?.length }, "📧 Status change notifications sent")
-        } else {
-          logger.warn({ error: notifResult.error }, "⚠️ Notifications partially failed")
-        }
-      } catch (notifError) {
-        logger.warn({ notifError: notifError }, "⚠️ Could not send status notifications:")
-      }
-    }
+    // Note: Status change notifications removed since status no longer changes
+    // Quote request notifications to providers are handled directly via the quote creation process
 
     return NextResponse.json({
       success: true,
@@ -292,7 +248,7 @@ export async function POST(request: NextRequest) {
         email: provider.email,
         provider_category: provider.provider_category
       })),
-      message: `Demande de devis envoyée à ${eligibleProviders.length} prestataire(s) avec succès: ${eligibleProviders.map(p => p.name).join(', ')}`
+      message: `Demande d'estimation envoyée à ${eligibleProviders.length} prestataire(s) avec succès: ${eligibleProviders.map(p => p.name).join(', ')}`
     })
 
   } catch (error) {
@@ -304,7 +260,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: false,
-      error: 'Erreur lors de la demande de devis'
+      error: 'Erreur lors de la demande d\'estimation'
     }, { status: 500 })
   }
 }

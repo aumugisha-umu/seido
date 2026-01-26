@@ -1,7 +1,8 @@
 'use client'
 
 import { Badge } from '@/components/ui/badge'
-import { Paperclip, Building } from 'lucide-react'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Paperclip, Building, Reply } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { MailboxEmail } from './types'
@@ -64,6 +65,19 @@ export function EmailListItem({
 
       {/* Line 4: Metadata Badges (Balanced variant) */}
       <div className="flex items-center gap-1 flex-wrap" aria-label="Email metadata">
+        {/* Webhook inbound email indicator (notification reply) */}
+        {!email.email_connection_id && (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Reply className="w-3 h-3 text-orange-500" aria-label="Réponse à notification" />
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p className="text-xs">Réponse à notification email</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
         {email.has_attachments && (
           <Paperclip className="w-3 h-3 text-muted-foreground" aria-label="Has attachments" />
         )}

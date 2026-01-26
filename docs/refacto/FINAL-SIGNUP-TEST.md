@@ -25,7 +25,7 @@
 
 ### Étape 1: Se déconnecter du compte actuel
 
-**Vous êtes actuellement connecté avec**: `arthur+24@seido.pm`
+**Vous êtes actuellement connecté avec**: `arthur+24@seido-app.com`
 
 **Options pour se déconnecter**:
 

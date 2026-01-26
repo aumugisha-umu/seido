@@ -212,10 +212,10 @@ export function InterventionDetailTabs({
     }
 
     // Statuts considérés comme "planification et suite" - même logique pour locataires et prestataires
+    // Note: 'en_cours' a été supprimé du workflow - les interventions passent directement de 'planifiee' à finalisation
     const planificationStatuses = [
       'planification',
       'planifiee',
-      'en_cours',
       'terminee',
       'approuvee',
       'cloturee'
@@ -269,9 +269,9 @@ export function InterventionDetailTabs({
       },
       {
         id: "devis",
-        label: "Devis",
+        label: "Estimations",
         icon: Receipt,
-        available: userRole !== 'locataire', // Locataire n'a pas accès aux devis
+        available: userRole !== 'locataire', // Locataire n'a pas accès aux estimations
         badge: intervention.quotes?.length || 0,
       },
       {

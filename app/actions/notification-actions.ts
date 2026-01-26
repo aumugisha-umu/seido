@@ -29,6 +29,50 @@ import { EmailNotificationService } from '@/lib/services/domain/email-notificati
 import { EmailService } from '@/lib/services/domain/email.service'
 import { getServerAuthContext } from '@/lib/server-context'
 import { logger } from '@/lib/logger'
+import { sendPushNotificationToUsers } from '@/lib/send-push-notification'
+
+// ============================================================================
+// PUSH NOTIFICATION HELPER
+// ============================================================================
+
+/**
+ * Extract personal user IDs from notifications and send push notifications
+ * Only sends to users who have is_personal=true (directly assigned/concerned)
+ *
+ * @param notifications - Array of created notifications
+ * @param payload - Push notification payload (title, message, url, type)
+ */
+async function sendPushToNotificationRecipients(
+  notifications: Array<{ user_id: string; is_personal: boolean }>,
+  payload: { title: string; message: string; url?: string; type?: string }
+) {
+  // Only push to personal recipients (directly assigned/involved users)
+  // Use Array.from for Set to avoid downlevelIteration requirement
+  const personalUserIds = Array.from(new Set(
+    notifications
+      .filter(n => n.is_personal)
+      .map(n => n.user_id)
+  ))
+
+  if (personalUserIds.length === 0) {
+    logger.debug({ notificationCount: notifications.length }, '📭 [PUSH] No personal recipients for push')
+    return { success: 0, failed: 0 }
+  }
+
+  try {
+    const result = await sendPushNotificationToUsers(personalUserIds, payload)
+    logger.info({
+      userCount: personalUserIds.length,
+      success: result.success,
+      failed: result.failed,
+      title: payload.title
+    }, '📱 [PUSH] Push notifications sent from Server Action')
+    return result
+  } catch (error) {
+    logger.error({ error, payload }, '⚠️ [PUSH] Failed to send push notifications')
+    return { success: 0, failed: 0 }
+  }
+}
 
 /**
  * Create notification for new intervention
@@ -84,6 +128,16 @@ export async function createInterventionNotification(interventionId: string) {
       interventionId,
       notificationCount: notifications.length
     }, '✅ [NOTIFICATION-ACTION] Intervention notifications created')
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PUSH NOTIFICATIONS: Send to personal recipients
+    // ═══════════════════════════════════════════════════════════════════════════
+    sendPushToNotificationRecipients(notifications, {
+      title: 'Nouvelle intervention',
+      message: intervention.title || 'Une nouvelle intervention a été créée',
+      url: `/gestionnaire/interventions/${interventionId}`,
+      type: 'intervention'
+    }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in createInterventionNotification'))
 
     return { success: true, data: notifications }
   } catch (error) {
@@ -145,6 +199,29 @@ export async function notifyInterventionStatusChange({
       interventionId,
       notificationCount: notifications.length
     }, '✅ [NOTIFICATION-ACTION] Status change notifications created')
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PUSH NOTIFICATIONS: Send to personal recipients
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
+    const statusMessages: Record<string, string> = {
+      approuvee: 'Intervention approuvée',
+      rejetee: 'Intervention rejetée',
+      planification: 'Planification en cours',
+      planifiee: 'Intervention planifiée',
+      en_cours: 'Intervention en cours',
+      cloturee_par_prestataire: 'Intervention terminée par le prestataire',
+      cloturee_par_locataire: 'Intervention validée',
+      cloturee_par_gestionnaire: 'Intervention clôturée',
+      annulee: 'Intervention annulée'
+    }
+
+    sendPushToNotificationRecipients(notifications, {
+      title: statusMessages[newStatus] || 'Mise à jour intervention',
+      message: reason || `Statut changé de ${oldStatus} vers ${newStatus}`,
+      url: `/gestionnaire/interventions/${interventionId}`,
+      type: 'status_change'
+    }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyInterventionStatusChange'))
 
     // ═══════════════════════════════════════════════════════════════════════════
     // EMAIL NOTIFICATIONS: Status change emails
@@ -232,6 +309,9 @@ export async function createBuildingNotification(buildingId: string) {
       buildingId,
       notificationCount: notifications.length
     }, '✅ [NOTIFICATION-ACTION] Building notifications created')
+
+    // Push notification for new building (team notification, not personal - skip push)
+    // Buildings are team-wide events, push would be too noisy
 
     return { success: true, data: notifications }
   } catch (error) {
@@ -781,6 +861,18 @@ export async function notifyDocumentUploaded(params: {
       notificationCount: notifications.length
     }, '✅ [NOTIFICATION-ACTION] Document upload notifications created')
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PUSH NOTIFICATIONS: Send to assigned user (personal notification)
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (notifications.length > 0) {
+      sendPushToNotificationRecipients(notifications, {
+        title: 'Nouveau document',
+        message: `Document "${params.documentName}" disponible`,
+        url: `/${params.relatedEntityType}/${params.relatedEntityId}`,
+        type: 'document'
+      }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyDocumentUploaded'))
+    }
+
     return { success: true, data: notifications }
   } catch (error) {
     logger.error({
@@ -880,6 +972,19 @@ export async function notifyContractExpiring({
       contractId,
       notificationCount: notifications.length
     }, '✅ [NOTIFICATION-ACTION] Contract expiration notifications created')
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PUSH NOTIFICATIONS: Urgent contract expiration (7 days or less) sends push to all managers
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (daysUntilExpiry <= 7 && notifications.length > 0) {
+      const managerIds = notifications.map(n => n.user_id)
+      sendPushNotificationToUsers(managerIds, {
+        title: `🔴 Contrat expire dans ${daysUntilExpiry}j`,
+        message: `Le contrat "${contract.title}" expire bientôt`,
+        url: `/gestionnaire/contrats/${contractId}`,
+        type: 'deadline'
+      }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyContractExpiring'))
+    }
 
     return { success: true, data: notifications }
   } catch (error) {
@@ -1115,6 +1220,18 @@ export async function createContractNotification(contractId: string) {
       contractId,
       notificationCount: notifications.length
     }, '✅ [NOTIFICATION-ACTION] Contract notifications created')
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PUSH NOTIFICATIONS: Send to tenants (personal notifications)
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (notifications.length > 0) {
+      sendPushToNotificationRecipients(notifications, {
+        title: 'Nouveau contrat de bail',
+        message: `Contrat "${contract.title}" créé`,
+        url: `/locataire/contrats/${contractId}`,
+        type: 'contract'
+      }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in createContractNotification'))
+    }
 
     return { success: true, data: notifications }
   } catch (error) {

@@ -60,6 +60,8 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
 
   /**
    * Find user by email
+   * Uses maybeSingle() to handle RLS-blocked results gracefully
+   * (returns null instead of 406 error when RLS blocks access)
    */
   async findByEmail(email: string) {
     validateEmail(email)
@@ -68,6 +70,26 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
       .from(this.tableName)
       .select('*')
       .eq('email', email)
+      .maybeSingle()
+
+    if (error) {
+      return { success: false as const, error: handleError(error) }
+    }
+
+    // maybeSingle() returns null if not found or RLS blocks - no error
+    return { success: true as const, data }
+  }
+
+  /**
+   * Find user by auth_user_id
+   */
+  async findByAuthUserId(authUserId: string) {
+    validateRequired({ authUserId }, ['authUserId'])
+
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select('*')
+      .eq('auth_user_id', authUserId)
       .single()
 
     if (error) {
@@ -79,66 +101,6 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
     }
 
     return { success: true as const, data }
-  }
-
-  /**
-   * Find user by auth_user_id
-   */
-  async findByAuthUserId(authUserId: string) {
-    validateRequired({ authUserId }, ['authUserId'])
-
-    logger.info('🔍 [USER-REPOSITORY-DEBUG] findByAuthUserId called with:', authUserId)
-    logger.info('🔍 [USER-REPOSITORY-DEBUG] Table name:', this.tableName)
-
-    // Verify supabase client is properly initialized
-    logger.info('🔍 [USER-REPOSITORY-DEBUG] Supabase client exists:', !!this.supabase)
-
-    try {
-      logger.info('🔍 [USER-REPOSITORY-DEBUG] Executing query: SELECT * FROM users WHERE auth_user_id =', authUserId)
-
-      const { data, error } = await this.supabase
-        .from(this.tableName)
-        .select('*')
-        .eq('auth_user_id', authUserId)
-        .single()
-
-      logger.info('🔍 [USER-REPOSITORY-DEBUG] Query completed:', {
-        hasData: !!data,
-        hasError: !!error,
-        errorCode: error?.code,
-        errorMessage: error?.message
-      })
-
-      if (error) {
-        logger.error('❌ [USER-REPOSITORY-DEBUG] Supabase error details:', {
-          code: error.code,
-          message: error.message,
-          details: (error as any).details,
-          hint: (error as any).hint,
-          statusCode: (error as any).statusCode
-        })
-
-        if (error.code === 'PGRST116') {
-          // Not found
-          logger.info('⚠️ [USER-REPOSITORY-DEBUG] User not found in users table for auth_user_id:', authUserId)
-          return { success: true as const, data: null }
-        }
-        return { success: false as const, error: handleError(error) }
-      }
-
-      logger.info('✅ [USER-REPOSITORY-DEBUG] User found:', {
-        id: data?.id,
-        email: data?.email,
-        role: data?.role,
-        team_id: data?.team_id
-      })
-
-      return { success: true as const, data }
-    } catch (exception) {
-      logger.error('❌ [USER-REPOSITORY-DEBUG] Exception during query:', exception)
-      logger.error('❌ [USER-REPOSITORY-DEBUG] Exception stack:', exception instanceof Error ? exception.stack : 'No stack')
-      throw exception
-    }
   }
 
   /**
@@ -333,6 +295,35 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
   }
 
   /**
+   * Find multiple users by IDs that have a linked auth account (batch operation)
+   * ✅ NOTIFICATION FIX (Jan 2026): Only return users who can actually log in
+   *
+   * Use this method for notifications to ensure:
+   * - Emails are only sent to users who can click magic links and log in
+   * - In-app notifications are only created for users who can see them
+   *
+   * @param userIds Array of user IDs to fetch
+   * @returns Array of users with auth_user_id (users without auth are excluded)
+   */
+  async findByIdsWithAuth(userIds: string[]) {
+    if (!userIds.length) {
+      return { success: true as const, data: [] }
+    }
+
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select('*')
+      .in('id', userIds)
+      .not('auth_user_id', 'is', null) // Only users with linked auth account
+
+    if (error) {
+      return { success: false as const, error: handleError(error) }
+    }
+
+    return { success: true as const, data: data || [] }
+  }
+
+  /**
    * Bulk update users' team
    */
   async updateTeamBulk(userIds: string[], teamId: string | null) {
@@ -354,8 +345,9 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
   }
 
   /**
-   * Find user by email within a team (via team_members)
-   * For import: find contacts that belong to the team
+   * Find user by email within a team
+   * With UNIQUE(email, team_id), each team has its own user record
+   * Simply query by email + team_id directly on users table
    */
   async findByEmailInTeam(email: string, teamId: string) {
     if (!email) {
@@ -364,33 +356,24 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
 
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .select(`
-        *,
-        team_members!inner(team_id)
-      `)
+      .select('*')
       .eq('email', email.toLowerCase().trim())
-      .eq('team_members.team_id', teamId)
-      .is('team_members.left_at', null)
-      .limit(1)
+      .eq('team_id', teamId)
+      .is('deleted_at', null)
       .maybeSingle()
 
     if (error) {
       return { success: false as const, error: handleError(error) }
     }
 
-    // Clean up the response - remove team_members from user data
-    if (data) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { team_members: _, ...user } = data
-      return { success: true as const, data: user as User }
-    }
-
-    return { success: true as const, data: null }
+    return { success: true as const, data: data as User | null }
   }
 
   /**
    * Bulk upsert users (for import)
-   * Match by email - if exists globally, check team membership
+   * With UNIQUE(email, team_id), each team gets its own user record
+   * - If email exists in THIS team → UPDATE
+   * - If email doesn't exist in THIS team → CREATE (even if email exists in other teams)
    */
   async upsertMany(
     users: (UserInsert & { _existingId?: string })[],
@@ -405,69 +388,37 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
     for (let i = 0; i < users.length; i++) {
       const user = users[i]
       logger.debug(`[USER-REPO] Processing user ${i + 1}/${users.length}`, { name: user.name, email: user.email })
-      // Check if user already exists by email
-      if (user.email) {
-        const existingResult = await this.findByEmail(user.email)
 
-        if (!existingResult.success) {
-          return existingResult as { success: false; error: { code: string; message: string } }
+      // Check if user already exists in THIS team
+      if (user.email) {
+        const existingInTeamResult = await this.findByEmailInTeam(user.email, teamId)
+
+        if (!existingInTeamResult.success) {
+          return existingInTeamResult as { success: false; error: { code: string; message: string } }
         }
 
-        if (existingResult.data) {
-          // User exists globally - check if in team
-          const teamMemberResult = await this.supabase
-            .from('team_members')
-            .select('id')
-            .eq('user_id', existingResult.data.id)
-            .eq('team_id', teamId)
-            .is('left_at', null)
-            .maybeSingle()
+        if (existingInTeamResult.data) {
+          // User already exists in THIS team → UPDATE
+          const updateResult = await this.update(existingInTeamResult.data.id, {
+            name: user.name,
+            phone: user.phone,
+            address: user.address,
+            speciality: user.speciality,
+            notes: user.notes,
+          })
 
-          if (teamMemberResult.data) {
-            // Already in team, update user
-            const updateResult = await this.update(existingResult.data.id, {
-              name: user.name,
-              phone: user.phone,
-              address: user.address,
-              speciality: user.speciality,
-              notes: user.notes,
-            })
-
-            if (!updateResult.success) {
-              return updateResult as { success: false; error: { code: string; message: string } }
-            }
-
-            updated.push(existingResult.data.id)
-          } else {
-            // User exists but not in team - ADD them to the team using SECURITY DEFINER function
-            const { error: memberError } = await this.supabase
-              .rpc('add_user_to_team', {
-                p_user_id: existingResult.data.id,
-                p_team_id: teamId,
-                p_role: user.role,
-              })
-
-            if (memberError) {
-              logger.warn('Failed to add existing user to team_members:', memberError)
-              skipped.push(existingResult.data.id)
-            } else {
-              // Also update user data
-              await this.update(existingResult.data.id, {
-                name: user.name,
-                phone: user.phone,
-                address: user.address,
-                speciality: user.speciality,
-                notes: user.notes,
-              })
-              updated.push(existingResult.data.id)
-            }
+          if (!updateResult.success) {
+            return updateResult as { success: false; error: { code: string; message: string } }
           }
+
+          updated.push(existingInTeamResult.data.id)
           continue
         }
       }
 
-      // Create new user - exclude internal fields like _rowIndex, _existingId, _companyId
-      const { _rowIndex, _existingId, _companyId, ...userDataForDb } = user as typeof user & { _rowIndex?: number; _companyId?: string };
+      // User doesn't exist in THIS team → CREATE new user
+      // With UNIQUE(email, team_id), this succeeds even if email exists in other teams
+      const { _rowIndex, _existingId, _companyId, ...userDataForDb } = user as typeof user & { _rowIndex?: number; _companyId?: string }
       const createResult = await this.create({
         ...userDataForDb,
         email: user.email?.toLowerCase().trim() || null,
@@ -475,6 +426,31 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
       })
 
       if (!createResult.success) {
+        // CONFLICT means email+team_id already exists (shouldn't happen as we checked above)
+        // But handle gracefully by trying to update instead
+        if (createResult.error.code === 'CONFLICT' && user.email) {
+          logger.info('[USER-REPO] Conflict on create, attempting update', { email: user.email, teamId })
+          
+          // Re-fetch and update
+          const refetchResult = await this.findByEmailInTeam(user.email, teamId)
+          if (refetchResult.success && refetchResult.data) {
+            await this.update(refetchResult.data.id, {
+              name: user.name,
+              phone: user.phone,
+              address: user.address,
+              speciality: user.speciality,
+              notes: user.notes,
+            })
+            updated.push(refetchResult.data.id)
+            continue
+          }
+          
+          // If still can't find, skip
+          logger.warn('[USER-REPO] Could not resolve conflict for user', { email: user.email })
+          skipped.push(user.email)
+          continue
+        }
+
         return createResult as { success: false; error: { code: string; message: string } }
       }
 
@@ -487,7 +463,7 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
         })
 
       if (memberError) {
-        logger.warn('Failed to add user to team_members:', memberError)
+        logger.warn('[USER-REPO] Failed to add user to team_members:', memberError)
       }
 
       created.push(createResult.data.id)

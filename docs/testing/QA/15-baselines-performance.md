@@ -56,7 +56,7 @@
 
 | Page | Route | LCP | INP | CLS | Lighthouse | Date Mesure |
 |------|-------|-----|-----|-----|------------|-------------|
-| **Import** | `/gestionnaire/biens/import` | 1.5s | 50ms | 0.01 | 90 | 2025-12-18 |
+| **Import** | `/gestionnaire/import` | 1.5s | 50ms | 0.01 | 90 | 2025-12-18 |
 | **Paramètres** | `/gestionnaire/parametres` | 1.4s | 45ms | 0.01 | 91 | 2025-12-18 |
 | **Contrats** | `/gestionnaire/contrats` | 2.5s | 95ms | 0.07 | 72 | 2025-12-18 |
 

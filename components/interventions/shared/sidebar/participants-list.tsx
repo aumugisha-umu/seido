@@ -5,7 +5,7 @@
  *
  * Design unifié basé sur le layout legacy (Provider/Tenant) avec:
  * - Groupes par rôle avec labels en uppercase
- * - Emails affichés sous les noms
+ * - Noms affichés (clic pour naviguer vers tab Contacts)
  * - Icônes de conversation individuelles (manager uniquement)
  * - Bouton "Discussion générale" en bas
  *
@@ -15,6 +15,7 @@
  *   currentUserRole="manager"
  *   onConversationClick={handleConversationClick}
  *   onGroupConversationClick={handleGroupClick}
+ *   onParticipantClick={() => setActiveTab('contacts')}
  * />
  */
 
@@ -71,6 +72,7 @@ interface ParticipantGroupProps {
   showConversationButtons: boolean
   activeConversation?: string | 'group'
   onConversationClick?: (participantId: string) => void
+  onParticipantClick?: () => void
   assignmentMode?: AssignmentMode
   /** Compteur de messages non lus pour ce type de thread */
   unreadCount?: number
@@ -85,6 +87,7 @@ const ParticipantGroup = ({
   showConversationButtons,
   activeConversation,
   onConversationClick,
+  onParticipantClick,
   assignmentMode,
   unreadCount = 0,
   currentUserId
@@ -155,14 +158,24 @@ const ParticipantGroup = ({
 
       {/* Liste des participants - collapsible */}
       {isExpanded && (
-        <div className="space-y-3 pl-1">
+        <div className="space-y-1">
           {participants.map((participant) => (
             <div
               key={participant.id}
               className={cn(
                 'flex items-center gap-3',
-                showConversationButtons && 'group'
+                showConversationButtons && 'group',
+                onParticipantClick && 'cursor-pointer hover:bg-slate-50 rounded-md p-1 transition-colors'
               )}
+              onClick={onParticipantClick}
+              role={onParticipantClick ? 'button' : undefined}
+              tabIndex={onParticipantClick ? 0 : undefined}
+              onKeyDown={onParticipantClick ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  onParticipantClick()
+                }
+              } : undefined}
             >
               {/* Avatar */}
               <Avatar className="h-8 w-8 border border-slate-200 flex-shrink-0">
@@ -171,16 +184,11 @@ const ParticipantGroup = ({
                 </AvatarFallback>
               </Avatar>
 
-              {/* Nom et email */}
+              {/* Nom (sans email) */}
               <div className="flex-1 min-w-0 overflow-hidden">
                 <p className="text-sm font-medium text-slate-700 truncate">
                   {participant.name}
                 </p>
-                {participant.email && (
-                  <p className="text-xs text-slate-500 truncate">
-                    {participant.email}
-                  </p>
-                )}
               </div>
 
               {/* Bouton de conversation individuelle avec pastille */}
@@ -194,7 +202,10 @@ const ParticipantGroup = ({
                       'h-7 w-7 text-slate-400 hover:text-blue-600',
                       activeConversation === participant.id && 'bg-blue-100 text-blue-600'
                     )}
-                    onClick={() => onConversationClick(participant.id)}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onConversationClick(participant.id)
+                    }}
                     aria-label={`Ouvrir la conversation avec ${participant.name}`}
                     aria-pressed={activeConversation === participant.id}
                   >
@@ -274,6 +285,8 @@ interface ExtendedParticipantsListProps extends ParticipantsListProps {
   unreadCounts?: Record<string, number>
   /** Masquer le bouton de discussion générale (pour l'afficher ailleurs) */
   hideGroupConversationButton?: boolean
+  /** Callback appelé quand on clique sur un participant (navigation vers tab Contacts) */
+  onParticipantClick?: () => void
 }
 
 /**
@@ -290,6 +303,7 @@ export const ParticipantsList = ({
   assignmentMode,
   unreadCounts = {},
   hideGroupConversationButton = false,
+  onParticipantClick,
   className
 }: ExtendedParticipantsListProps) => {
   // Détermine quels rôles sont visibles selon le rôle de l'utilisateur courant
@@ -341,6 +355,7 @@ export const ParticipantsList = ({
             showConversationButtons={canShowConversationButtons}
             activeConversation={activeConversation}
             onConversationClick={onConversationClick}
+            onParticipantClick={onParticipantClick}
             unreadCount={unreadCounts[ROLE_TO_THREAD_TYPE.manager] || 0}
             currentUserId={currentUserId}
           />
@@ -354,6 +369,7 @@ export const ParticipantsList = ({
             showConversationButtons={canShowConversationButtons}
             activeConversation={activeConversation}
             onConversationClick={onConversationClick}
+            onParticipantClick={onParticipantClick}
             assignmentMode={assignmentMode}
             unreadCount={unreadCounts[ROLE_TO_THREAD_TYPE.provider] || 0}
             currentUserId={currentUserId}
@@ -368,6 +384,7 @@ export const ParticipantsList = ({
             showConversationButtons={canShowConversationButtons}
             activeConversation={activeConversation}
             onConversationClick={onConversationClick}
+            onParticipantClick={onParticipantClick}
             unreadCount={unreadCounts[ROLE_TO_THREAD_TYPE.tenant] || 0}
             currentUserId={currentUserId}
           />

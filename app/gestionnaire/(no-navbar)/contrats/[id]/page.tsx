@@ -1,6 +1,7 @@
 // Server Component - loads contract data server-side
 import { notFound } from 'next/navigation'
 import { createServerContractService } from '@/lib/services/domain/contract.service'
+import { createServerInterventionService } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
 import ContractDetailsClient from './contract-details-client'
 import { logger } from '@/lib/logger'
@@ -97,6 +98,20 @@ export default async function ContractDetailsPage({
       elapsed: `${Date.now() - startTime}ms`
     })
 
+    // Load interventions linked to this contract (only those with contract_id = this contract)
+    logger.info('📍 [CONTRACT-PAGE-SERVER] Step 3: Loading interventions...', { contractId: id })
+    const interventionService = await createServerInterventionService()
+
+    // Load only interventions explicitly linked to this contract via contract_id
+    // (No fallback to lot_id - we only want contract-specific interventions)
+    const interventionsResult = await interventionService.getByContract(id)
+    const interventions = interventionsResult.success ? interventionsResult.data || [] : []
+
+    logger.info('✅ [CONTRACT-PAGE-SERVER] Interventions loaded', {
+      interventionCount: interventions.length,
+      elapsed: `${Date.now() - startTime}ms`
+    })
+
     logger.info('🎉 [CONTRACT-PAGE-SERVER] All data loaded successfully', {
       contractId: id,
       totalElapsed: `${Date.now() - startTime}ms`
@@ -107,6 +122,7 @@ export default async function ContractDetailsPage({
       <ContractDetailsClient
         contract={contract}
         documents={documents}
+        interventions={interventions}
         teamId={team.id}
       />
     )

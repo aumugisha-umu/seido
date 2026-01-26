@@ -8,10 +8,10 @@
 ## 🎯 Deux Approches Possibles
 
 ### Approche A: Alias Google Workspace (Guide actuel)
-**Principe**: 1 compte central `gestionnaires@seido.pm` + alias par équipe
+**Principe**: 1 compte central `gestionnaires@seido-app.com` + alias par équipe
 
 ```
-User Gmail/Outlook → FORWARD → team1@seido.pm (alias) → SEIDO lit depuis gestionnaires@seido.pm
+User Gmail/Outlook → FORWARD → team1@seido-app.com (alias) → SEIDO lit depuis gestionnaires@seido-app.com
 ```
 
 ### Approche B: OAuth Multi-Comptes (Alternative proposée)

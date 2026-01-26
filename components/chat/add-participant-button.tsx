@@ -8,6 +8,7 @@
 import { useState, useTransition } from 'react'
 import { UserPlus, Check, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
+import { formatErrorMessage } from '@/lib/utils/error-formatter'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -76,7 +77,7 @@ export function AddParticipantButton({
           toast.success(`${userName} a été ajouté à la conversation`)
           setOpen(false)
         } else {
-          toast.error(result.error || 'Erreur lors de l\'ajout du participant')
+          toast.error(formatErrorMessage(result.error, 'Erreur lors de l\'ajout du participant'))
         }
       } catch (error) {
         toast.error('Erreur lors de l\'ajout du participant')

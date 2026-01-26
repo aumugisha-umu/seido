@@ -3,10 +3,11 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { Home, Building2, Users, Bell, Wrench, MessageSquare, Menu, X, User, Settings, LogOut, Loader2, FileText } from "lucide-react"
+import { usePathname } from "next/navigation"
+import { Home, Building2, Users, Bell, Wrench, MessageSquare, Menu, X, User, Settings, LogOut, Loader2, FileText, Mail, ListTree } from "lucide-react"
 import Image from "next/image"
 import UserMenu from "./user-menu"
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { useAuth } from "@/hooks/use-auth"
 import { useGlobalNotifications } from "@/hooks/use-global-notifications"
 import { useNotificationPopover } from "@/hooks/use-notification-popover"
@@ -35,6 +36,8 @@ interface DashboardHeaderProps {
   userInitial?: string
   userEmail?: string
   teamId?: string // Team ID passed from server
+  userId?: string // ✅ PERF: User ID passed from server to bypass client auth delay
+  avatarUrl?: string // Avatar URL from user profile
 }
 
 const roleConfigs: Record<string, HeaderConfig> = {
@@ -44,6 +47,7 @@ const roleConfigs: Record<string, HeaderConfig> = {
     navigation: [
       { href: "/admin/dashboard", label: "Dashboard", icon: Home },
       { href: "/admin/users", label: "Utilisateurs", icon: Users },
+      { href: "/admin/intervention-types", label: "Types intervention", icon: ListTree },
       { href: "/admin/parametres", label: "Paramètres", icon: Settings },
     ],
     showUserElements: true,
@@ -57,6 +61,7 @@ const roleConfigs: Record<string, HeaderConfig> = {
       { href: "/gestionnaire/contrats", label: "Contrats", icon: FileText },
       { href: "/gestionnaire/interventions", label: "Interventions", icon: Wrench },
       { href: "/gestionnaire/contacts", label: "Contacts", icon: Users },
+      { href: "/gestionnaire/mail", label: "Emails", icon: Mail },
     ],
     showUserElements: true,
   },
@@ -79,7 +84,9 @@ export default function DashboardHeader({
   userName: serverUserName,
   userInitial: serverUserInitial,
   userEmail: serverUserEmail,
-  teamId: serverTeamId
+  teamId: serverTeamId,
+  userId: serverUserId,
+  avatarUrl: serverAvatarUrl
 }: DashboardHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isNotificationPopoverOpen, setIsNotificationPopoverOpen] = useState(false)
@@ -89,10 +96,11 @@ export default function DashboardHeader({
   const { user, signOut } = useAuth()
   const { isBannerVisible } = usePWABannerOptional()
   const pathname = usePathname()
-  const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
+  // ✅ PERF: Pass server userId to avoid waiting for client auth
   const { unreadCount: globalUnreadCount, refetch: refetchGlobalNotifications } = useGlobalNotifications({
-    teamId: serverTeamId
+    teamId: serverTeamId,
+    userId: serverUserId
   })
 
   // Hook pour le popover de notifications
@@ -179,14 +187,6 @@ export default function DashboardHeader({
       logger.info('🔄 [DASHBOARD-HEADER] Executing navigation with window.location.href...')
       window.location.href = "/auth/login"
     }
-  }
-
-  const handleProfile = () => {
-    router.push(`/${role}/profile`)
-  }
-
-  const handleSettings = () => {
-    router.push(`/${role}/parametres`)
   }
 
   // Fermer le menu mobile lors du changement de route
@@ -308,6 +308,7 @@ export default function DashboardHeader({
                     userName={displayName}
                     userInitial={displayInitial}
                     role={role}
+                    avatarUrl={serverAvatarUrl}
                   />
                 </div>
               )}
@@ -382,27 +383,23 @@ export default function DashboardHeader({
               {/* Section actions utilisateur */}
               {config.showUserElements && (
                 <div className="space-y-2 mb-4">
-                  <button
-                    onClick={() => {
-                      handleProfile()
-                      setIsMobileMenuOpen(false)
-                    }}
+                  <Link
+                    href={`/${role}/profile`}
+                    onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px] text-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border"
                   >
                     <User className="h-6 w-6" />
                     <span className="text-base">Mon profil</span>
-                  </button>
+                  </Link>
 
-                  <button
-                    onClick={() => {
-                      handleSettings()
-                      setIsMobileMenuOpen(false)
-                    }}
+                  <Link
+                    href={`/${role}/parametres`}
+                    onClick={() => setIsMobileMenuOpen(false)}
                     className="flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 font-medium w-full min-h-[48px] text-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border"
                   >
                     <Settings className="h-6 w-6" />
                     <span className="text-base">Paramètres</span>
-                  </button>
+                  </Link>
                 </div>
               )}
 
@@ -415,9 +412,12 @@ export default function DashboardHeader({
                   <div className="flex items-center justify-between px-4 py-3">
                     {/* Informations utilisateur */}
                     <div className="flex items-center space-x-3 min-w-0 flex-1">
-                      <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-primary-foreground font-medium text-base">{displayInitial}</span>
-                      </div>
+                      <Avatar className="w-10 h-10 flex-shrink-0">
+                        {serverAvatarUrl && <AvatarImage src={serverAvatarUrl} alt={displayName} />}
+                        <AvatarFallback className="bg-primary text-primary-foreground font-medium text-base">
+                          {displayInitial}
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="flex flex-col min-w-0 flex-1">
                         <span className="text-foreground font-semibold text-base leading-tight truncate">{displayName}</span>
                         <span className="text-muted-foreground text-sm leading-tight truncate">{getRoleDisplayName(role)}</span>

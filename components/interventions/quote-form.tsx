@@ -146,12 +146,12 @@ export function QuoteForm({
 
       toast.success(
         isDraft
-          ? 'Devis enregistré en brouillon'
-          : 'Devis envoyé au gestionnaire'
+          ? 'Estimation enregistrée en brouillon'
+          : 'Estimation envoyée au gestionnaire'
       )
     } catch (error) {
       console.error('Error submitting quote:', error)
-      toast.error('Erreur lors de l\'enregistrement du devis')
+      toast.error('Erreur lors de l\'enregistrement de l\'estimation')
     } finally {
       setIsSubmitting(false)
     }
@@ -162,7 +162,7 @@ export function QuoteForm({
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Nouveau devis</CardTitle>
+            <CardTitle>Nouvelle estimation</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Quote type */}
@@ -171,7 +171,7 @@ export function QuoteForm({
               name="quote_type"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Type de devis</FormLabel>
+                  <FormLabel>Type d'estimation</FormLabel>
                   <Select
                     onValueChange={field.onChange}
                     defaultValue={field.value}
@@ -183,7 +183,7 @@ export function QuoteForm({
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="estimation">Estimation</SelectItem>
-                      <SelectItem value="final">Devis final</SelectItem>
+                      <SelectItem value="final">Estimation finale</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -225,7 +225,7 @@ export function QuoteForm({
                     />
                   </FormControl>
                   <FormDescription>
-                    Date limite de validité du devis
+                    Date limite de validité de l'estimation
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

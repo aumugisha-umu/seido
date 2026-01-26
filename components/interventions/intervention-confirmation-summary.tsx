@@ -32,7 +32,7 @@ import {
   Clock,
   Briefcase
 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { getTypeIcon } from '@/components/interventions/intervention-type-icon'
 import { cn } from '@/lib/utils'
@@ -175,10 +175,13 @@ interface InterventionConfirmationSummaryProps {
 }
 
 // Helper to format slot date
+// ✅ FIX: Utiliser parseISO pour éviter les décalages de timezone
+// new Date("YYYY-MM-DD") traite comme UTC minuit → peut décaler d'un jour en heure locale
+// parseISO traite la date comme locale, ce qui est le comportement attendu
 function formatSlotDate(dateStr: string): string {
   if (!dateStr) return ''
   try {
-    const date = new Date(dateStr)
+    const date = parseISO(dateStr)
     return format(date, 'EEE d MMM', { locale: fr })
   } catch {
     return dateStr
@@ -306,7 +309,7 @@ export function InterventionConfirmationSummary({
               {data.expectsQuote ? (
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-full">
                   <FileText className="h-3 w-3 text-amber-600" />
-                  <span className="text-[10px] font-semibold text-amber-700">Devis demandé</span>
+                  <span className="text-[10px] font-semibold text-amber-700">Estimation demandée</span>
                 </div>
               ) : (
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 border border-green-200 rounded-full">
@@ -361,7 +364,11 @@ export function InterventionConfirmationSummary({
                         <div key={idx} className="flex items-center gap-2 px-2.5 py-1.5 bg-purple-50 text-purple-700 rounded-md border border-purple-100 text-xs">
                           <span className="font-semibold">{formatSlotDate(slot.date)}</span>
                           <span className="opacity-75">
-                            {slot.startTime === slot.endTime ? slot.startTime : `${slot.startTime}-${slot.endTime}`}
+                            {/* Mode date fixe (immediate): afficher seulement l'heure de début */}
+                            {data.scheduling?.type === 'immediate'
+                              ? slot.startTime
+                              : (slot.startTime === slot.endTime ? slot.startTime : `${slot.startTime}-${slot.endTime}`)
+                            }
                           </span>
                         </div>
                       ))}

@@ -124,6 +124,63 @@ export async function POST(request: NextRequest) {
       userId: user.id
     }, "✅ [CONFIRM-PARTICIPATION] Status updated successfully")
 
+    // ✅ FIX 2026-01-25: Vérifier si TOUTES les confirmations requises sont reçues
+    if (confirmed) {
+      const { data: allAssignments, error: allAssignmentsError } = await supabase
+        .from('intervention_assignments')
+        .select('confirmation_status')
+        .eq('intervention_id', interventionId)
+        .eq('requires_confirmation', true)
+
+      if (!allAssignmentsError && allAssignments) {
+        const allConfirmed = allAssignments.every(a => a.confirmation_status === 'confirmed')
+
+        if (allConfirmed) {
+          logger.info({ interventionId }, "✅ [CONFIRM-PARTICIPATION] All participants confirmed")
+
+          // 1. Mettre à jour l'intervention vers 'planifiee'
+          const { error: updateInterventionError } = await supabase
+            .from('interventions')
+            .update({ status: 'planifiee' })
+            .eq('id', interventionId)
+            .eq('status', 'planification') // Seulement si en planification
+
+          if (updateInterventionError) {
+            logger.warn({
+              error: updateInterventionError,
+              interventionId
+            }, "⚠️ [CONFIRM-PARTICIPATION] Failed to update intervention status")
+          }
+
+          // 2. Mettre à jour le time slot vers 'selected'
+          const { error: updateSlotError } = await supabase
+            .from('intervention_time_slots')
+            .update({
+              status: 'selected',
+              selected_by_manager: true
+            })
+            .eq('intervention_id', interventionId)
+            .eq('status', 'pending')
+
+          if (updateSlotError) {
+            logger.warn({
+              error: updateSlotError,
+              interventionId
+            }, "⚠️ [CONFIRM-PARTICIPATION] Failed to update time slot status")
+          }
+
+          logger.info({ interventionId }, "✅ [CONFIRM-PARTICIPATION] Intervention planifiée après confirmation de tous les participants")
+        } else {
+          const pendingCount = allAssignments.filter(a => a.confirmation_status === 'pending').length
+          logger.info({
+            interventionId,
+            confirmedCount: allAssignments.filter(a => a.confirmation_status === 'confirmed').length,
+            pendingCount
+          }, "ℹ️ [CONFIRM-PARTICIPATION] Waiting for more confirmations")
+        }
+      }
+    }
+
     // TODO: Envoyer une notification au créateur de l'intervention
     // pour l'informer de la réponse du participant
 

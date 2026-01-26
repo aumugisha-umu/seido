@@ -34,7 +34,7 @@ export function LotCardUnified({
   isExpanded: controlledExpanded,
   defaultExpanded = false,
   showBuilding = false,
-  showInterventionsCount = true,
+  showInterventionsCount = false,
   buildingContext,
   lotContactIdsMap,
   teamId,

@@ -3,7 +3,25 @@ import { ImapService } from '@/lib/services/domain/imap.service';
 import { EmailConnectionRepository } from '@/lib/services/repositories/email-connection.repository';
 import { EmailRepository } from '@/lib/services/repositories/email.repository';
 import { EmailBlacklistRepository } from '@/lib/services/repositories/email-blacklist.repository';
+import { GmailOAuthService } from '@/lib/services/domain/gmail-oauth.service';
 import { TeamEmailConnection } from '@/lib/types/email-integration';
+
+/**
+ * Sanitizes error messages before storing in DB or logging
+ */
+function sanitizeErrorForStorage(error: Error | any): string {
+    try {
+        const message = error?.message || error?.toString() || 'Unknown error';
+        return message
+            .replace(/\\u[\da-fA-F]{0,3}(?![0-9a-fA-F])/g, '') // Remove incomplete \u sequences
+            .replace(/\\x[\da-fA-F]{0,1}(?![0-9a-fA-F])/g, '') // Remove incomplete \x sequences
+            .replace(/[\x00-\x1F\x7F-\x9F]/g, '') // Remove control characters
+            .substring(0, 500) // Limit length for DB storage
+            .trim();
+    } catch {
+        return 'Error during synchronization (message sanitization failed)';
+    }
+}
 
 export interface SyncResult {
     connectionId: string;
@@ -25,10 +43,80 @@ export class EmailSyncService {
         this.blacklistRepo = new EmailBlacklistRepository(supabase);
     }
 
+    /**
+     * Rafraîchit le token OAuth si nécessaire et met à jour la DB
+     */
+    private async refreshOAuthTokenIfNeeded(connection: TeamEmailConnection): Promise<TeamEmailConnection> {
+        if (connection.auth_method !== 'oauth') {
+            return connection;
+        }
+
+        if (!connection.oauth_refresh_token || !connection.oauth_token_expires_at) {
+            return connection;
+        }
+
+        const isExpired = GmailOAuthService.isTokenExpired(
+            new Date(connection.oauth_token_expires_at)
+        );
+
+        if (!isExpired) {
+            return connection;
+        }
+
+        console.log(`Refreshing OAuth token for connection ${connection.id}...`);
+
+        try {
+            // Déchiffrer le refresh token
+            const { refreshToken } = GmailOAuthService.decryptTokens(
+                connection.oauth_access_token || '',
+                connection.oauth_refresh_token
+            );
+
+            // Obtenir un nouveau access token
+            const { accessToken, expiresAt } = await GmailOAuthService.refreshAccessToken(refreshToken);
+
+            // Chiffrer le nouveau token
+            const encryptedTokens = GmailOAuthService.encryptTokens({
+                accessToken,
+                refreshToken,
+                expiresAt,
+                scope: connection.oauth_scope || ''
+            });
+
+            // Mettre à jour la DB
+            const { error } = await this.supabase
+                .from('team_email_connections')
+                .update({
+                    oauth_access_token: encryptedTokens.encryptedAccessToken,
+                    oauth_token_expires_at: expiresAt.toISOString()
+                })
+                .eq('id', connection.id);
+
+            if (error) {
+                console.error('Failed to update refreshed token:', error);
+            } else {
+                console.log('OAuth token refreshed successfully');
+            }
+
+            // Retourner la connexion avec le nouveau token
+            return {
+                ...connection,
+                oauth_access_token: encryptedTokens.encryptedAccessToken,
+                oauth_token_expires_at: expiresAt.toISOString()
+            };
+        } catch (err: any) {
+            console.error('Failed to refresh OAuth token:', err);
+            throw new Error(`Échec du rafraîchissement du token OAuth: ${err.message}`);
+        }
+    }
+
     async syncConnection(connection: TeamEmailConnection): Promise<SyncResult> {
         try {
-            // Fetch new emails
-            const { emails: parsedEmails, maxUid } = await ImapService.fetchNewEmails(connection);
+            // Rafraîchir le token OAuth si nécessaire
+            const refreshedConnection = await this.refreshOAuthTokenIfNeeded(connection);
+
+            // Fetch new emails (utilise la connexion avec token rafraîchi)
+            const { emails: parsedEmails, maxUid } = await ImapService.fetchNewEmails(refreshedConnection);
 
             if (parsedEmails.length === 0) {
                 // Still update last_sync_at even if no new emails
@@ -50,12 +138,17 @@ export class EmailSyncService {
                     continue;
                 }
 
-                // Save email
+                // Save email with RFC 5322 threading headers
+                // - in_reply_to: UUID FK to parent email (not used during initial sync)
+                // - in_reply_to_header: Raw RFC 5322 In-Reply-To header (for threading)
+                // - references: Raw RFC 5322 References header (first ID = conversation root)
                 const savedEmail = await this.emailRepo.createEmail({
                     team_id: connection.team_id,
                     email_connection_id: connection.id,
                     direction: 'received',
                     message_id: email.messageId,
+                    in_reply_to_header: email.inReplyTo, // RFC 5322 In-Reply-To header
+                    references: email.references,        // RFC 5322 References header
                     from_address: email.from,
                     to_addresses: email.to,
                     subject: email.subject,
@@ -105,9 +198,10 @@ export class EmailSyncService {
             };
 
         } catch (err: any) {
-            console.error(`Error syncing connection ${connection.id}:`, err);
-            await this.connectionRepo.recordError(connection.id, err.message);
-            return { connectionId: connection.id, status: 'error', error: err.message };
+            const sanitizedError = sanitizeErrorForStorage(err);
+            console.error(`Error syncing connection ${connection.id}:`, sanitizedError);
+            await this.connectionRepo.recordError(connection.id, sanitizedError);
+            return { connectionId: connection.id, status: 'error', error: sanitizedError };
         }
     }
 }

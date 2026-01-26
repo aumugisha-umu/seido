@@ -34,7 +34,7 @@ import {
   CalendarCheck
 } from 'lucide-react'
 import { TimeSlot, UserRole } from '../types'
-import { formatDateShort, formatTimeRange } from '../utils/helpers'
+import { formatDateShort, formatTimeRange, formatTime } from '../utils/helpers'
 import { permissions } from '../utils/permissions'
 
 export interface TimeSlotCardProps {
@@ -187,7 +187,10 @@ export const TimeSlotCard = ({
 }: TimeSlotCardProps) => {
   // Vérifie si l'utilisateur a déjà répondu à ce créneau
   const userResponse = slot.responses?.find(r => r.user_id === currentUserId)
+  // hasResponded = true si l'utilisateur a une réponse (même 'pending')
   const hasResponded = !!userResponse
+  // hasActiveResponse = true seulement si l'utilisateur a vraiment répondu (accepted/rejected, pas 'pending')
+  const hasActiveResponse = userResponse && userResponse.response !== 'pending'
 
   // Vérifie si l'utilisateur courant est le proposant du créneau
   const isOwnSlot = slot.proposed_by === currentUserId
@@ -227,7 +230,11 @@ export const TimeSlotCard = ({
           <span className="text-slate-300">•</span>
           <Clock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
           <span className="text-sm">
-            {formatTimeRange(slot.start_time, slot.end_time)}
+            {/* Mode date fixe (selected_by_manager): afficher seulement l'heure de début */}
+            {slot.selected_by_manager
+              ? formatTime(slot.start_time)
+              : formatTimeRange(slot.start_time, slot.end_time)
+            }
           </span>
         </div>
 
@@ -261,7 +268,11 @@ export const TimeSlotCard = ({
           <div className="flex items-center gap-1">
             <Clock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden="true" />
             <span className="text-sm text-muted-foreground">
-              {formatTimeRange(slot.start_time, slot.end_time)}
+              {/* Mode date fixe (selected_by_manager): afficher seulement l'heure de début */}
+              {slot.selected_by_manager
+                ? formatTime(slot.start_time)
+                : formatTimeRange(slot.start_time, slot.end_time)
+              }
             </span>
           </div>
         </div>
@@ -320,8 +331,8 @@ export const TimeSlotCard = ({
 
       {/* Ligne 4: Actions simplifiées */}
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Cas 1: A déjà répondu → bouton "Modifier réponse" + "Choisir" (manager) */}
-        {hasResponded && isActiveSlot && (
+        {/* Cas 1: A déjà répondu activement (accepted/rejected) → bouton "Modifier réponse" + "Choisir" (manager) */}
+        {hasActiveResponse && isActiveSlot && (
           <>
             {onOpenResponseModal && (
               <Button
@@ -351,8 +362,8 @@ export const TimeSlotCard = ({
           </>
         )}
 
-        {/* Cas 2: Pas encore répondu → boutons Accepter/Refuser */}
-        {!hasResponded && isActiveSlot && (
+        {/* Cas 2: Pas encore répondu activement (pending ou pas de réponse) → boutons Accepter/Refuser */}
+        {!hasActiveResponse && isActiveSlot && (
           <>
             {onApprove && (
               <Button
@@ -381,8 +392,8 @@ export const TimeSlotCard = ({
           </>
         )}
 
-        {/* Manager: bouton Choisir même si pas encore répondu */}
-        {!hasResponded && userRole === 'manager' && onChoose && isActiveSlot && (
+        {/* Manager: bouton Choisir même si pas encore répondu activement */}
+        {!hasActiveResponse && userRole === 'manager' && onChoose && isActiveSlot && (
           <Button
             variant="outline"
             size="sm"

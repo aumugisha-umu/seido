@@ -105,13 +105,14 @@ export const getServerAuthContext = cache(async (requiredRole?: string): Promise
   try {
     logger.info('🔍 [SERVER-CONTEXT] Getting authenticated context (READ-ONLY)...', { requiredRole })
 
-    // Créer client Supabase authentifié (READ-ONLY)
-    const supabase = await createServerSupabaseClient()
+    // ✅ PERF: Paralléliser création client + service + auth check
+    const [supabase, teamService, authResult] = await Promise.all([
+      createServerSupabaseClient(),
+      createServerTeamService(),
+      requiredRole ? requireRole(requiredRole) : requireRole()
+    ])
 
-    // Vérifier authentification + rôle
-    const { user, profile } = requiredRole
-      ? await requireRole(requiredRole)
-      : await requireRole()
+    const { user, profile } = authResult
 
     logger.info('✅ [SERVER-CONTEXT] User authenticated:', {
       userId: profile.id,
@@ -119,8 +120,7 @@ export const getServerAuthContext = cache(async (requiredRole?: string): Promise
       role: profile.role
     })
 
-    // Charger équipes de l'utilisateur
-    const teamService = await createServerTeamService()
+    // Charger équipes de l'utilisateur (dépend du profile.id)
     const teamsResult = await teamService.getUserTeams(profile.id)
 
     if (!teamsResult.success || !teamsResult.data || teamsResult.data.length === 0) {
@@ -191,13 +191,14 @@ export const getServerActionAuthContext = async (requiredRole?: string): Promise
   try {
     logger.info('🔍 [SERVER-ACTION-CONTEXT] Getting authenticated context (READ-WRITE)...', { requiredRole })
 
-    // Créer client Supabase authentifié (READ-WRITE)
-    const supabase = await createServerActionSupabaseClient()
+    // ✅ PERF: Paralléliser création client + service + auth check
+    const [supabase, teamService, authResult] = await Promise.all([
+      createServerActionSupabaseClient(),
+      createServerTeamService(),
+      requiredRole ? requireRole(requiredRole) : requireRole()
+    ])
 
-    // Vérifier authentification + rôle
-    const { user, profile } = requiredRole
-      ? await requireRole(requiredRole)
-      : await requireRole()
+    const { user, profile } = authResult
 
     logger.info('✅ [SERVER-ACTION-CONTEXT] User authenticated:', {
       userId: profile.id,
@@ -205,9 +206,8 @@ export const getServerActionAuthContext = async (requiredRole?: string): Promise
       role: profile.role
     })
 
-    // Charger équipes de l'utilisateur
+    // Charger équipes de l'utilisateur (dépend du profile.id)
     // ⚠️ Pour Server Actions, on ne cache pas (car mutation possible)
-    const teamService = await createServerTeamService()
     const teamsResult = await teamService.getUserTeams(profile.id)
 
     if (!teamsResult.success || !teamsResult.data || teamsResult.data.length === 0) {

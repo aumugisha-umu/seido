@@ -14,7 +14,7 @@ import {
     X,
     ArrowUpDown
 } from "lucide-react"
-import { ManagerInterventionCard } from "@/components/dashboards/manager/manager-intervention-card"
+import { PendingActionsCard } from "@/components/dashboards/shared/pending-actions-card"
 import { InterventionsCalendarView } from "@/components/interventions/interventions-calendar-view"
 import { InterventionsEmptyState } from "@/components/interventions/interventions-empty-state"
 import { InterventionsListViewV1 } from "@/components/interventions/interventions-list-view-v1"
@@ -44,13 +44,12 @@ type ViewMode = 'grid' | 'list' | 'calendar'
 type SortField = 'date' | 'urgency' | 'status' | 'title'
 type SortOrder = 'asc' | 'desc'
 
+// ✅ FIX 2026-01-26: Removed demande_de_devis - quotes now managed via requires_quote + QuoteStatusBadge
 const STATUS_OPTIONS = [
     { value: 'demande', label: 'Demande' },
     { value: 'approuvee', label: 'Approuvée' },
-    { value: 'demande_de_devis', label: 'Devis demandé' },
     { value: 'planification', label: 'Planification' },
     { value: 'planifiee', label: 'Planifiée' },
-    { value: 'en_cours', label: 'En cours' },
     { value: 'cloturee_par_prestataire', label: 'Clôturée (presta)' },
     { value: 'cloturee_par_locataire', label: 'Clôturée (locataire)' },
     { value: 'cloturee_par_gestionnaire', label: 'Clôturée' },
@@ -132,13 +131,16 @@ interface DashboardInterventionsSectionProps {
     userContext: 'gestionnaire' | 'prestataire' | 'locataire'
     title?: string
     onCreateIntervention?: () => void
+    /** Callback when an action completes on a card (for removing with animation) */
+    onActionComplete?: (interventionId: string) => void
 }
 
 export function DashboardInterventionsSection({
     interventions,
     userContext,
     title = "Interventions",
-    onCreateIntervention
+    onCreateIntervention,
+    onActionComplete
 }: DashboardInterventionsSectionProps) {
     // Auth for userId (needed for alert badges in list view)
     const { user } = useAuth()
@@ -475,9 +477,12 @@ export function DashboardInterventionsSection({
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {filteredAndSortedInterventions.map((intervention) => (
                                     <div key={intervention.id} className="h-full">
-                                        <ManagerInterventionCard
+                                        <PendingActionsCard
                                             intervention={intervention}
-                                            userContext={userContext}
+                                            userRole={userContext}
+                                            userId={user?.id}
+                                            onActionComplete={onActionComplete}
+                                            enableAnimations={true}
                                         />
                                     </div>
                                 ))}

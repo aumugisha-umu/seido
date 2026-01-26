@@ -66,8 +66,8 @@ export function QuoteRejectionModal({
       }
 
       toast({
-        title: "Devis rejeté",
-        description: "Le devis a été rejeté avec succès.",
+        title: "Estimation rejetée",
+        description: "L'estimation a été rejetée avec succès.",
         variant: "default",
       })
 
@@ -79,7 +79,7 @@ export function QuoteRejectionModal({
       logger.error('Erreur lors du rejet:', error)
       toast({
         title: "Erreur",
-        description: error instanceof Error ? error.message : "Erreur lors du rejet du devis",
+        description: error instanceof Error ? error.message : "Erreur lors du rejet de l'estimation",
         variant: "destructive",
       })
     } finally {
@@ -102,10 +102,10 @@ export function QuoteRejectionModal({
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <X className="h-5 w-5 text-red-600" />
-            <span>Rejeter le devis</span>
+            <span>Rejeter l'estimation</span>
           </DialogTitle>
           <DialogDescription>
-            Vous êtes sur le point de rejeter le devis de <strong>{quote.providerName}</strong>
+            Vous êtes sur le point de rejeter l'estimation de <strong>{quote.providerName}</strong>
             d'un montant de <strong>{quote.totalAmount.toFixed(2)} €</strong>.
           </DialogDescription>
         </DialogHeader>
@@ -129,7 +129,7 @@ export function QuoteRejectionModal({
             </Label>
             <Textarea
               id="reason"
-              placeholder="Expliquez pourquoi ce devis est rejeté..."
+              placeholder="Expliquez pourquoi cette estimation est rejetée..."
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               disabled={isLoading}
@@ -163,7 +163,7 @@ export function QuoteRejectionModal({
             ) : (
               <>
                 <X className="h-4 w-4 mr-2" />
-                Rejeter le devis
+                Rejeter l'estimation
               </>
             )}
           </Button>

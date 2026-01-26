@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import {
@@ -7,7 +7,8 @@ import {
   createServerUserRepository,
   createServerBuildingRepository,
   createServerLotRepository,
-  createServerInterventionRepository
+  createServerInterventionRepository,
+  createServerActionInterventionCommentRepository
 } from '@/lib/services'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { interventionScheduleSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
@@ -140,26 +141,48 @@ export async function POST(request: NextRequest) {
           slot_date: directSchedule.date,
           start_time: directSchedule.startTime,
           end_time: endTime, // Set to 1 hour after start_time to satisfy CHECK constraint
-          is_selected: false, // Not yet confirmed by tenant/provider
+          status: 'pending', // Modern status pattern (not yet confirmed)
           proposed_by: user.id, // Gestionnaire who proposed it
           notes: 'Rendez-vous fixé par le gestionnaire'
         }
 
-        // Delete any existing slots first
+        // Check if any slot is already selected (confirmed) before replacing
+        const { data: existingSelectedSlots } = await supabase
+          .from('intervention_time_slots')
+          .select('id, status')
+          .eq('intervention_id', interventionId)
+          .eq('status', 'selected')
+
+        if (existingSelectedSlots && existingSelectedSlots.length > 0) {
+          logger.warn({ count: existingSelectedSlots.length }, "⚠️ Cannot replace slots - confirmed slot exists")
+          return NextResponse.json({
+            success: false,
+            error: 'Un créneau a déjà été confirmé. Impossible de modifier la planification.'
+          }, { status: 400 })
+        }
+
+        // Delete any existing non-selected slots for this intervention
         await supabase
           .from('intervention_time_slots')
           .delete()
           .eq('intervention_id', interventionId)
+          .neq('status', 'selected')
 
-        // Insert the appointment slot
-        const { error: insertSlotError } = await supabase
+        // Insert the appointment slot and get back the ID
+        const { data: insertedDirectSlot, error: insertSlotError } = await supabase
           .from('intervention_time_slots')
           .insert([directTimeSlot])
+          .select('id, slot_date, start_time, end_time')
+          .single()
 
         if (insertSlotError) {
           logger.error({ error: insertSlotError }, "❌ Error creating appointment slot:")
           throw new Error('Erreur lors de la création du rendez-vous')
         }
+
+        // Store for email generation (used in after() closure)
+        // @ts-ignore - Used in after() closure
+        var insertedDirectSlotWithId = insertedDirectSlot
 
         notificationMessage = `Un rendez-vous a été proposé pour votre intervention "${intervention.title}" le ${new Date(directSchedule.date).toLocaleDateString('fr-FR')} à ${directSchedule.startTime}. Veuillez confirmer votre disponibilité.`
 
@@ -184,25 +207,46 @@ export async function POST(request: NextRequest) {
           slot_date: slot.date,
           start_time: slot.startTime,
           end_time: slot.endTime,
-          is_selected: false, // Not yet confirmed
+          status: 'pending', // Modern status pattern (not yet confirmed)
           proposed_by: user.id // Gestionnaire who proposed these slots
         }))
 
-        // Delete any existing slots first
+        // Check if any slot is already selected (confirmed) before replacing
+        const { data: existingSelectedSlotsPropose } = await supabase
+          .from('intervention_time_slots')
+          .select('id, status')
+          .eq('intervention_id', interventionId)
+          .eq('status', 'selected')
+
+        if (existingSelectedSlotsPropose && existingSelectedSlotsPropose.length > 0) {
+          logger.warn({ count: existingSelectedSlotsPropose.length }, "⚠️ Cannot replace slots - confirmed slot exists")
+          return NextResponse.json({
+            success: false,
+            error: 'Un créneau a déjà été confirmé. Impossible de modifier la planification.'
+          }, { status: 400 })
+        }
+
+        // Delete any existing non-selected slots for this intervention
         await supabase
           .from('intervention_time_slots')
           .delete()
           .eq('intervention_id', interventionId)
+          .neq('status', 'selected')
 
-        // Insert the proposed slots
-        const { error: insertSlotsError } = await supabase
+        // Insert the proposed slots and get back their IDs
+        const { data: insertedSlots, error: insertSlotsError } = await supabase
           .from('intervention_time_slots')
           .insert(timeSlots)
+          .select('id, slot_date, start_time, end_time')
 
         if (insertSlotsError) {
           logger.error({ error: insertSlotsError }, "❌ Error inserting time slots:")
           throw new Error('Erreur lors de la création des créneaux')
         }
+
+        // Store inserted slots with IDs for email generation
+        // @ts-ignore - Used in after() closure
+        var insertedSlotsWithIds = insertedSlots
 
         logger.info({ slotsCount: timeSlots.length }, "📅 Proposed slots created (awaiting preferences):")
         break
@@ -242,12 +286,21 @@ export async function POST(request: NextRequest) {
       updated_at: new Date().toISOString()
     }
 
-    // Note: Manager comments about scheduling are now stored in intervention_comments table
-    // The managerCommentParts should be saved via the comments system if needed
-
     const updatedIntervention = await interventionService.update(interventionId, updateData)
 
     logger.info({}, "✅ Intervention scheduled successfully")
+
+    // ✅ BUG FIX 2026-01-25: Save scheduling comment in intervention_comments table
+    if (managerCommentParts.length > 0) {
+      try {
+        const commentRepository = await createServerActionInterventionCommentRepository()
+        const schedulingComment = `📅 **Planification:** ${managerCommentParts.join(' | ')}`
+        await commentRepository.createComment(interventionId, user.id, schedulingComment)
+        logger.info({ interventionId }, "💬 Scheduling comment saved")
+      } catch (commentError) {
+        logger.warn({ commentError }, "⚠️ Could not save scheduling comment (non-blocking)")
+      }
+    }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // NOTIFICATIONS: In-App + Email pour locataires et prestataires assignés
@@ -327,54 +380,117 @@ export async function POST(request: NextRequest) {
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // EMAIL NOTIFICATIONS: Utilise le service unifié avec filtrage
+    // EMAIL NOTIFICATIONS: Utilise le service unifié avec filtrage (via after())
     // ═══════════════════════════════════════════════════════════════════════════
-    try {
-      // Construire la liste des créneaux proposés pour l'email
-      let emailSlots: Array<{ date: string; startTime: string; endTime: string }> = []
+    {
+      // Capture variables for after() closure
+      const emailInterventionId = intervention.id
+      const emailExcludeUserId = user.id
+      const emailPlanningType = planningType
+      const emailManagerName = user.name || `${user.first_name} ${user.last_name}`
+
+      // Construire la liste des créneaux proposés pour l'email (avec IDs pour emails interactifs)
+      let emailSlots: Array<{ id?: string; date: string; startTime: string; endTime: string }> = []
 
       if (planningType === 'direct' && directSchedule) {
-        // Un seul créneau fixé
-        const [hours, minutes] = directSchedule.startTime.split(':').map(Number)
-        const endHours = (hours + 1) % 24
-        const endTime = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+        // Un seul créneau fixé - utiliser l'ID de la DB si disponible
+        // @ts-ignore - Variable set in switch case above
+        if (typeof insertedDirectSlotWithId !== 'undefined' && insertedDirectSlotWithId) {
+          emailSlots = [{
+            id: insertedDirectSlotWithId.id,
+            date: insertedDirectSlotWithId.slot_date,
+            startTime: insertedDirectSlotWithId.start_time,
+            endTime: insertedDirectSlotWithId.end_time
+          }]
+        } else {
+          // Fallback without ID (non-interactive)
+          const [hours, minutes] = directSchedule.startTime.split(':').map(Number)
+          const endHours = (hours + 1) % 24
+          const endTime = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
 
-        emailSlots = [{
-          date: directSchedule.date,
-          startTime: directSchedule.startTime,
-          endTime: endTime
-        }]
+          emailSlots = [{
+            date: directSchedule.date,
+            startTime: directSchedule.startTime,
+            endTime: endTime
+          }]
+        }
       } else if (planningType === 'propose' && proposedSlots) {
-        // Plusieurs créneaux proposés
-        emailSlots = proposedSlots.map(slot => ({
-          date: slot.date,
-          startTime: slot.startTime,
-          endTime: slot.endTime
-        }))
+        // Plusieurs créneaux proposés - utiliser les slots insérés avec leurs IDs
+        // @ts-ignore - Variable set in switch case above
+        if (typeof insertedSlotsWithIds !== 'undefined' && insertedSlotsWithIds) {
+          // Use IDs from database for interactive email buttons
+          emailSlots = insertedSlotsWithIds.map((slot: any) => ({
+            id: slot.id,
+            date: slot.slot_date,
+            startTime: slot.start_time,
+            endTime: slot.end_time
+          }))
+        } else {
+          // Fallback without IDs (non-interactive)
+          emailSlots = proposedSlots.map(slot => ({
+            date: slot.date,
+            startTime: slot.startTime,
+            endTime: slot.endTime
+          }))
+        }
       }
       // Note: planningType === 'organize' n'a pas de créneaux prédéfinis
 
-      const emailResult = await emailNotificationService.sendInterventionEmails({
-        interventionId: intervention.id,
-        eventType: 'time_slots_proposed',
-        excludeUserId: user.id,  // Le gestionnaire qui planifie ne reçoit pas d'email
-        excludeRoles: ['gestionnaire'],  // Exclure tous les gestionnaires des emails de planification
-        excludeNonPersonal: true,  // Seulement les assignés directement
-        schedulingContext: {
-          planningType,
-          managerName: user.name || `${user.first_name} ${user.last_name}`,
-          proposedSlots: emailSlots
+      after(async () => {
+        try {
+          // Re-initialize email service inside after()
+          const { EmailNotificationService } = await import('@/lib/services/domain/email-notification.service')
+          const { EmailService } = await import('@/lib/services/domain/email.service')
+          const {
+            createServerNotificationRepository,
+            createServerInterventionRepository,
+            createServerUserRepository,
+            createServerBuildingRepository,
+            createServerLotRepository
+          } = await import('@/lib/services')
+
+          const notificationRepo = await createServerNotificationRepository()
+          const interventionRepo = await createServerInterventionRepository()
+          const userRepo = await createServerUserRepository()
+          const buildingRepo = await createServerBuildingRepository()
+          const lotRepo = await createServerLotRepository()
+          const emailSvc = new EmailService()
+
+          const emailNotificationSvc = new EmailNotificationService(
+            notificationRepo,
+            emailSvc,
+            interventionRepo,
+            userRepo,
+            buildingRepo,
+            lotRepo
+          )
+
+          const emailResult = await emailNotificationSvc.sendInterventionEmails({
+            interventionId: emailInterventionId,
+            eventType: 'time_slots_proposed',
+            excludeUserId: emailExcludeUserId,
+            excludeRoles: ['gestionnaire'],
+            excludeNonPersonal: true,
+            schedulingContext: {
+              planningType: emailPlanningType,
+              managerName: emailManagerName,
+              proposedSlots: emailSlots
+            }
+          })
+
+          logger.info({
+            interventionId: emailInterventionId,
+            emailsSent: emailResult.sentCount,
+            emailsFailed: emailResult.failedCount,
+            planningType: emailPlanningType
+          }, "📧 [API] Time slots proposed emails sent (via after())")
+        } catch (emailError) {
+          logger.error({
+            interventionId: emailInterventionId,
+            error: emailError instanceof Error ? emailError.message : String(emailError)
+          }, "⚠️ [API] Email notifications failed (via after())")
         }
       })
-
-      logger.info({
-        emailsSent: emailResult.sentCount,
-        emailsFailed: emailResult.failedCount,
-        planningType
-      }, "📧 Time slots proposed emails sent")
-    } catch (emailError) {
-      // Don't fail the scheduling for email errors
-      logger.warn({ emailError }, "⚠️ Could not send scheduling emails:")
     }
 
     return NextResponse.json({

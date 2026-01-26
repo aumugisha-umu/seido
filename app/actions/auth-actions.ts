@@ -72,6 +72,9 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
     return { success: true, data: { message: 'Already authenticated' } }
   }
 
+  // ✅ Paramètre de redirection personnalisée (depuis magic link expiré)
+  const customRedirectTo = formData.get('redirectTo') as string | null
+
   // ✅ VALIDATION: Parser et valider les données
   let validatedData
   try {
@@ -160,12 +163,23 @@ export async function loginAction(prevState: AuthActionResult, formData: FormDat
   // ✅ ÉTAPE 1: Invalider le cache pour forcer refresh des données
   revalidatePath('/', 'layout')
 
-  // ✅ ÉTAPE 2: Retourner le path de redirection (navigation sera gérée côté client)
+  // ✅ ÉTAPE 2: Déterminer la redirection finale
+  // Si une redirection personnalisée est fournie (depuis magic link expiré), l'utiliser
+  // Sinon, utiliser le dashboard par défaut selon le rôle
+  const finalRedirect = customRedirectTo && customRedirectTo.startsWith('/')
+    ? customRedirectTo
+    : dashboardPath
+
+  if (customRedirectTo) {
+    logger.info('🔄 [LOGIN-ACTION] Using custom redirect from magic link:', customRedirectTo)
+  }
+
+  // ✅ ÉTAPE 3: Retourner le path de redirection (navigation sera gérée côté client)
   return {
     success: true,
     data: {
       message: 'Connexion réussie',
-      redirectTo: dashboardPath
+      redirectTo: finalRedirect
     }
   }
 }

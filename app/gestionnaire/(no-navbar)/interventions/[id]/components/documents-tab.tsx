@@ -50,7 +50,7 @@ const documentTypeLabels: Record<string, string> = {
   'photo_avant': 'Photo avant',
   'photo_apres': 'Photo après',
   'facture': 'Facture',
-  'devis': 'Devis',
+  'devis': 'Estimation',
   'plan': 'Plan',
   'certificat': 'Certificat',
   'garantie': 'Garantie',

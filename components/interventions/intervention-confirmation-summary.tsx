@@ -309,7 +309,7 @@ export function InterventionConfirmationSummary({
               {data.expectsQuote ? (
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-full">
                   <FileText className="h-3 w-3 text-amber-600" />
-                  <span className="text-[10px] font-semibold text-amber-700">Devis demandé</span>
+                  <span className="text-[10px] font-semibold text-amber-700">Estimation demandée</span>
                 </div>
               ) : (
                 <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 border border-green-200 rounded-full">

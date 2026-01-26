@@ -158,8 +158,8 @@ export const useInterventionQuoting = (teamIdProp?: string) => {
           ineligibleProviderIds.push(quote.provider_id)
           const reason =
             quote.status === 'pending' ? 'Demande en attente' :
-            quote.status === 'sent' ? 'Devis soumis en attente de validation' :
-            'Devis approuvé'
+            quote.status === 'sent' ? 'Estimation soumise en attente de validation' :
+            'Estimation approuvée'
           ineligibleData.push({ id: quote.provider_id, reason })
         }
       })

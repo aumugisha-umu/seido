@@ -1,5 +1,131 @@
 import { type InterventionAction } from "./intervention-actions-service"
 
+// Types pour les réponses aux créneaux horaires
+interface TimeSlotResponse {
+  user_id: string
+  user_role: 'locataire' | 'prestataire'
+  response: 'accepted' | 'rejected' | 'pending'
+}
+
+interface TimeSlotWithResponses {
+  id: string
+  status: string
+  time_slot_responses?: TimeSlotResponse[]
+}
+
+// Type enrichi avec données utilisateur pour l'affichage des prénoms
+interface TimeSlotResponseWithUser extends TimeSlotResponse {
+  user?: {
+    name: string
+    first_name?: string | null
+  }
+}
+
+interface TimeSlotWithUserResponses {
+  id: string
+  status: string
+  time_slot_responses?: TimeSlotResponseWithUser[]
+}
+
+/**
+ * Extrait les prénoms des personnes avec réponses en attente (pending)
+ * Utilisé pour afficher "En attente de Arthur, Contact société" au lieu d'un message générique
+ *
+ * @param timeSlots - Les créneaux avec leurs réponses enrichies (incluant user.name/first_name)
+ * @returns Liste unique de prénoms des personnes en attente
+ */
+export const getPendingResponderNames = (
+  timeSlots?: TimeSlotWithUserResponses[]
+): string[] => {
+  if (!timeSlots || timeSlots.length === 0) return []
+
+  // Récupérer toutes les réponses de tous les créneaux
+  const allResponses = timeSlots.flatMap(slot => slot.time_slot_responses || [])
+
+  // Filtrer uniquement les réponses en attente (pending)
+  const pendingResponses = allResponses.filter(r => r.response === 'pending')
+
+  if (pendingResponses.length === 0) return []
+
+  // Extraire prénom (priorité) ou premier mot du nom, dédupliquer par user_id
+  const seenUserIds = new Set<string>()
+  const names: string[] = []
+
+  for (const response of pendingResponses) {
+    if (seenUserIds.has(response.user_id)) continue
+    seenUserIds.add(response.user_id)
+
+    const firstName = response.user?.first_name
+    const fullName = response.user?.name
+
+    // Priorité: prénom > premier mot du nom complet > fallback
+    const displayName = firstName
+      || (fullName ? fullName.split(' ')[0] : null)
+      || 'Participant'
+
+    names.push(displayName)
+  }
+
+  return names
+}
+
+/**
+ * Génère un message dynamique pour le statut "planification" basé sur les réponses réelles
+ * aux créneaux horaires proposés.
+ *
+ * @param status - Le statut de l'intervention
+ * @param timeSlots - Les créneaux avec leurs réponses (time_slot_responses)
+ * @param userContext - Le contexte utilisateur pour adapter le message
+ * @returns Le message d'action approprié
+ *
+ * @example
+ * // Aucune réponse → "En attente des disponibilités du locataire et prestataire"
+ * // Locataire a accepté → "En attente des disponibilités du prestataire"
+ * // Les deux ont accepté → "Créneaux validés, en attente de confirmation finale"
+ */
+export const getPendingParticipantsMessage = (
+  status: string,
+  timeSlots?: TimeSlotWithResponses[],
+  userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
+): string => {
+  // Si pas en planification, utiliser le message par défaut
+  if (status !== 'planification') {
+    return getStatusActionMessage(status, userContext)
+  }
+
+  // Si pas de créneaux proposés, message générique
+  if (!timeSlots || timeSlots.length === 0) {
+    return "Planification en cours"
+  }
+
+  // Analyser les réponses de tous les créneaux
+  const allResponses = timeSlots.flatMap(slot => slot.time_slot_responses || [])
+
+  // Si aucune réponse enregistrée, les deux sont en attente
+  if (allResponses.length === 0) {
+    return "En attente des disponibilités du locataire et prestataire"
+  }
+
+  // Identifier qui a accepté au moins un créneau
+  const locataireAccepted = allResponses.some(
+    r => r.user_role === 'locataire' && r.response === 'accepted'
+  )
+  const prestataireAccepted = allResponses.some(
+    r => r.user_role === 'prestataire' && r.response === 'accepted'
+  )
+
+  // Générer le message dynamique
+  if (!locataireAccepted && !prestataireAccepted) {
+    return "En attente des disponibilités du locataire et prestataire"
+  } else if (!locataireAccepted) {
+    return "En attente des disponibilités du locataire"
+  } else if (!prestataireAccepted) {
+    return "En attente des disponibilités du prestataire"
+  } else {
+    return "Créneaux validés, en attente de confirmation finale"
+  }
+}
+
 export const getInterventionLocationText = (intervention: InterventionAction): string => {
   const buildingName = intervention.lot?.building?.name || intervention.building?.name
   const lotReference = intervention.lot?.reference
@@ -39,8 +165,7 @@ export const getStatusColor = (status: string) => {
       return "bg-green-100 text-green-800 border-green-200"
 
     // Phase 2: Planification & Exécution
-    case "demande_de_devis":
-      return "bg-blue-100 text-blue-800 border-blue-200"
+    // Note: demande_de_devis removed - quote status shown via QuoteStatusBadge
     case "planification":
       return "bg-yellow-100 text-yellow-800 border-yellow-200"
     case "planifiee":
@@ -74,8 +199,7 @@ export const getStatusLabel = (status: string) => {
       return "Approuvée"
 
     // Phase 2: Planification & Exécution
-    case "demande_de_devis":
-      return "Demande de devis"
+    // Note: demande_de_devis removed - quote status shown via QuoteStatusBadge
     case "planification":
       return "Planification"
     case "planifiee":
@@ -162,8 +286,7 @@ export const getStatusIcon = (status: string): string => {
       return "CheckCircle" // Check pour approbation
 
     // Phase 2: Planification & Exécution
-    case "demande_de_devis":
-      return "FileText" // Document pour devis
+    // Note: demande_de_devis removed - quote status shown via QuoteStatusBadge
     case "planification":
       return "Calendar" // Calendrier pour planification
     case "planifiee":
@@ -248,9 +371,7 @@ export const getStatusActionMessage = (status: string, userContext?: 'gestionnai
         return "Intervention approuvée"
 
       // Phase 2: Planification & Exécution - Statuts mappés côté prestataire
-      case "demande_de_devis":
-      case "devis-a-fournir":
-        return "Vous devez soumettre un devis"
+      // Note: demande_de_devis removed - quote status shown via QuoteStatusBadge
       case "planification":
         return "Vous devez planifier l'intervention"
       case "planifiee":
@@ -285,8 +406,7 @@ export const getStatusActionMessage = (status: string, userContext?: 'gestionnai
         return "Demande approuvée - En attente d'assignation"
 
       // Phase 2: Planification & Exécution
-      case "demande_de_devis":
-        return "En attente du devis du prestataire"
+      // Note: demande_de_devis removed - quote status shown via QuoteStatusBadge
       case "planification":
         return "Planification en cours avec le prestataire"
       case "planifiee":
@@ -320,9 +440,7 @@ export const getStatusActionMessage = (status: string, userContext?: 'gestionnai
       return "En attente d'assignation de prestataire"
 
     // Phase 2: Planification & Exécution
-    case "demande_de_devis":
-    case "devis-a-fournir":
-      return "En attente du devis du prestataire"
+    // Note: demande_de_devis removed - quote status shown via QuoteStatusBadge
     case "planification":
       return "En attente des disponibilités du locataire et prestataire"
     case "planifiee":

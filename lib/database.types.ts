@@ -101,13 +101,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "activity_logs_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "activity_logs_lot_id_fkey"
             columns: ["lot_id"]
             isOneToOne: false
@@ -924,13 +917,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "conversation_threads_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "conversation_threads_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
@@ -1129,13 +1115,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "email_webhook_logs_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "email_webhook_logs_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -1257,13 +1236,6 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "emails_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -1445,13 +1417,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "intervention_assignments_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "intervention_assignments_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -1494,13 +1459,6 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_comments_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -1595,13 +1553,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "intervention_documents_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "intervention_documents_message_id_fkey"
             columns: ["message_id"]
             isOneToOne: false
@@ -1668,13 +1619,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "intervention_links_child_intervention_id_fkey"
-            columns: ["child_intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "intervention_links_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -1686,13 +1630,6 @@ export type Database = {
             columns: ["parent_intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_links_parent_intervention_id_fkey"
-            columns: ["parent_intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -1791,13 +1728,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "intervention_quotes_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "intervention_quotes_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
@@ -1889,13 +1819,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "intervention_reports_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "intervention_reports_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
@@ -1984,13 +1907,6 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "intervention_time_slots_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -3208,13 +3124,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "activity_logs_intervention_id_fkey"
-            columns: ["intervention_id"]
-            isOneToOne: false
-            referencedRelation: "interventions_active"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "activity_logs_lot_id_fkey"
             columns: ["lot_id"]
             isOneToOne: false
@@ -3486,182 +3395,6 @@ export type Database = {
           },
           {
             foreignKeyName: "contracts_team_id_fkey"
-            columns: ["team_id"]
-            isOneToOne: false
-            referencedRelation: "teams"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      interventions_active: {
-        Row: {
-          assignment_mode: Database["public"]["Enums"]["assignment_mode"] | null
-          building_id: string | null
-          completed_date: string | null
-          created_at: string | null
-          created_by: string | null
-          deleted_at: string | null
-          deleted_by: string | null
-          description: string | null
-          estimated_cost: number | null
-          final_cost: number | null
-          has_attachments: boolean | null
-          id: string | null
-          is_contested: boolean | null
-          lot_id: string | null
-          metadata: Json | null
-          provider_guidelines: string | null
-          reference: string | null
-          requested_date: string | null
-          requires_participant_confirmation: boolean | null
-          requires_quote: boolean | null
-          scheduled_date: string | null
-          scheduling_method: string | null
-          scheduling_type:
-            | Database["public"]["Enums"]["intervention_scheduling_type"]
-            | null
-          selected_slot_id: string | null
-          specific_location: string | null
-          status: Database["public"]["Enums"]["intervention_status"] | null
-          team_id: string | null
-          title: string | null
-          type: string | null
-          updated_at: string | null
-          urgency: Database["public"]["Enums"]["intervention_urgency"] | null
-        }
-        Insert: {
-          assignment_mode?:
-            | Database["public"]["Enums"]["assignment_mode"]
-            | null
-          building_id?: string | null
-          completed_date?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          deleted_at?: string | null
-          deleted_by?: string | null
-          description?: string | null
-          estimated_cost?: number | null
-          final_cost?: number | null
-          has_attachments?: boolean | null
-          id?: string | null
-          is_contested?: boolean | null
-          lot_id?: string | null
-          metadata?: Json | null
-          provider_guidelines?: string | null
-          reference?: string | null
-          requested_date?: string | null
-          requires_participant_confirmation?: boolean | null
-          requires_quote?: boolean | null
-          scheduled_date?: string | null
-          scheduling_method?: string | null
-          scheduling_type?:
-            | Database["public"]["Enums"]["intervention_scheduling_type"]
-            | null
-          selected_slot_id?: string | null
-          specific_location?: string | null
-          status?: Database["public"]["Enums"]["intervention_status"] | null
-          team_id?: string | null
-          title?: string | null
-          type?: string | null
-          updated_at?: string | null
-          urgency?: Database["public"]["Enums"]["intervention_urgency"] | null
-        }
-        Update: {
-          assignment_mode?:
-            | Database["public"]["Enums"]["assignment_mode"]
-            | null
-          building_id?: string | null
-          completed_date?: string | null
-          created_at?: string | null
-          created_by?: string | null
-          deleted_at?: string | null
-          deleted_by?: string | null
-          description?: string | null
-          estimated_cost?: number | null
-          final_cost?: number | null
-          has_attachments?: boolean | null
-          id?: string | null
-          is_contested?: boolean | null
-          lot_id?: string | null
-          metadata?: Json | null
-          provider_guidelines?: string | null
-          reference?: string | null
-          requested_date?: string | null
-          requires_participant_confirmation?: boolean | null
-          requires_quote?: boolean | null
-          scheduled_date?: string | null
-          scheduling_method?: string | null
-          scheduling_type?:
-            | Database["public"]["Enums"]["intervention_scheduling_type"]
-            | null
-          selected_slot_id?: string | null
-          specific_location?: string | null
-          status?: Database["public"]["Enums"]["intervention_status"] | null
-          team_id?: string | null
-          title?: string | null
-          type?: string | null
-          updated_at?: string | null
-          urgency?: Database["public"]["Enums"]["intervention_urgency"] | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "interventions_building_id_fkey"
-            columns: ["building_id"]
-            isOneToOne: false
-            referencedRelation: "buildings"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_building_id_fkey"
-            columns: ["building_id"]
-            isOneToOne: false
-            referencedRelation: "buildings_active"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_created_by_fkey"
-            columns: ["created_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_deleted_by_fkey"
-            columns: ["deleted_by"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_lot_id_fkey"
-            columns: ["lot_id"]
-            isOneToOne: false
-            referencedRelation: "lots"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_lot_id_fkey"
-            columns: ["lot_id"]
-            isOneToOne: false
-            referencedRelation: "lots_active"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_lot_id_fkey"
-            columns: ["lot_id"]
-            isOneToOne: false
-            referencedRelation: "lots_with_contacts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_selected_slot_id_fkey"
-            columns: ["selected_slot_id"]
-            isOneToOne: false
-            referencedRelation: "intervention_time_slots"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "interventions_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
             referencedRelation: "teams"
@@ -4121,14 +3854,12 @@ export type Database = {
         | "demande"
         | "rejetee"
         | "approuvee"
-        | "demande_de_devis"
         | "planification"
         | "planifiee"
         | "cloturee_par_prestataire"
         | "cloturee_par_locataire"
         | "cloturee_par_gestionnaire"
         | "annulee"
-        | "contestee"
       intervention_type:
         | "plomberie"
         | "electricite"
@@ -4438,14 +4169,12 @@ export const Constants = {
         "demande",
         "rejetee",
         "approuvee",
-        "demande_de_devis",
         "planification",
         "planifiee",
         "cloturee_par_prestataire",
         "cloturee_par_locataire",
         "cloturee_par_gestionnaire",
         "annulee",
-        "contestee",
       ],
       intervention_type: [
         "plomberie",

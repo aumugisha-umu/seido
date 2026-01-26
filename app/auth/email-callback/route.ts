@@ -53,14 +53,6 @@ export async function GET(request: NextRequest) {
     autoExecute
   })
 
-  // Validation du token_hash
-  if (!tokenHash) {
-    logger.error('[EMAIL-CALLBACK] Missing token_hash parameter')
-    return NextResponse.redirect(
-      new URL('/auth/login?error=missing_token&message=Lien+invalide', request.url)
-    )
-  }
-
   // Validation du paramètre next pour éviter open redirect
   // Ne permettre que les URLs relatives ou vers notre domaine
   const isValidNext = validateNextParameter(next, request.url)
@@ -75,6 +67,54 @@ export async function GET(request: NextRequest) {
     // Créer le client Supabase qui peut écrire les cookies de session
     const supabase = await createServerActionSupabaseClient()
 
+    // ✅ AMÉLIORATION: Vérifier d'abord si l'utilisateur est déjà connecté
+    // Si oui, on peut rediriger directement sans vérifier le token OTP
+    // Cela permet de réutiliser le lien même après consommation du token
+    const { data: existingSession } = await supabase.auth.getUser()
+
+    if (existingSession?.user) {
+      logger.info('[EMAIL-CALLBACK] User already authenticated, redirecting directly', {
+        userId: existingSession.user.id,
+        email: existingSession.user.email,
+        hasAction: !!action
+      })
+
+      // Construire l'URL de redirection avec les paramètres d'action si présents
+      let redirectUrl = next
+
+      if (action && autoExecute && isValidAction(action)) {
+        const actionParams: Record<string, string> = {}
+        searchParams.forEach((value, key) => {
+          if (key.startsWith('param_')) {
+            const paramName = key.replace('param_', '')
+            actionParams[paramName] = value
+          }
+        })
+
+        const pendingAction = { action, params: actionParams }
+        const encoded = Buffer.from(JSON.stringify(pendingAction)).toString('base64url')
+
+        const redirectUrlObj = new URL(next, request.url)
+        redirectUrlObj.searchParams.set('pending_action', encoded)
+        redirectUrl = redirectUrlObj.pathname + redirectUrlObj.search
+
+        logger.info('[EMAIL-CALLBACK] Action encoded for already-authenticated user', {
+          action,
+          paramsCount: Object.keys(actionParams).length
+        })
+      }
+
+      return NextResponse.redirect(new URL(redirectUrl, request.url))
+    }
+
+    // Pas de session existante - validation du token_hash obligatoire
+    if (!tokenHash) {
+      logger.error('[EMAIL-CALLBACK] Missing token_hash parameter and no existing session')
+      return NextResponse.redirect(
+        new URL('/auth/login?error=missing_token&message=Lien+invalide.+Veuillez+vous+connecter.', request.url)
+      )
+    }
+
     // Vérifier le token OTP et établir la session
     const { data, error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
@@ -87,11 +127,14 @@ export async function GET(request: NextRequest) {
         status: error.status
       })
 
-      // Gérer les erreurs spécifiques
+      // Gérer les erreurs spécifiques - proposer de se connecter manuellement
       if (error.message.includes('expired') || error.message.includes('Token has expired')) {
-        return NextResponse.redirect(
-          new URL('/auth/login?error=link_expired&message=Ce+lien+a+expire.+Veuillez+vous+connecter+manuellement.', request.url)
-        )
+        // Encoder le next dans l'URL de login pour rediriger après connexion manuelle
+        const loginUrl = new URL('/auth/login', request.url)
+        loginUrl.searchParams.set('error', 'link_expired')
+        loginUrl.searchParams.set('message', 'Ce lien a expiré ou a déjà été utilisé. Connectez-vous pour accéder à la page.')
+        loginUrl.searchParams.set('redirect', next)
+        return NextResponse.redirect(loginUrl)
       }
 
       return NextResponse.redirect(

@@ -30,7 +30,8 @@ import { cn } from "@/lib/utils"
 import {
     getStatusColor,
     getStatusLabel,
-    getStatusActionMessage,
+    getPendingParticipantsMessage,
+    getPendingResponderNames,
     getPriorityColor,
     getPriorityLabel
 } from "@/lib/intervention-utils"
@@ -82,7 +83,16 @@ export function ManagerInterventionCard({
 
     // Action banner logic
     const isAlert = shouldShowAlertBadge(intervention, userContext)
-    const actionMessage = getStatusActionMessage(intervention.status, userContext)
+    // Message dynamique basé sur les réponses réelles aux créneaux
+    const baseActionMessage = getPendingParticipantsMessage(intervention.status, intervention.timeSlots, userContext)
+
+    // Extraire les prénoms des personnes en attente pour un message personnalisé
+    const pendingNames = getPendingResponderNames(intervention.timeSlots)
+
+    // Utiliser les prénoms si disponibles pour le statut planification, sinon message générique
+    const actionMessage = intervention.status === 'planification' && pendingNames.length > 0
+        ? `En attente de ${pendingNames.join(', ')}`
+        : baseActionMessage
 
     // Get confirmed time slot for scheduled interventions
     const confirmedSlot = getConfirmedSlot(intervention.selected_time_slot)
@@ -173,7 +183,7 @@ export function ManagerInterventionCard({
                 if (userContext === 'gestionnaire') {
                     actions.push(
                         {
-                            label: "Demander des devis",
+                            label: "Demander des estimations",
                             icon: FileText,
                             onClick: () => handleActionClick('request_quotes'),
                         },
@@ -189,14 +199,14 @@ export function ManagerInterventionCard({
             case 'demande_de_devis':
                 if (userContext === 'gestionnaire') {
                     actions.push({
-                        label: "Gérer les devis",
+                        label: "Gérer les estimations",
                         icon: Euro,
                         onClick: () => handleActionClick('manage_quotes'),
                     })
                 }
                 if (userContext === 'prestataire') {
                     actions.push({
-                        label: "Soumettre un devis",
+                        label: "Soumettre une estimation",
                         icon: FileText,
                         onClick: () => handleActionClick('submit_quote'),
                     })

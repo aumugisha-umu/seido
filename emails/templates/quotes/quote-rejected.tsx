@@ -1,7 +1,7 @@
 /**
- * 📧 Template Email - Devis Rejeté
+ * 📧 Template Email - Estimation Rejetée
  *
- * Envoyé au prestataire quand le gestionnaire rejette le devis
+ * Envoyé au prestataire quand le gestionnaire rejette l'estimation
  * Objectif: Expliquer le rejet et indiquer si une nouvelle soumission est possible
  */
 
@@ -37,8 +37,8 @@ export const QuoteRejectedEmail = ({
   })
 
   return (
-    <EmailLayout preview={`Devis ${quoteRef} non retenu`}>
-      <EmailHeader subject="Devis non retenu" />
+    <EmailLayout preview={`Estimation ${quoteRef} non retenue`}>
+      <EmailHeader subject="Estimation non retenue" />
 
       <Section className="bg-white px-8 py-8">
         <Text className="text-gray-700 text-base leading-relaxed mb-5 mt-0">
@@ -46,12 +46,12 @@ export const QuoteRejectedEmail = ({
         </Text>
 
         <Text className="text-gray-700 text-base leading-relaxed mb-6">
-          <strong>{managerName}</strong> a examiné votre devis et a décidé de ne pas le retenir.
+          <strong>{managerName}</strong> a examiné votre estimation et a décidé de ne pas la retenir.
         </Text>
 
         {/* Encadré rejet */}
         <div className="bg-orange-50 border-l-4 border-orange-500 p-6 rounded-lg mb-6">
-          <Text className="text-orange-900 font-bold text-xl m-0">❌ Devis non retenu</Text>
+          <Text className="text-orange-900 font-bold text-xl m-0">❌ Estimation non retenue</Text>
           <Text className="text-orange-700 text-sm mt-2 mb-0">Décision prise le {formattedDate}</Text>
         </div>
 
@@ -74,7 +74,7 @@ export const QuoteRejectedEmail = ({
           <table className="w-full text-sm">
             <tbody>
               <tr>
-                <td className="text-gray-600 py-2 pr-4 font-medium">Référence devis :</td>
+                <td className="text-gray-600 py-2 pr-4 font-medium">Référence estimation :</td>
                 <td className="text-gray-900 py-2 font-semibold">{quoteRef}</td>
               </tr>
               <tr>
@@ -109,12 +109,12 @@ export const QuoteRejectedEmail = ({
               🔄 Nouvelle soumission possible
             </Text>
             <Text className="text-gray-700 text-sm leading-relaxed mb-3">
-              Le gestionnaire vous autorise à soumettre un nouveau devis en tenant compte de ses
+              Le gestionnaire vous autorise à soumettre une nouvelle estimation en tenant compte de ses
               remarques.
             </Text>
             <ul className="text-gray-700 text-sm leading-relaxed pl-5 m-0">
               <li>Ajustez votre proposition selon le motif du rejet</li>
-              <li>Soumettez un nouveau devis via la plateforme</li>
+              <li>Soumettez une nouvelle estimation via la plateforme</li>
               <li>Le gestionnaire en sera immédiatement notifié</li>
             </ul>
           </div>
@@ -125,12 +125,12 @@ export const QuoteRejectedEmail = ({
             </Text>
             <Text className="text-gray-700 text-sm leading-relaxed m-0">
               Le gestionnaire a décidé de ne pas donner suite à cette intervention. Vous ne pouvez
-              pas soumettre de nouveau devis pour cette demande.
+              pas soumettre de nouvelle estimation pour cette demande.
             </Text>
           </div>
         )}
 
-        {canResubmit && <EmailButton href={quoteUrl}>Soumettre un nouveau devis</EmailButton>}
+        {canResubmit && <EmailButton href={quoteUrl}>Soumettre une nouvelle estimation</EmailButton>}
 
         {/* Indication de réponse par email */}
         <EmailReplyHint />

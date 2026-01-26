@@ -70,7 +70,7 @@ interface TimelineStep {
 const TIMELINE_STEPS: TimelineStep[] = [
   { status: 'demande', label: 'Demande', icon: AlertCircle },
   { status: 'approuvee', label: 'Approuvée', icon: CheckCircle2 },
-  { status: 'demande_de_devis', label: 'Devis', icon: FileText },
+  { status: 'demande_de_devis', label: 'Estimation', icon: FileText },
   { status: 'planification', label: 'Planification', icon: Calendar },
   { status: 'planifiee', label: 'Planifiée', icon: Calendar },
   { status: 'cloturee_par_prestataire', label: 'Terminé (Prestataire)', icon: ClipboardCheck },

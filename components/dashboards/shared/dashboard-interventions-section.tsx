@@ -14,7 +14,7 @@ import {
     X,
     ArrowUpDown
 } from "lucide-react"
-import { ManagerInterventionCardV2 } from "@/components/dashboards/manager/manager-intervention-card-v2"
+import { PendingActionsCard } from "@/components/dashboards/shared/pending-actions-card"
 import { InterventionsCalendarView } from "@/components/interventions/interventions-calendar-view"
 import { InterventionsEmptyState } from "@/components/interventions/interventions-empty-state"
 import { InterventionsListViewV1 } from "@/components/interventions/interventions-list-view-v1"
@@ -44,10 +44,10 @@ type ViewMode = 'grid' | 'list' | 'calendar'
 type SortField = 'date' | 'urgency' | 'status' | 'title'
 type SortOrder = 'asc' | 'desc'
 
+// ✅ FIX 2026-01-26: Removed demande_de_devis - quotes now managed via requires_quote + QuoteStatusBadge
 const STATUS_OPTIONS = [
     { value: 'demande', label: 'Demande' },
     { value: 'approuvee', label: 'Approuvée' },
-    { value: 'demande_de_devis', label: 'Devis demandé' },
     { value: 'planification', label: 'Planification' },
     { value: 'planifiee', label: 'Planifiée' },
     { value: 'cloturee_par_prestataire', label: 'Clôturée (presta)' },
@@ -477,9 +477,10 @@ export function DashboardInterventionsSection({
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {filteredAndSortedInterventions.map((intervention) => (
                                     <div key={intervention.id} className="h-full">
-                                        <ManagerInterventionCardV2
+                                        <PendingActionsCard
                                             intervention={intervention}
-                                            userContext={userContext}
+                                            userRole={userContext}
+                                            userId={user?.id}
                                             onActionComplete={onActionComplete}
                                             enableAnimations={true}
                                         />

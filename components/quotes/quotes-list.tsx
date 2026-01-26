@@ -73,8 +73,8 @@ export function QuotesList({
 
     if (userContext === 'prestataire') {
       return {
-        title: "Aucun devis soumis",
-        description: "Soumettez un devis pour cette intervention pour continuer le processus",
+        title: "Aucune estimation soumise",
+        description: "Soumettez une estimation pour cette intervention pour continuer le processus",
         icon: Receipt
       }
     }

@@ -149,8 +149,7 @@ interface DashboardStats {
 const VALID_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> = {
   'demande': ['rejetee', 'approuvee'],
   'rejetee': [], // Terminal state
-  'approuvee': ['demande_de_devis', 'planification', 'annulee'],
-  'demande_de_devis': ['planification', 'annulee'],
+  'approuvee': ['planification', 'annulee'], // demande_de_devis removed - quote status tracked via intervention_quotes table
   'planification': ['planifiee', 'annulee'],
   'planifiee': ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'], // Direct to closure
   'cloturee_par_prestataire': ['cloturee_par_locataire', 'cloturee_par_gestionnaire'], // Manager can finalize directly
@@ -1174,21 +1173,27 @@ export class InterventionService {
 
   /**
    * Request quote from provider
+   * Note: This no longer changes the intervention status. The quote state is tracked
+   * via the intervention_quotes table and displayed via QuoteStatusBadge.
    */
   async requestQuote(id: string, managerId: string, providerId: string) {
     try {
       // First assign the provider if not already assigned
       await this.assignUser(id, providerId, 'prestataire', managerId)
 
-      // Update status
-      const result = await this.validateAndUpdateStatus(
-        id,
-        'demande_de_devis',
-        managerId,
-        { requires_quote: true }
-      )
+      // Get current intervention to return after update
+      const interventionResult = await this.interventionRepo.findById(id)
+      if (!interventionResult.success || !interventionResult.data) {
+        return interventionResult
+      }
 
-      if (result.success && result.data) {
+      // Update requires_quote flag without changing status
+      const updateResult = await this.update(id, {
+        requires_quote: true,
+        updated_at: new Date().toISOString()
+      })
+
+      if (updateResult) {
         // Create quote request in quotes table
         if (this.quoteRepo) {
           await this.quoteRepo.create({
@@ -1196,21 +1201,21 @@ export class InterventionService {
             provider_id: providerId,
             status: 'demande',
             requested_by: managerId,
-            team_id: result.data.team_id
+            team_id: interventionResult.data.team_id
           })
         }
 
         // Send notifications
-        await this.notifyQuoteRequested(result.data, providerId, managerId)
+        await this.notifyQuoteRequested(interventionResult.data, providerId, managerId)
 
         // Send email to provider
-        await this.sendQuoteRequestEmail(result.data, providerId, managerId)
+        await this.sendQuoteRequestEmail(interventionResult.data, providerId, managerId)
 
         // Log activity
         await this.logActivity('quote_requested', id, managerId, { provider: providerId })
       }
 
-      return result
+      return { success: true, data: updateResult }
     } catch (error) {
       return createErrorResponse(handleError(error, 'interventions:requestQuote'))
     }
@@ -1850,10 +1855,10 @@ export class InterventionService {
 
     // Define which roles can perform which transitions
     // Note: 'en_cours' is DEPRECATED but kept for backward compatibility
+    // Note: 'demande_de_devis' removed - quote status tracked via intervention_quotes table
     const transitionPermissions: Record<InterventionStatus, User['role'][]> = {
       'approuvee': ['gestionnaire', 'admin'],
       'rejetee': ['gestionnaire', 'admin'],
-      'demande_de_devis': ['gestionnaire', 'admin'],
       'planification': ['gestionnaire', 'admin'],
       'planifiee': ['gestionnaire', 'admin', 'prestataire'],
       'en_cours': ['prestataire'], // DEPRECATED - kept for backward compatibility
@@ -2010,8 +2015,8 @@ export class InterventionService {
     try {
       await this.notificationRepo.create({
         type: 'quote_requested',
-        title: 'Devis demandé',
-        message: `Un devis est demandé pour l'intervention "${intervention.title}"`,
+        title: 'Estimation demandée',
+        message: `Une estimation est demandée pour l'intervention "${intervention.title}"`,
         team_id: intervention.team_id,
         intervention_id: intervention.id,
         created_by: requestedBy,

@@ -16,7 +16,7 @@ import type { BuildingRepository } from '@/lib/services/repositories/building-re
 import type { LotRepository } from '@/lib/services/repositories/lot-repository'
 import type { EmailTimeSlot, EmailQuoteInfo, EmailAttachment } from '@/emails/utils/types'
 import type { EnrichedInterventionData, RecipientWithEmail, RecipientFilterOptions } from './types'
-import { formatPropertyAddress, formatFullPropertyAddress, formatProviderInfo } from './helpers'
+import { formatPropertyAddress, formatFullPropertyAddress, formatProviderInfo, formatTimeWithoutSeconds } from './helpers'
 import { determineInterventionRecipients } from '../notification-helpers'
 
 // ══════════════════════════════════════════════════════════════
@@ -136,8 +136,8 @@ export class InterventionDataEnricher {
           if (confirmed) {
             confirmedSlot = {
               date: new Date(`${confirmed.slot_date}T${confirmed.start_time}`),
-              startTime: confirmed.start_time,
-              endTime: confirmed.end_time
+              startTime: formatTimeWithoutSeconds(confirmed.start_time),
+              endTime: formatTimeWithoutSeconds(confirmed.end_time)
             }
           }
         } else {
@@ -150,15 +150,15 @@ export class InterventionDataEnricher {
 
           timeSlots = (slotsData || []).map(slot => ({
             date: new Date(slot.slot_date),
-            startTime: slot.start_time,
-            endTime: slot.end_time
+            startTime: formatTimeWithoutSeconds(slot.start_time),
+            endTime: formatTimeWithoutSeconds(slot.end_time)
           }))
 
           timeSlotsWithIds = (slotsData || []).map(slot => ({
             id: slot.id,
             date: new Date(slot.slot_date),
-            startTime: slot.start_time,
-            endTime: slot.end_time
+            startTime: formatTimeWithoutSeconds(slot.start_time),
+            endTime: formatTimeWithoutSeconds(slot.end_time)
           }))
         }
       }

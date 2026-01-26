@@ -145,11 +145,11 @@ export function QuoteSubmissionModal({
         return "Ajouter mes disponibilités"
       }
     }
-    return isEditMode ? "Modifier le devis" : "Soumettre une estimation"
+    return isEditMode ? "Modifier l'estimation" : "Soumettre une estimation"
   }
 
   const getButtonLabel = () => {
-    return isEditMode ? "Modifier le devis" : "Soumettre le devis"
+    return isEditMode ? "Modifier l'estimation" : "Soumettre l'estimation"
   }
 
   const getLoadingText = () => {

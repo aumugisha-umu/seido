@@ -162,7 +162,7 @@ export function UserAvailabilitiesDisplay({
                     <div className="space-y-1">
                       <p className="font-medium">Filtrage appliqué</p>
                       <p className="text-xs">
-                        Les disponibilités des prestataires avec uniquement des devis rejetés sont masquées.
+                        Les disponibilités des prestataires avec uniquement des estimations rejetées sont masquées.
                       </p>
                       {filterMessage?.details && (
                         <p className="text-xs text-muted-foreground mt-1">
@@ -202,7 +202,7 @@ export function UserAvailabilitiesDisplay({
           </p>
           <p className="text-xs text-gray-500">
             {filterState && filterState.excludedProviders.length > 0
-              ? `Les disponibilités de ${filterState.excludedProviders.join(', ')} ont été masquées (devis rejetés)`
+              ? `Les disponibilités de ${filterState.excludedProviders.join(', ')} ont été masquées (estimations rejetées)`
               : filterRole
               ? `Aucune disponibilité trouvée pour le rôle "${filterRole}"`
               : "Aucune disponibilité correspondant aux critères"}

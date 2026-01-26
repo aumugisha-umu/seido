@@ -27,7 +27,7 @@ export const DOCUMENT_TYPES: { value: InterventionDocumentType; label: string }[
   { value: 'email', label: 'Email' },
   { value: 'photo_avant', label: 'Photo avant travaux' },
   { value: 'photo_apres', label: 'Photo après travaux' },
-  { value: 'devis', label: 'Devis' },
+  { value: 'devis', label: 'Estimation' },
   { value: 'facture', label: 'Facture' },
   { value: 'rapport', label: 'Rapport d\'intervention' },
   { value: 'plan', label: 'Plan' },

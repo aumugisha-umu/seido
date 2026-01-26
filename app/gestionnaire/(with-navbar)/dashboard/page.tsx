@@ -127,7 +127,19 @@ export default async function DashboardGestionnaire() {
             .is('deleted_at', null),
           supabase
             .from('intervention_time_slots')
-            .select('id, slot_date, start_time, status, proposed_by')
+            .select(`
+              id,
+              slot_date,
+              start_time,
+              status,
+              proposed_by,
+              time_slot_responses (
+                user_id,
+                user_role,
+                response,
+                user:users(name, first_name)
+              )
+            `)
             .eq('intervention_id', intervention.id)
         ])
         return {

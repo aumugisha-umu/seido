@@ -29,6 +29,7 @@ export const InterventionAssignedPrestataireEmail = ({
   urgency,
   createdAt,
   timeSlots,
+  planningType,
   quoteInfo,
   attachments,
   slotActions,
@@ -165,7 +166,10 @@ export const InterventionAssignedPrestataireEmail = ({
                     day: 'numeric',
                     month: 'long'
                   })
-                  const timeRange = `${slot.startTime} - ${slot.endTime}`
+                  // Mode direct: heure fixe uniquement / Mode propose: plage horaire
+                  const timeRange = planningType === 'direct'
+                    ? `à ${slot.startTime}`
+                    : `${slot.startTime} - ${slot.endTime}`
 
                   return (
                     <TimeSlotCard
@@ -188,7 +192,11 @@ export const InterventionAssignedPrestataireEmail = ({
               <ul className="text-gray-700 text-sm pl-4 m-0">
                 {timeSlots.map((slot, index) => (
                   <li key={index} className="py-1">
-                    <strong>{formatSlotDate(slot.date)}</strong> de {slot.startTime} a {slot.endTime}
+                    {planningType === 'direct' ? (
+                      <><strong>{formatSlotDate(slot.date)}</strong> à {slot.startTime}</>
+                    ) : (
+                      <><strong>{formatSlotDate(slot.date)}</strong> de {slot.startTime} à {slot.endTime}</>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -196,19 +204,19 @@ export const InterventionAssignedPrestataireEmail = ({
           </div>
         )}
 
-        {/* Section Devis (prestataire uniquement) */}
+        {/* Section Estimation (prestataire uniquement) */}
         {quoteInfo && (
           <div
             className="bg-amber-50 p-6 rounded-lg mb-6"
             style={{ borderLeft: '4px solid #F59E0B' }}
           >
             <Heading as="h3" className="text-gray-900 text-sm font-semibold mt-0 mb-3">
-              💰 Devis {quoteInfo.isRequired ? 'requis' : 'optionnel'}
+              💰 Estimation {quoteInfo.isRequired ? 'requise' : 'optionnelle'}
             </Heading>
             <Text className="text-gray-700 text-sm m-0">
               {quoteInfo.isRequired
-                ? 'Un devis est requis avant de commencer cette intervention.'
-                : 'Vous pouvez soumettre un devis si necessaire.'}
+                ? 'Une estimation est requise avant de commencer cette intervention.'
+                : 'Vous pouvez soumettre une estimation si necessaire.'}
             </Text>
             {quoteInfo.estimatedAmount && (
               <Text className="text-gray-600 text-sm mt-2 mb-0">
@@ -230,7 +238,7 @@ export const InterventionAssignedPrestataireEmail = ({
           </Text>
           <ul className="text-gray-700 text-sm leading-relaxed pl-5 mt-2 mb-0">
             <li>Consultez les details complets de l&apos;intervention</li>
-            <li>Proposez vos disponibilites ou un devis si demande</li>
+            <li>Proposez vos disponibilites ou une estimation si demandee</li>
             <li>Contactez le gestionnaire si vous avez des questions</li>
           </ul>
         </div>
@@ -271,6 +279,7 @@ InterventionAssignedPrestataireEmail.PreviewProps = {
   managerName: 'Jean Dupont',
   urgency: 'haute',
   createdAt: BASE_PREVIEW_DATE,
+  planningType: 'propose',
   timeSlots: [
     { date: previewFutureDate(2), startTime: '09:00', endTime: '12:00' },
     { date: previewFutureDate(3), startTime: '14:00', endTime: '17:00' },

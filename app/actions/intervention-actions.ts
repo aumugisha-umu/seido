@@ -87,8 +87,9 @@ const TimeSlotSchema = z.object({
 })
 
 const InterventionFiltersSchema = z.object({
-  // Note: 'en_cours' is deprecated and no longer used in the workflow
-  status: z.enum(['demande', 'rejetee', 'approuvee', 'demande_de_devis', 'planification', 'planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'] as const).optional(),
+  // Note: 'en_cours' and 'demande_de_devis' are removed from the workflow
+  // Quote status is now tracked via intervention_quotes table with QuoteStatusBadge
+  status: z.enum(['demande', 'rejetee', 'approuvee', 'planification', 'planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee'] as const).optional(),
   urgency: z.enum(['basse', 'normale', 'haute', 'urgente'] as const).optional(),
   type: z.string().optional(),
   building_id: z.string().uuid().optional(),
@@ -1041,7 +1042,7 @@ export async function cancelQuoteAction(
 
     // Only managers can cancel quote requests
     if (!['gestionnaire', 'admin'].includes(user.role)) {
-      return { success: false, error: 'Seuls les gestionnaires peuvent annuler une demande de devis' }
+      return { success: false, error: 'Seuls les gestionnaires peuvent annuler une demande d\'estimation' }
     }
 
     logger.info('❌ [SERVER-ACTION] Cancelling quote request:', {
@@ -1061,7 +1062,7 @@ export async function cancelQuoteAction(
       .single()
 
     if (fetchError || !quote) {
-      return { success: false, error: 'Devis non trouvé' }
+      return { success: false, error: 'Estimation non trouvée' }
     }
 
     if (quote.status !== 'pending') {
@@ -2424,8 +2425,8 @@ export async function programInterventionAction(
     })
 
     // Check if intervention can be scheduled
-    // Allow 'demande_de_devis' to enable planning while waiting for quote
-    if (!['approuvee', 'planification', 'demande_de_devis'].includes(intervention.status)) {
+    // Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
+    if (!['approuvee', 'planification'].includes(intervention.status)) {
       return {
         success: false,
         error: `L'intervention ne peut pas être planifiée (statut actuel: ${intervention.status})`
@@ -2440,21 +2441,8 @@ export async function programInterventionAction(
       }
     }
 
-    // Check for active quote requests (pending or sent)
-    // This determines if we should keep 'demande_de_devis' status or transition to 'planification'
-    const { data: activeQuotes, error: quotesError } = await supabase
-      .from('intervention_quotes')
-      .select('id, status')
-      .eq('intervention_id', interventionId)
-      .in('status', ['pending', 'sent'])
-
-    if (quotesError) {
-      logger.error('❌ [SERVER-ACTION] Error checking active quotes:', quotesError)
-    }
-
-    const hasActiveQuotes = activeQuotes && activeQuotes.length > 0
-
-    logger.info(`📊 [SERVER-ACTION] Active quotes check: ${hasActiveQuotes ? 'YES' : 'NO'} (${activeQuotes?.length || 0} quotes)`)
+    // Note: We no longer check for active quotes to determine status
+    // Quote status is now tracked via intervention_quotes table and shown via QuoteStatusBadge
 
     const { option, directSchedule, proposedSlots } = planningData
 
@@ -2583,14 +2571,11 @@ export async function programInterventionAction(
       managerCommentParts.push(`Planification autonome activée`)
     }
 
-    // Update intervention status
-    // Keep 'demande_de_devis' if active quotes exist, otherwise transition to 'planification'
-    // Note: Manager comments are now stored in intervention_comments table
-    const newStatus = (intervention.status === 'demande_de_devis' && hasActiveQuotes)
-      ? 'demande_de_devis' as InterventionStatus
-      : 'planification' as InterventionStatus
+    // Update intervention status to planification
+    // Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
+    const newStatus = 'planification' as InterventionStatus
 
-    logger.info(`📅 [SERVER-ACTION] Status decision: ${intervention.status} → ${newStatus} (hasActiveQuotes: ${hasActiveQuotes})`)
+    logger.info(`📅 [SERVER-ACTION] Status decision: ${intervention.status} → ${newStatus}`)
 
     const updateData: any = {
       status: newStatus,
@@ -2696,19 +2681,19 @@ export async function programInterventionAction(
           logger.info('⏭️ [SERVER-ACTION] Skipped quote creation - all selected providers already have active quotes')
         }
 
-        // Update intervention status to 'demande_de_devis' after creating quote requests
-        const { error: statusUpdateError } = await supabase
+        // Set requires_quote flag on intervention (status no longer changes to demande_de_devis)
+        const { error: requiresQuoteError } = await supabase
           .from('interventions')
-          .update({ status: 'demande_de_devis' })
+          .update({ requires_quote: true })
           .eq('id', interventionId)
 
-        if (statusUpdateError) {
-          logger.error('❌ [SERVER-ACTION] Error updating intervention status to demande_de_devis:', statusUpdateError)
+        if (requiresQuoteError) {
+          logger.error('❌ [SERVER-ACTION] Error setting requires_quote flag:', requiresQuoteError)
         } else {
-          logger.info('✅ [SERVER-ACTION] Intervention status updated to demande_de_devis')
-          // Update the returned intervention status
+          logger.info('✅ [SERVER-ACTION] Intervention requires_quote flag set to true')
+          // Update the returned intervention
           if (updatedIntervention) {
-            updatedIntervention.status = 'demande_de_devis'
+            updatedIntervention.requires_quote = true
           }
         }
 
@@ -2719,9 +2704,8 @@ export async function programInterventionAction(
       }
     }
 
-    const finalStatus = planningData.requireQuote && planningData.selectedProviders?.length > 0
-      ? 'demande_de_devis'
-      : (planningData.option === 'organize' ? 'planification' : 'planifiee')
+    // Note: demande_de_devis removed - always use planification or planifiee based on option
+    const finalStatus = planningData.option === 'organize' ? 'planification' : 'planifiee'
 
     logger.info('✅ [SERVER-ACTION] Intervention programmed successfully', { finalStatus })
 

@@ -203,10 +203,10 @@ export async function notifyInterventionStatusChange({
     // ═══════════════════════════════════════════════════════════════════════════
     // PUSH NOTIFICATIONS: Send to personal recipients
     // ═══════════════════════════════════════════════════════════════════════════
+    // Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
     const statusMessages: Record<string, string> = {
       approuvee: 'Intervention approuvée',
       rejetee: 'Intervention rejetée',
-      demande_de_devis: 'Devis demandé',
       planification: 'Planification en cours',
       planifiee: 'Intervention planifiée',
       en_cours: 'Intervention en cours',

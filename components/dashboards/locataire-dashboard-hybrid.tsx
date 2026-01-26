@@ -3,7 +3,7 @@
 import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Card, CardContent } from "@/components/ui/card"
+import { CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -19,8 +19,8 @@ import { useNotificationPopover } from "@/hooks/use-notification-popover"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import UserMenu from "@/components/user-menu"
 import NotificationPopover from "@/components/notification-popover"
-import { StatsCard } from "@/components/dashboards/shared/stats-card"
 import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
+import { PendingActionsSection } from "@/components/dashboards/shared/pending-actions-section"
 
 interface LocataireDashboardHybridProps {
   tenantData: TenantData | null
@@ -257,28 +257,11 @@ export default function LocataireDashboardHybrid({
           </div>
         )}
 
-        {/* --- STATS CARD: Actions Requises (only if count > 0) --- */}
-        {(() => {
-          const pendingCount = filteredInterventions.filter(i => ['demande', 'planification'].includes(i.status)).length
-
-          // Hide entirely when no actions required
-          if (pendingCount === 0) return null
-
-          return (
-            <div className="grid grid-cols-1">
-              <StatsCard
-                id="actions"
-                label="Actions requises"
-                value={pendingCount}
-                sublabel="Urgent"
-                icon={AlertTriangle}
-                iconColor="text-amber-500"
-                variant="warning"
-                href="/locataire/interventions"
-              />
-            </div>
-          )
-        })()}
+        {/* --- PENDING ACTIONS SECTION: Orange wrapper with horizontal scroll --- */}
+        <PendingActionsSection
+          interventions={filteredInterventions}
+          userRole="locataire"
+        />
 
         {/* --- INTERVENTIONS SECTION (Reusable Component) --- */}
         <DashboardInterventionsSection

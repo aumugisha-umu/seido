@@ -126,11 +126,11 @@ export type TeamMemberRole = Database['public']['Enums']['team_member_role']
  *
  * Workflow: planifiee → cloturee_par_prestataire (direct transition)
  */
+// Note: demande_de_devis removed - quote status tracked via intervention_quotes table
 export type InterventionStatus =
   | 'demande'                        // Initial request from tenant
   | 'rejetee'                        // Rejected by manager
   | 'approuvee'                      // Approved by manager
-  | 'demande_de_devis'               // Quote requested from provider
   | 'planification'                  // Finding available time slot
   | 'planifiee'                      // Time slot confirmed
   | 'cloturee_par_prestataire'       // Provider finished work
@@ -142,11 +142,11 @@ export type InterventionStatus =
 /**
  * Display labels for intervention status
  */
+// Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
 export const STATUS_LABELS_FR: Partial<Record<InterventionStatus, string>> = {
   demande: "Demande",
   rejetee: "Rejetée",
   approuvee: "Approuvée",
-  demande_de_devis: "Devis demandé",
   planification: "Planification",
   planifiee: "Planifiée",
   cloturee_par_prestataire: "Clôturée par prestataire",

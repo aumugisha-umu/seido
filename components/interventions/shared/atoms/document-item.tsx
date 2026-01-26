@@ -55,7 +55,7 @@ export interface DocumentItemProps {
 const DOCUMENT_TYPE_LABELS: Record<string, string> = {
   'photo_avant': 'Photo avant',
   'photo_apres': 'Photo après',
-  'devis': 'Devis',
+  'devis': 'Estimation',
   'facture': 'Facture',
   'rapport': 'Rapport',
   'plan': 'Plan',

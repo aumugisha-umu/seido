@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState, useRef, useMemo } from "react"
+import { useState, useRef, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -107,6 +107,13 @@ export default function NouvelleInterventionClient({
     } : null
   })
 
+  // ✅ FIX 2026-01-26: Move router/auth hooks to the top to avoid "Cannot access before initialization"
+  // These hooks must be called before any useMemo/useCallback that reference their values
+  const router = useRouter()
+  const { toast } = useToast()
+  const searchParams = useSearchParams()
+  const { user, loading: authLoading } = useAuth()
+
   const [currentStep, setCurrentStep] = useState(1)
   const [maxStepReached, setMaxStepReached] = useState(1)
   const [selectedLogement, setSelectedLogement] = useState<any>(null)
@@ -114,7 +121,7 @@ export default function NouvelleInterventionClient({
   const [selectedLotId, setSelectedLotId] = useState<string | undefined>()
   const [formData, setFormData] = useState({
     title: "",
-    type: "",
+    type: "autre_technique", // ✅ Valeur par défaut: "Autre (technique)" - option la plus flexible
     urgency: "normale", // ✅ Valeur par défaut requise
     description: "",
     availabilities: [] as Array<{ date: string; startTime: string; endTime: string }>,
@@ -170,72 +177,46 @@ export default function NouvelleInterventionClient({
   const [loadingBuildingTenants, setLoadingBuildingTenants] = useState(false)
 
   // État pour les lots exclus (sélection granulaire par lot)
-  const [excludedLotIds, setExcludedLotIds] = useState<Set<string>>(new Set())
+  // ✅ Utiliser Array au lieu de Set pour éviter les re-renders inutiles (Set comparé par référence)
+  const [excludedLotIds, setExcludedLotIds] = useState<string[]>([])
 
   // Handler pour toggle un lot
   const handleLotToggle = (lotId: string) => {
-    setExcludedLotIds(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(lotId)) {
-        newSet.delete(lotId)
-      } else {
-        newSet.add(lotId)
-      }
-      return newSet
-    })
+    setExcludedLotIds(prev =>
+      prev.includes(lotId)
+        ? prev.filter(id => id !== lotId)
+        : [...prev, lotId]
+    )
   }
 
   // États pour la confirmation des participants
   const [requiresConfirmation, setRequiresConfirmation] = useState(false)
   const [confirmationRequired, setConfirmationRequired] = useState<string[]>([])
 
+  // ✅ FIX: Tracker si l'utilisateur a manuellement modifié la sélection de confirmation
+  // Ceci permet de préserver sa sélection lors des re-renders ou toggles
+  const userHasModifiedConfirmation = useRef(false)
+
   // Handler pour toggle la confirmation d'un participant
   const handleConfirmationRequiredChange = (userId: string, required: boolean) => {
+    userHasModifiedConfirmation.current = true  // ✅ Marquer comme modifié par l'utilisateur
     setConfirmationRequired(prev =>
       required ? [...prev, userId] : prev.filter(id => id !== userId)
     )
   }
 
   // Handler pour le toggle "Demander confirmation" - sélectionne tous par défaut
+  // ✅ SIMPLIFIÉ: Utilise buildAllParticipantIds (défini plus bas) pour éviter la duplication
   const handleRequiresConfirmationChange = (requires: boolean) => {
     setRequiresConfirmation(requires)
 
     if (requires) {
-      // Collecter tous les IDs de participants (sauf utilisateur courant)
-      const allParticipantIds: string[] = []
-
-      // Gestionnaires sélectionnés (sauf utilisateur courant)
-      const currentUserId = user?.id
-      for (const managerId of selectedManagerIds) {
-        const manager = managers.find((m: any) => String(m.id) === managerId)
-        if (manager && !(manager as any).isCurrentUser && managerId !== currentUserId) {
-          allParticipantIds.push(managerId)
-        }
+      // Seulement auto-peupler si l'utilisateur n'a pas modifié manuellement
+      // ET si la liste est vide (première activation)
+      if (!userHasModifiedConfirmation.current && confirmationRequired.length === 0) {
+        setConfirmationRequired(buildAllParticipantIds())
       }
-
-      // Prestataires sélectionnés
-      allParticipantIds.push(...selectedProviderIds)
-
-      // Locataires (lot-level filtré par contrat, ou building-level)
-      if (selectedLogement?.type === 'lot' && selectedContractId && includeTenants) {
-        // Pour lot-level, utiliser les locataires filtrés par contrat
-        filteredTenants.forEach((tenant: any) => {
-          if (tenant.user_id) {
-            allParticipantIds.push(tenant.user_id)
-          }
-        })
-      } else if (selectedLogement?.type === 'building' && buildingTenants && includeTenants) {
-        // Pour building-level, utiliser les vrais user_id
-        for (const lotGroup of buildingTenants.byLot) {
-          if (!excludedLotIds.has(lotGroup.lotId)) {
-            for (const tenant of lotGroup.tenants) {
-              allParticipantIds.push(tenant.user_id)
-            }
-          }
-        }
-      }
-
-      setConfirmationRequired(allParticipantIds)
+      // Si l'utilisateur a déjà modifié, on garde sa sélection
     }
     // Note: on ne vide PAS la sélection quand on désactive le toggle
     // pour permettre à l'utilisateur de réactiver sans perdre sa sélection
@@ -266,6 +247,56 @@ export default function NouvelleInterventionClient({
     )
   }, [selectedLogement, selectedContractId])
 
+  // ✅ Fonction utilitaire centralisée pour construire la liste des participants à confirmer
+  // Utilisé par handleRequiresConfirmationChange et useEffect de schedulingType
+  const buildAllParticipantIds = useCallback((): string[] => {
+    const ids: string[] = []
+    const currentUserId = user?.id
+
+    // 1. Gestionnaires sélectionnés (sauf utilisateur courant)
+    for (const managerId of selectedManagerIds) {
+      const manager = managers.find((m: any) => String(m.id) === managerId)
+      if (manager && !(manager as any).isCurrentUser && managerId !== currentUserId) {
+        ids.push(managerId)
+      }
+    }
+
+    // 2. Prestataires sélectionnés (tous)
+    ids.push(...selectedProviderIds)
+
+    // 3. Locataires (logique unifiée)
+    if (selectedLogement?.type === 'lot' && selectedContractId && includeTenants) {
+      // Lot-level: utiliser filteredTenants (filtrés par contrat sélectionné)
+      filteredTenants.forEach((tenant: any) => {
+        if (tenant.user_id) {
+          ids.push(tenant.user_id)
+        }
+      })
+    } else if (selectedLogement?.type === 'building' && buildingTenants && includeTenants) {
+      // Building-level: parcourir les lots non exclus
+      for (const lotGroup of buildingTenants.byLot) {
+        if (!excludedLotIds.includes(lotGroup.lotId)) {
+          for (const tenant of lotGroup.tenants) {
+            ids.push(tenant.user_id)
+          }
+        }
+      }
+    }
+
+    return [...new Set(ids)] // Dédupliquer
+  }, [
+    selectedManagerIds,
+    selectedProviderIds,
+    selectedLogement,
+    selectedContractId,
+    filteredTenants,
+    buildingTenants,
+    includeTenants,
+    excludedLotIds,
+    managers,
+    user?.id
+  ])
+
   // Ref pour le modal ContactSelector
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
 
@@ -281,10 +312,7 @@ export default function NouvelleInterventionClient({
     }
   }, []) // Empty deps = runs once on mount, cleanup on final unmount
 
-  const router = useRouter()
-  const { toast } = useToast()
-  const searchParams = useSearchParams()
-  const { user, loading: authLoading } = useAuth()
+  // ✅ NOTE: router, toast, searchParams, user hooks moved to top of component (lines 112-115)
 
   // ✅ NEW: Lazy service initialization - Services créés uniquement quand auth est prête
   const [services, setServices] = useState<{
@@ -856,48 +884,25 @@ export default function NouvelleInterventionClient({
   }, [services, searchParams, isPreFilled])
 
   // Reset ou pré-sélection des confirmations selon le mode de planification
+  // ✅ SIMPLIFIÉ: Utilise buildAllParticipantIds pour éviter la duplication
   useEffect(() => {
     if (schedulingType !== 'fixed' && schedulingType !== 'slots') {
       // Mode flexible : pas de confirmation
       setRequiresConfirmation(false)
       setConfirmationRequired([])
+      userHasModifiedConfirmation.current = false
     } else if (schedulingType === 'slots') {
       // Mode créneaux : sélectionner tous les participants par défaut
-      const allParticipantIds: string[] = []
-
-      // Gestionnaires sélectionnés (sauf utilisateur courant)
-      const currentUserId = user?.id
-      for (const managerId of selectedManagerIds) {
-        const manager = managers.find((m: any) => String(m.id) === managerId)
-        if (manager && !(manager as any).isCurrentUser && managerId !== currentUserId) {
-          allParticipantIds.push(managerId)
-        }
+      if (!userHasModifiedConfirmation.current) {
+        setConfirmationRequired(buildAllParticipantIds())
       }
-
-      // Prestataires sélectionnés
-      allParticipantIds.push(...selectedProviderIds)
-
-      // Locataires (lot-level ou building-level)
-      if (selectedLogement?.type === 'lot' && selectedLogement?.tenants) {
-        // Pour lot-level, utiliser les vrais user_id des locataires
-        selectedLogement.tenants.forEach((tenant: any) => {
-          if (tenant.user_id) {
-            allParticipantIds.push(tenant.user_id)
-          }
-        })
-      } else if (selectedLogement?.type === 'building' && buildingTenants && includeTenants) {
-        for (const lotGroup of buildingTenants.byLot) {
-          if (!excludedLotIds.has(lotGroup.lotId)) {
-            for (const tenant of lotGroup.tenants) {
-              allParticipantIds.push(tenant.user_id)
-            }
-          }
-        }
-      }
-
-      setConfirmationRequired(allParticipantIds)
     }
-  }, [schedulingType, selectedManagerIds, selectedProviderIds, selectedLogement, buildingTenants, includeTenants, excludedLotIds, managers, user?.id])
+  }, [schedulingType, buildAllParticipantIds])
+
+  // ✅ Reset le flag de modification quand le mode de planification change
+  useEffect(() => {
+    userHasModifiedConfirmation.current = false
+  }, [schedulingType])
 
   const getRelatedContacts = () => {
     return [...managers, ...providers]
@@ -936,29 +941,28 @@ export default function NouvelleInterventionClient({
   }
 
   // Fonctions de gestion des contacts
+  // ✅ SIMPLIFIÉ: Suppression de la normalisation redondante (les IDs sont déjà des strings)
   const handleManagerSelect = (managerId: string) => {
-    logger.info("👤 Sélection du gestionnaire:", { managerId, type: typeof managerId })
-    const normalizedManagerId = String(managerId)
+    logger.info("👤 Sélection du gestionnaire:", { managerId })
     setSelectedManagerIds(prevIds => {
       logger.info("👤 IDs gestionnaires actuels:", prevIds)
-      const normalizedPrevIds = prevIds.map(id => String(id))
-      if (normalizedPrevIds.includes(normalizedManagerId)) {
+      if (prevIds.includes(managerId)) {
         // Si déjà sélectionné, le retirer
-        const newIds = normalizedPrevIds.filter(id => id !== normalizedManagerId)
+        const newIds = prevIds.filter(id => id !== managerId)
         logger.info("👤 Gestionnaire retiré, nouveaux IDs:", newIds)
         // Retirer aussi de la liste de confirmation
-        setConfirmationRequired(prev => prev.filter(id => id !== normalizedManagerId))
+        setConfirmationRequired(prev => prev.filter(id => id !== managerId))
         return newIds
       } else {
         // Sinon l'ajouter
-        const newIds = [...normalizedPrevIds, normalizedManagerId]
+        const newIds = [...prevIds, managerId]
         logger.info("👤 Gestionnaire ajouté, nouveaux IDs:", newIds)
         // Si confirmation active, l'ajouter automatiquement à la liste
         if (requiresConfirmation) {
           // Vérifier que ce n'est pas l'utilisateur courant
-          const manager = managers.find((m: any) => String(m.id) === normalizedManagerId)
-          if (manager && !(manager as any).isCurrentUser && normalizedManagerId !== user?.id) {
-            setConfirmationRequired(prev => [...prev, normalizedManagerId])
+          const manager = managers.find((m: any) => String(m.id) === managerId)
+          if (manager && !(manager as any).isCurrentUser && managerId !== user?.id) {
+            setConfirmationRequired(prev => [...prev, managerId])
           }
         }
         return newIds
@@ -967,26 +971,24 @@ export default function NouvelleInterventionClient({
   }
 
   const handleProviderSelect = (providerId: string) => {
-    logger.info("🔧 Sélection du prestataire:", { providerId, type: typeof providerId })
-    logger.info("🔧 Provider sélectionné depuis la liste:", providers.find(p => String(p.id) === String(providerId)))
-    const normalizedProviderId = String(providerId)
+    logger.info("🔧 Sélection du prestataire:", { providerId })
+    logger.info("🔧 Provider sélectionné depuis la liste:", providers.find(p => String(p.id) === providerId))
     setSelectedProviderIds(prevIds => {
       logger.info("🔧 IDs prestataires actuels:", prevIds)
-      const normalizedPrevIds = prevIds.map(id => String(id))
-      if (normalizedPrevIds.includes(normalizedProviderId)) {
+      if (prevIds.includes(providerId)) {
         // Si déjà sélectionné, le retirer
-        const newIds = normalizedPrevIds.filter(id => id !== normalizedProviderId)
+        const newIds = prevIds.filter(id => id !== providerId)
         logger.info("🔧 Prestataire retiré, nouveaux IDs:", newIds)
         // Si on passe à 1 ou 0 prestataire, revenir au mode single
         if (newIds.length <= 1) {
           setAssignmentMode('single')
         }
         // Retirer aussi de la liste de confirmation
-        setConfirmationRequired(prev => prev.filter(id => id !== normalizedProviderId))
+        setConfirmationRequired(prev => prev.filter(id => id !== providerId))
         return newIds
       } else {
-        // ✅ Multi-sélection : ajouter le prestataire
-        const newIds = [...normalizedPrevIds, normalizedProviderId]
+        // Multi-sélection : ajouter le prestataire
+        const newIds = [...prevIds, providerId]
         logger.info("🔧 Prestataire ajouté, nouveaux IDs:", newIds)
         // Si on passe à plusieurs prestataires, suggérer le mode group par défaut
         if (newIds.length > 1 && assignmentMode === 'single') {
@@ -994,7 +996,7 @@ export default function NouvelleInterventionClient({
         }
         // Si confirmation active, l'ajouter automatiquement à la liste
         if (requiresConfirmation) {
-          setConfirmationRequired(prev => [...prev, normalizedProviderId])
+          setConfirmationRequired(prev => [...prev, providerId])
         }
         return newIds
       }
@@ -1057,7 +1059,7 @@ export default function NouvelleInterventionClient({
     setSelectedLotId(undefined)
     // Reset building tenants, excluded lots, and contract selection when changing selection
     setBuildingTenants(null)
-    setExcludedLotIds(new Set())
+    setExcludedLotIds([])
     setIncludeTenants(false)
     setSelectedContractId(null)
     setAvailableContracts([])
@@ -1528,6 +1530,9 @@ export default function NouvelleInterventionClient({
 
 
   const handleCreateIntervention = async () => {
+    // ✅ Protection contre les doubles clics
+    if (isCreating) return
+
     setIsCreating(true)
     setError("")
 
@@ -1592,8 +1597,9 @@ export default function NouvelleInterventionClient({
             ? includeTenants
             : false,
         // Excluded lots (for building interventions with granular selection)
+        // ✅ excludedLotIds est déjà un array, pas besoin de Array.from()
         excludedLotIds: selectedLogement?.type === 'building' && includeTenants
-          ? Array.from(excludedLotIds)
+          ? excludedLotIds
           : [],
 
         // Confirmation des participants
@@ -1770,99 +1776,111 @@ export default function NouvelleInterventionClient({
                   <h3 className="text-lg font-medium">Détails de l'intervention</h3>
                 </div>
 
-                {/* Localisation compacte + bouton modifier */}
-                <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Home className="h-4 w-4 text-muted-foreground" />
-                    <span className="font-medium text-sm">
-                      {selectedLogement.type === 'lot'
-                        ? (selectedLogement.building
-                            ? `${selectedLogement.building} › Lot ${selectedLogement.name}`
-                            : `Lot ${selectedLogement.name}`)
-                        : selectedLogement.name}
-                    </span>
-                    {selectedLogement.address && (
-                      <>
-                        <span className="text-muted-foreground">•</span>
-                        <span className="text-sm text-muted-foreground">{selectedLogement.address}</span>
-                      </>
-                    )}
-
-                    {/* Badge occupation (lots uniquement) */}
-                    {selectedLogement.type === 'lot' && (
-                      <Badge variant={selectedLogement.is_occupied ? "default" : "secondary"} className="ml-1">
-                        {selectedLogement.is_occupied ? "Occupé" : "Vacant"}
-                      </Badge>
-                    )}
+                {/* Localisation + Contrat - Grille alignée avec le formulaire en dessous (2fr_1fr) */}
+                <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
+                  {/* Localisation compacte + bouton modifier - Aligné avec Titre/Description */}
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
+                      <Home className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <span className="font-medium text-sm">
+                        {selectedLogement.type === 'lot'
+                          ? (selectedLogement.building
+                              ? `${selectedLogement.building} › Lot ${selectedLogement.name}`
+                              : `Lot ${selectedLogement.name}`)
+                          : selectedLogement.name}
+                      </span>
+                      {selectedLogement.address && (
+                        <>
+                          <span className="text-muted-foreground">•</span>
+                          <span className="text-sm text-muted-foreground">{selectedLogement.address}</span>
+                        </>
+                      )}
+                      {/* Badge occupation (lots uniquement) */}
+                      {selectedLogement.type === 'lot' && (
+                        <Badge variant={selectedLogement.is_occupied ? "default" : "secondary"} className="ml-1 flex-shrink-0">
+                          {selectedLogement.is_occupied ? "Occupé" : "Vacant"}
+                        </Badge>
+                      )}
+                    </div>
+                    {/* Bouton modifier -> retour étape 1 */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setCurrentStep(1)}
+                      className="h-8 px-2 text-muted-foreground hover:text-foreground flex-shrink-0 ml-2"
+                    >
+                      <Pencil className="h-4 w-4" />
+                      <span className="sr-only">Modifier le bien</span>
+                    </Button>
                   </div>
 
-                  {/* Bouton modifier -> retour étape 1 */}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setCurrentStep(1)}
-                    className="h-8 px-2 text-muted-foreground hover:text-foreground"
-                  >
-                    <Pencil className="h-4 w-4" />
-                    <span className="sr-only">Modifier le bien</span>
-                  </Button>
-                </div>
-
-                {/* Contract Selection - Only for occupied lots with contracts */}
-                {selectedLogement?.type === 'lot' &&
-                 selectedLogement?.is_occupied &&
-                 availableContracts.length > 0 && (
-                  <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900">
-                    <label className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2 block">
-                      Lier à un contrat (optionnel)
-                    </label>
-                    <Select
-                      value={selectedContractId || 'none'}
-                      onValueChange={(value) => {
-                        const newContractId = value === 'none' ? null : value
-                        setSelectedContractId(newContractId)
-                        // Désactiver les locataires si aucun contrat sélectionné, activer sinon
-                        setIncludeTenants(newContractId !== null)
-                      }}
-                    >
-                      <SelectTrigger className="bg-white dark:bg-slate-900">
-                        <SelectValue placeholder="Sélectionner un contrat..." />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">
-                          <span className="text-muted-foreground">Aucun contrat spécifique</span>
-                        </SelectItem>
-                        {availableContracts.map((contract) => {
-                          // Format dates as MM/YYYY for compact display
-                          const formatDate = (dateStr: string) => {
-                            const date = new Date(dateStr)
-                            return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
-                          }
-                          const dateRange = `${formatDate(contract.startDate)} - ${formatDate(contract.endDate)}`
-
-                          return (
-                            <SelectItem key={contract.id} value={contract.id}>
-                              <div className="flex flex-col">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{contract.title}</span>
-                                  <span className="text-xs text-muted-foreground bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
-                                    {dateRange}
-                                  </span>
-                                </div>
+                  {/* Contract Selection - Aligné avec Type+Urgence / Files */}
+                  {selectedLogement?.type === 'lot' &&
+                   selectedLogement?.is_occupied &&
+                   availableContracts.length > 0 ? (
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-100 dark:border-blue-900">
+                      <label className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2 block">
+                        Lier à un contrat
+                      </label>
+                      <Select
+                        value={selectedContractId || 'none'}
+                        onValueChange={(value) => {
+                          const newContractId = value === 'none' ? null : value
+                          setSelectedContractId(newContractId)
+                          setIncludeTenants(newContractId !== null)
+                        }}
+                      >
+                        <SelectTrigger className="bg-white dark:bg-slate-900 h-auto py-2 w-full">
+                          <SelectValue placeholder="Sélectionner...">
+                            {selectedContractId && availableContracts.find(c => c.id === selectedContractId) ? (
+                              <div className="flex flex-col items-start text-left">
+                                <span className="font-medium text-sm">
+                                  {availableContracts.find(c => c.id === selectedContractId)?.title}
+                                </span>
                                 <span className="text-xs text-muted-foreground">
-                                  {contract.tenantNames.join(', ')}
+                                  {availableContracts.find(c => c.id === selectedContractId)?.tenantNames.join(', ')}
                                 </span>
                               </div>
-                            </SelectItem>
-                          )
-                        })}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                      Lier l'intervention à un bail permet de la retrouver dans l'historique du contrat.
-                    </p>
-                  </div>
-                )}
+                            ) : (
+                              <span className="text-muted-foreground">Aucun</span>
+                            )}
+                          </SelectValue>
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">
+                            <span className="text-muted-foreground">Aucun contrat</span>
+                          </SelectItem>
+                          {availableContracts.map((contract) => {
+                            const formatDate = (dateStr: string) => {
+                              const date = new Date(dateStr)
+                              return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`
+                            }
+                            const dateRange = `${formatDate(contract.startDate)} - ${formatDate(contract.endDate)}`
+
+                            return (
+                              <SelectItem key={contract.id} value={contract.id}>
+                                <div className="flex flex-col">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{contract.title}</span>
+                                    <span className="text-xs text-muted-foreground bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+                                      {dateRange}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-muted-foreground">
+                                    {contract.tenantNames.join(', ')}
+                                  </span>
+                                </div>
+                              </SelectItem>
+                            )
+                          })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : (
+                    /* Placeholder vide pour maintenir la grille alignée */
+                    <div />
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-col gap-4 flex-1">
@@ -2111,7 +2129,7 @@ export default function NouvelleInterventionClient({
                 // ✅ FIX 2026-01-25: UNIQUEMENT pour interventions IMMEUBLE (pas de lot sélectionné)
                 ...(buildingTenants && includeTenants && !selectedLotId
                   ? buildingTenants.byLot
-                      .filter(lot => !excludedLotIds.has(lot.lotId))
+                      .filter(lot => !excludedLotIds.includes(lot.lotId))
                       .flatMap(lot => lot.tenants.map((tenant) => ({
                         id: `${lot.lotId}-${tenant.user_id}`,
                         name: tenant.name,

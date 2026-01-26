@@ -80,8 +80,8 @@ export function QuoteApprovalModal({
 
       logger.info('✅ [APPROVAL] Success! Showing toast notification')
       toast({
-        title: "Devis approuvé",
-        description: "Le devis a été approuvé avec succès. L'intervention passe en phase de planification.",
+        title: "Estimation approuvée",
+        description: "L'estimation a été approuvée avec succès. L'intervention passe en phase de planification.",
         variant: "default",
       })
 
@@ -98,7 +98,7 @@ export function QuoteApprovalModal({
 
       toast({
         title: "Erreur",
-        description: error instanceof Error ? error.message : "Erreur lors de l'approbation du devis",
+        description: error instanceof Error ? error.message : "Erreur lors de l'approbation de l'estimation",
         variant: "destructive",
       })
     } finally {
@@ -120,10 +120,10 @@ export function QuoteApprovalModal({
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <Check className="h-5 w-5 text-green-600" />
-            <span>Approuver le devis</span>
+            <span>Approuver l'estimation</span>
           </DialogTitle>
           <DialogDescription>
-            Vous êtes sur le point d'approuver le devis de <strong>{quote.providerName}</strong>
+            Vous êtes sur le point d'approuver l'estimation de <strong>{quote.providerName}</strong>
             d'un montant de <strong>{quote.totalAmount.toFixed(2)} €</strong>.
           </DialogDescription>
         </DialogHeader>
@@ -132,9 +132,9 @@ export function QuoteApprovalModal({
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <h4 className="font-medium text-blue-900 mb-1">Conséquences de l'approbation :</h4>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Le devis sera marqué comme approuvé</li>
+              <li>• L'estimation sera marquée comme approuvée</li>
               <li>• L'intervention passera au statut "Planification"</li>
-              <li>• Tous les autres devis en attente seront automatiquement rejetés</li>
+              <li>• Toutes les autres estimations en attente seront automatiquement rejetées</li>
             </ul>
           </div>
 
@@ -172,7 +172,7 @@ export function QuoteApprovalModal({
             ) : (
               <>
                 <Check className="h-4 w-4 mr-2" />
-                Approuver le devis
+                Approuver l'estimation
               </>
             )}
           </Button>

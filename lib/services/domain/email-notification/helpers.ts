@@ -7,6 +7,25 @@
  */
 
 // ══════════════════════════════════════════════════════════════
+// Time Formatting
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Format a PostgreSQL time (HH:mm:ss) to display format (HH:mm)
+ * Removes seconds for cleaner display in emails and UI
+ *
+ * @param time - Time string in HH:mm:ss format
+ * @returns Time string in HH:mm format
+ *
+ * @example
+ * formatTimeWithoutSeconds('09:00:00') // Returns '09:00'
+ * formatTimeWithoutSeconds('14:30:00') // Returns '14:30'
+ */
+export function formatTimeWithoutSeconds(time: string): string {
+  return time.slice(0, 5)
+}
+
+// ══════════════════════════════════════════════════════════════
 // Feature Flags
 // ══════════════════════════════════════════════════════════════
 

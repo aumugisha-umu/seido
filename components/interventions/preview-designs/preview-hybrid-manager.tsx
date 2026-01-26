@@ -450,7 +450,7 @@ export function PreviewHybridManager({
                                                         <div className="flex-1">
                                                             <div className="flex items-center gap-3">
                                                                 <div>
-                                                                    <p className="font-semibold text-slate-800">{quote.provider_name || 'Devis #' + quote.id}</p>
+                                                                    <p className="font-semibold text-slate-800">{quote.provider_name || 'Estimation #' + quote.id}</p>
                                                                     <p className="text-sm text-slate-500">
                                                                         Créé le {quote.created_at ? format(new Date(quote.created_at), 'dd MMM yyyy', { locale: fr }) : 'N/A'}
                                                                     </p>

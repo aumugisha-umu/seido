@@ -69,10 +69,10 @@ const managerFormSchema = z.object({
     .min(10, 'La description doit contenir au moins 10 caractères'),
   type: z.string().min(1, "Le type d'intervention est obligatoire").max(100),
   urgency: z.enum(['basse', 'normale', 'haute', 'urgente']).default('normale'),
+  // ✅ FIX 2026-01-26: Removed demande_de_devis - quotes now managed via requires_quote
   status: z.enum([
     'demande',
     'approuvee',
-    'demande_de_devis',
     'planification'
   ] as const).default('demande'),
   requested_date: z.date().optional(),
@@ -126,7 +126,7 @@ export function InterventionCreateForm({
     defaultValues: {
       title: '',
       description: '',
-      type: 'autre',
+      type: 'autre_technique', // ✅ Default to "Autre (technique)" - most flexible option
       urgency: 'normale',
       status: 'demande',
       specific_location: '',
@@ -331,9 +331,6 @@ export function InterventionCreateForm({
                       <SelectContent>
                         <SelectItem value="demande">Demande</SelectItem>
                         <SelectItem value="approuvee">Approuvée</SelectItem>
-                        <SelectItem value="demande_de_devis">
-                          Demande de devis
-                        </SelectItem>
                         <SelectItem value="planification">
                           Planification
                         </SelectItem>

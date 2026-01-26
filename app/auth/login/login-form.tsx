@@ -33,7 +33,12 @@ function SubmitButton() {
   )
 }
 
-export function LoginForm() {
+interface LoginFormProps {
+  /** URL de redirection après connexion (depuis magic link expiré) */
+  redirectTo?: string | null
+}
+
+export function LoginForm({ redirectTo }: LoginFormProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [resendLoading, setResendLoading] = useState(false)
   const [resendSuccess, setResendSuccess] = useState(false)
@@ -87,6 +92,11 @@ export function LoginForm() {
 
   return (
     <form action={formAction} className="space-y-4">
+      {/* Redirection personnalisée après connexion (depuis magic link expiré) */}
+      {redirectTo && (
+        <input type="hidden" name="redirectTo" value={redirectTo} />
+      )}
+
       {/* ✅ 2025: Affichage erreurs depuis Server Action */}
       {!state.success && state.error && (
         <Alert variant="destructive">

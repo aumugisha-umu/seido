@@ -47,11 +47,11 @@ export async function PATCH(
     }
 
     // Validate status value
+    // ✅ FIX 2026-01-26: Removed demande_de_devis - quotes now managed via requires_quote + intervention_quotes
     const validStatuses = [
       'demande',
       'rejetee',
       'approuvee',
-      'demande_de_devis',
       'planification',
       'planifiee',
       'cloturee_par_prestataire',
@@ -85,12 +85,12 @@ export async function PATCH(
 
     // Validate status transition (basic rules)
     // Interventions go directly from 'planifiee' to 'cloturee_par_*'
+    // ✅ FIX 2026-01-26: Removed demande_de_devis - quotes now managed via requires_quote + intervention_quotes
     const currentStatus = intervention.status
     const allowedTransitions: Record<string, string[]> = {
       'demande': ['rejetee', 'approuvee', 'annulee'],
-      'approuvee': ['demande_de_devis', 'planification', 'annulee'],
-      'demande_de_devis': ['planification', 'annulee'],
-      'planification': ['planifiee', 'demande_de_devis', 'annulee'],
+      'approuvee': ['planification', 'annulee'],
+      'planification': ['planifiee', 'annulee'],
       'planifiee': ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'] // Direct to closure
     }
 

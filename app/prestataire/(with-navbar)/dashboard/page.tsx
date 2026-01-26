@@ -59,6 +59,7 @@ export default async function PrestataireDashboardPage() {
       stats={stats}
       interventions={allInterventions}
       pendingCount={pendingActionsCount}
+      userId={profile.id}
     />
   )
 }

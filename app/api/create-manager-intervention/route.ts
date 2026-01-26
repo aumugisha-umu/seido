@@ -328,10 +328,12 @@ export async function POST(request: NextRequest) {
       hasFixedDateTime: schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time
     }, "🔍 Analyse des conditions pour déterminer le statut")
 
-    // CAS 1: Demande de devis si prestataires assignés + devis requis
+    // CAS 1: Planification si prestataires assignés + devis requis
+    // ✅ FIX 2026-01-26: Le statut demande_de_devis a été supprimé
+    // Les devis sont maintenant gérés via requires_quote + intervention_quotes
     if (selectedProviderIds && selectedProviderIds.length > 0 && expectsQuote) {
-      interventionStatus = 'demande_de_devis'
-      logger.info({}, "✅ Statut déterminé: DEMANDE_DE_DEVIS (prestataires + devis requis)")
+      interventionStatus = 'planification'
+      logger.info({}, "✅ Statut déterminé: PLANIFICATION (prestataires + devis requis - géré via requires_quote)")
 
       // CAS 2: Planifiée directement si conditions strictes remplies (SANS confirmation requise)
     } else if (

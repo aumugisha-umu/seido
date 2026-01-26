@@ -59,9 +59,9 @@ const statusFlow: Record<InterventionStatus, TimelineStep> = {
   },
   'demande_de_devis': {
     status: 'demande_de_devis',
-    label: 'Devis demandé',
+    label: 'Estimation demandée',
     icon: FileText,
-    description: "Un devis a été demandé au prestataire"
+    description: "Une estimation a été demandée au prestataire"
   },
   'planification': {
     status: 'planification',

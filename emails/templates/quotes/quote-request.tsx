@@ -1,13 +1,13 @@
 /**
- * 📧 Template Email - Demande de Devis (Interactif)
+ * 📧 Template Email - Demande d'Estimation (Interactif)
  *
- * Envoyé au prestataire quand le gestionnaire demande un devis
+ * Envoyé au prestataire quand le gestionnaire demande une estimation
  * Objectif: Demander au prestataire de soumettre son estimation
  *
  * INTERACTIF (v2):
  * - Boutons d'estimation rapide avec montants prédéfinis (150€, 300€, 500€)
  * - Le prestataire peut cliquer pour soumettre directement une estimation
- * - Bouton "Devis détaillé" toujours disponible pour un devis complet
+ * - Bouton "Estimation détaillée" toujours disponible pour une estimation complète
  *
  * @see /lib/services/domain/magic-link.service.ts - Génération des liens
  * @see /hooks/use-auto-execute-action.ts - Exécution client
@@ -52,8 +52,8 @@ export const QuoteRequestEmail = ({
     : undefined
 
   return (
-    <EmailLayout preview={`Demande de devis ${quoteRef} - ${interventionType}`}>
-      <EmailHeader subject="Nouvelle demande de devis" />
+    <EmailLayout preview={`Demande d'estimation ${quoteRef} - ${interventionType}`}>
+      <EmailHeader subject="Nouvelle demande d'estimation" />
 
       <Section className="bg-white px-8 py-8">
         <Text className="text-gray-700 text-base leading-relaxed mb-5 mt-0">
@@ -61,7 +61,7 @@ export const QuoteRequestEmail = ({
         </Text>
 
         <Text className="text-gray-700 text-base leading-relaxed mb-6">
-          <strong>{managerName}</strong> vous demande de soumettre un devis pour une intervention.
+          <strong>{managerName}</strong> vous demande de soumettre une estimation pour une intervention.
         </Text>
 
         {/* Encadré deadline si présent */}
@@ -82,7 +82,7 @@ export const QuoteRequestEmail = ({
           <table className="w-full text-sm">
             <tbody>
               <tr>
-                <td className="text-gray-600 py-2 pr-4 font-medium">Référence devis :</td>
+                <td className="text-gray-600 py-2 pr-4 font-medium">Référence estimation :</td>
                 <td className="text-gray-900 py-2 font-semibold">{quoteRef}</td>
               </tr>
               <tr>
@@ -125,19 +125,19 @@ export const QuoteRequestEmail = ({
         {/* Instructions */}
         <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-lg mb-6">
           <Text className="text-gray-900 font-semibold text-base mb-3 mt-0">
-            📝 Pour soumettre votre devis
+            📝 Pour soumettre votre estimation
           </Text>
           <ul className="text-gray-700 text-sm leading-relaxed pl-5 m-0">
             <li>Indiquez le montant total HT et TTC</li>
             <li>Détaillez les travaux à réaliser</li>
             <li>Précisez la durée estimée de l'intervention</li>
-            <li>Vous pouvez joindre un PDF de votre devis détaillé</li>
+            <li>Vous pouvez joindre un PDF de votre estimation détaillée</li>
           </ul>
         </div>
 
         {/* Boutons d'action */}
         {showQuickEstimates ? (
-          /* Mode interactif: estimation rapide + devis détaillé */
+          /* Mode interactif: estimation rapide + estimation détaillée */
           <div className="mb-6">
             {/* Section estimation rapide */}
             <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-6 rounded-lg mb-4 border border-green-200">
@@ -159,15 +159,15 @@ export const QuoteRequestEmail = ({
               />
             </div>
 
-            {/* Bouton devis détaillé */}
+            {/* Bouton estimation détaillée */}
             <Text className="text-gray-600 text-sm text-center mb-3">
-              ou pour un devis plus précis :
+              ou pour une estimation plus précise :
             </Text>
-            <EmailButton href={quoteUrl}>Soumettre un devis détaillé</EmailButton>
+            <EmailButton href={quoteUrl}>Soumettre une estimation détaillée</EmailButton>
           </div>
         ) : (
           /* Mode classique: un seul bouton */
-          <EmailButton href={quoteUrl}>Soumettre mon devis</EmailButton>
+          <EmailButton href={quoteUrl}>Soumettre mon estimation</EmailButton>
         )}
 
         {/* Indication de réponse par email */}

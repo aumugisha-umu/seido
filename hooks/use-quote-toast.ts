@@ -3,54 +3,54 @@
 import { CheckCircle, XCircle, AlertTriangle, InformationCircleIcon } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
-// Hook spécialisé pour les notifications de devis selon Design System SEIDO
+// Hook spécialisé pour les notifications d'estimations selon Design System SEIDO
 export function useQuoteToast() {
   const { toast } = useToast()
 
   return {
-    // Toast pour devis soumis avec succès
+    // Toast pour estimation soumise avec succès
     quoteSubmitted: (amount: number, interventionTitle?: string) => {
       toast({
         variant: "success",
-        title: "Devis soumis avec succès",
-        description: `Votre devis de ${amount}€ a été envoyé au gestionnaire${
+        title: "Estimation soumise avec succès",
+        description: `Votre estimation de ${amount}€ a été envoyée au gestionnaire${
           interventionTitle ? ` pour "${interventionTitle}"` : ''
         }`,
         duration: 6000,
       })
     },
 
-    // Toast pour devis approuvé
+    // Toast pour estimation approuvée
     quoteApproved: (providerName: string, amount: number, interventionTitle?: string) => {
       toast({
         variant: "success",
-        title: "Devis approuvé",
-        description: `Le devis de ${providerName} (${amount}€) a été approuvé${
+        title: "Estimation approuvée",
+        description: `L'estimation de ${providerName} (${amount}€) a été approuvée${
           interventionTitle ? ` pour "${interventionTitle}"` : ''
         }`,
         duration: 6000,
       })
     },
 
-    // Toast pour devis rejeté
+    // Toast pour estimation rejetée
     quoteRejected: (providerName?: string, reason?: string, interventionTitle?: string) => {
       toast({
         variant: "warning",
-        title: "Devis rejeté",
+        title: "Estimation rejetée",
         description: reason
           ? `Motif: ${reason}`
-          : `Le devis ${providerName ? `de ${providerName}` : ''} n'a pas été retenu${
+          : `L'estimation ${providerName ? `de ${providerName}` : ''} n'a pas été retenue${
               interventionTitle ? ` pour "${interventionTitle}"` : ''
             }`,
         duration: 7000,
       })
     },
 
-    // Toast pour demandes de devis envoyées
+    // Toast pour demandes d'estimations envoyées
     quoteRequestSent: (providerCount: number, interventionTitle?: string) => {
       toast({
         variant: "default",
-        title: "Demandes de devis envoyées",
+        title: "Demandes d'estimations envoyées",
         description: `${providerCount} prestataire(s) ont été sollicités${
           interventionTitle ? ` pour "${interventionTitle}"` : ''
         }`,
@@ -58,35 +58,35 @@ export function useQuoteToast() {
       })
     },
 
-    // Toast pour nouvelle demande de devis reçue (prestataire)
+    // Toast pour nouvelle demande d'estimation reçue (prestataire)
     newQuoteRequest: (interventionTitle: string, deadline?: string) => {
       toast({
         variant: "default",
-        title: "Nouvelle demande de devis",
-        description: `Devis demandé pour "${interventionTitle}"${
+        title: "Nouvelle demande d'estimation",
+        description: `Estimation demandée pour "${interventionTitle}"${
           deadline ? ` - Deadline: ${deadline}` : ''
         }`,
         duration: 8000,
       })
     },
 
-    // Toast pour nouveau devis reçu (gestionnaire)
+    // Toast pour nouvelle estimation reçue (gestionnaire)
     newQuoteReceived: (providerName: string, amount: number, interventionTitle?: string) => {
       toast({
         variant: "default",
-        title: "Nouveau devis reçu",
-        description: `${providerName} a soumis un devis de ${amount}€${
+        title: "Nouvelle estimation reçue",
+        description: `${providerName} a soumis une estimation de ${amount}€${
           interventionTitle ? ` pour "${interventionTitle}"` : ''
         }`,
         duration: 6000,
       })
     },
 
-    // Toast d'erreur générale pour les devis
+    // Toast d'erreur générale pour les estimations
     quoteError: (message: string, action?: string) => {
       toast({
         variant: "destructive",
-        title: `Erreur ${action ? `lors de ${action}` : 'de devis'}`,
+        title: `Erreur ${action ? `lors de ${action}` : 'd\'estimation'}`,
         description: message,
         duration: 8000,
       })
@@ -107,7 +107,7 @@ export function useQuoteToast() {
       toast({
         variant: "warning",
         title: "Deadline proche",
-        description: `Il vous reste ${timeLeft} pour soumettre le devis de "${interventionTitle}"`,
+        description: `Il vous reste ${timeLeft} pour soumettre l'estimation de "${interventionTitle}"`,
         duration: 10000,
       })
     },
@@ -124,11 +124,11 @@ export function useQuoteToast() {
 
     // Toast de confirmation pour actions importantes
     confirmQuoteAction: (action: 'approve' | 'reject', providerName: string) => {
-      const actionText = action === 'approve' ? 'approuvé' : 'rejeté'
+      const actionText = action === 'approve' ? 'approuvée' : 'rejetée'
       toast({
         variant: action === 'approve' ? "success" : "warning",
-        title: `Devis ${actionText}`,
-        description: `Le devis de ${providerName} a été ${actionText} avec succès`,
+        title: `Estimation ${actionText}`,
+        description: `L'estimation de ${providerName} a été ${actionText} avec succès`,
         duration: 5000,
       })
     },

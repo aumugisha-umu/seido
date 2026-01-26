@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
 import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
-import { UrgentInterventionsSection } from "@/components/dashboards/manager/urgent-interventions-section"
+import { PendingActionsSection } from "@/components/dashboards/shared/pending-actions-section"
 import { KPICarousel, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
 import { useToast } from "@/hooks/use-toast"
 import { GestionnaireFAB } from "@/components/ui/fab"
@@ -60,9 +60,10 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
     const tenantCount = contactStats?.contactsByType?.locataire?.total || 0
 
     // Calculate active and completed intervention counts
+    // ✅ FIX 2026-01-26: Removed demande_de_devis - quotes now managed via requires_quote
     const activeInterventionsCount = useMemo(() => {
         return interventions.filter(i =>
-            ['demande', 'approuvee', 'demande_de_devis', 'planification', 'planifiee'].includes(i.status)
+            ['demande', 'approuvee', 'planification', 'planifiee'].includes(i.status)
         ).length
     }, [interventions])
 
@@ -269,13 +270,19 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                     />
                 </div>
 
-                {/* Urgent Interventions Section - V2 cards with direct CTAs */}
+                {/* Pending Actions Section - Shared component with direct CTAs */}
                 <div className="dashboard__urgent mb-6">
-                    <UrgentInterventionsSection
+                    <PendingActionsSection
                         interventions={filteredInterventions}
-                        userContext="gestionnaire"
-                        maxItems={10}
-                        onActionComplete={handleActionComplete}
+                        userRole="gestionnaire"
+                        onAllComplete={() => {
+                            toast({
+                                title: "Toutes les actions traitées !",
+                                description: "Vous avez traité toutes les actions en attente.",
+                                variant: "default",
+                                duration: 3000
+                            })
+                        }}
                     />
                 </div>
 

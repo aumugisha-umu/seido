@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
       logger.error({ quoteError: quoteError }, "❌ Quote not found:")
       return NextResponse.json({
         success: false,
-        error: 'Devis non trouvé'
+        error: 'Estimation non trouvée'
       }, { status: 404 })
     }
 
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     if (quote.status !== 'pending') {
       return NextResponse.json({
         success: false,
-        error: `Ce devis a déjà été traité (statut: ${quote.status})`
+        error: `Cette estimation a déjà été traitée (statut: ${quote.status})`
       }, { status: 400 })
     }
 
@@ -186,14 +186,14 @@ export async function POST(request: NextRequest) {
               teamId: quote.intervention.team_id,
               createdBy: user.id,
               type: 'intervention',
-              title: 'Devis non retenu',
-              message: `Votre devis pour l'intervention "${quote.intervention.title}" n'a pas été retenu. Un autre prestataire a été sélectionné.`,
+              title: 'Estimation non retenue',
+              message: `Votre estimation pour l'intervention "${quote.intervention.title}" n'a pas été retenue. Un autre prestataire a été sélectionné.`,
               isPersonal: !!providerAssignment,
               metadata: {
                 interventionId: quote.intervention_id,
                 interventionTitle: quote.intervention.title,
                 quoteId: otherQuote.id,
-                rejectionReason: 'Un autre devis a été sélectionné pour cette intervention'
+                rejectionReason: 'Une autre estimation a été sélectionnée pour cette intervention'
               },
               relatedEntityType: 'intervention',
               relatedEntityId: quote.intervention_id
@@ -224,10 +224,10 @@ export async function POST(request: NextRequest) {
         teamId: quote.intervention.team_id,
         createdBy: user.id,
         type: 'intervention' as const,
-        title: action === 'approve' ? 'Devis approuvé !' : 'Devis rejeté',
+        title: action === 'approve' ? 'Estimation approuvée !' : 'Estimation rejetée',
         message: action === 'approve'
-          ? `Félicitations ! Votre devis de ${quote.total_amount.toFixed(2)}€ pour l'intervention "${quote.intervention.title}" a été approuvé.`
-          : `Votre devis pour l'intervention "${quote.intervention.title}" a été rejeté. Motif: ${rejectionReason}`,
+          ? `Félicitations ! Votre estimation de ${quote.total_amount.toFixed(2)}€ pour l'intervention "${quote.intervention.title}" a été approuvée.`
+          : `Votre estimation pour l'intervention "${quote.intervention.title}" a été rejetée. Motif: ${rejectionReason}`,
         isPersonal: !!providerAssignment,
         metadata: {
           interventionId: quote.intervention_id,

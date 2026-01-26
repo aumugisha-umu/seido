@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
         logger.error({ quoteError, quoteId }, "❌ Quote not found or doesn't belong to provider")
         return NextResponse.json({
           success: false,
-          error: 'Devis non trouvé ou non autorisé'
+          error: 'Estimation non trouvée ou non autorisée'
         }, { status: 404 })
       }
 
@@ -138,7 +138,7 @@ export async function POST(request: NextRequest) {
         logger.error({ existingQuoteError }, "❌ Error checking for existing quote")
         return NextResponse.json({
           success: false,
-          error: 'Erreur lors de la vérification du devis existant'
+          error: 'Erreur lors de la vérification de l\'estimation existante'
         }, { status: 500 })
       }
 
@@ -169,7 +169,7 @@ export async function POST(request: NextRequest) {
         logger.error({ updateError }, "❌ Error updating quote")
         return NextResponse.json({
           success: false,
-          error: 'Erreur lors de la mise à jour du devis'
+          error: 'Erreur lors de la mise à jour de l\'estimation'
         }, { status: 500 })
       }
 
@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
         logger.error({ createError }, "❌ Error creating quote")
         return NextResponse.json({
           success: false,
-          error: 'Erreur lors de la création du devis'
+          error: 'Erreur lors de la création de l\'estimation'
         }, { status: 500 })
       }
 
@@ -258,8 +258,8 @@ export async function POST(request: NextRequest) {
             userId: manager.user.id,
             teamId: intervention.team_id,
             type: 'intervention',
-            title: 'Nouveau devis reçu',
-            message: `${user.name} a soumis un devis de ${totalAmount.toFixed(2)}€ pour l'intervention "${intervention.title}"`,
+            title: 'Nouvelle estimation reçue',
+            message: `${user.name} a soumis une estimation de ${totalAmount.toFixed(2)}€ pour l'intervention "${intervention.title}"`,
             isPersonal: manager.is_primary ?? true,
             metadata: {
               interventionId,
@@ -363,7 +363,7 @@ export async function POST(request: NextRequest) {
         status: finalQuote.status,
         updated_at: finalQuote.updated_at
       },
-      message: existingQuote ? 'Devis modifié avec succès' : 'Devis soumis avec succès'
+      message: existingQuote ? 'Estimation modifiée avec succès' : 'Estimation soumise avec succès'
     })
 
   } catch (error) {
@@ -371,7 +371,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: false,
-      error: 'Erreur lors de la soumission du devis'
+      error: 'Erreur lors de la soumission de l\'estimation'
     }, { status: 500 })
   }
 }

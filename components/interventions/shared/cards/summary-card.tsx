@@ -83,21 +83,21 @@ export const SummaryCard = ({
       case 'approved':
         return {
           icon: CheckCircle2,
-          label: 'Devis validé',
+          label: 'Estimation validée',
           color: 'text-green-600',
           bgColor: 'bg-green-50'
         }
       case 'received':
         return {
           icon: FileText,
-          label: `${quotesCount} devis reçu${quotesCount > 1 ? 's' : ''}`,
+          label: `${quotesCount} estimation${quotesCount > 1 ? 's' : ''} reçue${quotesCount > 1 ? 's' : ''}`,
           color: 'text-blue-600',
           bgColor: 'bg-blue-50'
         }
       default:
         return {
           icon: AlertCircle,
-          label: 'En attente de devis',
+          label: 'En attente d\'estimation',
           color: 'text-amber-600',
           bgColor: 'bg-amber-50'
         }
@@ -149,7 +149,7 @@ export const SummaryCard = ({
           </Badge>
         </div>
 
-        {/* Section Devis */}
+        {/* Section Estimation */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div
@@ -161,7 +161,7 @@ export const SummaryCard = ({
               <QuotesIcon className={cn('h-4 w-4', quotesConfig.color)} aria-hidden="true" />
             </div>
             <div>
-              <p className="text-sm font-medium">Devis</p>
+              <p className="text-sm font-medium">Estimation</p>
               <p className="text-xs text-muted-foreground">
                 {selectedQuoteAmount
                   ? formatAmount(selectedQuoteAmount)
@@ -174,23 +174,23 @@ export const SummaryCard = ({
             <Badge
               variant="outline"
               className="text-xs bg-green-50 text-green-600 border-transparent"
-              aria-label="Devis validé"
+              aria-label="Estimation validée"
             >
-              Validé
+              Validée
             </Badge>
           ) : quotesCount > 0 ? (
             <Badge
               variant="outline"
               className="text-xs bg-blue-50 text-blue-600 border-transparent"
-              aria-label={`${quotesCount} devis reçu${quotesCount > 1 ? 's' : ''}`}
+              aria-label={`${quotesCount} estimation${quotesCount > 1 ? 's' : ''} reçue${quotesCount > 1 ? 's' : ''}`}
             >
-              {quotesCount} reçu{quotesCount > 1 ? 's' : ''}
+              {quotesCount} reçue{quotesCount > 1 ? 's' : ''}
             </Badge>
           ) : (
             <Badge
               variant="outline"
               className="text-xs bg-amber-50 text-amber-600 border-transparent"
-              aria-label="Devis en attente"
+              aria-label="Estimation en attente"
             >
               En attente
             </Badge>

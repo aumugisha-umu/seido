@@ -33,7 +33,7 @@ export async function POST(
     if (!['gestionnaire', 'admin'].includes(user.role)) {
       return NextResponse.json({
         success: false,
-        error: 'Seuls les gestionnaires peuvent approuver un devis'
+        error: 'Seuls les gestionnaires peuvent approuver une estimation'
       }, { status: 403 })
     }
 
@@ -49,7 +49,7 @@ export async function POST(
     if (quoteError || !quote) {
       return NextResponse.json({
         success: false,
-        error: 'Devis non trouvé'
+        error: 'Estimation non trouvée'
       }, { status: 404 })
     }
 
@@ -57,7 +57,7 @@ export async function POST(
     if (!quote.amount || quote.amount <= 0) {
       return NextResponse.json({
         success: false,
-        error: 'Ce devis n\'a pas encore de montant'
+        error: 'Cette estimation n\'a pas encore de montant'
       }, { status: 400 })
     }
 
@@ -65,7 +65,7 @@ export async function POST(
     if (!['pending', 'sent'].includes(quote.status)) {
       return NextResponse.json({
         success: false,
-        error: 'Ce devis ne peut pas être approuvé (statut actuel: ' + quote.status + ')'
+        error: 'Cette estimation ne peut pas être approuvée (statut actuel: ' + quote.status + ')'
       }, { status: 400 })
     }
 
@@ -81,7 +81,7 @@ export async function POST(
       logger.error({ error: updateError }, 'Error approving quote')
       return NextResponse.json({
         success: false,
-        error: 'Erreur lors de l\'approbation du devis'
+        error: 'Erreur lors de l\'approbation de l\'estimation'
       }, { status: 500 })
     }
 
@@ -112,7 +112,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: 'Devis approuvé avec succès'
+      message: 'Estimation approuvée avec succès'
     })
 
   } catch (error) {

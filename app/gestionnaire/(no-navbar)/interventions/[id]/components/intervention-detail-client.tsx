@@ -67,7 +67,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Building2, MapPin, User, AlertCircle, Edit, XCircle, MoreVertical, UserCheck, CheckCircle, MessageSquare, Calendar } from 'lucide-react'
+import { Building2, MapPin, User, AlertCircle, Edit, XCircle, MoreVertical, UserCheck, CheckCircle, MessageSquare, Calendar, FileText, Loader2 } from 'lucide-react'
+
+// Quote status utilities
+import { getQuoteBadgeStatus, getQuoteBadgeLabel, getQuoteBadgeColor } from '@/lib/utils/quote-status'
+
+// Role-based actions utilities
+import {
+  getRoleBasedActions,
+  getDotMenuActions,
+  toButtonVariant,
+  type RoleBasedAction
+} from '@/lib/intervention-action-utils'
 
 // Hooks
 import { useAuth } from '@/hooks/use-auth'
@@ -256,7 +267,8 @@ export function InterventionDetailClient({
     providerName: ''
   })
   const [isCancellingQuote, setIsCancellingQuote] = useState(false)
-  const [requireQuote, setRequireQuote] = useState(intervention.status === 'demande_de_devis')
+  // ✅ FIX 2026-01-26: Use requires_quote field instead of deprecated demande_de_devis status
+  const [requireQuote, setRequireQuote] = useState(intervention.requires_quote || false)
   const [showFinalizationModal, setShowFinalizationModal] = useState(false)
 
   // États pour le nouveau design PreviewHybrid
@@ -291,6 +303,13 @@ export function InterventionDetailClient({
   // Helpers for button visibility based on intervention status
   const canModifyOrCancel = !['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee', 'demande'].includes(intervention.status)
   const canFinalize = ['planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire'].includes(intervention.status)
+
+  // Role-based actions from centralized utility
+  const headerActions = getRoleBasedActions(intervention.id, intervention.status, 'gestionnaire')
+  const dotMenuActions = getDotMenuActions(intervention.id, intervention.status, 'gestionnaire')
+
+  // State for action button loading
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   // State for cancel quote confirmation modal (from toggle)
   const [cancelQuoteConfirmModal, setCancelQuoteConfirmModal] = useState<{
@@ -695,6 +714,103 @@ export function InterventionDetailClient({
     handleRefresh()
   }
 
+  // Handler for header action buttons (from getRoleBasedActions)
+  const handleHeaderActionClick = async (action: RoleBasedAction) => {
+    // Special cases: some actions need specific handling
+    switch (action.actionType) {
+      case 'approve':
+        approvalHook.handleApprovalAction(interventionActionData, 'approve')
+        return
+      case 'reject':
+        approvalHook.handleApprovalAction(interventionActionData, 'reject')
+        return
+      case 'request_details':
+        handleRequestDetails()
+        return
+      case 'finalize':
+        // Check if it's an API action or navigation
+        if (action.apiRoute) {
+          setActionLoading(action.actionType)
+          try {
+            const response = await fetch(action.apiRoute, {
+              method: action.apiMethod || 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ interventionId: intervention.id })
+            })
+            const data = await response.json()
+            if (data.success) {
+              toast({
+                title: 'Action effectuée',
+                description: 'L\'intervention a été clôturée'
+              })
+              handleRefresh()
+            } else {
+              throw new Error(data.error || 'Erreur lors de l\'action')
+            }
+          } catch (error) {
+            toast({
+              title: 'Erreur',
+              description: error instanceof Error ? error.message : 'Impossible d\'effectuer l\'action',
+              variant: 'destructive'
+            })
+          } finally {
+            setActionLoading(null)
+          }
+          return
+        } else if (action.href) {
+          // For finalize with href (e.g., cloturee_par_prestataire), open the modal
+          setShowFinalizationModal(true)
+          return
+        }
+        break
+      case 'remind_tenant':
+        // API call for remind tenant
+        if (action.apiRoute) {
+          setActionLoading(action.actionType)
+          try {
+            const response = await fetch(action.apiRoute, {
+              method: action.apiMethod || 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ interventionId: intervention.id })
+            })
+            const data = await response.json()
+            if (data.success) {
+              toast({
+                title: 'Relance envoyée',
+                description: 'Le locataire a été relancé par email'
+              })
+              handleRefresh()
+            } else {
+              throw new Error(data.error || 'Erreur lors de l\'envoi')
+            }
+          } catch (error) {
+            toast({
+              title: 'Erreur',
+              description: error instanceof Error ? error.message : 'Impossible d\'envoyer la relance',
+              variant: 'destructive'
+            })
+          } finally {
+            setActionLoading(null)
+          }
+          return
+        }
+        break
+      case 'modify':
+        // Navigate to edit page
+        router.push(action.href || `/gestionnaire/interventions/modifier/${intervention.id}`)
+        return
+      case 'cancel':
+        // TODO: Open cancel modal
+        console.log('Annuler intervention')
+        return
+    }
+
+    // Default: navigate if href is present
+    if (action.href) {
+      router.push(action.href)
+    }
+  }
+
   // Handle cancel quote request - open confirmation modal
   const handleCancelQuoteRequest = (requestId: string) => {
     const quote = quotes.find(q => q.id === requestId)
@@ -724,7 +840,7 @@ export function InterventionDetailClient({
 
       toast({
         title: 'Demande annulée',
-        description: 'La demande de devis a été annulée avec succès'
+        description: 'La demande d\'estimation a été annulée avec succès'
       })
 
       setCancelQuoteModal({ isOpen: false, quoteId: null, providerName: '' })
@@ -790,7 +906,7 @@ export function InterventionDetailClient({
 
       toast({
         title: 'Demande annulée',
-        description: 'La demande de devis a été annulée'
+        description: 'La demande d\'estimation a été annulée'
       })
 
       setCancelQuoteConfirmModal({ isOpen: false, quoteId: null, providerName: '' })
@@ -1001,7 +1117,7 @@ export function InterventionDetailClient({
     handleOpenProgrammingModalWithData()
   }
 
-  // Handler pour approuver un devis
+  // Handler pour approuver une estimation
   const handleApproveQuote = async (quoteId: string) => {
     try {
       const response = await fetch(`/api/intervention/${intervention.id}/quotes/${quoteId}/approve`, {
@@ -1012,14 +1128,14 @@ export function InterventionDetailClient({
 
       if (result.success || response.ok) {
         toast({
-          title: 'Devis approuvé',
-          description: 'Le devis a été approuvé avec succès'
+          title: 'Estimation approuvée',
+          description: 'L\'estimation a été approuvée avec succès'
         })
         handleRefresh()
       } else {
         toast({
           title: 'Erreur',
-          description: result.error || 'Erreur lors de l\'approbation du devis',
+          description: result.error || 'Erreur lors de l\'approbation de l\'estimation',
           variant: 'destructive'
         })
       }
@@ -1027,13 +1143,13 @@ export function InterventionDetailClient({
       console.error('Error approving quote:', error)
       toast({
         title: 'Erreur',
-        description: 'Erreur lors de l\'approbation du devis',
+        description: 'Erreur lors de l\'approbation de l\'estimation',
         variant: 'destructive'
       })
     }
   }
 
-  // Handler pour rejeter un devis
+  // Handler pour rejeter une estimation
   const handleRejectQuote = async (quoteId: string) => {
     try {
       const response = await fetch(`/api/intervention/${intervention.id}/quotes/${quoteId}/reject`, {
@@ -1044,14 +1160,14 @@ export function InterventionDetailClient({
 
       if (result.success || response.ok) {
         toast({
-          title: 'Devis rejeté',
-          description: 'Le devis a été rejeté'
+          title: 'Estimation rejetée',
+          description: 'L\'estimation a été rejetée'
         })
         handleRefresh()
       } else {
         toast({
           title: 'Erreur',
-          description: result.error || 'Erreur lors du rejet du devis',
+          description: result.error || 'Erreur lors du rejet de l\'estimation',
           variant: 'destructive'
         })
       }
@@ -1059,13 +1175,13 @@ export function InterventionDetailClient({
       console.error('Error rejecting quote:', error)
       toast({
         title: 'Erreur',
-        description: 'Erreur lors du rejet du devis',
+        description: 'Erreur lors du rejet de l\'estimation',
         variant: 'destructive'
       })
     }
   }
 
-  // Handler pour annuler une demande de devis (statut pending)
+  // Handler pour annuler une demande d'estimation (statut pending)
   const handleCancelQuote = async (quoteId: string) => {
     try {
       const result = await cancelQuoteAction(quoteId, intervention.id)
@@ -1073,7 +1189,7 @@ export function InterventionDetailClient({
       if (result.success) {
         toast({
           title: 'Demande annulée',
-          description: 'La demande de devis a été annulée'
+          description: 'La demande d\'estimation a été annulée'
         })
         handleRefresh()
       } else {
@@ -1276,12 +1392,12 @@ export function InterventionDetailClient({
   }
 
   // Prepare header data
+  // Note: demande_de_devis removed - quote status shown via getQuoteBadge()
   const getStatusBadge = (): DetailPageHeaderBadge => {
     const statusMap: Record<string, { label: string; color: string; dotColor: string }> = {
       demande: { label: 'Demande', color: 'bg-blue-100 text-blue-800 border-blue-200', dotColor: 'bg-blue-500' },
       rejetee: { label: 'Rejetée', color: 'bg-red-100 text-red-800 border-red-200', dotColor: 'bg-red-500' },
       approuvee: { label: 'Approuvée', color: 'bg-green-100 text-green-800 border-green-200', dotColor: 'bg-green-500' },
-      demande_de_devis: { label: 'Devis demandé', color: 'bg-purple-100 text-purple-800 border-purple-200', dotColor: 'bg-purple-500' },
       planification: { label: 'Planification', color: 'bg-yellow-100 text-yellow-800 border-yellow-200', dotColor: 'bg-yellow-500' },
       planifiee: { label: 'Planifiée', color: 'bg-indigo-100 text-indigo-800 border-indigo-200', dotColor: 'bg-indigo-500' },
       // Note: 'en_cours' removed from workflow
@@ -1292,6 +1408,21 @@ export function InterventionDetailClient({
     }
     const status = statusMap[intervention.status] || statusMap.demande
     return { ...status, icon: AlertCircle }
+  }
+
+  // Quote status badge - shows when intervention requires quote
+  const getQuoteBadge = (): DetailPageHeaderBadge | null => {
+    if (!intervention.requires_quote) return null
+
+    const quoteStatus = getQuoteBadgeStatus(quotes)
+    if (!quoteStatus) return null
+
+    return {
+      label: getQuoteBadgeLabel(quoteStatus),
+      color: getQuoteBadgeColor(quoteStatus),
+      dotColor: '',
+      icon: FileText
+    }
   }
 
   const getUrgencyBadge = (): DetailPageHeaderBadge | null => {
@@ -1325,7 +1456,7 @@ export function InterventionDetailClient({
     }
   }
 
-  const headerBadges: DetailPageHeaderBadge[] = [getTypeBadge(), getStatusBadge(), getUrgencyBadge()].filter(Boolean) as DetailPageHeaderBadge[];
+  const headerBadges: DetailPageHeaderBadge[] = [getTypeBadge(), getStatusBadge(), getQuoteBadge(), getUrgencyBadge()].filter(Boolean) as DetailPageHeaderBadge[];
 
   // Metadata: Show scheduled date/time in header when confirmed
   const headerMetadata: DetailPageHeaderMetadata[] = [];
@@ -1370,7 +1501,7 @@ export function InterventionDetailClient({
         metadata={headerMetadata}
         actionButtons={
           <>
-            {/* Desktop Layout (≥1024px) : Badge inline + Boutons complets avec tooltips */}
+            {/* Desktop Layout (≥1024px) : Badge inline + Boutons dynamiques + Dot menu */}
             <div className="hidden lg:flex lg:items-center lg:gap-2 transition-all duration-200">
               {shouldShowActionBadge(intervention.status, quotes) && (
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-50 border border-amber-200">
@@ -1381,149 +1512,80 @@ export function InterventionDetailClient({
                 </div>
               )}
 
-              {/* Boutons Approuver/Rejeter pour statut "demande" - gestionnaire uniquement */}
-              {intervention.status === 'demande' && serverUserRole === 'gestionnaire' && (
-                <>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => approvalHook.handleApprovalAction(interventionActionData, 'approve')}
-                          className="gap-2 min-h-[36px] bg-green-600 hover:bg-green-700 text-white border-green-600"
-                        >
-                          <CheckCircle className="w-4 h-4" />
-                          <span>Approuver</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Approuver cette demande d'intervention</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => approvalHook.handleApprovalAction(interventionActionData, 'reject')}
-                          className="gap-2 min-h-[36px]"
-                        >
-                          <XCircle className="w-4 h-4" />
-                          <span>Rejeter</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Rejeter cette demande d'intervention</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleRequestDetails}
-                          className="gap-2 min-h-[36px]"
-                        >
-                          <MessageSquare className="w-4 h-4" />
-                          <span>Demander détails</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Demander plus de détails au locataire dans la conversation</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                </>
-              )}
-
-              {/* Bouton Modifier avec tooltip - conditionnel */}
-              {canModifyOrCancel && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={handleOpenProgrammingModalWithData}
-                        className="gap-2 min-h-[36px]"
-                      >
-                        <Edit className="w-4 h-4" />
-                        <span>Modifier</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Proposer de nouveaux créneaux ou modifier le rendez-vous</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-
-              {/* Bouton Finaliser avec tooltip - conditionnel */}
-              {canFinalize && (
-                <>
-                  {/* Mode séparé avec plusieurs prestataires : bouton spécial pour créer les interventions enfants */}
-                  {assignmentMode === 'separate' && providerCount > 1 && !isParentIntervention ? (
+              {/* Dynamic action buttons from getRoleBasedActions */}
+              {headerActions.map((action, idx) => {
+                // Special handling for finalize with multi-provider mode
+                if (action.actionType === 'finalize' && assignmentMode === 'separate' && providerCount > 1 && !isParentIntervention) {
+                  return (
                     <FinalizeMultiProviderButton
+                      key={idx}
                       interventionId={intervention.id}
                       providerCount={providerCount}
                       onSuccess={handleRefresh}
                       variant="desktop"
                     />
-                  ) : (
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => setShowFinalizationModal(true)}
-                            className="gap-2 min-h-[36px] bg-green-600 hover:bg-green-700"
-                          >
-                            <UserCheck className="w-4 h-4" />
-                            <span>Finaliser</span>
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Valider et clôturer définitivement l'intervention</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  )}
-                </>
-              )}
+                  )
+                }
 
-              {/* Bouton Annuler avec tooltip - conditionnel */}
-              {canModifyOrCancel && (
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => {
-                          // TODO: Open cancel modal
-                          console.log('Annuler intervention')
-                        }}
-                        className="gap-2 min-h-[36px]"
+                return (
+                  <TooltipProvider key={idx}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={toButtonVariant(action.variant)}
+                          size="sm"
+                          onClick={() => handleHeaderActionClick(action)}
+                          disabled={actionLoading === action.actionType}
+                          className={`gap-2 min-h-[36px] ${
+                            action.variant === 'primary' ? 'bg-green-600 hover:bg-green-700 text-white border-green-600' : ''
+                          }`}
+                        >
+                          {actionLoading === action.actionType ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <action.icon className="w-4 h-4" />
+                          )}
+                          <span>{action.label}</span>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{action.label}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )
+              })}
+
+              {/* Dot menu for secondary actions (Modifier/Annuler) */}
+              {dotMenuActions.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                      <span className="sr-only">Plus d'actions</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {dotMenuActions.map((action, idx) => (
+                      <DropdownMenuItem
+                        key={idx}
+                        onClick={() => handleHeaderActionClick(action)}
+                        className={action.variant === 'destructive' ? 'text-red-600 focus:text-red-600 focus:bg-red-50' : ''}
                       >
-                        <XCircle className="w-4 h-4" />
-                        <span>Annuler</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Annuler cette intervention définitivement</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                        <action.icon className="w-4 h-4 mr-2" />
+                        {action.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
 
-            {/* Tablet Layout (768-1023px) : Badge compact + Labels raccourcis */}
+            {/* Tablet Layout (768-1023px) : Badge compact + Dynamic buttons + Dot menu */}
             <div className="hidden md:flex lg:hidden items-center gap-2 transition-all duration-200">
               {shouldShowActionBadge(intervention.status, quotes) && (
                 <div className="flex items-center justify-center w-8 h-8 rounded-md bg-amber-50 border border-amber-200">
@@ -1532,94 +1594,72 @@ export function InterventionDetailClient({
                 </div>
               )}
 
-              {/* Boutons Approuver/Rejeter pour statut "demande" - gestionnaire uniquement */}
-              {intervention.status === 'demande' && serverUserRole === 'gestionnaire' && (
-                <>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() => approvalHook.handleApprovalAction(interventionActionData, 'approve')}
-                    className="gap-1.5 min-h-[36px] bg-green-600 hover:bg-green-700 text-white border-green-600"
-                  >
-                    <CheckCircle className="w-4 h-4" />
-                    <span>Approuver</span>
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => approvalHook.handleApprovalAction(interventionActionData, 'reject')}
-                    className="gap-1.5 min-h-[36px]"
-                  >
-                    <XCircle className="w-4 h-4" />
-                    <span>Rejeter</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleRequestDetails}
-                    className="gap-1.5 min-h-[36px]"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    <span>Demander détails</span>
-                  </Button>
-                </>
-              )}
-
-              {/* Bouton Modifier - conditionnel */}
-              {canModifyOrCancel && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={handleOpenProgrammingModalWithData}
-                  className="gap-1.5 min-h-[36px]"
-                >
-                  <Edit className="w-4 h-4" />
-                  <span>Modifier</span>
-                </Button>
-              )}
-
-              {/* Bouton Finaliser - conditionnel */}
-              {canFinalize && (
-                <>
-                  {assignmentMode === 'separate' && providerCount > 1 && !isParentIntervention ? (
+              {/* Dynamic action buttons from getRoleBasedActions */}
+              {headerActions.map((action, idx) => {
+                // Special handling for finalize with multi-provider mode
+                if (action.actionType === 'finalize' && assignmentMode === 'separate' && providerCount > 1 && !isParentIntervention) {
+                  return (
                     <FinalizeMultiProviderButton
+                      key={idx}
                       interventionId={intervention.id}
                       providerCount={providerCount}
                       onSuccess={handleRefresh}
                       variant="tablet"
                     />
-                  ) : (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => setShowFinalizationModal(true)}
-                      className="gap-1.5 min-h-[36px] bg-green-600 hover:bg-green-700"
-                    >
-                      <UserCheck className="w-4 h-4" />
-                      <span>Finaliser</span>
-                    </Button>
-                  )}
-                </>
-              )}
+                  )
+                }
 
-              {/* Bouton Annuler - conditionnel */}
-              {canModifyOrCancel && (
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    // TODO: Open cancel modal
-                    console.log('Annuler intervention')
-                  }}
-                  className="gap-1.5 min-h-[36px]"
-                >
-                  <XCircle className="w-4 h-4" />
-                  <span>Annuler</span>
-                </Button>
+                return (
+                  <Button
+                    key={idx}
+                    variant={toButtonVariant(action.variant)}
+                    size="sm"
+                    onClick={() => handleHeaderActionClick(action)}
+                    disabled={actionLoading === action.actionType}
+                    className={`gap-1.5 min-h-[36px] ${
+                      action.variant === 'primary' ? 'bg-green-600 hover:bg-green-700 text-white border-green-600' : ''
+                    }`}
+                  >
+                    {actionLoading === action.actionType ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <action.icon className="w-4 h-4" />
+                    )}
+                    <span>{action.label}</span>
+                  </Button>
+                )
+              })}
+
+              {/* Dot menu for secondary actions (Modifier/Annuler) */}
+              {dotMenuActions.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="h-9 w-9"
+                    >
+                      <MoreVertical className="w-4 h-4" />
+                      <span className="sr-only">Plus d'actions</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {dotMenuActions.map((action, idx) => (
+                      <DropdownMenuItem
+                        key={idx}
+                        onClick={() => handleHeaderActionClick(action)}
+                        className={action.variant === 'destructive' ? 'text-red-600 focus:text-red-600 focus:bg-red-50' : ''}
+                      >
+                        <action.icon className="w-4 h-4 mr-2" />
+                        {action.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
 
-            {/* Mobile Layout (<768px) : Dropdown menu avec point indicateur */}
+            {/* Mobile Layout (<768px) : All actions in dropdown menu */}
             <div className="md:hidden">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -1648,77 +1688,55 @@ export function InterventionDetailClient({
                     </>
                   )}
 
-                  {/* Boutons Approuver/Rejeter pour statut "demande" - gestionnaire uniquement */}
-                  {intervention.status === 'demande' && serverUserRole === 'gestionnaire' && (
-                    <>
-                      <DropdownMenuItem
-                        onClick={() => approvalHook.handleApprovalAction(interventionActionData, 'approve')}
-                        className="text-green-700 focus:text-green-800 focus:bg-green-50"
-                      >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Approuver
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => approvalHook.handleApprovalAction(interventionActionData, 'reject')}
-                        className="text-red-700 focus:text-red-800 focus:bg-red-50"
-                      >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Rejeter
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-
-                  {/* Action Demander détails - conditionnelle */}
-                  {intervention.status === 'demande' && serverUserRole === 'gestionnaire' && (
-                    <DropdownMenuItem onClick={handleRequestDetails}>
-                      <MessageSquare className="w-4 h-4 mr-2" />
-                      Demander détails
-                    </DropdownMenuItem>
-                  )}
-
-                  {/* Action Modifier - conditionnelle */}
-                  {canModifyOrCancel && (
-                    <DropdownMenuItem onSelect={handleOpenProgrammingModalWithData}>
-                      <Edit className="w-4 h-4 mr-2" />
-                      Modifier
-                    </DropdownMenuItem>
-                  )}
-
-                  {/* Action Finaliser - conditionnelle */}
-                  {canFinalize && (
-                    <>
-                      {assignmentMode === 'separate' && providerCount > 1 && !isParentIntervention ? (
+                  {/* Primary actions from getRoleBasedActions */}
+                  {headerActions.map((action, idx) => {
+                    // Special handling for finalize with multi-provider mode
+                    if (action.actionType === 'finalize' && assignmentMode === 'separate' && providerCount > 1 && !isParentIntervention) {
+                      return (
                         <FinalizeMultiProviderButton
+                          key={idx}
                           interventionId={intervention.id}
                           providerCount={providerCount}
                           onSuccess={handleRefresh}
                           variant="mobile"
                         />
-                      ) : (
-                        <DropdownMenuItem onSelect={() => setShowFinalizationModal(true)}>
-                          <UserCheck className="w-4 h-4 mr-2 text-green-600" />
-                          Finaliser l'intervention
-                        </DropdownMenuItem>
-                      )}
-                    </>
-                  )}
+                      )
+                    }
 
-                  {canModifyOrCancel && <DropdownMenuSeparator />}
+                    return (
+                      <DropdownMenuItem
+                        key={idx}
+                        onClick={() => handleHeaderActionClick(action)}
+                        disabled={actionLoading === action.actionType}
+                        className={
+                          action.variant === 'primary' ? 'text-green-700 focus:text-green-800 focus:bg-green-50' :
+                          action.variant === 'destructive' ? 'text-red-700 focus:text-red-800 focus:bg-red-50' : ''
+                        }
+                      >
+                        {actionLoading === action.actionType ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <action.icon className="w-4 h-4 mr-2" />
+                        )}
+                        {action.label}
+                      </DropdownMenuItem>
+                    )
+                  })}
 
-                  {/* Action Annuler - conditionnelle */}
-                  {canModifyOrCancel && (
+                  {/* Separator before secondary actions */}
+                  {dotMenuActions.length > 0 && headerActions.length > 0 && <DropdownMenuSeparator />}
+
+                  {/* Secondary actions (Modifier/Annuler) */}
+                  {dotMenuActions.map((action, idx) => (
                     <DropdownMenuItem
-                      className="text-red-600 focus:text-red-600"
-                      onSelect={() => {
-                        // TODO: Open cancel modal
-                        console.log('Annuler intervention')
-                      }}
+                      key={`dot-${idx}`}
+                      onClick={() => handleHeaderActionClick(action)}
+                      className={action.variant === 'destructive' ? 'text-red-600 focus:text-red-600' : ''}
                     >
-                      <XCircle className="w-4 h-4 mr-2" />
-                      Annuler l'intervention
+                      <action.icon className="w-4 h-4 mr-2" />
+                      {action.label}
                     </DropdownMenuItem>
-                  )}
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

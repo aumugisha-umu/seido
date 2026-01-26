@@ -102,7 +102,7 @@ interface AssignmentSectionV2Props {
   buildingTenants?: BuildingTenantsResult | null
   loadingBuildingTenants?: boolean
   // Lots selection (for granular control)
-  excludedLotIds?: Set<string>
+  excludedLotIds?: string[]
   onLotToggle?: (lotId: string) => void
   // Confirmation des participants (date fixe: optionnel, créneaux: obligatoire)
   requiresConfirmation?: boolean
@@ -335,7 +335,7 @@ export function AssignmentSectionV2({
   buildingTenants = null,
   loadingBuildingTenants = false,
   // Lots selection
-  excludedLotIds = new Set(),
+  excludedLotIds = [],
   onLotToggle,
   // Confirmation des participants
   requiresConfirmation = false,
@@ -373,7 +373,7 @@ export function AssignmentSectionV2({
       const buildingTenantsFlattened: Contact[] = []
       for (const lotGroup of buildingTenants.byLot) {
         // Ignorer les lots exclus
-        if (excludedLotIds?.has(lotGroup.lotId)) continue
+        if (excludedLotIds?.includes(lotGroup.lotId)) continue
 
         for (const tenant of lotGroup.tenants) {
           buildingTenantsFlattened.push({
@@ -464,10 +464,10 @@ export function AssignmentSectionV2({
                         {buildingTenants ? (
                           (() => {
                             const includedCount = buildingTenants.byLot
-                              .filter(lot => !excludedLotIds?.has(lot.lotId))
+                              .filter(lot => !excludedLotIds?.includes(lot.lotId))
                               .reduce((sum, lot) => sum + lot.tenants.length, 0)
                             const includedLotsCount = buildingTenants.byLot
-                              .filter(lot => !excludedLotIds?.has(lot.lotId)).length
+                              .filter(lot => !excludedLotIds?.includes(lot.lotId)).length
                             return includedCount > 0 && (
                               <>
                                 <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-600 text-white">
@@ -506,7 +506,7 @@ export function AssignmentSectionV2({
                         includeTenants && buildingTenants.byLot.length > 0 ? (
                           <div className="space-y-3 max-h-60 overflow-y-auto">
                             {buildingTenants.byLot.map((lotGroup) => {
-                              const isLotIncluded = !excludedLotIds?.has(lotGroup.lotId)
+                              const isLotIncluded = !excludedLotIds?.includes(lotGroup.lotId)
 
                               return (
                                 <div key={lotGroup.lotId}>
@@ -550,7 +550,7 @@ export function AssignmentSectionV2({
                             <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200 mt-2">
                               <Info className="h-3.5 w-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
                               <p className="text-xs text-blue-700">
-                                {buildingTenants.byLot.filter(lot => !excludedLotIds?.has(lot.lotId)).reduce((sum, lot) => sum + lot.tenants.length, 0) > 1
+                                {buildingTenants.byLot.filter(lot => !excludedLotIds?.includes(lot.lotId)).reduce((sum, lot) => sum + lot.tenants.length, 0) > 1
                                   ? 'Ils pourront'
                                   : 'Il pourra'} suivre l'intervention et interagir dans le chat
                               </p>
@@ -621,7 +621,7 @@ export function AssignmentSectionV2({
                   : "text-slate-900 cursor-pointer"
               )}
             >
-              Demander un devis
+              Demander une estimation
             </label>
 
             {/* Info/Warning message inline with background - hidden on mobile */}
@@ -636,14 +636,14 @@ export function AssignmentSectionV2({
                   <>
                     <Info className="h-4 w-4 text-slate-500 flex-shrink-0" />
                     <p className="text-xs text-slate-600">
-                      Sélectionnez un prestataire pour demander un devis.
+                      Sélectionnez un prestataire pour demander une estimation.
                     </p>
                   </>
                 ) : (
                   <>
                     <AlertCircle className="h-4 w-4 text-amber-600 flex-shrink-0" />
                     <p className="text-xs text-amber-800">
-                      Les prestataires devront fournir un devis.
+                      Les prestataires devront fournir une estimation.
                     </p>
                   </>
                 )}

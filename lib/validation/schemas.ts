@@ -332,11 +332,11 @@ export const sendContactInvitationSchema = z.object({
  * Intervention status enum
  * Exported for use in validation across the app
  */
+// Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
 export const interventionStatusEnum = z.enum([
   'demande',
   'rejetee',
   'approuvee',
-  'demande_de_devis',
   'planification',
   'planifiee',
   'cloturee_par_prestataire',

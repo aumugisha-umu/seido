@@ -52,7 +52,7 @@ const getTabsConfig = (role: UserRole) => {
         ...baseConfig,
         {
           value: 'planning',
-          label: 'Planning et Devis',
+          label: 'Planning et Estimations',
           icon: Calendar
         },
         {

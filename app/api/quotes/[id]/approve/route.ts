@@ -71,7 +71,7 @@ export async function POST(
     if (quoteError) {
       logger.error({ error: quoteError }, '❌ [API-APPROVE] Database error while fetching quote:')
       return NextResponse.json({
-        error: 'Devis non trouvé',
+        error: 'Estimation non trouvée',
         debug: { quoteError }
       }, { status: 404 })
     }
@@ -79,7 +79,7 @@ export async function POST(
     if (!quote) {
       logger.error({ id: id }, '❌ [API-APPROVE] Quote not found with ID:')
       return NextResponse.json({
-        error: 'Devis non trouvé',
+        error: 'Estimation non trouvée',
         debug: { searchedId: id }
       }, { status: 404 })
     }
@@ -238,7 +238,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: 'Devis approuvé avec succès'
+      message: 'Estimation approuvée avec succès'
     })
 
   } catch (error) {

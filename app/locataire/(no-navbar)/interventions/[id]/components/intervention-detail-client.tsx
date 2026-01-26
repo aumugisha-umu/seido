@@ -335,9 +335,9 @@ export function LocataireInterventionDetailClient({
       authorRole: 'tenant'
     })
 
-    // Note: 'en_cours' removed from workflow - interventions go directly from 'planifiee' to finalization
+    // Note: 'en_cours' and 'demande_de_devis' removed from workflow
     const statusOrder = [
-      'demande', 'approuvee', 'demande_de_devis', 'planification',
+      'demande', 'approuvee', 'planification',
       'planifiee', 'cloturee_par_prestataire',
       'cloturee_par_locataire', 'cloturee_par_gestionnaire'
     ]
@@ -426,11 +426,11 @@ export function LocataireInterventionDetailClient({
   // Gestionnaires use /gestionnaire/interventions/modifier/[id] page instead
 
   // Helper functions for DetailPageHeader
+  // Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
   const getStatusBadge = (): DetailPageHeaderBadge => {
     const statusConfig: Record<string, { label: string; color: string; dotColor: string }> = {
       'demande': { label: 'Demande', color: 'bg-blue-50 border-blue-200 text-blue-900', dotColor: 'bg-blue-500' },
       'approuvee': { label: 'Approuvée', color: 'bg-green-50 border-green-200 text-green-900', dotColor: 'bg-green-500' },
-      'demande_de_devis': { label: 'Demande de devis', color: 'bg-amber-50 border-amber-200 text-amber-900', dotColor: 'bg-amber-500' },
       'planification': { label: 'Planification', color: 'bg-purple-50 border-purple-200 text-purple-900', dotColor: 'bg-purple-500' },
       'planifiee': { label: 'Planifiée', color: 'bg-indigo-50 border-indigo-200 text-indigo-900', dotColor: 'bg-indigo-500' },
       // Note: 'en_cours' removed from workflow

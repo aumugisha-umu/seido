@@ -76,11 +76,11 @@ interface UseInterventionWorkflowReturn {
 
 // Status transition rules
 // Workflow: planifiee → cloturee_par_prestataire (direct transition, no intermediate status)
+// ✅ FIX 2026-01-26: Removed demande_de_devis - quotes now managed via requires_quote + intervention_quotes
 const ALLOWED_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> = {
   'demande': ['approuvee', 'rejetee'],
   'rejetee': [],
-  'approuvee': ['demande_de_devis', 'planification', 'annulee'],
-  'demande_de_devis': ['planification', 'annulee'],
+  'approuvee': ['planification', 'annulee'],
   'planification': ['planifiee', 'annulee'],
   'planifiee': ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'], // Direct to closure
   'cloturee_par_prestataire': ['cloturee_par_locataire', 'cloturee_par_gestionnaire'], // Manager can finalize directly
@@ -242,22 +242,26 @@ export function useInterventionWorkflow(interventionId: string): UseIntervention
     )
   }, [interventionId, canTransitionTo, executeAction])
 
+  // ✅ FIX 2026-01-26: Quote requests no longer change intervention status
+  // Quotes are now managed independently via requires_quote + intervention_quotes table
   const requestQuote = useCallback(async (providerId: string) => {
     if (!providerId) {
       toast.error('Please select a provider')
       return
     }
-    if (!canTransitionTo('demande_de_devis')) {
+    // Quote can be requested from approuvee or planification status
+    const currentStatus = intervention?.status
+    if (!currentStatus || !['approuvee', 'planification'].includes(currentStatus)) {
       toast.error('Cannot request quote in current status')
       return
     }
     await executeAction(
       () => requestQuoteAction(interventionId, providerId),
-      'demande_de_devis',
+      undefined, // No status transition - quote is independent
       'Quote requested successfully',
       'Failed to request quote'
     )
-  }, [interventionId, canTransitionTo, executeAction])
+  }, [interventionId, intervention?.status, executeAction])
 
   const startPlanning = useCallback(async () => {
     if (!canTransitionTo('planification')) {

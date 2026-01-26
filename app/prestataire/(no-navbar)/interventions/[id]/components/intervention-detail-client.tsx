@@ -130,11 +130,11 @@ interface PrestataireInterventionDetailClientProps {
 }
 
 // Status labels
+// Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
 const statusLabels: Record<string, { label: string; color: string }> = {
   'demande': { label: 'Demande', color: 'bg-gray-100 text-gray-800' },
   'rejetee': { label: 'Rejetée', color: 'bg-red-100 text-red-800' },
   'approuvee': { label: 'Approuvée', color: 'bg-green-100 text-green-800' },
-  'demande_de_devis': { label: 'Devis demandé', color: 'bg-yellow-100 text-yellow-800' },
   'planification': { label: 'Planification', color: 'bg-blue-100 text-blue-800' },
   'planifiee': { label: 'Planifiée', color: 'bg-blue-100 text-blue-800' },
   // Note: 'en_cours' removed from workflow
@@ -431,9 +431,9 @@ export function PrestataireInterventionDetailClient({
       authorRole: 'tenant'
     })
 
-    // Note: 'en_cours' removed from workflow - interventions go directly from 'planifiee' to finalization
+    // Note: 'en_cours' and 'demande_de_devis' removed from workflow
     const statusOrder = [
-      'demande', 'approuvee', 'demande_de_devis', 'planification',
+      'demande', 'approuvee', 'planification',
       'planifiee', 'cloturee_par_prestataire',
       'cloturee_par_locataire', 'cloturee_par_gestionnaire'
     ]
@@ -585,12 +585,12 @@ export function PrestataireInterventionDetailClient({
 
       if (error) throw error
 
-      const successMessage = isSent ? 'Devis annulé avec succès' : 'Devis supprimé avec succès'
+      const successMessage = isSent ? 'Estimation annulée avec succès' : 'Estimation supprimée avec succès'
       toast.success(successMessage)
       handleRefresh()
     } catch (error) {
       console.error('Error deleting quote:', error)
-      toast.error('Erreur lors de la suppression du devis')
+      toast.error('Erreur lors de la suppression de l\'estimation')
     }
   }
 
@@ -637,11 +637,11 @@ export function PrestataireInterventionDetailClient({
   const statusInfo = statusLabels[intervention.status] || statusLabels['demande']
 
   // Helper functions for DetailPageHeader
+  // Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
   const getStatusBadge = (): DetailPageHeaderBadge => {
     const statusConfig: Record<string, { label: string; color: string; dotColor: string; icon?: any }> = {
       'demande': { label: 'Demande', color: 'bg-blue-50 border-blue-200 text-blue-900', dotColor: 'bg-blue-500', icon: null },
       'approuvee': { label: 'Approuvée', color: 'bg-green-50 border-green-200 text-green-900', dotColor: 'bg-green-500', icon: null },
-      'demande_de_devis': { label: 'Demande de devis', color: 'bg-amber-50 border-amber-200 text-amber-900', dotColor: 'bg-amber-500', icon: null },
       'planification': { label: 'Planification', color: 'bg-purple-50 border-purple-200 text-purple-900', dotColor: 'bg-purple-500', icon: null },
       'planifiee': { label: 'Planifiée', color: 'bg-indigo-50 border-indigo-200 text-indigo-900', dotColor: 'bg-indigo-500', icon: null },
       // Note: 'en_cours' removed from workflow

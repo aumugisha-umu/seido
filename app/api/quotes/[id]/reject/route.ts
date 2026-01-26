@@ -40,15 +40,15 @@ export async function POST(
 
     if (quoteError || !quote) {
       return NextResponse.json({
-        error: 'Devis non trouvé'
+        error: 'Estimation non trouvée'
       }, { status: 404 })
     }
 
-    // Vérifier que le devis est en attente (validation JavaScript)
+    // Vérifier que l'estimation est en attente (validation JavaScript)
     const isPending = quote.status === 'pending' || quote.status === 'En attente'
     if (!isPending) {
       return NextResponse.json({
-        error: `Ce devis a déjà été traité (statut: ${quote.status})`
+        error: `Cette estimation a déjà été traitée (statut: ${quote.status})`
       }, { status: 400 })
     }
 
@@ -140,7 +140,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: 'Devis rejeté avec succès'
+      message: 'Estimation rejetée avec succès'
     })
 
   } catch (error) {

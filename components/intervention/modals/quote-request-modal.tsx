@@ -120,7 +120,7 @@ export const QuoteRequestModal = ({
   const handleSubmit = () => {
     if (!isFormValid()) return
 
-    logger.info('📋 Soumission demande de devis', {
+    logger.info('📋 Soumission demande d\'estimation', {
       providerId: selectedProviderId,
       providerName: selectedProvider?.name,
       deadline: deadline,
@@ -135,10 +135,10 @@ export const QuoteRequestModal = ({
       <DialogContent className="max-w-sm sm:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="space-y-3 pb-6">
           <DialogTitle className="text-2xl font-semibold text-slate-900 leading-snug">
-            Demander un devis
+            Demander une estimation
           </DialogTitle>
           <p className="text-slate-600">
-            Sélectionnez un prestataire et définissez les modalités pour la demande de devis
+            Sélectionnez un prestataire et définissez les modalités pour la demande d'estimation
           </p>
         </DialogHeader>
 
@@ -190,7 +190,7 @@ export const QuoteRequestModal = ({
                 Prestataire *
               </Label>
               <p className="text-xs text-slate-500">
-                Sélectionnez le prestataire qui recevra la demande de devis
+                Sélectionnez le prestataire qui recevra la demande d'estimation
               </p>
 
               <Select value={selectedProviderId} onValueChange={(value) => {
@@ -239,10 +239,10 @@ export const QuoteRequestModal = ({
 
             <Separator />
 
-            {/* Date limite pour le devis */}
+            {/* Date limite pour l'estimation */}
             <div className="space-y-3">
               <Label htmlFor="deadline" className="text-sm font-medium text-slate-900">
-                Date limite pour le devis
+                Date limite pour l'estimation
               </Label>
               <DatePicker
                 value={deadline}
@@ -268,7 +268,7 @@ export const QuoteRequestModal = ({
                 className="resize-none"
               />
               <p className="text-xs text-slate-500">
-                Ces informations aideront le prestataire à établir un devis précis
+                Ces informations aideront le prestataire à établir une estimation précise
               </p>
             </div>
 
@@ -332,7 +332,7 @@ export const QuoteRequestModal = ({
             ) : (
               <>
                 <FileText className="h-4 w-4 mr-2" />
-                Demander le devis
+                Demander l'estimation
               </>
             )}
           </Button>

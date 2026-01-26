@@ -54,13 +54,17 @@ export const TimeSlotsProposedEmail = ({
     organize: 'Vous pouvez proposer vos propres créneaux et vous organiser directement avec les autres parties.'
   }
 
-  // Formatter les créneaux
+  // Formatter les créneaux (adapté selon le mode de planification)
   const formatSlot = (slot: { date: Date; startTime: string; endTime: string }) => {
     const dateStr = slot.date.toLocaleDateString('fr-FR', {
       weekday: 'long',
       day: 'numeric',
       month: 'long'
     })
+    // Mode direct: heure fixe uniquement / Mode propose: plage horaire complète
+    if (planningType === 'direct') {
+      return `${dateStr} à ${slot.startTime}`
+    }
     return `${dateStr} de ${slot.startTime} à ${slot.endTime}`
   }
 
@@ -114,7 +118,10 @@ export const TimeSlotsProposedEmail = ({
                     day: 'numeric',
                     month: 'long'
                   })
-                  const timeRange = `${slot.startTime} - ${slot.endTime}`
+                  // Mode direct: heure fixe uniquement / Mode propose: plage horaire
+                  const timeRange = planningType === 'direct'
+                    ? `à ${slot.startTime}`
+                    : `${slot.startTime} - ${slot.endTime}`
 
                   return (
                     <TimeSlotCard

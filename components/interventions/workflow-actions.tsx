@@ -75,7 +75,7 @@ const WORKFLOW_ACTIONS = {
   },
   requestQuote: {
     icon: FileText,
-    label: 'Demander un devis',
+    label: 'Demander une estimation',
     color: 'bg-yellow-500',
     requiresProvider: true,
     nextStatus: 'demande_de_devis' as InterventionStatus

@@ -79,15 +79,15 @@ export function QuoteValidationModal({
             <XCircle className="w-6 h-6 text-red-500" />
           )}
           <span>
-            {action === 'approve' ? 'Approuver' : 'Rejeter'} le Devis
+            {action === 'approve' ? 'Approuver' : 'Rejeter'} l'Estimation
           </span>
         </Modal.Title>
       </Modal.Header>
 
       <Modal.Content className="space-y-4">
-        {/* Résumé du Devis selon Design System */}
+        {/* Résumé de l'Estimation selon Design System */}
         <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-          <h4 className="font-medium text-slate-900 mb-3">Résumé du Devis</h4>
+          <h4 className="font-medium text-slate-900 mb-3">Résumé de l'Estimation</h4>
           <div className="grid grid-cols-2 gap-3 text-sm">
             <div>
               <span className="text-slate-600">Prestataire:</span>
@@ -109,7 +109,7 @@ export function QuoteValidationModal({
 
           {/* Total prominent selon Design System */}
           <div className="mt-4 text-center p-3 bg-sky-50 border border-sky-200 rounded-lg">
-            <p className="text-sm text-slate-600">Total du Devis</p>
+            <p className="text-sm text-slate-600">Total de l'Estimation</p>
             <p className="text-2xl font-bold text-sky-700">{quote.total_amount}€</p>
           </div>
 
@@ -160,7 +160,7 @@ export function QuoteValidationModal({
           <Alert className="border-sky-200 bg-sky-50">
             <InformationCircleIcon className="w-4 h-4 text-sky-600" />
             <AlertDescription className="text-sky-800">
-              <strong>Attention :</strong> Cette action définira ce prestataire pour l'intervention et rejettera automatiquement les autres devis en attente.
+              <strong>Attention :</strong> Cette action définira ce prestataire pour l'intervention et rejettera automatiquement les autres estimations en attente.
             </AlertDescription>
           </Alert>
         )}

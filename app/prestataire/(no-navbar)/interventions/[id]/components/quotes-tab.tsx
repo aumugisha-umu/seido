@@ -138,12 +138,12 @@ export function QuotesTab({
 
       if (error) throw error
 
-      const successMessage = isSent ? 'Devis annulé avec succès' : 'Devis supprimé avec succès'
+      const successMessage = isSent ? 'Estimation annulée avec succès' : 'Estimation supprimée avec succès'
       toast.success(successMessage)
       onRefresh()
     } catch (error) {
       console.error('Error deleting quote:', error)
-      toast.error('Erreur lors de la suppression du devis')
+      toast.error('Erreur lors de la suppression de l\'estimation')
     } finally {
       setDeleting(null)
     }

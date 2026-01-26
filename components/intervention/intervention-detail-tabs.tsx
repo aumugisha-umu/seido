@@ -269,9 +269,9 @@ export function InterventionDetailTabs({
       },
       {
         id: "devis",
-        label: "Devis",
+        label: "Estimations",
         icon: Receipt,
-        available: userRole !== 'locataire', // Locataire n'a pas accès aux devis
+        available: userRole !== 'locataire', // Locataire n'a pas accès aux estimations
         badge: intervention.quotes?.length || 0,
       },
       {

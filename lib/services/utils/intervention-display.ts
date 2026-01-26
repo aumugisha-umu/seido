@@ -168,8 +168,8 @@ export const getStatusDescription = (
   const descriptionsFR: Record<InterventionStatus, string> = {
     demande: "En attente de validation par le gestionnaire",
     rejetee: "Demande rejetée par le gestionnaire",
-    approuvee: "Approuvée et en attente de devis ou planification",
-    demande_de_devis: "Devis demandé au prestataire",
+    approuvee: "Approuvée et en attente d'estimation ou planification",
+    demande_de_devis: "Estimation demandée au prestataire",
     planification: "Recherche d'un créneau de disponibilité",
     planifiee: "Intervention planifiée à une date précise",
     cloturee_par_prestataire: "Travaux terminés, en attente de validation locataire",

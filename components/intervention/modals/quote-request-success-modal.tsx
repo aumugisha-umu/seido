@@ -27,13 +27,13 @@ export const QuoteRequestSuccessModal = ({
             </div>
           </div>
           <DialogTitle className="text-xl font-semibold text-slate-900">
-            Demande de devis envoyée !
+            Demande d'estimation envoyée !
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 text-center">
           <p className="text-slate-600">
-            Votre demande de devis a été envoyée avec succès à <strong>{providerName}</strong>
+            Votre demande d'estimation a été envoyée avec succès à <strong>{providerName}</strong>
             pour l'intervention <strong>"{interventionTitle}"</strong>.
           </p>
 
@@ -44,11 +44,11 @@ export const QuoteRequestSuccessModal = ({
             </div>
             <div className="flex items-center gap-3">
               <FileText className="h-4 w-4 text-slate-500" />
-              <span>L'intervention passe au statut "Demande de devis"</span>
+              <span>L'intervention passe au statut "Demande d'estimation"</span>
             </div>
             <div className="flex items-center gap-3">
               <Clock className="h-4 w-4 text-slate-500" />
-              <span>Vous serez notifié lors de la réception du devis</span>
+              <span>Vous serez notifié lors de la réception de l'estimation</span>
             </div>
           </div>
 

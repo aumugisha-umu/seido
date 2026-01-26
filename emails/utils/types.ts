@@ -192,6 +192,8 @@ export interface InterventionAssignedPrestataireEmailProps extends BaseIntervent
   createdAt: Date
   /** Créneaux proposés pour l'intervention */
   timeSlots?: EmailTimeSlot[]
+  /** Type de planification (direct = heure fixe, propose = plage horaire) */
+  planningType?: 'direct' | 'propose' | 'organize'
   /** Informations sur le devis demandé (prestataire seulement) */
   quoteInfo?: EmailQuoteInfo
   /** Pièces jointes de l'intervention */

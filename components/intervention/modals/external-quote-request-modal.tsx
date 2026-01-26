@@ -180,7 +180,7 @@ export const ExternalQuoteRequestModal = ({
             {/* Date limite */}
             <div className="space-y-3">
               <Label htmlFor="deadline" className="text-sm font-medium text-slate-900">
-                Date limite pour le devis
+                Date limite pour l'estimation
               </Label>
               <DatePicker
                 value={deadline}
@@ -260,7 +260,7 @@ export const ExternalQuoteRequestModal = ({
               <ul className="list-disc list-inside mt-2 space-y-1 text-sm">
                 <li>Chaque prestataire recevra un email avec un lien sécurisé</li>
                 <li>Le lien permet d'accéder aux détails de l'intervention sans compte</li>
-                <li>Pour soumettre un devis, ils devront créer un compte</li>
+                <li>Pour soumettre une estimation, ils devront créer un compte</li>
                 <li>Les liens expirent automatiquement après 7 jours</li>
               </ul>
             </AlertDescription>

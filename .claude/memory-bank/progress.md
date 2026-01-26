@@ -35,8 +35,36 @@
 - [x] Chat message bubble enhancements (2026-01-25)
 - [x] **Participant confirmation flow** (2026-01-25)
 - [x] **Intervention types dynamiques** (2026-01-25)
+- [x] **Migration workflow devis** (2026-01-26) - Suppression demande_de_devis
+- [x] **Fix affichage reponses en attente** (2026-01-26)
 
 ## Sprint Actuel (Jan 2026)
+
+### 2026-01-26 - Migration Devis + Bugfix Affichage Reponses
+**Ce qui a ete fait:**
+- **Migration workflow devis** - Suppression du statut `demande_de_devis`
+  - Le statut des devis est maintenant derive de `intervention_quotes` (independant du workflow)
+  - `requires_quote: boolean` sur interventions determine si devis requis
+  - Nouveau composant `QuoteStatusBadge` pour affichage visuel
+  - Migration SQL `20260126120000_remove_demande_de_devis_status.sql`
+- **Bugfix UX: Affichage nombre reponses en attente**
+  - `pending-actions-card.tsx` - Utilise `getPendingResponderNames()` pour compter les reponses pending
+  - Affiche "En attente de X reponse(s)" au lieu du message generique
+  - Pluralisation correcte en francais
+
+**Fichiers modifies:**
+- `components/dashboards/shared/pending-actions-card.tsx` (import + logique lignes 117-124)
+- `app/api/create-manager-intervention/route.ts`
+- `app/api/intervention/[id]/status/route.ts`
+- `hooks/use-intervention-workflow.ts`
+- `components/interventions/intervention-create-form.tsx`
+- `components/dashboards/manager/manager-dashboard-v2.tsx`
+
+**Nouveaux fichiers:**
+- `components/interventions/quote-status-badge.tsx`
+- `lib/utils/quote-status.ts`
+- `lib/intervention-action-utils.ts`
+- `supabase/migrations/20260126120000_remove_demande_de_devis_status.sql`
 
 ### 2026-01-25 - Intervention Types Dynamiques + Confirmation Participant
 **Ce qui a été fait:**
@@ -195,6 +223,7 @@
 | 2026-01 | Props Email Standardises | Coherence templates ↔ service | Preview fiable |
 | 2026-01-23 | Optimisation .claude/ | Reduction duplication | -62% lignes, -6000 tokens/session |
 | **2026-01-25** | **PWA Push Notifications** | **Notifications temps reel mobile** | **4 canaux complets** |
+| **2026-01-26** | **Migration workflow devis** | **Suppression statut redondant** | **10 → 9 statuts, meilleure separation concerns** |
 
 ---
-*Derniere mise a jour: 2026-01-25*
+*Derniere mise a jour: 2026-01-26*

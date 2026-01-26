@@ -222,7 +222,7 @@ export const STATUS_LABELS: Record<string, string> = {
   'demande': 'Demande',
   'rejetee': 'Rejetee',
   'approuvee': 'Approuvee',
-  'demande_de_devis': 'Devis demande',
+  'demande_de_devis': 'Estimation demandee',
   'planification': 'En planification',
   'planifiee': 'Planifiee',
   'cloturee_par_prestataire': 'Terminee (prestataire)',

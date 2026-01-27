@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }, '✅ [WELCOME-EMAIL-API] User profile found:')
 
     // ✅ ENVOYER EMAIL: Email de bienvenue via Resend
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+    const appUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
 
     logger.info({ user: email }, '📧 [WELCOME-EMAIL-API] Sending welcome email to:')
     const emailResult = await emailService.sendWelcomeEmail(email, {

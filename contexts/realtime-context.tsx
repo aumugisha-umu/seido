@@ -41,6 +41,7 @@ import {
   useRef,
   useCallback,
   useState,
+  useMemo,
   type ReactNode
 } from 'react'
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from '@supabase/supabase-js'
@@ -353,8 +354,17 @@ export function RealtimeProvider({ userId, teamId, children }: RealtimeProviderP
   // ──────────────────────────────────────────────────────────────────────────
   // Render
   // ──────────────────────────────────────────────────────────────────────────
+
+  // ✅ FIX: Memoize context value to prevent unnecessary consumer re-renders
+  // Without useMemo, a new object is created on every render, causing all
+  // useContext consumers to re-render and re-subscribe in a loop.
+  const contextValue = useMemo(
+    () => ({ isConnected, connectionStatus, subscribe, unsubscribe }),
+    [isConnected, connectionStatus, subscribe, unsubscribe]
+  )
+
   return (
-    <RealtimeContext.Provider value={{ isConnected, connectionStatus, subscribe, unsubscribe }}>
+    <RealtimeContext.Provider value={contextValue}>
       {children}
     </RealtimeContext.Provider>
   )

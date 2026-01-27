@@ -408,6 +408,60 @@ Architecture unifiee pour afficher les interventions de maniere coherente dans t
 
 > Verifie 2026-01-27: Toutes les pages de details utilisent correctement cette architecture.
 
+### 15. Skills Auto-Invocation Pattern (NOUVEAU 2026-01-27)
+
+Pattern d'orchestration des skills `superpowers:sp-*` base sur des "Red Flags" (pensees declencheuses) :
+
+```
++-------------------------------------------------------------+
+| RED FLAG DETECTION                                          |
+| "Je vais creer...", "Bug...", "Je vais implementer..."     |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| SKILL AUTO-INVOCATION                                       |
+| sp-brainstorming, sp-systematic-debugging, sp-tdd, etc.    |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| IMPLEMENTATION                                              |
+| Code ecrit selon les recommandations du skill              |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| VERIFICATION OBLIGATOIRE                                    |
+| sp-verification-before-completion AVANT commit             |
++-------------------------------------------------------------+
+```
+
+**Matrice de declenchement :**
+
+| Red Flag | Skill a Invoquer | Priorite |
+|----------|------------------|----------|
+| "Je vais creer/ajouter/modifier..." | `sp-brainstorming` | CRITIQUE |
+| "Bug/Erreur/Test echoue..." | `sp-systematic-debugging` | CRITIQUE |
+| "Je vais implementer/coder..." | `sp-test-driven-development` | HAUTE |
+| "C'est fait/Pret a commiter..." | `sp-verification-before-completion` | CRITIQUE |
+| "Tache complexe/> 3 fichiers..." | `sp-writing-plans` | HAUTE |
+
+**Chains d'orchestration :**
+
+1. **Creative Work**: brainstorming → writing-plans → TDD → impl → verification → code-review
+2. **Bug Fix**: systematic-debugging → TDD (failing test) → fix → verification
+3. **Multi-Domain**: brainstorming → writing-plans → dispatching-parallel-agents → verification
+
+**Fichiers de reference :**
+- `.claude/CLAUDE.md` - Section "Skills Auto-Invocation"
+- `.claude/agents/_base-template.md` - Red Flags universels (herite par tous)
+- `.claude/agents/ultrathink-orchestrator.md` - Section H
+
+**Regle critique :** Process Skills (brainstorming/debugging) AVANT Implementation Skills (TDD/coding).
+
+---
+
 ## Anti-Patterns (NE JAMAIS FAIRE)
 
 | Anti-Pattern | Alternative |
@@ -420,6 +474,9 @@ Architecture unifiee pour afficher les interventions de maniere coherente dans t
 | Singleton notification legacy | Server Actions |
 | Utiliser statut demande_de_devis | requires_quote + intervention_quotes |
 | Creer composant card intervention custom | Utiliser InterventionsNavigator |
+| Coder sans invoquer skill brainstorming | Invoquer sp-brainstorming AVANT |
+| Fixer bug sans diagnostic systematique | Invoquer sp-systematic-debugging |
+| Commiter sans verification | Invoquer sp-verification-before-completion |
 
 ## Conventions de Nommage
 
@@ -457,4 +514,4 @@ tests/               # Infrastructure E2E
 
 ---
 *Derniere mise a jour: 2026-01-27*
-*References: lib/services/README.md, lib/server-context.ts*
+*References: lib/services/README.md, lib/server-context.ts, .claude/CLAUDE.md*

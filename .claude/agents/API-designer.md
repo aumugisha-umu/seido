@@ -137,6 +137,29 @@ cloturee_par_locataire → cloturee_par_gestionnaire
 - ❌ Inconsistent response format → Use standard format
 - ❌ Ignoring generated types → Use `lib/database.types.ts`
 
+## Skills Integration
+
+| Situation | Skill |
+|-----------|-------|
+| Nouvelle API/endpoint | `sp-brainstorming` |
+| Refactoring API | `sp-writing-plans` |
+| Bug API | `sp-systematic-debugging` |
+| Avant livraison | `sp-verification-before-completion` |
+
+### Workflow API Designer
+
+```
+[Nouveau endpoint] → sp-brainstorming (cas d'usage, formats, roles)
+    ↓
+sp-test-driven-development → Tests API AVANT implementation
+    ↓
+[Implementation]
+    ↓
+sp-verification-before-completion → Validation Zod, RLS, perf
+```
+
+---
+
 ## Integration Agents
 
 - **backend-developer**: Implement endpoints

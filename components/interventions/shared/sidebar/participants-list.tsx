@@ -20,8 +20,9 @@
  */
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
-import { Users, MessageSquare, ChevronRight, ChevronDown } from 'lucide-react'
+import { Users, MessageSquare, ChevronDown, Eye } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -93,6 +94,7 @@ const ParticipantGroup = ({
   currentUserId
 }: ParticipantGroupProps) => {
   const [isExpanded, setIsExpanded] = useState(true)
+  const router = useRouter()
 
   if (participants.length === 0) return null
 
@@ -159,68 +161,105 @@ const ParticipantGroup = ({
       {/* Liste des participants - collapsible */}
       {isExpanded && (
         <div className="space-y-1">
-          {participants.map((participant) => (
-            <div
-              key={participant.id}
-              className={cn(
-                'flex items-center gap-3',
-                showConversationButtons && 'group',
-                onParticipantClick && 'cursor-pointer hover:bg-slate-50 rounded-md p-1 transition-colors'
-              )}
-              onClick={onParticipantClick}
-              role={onParticipantClick ? 'button' : undefined}
-              tabIndex={onParticipantClick ? 0 : undefined}
-              onKeyDown={onParticipantClick ? (e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  onParticipantClick()
-                }
-              } : undefined}
-            >
-              {/* Avatar */}
-              <Avatar className="h-8 w-8 border border-slate-200 flex-shrink-0">
-                <AvatarFallback className={cn('text-xs font-medium', colors.bg, colors.text)}>
-                  {getInitials(participant.name)}
-                </AvatarFallback>
-              </Avatar>
+          {participants.map((participant) => {
+            // Handler pour navigation vers conversation (clic sur card)
+            const handleCardClick = () => {
+              if (onConversationClick && participant.id !== currentUserId) {
+                onConversationClick(participant.id)
+              } else if (onParticipantClick) {
+                onParticipantClick()
+              }
+            }
 
-              {/* Nom (sans email) */}
-              <div className="flex-1 min-w-0 overflow-hidden">
-                <p className="text-sm font-medium text-slate-700 truncate">
-                  {participant.name}
-                </p>
-              </div>
+            // Handler pour navigation vers contact preview (bouton œil)
+            const handleEyeClick = (e: React.MouseEvent) => {
+              e.stopPropagation()
+              router.push(`/gestionnaire/contacts/details/${participant.id}`)
+            }
 
-              {/* Bouton de conversation individuelle avec pastille */}
-              {/* Masqué pour l'utilisateur connecté (on ne peut pas s'envoyer un message à soi-même) */}
-              {showConversationButtons && onConversationClick && participant.id !== currentUserId && (
-                <div className="relative flex-shrink-0">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      'h-7 w-7 text-slate-400 hover:text-blue-600',
-                      activeConversation === participant.id && 'bg-blue-100 text-blue-600'
-                    )}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onConversationClick(participant.id)
-                    }}
-                    aria-label={`Ouvrir la conversation avec ${participant.name}`}
-                    aria-pressed={activeConversation === participant.id}
-                  >
-                    <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
-                  </Button>
-                  {/* Pastille de messages non lus */}
-                  {unreadCount > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                      {unreadCount > 9 ? '9+' : unreadCount}
-                    </span>
-                  )}
+            // Handler pour navigation vers conversation (bouton bulle)
+            const handleConversationButtonClick = (e: React.MouseEvent) => {
+              e.stopPropagation()
+              if (onConversationClick) {
+                onConversationClick(participant.id)
+              }
+            }
+
+            const showActions = showConversationButtons && participant.id !== currentUserId
+
+            return (
+              <div
+                key={participant.id}
+                className={cn(
+                  'flex items-center gap-3',
+                  showConversationButtons && 'group',
+                  (onConversationClick || onParticipantClick) && 'cursor-pointer hover:bg-slate-50 rounded-md p-1 transition-colors'
+                )}
+                onClick={handleCardClick}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    handleCardClick()
+                  }
+                }}
+              >
+                {/* Avatar */}
+                <Avatar className="h-8 w-8 border border-slate-200 flex-shrink-0">
+                  <AvatarFallback className={cn('text-xs font-medium', colors.bg, colors.text)}>
+                    {getInitials(participant.name)}
+                  </AvatarFallback>
+                </Avatar>
+
+                {/* Nom (sans email) */}
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <p className="text-sm font-medium text-slate-700 truncate">
+                    {participant.name}
+                  </p>
                 </div>
-              )}
-            </div>
-          ))}
+
+                {/* Actions à droite : Bouton conversation + Bouton œil */}
+                {showActions && onConversationClick && (
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {/* Bouton de conversation individuelle avec pastille */}
+                    <div className="relative">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          'h-7 w-7 text-slate-400 hover:text-blue-600',
+                          activeConversation === participant.id && 'bg-blue-100 text-blue-600'
+                        )}
+                        onClick={handleConversationButtonClick}
+                        aria-label={`Ouvrir la conversation avec ${participant.name}`}
+                        aria-pressed={activeConversation === participant.id}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" aria-hidden="true" />
+                      </Button>
+                      {/* Pastille de messages non lus */}
+                      {unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                          {unreadCount > 9 ? '9+' : unreadCount}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Bouton œil pour navigation vers contact preview */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-slate-400 hover:text-blue-600"
+                      onClick={handleEyeClick}
+                      aria-label={`Voir la fiche contact de ${participant.name}`}
+                    >
+                      <Eye className="w-3.5 h-3.5" aria-hidden="true" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>
@@ -238,39 +277,58 @@ export interface GroupConversationButtonProps {
   unreadCount?: number
 }
 
-export const GroupConversationButton = ({ isActive, onClick, unreadCount = 0 }: GroupConversationButtonProps) => {
+export const GroupConversationButton = ({
+  isActive,
+  onClick,
+  unreadCount = 0
+}: GroupConversationButtonProps) => {
   return (
     <button
       onClick={onClick}
       className={cn(
         'w-full flex items-center justify-between p-2 rounded-lg transition-colors',
+        'hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
         isActive
           ? 'bg-blue-50 text-blue-700'
-          : 'hover:bg-slate-50 text-slate-700'
+          : 'text-slate-700'
       )}
       aria-label="Ouvrir la discussion générale"
       aria-pressed={isActive}
     >
+      {/* LEFT: Icône Users + Label */}
       <div className="flex items-center gap-3">
-        <div className={cn(
-          'p-2 rounded-full relative',
-          isActive ? 'bg-blue-100' : 'bg-slate-100'
-        )}>
-          <Users className="w-4 h-4" aria-hidden="true" />
-          {/* Pastille de messages non lus */}
+        {/* Conteneur icône principale avec pastille non-lu */}
+        <div className="relative">
+          <div className={cn(
+            'p-2 rounded-full transition-colors',
+            isActive ? 'bg-blue-100' : 'bg-slate-100'
+          )}>
+            <Users className="w-4 h-4" aria-hidden="true" />
+          </div>
+
+          {/* Pastille messages non lus */}
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+            <span
+              className="absolute -top-1 -right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1"
+              aria-label={`${unreadCount} message${unreadCount > 1 ? 's' : ''} non lu${unreadCount > 1 ? 's' : ''}`}
+            >
               {unreadCount > 9 ? '9+' : unreadCount}
             </span>
           )}
         </div>
-        <span className="text-sm font-medium">Discussion générale</span>
+
+        {/* Label textuel */}
+        <span className="text-sm font-medium">
+          Discussion générale
+        </span>
       </div>
+
+      {/* RIGHT: Icône MessageSquare (remplace ChevronRight) */}
       <div className={cn(
-        'p-1.5 rounded-full',
+        'p-1.5 rounded-full transition-colors',
         isActive ? 'text-blue-600' : 'text-slate-400'
       )}>
-        <ChevronRight className="w-4 h-4" aria-hidden="true" />
+        <MessageSquare className="w-4 h-4" aria-hidden="true" />
       </div>
     </button>
   )

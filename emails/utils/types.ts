@@ -58,7 +58,7 @@ export interface PasswordChangedEmailProps extends BaseEmailProps {
 }
 
 /**
- * Props pour le template d'invitation
+ * Props pour le template d'invitation (NOUVEL utilisateur)
  */
 export interface InvitationEmailProps extends BaseEmailProps {
   /** Nom de la personne qui invite */
@@ -71,6 +71,24 @@ export interface InvitationEmailProps extends BaseEmailProps {
   invitationUrl: string
   /** Durée de validité (en jours) */
   expiresIn?: number
+}
+
+/**
+ * Props pour le template d'ajout à une équipe (utilisateur EXISTANT)
+ * ✅ MULTI-ÉQUIPE (Jan 2026): Email différent de l'invitation
+ * - Pas de création de compte nécessaire
+ * - Magic link pour connexion automatique + acceptation invitation
+ * - Message adapté (bienvenue dans nouvelle équipe)
+ */
+export interface TeamAdditionEmailProps extends BaseEmailProps {
+  /** Nom de la personne qui ajoute */
+  inviterName: string
+  /** Nom de l'équipe */
+  teamName: string
+  /** Rôle attribué dans cette équipe */
+  role: UserRole
+  /** Magic link pour connexion auto + acceptation invitation */
+  magicLinkUrl: string
 }
 
 /**

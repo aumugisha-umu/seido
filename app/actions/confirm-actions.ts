@@ -297,7 +297,8 @@ export async function checkProfileCreated(authUserId: string): Promise<CheckProf
  */
 export async function verifyInviteOrRecoveryAction(
   tokenHash: string,
-  type: 'invite' | 'recovery'
+  type: 'invite' | 'recovery' | 'magiclink',  // ✅ BUGFIX: Ajout magiclink pour utilisateurs existants
+  teamId?: string  // Pour acceptation auto des invitations multi-équipe
 ): Promise<{
   success: boolean
   error?: string
@@ -310,7 +311,8 @@ export async function verifyInviteOrRecoveryAction(
   logger.info('🔐 [VERIFY-INVITE-RECOVERY] Starting verification:', {
     type,
     hasToken: !!tokenHash,
-    tokenLength: tokenHash?.length || 0
+    tokenLength: tokenHash?.length || 0,
+    teamId: teamId || 'none'
   })
 
   try {
@@ -391,14 +393,87 @@ export async function verifyInviteOrRecoveryAction(
           }
         }
       } else {
-        logger.info('✅ [VERIFY-INVITE-RECOVERY] Invitation confirmed - password already set, redirect to dashboard')
+        // ✅ MULTI-ÉQUIPE: Utilisateur existant - accepter l'invitation automatiquement
+        logger.info('✅ [VERIFY-INVITE-RECOVERY] Invitation confirmed - password already set, accepting invitation...')
+
+        if (teamId && user.email) {
+          try {
+            const admin = getSupabaseAdmin()
+            if (admin) {
+              // Mettre à jour le statut de l'invitation
+              const { error: updateError } = await admin
+                .from('user_invitations')
+                .update({
+                  status: 'accepted',
+                  accepted_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                })
+                .eq('email', user.email)
+                .eq('team_id', teamId)
+                .eq('status', 'pending')
+
+              if (updateError) {
+                logger.warn('⚠️ [VERIFY-INVITE-RECOVERY] Failed to update invitation status (non-blocking):', updateError)
+              } else {
+                logger.info({ teamId, email: user.email }, '✅ [VERIFY-INVITE-RECOVERY] Invitation auto-accepted for existing user')
+              }
+            }
+          } catch (acceptError) {
+            logger.warn('⚠️ [VERIFY-INVITE-RECOVERY] Error accepting invitation (non-blocking):', acceptError)
+            // Non-bloquant : l'utilisateur peut quand même accéder à l'app
+          }
+        }
+
         return {
           success: true,
           data: {
             shouldSetPassword: false,
             role,
-            redirectTo: `/${role}/dashboard?welcome=true`
+            redirectTo: `/${role}/dashboard?welcome=true${teamId ? `&team=${teamId}` : ''}`
           }
+        }
+      }
+    }
+
+    // ✅ BUGFIX: type=magiclink pour utilisateurs existants (multi-équipe)
+    // Le token a été généré avec type: 'magiclink', donc on doit le vérifier avec le même type
+    // Ces utilisateurs ont TOUJOURS un mot de passe déjà défini (passwordAlreadySet = true)
+    if (type === 'magiclink') {
+      logger.info('✅ [VERIFY-INVITE-RECOVERY] Magic link confirmed - existing user, accepting invitation...')
+
+      // Accepter l'invitation automatiquement
+      if (teamId && user.email) {
+        try {
+          const admin = getSupabaseAdmin()
+          if (admin) {
+            const { error: updateError } = await admin
+              .from('user_invitations')
+              .update({
+                status: 'accepted',
+                accepted_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .eq('email', user.email)
+              .eq('team_id', teamId)
+              .eq('status', 'pending')
+
+            if (updateError) {
+              logger.warn('⚠️ [VERIFY-INVITE-RECOVERY] Failed to update invitation status (non-blocking):', updateError)
+            } else {
+              logger.info({ teamId, email: user.email }, '✅ [VERIFY-INVITE-RECOVERY] Invitation auto-accepted for existing user via magiclink')
+            }
+          }
+        } catch (acceptError) {
+          logger.warn('⚠️ [VERIFY-INVITE-RECOVERY] Error accepting invitation (non-blocking):', acceptError)
+        }
+      }
+
+      return {
+        success: true,
+        data: {
+          shouldSetPassword: false,  // ✅ Utilisateur existant = mot de passe déjà défini
+          role,
+          redirectTo: `/${role}/dashboard?welcome=true${teamId ? `&team=${teamId}` : ''}`
         }
       }
     }

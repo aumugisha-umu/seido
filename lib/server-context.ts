@@ -26,11 +26,16 @@
 
 import { cache } from 'react'
 import { redirect } from 'next/navigation'
-import { requireRole } from '@/lib/auth-dal'
-import { createServerTeamService, createServerSupabaseClient, createServerActionSupabaseClient } from '@/lib/services'
-import type { Team, ServerSupabaseClient } from '@/lib/services/core/service-types'
-import type { Database } from '@/database.types'
+import { requireRole, CURRENT_TEAM_COOKIE } from '@/lib/auth-dal'
+import { createServerSupabaseClient, createServerActionSupabaseClient } from '@/lib/services/core/supabase-client'
+import type { Team } from '@/lib/services/core/service-types'
 import { logger } from '@/lib/logger'
+
+// ✅ FIX (Jan 2026): createServerTeamService supprimé - teams extraites des profils directement
+// Évite les problèmes RLS avec team_members (get_user_id_from_auth() LIMIT 1)
+
+/** Valeur spéciale pour "toutes les équipes" (dupliquée pour éviter import circulaire) */
+const ALL_TEAMS_VALUE = 'all'
 
 /**
  * Type retourné par getServerAuthContext (Server Components - READ-ONLY)
@@ -53,6 +58,12 @@ export interface ServerAuthContext {
   }
   team: Team
   teams: Team[]
+  /** ✅ MULTI-ÉQUIPE: Équipes avec le même rôle (pour sélecteur) */
+  sameRoleTeams: Team[]
+  /** ✅ MULTI-ÉQUIPE: IDs des équipes actives (pour requêtes) */
+  activeTeamIds: string[]
+  /** ✅ MULTI-ÉQUIPE: True si vue "toutes les équipes" */
+  isConsolidatedView: boolean
   /** ✅ Client Supabase authentifié (READ-ONLY pour Server Components) */
   supabase: Awaited<ReturnType<typeof createServerSupabaseClient>>
 }
@@ -78,6 +89,12 @@ export interface ServerActionAuthContext {
   }
   team: Team
   teams: Team[]
+  /** ✅ MULTI-ÉQUIPE: Équipes avec le même rôle (pour sélecteur) */
+  sameRoleTeams: Team[]
+  /** ✅ MULTI-ÉQUIPE: IDs des équipes actives (pour requêtes) */
+  activeTeamIds: string[]
+  /** ✅ MULTI-ÉQUIPE: True si vue "toutes les équipes" */
+  isConsolidatedView: boolean
   /** ✅ Client Supabase authentifié (READ-WRITE pour Server Actions) */
   supabase: Awaited<ReturnType<typeof createServerActionSupabaseClient>>
 }
@@ -105,40 +122,122 @@ export const getServerAuthContext = cache(async (requiredRole?: string): Promise
   try {
     logger.info('🔍 [SERVER-CONTEXT] Getting authenticated context (READ-ONLY)...', { requiredRole })
 
-    // ✅ PERF: Paralléliser création client + service + auth check
-    const [supabase, teamService, authResult] = await Promise.all([
+    // ✅ PERF: Paralléliser création client + auth check
+    // Note: teamService n'est plus utilisé ici car on extrait les teams des profils
+    const [supabase, authResult] = await Promise.all([
       createServerSupabaseClient(),
-      createServerTeamService(),
       requiredRole ? requireRole(requiredRole) : requireRole()
     ])
 
-    const { user, profile } = authResult
+    // ✅ MULTI-ÉQUIPE: Import dynamique de cookies() pour éviter erreur "server-only"
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+
+    const { user, profile, allProfiles } = authResult
 
     logger.info('✅ [SERVER-CONTEXT] User authenticated:', {
       userId: profile.id,
       email: profile.email,
-      role: profile.role
+      role: profile.role,
+      totalProfiles: allProfiles?.length || 1
     })
 
-    // Charger équipes de l'utilisateur (dépend du profile.id)
-    const teamsResult = await teamService.getUserTeams(profile.id)
+    // ✅ FIX (Jan 2026): Extraire teams des profils déjà chargés
+    // Évite les problèmes RLS avec team_members (get_user_id_from_auth() LIMIT 1)
+    // Chaque profil a déjà son info team via findAllByAuthUserId()
+    const teams: Team[] = []
+    const seenTeamIds = new Set<string>()
 
-    if (!teamsResult.success || !teamsResult.data || teamsResult.data.length === 0) {
-      logger.error('❌ [SERVER-CONTEXT] User has no team:', {
+    for (const p of (allProfiles || [profile])) {
+      if (p.team_id && !seenTeamIds.has(p.team_id)) {
+        seenTeamIds.add(p.team_id)
+        // Utiliser l'info team du profil si disponible
+        const teamInfo = (p as any).team
+        teams.push({
+          id: p.team_id,
+          name: teamInfo?.name || `Équipe ${p.team_id.slice(0, 8)}`,
+          description: teamInfo?.description || null,
+          created_at: teamInfo?.created_at || new Date().toISOString(),
+          updated_at: teamInfo?.updated_at || new Date().toISOString(),
+          created_by: teamInfo?.created_by || null
+        } as Team)
+      }
+    }
+
+    if (teams.length === 0) {
+      logger.error('❌ [SERVER-CONTEXT] User has no team in profiles:', {
         userId: profile.id,
         email: profile.email
       })
       redirect('/auth/unauthorized?reason=no_team')
     }
 
-    const teams = teamsResult.data
-    const primaryTeam = teams[0] // Prendre la première équipe comme équipe principale
+    logger.info('✅ [SERVER-CONTEXT] Teams extracted from profiles:', {
+      count: teams.length,
+      teamIds: teams.map(t => t.id)
+    })
+
+    // ✅ MULTI-ÉQUIPE: Filtrer les équipes avec le même rôle
+    // Un utilisateur peut avoir différents rôles dans différentes équipes
+    // Ex: gestionnaire dans équipe A, prestataire dans équipe B
+    // Sur /gestionnaire/dashboard, on ne montre que les équipes où il est gestionnaire
+    const currentRole = profile.role
+    let sameRoleTeams: Team[]
+
+    if (allProfiles && allProfiles.length > 1) {
+      // Filtrer les équipes où l'utilisateur a le même rôle
+      const sameRoleTeamIds = new Set(
+        allProfiles
+          .filter(p => p.role === currentRole)
+          .map(p => p.team_id)
+      )
+      sameRoleTeams = teams.filter(t => sameRoleTeamIds.has(t.id))
+      logger.info('✅ [SERVER-CONTEXT] Filtered teams by role:', {
+        currentRole,
+        totalTeams: teams.length,
+        sameRoleTeams: sameRoleTeams.length
+      })
+    } else {
+      // Un seul profil = toutes les équipes ont le même rôle
+      sameRoleTeams = teams
+    }
+
+    // Sécurité: s'assurer qu'on a au moins une équipe avec ce rôle
+    if (sameRoleTeams.length === 0) {
+      logger.error('❌ [SERVER-CONTEXT] No teams with current role:', { currentRole })
+      sameRoleTeams = teams // Fallback sur toutes les équipes
+    }
+
+    // ✅ MULTI-ÉQUIPE: Déterminer les équipes actives selon cookie
+    const teamChoice = cookieStore.get(CURRENT_TEAM_COOKIE)?.value
+
+    let activeTeamIds: string[]
+    let isConsolidatedView = false
+    let primaryTeam: Team
+
+    if (teamChoice === ALL_TEAMS_VALUE) {
+      // Vue consolidée = toutes les équipes avec même rôle
+      activeTeamIds = sameRoleTeams.map(t => t.id)
+      isConsolidatedView = true
+      primaryTeam = sameRoleTeams[0] // Pour compatibilité avec code existant
+    } else if (teamChoice && sameRoleTeams.some(t => t.id === teamChoice)) {
+      // Équipe spécifique sélectionnée
+      activeTeamIds = [teamChoice]
+      primaryTeam = sameRoleTeams.find(t => t.id === teamChoice) || sameRoleTeams[0]
+    } else {
+      // Défaut: première équipe
+      activeTeamIds = [sameRoleTeams[0].id]
+      primaryTeam = sameRoleTeams[0]
+    }
 
     logger.info('✅ [SERVER-CONTEXT] Context loaded successfully (READ-ONLY):', {
       userId: profile.id,
       teamId: primaryTeam.id,
       teamName: primaryTeam.name,
-      totalTeams: teams.length
+      totalTeams: teams.length,
+      sameRoleTeams: sameRoleTeams.length,
+      isConsolidatedView,
+      activeTeamIds
     })
 
     return {
@@ -146,6 +245,9 @@ export const getServerAuthContext = cache(async (requiredRole?: string): Promise
       profile,
       team: primaryTeam,
       teams,
+      sameRoleTeams,
+      activeTeamIds,
+      isConsolidatedView,
       supabase
     }
   } catch (error) {
@@ -191,41 +293,99 @@ export const getServerActionAuthContext = async (requiredRole?: string): Promise
   try {
     logger.info('🔍 [SERVER-ACTION-CONTEXT] Getting authenticated context (READ-WRITE)...', { requiredRole })
 
-    // ✅ PERF: Paralléliser création client + service + auth check
-    const [supabase, teamService, authResult] = await Promise.all([
+    // ✅ PERF: Paralléliser création client + auth check
+    const [supabase, authResult] = await Promise.all([
       createServerActionSupabaseClient(),
-      createServerTeamService(),
       requiredRole ? requireRole(requiredRole) : requireRole()
     ])
 
-    const { user, profile } = authResult
+    // ✅ MULTI-ÉQUIPE: Import dynamique de cookies() pour éviter erreur "server-only"
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+
+    const { user, profile, allProfiles } = authResult
 
     logger.info('✅ [SERVER-ACTION-CONTEXT] User authenticated:', {
       userId: profile.id,
       email: profile.email,
-      role: profile.role
+      role: profile.role,
+      totalProfiles: allProfiles?.length || 1
     })
 
-    // Charger équipes de l'utilisateur (dépend du profile.id)
-    // ⚠️ Pour Server Actions, on ne cache pas (car mutation possible)
-    const teamsResult = await teamService.getUserTeams(profile.id)
+    // ✅ FIX (Jan 2026): Extraire teams des profils déjà chargés
+    // Évite les problèmes RLS avec team_members
+    const teams: Team[] = []
+    const seenTeamIds = new Set<string>()
 
-    if (!teamsResult.success || !teamsResult.data || teamsResult.data.length === 0) {
-      logger.error('❌ [SERVER-ACTION-CONTEXT] User has no team:', {
+    for (const p of (allProfiles || [profile])) {
+      if (p.team_id && !seenTeamIds.has(p.team_id)) {
+        seenTeamIds.add(p.team_id)
+        const teamInfo = (p as any).team
+        teams.push({
+          id: p.team_id,
+          name: teamInfo?.name || `Équipe ${p.team_id.slice(0, 8)}`,
+          description: teamInfo?.description || null,
+          created_at: teamInfo?.created_at || new Date().toISOString(),
+          updated_at: teamInfo?.updated_at || new Date().toISOString(),
+          created_by: teamInfo?.created_by || null
+        } as Team)
+      }
+    }
+
+    if (teams.length === 0) {
+      logger.error('❌ [SERVER-ACTION-CONTEXT] User has no team in profiles:', {
         userId: profile.id,
         email: profile.email
       })
       redirect('/auth/unauthorized?reason=no_team')
     }
 
-    const teams = teamsResult.data
-    const primaryTeam = teams[0] // Prendre la première équipe comme équipe principale
+    // ✅ MULTI-ÉQUIPE: Filtrer les équipes avec le même rôle
+    const currentRole = profile.role
+    let sameRoleTeams: Team[]
+
+    if (allProfiles && allProfiles.length > 1) {
+      const sameRoleTeamIds = new Set(
+        allProfiles
+          .filter(p => p.role === currentRole)
+          .map(p => p.team_id)
+      )
+      sameRoleTeams = teams.filter(t => sameRoleTeamIds.has(t.id))
+    } else {
+      sameRoleTeams = teams
+    }
+
+    if (sameRoleTeams.length === 0) {
+      sameRoleTeams = teams // Fallback
+    }
+
+    // ✅ MULTI-ÉQUIPE: Déterminer les équipes actives selon cookie
+    const teamChoice = cookieStore.get(CURRENT_TEAM_COOKIE)?.value
+
+    let activeTeamIds: string[]
+    let isConsolidatedView = false
+    let primaryTeam: Team
+
+    if (teamChoice === ALL_TEAMS_VALUE) {
+      activeTeamIds = sameRoleTeams.map(t => t.id)
+      isConsolidatedView = true
+      primaryTeam = sameRoleTeams[0]
+    } else if (teamChoice && sameRoleTeams.some(t => t.id === teamChoice)) {
+      activeTeamIds = [teamChoice]
+      primaryTeam = sameRoleTeams.find(t => t.id === teamChoice) || sameRoleTeams[0]
+    } else {
+      activeTeamIds = [sameRoleTeams[0].id]
+      primaryTeam = sameRoleTeams[0]
+    }
 
     logger.info('✅ [SERVER-ACTION-CONTEXT] Context loaded successfully (READ-WRITE):', {
       userId: profile.id,
       teamId: primaryTeam.id,
       teamName: primaryTeam.name,
-      totalTeams: teams.length
+      totalTeams: teams.length,
+      sameRoleTeams: sameRoleTeams.length,
+      isConsolidatedView,
+      activeTeamIds
     })
 
     return {
@@ -233,6 +393,9 @@ export const getServerActionAuthContext = async (requiredRole?: string): Promise
       profile,
       team: primaryTeam,
       teams,
+      sameRoleTeams,
+      activeTeamIds,
+      isConsolidatedView,
       supabase
     }
   } catch (error) {

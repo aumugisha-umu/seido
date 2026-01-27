@@ -11,9 +11,12 @@
 import { redirect } from 'next/navigation'
 import { cache } from 'react'
 import { createServerSupabaseClient } from '@/lib/services/core/supabase-client'
-import { createServerUserService } from '@/lib/services'
+import { createServerUserService } from '@/lib/services/domain/user.service'
 import type { User } from '@supabase/supabase-js'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+
+/** Nom du cookie pour persister le choix d'équipe courante */
+export const CURRENT_TEAM_COOKIE = 'seido_current_team'
 /**
  * ✅ PATTERN 2025: getUser() avec cache React et retry logic
  * Fonction centrale pour toute vérification auth server-side
@@ -33,10 +36,8 @@ export const getUser = cache(async () => {
 
       if (error) {
         if (retryCount === maxRetries) {
-          logger.info('❌ [AUTH-DAL] Error getting user after retries:', error.message)
           return null
         }
-        logger.info(`⏳ [AUTH-DAL] Error getting user, retry ${retryCount + 1}/${maxRetries}:`, error.message)
         retryCount++
         await new Promise(resolve => setTimeout(resolve, 100))
         continue
@@ -44,23 +45,19 @@ export const getUser = cache(async () => {
 
       if (!user) {
         if (retryCount === maxRetries) {
-          logger.info('🔍 [AUTH-DAL] No authenticated user found after retries')
           return null
         }
-        logger.info(`⏳ [AUTH-DAL] No user found, retry ${retryCount + 1}/${maxRetries}`)
         retryCount++
         await new Promise(resolve => setTimeout(resolve, 100))
         continue
       }
 
-      logger.info('✅ [AUTH-DAL] User authenticated:', user.email)
       return user
     } catch (error) {
       if (retryCount === maxRetries) {
         logger.error('❌ [AUTH-DAL] Exception in getUser after retries:', error)
         return null
       }
-      logger.info(`⏳ [AUTH-DAL] Exception in getUser, retry ${retryCount + 1}/${maxRetries}:`, error)
       retryCount++
       await new Promise(resolve => setTimeout(resolve, 100))
     }
@@ -80,7 +77,6 @@ export const getSession = cache(async () => {
     const { data: { session }, error } = await supabase.auth.getSession()
 
     if (error) {
-      logger.info('❌ [AUTH-DAL] Error getting session:', error.message)
       return null
     }
 
@@ -88,7 +84,6 @@ export const getSession = cache(async () => {
     if (session?.user) {
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) {
-        logger.info('⚠️ [AUTH-DAL] Session exists but user validation failed')
         return null
       }
     }
@@ -108,7 +103,6 @@ export async function requireAuth(redirectTo: string = '/auth/login') {
   const user = await getUser()
 
   if (!user) {
-    logger.info('🚫 [AUTH-DAL] Authentication required, redirecting to:', redirectTo)
     redirect(redirectTo)
   }
 
@@ -131,7 +125,6 @@ export async function requireRole(
   const userProfile = await getUserProfile()
 
   if (!userProfile) {
-    logger.info('🚫 [AUTH-DAL] No user profile found, redirecting to login')
     redirect('/auth/login?reason=no_profile')
   }
 
@@ -144,12 +137,14 @@ export async function requireRole(
 
   // Si des rôles sont requis, vérifier que l'utilisateur a un rôle autorisé
   if (roles.length > 0 && !roles.includes(userRole)) {
-    logger.info('🚫 [AUTH-DAL] Insufficient permissions. Required:', roles, 'Got:', userRole)
     redirect(redirectTo)
   }
 
-  logger.info('✅ [AUTH-DAL] Role check passed:', { role: userRole, allowed: roles.length > 0 ? roles : 'any' })
-  return { user: userProfile.supabaseUser, profile: userProfile.profile }
+  return {
+    user: userProfile.supabaseUser,
+    profile: userProfile.profile,
+    allProfiles: userProfile.allProfiles  // ✅ MULTI-ÉQUIPE: Exposer tous les profils pour filtrage par rôle
+  }
 }
 
 /**
@@ -160,8 +155,6 @@ export async function requireGuest(redirectTo: string = '/dashboard') {
   const user = await getUser()
 
   if (user) {
-    // TODO: Déterminer redirection selon le rôle
-    logger.info('🔄 [AUTH-DAL] User already authenticated, redirecting to:', redirectTo)
     redirect(redirectTo)
   }
 
@@ -178,16 +171,8 @@ export async function getUserProfileForMiddleware(authUserId: string) {
     const result = await userService.getByAuthUserId(authUserId)
 
     if (!result.success || !result.data) {
-      logger.warn('⚠️ [AUTH-DAL] getUserProfileForMiddleware: No profile found for auth user:', authUserId)
       return null
     }
-
-    logger.info('✅ [AUTH-DAL] getUserProfileForMiddleware: Profile loaded:', {
-      userId: result.data.id,
-      role: result.data.role,
-      isActive: result.data.is_active,
-      passwordSet: result.data.password_set
-    })
 
     return result.data
   } catch (error) {
@@ -197,58 +182,60 @@ export async function getUserProfileForMiddleware(authUserId: string) {
 }
 
 /**
- * ✅ NOUVEAU: Récupération profil utilisateur complet avec rôle
- * Retourne le user Supabase + profil app avec rôle
+ * ✅ MULTI-ÉQUIPE (Jan 2026): Récupération profil utilisateur avec support multi-profils
+ *
+ * Un utilisateur peut avoir plusieurs profils (1 par équipe) avec des rôles différents.
+ * Cette fonction:
+ * 1. Récupère TOUS les profils de l'utilisateur
+ * 2. Sélectionne le profil selon: cookie server-side > plus récent
+ * 3. Expose allProfiles pour le sélecteur d'équipe
+ *
+ * @returns {supabaseUser, profile, allProfiles} ou null
  */
 export const getUserProfile = cache(async () => {
   const supabaseUser = await getUser()
 
   if (!supabaseUser) {
-    logger.info('🔍 [AUTH-DAL-DEBUG] getUserProfile: No supabase user')
     return null
   }
 
-  logger.info('🔍 [AUTH-DAL-DEBUG] getUserProfile: Supabase user found:', {
-    id: supabaseUser.id,
-    email: supabaseUser.email,
-    aud: supabaseUser.aud
-  })
-
   try {
-    // ✅ Récupérer le profil complet depuis la table users
-    logger.info('🔍 [AUTH-DAL-DEBUG] Creating userService...')
     const userService = await createServerUserService()
 
-    logger.info('🔍 [AUTH-DAL-DEBUG] Calling userService.getByAuthUserId with:', supabaseUser.id)
-    const userResult = await userService.getByAuthUserId(supabaseUser.id)
+    // ✅ MULTI-PROFIL: Récupérer TOUS les profils liés à cet auth_user_id
+    const profilesResult = await userService.getAllByAuthUserId(supabaseUser.id)
 
-    logger.info('🔍 [AUTH-DAL-DEBUG] userService.getByAuthUserId result:', {
-      success: userResult.success,
-      hasData: !!userResult.data,
-      error: userResult.success ? null : (userResult as any).error
-    })
+    if (!profilesResult.success) {
+      logger.error('❌ [AUTH-DAL] getAllByAuthUserId failed:', (profilesResult as { error?: unknown }).error)
+    }
 
-    if (!userResult.success || !userResult.data) {
-      logger.info('⚠️ [AUTH-DAL] Supabase user exists but no profile found in users table:', supabaseUser.email)
+    if (!profilesResult.success || !profilesResult.data?.length) {
       return null
     }
 
-    const userProfile = userResult.data
+    const allProfiles = profilesResult.data
 
-    logger.info('✅ [AUTH-DAL] Complete user profile loaded:', {
-      email: userProfile.email,
-      role: userProfile.role,
-      id: userProfile.id,
-      team_id: (userProfile as any).team_id
-    })
+    // ✅ Choisir le profil selon priorité: cookie server-side > plus récent
+    const { cookies } = await import('next/headers')
+    const cookieStore = await cookies()
+    const preferredTeamId = cookieStore.get(CURRENT_TEAM_COOKIE)?.value
+
+    let selectedProfile = allProfiles[0] // Défaut: plus récent (déjà trié)
+
+    if (preferredTeamId && preferredTeamId !== 'all') {
+      const preferred = allProfiles.find(p => p.team_id === preferredTeamId)
+      if (preferred) {
+        selectedProfile = preferred
+      }
+    }
 
     return {
       supabaseUser,
-      profile: userProfile
+      profile: selectedProfile,
+      allProfiles  // ✅ Exposé pour sélecteur d'équipe
     }
   } catch (error) {
     logger.error('❌ [AUTH-DAL] Error loading user profile:', error)
-    logger.error('❌ [AUTH-DAL-DEBUG] Error stack:', error instanceof Error ? error.stack : 'No stack')
     return null
   }
 })
@@ -295,7 +282,6 @@ export async function invalidateAuth() {
 
   try {
     await supabase.auth.signOut()
-    logger.info('✅ [AUTH-DAL] Session invalidated successfully')
   } catch (error) {
     logger.error('❌ [AUTH-DAL] Error invalidating session:', error)
     throw error

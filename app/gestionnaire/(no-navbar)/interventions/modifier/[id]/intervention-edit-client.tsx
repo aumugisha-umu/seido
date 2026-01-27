@@ -755,8 +755,15 @@ export default function InterventionEditClient({
                         endTime: slot.endTime,
                       })),
                     }
-                    : schedulingType === 'fixed'
-                      ? { type: 'immediate' as const }
+                    : schedulingType === 'fixed' && fixedDateTime.date
+                      ? {
+                        type: 'immediate' as const,
+                        slots: [{
+                          date: fixedDateTime.date,
+                          startTime: fixedDateTime.time || '09:00',
+                          endTime: fixedDateTime.time || '09:00', // Pas de range
+                        }],
+                      }
                       : { type: 'flexible' as const },
                 instructions: globalMessage
                   ? {

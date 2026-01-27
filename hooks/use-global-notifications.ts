@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { useTeamStatus } from '@/hooks/use-team-status'
 import { logger, logError } from '@/lib/logger'
@@ -122,27 +122,34 @@ export const useGlobalNotifications = (options: UseGlobalNotificationsOptions = 
     }
   }, [effectiveUserId, effectiveTeamStatus, fetchUnreadCount])
 
+  // ✅ Stocker fetchUnreadCount dans une ref pour éviter les re-subscriptions
+  const fetchUnreadCountRef = useRef(fetchUnreadCount)
+  useEffect(() => {
+    fetchUnreadCountRef.current = fetchUnreadCount
+  })
+
   // Realtime subscription via centralized RealtimeProvider
   // ✅ PERF: Use effective values for immediate subscription
+  // ✅ Les callbacks sont maintenant stables grâce aux refs dans useRealtimeNotificationsV2
   useRealtimeNotificationsV2({
     enabled: effectiveTeamStatus === 'verified' && !!effectiveUserId,
-    onInsert: useCallback((notification) => {
+    onInsert: (notification) => {
       logger.info('[GLOBAL-NOTIFICATIONS] New notification received via Realtime v2')
       // Increment unread count if notification is unread
       if (!notification.read) {
         setUnreadCount(prev => prev + 1)
       }
-    }, []),
-    onUpdate: useCallback((notification) => {
+    },
+    onUpdate: () => {
       logger.info('[GLOBAL-NOTIFICATIONS] Notification updated via Realtime v2')
       // Refetch to get accurate count
-      fetchUnreadCount()
-    }, [fetchUnreadCount]),
-    onDelete: useCallback(() => {
+      fetchUnreadCountRef.current()
+    },
+    onDelete: () => {
       logger.info('[GLOBAL-NOTIFICATIONS] Notification deleted via Realtime v2')
       // Refetch to get accurate count
-      fetchUnreadCount()
-    }, [fetchUnreadCount])
+      fetchUnreadCountRef.current()
+    }
   })
 
   // Auto-refresh disabled - use Supabase Realtime instead

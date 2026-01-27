@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useAuth } from '@/hooks/use-auth'
 import { createNotificationRepository } from '@/lib/services/repositories/notification-repository'
 import { useRealtimeNotificationsV2 } from './use-realtime-notifications-v2'
@@ -122,27 +122,34 @@ export const useNotificationPopover = (
     fetchNotifications()
   }, [fetchNotifications])
 
+  // ✅ Stocker limit dans une ref pour éviter les re-renders inutiles
+  const limitRef = useRef(limit)
+  useEffect(() => {
+    limitRef.current = limit
+  })
+
   // Realtime subscription for instant updates (v2 - uses RealtimeProvider context)
   // Note: On ne filtre plus par team_id - toutes les notifications de l'utilisateur sont affichées
+  // ✅ Les callbacks sont maintenant stables grâce aux refs dans useRealtimeNotificationsV2
   useRealtimeNotificationsV2({
     enabled: !!user?.id,
-    onInsert: useCallback((notification) => {
+    onInsert: (notification) => {
       console.log('[NOTIFICATION-POPOVER] New notification received via Realtime v2')
       // Add to top of list - no team_id filtering (RLS ensures security via user_id)
-      setNotifications(prev => [notification, ...prev].slice(0, limit))
-    }, [limit]),
-    onUpdate: useCallback((notification) => {
+      setNotifications(prev => [notification, ...prev].slice(0, limitRef.current))
+    },
+    onUpdate: (notification) => {
       console.log('[NOTIFICATION-POPOVER] Notification updated via Realtime v2')
       // Update in list
       setNotifications(prev =>
         prev.map(n => n.id === notification.id ? notification : n)
       )
-    }, []),
-    onDelete: useCallback((notification) => {
+    },
+    onDelete: (notification) => {
       console.log('[NOTIFICATION-POPOVER] Notification deleted via Realtime v2')
       // Remove from list
       setNotifications(prev => prev.filter(n => n.id !== notification.id))
-    }, [])
+    }
   })
 
   // Auto-refresh if enabled

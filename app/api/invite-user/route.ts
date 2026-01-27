@@ -445,7 +445,9 @@ export async function POST(request: Request) {
           }
 
           hashedToken = magicLink.properties.hashed_token
-          invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
+          // ✅ Ajouter team_id pour acceptation auto de l'invitation
+          // ✅ BUGFIX: Utiliser type=magiclink pour matcher le token généré avec type: 'magiclink'
+          invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=magiclink&team_id=${teamId}`
           logger.info({}, '✅ [STEP-3-INVITE-1B] Magic link generated for existing auth user')
         }
 
@@ -498,16 +500,41 @@ export async function POST(request: Request) {
         }
 
         // SOUS-ÉTAPE 4: Envoyer l'email via Resend
+        // ✅ MULTI-ÉQUIPE (Jan 2026): Différencier email selon si nouvel utilisateur ou existant
         // Note: normalizedEmail ne peut pas être null ici car la validation Zod garantit que email est requis si shouldInviteToApp === true
-        logger.info({}, '📨 [STEP-3-INVITE-4] Sending invitation email via Resend...')
-        const emailResult = await emailService.sendInvitationEmail(normalizedEmail!, {
-          firstName,
-          inviterName: `${currentUserProfile.first_name || currentUserProfile.name || 'Un membre'}`,
-          teamName: teamId,
-          role: validUserRole,
-          invitationUrl, // ✅ Lien officiel Supabase
-          expiresIn: 7,
-        })
+        logger.info({ isNewAuthUser }, '📨 [STEP-3-INVITE-4] Sending email via Resend (type depends on isNewAuthUser)...')
+
+        // Récupérer le nom de l'équipe pour l'email
+        const { data: teamData } = await supabaseAdmin
+          .from('teams')
+          .select('name')
+          .eq('id', teamId)
+          .single()
+        const teamNameForEmail = teamData?.name || 'votre équipe'
+
+        let emailResult
+        if (isNewAuthUser) {
+          // ✅ CAS A: Nouvel utilisateur - Email d'invitation complet (créer compte)
+          logger.info({}, '📧 [STEP-3-INVITE-4A] Sending INVITATION email (new user)...')
+          emailResult = await emailService.sendInvitationEmail(normalizedEmail!, {
+            firstName,
+            inviterName: `${currentUserProfile.first_name || currentUserProfile.name || 'Un membre'}`,
+            teamName: teamNameForEmail,
+            role: validUserRole,
+            invitationUrl, // ✅ Lien officiel Supabase (signup)
+            expiresIn: 7,
+          })
+        } else {
+          // ✅ CAS B: Utilisateur existant - Email avec magic link (connexion auto + acceptation)
+          logger.info({}, '📧 [STEP-3-INVITE-4B] Sending TEAM ADDITION email (existing user)...')
+          emailResult = await emailService.sendTeamAdditionEmail(normalizedEmail!, {
+            firstName,
+            inviterName: `${currentUserProfile.first_name || currentUserProfile.name || 'Un membre'}`,
+            teamName: teamNameForEmail,
+            role: validUserRole,
+            magicLinkUrl: invitationUrl, // ✅ Magic link pour connexion auto + acceptation invitation
+          })
+        }
 
         if (!emailResult.success) {
           logger.warn({ emailResult: emailResult.error }, '⚠️ [STEP-3-INVITE-4] Failed to send email via Resend:')
@@ -520,14 +547,14 @@ export async function POST(request: Request) {
             isNewAuthUser
           }
         } else {
-          logger.info({ emailResult: emailResult.emailId, isNewAuthUser }, '✅ [STEP-3-INVITE-4] Invitation email sent successfully via Resend:')
+          logger.info({ emailResult: emailResult.emailId, isNewAuthUser }, '✅ [STEP-3-INVITE-4] Email sent successfully via Resend:')
           invitationResult = {
             success: true,
             invitationSent: true,
             magicLink: invitationUrl,
-            message: isNewAuthUser 
-              ? 'Invitation envoyée avec succès' 
-              : 'Contact ajouté à votre équipe (compte existant réutilisé)',
+            message: isNewAuthUser
+              ? 'Invitation envoyée avec succès'
+              : 'Contact ajouté à votre équipe (notification envoyée)',
             isNewAuthUser
           }
         }

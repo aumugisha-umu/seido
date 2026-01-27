@@ -260,9 +260,18 @@ export default function LeaseFormDetailsMergedV1({
     }
   }, [overlapCheck, lotId, startDate, durationMonths, onOverlapCheckChange])
 
+  /**
+   * Parse une chaîne de date ISO (YYYY-MM-DD) en Date locale.
+   * Évite le bug de timezone où new Date("2026-01-01") devient 31 déc en UTC+1.
+   */
+  const parseLocalDate = (dateStr: string): Date => {
+    const [year, month, day] = dateStr.split('-').map(Number)
+    return new Date(year, month - 1, day)
+  }
+
   // Formater une date pour l'affichage
   const formatDateDisplay = (dateStr: string): string => {
-    const date = new Date(dateStr)
+    const date = parseLocalDate(dateStr)
     return date.toLocaleDateString('fr-FR', {
       day: '2-digit',
       month: '2-digit',
@@ -270,14 +279,23 @@ export default function LeaseFormDetailsMergedV1({
     })
   }
 
-  // Calculate end date from start date + duration
+  /**
+   * Calcule la date de fin du contrat (dernier jour inclus).
+   *
+   * Logique métier: un bail d'1 an commençant le 1er janvier se termine
+   * le 31 décembre (dernier jour du bail), pas le 1er janvier suivant.
+   *
+   * Calcul: start + N mois - 1 jour
+   * Exemple: 01/01/2026 + 12 mois - 1 jour = 31/12/2026
+   */
   const calculateEndDate = (start: string, months: number): Date => {
-    const date = new Date(start)
+    const date = parseLocalDate(start)
     date.setMonth(date.getMonth() + months)
+    date.setDate(date.getDate() - 1) // Dernier jour du bail, pas premier jour après
     return date
   }
 
-  const startDateObj = new Date(startDate)
+  const startDateObj = parseLocalDate(startDate)
   const endDateObj = calculateEndDate(startDate, durationMonths)
 
   // Format dates for display (MM/YYYY)

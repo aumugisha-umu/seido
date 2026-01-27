@@ -125,3 +125,24 @@ components/
 ❌ Ignorer les états loading/error
 ❌ Oublier l'accessibilité clavier
 ❌ Touch targets < 44px sur mobile
+
+---
+
+## Skills pour UI
+
+**Avant creer un composant**:
+
+| Etape | Skill | Action |
+|-------|-------|--------|
+| 1 | `sp-brainstorming` | Identifier persona, verifier shadcn/ui |
+| 2 | `sp-test-driven-development` | Tests composant (a11y, responsive) |
+| 3 | `sp-verification-before-completion` | Avant commit |
+
+### Red Flags UI
+
+| Pensee | Skill |
+|--------|-------|
+| "Nouveau composant..." | `sp-brainstorming` |
+| "Bug UI/affichage..." | `sp-systematic-debugging` |
+| "Refactoring composant..." | `sp-brainstorming` + `sp-writing-plans` |
+| "Pret a merger..." | `sp-verification-before-completion` |

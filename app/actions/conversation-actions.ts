@@ -14,6 +14,7 @@ import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
+import { sendConversationNotifications } from './conversation-notification-actions'
 
 // Type aliases
 type ConversationThread = Database['public']['Tables']['conversation_threads']['Row']
@@ -431,11 +432,11 @@ export async function sendMessageAction(
     )
 
     if (result.success && result.data) {
-      // Get thread to find intervention ID
+      // Get thread to find intervention ID and team_id
       const supabase = await createServerActionSupabaseClient()
       const { data: thread } = await supabase
         .from('conversation_threads')
-        .select('intervention_id')
+        .select('intervention_id, team_id')
         .eq('id', threadId)
         .single()
 
@@ -444,6 +445,19 @@ export async function sendMessageAction(
         revalidatePath(`/gestionnaire/interventions/${thread.intervention_id}/chat`)
         revalidatePath(`/locataire/interventions/${thread.intervention_id}/chat`)
         revalidatePath(`/prestataire/interventions/${thread.intervention_id}/chat`)
+
+        // Send push and email notifications (async, non-blocking)
+        sendConversationNotifications({
+          messageId: result.data.id,
+          messageContent: result.data.content,
+          messageCreatedAt: result.data.created_at,
+          messageUserId: result.data.user_id,
+          threadId,
+          teamId: thread.team_id,
+          interventionId: thread.intervention_id
+        }).catch(err => {
+          logger.warn({ err }, '⚠️ [CONVERSATION-ACTION] Push/email notifications failed (non-blocking)')
+        })
       }
 
       return { success: true, data: result.data }

@@ -90,7 +90,7 @@ const roleBasedConfig: Record<UserRole, RoleConfig> = {
   },
   locataire: {
     visibleThreads: ['group', 'tenant_to_managers'],
-    emptyMessage: 'Les conversations seront disponibles une fois votre demande validée.',
+    emptyMessage: 'Aucune conversation disponible pour le moment.',
     threadConfigs: {
       group: {
         label: 'Discussion générale',
@@ -114,7 +114,7 @@ const roleBasedConfig: Record<UserRole, RoleConfig> = {
   },
   prestataire: {
     visibleThreads: ['group', 'provider_to_managers'],
-    emptyMessage: 'Les conversations seront disponibles une fois l\'intervention planifiée.',
+    emptyMessage: 'Aucune conversation disponible pour le moment.',
     threadConfigs: {
       group: {
         label: 'Discussion générale',

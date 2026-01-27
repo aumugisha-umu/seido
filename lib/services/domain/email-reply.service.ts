@@ -42,14 +42,29 @@ const INBOUND_DOMAIN = process.env.RESEND_INBOUND_DOMAIN || 'reply.seido-app.com
 /**
  * Types d'entités supportées pour le reply-to
  */
-export type ReplyToEntityType = 'intervention'
+export type ReplyToEntityType = 'intervention' | 'conversation'
 
 /**
- * Résultat du parsing d'une adresse reply-to
+ * Types de threads de conversation
+ */
+export type ConversationThreadType = 'group' | 'tenant_to_managers' | 'provider_to_managers'
+
+/**
+ * Résultat du parsing d'une adresse reply-to (intervention)
  */
 export interface ParsedReplyToAddress {
   type: ReplyToEntityType
   id: string
+  hash: string
+}
+
+/**
+ * Résultat du parsing d'une adresse reply-to (conversation)
+ */
+export interface ParsedConversationReplyToAddress {
+  type: 'conversation'
+  interventionId: string
+  threadType: ConversationThreadType
   hash: string
 }
 
@@ -77,19 +92,21 @@ export class EmailReplyService {
    * @example
    * ```typescript
    * const replyTo = EmailReplyService.generateInterventionReplyTo('abc-123-def')
-   * // => "reply+int_abc-123-def_a1b2c3d4@reply.seido-app.com"
+   * // => "SEIDO Intervention <reply+int_abc-123-def_a1b2c3d4@reply.seido-app.com>"
    * ```
    */
   static generateInterventionReplyTo(interventionId: string): string {
     if (!REPLY_TO_SECRET) {
       logger.warn({}, '⚠️ [EMAIL-REPLY] REPLY_TO_SECRET not configured - using fallback')
       // En dev sans secret, retourner une adresse de fallback (pas de tracking)
-      const fallbackAddress = `noreply@${INBOUND_DOMAIN}`
-      return fallbackAddress
+      // Format RFC 5322 requis par Resend: "Display Name <email@domain.com>"
+      return `SEIDO <noreply@${INBOUND_DOMAIN}>`
     }
 
     const hash = this.generateHash('intervention', interventionId)
-    const replyTo = `reply+int_${interventionId}_${hash}@${INBOUND_DOMAIN}`
+    // Format RFC 5322 requis par Resend: "Display Name <email@domain.com>"
+    const emailAddress = `reply+int_${interventionId}_${hash}@${INBOUND_DOMAIN}`
+    const replyTo = `SEIDO Intervention <${emailAddress}>`
 
     logger.debug(
       { interventionId, replyTo },
@@ -119,6 +136,162 @@ export class EmailReplyService {
   static generateMessageId(interventionId: string): string {
     const timestamp = Date.now()
     return `<intervention.${interventionId}.${timestamp}@seido-app.com>`
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // Conversation Reply-To (New Format)
+  // ══════════════════════════════════════════════════════════════
+
+  /**
+   * Génère une adresse reply-to unique pour un thread de conversation
+   *
+   * Format: reply+conv_{interventionId}_{threadType}_{hash8chars}@reply.seido-app.com
+   *
+   * Ce format permet de router la réponse email directement vers le bon thread :
+   * - group: Conversation visible par tous les participants
+   * - tenant_to_managers: Messages privés locataire ↔ gestionnaires
+   * - provider_to_managers: Messages privés prestataire ↔ gestionnaires
+   *
+   * @param interventionId - UUID de l'intervention
+   * @param threadType - Type de thread cible
+   * @returns Adresse email reply-to unique
+   *
+   * @example
+   * ```typescript
+   * const replyTo = EmailReplyService.generateConversationReplyTo(
+   *   'abc-123-def',
+   *   'tenant_to_managers'
+   * )
+   * // => "SEIDO Conversation <reply+conv_abc-123-def_tenant_to_managers_a1b2c3d4@reply.seido-app.com>"
+   * ```
+   */
+  static generateConversationReplyTo(
+    interventionId: string,
+    threadType: ConversationThreadType
+  ): string {
+    if (!REPLY_TO_SECRET) {
+      logger.warn({}, '⚠️ [EMAIL-REPLY] REPLY_TO_SECRET not configured - using fallback')
+      return `SEIDO <noreply@${INBOUND_DOMAIN}>`
+    }
+
+    const hash = this.generateConversationHash(interventionId, threadType)
+    // Format RFC 5322 requis par Resend: "Display Name <email@domain.com>"
+    const emailAddress = `reply+conv_${interventionId}_${threadType}_${hash}@${INBOUND_DOMAIN}`
+    const replyTo = `SEIDO Conversation <${emailAddress}>`
+
+    logger.debug(
+      { interventionId, threadType, replyTo },
+      '📧 [EMAIL-REPLY] Generated conversation reply-to address'
+    )
+
+    return replyTo
+  }
+
+  /**
+   * Parse une adresse reply-to conversation et extrait les composants
+   *
+   * Supporte le format: reply+conv_{uuid}_{threadType}_{hash}@domain
+   *
+   * @param address - Adresse email à parser
+   * @returns Composants extraits ou null si format invalide
+   *
+   * @example
+   * ```typescript
+   * const parsed = EmailReplyService.parseConversationReplyToAddress(
+   *   'reply+conv_abc-123-def_group_a1b2c3d4@reply.seido-app.com'
+   * )
+   * // => { type: 'conversation', interventionId: 'abc-123-def', threadType: 'group', hash: 'a1b2c3d4' }
+   * ```
+   */
+  static parseConversationReplyToAddress(address: string): ParsedConversationReplyToAddress | null {
+    if (!address) return null
+
+    const normalizedAddress = address.toLowerCase().trim()
+
+    // Match: reply+conv_{uuid}_{threadType}_{hash}@domain
+    // UUID format: 8-4-4-4-12 hexadecimal characters with hyphens
+    // ThreadType: group | tenant_to_managers | provider_to_managers
+    const conversationMatch = normalizedAddress.match(
+      /reply\+conv_([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})_(group|tenant_to_managers|provider_to_managers)_([a-f0-9]{8})@/i
+    )
+
+    if (conversationMatch) {
+      return {
+        type: 'conversation',
+        interventionId: conversationMatch[1],
+        threadType: conversationMatch[2] as ConversationThreadType,
+        hash: conversationMatch[3]
+      }
+    }
+
+    logger.debug({ address }, '📧 [EMAIL-REPLY] Failed to parse conversation reply-to address')
+    return null
+  }
+
+  /**
+   * Vérifie que le hash correspond à la conversation (sécurité anti-falsification)
+   *
+   * @param interventionId - UUID de l'intervention
+   * @param threadType - Type de thread
+   * @param providedHash - Hash fourni dans l'adresse reply-to
+   * @returns true si le hash est valide, false sinon
+   */
+  static verifyConversationHash(
+    interventionId: string,
+    threadType: ConversationThreadType,
+    providedHash: string
+  ): boolean {
+    if (!REPLY_TO_SECRET) {
+      logger.warn({}, '⚠️ [EMAIL-REPLY] REPLY_TO_SECRET not configured - cannot verify hash')
+      return false
+    }
+
+    const expectedHash = this.generateConversationHash(interventionId, threadType)
+
+    try {
+      const expectedBuffer = Buffer.from(expectedHash, 'utf8')
+      const providedBuffer = Buffer.from(providedHash.toLowerCase(), 'utf8')
+
+      if (expectedBuffer.length !== providedBuffer.length) {
+        logger.warn(
+          { interventionId, threadType, providedHash: providedHash.substring(0, 4) + '...' },
+          '⚠️ [EMAIL-REPLY] Conversation hash length mismatch'
+        )
+        return false
+      }
+
+      const isValid = crypto.timingSafeEqual(expectedBuffer, providedBuffer)
+
+      if (!isValid) {
+        logger.warn(
+          { interventionId, threadType, providedHash: providedHash.substring(0, 4) + '...' },
+          '⚠️ [EMAIL-REPLY] Invalid conversation hash - potential tampering attempt'
+        )
+      }
+
+      return isValid
+    } catch (error) {
+      logger.error(
+        { error, interventionId, threadType },
+        '❌ [EMAIL-REPLY] Error during conversation hash verification'
+      )
+      return false
+    }
+  }
+
+  /**
+   * Génère un hash HMAC-SHA256 pour les conversations
+   * Format: "conversation:{interventionId}:{threadType}"
+   */
+  private static generateConversationHash(
+    interventionId: string,
+    threadType: ConversationThreadType
+  ): string {
+    return crypto
+      .createHmac('sha256', REPLY_TO_SECRET)
+      .update(`conversation:${interventionId}:${threadType}`)
+      .digest('hex')
+      .substring(0, 8)
   }
 
   /**

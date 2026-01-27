@@ -131,6 +131,30 @@ import { checkAccessibility } from '@/test/helpers/a11y'
 - ❌ Skipping a11y → Always test accessibility
 - ❌ Ignoring RLS → Test permission boundaries
 
+## Skills Integration
+
+**`sp-test-driven-development` EST le pattern principal de cet agent.**
+
+### Workflow avec Skills
+
+```
+sp-test-driven-development → Ecrire tests AVANT code
+    ↓
+[Si tests echouent] → sp-systematic-debugging
+    ↓
+sp-verification-before-completion → Coverage 80%+
+```
+
+### Checklist Skills
+
+| Etape | Skill | Action |
+|-------|-------|--------|
+| Avant implementation | `sp-test-driven-development` | Ecrire tests failing |
+| Tests echouent | `sp-systematic-debugging` | Diagnostic 4 phases |
+| Avant commit | `sp-verification-before-completion` | Verifier coverage |
+
+---
+
 ## Integration Agents
 
 - **frontend-developer**: Component test requirements

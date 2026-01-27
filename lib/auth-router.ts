@@ -11,15 +11,7 @@
 
 import type { Database } from './database.types'
 import type { AuthUser } from './auth-service'
-import { logger, logError } from '@/lib/logger'
-// Types pour les fonctions DAL
-interface DalFunctions {
-  verifySession: () => Promise<{ isValid: boolean; user?: AuthUser }>;
-  redirect: (_path: string) => void;
-}
-
-// Import conditionnel pour éviter les erreurs côté client
-const dalFunctions: DalFunctions | null = null
+import { logger } from '@/lib/logger'
 
 export type UserRole = Database['public']['Enums']['user_role']
 
@@ -245,92 +237,11 @@ export const isInAuthTransition = (pathname: string): boolean => {
  * Logger pour debug des décisions de routage
  */
 export const logRoutingDecision = (
-  decision: RedirectionDecision,
-  user: AuthUser | null,
-  context: Record<string, unknown>
+  _decision: RedirectionDecision,
+  _user: AuthUser | null,
+  _context: Record<string, unknown>
 ) => {
-  logger.info('🎯 [AUTH-ROUTER] Redirection decision:', {
-    strategy: decision.strategy,
-    targetPath: decision.targetPath,
-    reason: decision.reason,
-    user: user ? `${user.name} (${user.role})` : null,
-    context
-  })
-}
-
-// ✅ NOUVELLES FONCTIONS BONNES PRATIQUES 2025
-
-/**
- * Vérifie si l'utilisateur peut accéder à une route donnée (DAL Integration - Server Only)
- */
-export async function canAccessRoute(pathname: string): Promise<{ canAccess: boolean; redirectTo?: string; user?: AuthUser }> {
-  try {
-    // Routes publiques → toujours autorisées
-    if (PUBLIC_ROUTES.some(route => pathname === route)) {
-      return { canAccess: true }
-    }
-
-    // Routes système → toujours autorisées
-    if (SYSTEM_ROUTES.some(route => pathname.startsWith(route))) {
-      return { canAccess: true }
-    }
-
-    // Vérification côté serveur uniquement
-    if (typeof window !== 'undefined' || !dalFunctions) {
-      logger.info('🚫 [AUTH-ROUTER] Client-side access check not supported')
-      return { canAccess: false, redirectTo: '/auth/login' }
-    }
-
-    // Vérifier la session avec DAL (côté serveur)
-    const { isValid, user } = await dalFunctions.verifySession()
-
-    if (!isValid || !user) {
-      logger.info(`🚫 [AUTH-ROUTER] No valid session for ${pathname}`)
-      return { canAccess: false, redirectTo: '/auth/login' }
-    }
-
-    // Vérifier les permissions pour la route
-    const userRoleConfig = ROLE_ROUTES[user.role]
-    if (!userRoleConfig) {
-      logger.info(`🚫 [AUTH-ROUTER] Unknown role ${user.role} for ${pathname}`)
-      return { canAccess: false, redirectTo: '/auth/unauthorized' }
-    }
-
-    // Vérifier si l'utilisateur peut accéder à cette route
-    const hasAccess = userRoleConfig.allowed.some(allowedRoute =>
-      pathname.startsWith(allowedRoute)
-    )
-
-    if (!hasAccess) {
-      logger.info(`🚫 [AUTH-ROUTER] User ${user.role} cannot access ${pathname}`)
-      const redirectTo = userRoleConfig.default
-      return { canAccess: false, redirectTo, user }
-    }
-
-    logger.info(`✅ [AUTH-ROUTER] User ${user.role} can access ${pathname}`)
-    return { canAccess: true, user }
-  } catch (error: unknown) {
-    logger.error('❌ [AUTH-ROUTER] Route access check failed:', error)
-    return { canAccess: false, redirectTo: '/auth/login' }
-  }
-}
-
-/**
- * Protection de route côté serveur - à utiliser dans les layouts
- */
-export async function protectRoute(pathname: string): Promise<{ user: AuthUser | null }> {
-  if (typeof window !== 'undefined') {
-    throw new Error('protectRoute can only be used server-side')
-  }
-
-  const { canAccess, redirectTo, user } = await canAccessRoute(pathname)
-
-  if (!canAccess && redirectTo && dalFunctions) {
-    logger.info(`🔄 [AUTH-ROUTER] Redirecting ${pathname} → ${redirectTo}`)
-    dalFunctions.redirect(redirectTo)
-  }
-
-  return { user: user ?? null }
+  // Debug logging disabled in production - enable when troubleshooting routing issues
 }
 
 /**
@@ -346,12 +257,10 @@ export function getPostAuthRedirect(role: UserRole, intendedPath?: string): stri
 
   // Si l'utilisateur avait une destination prévue ET qu'il peut y accéder
   if (intendedPath && roleConfig.allowed.some(allowed => intendedPath.startsWith(allowed))) {
-    logger.info(`📍 [AUTH-ROUTER] Redirecting ${role} to intended path: ${intendedPath}`)
     return intendedPath
   }
 
   // Sinon, redirection vers dashboard par défaut
-  logger.info(`📍 [AUTH-ROUTER] Redirecting ${role} to default dashboard: ${roleConfig.default}`)
   return roleConfig.default
 }
 

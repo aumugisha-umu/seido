@@ -22,8 +22,6 @@ import {
   // Types
   Quote as SharedQuote,
   TimeSlot as SharedTimeSlot,
-  Message,
-  Comment as SharedComment,
   InterventionDocument,
   TimelineEventData,
   // Layout
@@ -34,17 +32,13 @@ import {
   InterventionSidebar,
   // Cards
   InterventionDetailsCard,
-  CommentsCard,
   DocumentsCard,
   QuotesCard,
-  PlanningCard,
-  ConversationCard
+  PlanningCard
 } from '@/components/interventions/shared'
 
-// Tab components (gardés pour compatibilité)
-import { ChatTab } from './chat-tab'
-import { QuotesTab } from './quotes-tab'
-import { DocumentsTab } from './documents-tab'
+// Chat component (functional, not mock)
+import { InterventionChatTab } from '@/components/interventions/intervention-chat-tab'
 
 // Intervention components
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
@@ -127,6 +121,9 @@ interface PrestataireInterventionDetailClientProps {
   assignmentMode?: AssignmentMode
   providerInstructions?: string
   parentLink?: ParentLink
+  // Chat data
+  initialMessagesByThread?: Record<string, any[]>
+  initialParticipantsByThread?: Record<string, any[]>
 }
 
 // Status labels
@@ -154,7 +151,9 @@ export function PrestataireInterventionDetailClient({
   currentUser,
   assignmentMode = 'single',
   providerInstructions,
-  parentLink
+  parentLink,
+  initialMessagesByThread,
+  initialParticipantsByThread
 }: PrestataireInterventionDetailClientProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('general')
@@ -178,6 +177,8 @@ export function PrestataireInterventionDetailClient({
 
   // États pour le nouveau design PreviewHybrid
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
+  // Thread type à utiliser pour InterventionChatTab
+  const [defaultThreadType, setDefaultThreadType] = useState<string | undefined>(undefined)
 
   // ============================================================================
   // Auto-Execute Actions from Email Magic Links
@@ -464,17 +465,17 @@ export function PrestataireInterventionDetailClient({
   const scheduledDate = confirmedSlot?.slot_date || null
   const scheduledStartTime = confirmedSlot?.start_time || null
 
-  // Messages mock (à remplacer par de vraies données si disponibles)
-  const mockMessages: Message[] = useMemo(() => [], [])
-
   // Callbacks pour les conversations
   const handleConversationClick = (participantId: string) => {
     setActiveConversation(participantId)
+    // Pour un prestataire, une conversation individuelle est provider_to_managers
+    setDefaultThreadType('provider_to_managers')
     setActiveTab('conversations')
   }
 
   const handleGroupConversationClick = () => {
     setActiveConversation('group')
+    setDefaultThreadType('group')
     setActiveTab('conversations')
   }
 
@@ -851,19 +852,14 @@ export function PrestataireInterventionDetailClient({
 
               {/* TAB: CONVERSATIONS */}
               <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
-                <ConversationCard
-                  messages={mockMessages}
+                <InterventionChatTab
+                  interventionId={intervention.id}
+                  threads={threads}
+                  initialMessagesByThread={initialMessagesByThread}
+                  initialParticipantsByThread={initialParticipantsByThread}
                   currentUserId={currentUser.id}
-                  currentUserRole="provider"
-                  conversationType={activeConversation === 'group' ? 'group' : 'individual'}
-                  participantName={
-                    activeConversation !== 'group'
-                      ? [...participants.managers, ...participants.providers, ...participants.tenants]
-                          .find(p => p.id === activeConversation)?.name
-                      : undefined
-                  }
-                  onSendMessage={(content) => console.log('Send message:', content)}
-                  className="flex-1 mx-4"
+                  userRole="prestataire"
+                  defaultThreadType={defaultThreadType}
                 />
               </TabsContent>
 

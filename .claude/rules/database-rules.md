@@ -133,3 +133,23 @@ npm run supabase:migrate
 # Appliquer les migrations
 npx supabase db push
 ```
+
+---
+
+## Skills pour Database
+
+| Action | Skill | Quand |
+|--------|-------|-------|
+| Nouvelle migration | `sp-verification-before-completion` | APRES creation |
+| Bug RLS | `sp-systematic-debugging` | AVANT fix |
+| Schema complexe | `sp-writing-plans` | AVANT implementation |
+| Nouveau trigger | `sp-test-driven-development` | AVANT code |
+
+### Red Flags Database
+
+| Pensee | Skill |
+|--------|-------|
+| "Permission denied..." | `sp-systematic-debugging` |
+| "Nouvelle table/colonne..." | `sp-verification-before-completion` |
+| "Refactoring schema..." | `sp-writing-plans` |
+| "Bug RLS..." | `sp-systematic-debugging` |

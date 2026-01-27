@@ -116,6 +116,27 @@ model: sonnet
 - ✅ [Persona]: [Test]? → [Oui/Non]
 ```
 
+## Skills Integration
+
+| Situation | Skill |
+|-----------|-------|
+| Recherche approfondie | (pas de skill requis - mission principale) |
+| Recommandations design | `sp-brainstorming` (avec recherche) |
+| Analyse competitive | WebSearch + analyse |
+| Avant livraison | `sp-verification-before-completion` |
+
+### Workflow Researcher
+
+```
+[Brief recherche] → Identifier persona + frustrations
+    ↓
+[Recherche] → Docs SEIDO + WebSearch si besoin
+    ↓
+sp-verification-before-completion → Recommandations validees
+```
+
+---
+
 ## Integration Agents
 
 - **frontend-developer**: Specs composants

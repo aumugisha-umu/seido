@@ -9,7 +9,6 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { TabsContent } from '@/components/ui/tabs'
-import { DocumentsTab } from '@/app/gestionnaire/(no-navbar)/interventions/[id]/components/documents-tab'
 import { selectTimeSlotAction, validateByTenantAction } from '@/app/actions/intervention-actions'
 import { toast } from 'sonner'
 import { formatErrorMessage } from '@/lib/utils/error-formatter'
@@ -19,7 +18,6 @@ import { Building2, MapPin, Calendar } from 'lucide-react'
 import {
   // Types
   TimeSlot as SharedTimeSlot,
-  Message,
   InterventionDocument,
   TimelineEventData,
   // Layout
@@ -31,15 +29,16 @@ import {
   // Cards
   InterventionDetailsCard,
   DocumentsCard,
-  PlanningCard,
-  ConversationCard
+  PlanningCard
 } from '@/components/interventions/shared'
+
+// Chat component (functional, not mock)
+import { InterventionChatTab } from '@/components/interventions/intervention-chat-tab'
 
 // Intervention components
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
 import type { DetailPageHeaderBadge, DetailPageHeaderMetadata } from '@/components/ui/detail-page-header'
 import { InterventionActionPanelHeader } from '@/components/intervention/intervention-action-panel-header'
-import { ChatTab } from './chat-tab'
 
 // Modals
 // ProgrammingModal removed - locataires don't need to program interventions
@@ -96,6 +95,8 @@ interface LocataireInterventionDetailClientProps {
   threads: Thread[]
   timeSlots: TimeSlot[]
   currentUser: User
+  initialMessagesByThread?: Record<string, any[]>
+  initialParticipantsByThread?: Record<string, any[]>
 }
 
 export function LocataireInterventionDetailClient({
@@ -103,7 +104,9 @@ export function LocataireInterventionDetailClient({
   documents,
   threads,
   timeSlots,
-  currentUser
+  currentUser,
+  initialMessagesByThread,
+  initialParticipantsByThread
 }: LocataireInterventionDetailClientProps) {
   const router = useRouter()
   const planning = useInterventionPlanning()
@@ -159,8 +162,10 @@ export function LocataireInterventionDetailClient({
     }
   })
 
-  // États pour le nouveau design PreviewHybrid
+  // État pour suivre le thread de conversation actif (pour la sidebar)
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
+  // Thread type à utiliser pour InterventionChatTab
+  const [defaultThreadType, setDefaultThreadType] = useState<string | undefined>(undefined)
 
   // Get assignments from intervention (locataire component uses nested data)
   const assignmentList = useMemo(() => {
@@ -368,17 +373,17 @@ export function LocataireInterventionDetailClient({
   const scheduledDate = confirmedSlot?.slot_date || null
   const scheduledStartTime = confirmedSlot?.start_time || null
 
-  // Messages mock (à remplacer par de vraies données si disponibles)
-  const mockMessages: Message[] = useMemo(() => [], [])
-
   // Callbacks pour les conversations
   const handleConversationClick = (participantId: string) => {
     setActiveConversation(participantId)
+    // Pour un locataire, une conversation individuelle est tenant_to_managers
+    setDefaultThreadType('tenant_to_managers')
     setActiveTab('conversations')
   }
 
   const handleGroupConversationClick = () => {
     setActiveConversation('group')
+    setDefaultThreadType('group')
     setActiveTab('conversations')
   }
 
@@ -605,19 +610,14 @@ export function LocataireInterventionDetailClient({
 
               {/* TAB: CONVERSATIONS */}
               <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
-                <ConversationCard
-                  messages={mockMessages}
+                <InterventionChatTab
+                  interventionId={intervention.id}
+                  threads={threads}
+                  initialMessagesByThread={initialMessagesByThread}
+                  initialParticipantsByThread={initialParticipantsByThread}
                   currentUserId={currentUser.id}
-                  currentUserRole="tenant"
-                  conversationType={activeConversation === 'group' ? 'group' : 'individual'}
-                  participantName={
-                    activeConversation !== 'group'
-                      ? [...participants.managers, ...participants.providers, ...participants.tenants]
-                          .find(p => p.id === activeConversation)?.name
-                      : undefined
-                  }
-                  onSendMessage={(content) => console.log('Send message:', content)}
-                  className="flex-1 mx-4"
+                  userRole="locataire"
+                  defaultThreadType={defaultThreadType}
                 />
               </TabsContent>
 

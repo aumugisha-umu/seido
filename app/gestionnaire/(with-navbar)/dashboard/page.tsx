@@ -11,6 +11,7 @@ import { ManagerDashboardV2 } from "@/components/dashboards/manager/manager-dash
 import { logger as baseLogger } from '@/lib/logger'
 import { filterPendingActions } from '@/lib/intervention-alert-utils'
 import type { InterventionWithRelations } from "@/lib/services"
+import { loadMultiTeamData, createTeamNameMap } from "@/lib/multi-team-helpers"
 
 // Relax logger typing locally to avoid strict method signature constraints for rich logs in this server component
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,11 +27,19 @@ const dashLogger: any = logger
  * 2. React.cache() déduplique automatiquement avec layout
  * 3. Server-side data loading avec Promise.all() parallèle
  * 4. Pass all data to Client Components (no client fetching)
+ *
+ * ✅ MULTI-ÉQUIPE (Jan 2026): Support vue consolidée via activeTeamIds
+ * - Si isConsolidatedView: charge données de toutes les équipes en parallèle
+ * - Sinon: charge données de l'équipe sélectionnée uniquement
  */
 
 export default async function DashboardGestionnaire() {
   // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
-  const { profile, team, supabase } = await getServerAuthContext('gestionnaire')
+  // ✅ MULTI-ÉQUIPE: activeTeamIds contient soit [teamId] soit tous les teamIds
+  const { profile, team, supabase, activeTeamIds, isConsolidatedView, sameRoleTeams } = await getServerAuthContext('gestionnaire')
+
+  // ✅ MULTI-ÉQUIPE: Créer un dictionnaire teamId → teamName pour enrichir les données
+  const teamNameMap = createTeamNameMap(sameRoleTeams)
 
   // ✅ LAYER 2: Data Layer Security - Récupération données sécurisée
   let stats = {
@@ -73,46 +82,84 @@ export default async function DashboardGestionnaire() {
     const contractService = await createServerActionContractService()
 
     dashLogger.info('✅ [DASHBOARD] All services initialized successfully')
-    dashLogger.info('📦 [DASHBOARD] Using team ID from context:', team.id)
+
+    // ✅ MULTI-ÉQUIPE: Déterminer quelle(s) équipe(s) charger
+    // - isConsolidatedView=true: Charger toutes les équipes avec activeTeamIds
+    // - isConsolidatedView=false: Charger uniquement team.id
+    const effectiveTeamId = team.id
+
+    dashLogger.info('📦 [DASHBOARD] Mode:', isConsolidatedView ? 'CONSOLIDÉ' : 'ÉQUIPE UNIQUE')
+    dashLogger.info('📦 [DASHBOARD] Teams to load:', isConsolidatedView ? activeTeamIds : [effectiveTeamId])
 
     // ⚡ OPTIMISATION: Récupérer les statistiques en parallèle avec Promise.all
-    dashLogger.info('🏗️ [DASHBOARD] Starting PARALLEL data loading for team:', team.id)
-
-    // ⚡ Phase 1: Charger buildings, users et interventions en parallèle
-    const [buildingsResult, usersResult, interventionsResult] = await Promise.allSettled([
-      buildingService.getBuildingsByTeam(team.id),
-      userService.getUsersByTeam(team.id, profile.id), // ✅ Exclude current user
-      interventionService.getByTeam(team.id)
-    ])
-
-    // Traiter résultats buildings
     let buildings: any[] = []
-    if (buildingsResult.status === 'fulfilled' && buildingsResult.value.success) {
-      buildings = (buildingsResult.value.data || []) as any[]
-      dashLogger.info('✅ [DASHBOARD] Buildings loaded:', buildings.length)
-    } else {
-      dashLogger.error('❌ [DASHBOARD] Error loading buildings:',
-        buildingsResult.status === 'rejected' ? buildingsResult.reason : 'No data')
-    }
-
-    // Traiter résultats users
     let users: any[] = []
-    if (usersResult.status === 'fulfilled' && usersResult.value.success) {
-      users = (usersResult.value.data || []) as any[]
-      dashLogger.info('✅ [DASHBOARD] Users loaded:', users.length)
-    } else {
-      dashLogger.error('❌ [DASHBOARD] Error loading users:',
-        usersResult.status === 'rejected' ? usersResult.reason : 'No data')
-    }
-
-    // Traiter résultats interventions
     let interventions: InterventionWithRelations[] = []
-    if (interventionsResult.status === 'fulfilled' && interventionsResult.value.success) {
-      interventions = (interventionsResult.value.data || []) as unknown as InterventionWithRelations[]
-      dashLogger.info('✅ [DASHBOARD] Interventions loaded:', interventions.length)
+
+    if (isConsolidatedView && activeTeamIds.length > 1) {
+      // ✅ MULTI-ÉQUIPE: Charger données de TOUTES les équipes en parallèle
+      dashLogger.info('🏗️ [DASHBOARD] Starting MULTI-TEAM data loading for teams:', activeTeamIds.length)
+
+      const [buildingsMulti, usersMulti, interventionsMulti] = await Promise.all([
+        loadMultiTeamData(
+          (teamId) => buildingService.getBuildingsByTeam(teamId),
+          { teamIds: activeTeamIds, teamNames: teamNameMap }
+        ),
+        loadMultiTeamData(
+          (teamId) => userService.getUsersByTeam(teamId, profile.id),
+          { teamIds: activeTeamIds, teamNames: teamNameMap }
+        ),
+        loadMultiTeamData(
+          (teamId) => interventionService.getByTeam(teamId),
+          { teamIds: activeTeamIds, teamNames: teamNameMap }
+        )
+      ])
+
+      buildings = buildingsMulti
+      users = usersMulti
+      interventions = interventionsMulti as unknown as InterventionWithRelations[]
+
+      dashLogger.info('✅ [DASHBOARD] Multi-team data loaded:', {
+        buildings: buildings.length,
+        users: users.length,
+        interventions: interventions.length
+      })
     } else {
-      dashLogger.error('❌ [DASHBOARD] Error loading interventions:',
-        interventionsResult.status === 'rejected' ? interventionsResult.reason : 'No data')
+      // ⚡ ÉQUIPE UNIQUE: Charger une seule équipe (code original optimisé)
+      dashLogger.info('🏗️ [DASHBOARD] Starting SINGLE-TEAM data loading for team:', effectiveTeamId)
+
+      const [buildingsResult, usersResult, interventionsResult] = await Promise.allSettled([
+        buildingService.getBuildingsByTeam(effectiveTeamId),
+        userService.getUsersByTeam(effectiveTeamId, profile.id),
+        interventionService.getByTeam(effectiveTeamId)
+      ])
+
+      // Traiter résultats buildings
+      if (buildingsResult.status === 'fulfilled' && buildingsResult.value.success) {
+        buildings = (buildingsResult.value.data || []) as any[]
+        dashLogger.info('✅ [DASHBOARD] Buildings loaded:', buildings.length)
+      } else {
+        dashLogger.error('❌ [DASHBOARD] Error loading buildings:',
+          buildingsResult.status === 'rejected' ? buildingsResult.reason : 'No data')
+      }
+
+      // Traiter résultats users
+      if (usersResult.status === 'fulfilled' && usersResult.value.success) {
+        users = (usersResult.value.data || []) as any[]
+        dashLogger.info('✅ [DASHBOARD] Users loaded:', users.length)
+      } else {
+        dashLogger.error('❌ [DASHBOARD] Error loading users:',
+          usersResult.status === 'rejected' ? usersResult.reason : 'No data')
+      }
+
+      // Traiter résultats interventions
+      if (interventionsResult.status === 'fulfilled' && interventionsResult.value.success) {
+        interventions = (interventionsResult.value.data || []) as unknown as InterventionWithRelations[]
+        dashLogger.info('✅ [DASHBOARD] Interventions loaded:', interventions.length)
+      } else {
+        dashLogger.error('❌ [DASHBOARD] Error loading interventions:',
+          interventionsResult.status === 'rejected' ? interventionsResult.reason : 'No data')
+      }
     }
 
     // ⚡ ENRICHISSEMENT: Ajouter quotes et slots aux interventions pour le badge interactif
@@ -153,23 +200,35 @@ export default async function DashboardGestionnaire() {
 
     allInterventions = interventionsWithDetails
 
-    // ⚡ OPTIMISATION: Charger TOUS les lots (building + indépendants) en 1 seule requête team-scoped
-    dashLogger.info('🏠 [DASHBOARD] Loading ALL lots (including independent) for team:', team.id)
-    const allLotsResult = await lotService.getLotsByTeam(team.id)
-
+    // ⚡ OPTIMISATION: Charger TOUS les lots (building + indépendants)
     let allLots: any[] = []
-    if (allLotsResult.success) {
-      allLots = allLotsResult.data || []
-      dashLogger.info('✅ [DASHBOARD] ALL lots loaded:', allLots.length, '(including independent lots)')
 
-      // Log breakdown for debugging
-      const buildingLots = allLots.filter(lot => lot.building_id)
-      const independentLots = allLots.filter(lot => !lot.building_id)
-      dashLogger.info('  → Building-linked lots:', buildingLots.length)
-      dashLogger.info('  → Independent lots:', independentLots.length)
+    if (isConsolidatedView && activeTeamIds.length > 1) {
+      // ✅ MULTI-ÉQUIPE: Charger lots de toutes les équipes
+      dashLogger.info('🏠 [DASHBOARD] Loading ALL lots for ALL teams:', activeTeamIds.length)
+      allLots = await loadMultiTeamData(
+        (teamId) => lotService.getLotsByTeam(teamId),
+        { teamIds: activeTeamIds, teamNames: teamNameMap }
+      )
+      dashLogger.info('✅ [DASHBOARD] Multi-team lots loaded:', allLots.length)
     } else {
-      dashLogger.error('❌ [DASHBOARD] Error loading lots:', allLotsResult.error)
+      // ⚡ ÉQUIPE UNIQUE
+      dashLogger.info('🏠 [DASHBOARD] Loading ALL lots for team:', effectiveTeamId)
+      const allLotsResult = await lotService.getLotsByTeam(effectiveTeamId)
+
+      if (allLotsResult.success) {
+        allLots = allLotsResult.data || []
+        dashLogger.info('✅ [DASHBOARD] ALL lots loaded:', allLots.length, '(including independent lots)')
+      } else {
+        dashLogger.error('❌ [DASHBOARD] Error loading lots:', allLotsResult.error)
+      }
     }
+
+    // Log breakdown for debugging
+    const buildingLots = allLots.filter(lot => lot.building_id)
+    const independentLots = allLots.filter(lot => !lot.building_id)
+    dashLogger.info('  → Building-linked lots:', buildingLots.length)
+    dashLogger.info('  → Independent lots:', independentLots.length)
 
     // Calculer les statistiques
     dashLogger.info('📊 [DASHBOARD] Calculating stats with:')
@@ -179,13 +238,34 @@ export default async function DashboardGestionnaire() {
     dashLogger.info('  - interventions length:', interventions?.length || 0)
 
     // Phase 4: Occupancy determined by active contracts with tenants
-    const occupiedLotIdsResult = await contractService.getOccupiedLotIdsByTeam(team.id)
     let occupiedLotsCount = 0
-    if (occupiedLotIdsResult.success) {
-      occupiedLotsCount = occupiedLotIdsResult.data.size
-      dashLogger.info('✅ [DASHBOARD] Occupied lots (from contracts):', occupiedLotsCount)
+
+    if (isConsolidatedView && activeTeamIds.length > 1) {
+      // ✅ MULTI-ÉQUIPE: Union de tous les IDs de lots occupés
+      dashLogger.info('🏠 [DASHBOARD] Getting occupied lots for ALL teams...')
+      const occupiedPromises = activeTeamIds.map(teamId =>
+        contractService.getOccupiedLotIdsByTeam(teamId)
+      )
+      const occupiedResults = await Promise.allSettled(occupiedPromises)
+
+      // Union de tous les Sets
+      const allOccupiedIds = new Set<string>()
+      occupiedResults.forEach((result) => {
+        if (result.status === 'fulfilled' && result.value.success) {
+          result.value.data.forEach(id => allOccupiedIds.add(id))
+        }
+      })
+      occupiedLotsCount = allOccupiedIds.size
+      dashLogger.info('✅ [DASHBOARD] Multi-team occupied lots:', occupiedLotsCount)
     } else {
-      dashLogger.error('❌ [DASHBOARD] Error getting occupied lots:', occupiedLotIdsResult.error)
+      // ⚡ ÉQUIPE UNIQUE
+      const occupiedLotIdsResult = await contractService.getOccupiedLotIdsByTeam(effectiveTeamId)
+      if (occupiedLotIdsResult.success) {
+        occupiedLotsCount = occupiedLotIdsResult.data.size
+        dashLogger.info('✅ [DASHBOARD] Occupied lots (from contracts):', occupiedLotsCount)
+      } else {
+        dashLogger.error('❌ [DASHBOARD] Error getting occupied lots:', occupiedLotIdsResult.error)
+      }
     }
 
     stats = {
@@ -202,8 +282,47 @@ export default async function DashboardGestionnaire() {
     // 📜 CONTRACT STATS: Charger les statistiques des contrats
     dashLogger.info('📜 [DASHBOARD] Loading contract stats...')
     try {
-      contractStats = await contractService.getStats(team.id)
-      dashLogger.info('✅ [DASHBOARD] Contract stats loaded:', contractStats)
+      if (isConsolidatedView && activeTeamIds.length > 1) {
+        // ✅ MULTI-ÉQUIPE: Agréger les stats de toutes les équipes
+        dashLogger.info('📜 [DASHBOARD] Aggregating contract stats for ALL teams...')
+        const statsPromises = activeTeamIds.map(teamId =>
+          contractService.getStats(teamId)
+        )
+        const statsResults = await Promise.allSettled(statsPromises)
+
+        // Somme des stats (sauf averageRent qui est une moyenne)
+        let totalRentSum = 0
+        let totalLotsWithRent = 0
+
+        statsResults.forEach((result) => {
+          if (result.status === 'fulfilled') {
+            const s = result.value
+            contractStats.totalActive += s.totalActive
+            contractStats.expiringThisMonth += s.expiringThisMonth
+            contractStats.expiringNext30Days += s.expiringNext30Days
+            contractStats.expired += s.expired
+            contractStats.totalRentMonthly += s.totalRentMonthly
+            contractStats.totalLots += s.totalLots
+            contractStats.totalTenants += s.totalTenants
+            // Pour calculer la moyenne globale
+            if (s.averageRent > 0 && s.totalLots > 0) {
+              totalRentSum += s.averageRent * s.totalLots
+              totalLotsWithRent += s.totalLots
+            }
+          }
+        })
+
+        // Moyenne pondérée
+        contractStats.averageRent = totalLotsWithRent > 0
+          ? Math.round(totalRentSum / totalLotsWithRent)
+          : 0
+
+        dashLogger.info('✅ [DASHBOARD] Multi-team contract stats aggregated:', contractStats)
+      } else {
+        // ⚡ ÉQUIPE UNIQUE
+        contractStats = await contractService.getStats(effectiveTeamId)
+        dashLogger.info('✅ [DASHBOARD] Contract stats loaded:', contractStats)
+      }
     } catch (contractError) {
       dashLogger.error('❌ [DASHBOARD] Error loading contract stats:', contractError)
       // Keep default values (all zeros)

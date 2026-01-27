@@ -83,3 +83,23 @@ await notifyInterventionStatusChange({
 ❌ Oublier de notifier les parties prenantes
 ❌ Accéder directement à la table sans passer par le repository
 ❌ Ignorer le workflow de statuts (sauter des étapes)
+
+---
+
+## Skills pour Interventions
+
+**Avant modification workflow interventions**:
+
+| Etape | Skill | Pourquoi |
+|-------|-------|----------|
+| 1 | `sp-brainstorming` | Comprendre l'impact sur les 4 roles |
+| 2 | `sp-test-driven-development` | Tests des transitions de statut |
+| 3 | `sp-verification-before-completion` | Apres modification |
+
+### Red Flags Intervention
+
+| Pensee | Skill |
+|--------|-------|
+| "Je vais modifier une transition..." | `sp-brainstorming` |
+| "Bug sur le statut..." | `sp-systematic-debugging` |
+| "Nouvelle etape workflow..." | `sp-brainstorming` + `sp-writing-plans` |

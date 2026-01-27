@@ -2151,23 +2151,16 @@ export default function NouvelleInterventionClient({
                   }
                 : schedulingType === 'fixed' && fixedDateTime.date
                 ? {
-                    // ✅ FIX: Convertir la date fixe en slot pour l'affichage
-                    type: 'slots' as const,
+                    type: 'immediate' as const,
                     slots: [{
                       date: fixedDateTime.date,
                       startTime: fixedDateTime.time || '09:00',
-                      endTime: (() => {
-                        // Calcul endTime = startTime + 1h
-                        const time = fixedDateTime.time || '09:00'
-                        const [hours, minutes] = time.split(':').map(Number)
-                        const endHour = (hours + 1) % 24
-                        return `${String(endHour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
-                      })(),
+                      endTime: fixedDateTime.time || '09:00', // Même valeur = pas de range
                     }],
                   }
-                : schedulingType === 'immediate'
-                ? { type: 'immediate' as const }
-                : { type: 'flexible' as const },
+                : schedulingType === 'flexible'
+                ? { type: 'flexible' as const }
+                : undefined,
               instructions: globalMessage
                 ? {
                     type: 'global' as const,

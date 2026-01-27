@@ -42,6 +42,38 @@
 
 ## Sprint Actuel (Jan 2026)
 
+### 2026-01-27 - Integration Skills sp-* dans Ecosysteme Claude Code
+**Ce qui a ete fait:**
+- **Integration complete des 13 skills `superpowers:sp-*`** dans les fichiers de configuration Claude Code
+- **Philosophie implementee:** "If a skill exists and 1% chance applies, invoke it."
+- **Red Flags universels** definis pour declenchement automatique des skills
+- **3 patterns d'orchestration** documentes (Creative Work, Bug Fix, Multi-Domain)
+
+**Fichiers modifies (16 total):**
+- `.claude/CLAUDE.md` - Section "Skills Auto-Invocation" avec matrice declenchement
+- `.claude/agents/_base-template.md` - Section "Skills Integration" (herite par tous)
+- `.claude/agents/ultrathink-orchestrator.md` - Section H "Skills Integration"
+- `.claude/agents/seido-debugger.md` - Skills mapping
+- `.claude/agents/tester.md` - TDD pattern principal
+- `.claude/agents/frontend-developer.md` - Workflow frontend
+- `.claude/agents/backend-developer.md` - Workflow backend
+- `.claude/agents/ui-designer.md` - Workflow design
+- `.claude/agents/refactoring-agent.md` - Workflow refactoring
+- `.claude/agents/database-analyzer.md` - Skills section
+- `.claude/agents/API-designer.md` - Workflow API
+- `.claude/agents/researcher.md` - Skills section
+- `.claude/agents/memory-synchronizer.md` - Skills section
+- `.claude/rules/intervention-rules.md` - Skills interventions
+- `.claude/rules/database-rules.md` - Skills database
+- `.claude/rules/ui-rules.md` - Skills UI
+
+**Impact:**
+- Tous les agents heritent automatiquement des comportements skills via `_base-template.md`
+- Process Skills (brainstorming/debugging) AVANT Implementation Skills
+- Verification obligatoire avant tout commit
+
+---
+
 ### 2026-01-27 - Verification Architecture Cards Intervention
 **Ce qui a ete fait:**
 - **Verification architecture cascade** pour les pages de details
@@ -255,6 +287,7 @@
 | **2026-01-25** | **PWA Push Notifications** | **Notifications temps reel mobile** | **4 canaux complets** |
 | **2026-01-26** | **Migration workflow devis** | **Suppression statut redondant** | **10 → 9 statuts, meilleure separation concerns** |
 | **2026-01-26** | **Pagination client-side** | **Donnees deja chargees + UX instantanee** | **Hook reutilisable + pattern documente** |
+| **2026-01-27** | **Integration Skills sp-*** | **Garantir code sans erreur via invocation automatique** | **16 fichiers .claude/ modifies, Red Flags universels** |
 
 ---
 *Derniere mise a jour: 2026-01-27*

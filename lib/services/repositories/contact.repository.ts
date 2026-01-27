@@ -233,25 +233,28 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
   }
 
   /**
-   * Check if email already exists
-   * NEW SCHEMA: Users table has unique email constraint
+   * Check if email already exists in a specific team
+   * NEW SCHEMA: UNIQUE(email, team_id) - email can exist in multiple teams
    */
-  async emailExists(email: string) {
-    const { data, error } = await this.supabase
+  async emailExists(email: string, teamId?: string) {
+    let queryBuilder = this.supabase
       .from(this.tableName)
       .select('id')
       .eq('email', email)
-      .eq('deleted_at', null)
-      .single()
+      .is('deleted_at', null)
+
+    // Si teamId fourni, vérifier uniquement dans cette équipe
+    if (teamId) {
+      queryBuilder = queryBuilder.eq('team_id', teamId)
+    }
+
+    const { data, error } = await queryBuilder.limit(1).maybeSingle()
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        return { success: true as const, exists: false }
-      }
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
-    return { success: true as const, exists: true }
+    return { success: true as const, exists: data !== null }
   }
 
   /**

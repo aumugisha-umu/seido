@@ -351,29 +351,38 @@ export function InterventionConfirmationSummary({
                       <Calendar className="h-3.5 w-3.5" /> Planning
                     </h4>
                     {data.scheduling?.type && (
-                      <Badge variant="outline" className="text-[9px] h-4 px-1.5 bg-slate-100 text-slate-600 border-slate-200">
+                      <Badge variant="outline" className={cn(
+                        "text-[9px] h-4 px-1.5 border",
+                        data.scheduling.type === 'immediate' && "bg-sky-100 text-sky-700 border-sky-200",
+                        data.scheduling.type === 'slots' && "bg-purple-100 text-purple-700 border-purple-200",
+                        data.scheduling.type === 'flexible' && "bg-slate-100 text-slate-600 border-slate-200"
+                      )}>
                         {data.scheduling.type === 'flexible' && 'Laissé libre'}
                         {data.scheduling.type === 'slots' && 'Créneau proposé'}
                         {data.scheduling.type === 'immediate' && 'Date fixe'}
                       </Badge>
                     )}
                   </div>
-                  {data.scheduling?.slots && data.scheduling.slots.length > 0 ? (
+                  {data.scheduling?.type === 'immediate' && data.scheduling.slots?.[0] ? (
+                    // DATE FIXE - Box bleue, heure unique
+                    <div className="flex items-center gap-2 px-2.5 py-1.5 bg-sky-50 text-sky-700 rounded-md border border-sky-100 text-xs">
+                      <span className="font-semibold">{formatSlotDate(data.scheduling.slots[0].date)}</span>
+                      <span className="opacity-75">{data.scheduling.slots[0].startTime}</span>
+                    </div>
+                  ) : data.scheduling?.slots && data.scheduling.slots.length > 0 ? (
+                    // CRÉNEAUX PROPOSÉS - Boxes violettes, time range
                     <div className="flex flex-col gap-1.5">
                       {data.scheduling.slots.map((slot, idx) => (
                         <div key={idx} className="flex items-center gap-2 px-2.5 py-1.5 bg-purple-50 text-purple-700 rounded-md border border-purple-100 text-xs">
                           <span className="font-semibold">{formatSlotDate(slot.date)}</span>
                           <span className="opacity-75">
-                            {/* Mode date fixe (immediate): afficher seulement l'heure de début */}
-                            {data.scheduling?.type === 'immediate'
-                              ? slot.startTime
-                              : (slot.startTime === slot.endTime ? slot.startTime : `${slot.startTime}-${slot.endTime}`)
-                            }
+                            {slot.startTime === slot.endTime ? slot.startTime : `${slot.startTime}-${slot.endTime}`}
                           </span>
                         </div>
                       ))}
                     </div>
                   ) : (
+                    // FLEXIBLE ou vide
                     <div className="text-xs text-slate-500 italic bg-slate-50 px-2 py-1.5 rounded border border-slate-100">
                       {data.scheduling?.message || "À définir"}
                     </div>

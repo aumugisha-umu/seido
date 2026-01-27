@@ -15,7 +15,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import AuthLogo from '@/components/ui/auth-logo'
@@ -27,25 +26,89 @@ import { logger } from '@/lib/logger'
  */
 type FlowState = 'verifying' | 'success' | 'error'
 
+/**
+ * Types de liens supportés
+ */
+type LinkType = 'invite' | 'recovery' | 'magiclink'
+
 interface InviteRecoveryFlowProps {
   tokenHash: string
-  type: 'invite' | 'recovery'
+  type: LinkType  // ✅ BUGFIX: Ajout magiclink pour utilisateurs existants
+  teamId?: string  // Pour acceptation auto des invitations multi-équipe
 }
 
-export function InviteRecoveryFlow({ tokenHash, type }: InviteRecoveryFlowProps) {
+/**
+ * Helper pour obtenir les messages UI selon le type de lien
+ *
+ * - invite: Nouvel utilisateur → création compte + définition mot de passe
+ * - magiclink: Utilisateur existant → connexion auto + ajout à nouvelle équipe
+ * - recovery: Reset password → mise à jour du mot de passe
+ */
+const getMessages = (type: LinkType) => ({
+  verifying: {
+    title: type === 'invite'
+      ? "Confirmation de l'invitation"
+      : type === 'magiclink'
+        ? "Connexion à votre nouvelle équipe"
+        : "Récupération de mot de passe",
+    subtitle: type === 'invite'
+      ? "Vérification de votre invitation en cours..."
+      : type === 'magiclink'
+        ? "Vérification de votre accès en cours..."
+        : "Vérification du lien de récupération..."
+  },
+  success: {
+    title: type === 'invite'
+      ? "Invitation confirmée !"
+      : type === 'magiclink'
+        ? "Bienvenue dans votre nouvelle équipe !"
+        : "Lien vérifié !",
+    subtitle: type === 'invite'
+      ? "Votre compte a été activé avec succès"
+      : type === 'magiclink'
+        ? "Vous avez été ajouté avec succès. Redirection vers le tableau de bord..."
+        : "Vous pouvez maintenant définir votre nouveau mot de passe"
+  },
+  error: {
+    title: type === 'invite'
+      ? "Invitation invalide"
+      : type === 'magiclink'
+        ? "Lien de connexion invalide"
+        : "Lien invalide",
+    subtitle: type === 'invite'
+      ? "Le lien d'invitation est expiré ou invalide"
+      : type === 'magiclink'
+        ? "Le lien de connexion est expiré ou invalide"
+        : "Le lien de récupération est expiré ou invalide",
+    helpText: type === 'invite' || type === 'magiclink'
+      ? "Veuillez contacter l'administrateur pour obtenir un nouveau lien."
+      : "Veuillez faire une nouvelle demande de réinitialisation de mot de passe.",
+    buttonText: type === 'invite' || type === 'magiclink'
+      ? "Retour à la connexion"
+      : "Nouvelle demande",
+    buttonHref: type === 'invite' || type === 'magiclink'
+      ? '/auth/login'
+      : '/auth/reset-password'
+  }
+})
+
+export function InviteRecoveryFlow({ tokenHash, type, teamId }: InviteRecoveryFlowProps) {
   const router = useRouter()
   const [state, setState] = useState<FlowState>('verifying')
   const [errorMessage, setErrorMessage] = useState<string>('')
   const [redirectTo, setRedirectTo] = useState<string>('')
 
+  // ✅ Messages UI différenciés selon le type de lien
+  const messages = getMessages(type)
+
   useEffect(() => {
     // Fonction pour vérifier le lien
     const verifyLink = async () => {
-      logger.info(`🔐 [INVITE-RECOVERY-FLOW] Starting ${type} verification`)
+      logger.info(`🔐 [INVITE-RECOVERY-FLOW] Starting ${type} verification`, { teamId })
 
       try {
-        // Appeler la Server Action
-        const result = await verifyInviteOrRecoveryAction(tokenHash, type)
+        // Appeler la Server Action avec teamId pour acceptation auto
+        const result = await verifyInviteOrRecoveryAction(tokenHash, type, teamId)
 
         if (!result.success) {
           logger.error(`❌ [INVITE-RECOVERY-FLOW] Verification failed:`, result.error)
@@ -89,7 +152,7 @@ export function InviteRecoveryFlow({ tokenHash, type }: InviteRecoveryFlowProps)
     }
 
     verifyLink()
-  }, [tokenHash, type, router])
+  }, [tokenHash, type, teamId, router])
 
   // État: Vérification en cours
   if (state === 'verifying') {
@@ -99,12 +162,10 @@ export function InviteRecoveryFlow({ tokenHash, type }: InviteRecoveryFlowProps)
           <AuthLogo />
           <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight text-white">
-              {type === 'invite' ? 'Confirmation de l\'invitation' : 'Récupération de mot de passe'}
+              {messages.verifying.title}
             </h1>
             <p className="text-white/60">
-              {type === 'invite'
-                ? 'Vérification de votre invitation en cours...'
-                : 'Vérification du lien de récupération...'}
+              {messages.verifying.subtitle}
             </p>
           </div>
           <div className="space-y-4">
@@ -134,12 +195,10 @@ export function InviteRecoveryFlow({ tokenHash, type }: InviteRecoveryFlowProps)
 
           <div className="space-y-2">
             <h1 className="text-3xl font-bold tracking-tight text-white">
-              {type === 'invite' ? 'Invitation confirmée !' : 'Lien vérifié !'}
+              {messages.success.title}
             </h1>
             <p className="text-white/60">
-              {type === 'invite'
-                ? 'Votre compte a été activé avec succès'
-                : 'Vous pouvez maintenant définir votre nouveau mot de passe'}
+              {messages.success.subtitle}
             </p>
           </div>
         </div>
@@ -180,12 +239,10 @@ export function InviteRecoveryFlow({ tokenHash, type }: InviteRecoveryFlowProps)
 
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight text-white">
-            {type === 'invite' ? 'Invitation invalide' : 'Lien invalide'}
+            {messages.error.title}
           </h1>
           <p className="text-white/60">
-            {type === 'invite'
-              ? 'Le lien d\'invitation est expiré ou invalide'
-              : 'Le lien de récupération est expiré ou invalide'}
+            {messages.error.subtitle}
           </p>
         </div>
       </div>
@@ -200,16 +257,14 @@ export function InviteRecoveryFlow({ tokenHash, type }: InviteRecoveryFlowProps)
 
         <div className="space-y-2">
           <p className="text-sm text-white/60">
-            {type === 'invite'
-              ? 'Veuillez contacter l\'administrateur pour obtenir un nouveau lien d\'invitation.'
-              : 'Veuillez faire une nouvelle demande de réinitialisation de mot de passe.'}
+            {messages.error.helpText}
           </p>
 
           <Button
-            onClick={() => router.push(type === 'invite' ? '/auth/login' : '/auth/reset-password')}
+            onClick={() => router.push(messages.error.buttonHref)}
             className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
           >
-            {type === 'invite' ? 'Retour à la connexion' : 'Nouvelle demande'}
+            {messages.error.buttonText}
           </Button>
         </div>
       </div>

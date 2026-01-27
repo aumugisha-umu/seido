@@ -10,11 +10,16 @@ const logger: any = baseLogger
 
 /**
  * 🔐 DASHBOARD PRESTATAIRE - SERVER COMPONENT (Next.js 15 Pattern)
+ *
+ * ✅ MULTI-ÉQUIPE (Jan 2026): Supporte la vue consolidée "Toutes les équipes"
+ * - Si isConsolidatedView = true, récupère interventions de TOUTES les équipes
+ * - Utilise Promise.all pour requêtes parallèles + merge des résultats
  */
 
 export default async function PrestataireDashboardPage() {
   // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
-  const { profile, team } = await getServerAuthContext('prestataire')
+  // ✅ MULTI-ÉQUIPE: activeTeamIds contient TOUS les team IDs si vue consolidée
+  const { profile, team, activeTeamIds, isConsolidatedView } = await getServerAuthContext('prestataire')
 
   let allInterventions: InterventionWithRelations[] = []
   let pendingActionsCount = 0
@@ -26,22 +31,47 @@ export default async function PrestataireDashboardPage() {
     const interventionService = await createServerActionInterventionService()
 
     logger.info('✅ [PROVIDER DASHBOARD] Service initialized successfully')
-    logger.info('📦 [PROVIDER DASHBOARD] Using team ID from context:', team.id)
+    logger.info('📦 [PROVIDER DASHBOARD] Mode:', isConsolidatedView ? 'CONSOLIDATED' : 'SINGLE TEAM')
+    logger.info('📦 [PROVIDER DASHBOARD] Active team IDs:', activeTeamIds)
 
-    // Récupérer les interventions du prestataire
-    const interventionsResult = await interventionService.getByTeam(team.id)
+    // ✅ MULTI-ÉQUIPE: Récupérer interventions de TOUTES les équipes actives
+    if (isConsolidatedView && activeTeamIds.length > 1) {
+      // Vue consolidée: Promise.all + merge
+      const interventionsPromises = activeTeamIds.map(teamId =>
+        interventionService.getByTeam(teamId)
+      )
+      const interventionsResults = await Promise.all(interventionsPromises)
 
-    if (interventionsResult.success) {
-      allInterventions = (interventionsResult.data || []) as unknown as InterventionWithRelations[]
-      logger.info('✅ [PROVIDER DASHBOARD] Interventions loaded:', allInterventions.length)
+      // Merge des résultats (dédupliquer par ID au cas où)
+      const seenIds = new Set<string>()
+      for (const result of interventionsResults) {
+        if (result.success && result.data) {
+          for (const intervention of result.data) {
+            if (!seenIds.has(intervention.id)) {
+              seenIds.add(intervention.id)
+              allInterventions.push(intervention as unknown as InterventionWithRelations)
+            }
+          }
+        }
+      }
 
-      // Calculer les actions en attente
-      const pendingActions = filterPendingActions(allInterventions, 'prestataire')
-      pendingActionsCount = pendingActions.length
-      logger.info('📊 [PROVIDER DASHBOARD] Pending actions count:', pendingActionsCount)
+      logger.info('✅ [PROVIDER DASHBOARD] Consolidated interventions loaded:', allInterventions.length)
     } else {
-      logger.error('❌ [PROVIDER DASHBOARD] Error loading interventions:', interventionsResult.error)
+      // Équipe unique: comportement original
+      const interventionsResult = await interventionService.getByTeam(team.id)
+
+      if (interventionsResult.success) {
+        allInterventions = (interventionsResult.data || []) as unknown as InterventionWithRelations[]
+        logger.info('✅ [PROVIDER DASHBOARD] Interventions loaded:', allInterventions.length)
+      } else {
+        logger.error('❌ [PROVIDER DASHBOARD] Error loading interventions:', interventionsResult.error)
+      }
     }
+
+    // Calculer les actions en attente
+    const pendingActions = filterPendingActions(allInterventions, 'prestataire')
+    pendingActionsCount = pendingActions.length
+    logger.info('📊 [PROVIDER DASHBOARD] Pending actions count:', pendingActionsCount)
   } catch (error) {
     logger.error('❌ [PROVIDER DASHBOARD] Fatal error:', error)
   }

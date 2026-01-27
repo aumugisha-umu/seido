@@ -34,6 +34,15 @@ import {
 // Modifiers: contracts-section__tab--active, __view-btn--active
 // ============================================================================
 
+/**
+ * Parse une chaîne de date ISO (YYYY-MM-DD) en Date locale.
+ * Évite le bug de timezone où new Date("2026-01-01") devient 31 déc en UTC+1.
+ */
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
 type TabId = 'actifs' | 'expire_bientot' | 'termines' | 'tous'
 
 interface Tab {
@@ -56,8 +65,10 @@ const TABS: Tab[] = [
     icon: AlertTriangle,
     filter: (c) => {
       if (c.status !== 'actif') return false
-      const endDate = new Date(c.end_date)
+      const endDate = parseLocalDate(c.end_date)
       const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      endDate.setHours(0, 0, 0, 0)
       const daysRemaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
       return daysRemaining > 0 && daysRemaining <= 30
     }

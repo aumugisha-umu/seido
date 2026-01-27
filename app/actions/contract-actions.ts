@@ -26,6 +26,29 @@ import type {
 } from '@/lib/types/contract.types'
 
 // ============================================================================
+// DATE HELPERS
+// ============================================================================
+
+/**
+ * Parse une chaîne de date ISO (YYYY-MM-DD) en Date locale.
+ * Évite le bug de timezone où new Date("2026-01-01") devient 31 déc en UTC+1.
+ */
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+/**
+ * Formate une Date en chaîne ISO (YYYY-MM-DD) sans conversion timezone.
+ */
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+// ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
 
@@ -1020,12 +1043,18 @@ export async function getOverlappingContracts(
 }
 
 /**
- * Calcule la date de fin à partir de la date de début et la durée
+ * Calcule la date de fin du contrat (dernier jour inclus).
+ *
+ * Logique métier: un bail d'1 an commençant le 1er janvier se termine
+ * le 31 décembre (dernier jour du bail), pas le 1er janvier suivant.
+ *
+ * Formule: start_date + N mois - 1 jour
  */
 function calculateEndDate(startDate: string, durationMonths: number): string {
-  const start = new Date(startDate)
+  const start = parseLocalDate(startDate)
   start.setMonth(start.getMonth() + durationMonths)
-  return start.toISOString().split('T')[0]
+  start.setDate(start.getDate() - 1) // Dernier jour du bail
+  return formatLocalDate(start)
 }
 
 /**
@@ -1037,15 +1066,15 @@ function calculateNextAvailableDate(
 ): string {
   // Trier par date de fin décroissante pour trouver la plus tardive
   const sortedByEndDate = [...overlappingContracts].sort(
-    (a, b) => new Date(b.end_date).getTime() - new Date(a.end_date).getTime()
+    (a, b) => parseLocalDate(b.end_date).getTime() - parseLocalDate(a.end_date).getTime()
   )
 
   // La prochaine date est le lendemain de la fin du dernier contrat
   const latestEndDate = sortedByEndDate[0].end_date
-  const nextDate = new Date(latestEndDate)
+  const nextDate = parseLocalDate(latestEndDate)
   nextDate.setDate(nextDate.getDate() + 1) // Jour suivant
 
-  return nextDate.toISOString().split('T')[0]
+  return formatLocalDate(nextDate)
 }
 
 // ============================================================================

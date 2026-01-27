@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
       supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30, '🔧 [RESET-PASSWORD-API] Environment check:') + '...',
       serviceRoleKeyPrefix: process.env.SUPABASE_SERVICE_ROLE_KEY?.substring(0, 10) + '...',
       nodeEnv: process.env.NODE_ENV,
-      appUrl: process.env.NEXT_PUBLIC_APP_URL || 'not-set'
+      appUrl: process.env.NEXT_PUBLIC_SITE_URL || 'not-set'
     })
 
     // Vérifier si le service est disponible (même check que invitations)
@@ -228,7 +228,7 @@ export async function POST(request: NextRequest) {
             supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
             hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
             serviceRoleKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length,
-            appUrl: process.env.NEXT_PUBLIC_APP_URL,
+            appUrl: process.env.NEXT_PUBLIC_SITE_URL,
             emailProvider: 'Resend'
           } : undefined
         },

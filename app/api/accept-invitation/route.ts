@@ -6,8 +6,12 @@ import { getServiceRoleClient } from '@/lib/api-service-role-helper'
 /**
  * POST /api/accept-invitation
  * Marque l'invitation comme acceptée quand l'utilisateur définit son mot de passe
+ *
+ * Body optionnel : { teamId?: string }
+ * - Si teamId fourni : accepte l'invitation pour cette équipe spécifique
+ * - Sinon : accepte l'invitation la plus récente (comportement legacy)
  */
-export async function POST() {
+export async function POST(request: Request) {
   try {
     // ✅ AUTH: Centralized authentication
     const authResult = await getApiAuthContext()
@@ -21,16 +25,32 @@ export async function POST() {
       return NextResponse.json({ error: 'Email utilisateur non trouvé' }, { status: 400 })
     }
 
-    logger.info({ email: userEmail }, '📧 [ACCEPT-INVITATION] Processing invitation acceptance')
+    // 🆕 Extraire teamId du body (optionnel pour rétrocompatibilité)
+    let teamId: string | null = null
+    try {
+      const body = await request.json()
+      teamId = body.teamId || null
+    } catch {
+      // Body vide ou invalide = comportement legacy (invitation la plus récente)
+    }
+
+    logger.info({ email: userEmail, teamId }, '📧 [ACCEPT-INVITATION] Processing invitation acceptance')
 
     // ============================================================================
     // ÉTAPE 2: FIND PENDING INVITATION
     // ============================================================================
-    const { data: invitation, error: invitationError } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('user_invitations')
       .select('id, team_id, status')
       .eq('email', userEmail)
       .eq('status', 'pending')
+
+    // 🆕 Si teamId fourni, cibler cette équipe spécifique
+    if (teamId) {
+      query = query.eq('team_id', teamId)
+    }
+
+    const { data: invitation, error: invitationError } = await query
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()

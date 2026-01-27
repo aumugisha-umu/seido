@@ -23,6 +23,29 @@ interface DatePickerProps {
     maxDate?: string // ISO date string (YYYY-MM-DD)
 }
 
+/**
+ * Parse une chaîne de date ISO (YYYY-MM-DD) en Date locale.
+ *
+ * ⚠️ IMPORTANT: new Date("2026-01-01") interprète la date comme UTC minuit,
+ * ce qui en France (UTC+1) devient le 31 décembre à 23h = décalage d'1 jour.
+ *
+ * Cette fonction parse explicitement les composants pour créer une date locale.
+ */
+const parseLocalDate = (dateStr: string): Date => {
+    const [year, month, day] = dateStr.split('-').map(Number)
+    return new Date(year, month - 1, day) // month est 0-indexé en JS
+}
+
+/**
+ * Formate une Date en chaîne ISO (YYYY-MM-DD) sans conversion timezone.
+ */
+const formatLocalDate = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+}
+
 export function DatePicker({
     value,
     onChange,
@@ -34,21 +57,21 @@ export function DatePicker({
 }: DatePickerProps) {
     const [open, setOpen] = React.useState(false)
 
-    // Convert string to Date object
-    const selectedDate = value ? new Date(value) : undefined
+    // Convert string to Date object (local, sans décalage timezone)
+    const selectedDate = value ? parseLocalDate(value) : undefined
 
     const handleSelect = (date: Date | undefined) => {
         if (date) {
-            // Convert Date to ISO string (YYYY-MM-DD)
-            const isoString = date.toISOString().split('T')[0]
+            // Convert Date to ISO string (YYYY-MM-DD) sans passer par UTC
+            const isoString = formatLocalDate(date)
             onChange(isoString)
             setOpen(false)
         }
     }
 
-    // Convert min/max dates to Date objects
-    const minDateObj = minDate ? new Date(minDate) : undefined
-    const maxDateObj = maxDate ? new Date(maxDate) : undefined
+    // Convert min/max dates to Date objects (local)
+    const minDateObj = minDate ? parseLocalDate(minDate) : undefined
+    const maxDateObj = maxDate ? parseLocalDate(maxDate) : undefined
 
     return (
         <Popover open={open} onOpenChange={setOpen}>

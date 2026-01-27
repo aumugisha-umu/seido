@@ -115,3 +115,23 @@ Synchronisation: [DATE]
 - ❌ Ignorer petits drifts (s'accumulent)
 - ❌ Oublier timestamps
 - ❌ Modifier activeContext.md manuellement
+
+---
+
+## Skills Integration
+
+| Situation | Skill |
+|-----------|-------|
+| Sync standard | (pas de skill requis - mission principale) |
+| Drift important detecte | `sp-writing-plans` si correction complexe |
+| Verification finale | `sp-verification-before-completion` |
+
+### Workflow Memory Synchronizer
+
+```
+[Demande sync] → Audit metriques reelles vs documentees
+    ↓
+[Si drifts] → Corriger documentation
+    ↓
+sp-verification-before-completion → Timestamps corrects
+```

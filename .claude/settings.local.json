@@ -28,12 +28,13 @@
       "WebFetch(domain:developers.google.com)",
       "mcp__ide__getDiagnostics",
       "Bash(npm run build:*)",
-      "Bash(node .claude/scripts:*)"
+      "Bash(node .claude/scripts:*)",
+      "WebFetch(domain:blog.fsck.com)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []
   },
-  "outputStyle": "Explanatory",
   "hooks": {
     "PostToolUse": [
       {
@@ -58,5 +59,6 @@
         ]
       }
     ]
-  }
+  },
+  "outputStyle": "Explanatory"
 }

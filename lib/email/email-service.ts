@@ -14,6 +14,7 @@ import type {
   PasswordResetEmailProps,
   PasswordChangedEmailProps,
   InvitationEmailProps,
+  TeamAdditionEmailProps,
   EmailSendResult,
   SendEmailOptions,
 } from '@/emails/utils/types'
@@ -26,6 +27,26 @@ import { logger, logError } from '@/lib/logger'
 const RETRY_CONFIG = {
   maxAttempts: 3,
   delayMs: 1000,
+}
+
+/**
+ * Sanitize a string for use as a Resend tag value
+ * Resend tags only allow: ASCII letters, numbers, underscores, dashes
+ *
+ * @example
+ * sanitizeTagValue("Équipe de Arthur") → "equipe_de_arthur"
+ * sanitizeTagValue("SCI Côte d'Or") → "sci_cote_d_or"
+ * sanitizeTagValue("Team (Main)") → "team_main"
+ */
+const sanitizeTagValue = (value: string): string => {
+  return value
+    .normalize('NFD')                    // Décompose les accents (é → e + ́)
+    .replace(/[\u0300-\u036f]/g, '')     // Supprime les diacritiques
+    .replace(/[^a-zA-Z0-9_-]/g, '_')     // Remplace tout caractère invalide par _
+    .replace(/_+/g, '_')                 // Collapse underscores multiples
+    .replace(/^_|_$/g, '')               // Supprime _ en début/fin
+    .toLowerCase()                       // Normalise en minuscules
+    .slice(0, 50)                        // Limite la longueur (sécurité)
 }
 
 /**
@@ -238,7 +259,7 @@ export const emailService = {
   },
 
   /**
-   * Envoyer email d'invitation à rejoindre une équipe
+   * Envoyer email d'invitation à rejoindre une équipe (NOUVEL utilisateur)
    */
   async sendInvitationEmail(
     to: string,
@@ -256,6 +277,34 @@ export const emailService = {
         { name: 'category', value: 'auth' },
         { name: 'type', value: 'invitation' },
         { name: 'role', value: props.role },
+      ],
+    })
+  },
+
+  /**
+   * Envoyer email d'ajout à une équipe (utilisateur EXISTANT)
+   * ✅ MULTI-ÉQUIPE (Jan 2026): Email différent de l'invitation
+   * - L'utilisateur a déjà un compte SEIDO
+   * - Pas besoin de créer de compte, juste se connecter
+   * - Message adapté : "Vous avez été ajouté à l'équipe X"
+   */
+  async sendTeamAdditionEmail(
+    to: string,
+    props: TeamAdditionEmailProps
+  ): Promise<EmailSendResult> {
+    const { default: TeamAdditionEmail } = await import('@/emails/templates/auth/team-addition')
+    const { html, text } = await renderEmail(TeamAdditionEmail(props))
+
+    return sendEmailWithRetry({
+      to,
+      subject: `Vous avez été ajouté à l'équipe ${props.teamName} sur SEIDO`,
+      html,
+      text,
+      tags: [
+        { name: 'category', value: 'auth' },
+        { name: 'type', value: 'team-addition' },
+        { name: 'role', value: props.role },
+        { name: 'team', value: sanitizeTagValue(props.teamName) },
       ],
     })
   },

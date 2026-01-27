@@ -108,12 +108,18 @@ export async function middleware(request: NextRequest) {
       const { data: { user } } = await supabase.auth.getUser()
 
       if (user) {
-        // Récupérer le rôle pour déterminer le dashboard cible
-        const { data: profile } = await supabase
+        // ✅ FIX (Jan 2026): Support multi-profil - ne pas utiliser .single()
+        // Un utilisateur peut avoir plusieurs profils (un par équipe)
+        // .single() génère PGRST116 si > 1 ligne
+        const { data: profiles } = await supabase
           .from('users')
           .select('role')
           .eq('auth_user_id', user.id)
-          .single()
+          .is('deleted_at', null)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+
+        const profile = profiles?.[0] || null
 
         if (profile?.role) {
           console.log('🔄 [MIDDLEWARE] Redirecting logged-in user from', pathname, 'to', `/${profile.role}/dashboard`)

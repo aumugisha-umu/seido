@@ -82,6 +82,11 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
 
   /**
    * Find user by auth_user_id
+   * Returns the most recently updated profile (for multi-team users)
+   *
+   * ⚠️ MULTI-PROFIL: Un même auth_user_id peut avoir plusieurs profils
+   * (1 profil par équipe). Cette méthode retourne le plus récent.
+   * Pour tous les profils, utiliser findAllByAuthUserId()
    */
   async findByAuthUserId(authUserId: string) {
     validateRequired({ authUserId }, ['authUserId'])
@@ -90,17 +95,77 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
       .from(this.tableName)
       .select('*')
       .eq('auth_user_id', authUserId)
-      .single()
+      .is('deleted_at', null)
+      .order('updated_at', { ascending: false })  // Plus récent d'abord
+      .limit(1)
+      .maybeSingle()  // ✅ Au lieu de .single() - évite erreur si plusieurs profils
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        // Not found
-        return { success: true as const, data: null }
-      }
       return { success: false as const, error: handleError(error) }
     }
 
     return { success: true as const, data }
+  }
+
+  /**
+   * Find ALL profiles for an auth_user_id (multi-team support)
+   *
+   * ✅ MULTI-ÉQUIPE (Jan 2026): Un utilisateur peut appartenir à plusieurs équipes
+   * avec différents rôles. Cette méthode retourne tous ses profils.
+   *
+   * ✅ FIX (Jan 2026): Requêtes séparées pour éviter les problèmes RLS sur la jointure teams
+   * La jointure directe `select('*, team:teams(id, name)')` échouait car la RLS sur `teams`
+   * utilise `get_user_teams_v2()` qui ne fonctionne pas bien pour les multi-profils.
+   *
+   * @param authUserId - L'ID d'authentification Supabase
+   * @returns Tous les profils actifs avec info équipe, triés par date de mise à jour
+   */
+  async findAllByAuthUserId(authUserId: string) {
+    validateRequired({ authUserId }, ['authUserId'])
+
+    // ✅ ÉTAPE 1: Récupérer les profils SANS jointure (évite RLS issues sur teams)
+    const { data: profiles, error: profilesError } = await this.supabase
+      .from(this.tableName)
+      .select('*')
+      .eq('auth_user_id', authUserId)
+      .is('deleted_at', null)
+      .order('updated_at', { ascending: false })
+
+    if (profilesError) {
+      return { success: false as const, error: handleError(profilesError) }
+    }
+
+    if (!profiles || profiles.length === 0) {
+      return { success: true as const, data: [] }
+    }
+
+    // ✅ ÉTAPE 2: Récupérer les teams séparément (utilise Service Role implicite ou RLS permissive)
+    const teamIds = [...new Set(profiles.map(p => p.team_id).filter(Boolean))]
+
+    let teamsMap: Record<string, { id: string; name: string }> = {}
+
+    if (teamIds.length > 0) {
+      const { data: teams, error: teamsError } = await this.supabase
+        .from('teams')
+        .select('id, name')
+        .in('id', teamIds)
+
+      if (!teamsError && teams) {
+        teamsMap = teams.reduce((acc, t) => {
+          acc[t.id] = { id: t.id, name: t.name }
+          return acc
+        }, {} as Record<string, { id: string; name: string }>)
+      }
+      // Note: Si teams échoue, on continue quand même avec les profils sans info team
+    }
+
+    // ✅ ÉTAPE 3: Combiner profils + teams
+    const profilesWithTeam = profiles.map(profile => ({
+      ...profile,
+      team: profile.team_id ? teamsMap[profile.team_id] || null : null
+    }))
+
+    return { success: true as const, data: profilesWithTeam }
   }
 
   /**
@@ -209,17 +274,13 @@ export class UserRepository extends BaseRepository<User, UserInsert, UserUpdate>
       queryBuilder = queryBuilder.neq('id', excludeId)
     }
 
-    const { error } = await queryBuilder.single()
+    const { data, error } = await queryBuilder.limit(1).maybeSingle()
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        // Not found = email doesn't exist
-        return { success: true as const, exists: false }
-      }
       return { success: false as const, error: handleError(error) }
     }
 
-    return { success: true as const, exists: true }
+    return { success: true as const, exists: data !== null }
   }
 
   /**

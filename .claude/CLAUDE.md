@@ -235,12 +235,11 @@ await createInterventionNotification(interventionId)
 
 ## Troubleshooting Protocol
 
-**En cas d'erreur non-triviale apres 2-3 tentatives :**
+**En cas d'erreur non-triviale :**
 
-1. Consulter `docs/troubleshooting-checklist.md`
-2. Trouver la section pertinente (DB, Auth, RLS, Build...)
-3. Suivre la checklist de diagnostic
-4. Appliquer la solution documentee
+1. **INVOQUER** `sp-systematic-debugging` **IMMEDIATEMENT**
+2. Suivre le protocole du skill (4 phases)
+3. Consulter `docs/troubleshooting-checklist.md` si recommande
 
 **Quick Reference :**
 - File editing fails -> Section 1
@@ -281,6 +280,51 @@ L'agent orchestre ensuite les agents specialises selon la matrice de delegation
 | 6 | SIMPLIFY RUTHLESSLY | Retirer tout le superflu |
 
 > Details complets : `.claude/agents/ultrathink-orchestrator.md`
+
+---
+
+## Skills Auto-Invocation
+
+**Philosophie**: "If a skill exists and 1% chance applies, invoke it."
+**Priorite**: Process Skills > Implementation Skills
+
+### Matrice de Declenchement
+
+| Skill | Red Flags | Priorite |
+|-------|-----------|----------|
+| `sp-brainstorming` | "Je vais creer...", "Nouvelle feature...", "Modifier comportement..." | **CRITIQUE** |
+| `sp-systematic-debugging` | "Bug...", "Erreur...", "Test echoue...", "Ca ne marche pas..." | **CRITIQUE** |
+| `sp-test-driven-development` | "Je vais implementer...", "Je vais coder..." | **HAUTE** |
+| `sp-verification-before-completion` | "C'est fait...", "Pret a commiter...", "Fix applique..." | **CRITIQUE** |
+| `sp-writing-plans` | "Tache complexe...", "> 3 fichiers a modifier..." | **HAUTE** |
+| `sp-requesting-code-review` | Implementation terminee, avant merge/PR | **HAUTE** |
+
+### Declencheurs Specifiques SEIDO
+
+| Contexte | Skills a Invoquer |
+|----------|-------------------|
+| Modification workflow intervention | `sp-brainstorming` + `sp-test-driven-development` |
+| Nouvelle migration DB | `sp-verification-before-completion` |
+| Bug RLS/permissions | `sp-systematic-debugging` |
+| Nouveau composant UI | `sp-brainstorming` |
+| Feature multi-domaines | `sp-writing-plans` + `sp-dispatching-parallel-agents` |
+
+### Patterns d'Orchestration
+
+**Chain: Creative Work**
+```
+sp-brainstorming → sp-writing-plans → sp-test-driven-development → [impl] → sp-verification-before-completion → sp-requesting-code-review
+```
+
+**Chain: Bug Fix**
+```
+sp-systematic-debugging → sp-test-driven-development (failing test) → [fix] → sp-verification-before-completion
+```
+
+**Chain: Multi-Domain**
+```
+sp-brainstorming → sp-writing-plans → sp-dispatching-parallel-agents → [agents use sp-tdd] → sp-verification-before-completion
+```
 
 ---
 

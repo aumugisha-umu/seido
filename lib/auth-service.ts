@@ -1,7 +1,7 @@
 import { createBrowserSupabaseClient } from './services/core/supabase-client'
 import type { AuthError, SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from './services/core/service-types'
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 import { activityLogger } from './activity-logger'
 // ✅ TEMPORAIRE: Type pour user_role en attendant la synchronisation
 type UserRole = 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
@@ -129,7 +129,6 @@ class AuthService {
 
       // NOUVELLE ARCHITECTURE: L'utilisateur est déjà créé dans users avec auth_user_id
       // Plus besoin de créer un contact séparé - architecture unifiée
-      logger.info('✅ [AUTH-SERVICE] Architecture unifiée: utilisateur créé avec auth_user_id:', authData.user.id)
 
       // LOGS D'ACTIVITÉ: Enregistrer la création de l'équipe et du compte utilisateur
       try {
@@ -164,9 +163,8 @@ class AuthService {
           }
         )
 
-        logger.info('✅ [AUTH-SERVICE] Activity logs created for user and team creation')
       } catch (logError) {
-        logger.error('⚠️ [AUTH-SERVICE] Failed to create activity logs:', logError)
+        logger.warn('⚠️ [AUTH-SERVICE] Failed to create activity logs:', logError)
         // Non bloquant, on continue même si les logs échouent
       }
 
@@ -235,9 +233,8 @@ class AuthService {
           is_active: true,
           notes: 'Contact créé automatiquement lors de la finalisation du profil'
         })
-        logger.info('✅ Contact gestionnaire créé lors de la finalisation du profil')
       } catch (contactError) {
-        logger.error('⚠️ Erreur lors de la création du contact gestionnaire:', contactError)
+        logger.warn('⚠️ Erreur lors de la création du contact gestionnaire:', contactError)
         // Ne pas faire échouer la finalisation pour cette erreur
       }
 
@@ -288,18 +285,20 @@ class AuthService {
       // Vérifier si profil existe, sinon créer (NOUVELLE ARCHITECTURE)
       let userProfile
       try {
-        // NOUVELLE ARCHITECTURE: Chercher par auth_user_id au lieu de id
-        const { data: usersData, error: findError } = await this.getSupabaseClient()
+        // ✅ MULTI-ÉQUIPE: Récupérer tous les profils, prendre le plus récent
+        const { data: profiles, error: findError } = await this.getSupabaseClient()
           .from('users')
           .select('*')
           .eq('auth_user_id', data.user.id)
-          .single()
-          
-        if (findError && findError.code !== 'PGRST116') {
+          .is('deleted_at', null)
+          .order('updated_at', { ascending: false })
+          .limit(1)
+
+        if (findError) {
           throw findError
         }
-          
-        userProfile = usersData
+
+        userProfile = profiles?.[0] || null
       } catch {
         // Créer profil depuis metadata (NOUVELLE ARCHITECTURE)
         const metadata = data.user.user_metadata
@@ -364,50 +363,30 @@ class AuthService {
   // ✅ REFACTORISÉ: getCurrentUser simplifié
   async getCurrentUser(): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
-      logger.info('🔍 [AUTH-SERVICE-REFACTORED] Getting current user...')
-
       // ✅ Récupération simple de l'utilisateur auth
       const { data: { user: authUser }, error } = await this.getSupabaseClient().auth.getUser()
 
       if (error) {
-        logger.info('❌ [AUTH-SERVICE-REFACTORED] Auth error:', error.message)
         throw new Error(`Auth error: ${error.message}`)
       }
 
       if (!authUser || !authUser.email_confirmed_at) {
-        logger.info('ℹ️ [AUTH-SERVICE-REFACTORED] No confirmed auth user')
         return { user: null, error: null }
       }
 
-      // ✅ Récupération du profil utilisateur
-      logger.info('🔍 [AUTH-SERVICE-REFACTORED] Looking up user profile for:', authUser.id)
-      logger.info('🔍 [AUTH-SERVICE-REFACTORED] Auth user metadata:', {
-        role: authUser.user_metadata?.role,
-        team_id: authUser.user_metadata?.team_id,
-        password_set: authUser.user_metadata?.password_set,
-        email_confirmed: !!authUser.email_confirmed_at
-      })
-
-      const { data: userProfile, error: profileError } = await this.getSupabaseClient()
+      // ✅ MULTI-ÉQUIPE: Récupérer tous les profils, prendre le plus récent
+      const { data: profiles, error: profileError } = await this.getSupabaseClient()
         .from('users')
         .select('*')
         .eq('auth_user_id', authUser.id)
-        .single()
+        .is('deleted_at', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
 
-      logger.info('🔍 [AUTH-SERVICE-REFACTORED] Profile query result:', {
-        found: !!userProfile,
-        error: profileError?.message,
-        errorCode: profileError?.code,
-        errorDetails: profileError?.details
-      })
+      const userProfile = profiles?.[0] || null
 
-      if (profileError && profileError.code !== 'PGRST116') {
-        logger.error('❌ [AUTH-SERVICE-REFACTORED] Profile query failed:', {
-          message: profileError.message,
-          code: profileError.code,
-          details: profileError.details,
-          hint: profileError.hint
-        })
+      if (profileError) {
+        logger.error('❌ [AUTH-SERVICE] Profile query failed:', profileError.message)
         throw new Error(`Profile query error: ${profileError.message}`)
       }
 
@@ -420,101 +399,46 @@ class AuthService {
           last_name: userProfile.last_name || undefined,
           display_name: authUser.user_metadata?.display_name || userProfile.name,
           role: userProfile.role,
-          team_id: userProfile.team_id, // ✅ Ajout du team_id manquant
+          team_id: userProfile.team_id,
           phone: userProfile.phone || undefined,
           avatar_url: userProfile.avatar_url || undefined,
-          password_set: userProfile.password_set, // ✅ CRITIQUE: Nécessaire pour redirection vers /auth/set-password
+          password_set: userProfile.password_set,
           created_at: userProfile.created_at || undefined,
           updated_at: userProfile.updated_at || undefined,
         }
 
-        logger.info('✅ [AUTH-SERVICE-REFACTORED] User profile found:', {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          password_set: user.password_set // ✅ Ajouter au log pour debug
-        })
-
         return { user, error: null }
       }
 
-      // ✅ Profile manquant en DB
-      // Ceci peut arriver si:
-      // 1. Nouvel utilisateur OAuth (doit compléter son profil sur /auth/complete-profile)
-      // 2. Le trigger PostgreSQL a échoué
-      // 3. L'utilisateur a été créé manuellement sans profil
-      logger.warn('⚠️ [AUTH-SERVICE] No profile in DB for user', {
-        authUserId: authUser.id,
-        email: authUser.email,
-        emailConfirmed: authUser.email_confirmed_at ? 'YES' : 'NO',
-        provider: authUser.app_metadata?.provider || 'email',
-        timestamp: new Date().toISOString()
-      })
-
-      // ⚠️ NE PAS tenter de créer le profil côté client (browser)
-      // La création se fait via:
-      // - /auth/complete-profile pour les utilisateurs OAuth
-      // - /auth/confirm pour les utilisateurs email/password
-      // Retourner null pour que le composant gère la redirection
+      // ✅ Profile manquant en DB - retourner null pour redirection vers onboarding
       return { user: null, error: null }
 
     } catch (error) {
-      logger.error('❌ [AUTH-SERVICE-REFACTORED] getCurrentUser failed:', error)
+      logger.error('❌ [AUTH-SERVICE] getCurrentUser failed:', error)
       return { user: null, error: null }
     }
   }
 
   // Réinitialiser le mot de passe (via API serveur comme les invitations)
-  async resetPassword(_email: string): Promise<{ error: AuthError | null }> {
-    logger.info('🔄 [RESET-PASSWORD-SERVICE] Starting server-side password reset for:', email)
-    logger.info('🔧 [RESET-PASSWORD-SERVICE] Client environment:', {
-      currentUrl: typeof window !== 'undefined' ? window.location.href : 'server-side',
-      userAgent: typeof window !== 'undefined' ? navigator.userAgent : 'server-side',
-      timestamp: new Date().toISOString()
-    })
-    
+  async resetPassword(email: string): Promise<{ error: AuthError | null }> {
     try {
-      logger.info('🔧 [RESET-PASSWORD-SERVICE] Making API request to /api/reset-password...')
-      
-      // 🎯 NOUVELLE APPROCHE: Utiliser l'API serveur (même système que les invitations)
       const response = await fetch('/api/reset-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email })
       })
-      
-      logger.info('🔧 [RESET-PASSWORD-SERVICE] API response status:', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        headers: Object.fromEntries(response.headers.entries())
-      })
-      
+
       const result = await response.json()
-      logger.info('📊 [RESET-PASSWORD-SERVICE] Server API response:', {
-        success: result.success,
-        hasError: !!result.error,
-        hasData: !!result.data,
-        hasDebugInfo: !!result.debugInfo,
-        fullResult: result
-      })
-      
+
       if (!response.ok || !result.success) {
-        logger.error('❌ [RESET-PASSWORD-SERVICE] Server API failed:', {
-          status: response.status,
-          error: result.error,
-          details: result.details,
-          debugInfo: result.debugInfo
-        })
-        
-        // Inclure les informations de debug dans le message d'erreur si disponibles
+        logger.error('❌ [AUTH-SERVICE] Password reset failed:', result.error)
+
         let errorMessage = result.error || `Server API returned ${response.status}`
         if (result.debugInfo && process.env.NODE_ENV === 'development') {
           errorMessage += ` (Debug: ${JSON.stringify(result.debugInfo)})`
         }
-        
-        return { 
+
+        return {
           error: {
             message: errorMessage,
             name: 'ServerError',
@@ -522,23 +446,12 @@ class AuthService {
           } as AuthError
         }
       }
-      
-      logger.info('✅ [RESET-PASSWORD-SERVICE] Server API succeeded:', {
-        email: result.data?.email,
-        resetEmailSent: result.data?.resetEmailSent,
-        debugInfo: result.debugInfo
-      })
-      
-      logger.info('🎉 [RESET-PASSWORD-SERVICE] Password reset email sent successfully via server API!')
+
       return { error: null }
-      
+
     } catch (unexpectedError) {
-      logger.error('❌ [RESET-PASSWORD-SERVICE] Unexpected error during reset process:', {
-        error: unexpectedError,
-        message: unexpectedError instanceof Error ? unexpectedError.message : 'Unknown error',
-        stack: unexpectedError instanceof Error ? unexpectedError.stack : undefined
-      })
-      return { 
+      logger.error('❌ [AUTH-SERVICE] Password reset network error:', unexpectedError)
+      return {
         error: {
           message: 'Erreur de réseau lors de l\'envoi de l\'email: ' + (unexpectedError instanceof Error ? unexpectedError.message : 'Unknown error'),
           name: 'NetworkError',
@@ -549,10 +462,10 @@ class AuthService {
   }
 
   // Renvoyer l'email de confirmation
-  async resendConfirmation(_email: string): Promise<{ error: AuthError | null }> {
+  async resendConfirmation(email: string): Promise<{ error: AuthError | null }> {
     const { error } = await this.getSupabaseClient().auth.resend({
       type: 'signup',
-      email: email,
+      email,
     })
     return { error }
   }
@@ -566,25 +479,21 @@ class AuthService {
         return { user: null, error: authError }
       }
 
-      // ✅ CORRIGER: Récupérer l'ID utilisateur dans la table users via auth_user_id
-      const { data: dbUser, error: findError } = await this.getSupabaseClient()
+      // ✅ MULTI-ÉQUIPE: Récupérer l'ID utilisateur, prendre le plus récent si plusieurs profils
+      const { data: dbUsers, error: findError } = await this.getSupabaseClient()
         .from('users')
         .select('id')
         .eq('auth_user_id', authUser.id)
-        .single()
+        .is('deleted_at', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+
+      const dbUser = dbUsers?.[0] || null
 
       if (findError || !dbUser) {
-        logger.error('❌ [UPDATE-PROFILE] User not found in database:', findError)
+        logger.error('❌ [AUTH-SERVICE] User not found in database for profile update')
         return { user: null, error: findError as AuthError || { message: 'Utilisateur non trouvé', name: 'UserNotFound', status: 404 } as AuthError }
       }
-
-      logger.info('✅ [UPDATE-PROFILE] Found user in database:', dbUser.id)
-      logger.info('🔄 [UPDATE-PROFILE] Updating with data:', {
-        name: updates.name,
-        first_name: updates.first_name,
-        last_name: updates.last_name,
-        phone: updates.phone
-      })
 
       // Mettre à jour le profil dans notre table avec le bon ID
       const userSvc = await getUserService()
@@ -596,8 +505,6 @@ class AuthService {
         phone: updates.phone,
         role: updates.role,
       })
-
-      logger.info('✅ [UPDATE-PROFILE] Profile updated successfully:', updatedProfile.id)
 
       // Mettre à jour le display_name dans Supabase Auth si le nom change
       if (updates.display_name || updates.name) {
@@ -631,13 +538,10 @@ class AuthService {
 
       return { user, error: null }
     } catch (error) {
-      logger.error('❌ [UPDATE-PROFILE] Unexpected error:', error)
-      logger.error('❌ [UPDATE-PROFILE] Error details:', JSON.stringify(error, null, 2))
-      
-      // Créer un message d'erreur plus explicite
+      logger.error('❌ [AUTH-SERVICE] Profile update failed:', error)
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue lors de la mise à jour du profil'
-      
-      return { user: null, error: { 
+
+      return { user: null, error: {
         message: errorMessage,
         name: 'UpdateProfileError',
         status: 500
@@ -648,46 +552,35 @@ class AuthService {
   // ✅ REFACTORISÉ: onAuthStateChange simplifié
   onAuthStateChange(callback: (user: AuthUser | null) => void) {
     return this.getSupabaseClient().auth.onAuthStateChange(async (event, session) => {
-      logger.info('🔍 [AUTH-STATE-CHANGE-REFACTORED] Event:', event, 'Has session:', !!session?.user)
-
       if (!session?.user || !session.user.email_confirmed_at) {
-        logger.info('ℹ️ [AUTH-STATE-CHANGE-REFACTORED] No valid session')
         callback(null)
         return
       }
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
         try {
-          logger.info('🔍 [AUTH-STATE-CHANGE-REFACTORED] Processing auth state change...')
-
           // ✅ Recherche du profil utilisateur avec timeout et fallback
           let userProfile = null
-          let profileError = null
 
           try {
-            logger.info('🔍 [AUTH-STATE-CHANGE-TIMEOUT] Searching user profile with 6s timeout...')
-
-            // Promise.race pour timeout + fallback par email
+            // ✅ MULTI-ÉQUIPE: Promise.race pour timeout, récupérer tous les profils
             const profileResult = await Promise.race([
-              // Requête principale par auth_user_id
               this.getSupabaseClient()
                 .from('users')
                 .select('*')
                 .eq('auth_user_id', session.user.id)
-                .single(),
-              // Timeout de 6 secondes (plus réaliste pour Supabase distant)
-              new Promise((_, reject) =>
+                .is('deleted_at', null)
+                .order('updated_at', { ascending: false })
+                .limit(1),
+              new Promise<{ data: null; error: Error }>((_, reject) =>
                 setTimeout(() => reject(new Error('Profile query timeout')), 6000)
               )
             ])
 
-            userProfile = profileResult.data
-            profileError = profileResult.error
+            userProfile = profileResult.data?.[0] || null
 
           } catch {
-            logger.warn('⏰ [AUTH-STATE-CHANGE-TIMEOUT] Profile query timed out, trying email fallback...')
-
-            // Fallback : chercher par email si timeout
+            // ✅ MULTI-ÉQUIPE: Fallback par email si timeout
             if (session.user.email) {
               try {
                 const emailResult = await Promise.race([
@@ -695,28 +588,25 @@ class AuthService {
                     .from('users')
                     .select('*')
                     .eq('email', session.user.email)
-                    .single(),
-                  new Promise((_, reject) =>
+                    .is('deleted_at', null)
+                    .order('updated_at', { ascending: false })
+                    .limit(1),
+                  new Promise<{ data: null; error: Error }>((_, reject) =>
                     setTimeout(() => reject(new Error('Email fallback timeout')), 6000)
                   )
                 ])
 
-                userProfile = emailResult.data
-                // Note: profileError would be emailResult.error if needed
+                userProfile = emailResult.data?.[0] || null
 
                 if (userProfile && !userProfile.auth_user_id) {
                   // Lier le profil trouvé par email à l'auth_user_id
-                  logger.info('🔗 [AUTH-STATE-CHANGE-LINK] Linking profile found by email to auth_user_id...')
                   await this.getSupabaseClient()
                     .from('users')
                     .update({ auth_user_id: session.user.id })
                     .eq('id', userProfile.id)
-
-                  logger.info('✅ [AUTH-STATE-CHANGE-LINK] Profile linked successfully')
                 }
-              } catch (emailError) {
-                logger.warn('⚠️ [AUTH-STATE-CHANGE-TIMEOUT] Email fallback also failed:', emailError)
-                // emailError logged above, no need to store
+              } catch {
+                // Fallback also failed - continue to next strategy
               }
             }
           }
@@ -730,65 +620,55 @@ class AuthService {
               last_name: userProfile.last_name || undefined,
               display_name: session.user.user_metadata?.display_name || userProfile.name,
               role: userProfile.role,
-              team_id: userProfile.team_id, // ✅ Ajout du team_id manquant
+              team_id: userProfile.team_id,
               phone: userProfile.phone || undefined,
               created_at: userProfile.created_at || undefined,
               updated_at: userProfile.updated_at || undefined,
             }
 
-            logger.info('✅ [AUTH-STATE-CHANGE-REFACTORED] User profile found:', {
-              id: user.id,
-              email: user.email,
-              role: user.role
-            })
-
             callback(user)
             return
           }
 
-          // ✅ Fallback : tentative de requête directe (4s max)
-          logger.info('⚠️ [AUTH-STATE-CHANGE-FALLBACK] No profile found via timeout, trying quick direct query...')
-
+          // ✅ Fallback : tentative de requête directe
           try {
-            // Requête directe avec timeout de 6s (cohérence production)
             const directResult = await Promise.race([
               this.getSupabaseClient()
                 .from('users')
                 .select('*')
                 .eq('auth_user_id', session.user.id)
-                .single(),
-              new Promise((_, reject) =>
+                .is('deleted_at', null)
+                .order('updated_at', { ascending: false })
+                .limit(1),
+              new Promise<{ data: null; error: Error }>((_, reject) =>
                 setTimeout(() => reject(new Error('Direct query timeout')), 6000)
               )
             ])
 
-            if (directResult.data) {
-              logger.info('✅ [AUTH-STATE-CHANGE-FALLBACK] Profile found via direct query!')
-
+            const directProfile = directResult.data?.[0] || null
+            if (directProfile) {
               const user: AuthUser = {
-                id: directResult.data.id, // ✅ Utiliser le vrai ID du profil
-                email: directResult.data.email,
-                name: directResult.data.name,
-                first_name: directResult.data.first_name || undefined,
-                last_name: directResult.data.last_name || undefined,
-                display_name: session.user.user_metadata?.display_name || directResult.data.name,
-                role: directResult.data.role,
-                team_id: directResult.data.team_id, // ✅ Ajout du team_id manquant
-                phone: directResult.data.phone || undefined,
-                created_at: directResult.data.created_at || undefined,
-                updated_at: directResult.data.updated_at || undefined,
+                id: directProfile.id,
+                email: directProfile.email,
+                name: directProfile.name,
+                first_name: directProfile.first_name || undefined,
+                last_name: directProfile.last_name || undefined,
+                display_name: session.user.user_metadata?.display_name || directProfile.name,
+                role: directProfile.role,
+                team_id: directProfile.team_id,
+                phone: directProfile.phone || undefined,
+                created_at: directProfile.created_at || undefined,
+                updated_at: directProfile.updated_at || undefined,
               }
 
               callback(user)
               return
             }
-          } catch (directError) {
-            logger.warn('⚠️ [AUTH-STATE-CHANGE-FALLBACK] Direct query failed or timed out, proceeding with JWT-only:', directError.message)
+          } catch {
+            // Direct query failed - proceed to self-healing
           }
 
-          // ✅ SELF-HEALING: Profile manquant, création automatique au lieu de fallback JWT
-          logger.warn('⚠️ [AUTH-STATE-CHANGE-SELF-HEAL] Profile not found, attempting auto-creation...')
-
+          // ✅ SELF-HEALING: Profile manquant, création automatique
           try {
             const userSvc = await getUserService()
             const createdProfileResult = await userSvc.create({
@@ -809,12 +689,6 @@ class AuthService {
 
             const createdProfile = createdProfileResult.data
 
-            logger.info('✅ [AUTH-STATE-CHANGE-SELF-HEAL] Successfully auto-created missing profile:', {
-              id: createdProfile.id,
-              email: createdProfile.email,
-              role: createdProfile.role
-            })
-
             const healedUser: AuthUser = {
               id: createdProfile.id,
               email: createdProfile.email,
@@ -833,17 +707,15 @@ class AuthService {
 
             callback(healedUser)
           } catch (healError) {
-            logger.error('❌ [AUTH-STATE-CHANGE-SELF-HEAL] Auto-creation failed:', healError)
-            // Échec critique - retourner null
+            logger.error('❌ [AUTH-SERVICE] Profile auto-creation failed:', healError)
             callback(null)
           }
 
         } catch (error) {
-          logger.error('❌ [AUTH-STATE-CHANGE-REFACTORED] Error processing profile:', error)
+          logger.error('❌ [AUTH-SERVICE] Error processing auth state change:', error)
           callback(null)
         }
       } else {
-        logger.info('ℹ️ [AUTH-STATE-CHANGE-REFACTORED] Event not processed:', event)
         callback(null)
       }
     })
@@ -859,8 +731,6 @@ class AuthService {
     teamId: string
   }): Promise<{ success: boolean; error?: string; userId?: string }> {
     try {
-      logger.info('📧 Inviting user via API:', userData.email)
-      
       const response = await fetch('/api/invite-user', {
         method: 'POST',
         headers: {
@@ -872,21 +742,20 @@ class AuthService {
       const result = await response.json()
 
       if (!response.ok) {
-        logger.error('❌ Invitation API error:', result.error)
+        logger.error('❌ [AUTH-SERVICE] Invitation failed:', result.error)
         return { success: false, error: result.error }
       }
 
-      logger.info('✅ User invited successfully:', result.userId)
-      return { 
-        success: true, 
-        userId: result.userId 
+      return {
+        success: true,
+        userId: result.userId
       }
 
     } catch (error) {
-      logger.error('❌ Error calling invitation API:', error)
-      return { 
-        success: false, 
-        error: 'Erreur lors de l\'envoi de l\'invitation' 
+      logger.error('❌ [AUTH-SERVICE] Invitation API error:', error)
+      return {
+        success: false,
+        error: 'Erreur lors de l\'envoi de l\'invitation'
       }
     }
   }

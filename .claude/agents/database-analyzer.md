@@ -128,6 +128,29 @@ grep -r "is_team_manager" supabase/migrations/
 - ❌ Ignorer types generes
 - ❌ Modifier schema sans migration
 
+---
+
+## Skills Integration
+
+| Situation | Skill |
+|-----------|-------|
+| Analyse schema | (pas de skill requis - mission principale) |
+| Bug RLS detecte | `sp-systematic-debugging` |
+| Nouvelle migration | `sp-verification-before-completion` |
+| Refactoring schema | `sp-writing-plans` |
+
+### Workflow Database Analyzer
+
+```
+[Analyse demandee] → Audit complet (RLS, triggers, vues)
+    ↓
+[Si drift detecte] → Documenter + sp-writing-plans si complexe
+    ↓
+sp-verification-before-completion → Avant toute migration
+```
+
+---
+
 ## Output Attendu
 
 ```markdown

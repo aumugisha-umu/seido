@@ -10,7 +10,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MapPin, Clock, Loader2, CheckCircle, Eye, MoreVertical } from "lucide-react"
+import { MapPin, Clock, Loader2, CheckCircle, Eye, MoreVertical, Flame, Calendar } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   getStatusColor,
@@ -260,30 +260,50 @@ export function PendingActionsCard({
         </div>
       )}
 
-      {/* Header: Icon + Title + Eye button (UNIFORM for all roles) */}
-      <div className="flex items-center gap-3 mb-3">
+      {/* Header: Icon + (Title + Badges) + Eye button (UNIFORM for all roles) */}
+      <div className="flex items-start gap-3 mb-3">
         <InterventionTypeIcon
           type={intervention.type}
           interventionType={intervention.intervention_type}
           size="lg"
+          className="mt-0.5"
         />
 
-        <h3
-          className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate flex-1 min-w-0 cursor-pointer"
-          onClick={() => router.push(getInterventionUrl())}
-        >
-          {intervention.title}
-        </h3>
+        {/* Title + Badges container */}
+        <div className="flex-1 min-w-0">
+          <h3
+            className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate cursor-pointer"
+            onClick={() => router.push(getInterventionUrl())}
+          >
+            {intervention.title}
+          </h3>
+          {/* Badges row - directly under title */}
+          <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+            <Badge className={cn(getPriorityColor(urgency), "text-xs border flex items-center gap-1")}>
+              <Flame className="h-3 w-3" aria-hidden="true" />
+              {getPriorityLabel(urgency)}
+            </Badge>
+            <Badge className={cn(getStatusColor(intervention.status), "text-xs border flex items-center gap-1")}>
+              <Calendar className="h-3 w-3" aria-hidden="true" />
+              {getStatusLabel(intervention.status)}
+            </Badge>
+            <QuoteStatusBadge
+              quotes={intervention.quotes}
+              requiresQuote={intervention.requires_quote}
+            />
+          </div>
+        </div>
 
         {/* Eye button - FIXED POSITION in header for all roles */}
+        {/* Material Design: 44x44px touch target, 3:1 contrast ratio, visible background */}
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
           onClick={() => router.push(getInterventionUrl())}
-          className="flex-shrink-0 h-8 w-8 text-muted-foreground hover:text-foreground"
+          className="flex-shrink-0 h-9 w-9 border-border/60 bg-muted/50 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-accent"
           title="Voir les détails"
         >
-          <Eye className="h-4 w-4" aria-hidden="true" />
+          <Eye className="h-5 w-5" aria-hidden="true" />
           <span className="sr-only">Voir les détails</span>
         </Button>
 
@@ -319,41 +339,26 @@ export function PendingActionsCard({
         )}
       </div>
 
-      {/* Status Banner with badges */}
+      {/* Status Banner - Action message only */}
       <div className={cn(
-        "border rounded-lg px-3 py-2.5 mb-3 w-full",
+        "border rounded-lg px-3 py-2 mb-3 w-full",
         isAlert
           ? 'bg-orange-50/80 border-orange-200 dark:bg-orange-500/15 dark:border-orange-500/40'
           : 'bg-blue-50/80 border-blue-200 dark:bg-blue-500/15 dark:border-blue-500/40',
       )}>
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="flex items-center gap-2">
-            <div className={cn(
-              "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
-              isAlert ? 'bg-orange-100 dark:bg-orange-500/25' : 'bg-blue-100 dark:bg-blue-500/25'
-            )}>
-              <Clock className={cn("h-3 w-3", isAlert ? 'text-orange-600' : 'text-blue-600')} />
-            </div>
-            <p className={cn(
-              "text-sm font-medium",
-              isAlert ? 'text-orange-900 dark:text-orange-200' : 'text-blue-900 dark:text-blue-200'
-            )}>
-              {actionMessage}
-            </p>
+        <div className="flex items-center gap-2">
+          <div className={cn(
+            "w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0",
+            isAlert ? 'bg-orange-100 dark:bg-orange-500/25' : 'bg-blue-100 dark:bg-blue-500/25'
+          )}>
+            <Clock className={cn("h-3 w-3", isAlert ? 'text-orange-600' : 'text-blue-600')} />
           </div>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <Badge className={cn(getPriorityColor(urgency), "text-xs border")}>
-              {getPriorityLabel(urgency)}
-            </Badge>
-            <Badge className={cn(getStatusColor(intervention.status), "text-xs border")}>
-              {getStatusLabel(intervention.status)}
-            </Badge>
-            {/* Quote status badge - shows when requires_quote is true and quotes exist */}
-            <QuoteStatusBadge
-              quotes={intervention.quotes}
-              requiresQuote={intervention.requires_quote}
-            />
-          </div>
+          <p className={cn(
+            "text-sm font-medium",
+            isAlert ? 'text-orange-900 dark:text-orange-200' : 'text-blue-900 dark:text-blue-200'
+          )}>
+            {actionMessage}
+          </p>
         </div>
       </div>
 
@@ -374,38 +379,75 @@ export function PendingActionsCard({
       </div>
 
       {/* ACTION BUTTONS - Generated by getRoleBasedActions */}
-      {/* Eye button moved to header - footer contains only action buttons */}
-      {/* Hide footer entirely if no actions available (e.g., completed interventions) */}
-      {actions.length > 0 && (
-        <div className="flex flex-col gap-2 mt-auto pt-4 border-t border-border">
-          {actions.map((action, idx) => (
-            <Button
-              key={idx}
-              variant={toButtonVariant(action.variant)}
-              size="default"
-              onClick={() => handleActionClick(action)}
-              disabled={isLoading}
-              className={cn(
-                "w-full justify-center min-h-[44px]",
-                action.variant === 'primary' && "bg-green-600 hover:bg-green-700 text-white",
-              )}
-              aria-label={`${action.label} l'intervention ${intervention.reference || intervention.id}`}
-            >
-              {isLoading && loadingAction === action.actionType ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  En cours...
-                </>
-              ) : (
-                <>
-                  <action.icon className="h-4 w-4 mr-2" aria-hidden="true" />
-                  {action.label}
-                </>
-              )}
-            </Button>
-          ))}
-        </div>
-      )}
+      {/* Primary actions (approve/reject) on same row, secondary actions below */}
+      {actions.length > 0 && (() => {
+        // Separate primary/destructive actions from secondary ones
+        const primaryActions = actions.filter(a => a.variant === 'primary' || a.variant === 'destructive')
+        const secondaryActions = actions.filter(a => a.variant !== 'primary' && a.variant !== 'destructive')
+
+        return (
+          <div className="flex flex-col gap-2 mt-auto pt-4 border-t border-border">
+            {/* Primary actions row (Approuver/Rejeter) */}
+            {primaryActions.length > 0 && (
+              <div className={cn(
+                "flex gap-2",
+                primaryActions.length === 1 ? "flex-col" : "flex-row"
+              )}>
+                {primaryActions.map((action, idx) => (
+                  <Button
+                    key={idx}
+                    variant={toButtonVariant(action.variant)}
+                    size="default"
+                    onClick={() => handleActionClick(action)}
+                    disabled={isLoading}
+                    className={cn(
+                      "flex-1 justify-center min-h-[44px]",
+                      action.variant === 'primary' && "bg-green-600 hover:bg-green-700 text-white",
+                    )}
+                    aria-label={`${action.label} l'intervention ${intervention.reference || intervention.id}`}
+                  >
+                    {isLoading && loadingAction === action.actionType ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        En cours...
+                      </>
+                    ) : (
+                      <>
+                        <action.icon className="h-4 w-4 mr-2" aria-hidden="true" />
+                        {action.label}
+                      </>
+                    )}
+                  </Button>
+                ))}
+              </div>
+            )}
+            {/* Secondary actions (Demander détails, etc.) */}
+            {secondaryActions.map((action, idx) => (
+              <Button
+                key={idx}
+                variant={toButtonVariant(action.variant)}
+                size="default"
+                onClick={() => handleActionClick(action)}
+                disabled={isLoading}
+                className="w-full justify-center min-h-[44px]"
+                aria-label={`${action.label} l'intervention ${intervention.reference || intervention.id}`}
+              >
+                {isLoading && loadingAction === action.actionType ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    En cours...
+                  </>
+                ) : (
+                  <>
+                    <action.icon className="h-4 w-4 mr-2" aria-hidden="true" />
+                    {action.label}
+                  </>
+                )}
+              </Button>
+            ))}
+          </div>
+        )
+      })()}
     </div>
   )
 }

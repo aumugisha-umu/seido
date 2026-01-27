@@ -12,9 +12,9 @@ export { ContractStatsCards } from './contract-stats-cards'
 export { KPICarousel } from './kpi-carousel'
 export { ProgressMini } from './progress-mini'
 
-// Intervention Components
-export { DashboardInterventionsSection } from './dashboard-interventions-section'
-
 // Pending Actions Components (Multi-Role)
 export { PendingActionsCard } from './pending-actions-card'
 export { PendingActionsSection } from './pending-actions-section'
+
+// Note: DashboardInterventionsSection a été remplacé par InterventionsNavigator
+// Importer depuis: @/components/interventions/interventions-navigator

@@ -1,7 +1,9 @@
 ﻿"use client"
 
+import { useEffect, useState } from 'react'
 import { useViewMode } from '@/hooks/use-view-mode'
 import { useAuth } from '@/hooks/use-auth'
+import { usePagination } from '@/hooks/use-pagination'
 import type { InterventionWithRelations } from '@/lib/services'
 import type { InterventionDateField } from '@/lib/intervention-calendar-utils'
 
@@ -19,6 +21,9 @@ import { InterventionsList } from './interventions-list'
 
 // Empty State
 import { InterventionsEmptyState } from './interventions-empty-state'
+
+// Pagination
+import { InterventionPagination } from './intervention-pagination'
 
 /**
  * 🎨 INTERVENTIONS VIEW CONTAINER
@@ -111,6 +116,31 @@ export function InterventionsViewContainer({
   const setViewMode = externalSetViewMode || internalViewMode.setViewMode
   const mounted = internalViewMode.mounted
 
+  // Page size state (persists in memory, resets on navigation)
+  const [pageSize, setPageSize] = useState(10)
+
+  // Pagination for list view (dynamic page size)
+  const {
+    paginatedItems,
+    currentPage,
+    totalPages,
+    totalItems,
+    startIndex,
+    endIndex,
+    goToPage,
+    hasNextPage,
+    hasPreviousPage,
+    resetToFirstPage
+  } = usePagination({
+    items: interventions,
+    pageSize: pageSize
+  })
+
+  // Reset pagination when interventions change (e.g., tab switch, search)
+  useEffect(() => {
+    resetToFirstPage()
+  }, [interventions, resetToFirstPage])
+
   // Prevent hydration mismatch
   if (!mounted) {
     return (
@@ -135,17 +165,45 @@ export function InterventionsViewContainer({
     )
   }
 
+  // Handle page size change - reset to first page when size changes
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize)
+    resetToFirstPage()
+  }
+
   /**
-   * 📊 Render list view (table dense)
+   * 📊 Render list view (table dense with pagination)
+   * Layout: scrollable table + fixed pagination at bottom
    */
   const renderListView = () => {
     return (
-      <InterventionsListViewV1
-        interventions={interventions}
-        userContext={userContext}
-        loading={loading}
-        userId={user?.id}
-      />
+      <div className="flex flex-col h-full">
+        {/* Table - scrollable area */}
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          <InterventionsListViewV1
+            interventions={paginatedItems}
+            userContext={userContext}
+            loading={loading}
+            userId={user?.id}
+          />
+        </div>
+        {/* Pagination - fixed at bottom */}
+        <div className="flex-shrink-0 mt-2">
+          <InterventionPagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalItems}
+            startIndex={startIndex}
+            endIndex={endIndex}
+            onPageChange={goToPage}
+            hasNextPage={hasNextPage}
+            hasPreviousPage={hasPreviousPage}
+            pageSize={pageSize}
+            onPageSizeChange={handlePageSizeChange}
+            pageSizeOptions={[10, 25, 50, 100]}
+          />
+        </div>
+      </div>
     )
   }
 
@@ -164,7 +222,7 @@ export function InterventionsViewContainer({
   }
 
   /**
-   * 🃏 Render cards view (existing InterventionsList)
+   * 🃏 Render cards view (existing InterventionsList with PendingActionsCard)
    */
   const renderCardsView = () => {
     return (
@@ -174,6 +232,7 @@ export function InterventionsViewContainer({
         emptyStateConfig={emptyStateConfig}
         showStatusActions={showStatusActions}
         userContext={userContext}
+        userId={user?.id}
       />
     )
   }

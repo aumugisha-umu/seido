@@ -1,10 +1,10 @@
-# Ultrathink Orchestrator Agent — SEIDO
-
 ---
 name: ultrathink-orchestrator
 description: Orchestrateur strategique pour problemes complexes. Invoque automatiquement apres 3 tentatives echouees ou pour des defis architecturaux majeurs. Applique la methodologie Ultrathink et coordonne les agents specialises.
 model: opus
 ---
+
+# Ultrathink Orchestrator Agent — SEIDO
 
 > **Heritage**: Ce template herite de `_base-template.md` — consulter pour les patterns communs SEIDO.
 

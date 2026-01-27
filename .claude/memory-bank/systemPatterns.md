@@ -309,6 +309,105 @@ Les devis sont geres separement du workflow intervention principal :
 
 **Avantage :** Separation des concerns - le statut devis n'impacte pas le workflow intervention.
 
+### 13. Client-Side Pagination Pattern (NOUVEAU 2026-01-26)
+
+Pattern pour paginer des listes deja chargees en memoire :
+
+```typescript
+// hooks/use-pagination.ts
+import { usePagination } from '@/hooks/use-pagination'
+
+const {
+  paginatedItems,    // Items de la page courante
+  currentPage,       // Page actuelle (1-indexed)
+  totalPages,        // Nombre total de pages
+  goToPage,          // Navigation vers page specifique
+  resetToFirstPage,  // Reset (memoize pour useEffect)
+  hasNextPage,       // Boolean navigation
+  hasPreviousPage,   // Boolean navigation
+  startIndex,        // Index debut (pour "1-10 sur 89")
+  endIndex           // Index fin
+} = usePagination({
+  items: filteredData,  // Donnees source (post-filtrage)
+  pageSize: 10          // Elements par page
+})
+
+// IMPORTANT: Reset sur changement de filtres
+useEffect(() => {
+  resetToFirstPage()
+}, [searchQuery, filters, sortBy, resetToFirstPage])
+```
+
+**Quand utiliser :**
+- Donnees deja chargees (Server Component → props)
+- Dataset < 1000 items
+- Navigation instantanee attendue
+- Filtrage/tri cote client
+
+**Fichiers de reference :**
+- `hooks/use-pagination.ts` - Hook reutilisable
+- `components/interventions/intervention-pagination.tsx` - UI francais
+
+### 14. Interventions Display Cascade Architecture (NOUVEAU 2026-01-27)
+
+Architecture unifiee pour afficher les interventions de maniere coherente dans toute l'application :
+
+```
++-------------------------------------------------------------+
+| PAGES DE DETAILS (Immeubles, Lots, Contrats, Contacts)      |
+|                                                             |
+| import { InterventionsNavigator }                            |
+| from '@/components/interventions/interventions-navigator'    |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| InterventionsNavigator (interventions-navigator.tsx)         |
+| - Gere tabs (Toutes, En cours, Terminees, etc.)             |
+| - Filtrage/tri/recherche                                     |
+| - ViewModeSwitcher (cards, list, calendar)                   |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| InterventionsViewContainer (interventions-view-container.tsx)|
+| - Orchestrateur de vues (cards, list, calendar)              |
+| - Gere pagination pour vue list                              |
+| - State management view mode                                  |
++-------------------------------------------------------------+
+                           |
+                           v (viewMode === 'cards')
++-------------------------------------------------------------+
+| InterventionsList (interventions-list.tsx)                   |
+| - Rendu grid/horizontal des cards                             |
+| - Empty state handling                                        |
+| - Loading skeletons                                           |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| PendingActionsCard (pending-actions-card.tsx)                |
+| - Card intervention UNIFIEE pour tous les roles              |
+| - Badges statut + urgence                                     |
+| - Boutons d'action contextuels                               |
+| - Message "En attente de X reponse(s)"                       |
++-------------------------------------------------------------+
+```
+
+**Avantage principal:** La modification d'un composant (ex: `InterventionsList` ou `PendingActionsCard`) cascade automatiquement vers TOUTES les pages de details.
+
+**Pages utilisant cette architecture:**
+| Page | Fichier |
+|------|---------|
+| Immeubles | `app/gestionnaire/(no-navbar)/biens/immeubles/[id]/building-details-client.tsx` |
+| Lots | `app/gestionnaire/(no-navbar)/biens/lots/[id]/lot-details-client.tsx` |
+| Contrats | `app/gestionnaire/(no-navbar)/contrats/[id]/contract-details-client.tsx` |
+| Contacts | `components/contact-details/contact-interventions-tab.tsx` |
+
+**Regle:** Toujours utiliser `InterventionsNavigator` pour afficher des interventions - NE JAMAIS creer de composant custom par page.
+
+> Verifie 2026-01-27: Toutes les pages de details utilisent correctement cette architecture.
+
 ## Anti-Patterns (NE JAMAIS FAIRE)
 
 | Anti-Pattern | Alternative |
@@ -320,6 +419,7 @@ Les devis sont geres separement du workflow intervention principal :
 | `npm run build` automatique | Demander a l'utilisateur |
 | Singleton notification legacy | Server Actions |
 | Utiliser statut demande_de_devis | requires_quote + intervention_quotes |
+| Creer composant card intervention custom | Utiliser InterventionsNavigator |
 
 ## Conventions de Nommage
 
@@ -356,5 +456,5 @@ tests/               # Infrastructure E2E
 - `email-link.repository.ts` - Tracking liens emails
 
 ---
-*Derniere mise a jour: 2026-01-26*
+*Derniere mise a jour: 2026-01-27*
 *References: lib/services/README.md, lib/server-context.ts*

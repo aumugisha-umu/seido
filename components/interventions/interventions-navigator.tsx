@@ -1,14 +1,64 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
-import { ListTodo, AlertTriangle, Settings, Archive, Clock, LucideIcon } from "lucide-react"
+import { useState, useMemo, useEffect, useCallback } from "react"
+import { ListTodo, AlertTriangle, Settings, Archive, Clock, LucideIcon, Filter, ArrowUpDown, X } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import ContentNavigator from "@/components/content-navigator"
 import { InterventionsViewContainer } from "@/components/interventions/interventions-view-container"
 import { ViewModeSwitcherV1 } from "@/components/interventions/view-mode-switcher-v1"
 import { useViewMode } from "@/hooks/use-view-mode"
 import { filterPendingActions } from "@/lib/intervention-alert-utils"
 import type { InterventionWithRelations } from "@/lib/services"
+
+// ============================================================================
+// CONSTANTS - Sort & Filter Options
+// ============================================================================
+
+type SortField = 'date' | 'urgency' | 'status' | 'title'
+type SortOrder = 'asc' | 'desc'
+
+const STATUS_OPTIONS = [
+  { value: 'demande', label: 'Demande' },
+  { value: 'approuvee', label: 'Approuvée' },
+  { value: 'planification', label: 'Planification' },
+  { value: 'planifiee', label: 'Planifiée' },
+  { value: 'cloturee_par_prestataire', label: 'Clôturée (presta)' },
+  { value: 'cloturee_par_locataire', label: 'Clôturée (locataire)' },
+  { value: 'cloturee_par_gestionnaire', label: 'Clôturée' },
+]
+
+const URGENCY_OPTIONS = [
+  { value: 'normale', label: 'Normale' },
+  { value: 'haute', label: 'Haute' },
+  { value: 'urgente', label: 'Urgente' },
+]
+
+const SORT_OPTIONS = [
+  { value: 'date-desc', label: 'Plus récent' },
+  { value: 'date-asc', label: 'Plus ancien' },
+  { value: 'urgency-desc', label: 'Urgence (haute → basse)' },
+  { value: 'urgency-asc', label: 'Urgence (basse → haute)' },
+  { value: 'status-asc', label: 'Statut (A-Z)' },
+  { value: 'title-asc', label: 'Titre (A-Z)' },
+]
 
 // ============================================================================
 // INTERVENTIONS NAVIGATOR - Composant BEM Unifié
@@ -63,6 +113,18 @@ interface InterventionsNavigatorProps {
     executionHook?: any
     finalizationHook?: any
   }
+
+  // NEW: Advanced filters and sort (for dashboard parity)
+  /** Show sort dropdown (Plus récent, Plus ancien, Urgence, etc.) */
+  showSortOptions?: boolean
+  /** Show status filter dropdown (multi-select) */
+  showStatusFilter?: boolean
+  /** Show urgency filter dropdown (multi-select) */
+  showUrgencyFilter?: boolean
+  /** Combined filter button (status + urgency in one dropdown) */
+  showCombinedFilter?: boolean
+  /** Show active filters as removable badges */
+  showActiveFiltersBadges?: boolean
 }
 
 /**
@@ -104,16 +166,55 @@ export function InterventionsNavigator({
   emptyStateConfig,
   onActiveTabChange,
   initialActiveTab,
-  actionHooks
+  actionHooks,
+  // NEW: Sort & Filter props
+  showSortOptions = false,
+  showStatusFilter = false,
+  showUrgencyFilter = false,
+  showCombinedFilter = false,
+  showActiveFiltersBadges = false
 }: InterventionsNavigatorProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState<string | undefined>(initialActiveTab)
+
+  // NEW: Sort & Filter state
+  const [sortBy, setSortBy] = useState<string>('date-desc')
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
+  const [selectedUrgencies, setSelectedUrgencies] = useState<string[]>([])
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+
+  // Active filters count (for badge on filter button)
+  const activeFiltersCount = selectedStatuses.length + selectedUrgencies.length
 
   // View mode state (cards, list, calendar)
   const { viewMode, setViewMode, mounted } = useViewMode({
     defaultMode: 'cards',
     syncWithUrl: false
   })
+
+  // Filter handlers
+  const handleStatusToggle = useCallback((status: string) => {
+    setSelectedStatuses(prev =>
+      prev.includes(status)
+        ? prev.filter(s => s !== status)
+        : [...prev, status]
+    )
+  }, [])
+
+  const handleUrgencyToggle = useCallback((urgency: string) => {
+    setSelectedUrgencies(prev =>
+      prev.includes(urgency)
+        ? prev.filter(u => u !== urgency)
+        : [...prev, urgency]
+    )
+  }, [])
+
+  const clearAllFilters = useCallback(() => {
+    setSearchTerm('')
+    setSelectedStatuses([])
+    setSelectedUrgencies([])
+    setSortBy('date-desc')
+  }, [])
 
   // Sync with initialActiveTab changes
   useEffect(() => {
@@ -150,19 +251,68 @@ export function InterventionsNavigator({
     }))
   }, [interventions])
 
-  // Filter by search term
+  // Filter by search term, status, and urgency, then sort
   const filteredInterventions = useMemo(() => {
-    if (!searchTerm.trim()) return transformedInterventions
+    let result = [...transformedInterventions]
 
-    const term = searchTerm.toLowerCase()
-    return transformedInterventions.filter(i =>
-      i.title?.toLowerCase().includes(term) ||
-      i.description?.toLowerCase().includes(term) ||
-      i.reference?.toLowerCase().includes(term) ||
-      i.lot?.reference?.toLowerCase().includes(term) ||
-      i.lot?.building?.name?.toLowerCase().includes(term)
-    )
-  }, [transformedInterventions, searchTerm])
+    // 1. Apply search filter
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase()
+      result = result.filter(i =>
+        i.title?.toLowerCase().includes(term) ||
+        i.description?.toLowerCase().includes(term) ||
+        i.reference?.toLowerCase().includes(term) ||
+        i.lot?.reference?.toLowerCase().includes(term) ||
+        i.lot?.building?.name?.toLowerCase().includes(term)
+      )
+    }
+
+    // 2. Apply status filter (if enabled and has selections)
+    if ((showStatusFilter || showCombinedFilter) && selectedStatuses.length > 0) {
+      result = result.filter(i => selectedStatuses.includes(i.status))
+    }
+
+    // 3. Apply urgency filter (if enabled and has selections)
+    if ((showUrgencyFilter || showCombinedFilter) && selectedUrgencies.length > 0) {
+      result = result.filter(i => {
+        const urgency = i.urgency || (i as any).priority || 'normale'
+        return selectedUrgencies.includes(urgency)
+      })
+    }
+
+    // 4. Apply sorting (if enabled)
+    if (showSortOptions) {
+      const [field, order] = sortBy.split('-') as [SortField, SortOrder]
+      const urgencyOrder = { 'urgente': 3, 'haute': 2, 'normale': 1 }
+
+      result.sort((a, b) => {
+        let comparison = 0
+
+        switch (field) {
+          case 'date':
+            const dateA = new Date(a.created_at || 0).getTime()
+            const dateB = new Date(b.created_at || 0).getTime()
+            comparison = dateA - dateB
+            break
+          case 'urgency':
+            const urgencyA = urgencyOrder[a.urgency as keyof typeof urgencyOrder] || urgencyOrder[(a as any).priority as keyof typeof urgencyOrder] || 1
+            const urgencyB = urgencyOrder[b.urgency as keyof typeof urgencyOrder] || urgencyOrder[(b as any).priority as keyof typeof urgencyOrder] || 1
+            comparison = urgencyA - urgencyB
+            break
+          case 'status':
+            comparison = (a.status || '').localeCompare(b.status || '')
+            break
+          case 'title':
+            comparison = (a.title || '').localeCompare(b.title || '')
+            break
+        }
+
+        return order === 'desc' ? -comparison : comparison
+      })
+    }
+
+    return result
+  }, [transformedInterventions, searchTerm, selectedStatuses, selectedUrgencies, sortBy, showSortOptions, showStatusFilter, showUrgencyFilter, showCombinedFilter])
 
   // Filter functions
   const filterFunctions = {
@@ -357,6 +507,141 @@ export function InterventionsNavigator({
   ) : null
 
   // ========================================
+  // Filter & Sort Controls
+  // ========================================
+
+  // Combined filter dropdown (status + urgency)
+  const filterDropdown = (showCombinedFilter || showStatusFilter || showUrgencyFilter) ? (
+    <DropdownMenu open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 rounded-lg border-border relative"
+        >
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          {activeFiltersCount > 0 && (
+            <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
+              {activeFiltersCount}
+            </span>
+          )}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        {(showStatusFilter || showCombinedFilter) && (
+          <>
+            <DropdownMenuLabel>Filtrer par statut</DropdownMenuLabel>
+            {STATUS_OPTIONS.map(option => (
+              <DropdownMenuCheckboxItem
+                key={option.value}
+                checked={selectedStatuses.includes(option.value)}
+                onCheckedChange={() => handleStatusToggle(option.value)}
+              >
+                {option.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </>
+        )}
+        {(showUrgencyFilter || showCombinedFilter) && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Filtrer par urgence</DropdownMenuLabel>
+            {URGENCY_OPTIONS.map(option => (
+              <DropdownMenuCheckboxItem
+                key={option.value}
+                checked={selectedUrgencies.includes(option.value)}
+                onCheckedChange={() => handleUrgencyToggle(option.value)}
+              >
+                {option.label}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </>
+        )}
+        {activeFiltersCount > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={clearAllFilters} className="text-destructive">
+              <X className="h-4 w-4 mr-2" />
+              Effacer les filtres
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null
+
+  // Sort dropdown
+  const sortDropdown = showSortOptions ? (
+    <Select value={sortBy} onValueChange={setSortBy}>
+      <SelectTrigger className="h-9 w-[130px] rounded-lg border-border bg-card text-sm">
+        <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+        <SelectValue placeholder="Trier" />
+      </SelectTrigger>
+      <SelectContent>
+        {SORT_OPTIONS.map(option => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  ) : null
+
+  // Combined right controls (filter + sort + view switcher)
+  const rightControls = (filterDropdown || sortDropdown || viewSwitcher) ? (
+    <div className="flex items-center gap-2">
+      {filterDropdown}
+      {sortDropdown}
+      {viewSwitcher}
+    </div>
+  ) : null
+
+  // Active filters badges (optional display)
+  const activeFiltersBadges = showActiveFiltersBadges && (activeFiltersCount > 0 || searchTerm) ? (
+    <div className="flex flex-wrap items-center gap-2 px-2 pb-2">
+      <span className="text-xs text-muted-foreground">Filtres:</span>
+      {searchTerm && (
+        <Badge variant="secondary" className="gap-1 text-xs">
+          "{searchTerm}"
+          <button onClick={() => setSearchTerm('')} className="ml-0.5">
+            <X className="h-3 w-3" />
+          </button>
+        </Badge>
+      )}
+      {selectedStatuses.map(status => {
+        const label = STATUS_OPTIONS.find(o => o.value === status)?.label || status
+        return (
+          <Badge key={status} variant="secondary" className="gap-1 text-xs">
+            {label}
+            <button onClick={() => handleStatusToggle(status)} className="ml-0.5">
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        )
+      })}
+      {selectedUrgencies.map(urgency => {
+        const label = URGENCY_OPTIONS.find(o => o.value === urgency)?.label || urgency
+        return (
+          <Badge key={urgency} variant="secondary" className="gap-1 text-xs">
+            {label}
+            <button onClick={() => handleUrgencyToggle(urgency)} className="ml-0.5">
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        )
+      })}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={clearAllFilters}
+        className="text-muted-foreground h-5 px-1.5 text-xs"
+      >
+        Tout effacer
+      </Button>
+    </div>
+  ) : null
+
+  // ========================================
   // BEM Classes
   // ========================================
   const blockClass = cn(
@@ -391,7 +676,7 @@ export function InterventionsNavigator({
   // Render
   // ========================================
 
-  // Without header (page mode)
+  // Without header (page mode) - no extra wrapper, ContentNavigator handles everything
   if (!showHeader) {
     return (
       <ContentNavigator
@@ -400,8 +685,8 @@ export function InterventionsNavigator({
         activeTab={activeTab}
         searchPlaceholder="Rechercher par titre, description, ou lot..."
         onSearch={setSearchTerm}
-        rightControls={viewSwitcher}
-        className={className}
+        rightControls={rightControls}
+        className={cn("flex-1 min-h-0", className)}
       />
     )
   }
@@ -435,6 +720,9 @@ export function InterventionsNavigator({
           )}
         </div>
 
+        {/* Active filters badges */}
+        {activeFiltersBadges}
+
         {/* Content */}
         <div className={contentClass}>
           <ContentNavigator
@@ -443,7 +731,7 @@ export function InterventionsNavigator({
             activeTab={activeTab}
             searchPlaceholder="Rechercher par titre, description, ou référence..."
             onSearch={setSearchTerm}
-            rightControls={viewSwitcher}
+            rightControls={rightControls}
             className="shadow-none border-0 bg-transparent flex-1 flex flex-col min-h-0"
           />
         </div>

@@ -1,7 +1,7 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Migration workflow devis - Suppression statut `demande_de_devis`
+**Objectif:** Unification composants cards intervention - Verification architecture
 **Branch:** `preview`
 **Sprint:** UX Improvements (Jan 2026)
 
@@ -148,7 +148,53 @@ components/intervention/
 
 ---
 
-## Travail Complete Aujourd'hui (2026-01-26)
+## Travail Complete Aujourd'hui (2026-01-27)
+
+### Verification Architecture Cards Intervention (NOUVEAU)
+
+**Contexte:** Suite a l'unification des composants cards (remplacement `ManagerInterventionCard` par `PendingActionsCard`), verification que TOUTES les pages de details utilisent la bonne architecture.
+
+**Resultat:** ✅ AUCUNE MODIFICATION NECESSAIRE - Architecture cascade deja en place.
+
+**Architecture verifiee:**
+```
+Pages Details (Patrimoine, Contrats, Contacts)
+└── InterventionsNavigator
+    └── InterventionsViewContainer
+        └── InterventionsList
+            └── PendingActionsCard ✅
+```
+
+**Pages verifiees:**
+| Page | Fichier | Import confirme |
+|------|---------|-----------------|
+| Immeubles | `building-details-client.tsx` | ligne 13, 543 |
+| Lots | `lot-details-client.tsx` | ligne 13, 686 |
+| Contrats | `contract-details-client.tsx` | ligne 57, 603 |
+| Contacts | `contact-interventions-tab.tsx` | ligne 5, 87 |
+
+**Pourquoi ca fonctionne:** Le pattern "Single Source of Truth" fait que la modification de `InterventionsList` cascade automatiquement vers toutes les pages.
+
+---
+
+## Travail Complete (2026-01-26)
+
+### Pagination Vue Liste Interventions
+
+**Feature:** Ajout d'un systeme de pagination pour la vue liste des interventions.
+
+| Composant | Description |
+|-----------|-------------|
+| `hooks/use-pagination.ts` | Hook reutilisable avec items paginates, navigation, reset |
+| `components/interventions/intervention-pagination.tsx` | UI pagination avec labels francais, ellipses, responsive |
+| `dashboard-interventions-section.tsx` | Integration avec reset automatique sur changement de filtres |
+
+**Comportement:**
+- 10 elements par page
+- Reset automatique a page 1 lors du changement de filtres/tri
+- Composant masque si ≤1 page
+- Labels francais ("1-10 sur 89 interventions", "Precedent/Suivant")
+- Mobile-friendly (numeros masques, affiche "3 / 9")
 
 ### Migration demande_de_devis -> requires_quote + intervention_quotes
 
@@ -258,10 +304,12 @@ const authResult = await requireApiRole('gestionnaire')
 | Tables intervention | 6 |
 
 ---
-*Derniere mise a jour: 2026-01-26*
-*Focus: Migration workflow devis - Suppression demande_de_devis*
+*Derniere mise a jour: 2026-01-27*
+*Focus: Verification architecture unifiee cards intervention*
 
 ## Files Recently Modified
-### 2026-01-26 16:54:33 (Auto-updated)
+### 2026-01-27 07:40:05 (Auto-updated)
 - `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
 - `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/systemPatterns.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/auto-memory/last-sync`

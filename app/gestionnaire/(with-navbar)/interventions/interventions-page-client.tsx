@@ -177,36 +177,27 @@ export function InterventionsPageClient({
             </div>
           </div>
 
-          {/* Interventions Card - Structure exacte du dashboard */}
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="bg-card rounded-lg border border-border shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
-              {/* Content wrapper avec padding */}
-              <div className="flex-1 flex flex-col min-h-0 p-4">
-                <InterventionsNavigator
-                  interventions={interventions}
-                  loading={loading}
-                  emptyStateConfig={{
-                    title: "Aucune intervention",
-                    description: "Créez votre première intervention pour commencer",
-                    showCreateButton: true,
-                    createButtonText: "Créer une intervention",
-                    createButtonAction: () => navigate("/gestionnaire/interventions/nouvelle-intervention")
-                  }}
-                  showStatusActions={true}
-                  searchPlaceholder="Rechercher par titre, description, ou lot..."
-                  showFilters={true}
-                  actionHooks={{
-                    approvalHook,
-                    quotingHook,
-                    planningHook,
-                    executionHook,
-                    finalizationHook
-                  }}
-                  className="bg-transparent border-0 shadow-none flex-1 flex flex-col min-h-0"
-                />
-              </div>
-            </div>
-          </div>
+          {/* Interventions Navigator - Full height, ContentNavigator handles card styling */}
+          <InterventionsNavigator
+            interventions={interventions}
+            loading={loading}
+            emptyStateConfig={{
+              title: "Aucune intervention",
+              description: "Créez votre première intervention pour commencer",
+              showCreateButton: true,
+              createButtonText: "Créer une intervention",
+              createButtonAction: () => navigate("/gestionnaire/interventions/nouvelle-intervention")
+            }}
+            showStatusActions={true}
+            actionHooks={{
+              approvalHook,
+              quotingHook,
+              planningHook,
+              executionHook,
+              finalizationHook
+            }}
+            className="flex-1 min-h-0"
+          />
         </div>
 
         {/* ⚡ Modals - Conditional Rendering (Phase 3.1 Optimization)

@@ -21,8 +21,8 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
-import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
 import { PendingActionsSection } from "@/components/dashboards/shared/pending-actions-section"
+import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { KPICarousel, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
 import { useToast } from "@/hooks/use-toast"
 import { GestionnaireFAB } from "@/components/ui/fab"
@@ -286,14 +286,20 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                     />
                 </div>
 
-                {/* Content Section - V2 cards with direct CTAs */}
+                {/* Content Section - Unified InterventionsNavigator */}
                 <div className="dashboard__content">
-                    <DashboardInterventionsSection
+                    <InterventionsNavigator
                         interventions={filteredInterventions}
                         userContext="gestionnaire"
-                        title={period.value !== 'all' ? `Interventions (${period.label})` : "Interventions"}
-                        onCreateIntervention={() => router.push('/gestionnaire/interventions/nouvelle-intervention')}
-                        onActionComplete={handleActionComplete}
+                        tabsPreset="dashboard"
+                        showHeader={true}
+                        headerConfig={{
+                            title: period.value !== 'all' ? `Interventions (${period.label})` : "Interventions",
+                            icon: Wrench
+                        }}
+                        showSortOptions={true}
+                        showCombinedFilter={true}
+                        compact={true}
                     />
                 </div>
             </div>

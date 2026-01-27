@@ -19,8 +19,8 @@ import { useNotificationPopover } from "@/hooks/use-notification-popover"
 import { useTeamStatus } from "@/hooks/use-team-status"
 import UserMenu from "@/components/user-menu"
 import NotificationPopover from "@/components/notification-popover"
-import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
 import { PendingActionsSection } from "@/components/dashboards/shared/pending-actions-section"
+import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 
 interface LocataireDashboardHybridProps {
   tenantData: TenantData | null
@@ -263,11 +263,15 @@ export default function LocataireDashboardHybrid({
           userRole="locataire"
         />
 
-        {/* --- INTERVENTIONS SECTION (Reusable Component) --- */}
-        <DashboardInterventionsSection
+        {/* --- INTERVENTIONS SECTION (Unified InterventionsNavigator) --- */}
+        <InterventionsNavigator
           interventions={sortedInterventions}
           userContext="locataire"
-          title="Vos Interventions"
+          tabsPreset="dashboard"
+          showHeader={true}
+          headerConfig={{ title: "Vos Interventions" }}
+          showSortOptions={true}
+          compact={true}
         />
       </div>
     </div>

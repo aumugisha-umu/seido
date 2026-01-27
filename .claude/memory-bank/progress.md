@@ -37,12 +37,35 @@
 - [x] **Intervention types dynamiques** (2026-01-25)
 - [x] **Migration workflow devis** (2026-01-26) - Suppression demande_de_devis
 - [x] **Fix affichage reponses en attente** (2026-01-26)
+- [x] **Pagination vue liste interventions** (2026-01-26)
+- [x] **Verification architecture cards unifiee** (2026-01-27)
 
 ## Sprint Actuel (Jan 2026)
 
-### 2026-01-26 - Migration Devis + Bugfix Affichage Reponses
+### 2026-01-27 - Verification Architecture Cards Intervention
 **Ce qui a ete fait:**
-- **Migration workflow devis** - Suppression du statut `demande_de_devis`
+- **Verification architecture cascade** pour les pages de details
+  - Confirmation que TOUTES les pages utilisent `InterventionsNavigator`
+  - Chaîne: `InterventionsNavigator` → `InterventionsViewContainer` → `InterventionsList` → `PendingActionsCard`
+  - Pages verifiees: Immeubles, Lots, Contrats, Contacts
+- **Aucune modification code** - architecture deja correcte
+- **Documentation pattern** "Component Cascade Architecture" ajoute a `systemPatterns.md`
+
+**Resultat:**
+- ✅ L'unification des cards (`PendingActionsCard` au lieu de `ManagerInterventionCard`) cascade automatiquement vers TOUTES les pages de details
+
+**Pattern documente:**
+- Nouveau pattern #14 dans `systemPatterns.md`: "Interventions Display Cascade Architecture"
+
+### 2026-01-26 - Migration Devis + Pagination + Bugfixes
+**Ce qui a ete fait:**
+- **Pagination vue liste interventions** (Session 2)
+  - Nouveau hook reutilisable `hooks/use-pagination.ts`
+  - Nouveau composant `intervention-pagination.tsx` avec labels francais
+  - Integration dans `dashboard-interventions-section.tsx`
+  - Reset automatique page 1 sur changement filtres
+  - 10 elements par page, responsive (mobile: "3 / 9")
+- **Migration workflow devis** (Session 1)
   - Le statut des devis est maintenant derive de `intervention_quotes` (independant du workflow)
   - `requires_quote: boolean` sur interventions determine si devis requis
   - Nouveau composant `QuoteStatusBadge` pour affichage visuel
@@ -52,19 +75,26 @@
   - Affiche "En attente de X reponse(s)" au lieu du message generique
   - Pluralisation correcte en francais
 
-**Fichiers modifies:**
+**Fichiers crees (Session 2):**
+- `hooks/use-pagination.ts` (~140 lignes)
+- `components/interventions/intervention-pagination.tsx` (~175 lignes)
+
+**Fichiers modifies (Session 2):**
+- `components/dashboards/shared/dashboard-interventions-section.tsx` (imports + hook + render)
+
+**Fichiers crees (Session 1):**
+- `components/interventions/quote-status-badge.tsx`
+- `lib/utils/quote-status.ts`
+- `lib/intervention-action-utils.ts`
+- `supabase/migrations/20260126120000_remove_demande_de_devis_status.sql`
+
+**Fichiers modifies (Session 1):**
 - `components/dashboards/shared/pending-actions-card.tsx` (import + logique lignes 117-124)
 - `app/api/create-manager-intervention/route.ts`
 - `app/api/intervention/[id]/status/route.ts`
 - `hooks/use-intervention-workflow.ts`
 - `components/interventions/intervention-create-form.tsx`
 - `components/dashboards/manager/manager-dashboard-v2.tsx`
-
-**Nouveaux fichiers:**
-- `components/interventions/quote-status-badge.tsx`
-- `lib/utils/quote-status.ts`
-- `lib/intervention-action-utils.ts`
-- `supabase/migrations/20260126120000_remove_demande_de_devis_status.sql`
 
 ### 2026-01-25 - Intervention Types Dynamiques + Confirmation Participant
 **Ce qui a été fait:**
@@ -184,16 +214,16 @@
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-01-25)
+## Metriques Projet (2026-01-26)
 
 | Metrique | Valeur |
 |----------|--------|
 | Repositories | 21 |
 | Domain Services | 31 |
 | API Routes | 113 |
-| Hooks | 58 |
-| Components | 369 |
-| DB Tables | **40** |
+| Hooks | **59** (+1 use-pagination) |
+| Components | **370** (+1 intervention-pagination) |
+| DB Tables | 40 |
 | DB Enums | 39 |
 | DB Functions | 77 |
 | Migrations | 131+ |
@@ -224,6 +254,7 @@
 | 2026-01-23 | Optimisation .claude/ | Reduction duplication | -62% lignes, -6000 tokens/session |
 | **2026-01-25** | **PWA Push Notifications** | **Notifications temps reel mobile** | **4 canaux complets** |
 | **2026-01-26** | **Migration workflow devis** | **Suppression statut redondant** | **10 → 9 statuts, meilleure separation concerns** |
+| **2026-01-26** | **Pagination client-side** | **Donnees deja chargees + UX instantanee** | **Hook reutilisable + pattern documente** |
 
 ---
-*Derniere mise a jour: 2026-01-26*
+*Derniere mise a jour: 2026-01-27*

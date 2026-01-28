@@ -137,6 +137,72 @@ export type Database = {
           },
         ]
       }
+      addresses: {
+        Row: {
+          city: string
+          country: Database["public"]["Enums"]["country"]
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          formatted_address: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          place_id: string | null
+          postal_code: string
+          street: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          country?: Database["public"]["Enums"]["country"]
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          formatted_address?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          place_id?: string | null
+          postal_code: string
+          street: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          country?: Database["public"]["Enums"]["country"]
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          formatted_address?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          place_id?: string | null
+          postal_code?: string
+          street?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "addresses_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "addresses_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       building_contacts: {
         Row: {
           building_id: string
@@ -205,9 +271,7 @@ export type Database = {
       buildings: {
         Row: {
           active_interventions: number | null
-          address: string
-          city: string
-          country: Database["public"]["Enums"]["country"]
+          address_id: string | null
           created_at: string
           deleted_at: string | null
           deleted_by: string | null
@@ -216,7 +280,6 @@ export type Database = {
           metadata: Json | null
           name: string
           occupied_lots: number | null
-          postal_code: string
           team_id: string
           total_interventions: number | null
           total_lots: number | null
@@ -225,9 +288,7 @@ export type Database = {
         }
         Insert: {
           active_interventions?: number | null
-          address: string
-          city: string
-          country?: Database["public"]["Enums"]["country"]
+          address_id?: string | null
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
@@ -236,7 +297,6 @@ export type Database = {
           metadata?: Json | null
           name: string
           occupied_lots?: number | null
-          postal_code: string
           team_id: string
           total_interventions?: number | null
           total_lots?: number | null
@@ -245,9 +305,7 @@ export type Database = {
         }
         Update: {
           active_interventions?: number | null
-          address?: string
-          city?: string
-          country?: Database["public"]["Enums"]["country"]
+          address_id?: string | null
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
@@ -256,7 +314,6 @@ export type Database = {
           metadata?: Json | null
           name?: string
           occupied_lots?: number | null
-          postal_code?: string
           team_id?: string
           total_interventions?: number | null
           total_lots?: number | null
@@ -264,6 +321,13 @@ export type Database = {
           vacant_lots?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "buildings_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "buildings_deleted_by_fkey"
             columns: ["deleted_by"]
@@ -282,9 +346,7 @@ export type Database = {
       }
       companies: {
         Row: {
-          address: string | null
-          city: string | null
-          country: string | null
+          address_id: string | null
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -296,18 +358,13 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
-          postal_code: string | null
-          street: string | null
-          street_number: string | null
           team_id: string
           updated_at: string | null
           vat_number: string | null
           website: string | null
         }
         Insert: {
-          address?: string | null
-          city?: string | null
-          country?: string | null
+          address_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -319,18 +376,13 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
-          postal_code?: string | null
-          street?: string | null
-          street_number?: string | null
           team_id: string
           updated_at?: string | null
           vat_number?: string | null
           website?: string | null
         }
         Update: {
-          address?: string | null
-          city?: string | null
-          country?: string | null
+          address_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -342,15 +394,19 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
-          postal_code?: string | null
-          street?: string | null
-          street_number?: string | null
           team_id?: string
           updated_at?: string | null
           vat_number?: string | null
           website?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "companies_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_companies_deleted_by"
             columns: ["deleted_by"]
@@ -861,6 +917,7 @@ export type Database = {
           email_id: string | null
           id: string
           intervention_id: string | null
+          last_email_notification_at: string | null
           last_message_at: string | null
           message_count: number | null
           team_id: string
@@ -874,6 +931,7 @@ export type Database = {
           email_id?: string | null
           id?: string
           intervention_id?: string | null
+          last_email_notification_at?: string | null
           last_message_at?: string | null
           message_count?: number | null
           team_id: string
@@ -887,6 +945,7 @@ export type Database = {
           email_id?: string | null
           id?: string
           intervention_id?: string | null
+          last_email_notification_at?: string | null
           last_message_at?: string | null
           message_count?: number | null
           team_id?: string
@@ -2282,11 +2341,10 @@ export type Database = {
       lots: {
         Row: {
           active_interventions: number | null
+          address_id: string | null
           apartment_number: string | null
           building_id: string | null
           category: Database["public"]["Enums"]["lot_category"]
-          city: string | null
-          country: Database["public"]["Enums"]["country"] | null
           created_at: string
           deleted_at: string | null
           deleted_by: string | null
@@ -2294,20 +2352,17 @@ export type Database = {
           floor: number | null
           id: string
           metadata: Json | null
-          postal_code: string | null
           reference: string
-          street: string | null
           team_id: string
           total_interventions: number | null
           updated_at: string
         }
         Insert: {
           active_interventions?: number | null
+          address_id?: string | null
           apartment_number?: string | null
           building_id?: string | null
           category?: Database["public"]["Enums"]["lot_category"]
-          city?: string | null
-          country?: Database["public"]["Enums"]["country"] | null
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
@@ -2315,20 +2370,17 @@ export type Database = {
           floor?: number | null
           id?: string
           metadata?: Json | null
-          postal_code?: string | null
           reference: string
-          street?: string | null
           team_id: string
           total_interventions?: number | null
           updated_at?: string
         }
         Update: {
           active_interventions?: number | null
+          address_id?: string | null
           apartment_number?: string | null
           building_id?: string | null
           category?: Database["public"]["Enums"]["lot_category"]
-          city?: string | null
-          country?: Database["public"]["Enums"]["country"] | null
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
@@ -2336,14 +2388,19 @@ export type Database = {
           floor?: number | null
           id?: string
           metadata?: Json | null
-          postal_code?: string | null
           reference?: string
-          street?: string | null
           team_id?: string
           total_interventions?: number | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "lots_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lots_building_id_fkey"
             columns: ["building_id"]
@@ -3163,9 +3220,7 @@ export type Database = {
       buildings_active: {
         Row: {
           active_interventions: number | null
-          address: string | null
-          city: string | null
-          country: Database["public"]["Enums"]["country"] | null
+          address_id: string | null
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -3174,7 +3229,6 @@ export type Database = {
           metadata: Json | null
           name: string | null
           occupied_lots: number | null
-          postal_code: string | null
           team_id: string | null
           total_interventions: number | null
           total_lots: number | null
@@ -3183,9 +3237,7 @@ export type Database = {
         }
         Insert: {
           active_interventions?: number | null
-          address?: string | null
-          city?: string | null
-          country?: Database["public"]["Enums"]["country"] | null
+          address_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -3194,7 +3246,6 @@ export type Database = {
           metadata?: Json | null
           name?: string | null
           occupied_lots?: number | null
-          postal_code?: string | null
           team_id?: string | null
           total_interventions?: number | null
           total_lots?: number | null
@@ -3203,9 +3254,7 @@ export type Database = {
         }
         Update: {
           active_interventions?: number | null
-          address?: string | null
-          city?: string | null
-          country?: Database["public"]["Enums"]["country"] | null
+          address_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -3214,7 +3263,6 @@ export type Database = {
           metadata?: Json | null
           name?: string | null
           occupied_lots?: number | null
-          postal_code?: string | null
           team_id?: string | null
           total_interventions?: number | null
           total_lots?: number | null
@@ -3222,6 +3270,13 @@ export type Database = {
           vacant_lots?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "buildings_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "buildings_deleted_by_fkey"
             columns: ["deleted_by"]
@@ -3241,6 +3296,7 @@ export type Database = {
       contracts_active: {
         Row: {
           charges_amount: number | null
+          charges_type: Database["public"]["Enums"]["charges_type"] | null
           comments: string | null
           contract_type: Database["public"]["Enums"]["contract_type"] | null
           created_at: string | null
@@ -3271,6 +3327,7 @@ export type Database = {
         }
         Insert: {
           charges_amount?: number | null
+          charges_type?: Database["public"]["Enums"]["charges_type"] | null
           comments?: string | null
           contract_type?: Database["public"]["Enums"]["contract_type"] | null
           created_at?: string | null
@@ -3301,6 +3358,7 @@ export type Database = {
         }
         Update: {
           charges_amount?: number | null
+          charges_type?: Database["public"]["Enums"]["charges_type"] | null
           comments?: string | null
           contract_type?: Database["public"]["Enums"]["contract_type"] | null
           created_at?: string | null
@@ -3405,11 +3463,10 @@ export type Database = {
       lots_active: {
         Row: {
           active_interventions: number | null
+          address_id: string | null
           apartment_number: string | null
           building_id: string | null
           category: Database["public"]["Enums"]["lot_category"] | null
-          city: string | null
-          country: Database["public"]["Enums"]["country"] | null
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -3417,20 +3474,17 @@ export type Database = {
           floor: number | null
           id: string | null
           metadata: Json | null
-          postal_code: string | null
           reference: string | null
-          street: string | null
           team_id: string | null
           total_interventions: number | null
           updated_at: string | null
         }
         Insert: {
           active_interventions?: number | null
+          address_id?: string | null
           apartment_number?: string | null
           building_id?: string | null
           category?: Database["public"]["Enums"]["lot_category"] | null
-          city?: string | null
-          country?: Database["public"]["Enums"]["country"] | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -3438,20 +3492,17 @@ export type Database = {
           floor?: number | null
           id?: string | null
           metadata?: Json | null
-          postal_code?: string | null
           reference?: string | null
-          street?: string | null
           team_id?: string | null
           total_interventions?: number | null
           updated_at?: string | null
         }
         Update: {
           active_interventions?: number | null
+          address_id?: string | null
           apartment_number?: string | null
           building_id?: string | null
           category?: Database["public"]["Enums"]["lot_category"] | null
-          city?: string | null
-          country?: Database["public"]["Enums"]["country"] | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -3459,14 +3510,19 @@ export type Database = {
           floor?: number | null
           id?: string | null
           metadata?: Json | null
-          postal_code?: string | null
           reference?: string | null
-          street?: string | null
           team_id?: string | null
           total_interventions?: number | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "lots_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lots_building_id_fkey"
             columns: ["building_id"]
@@ -3504,11 +3560,10 @@ export type Database = {
           active_managers_count: number | null
           active_providers_count: number | null
           active_tenants_count: number | null
+          address_id: string | null
           apartment_number: string | null
           building_id: string | null
           category: Database["public"]["Enums"]["lot_category"] | null
-          city: string | null
-          country: Database["public"]["Enums"]["country"] | null
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -3516,17 +3571,22 @@ export type Database = {
           floor: number | null
           id: string | null
           metadata: Json | null
-          postal_code: string | null
           primary_tenant_email: string | null
           primary_tenant_name: string | null
           primary_tenant_phone: string | null
           reference: string | null
-          street: string | null
           team_id: string | null
           total_interventions: number | null
           updated_at: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "lots_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lots_building_id_fkey"
             columns: ["building_id"]
@@ -3663,6 +3723,12 @@ export type Database = {
         }[]
       }
       get_lot_team_id: { Args: { lot_uuid: string }; Returns: string }
+      get_my_profile_ids: {
+        Args: never
+        Returns: {
+          profile_id: string
+        }[]
+      }
       get_team_id_from_storage_path: {
         Args: { storage_path: string }
         Returns: string

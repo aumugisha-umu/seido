@@ -40,7 +40,9 @@ import {
   HelpCircle
 } from 'lucide-react'
 import { InterventionDetailsCardProps } from '../types'
-import { formatDate, formatAmount, formatTimeRange } from '../utils/helpers'
+import { formatDate, formatAmount, formatTime, formatTimeRange } from '../utils/helpers'
+import { GoogleMapsProvider } from '@/components/google-maps/google-maps-provider'
+import { GoogleMapPreview } from '@/components/google-maps/google-map-preview'
 
 /**
  * Configuration du statut planning
@@ -191,7 +193,13 @@ const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatu
             <p className="text-sm font-medium">Planning</p>
             <p className="text-xs text-muted-foreground truncate">
               {planning.scheduledDate
-                ? `${formatDate(planning.scheduledDate)}${planning.scheduledStartTime && planning.scheduledEndTime ? ` • ${formatTimeRange(planning.scheduledStartTime, planning.scheduledEndTime)}` : ''}`
+                ? `${formatDate(planning.scheduledDate)}${planning.scheduledStartTime
+                    ? planning.isFixedScheduling
+                      ? ` • ${formatTime(planning.scheduledStartTime)}`  // Mode date fixe: seulement l'heure de début
+                      : planning.scheduledEndTime
+                        ? ` • ${formatTimeRange(planning.scheduledStartTime, planning.scheduledEndTime)}`
+                        : ` • ${formatTime(planning.scheduledStartTime)}`
+                    : ''}`
                 : planningConfig.description}
             </p>
           </div>
@@ -374,7 +382,7 @@ export const InterventionDetailsCard = ({
         {hasLocationDetails && (
           <>
             {description && <Separator />}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
                 Localisation
@@ -411,6 +419,19 @@ export const InterventionDetailsCard = ({
                   </div>
                 )}
               </div>
+              {/* Carte Google Maps si coordonnées disponibles */}
+              {locationDetails?.latitude && locationDetails?.longitude && (
+                <GoogleMapsProvider>
+                  <GoogleMapPreview
+                    latitude={locationDetails.latitude}
+                    longitude={locationDetails.longitude}
+                    address={locationDetails.fullAddress || undefined}
+                    height={180}
+                    className="rounded-lg border border-border shadow-sm mt-2"
+                    showOpenButton={true}
+                  />
+                </GoogleMapsProvider>
+              )}
             </div>
           </>
         )}

@@ -48,7 +48,7 @@ import {
 import { InterventionContactsNavigator } from '@/components/interventions/intervention-contacts-navigator'
 
 // Helpers de formatage
-import { formatDate, formatTimeRange } from '@/components/interventions/shared/utils/helpers'
+import { formatDate, formatTime, formatTimeRange } from '@/components/interventions/shared/utils/helpers'
 
 // Modal pour choisir un créneau
 import { ChooseTimeSlotModal } from '@/components/intervention/modals/choose-time-slot-modal'
@@ -127,16 +127,27 @@ const RejectConfirmationModal = dynamic(() => import("@/components/intervention/
 
 // Multi-provider components
 import { LinkedInterventionsSection, LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
+
+// Google Maps
+import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
 // AssignmentModeBadge moved to sidebar - see ParticipantsList
 import { FinalizeMultiProviderButton } from '@/components/intervention/finalize-multi-provider-button'
 
 import type { Database } from '@/lib/database.types'
 import { createBrowserSupabaseClient } from '@/lib/services'
 
+// Type pour address_record retourné par Supabase via la relation address_id(*)
+type AddressRecord = Database['public']['Tables']['addresses']['Row'] | null
+
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
-  building?: Database['public']['Tables']['buildings']['Row']
+  building?: Database['public']['Tables']['buildings']['Row'] & {
+    address_record?: AddressRecord
+  }
   lot?: Database['public']['Tables']['lots']['Row'] & {
-    building?: Database['public']['Tables']['buildings']['Row']
+    address_record?: AddressRecord
+    building?: Database['public']['Tables']['buildings']['Row'] & {
+      address_record?: AddressRecord
+    }
   }
   tenant?: Database['public']['Tables']['users']['Row']
   creator?: {
@@ -185,6 +196,12 @@ interface InterventionLink {
   provider?: { id: string; first_name: string; last_name: string; avatar_url?: string }
 }
 
+interface InterventionAddress {
+  latitude: number
+  longitude: number
+  formatted_address: string | null
+}
+
 interface InterventionDetailClientProps {
   intervention: Intervention
   assignments: Assignment[]
@@ -204,6 +221,8 @@ interface InterventionDetailClientProps {
   isParentIntervention?: boolean
   isChildIntervention?: boolean
   providerCount?: number
+  // Address for map display
+  interventionAddress?: InterventionAddress | null
 }
 
 // ============================================================================
@@ -248,7 +267,8 @@ export function InterventionDetailClient({
   linkedInterventions = [],
   isParentIntervention = false,
   isChildIntervention = false,
-  providerCount = 0
+  providerCount = 0,
+  interventionAddress
 }: InterventionDetailClientProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -642,6 +662,8 @@ export function InterventionDetailClient({
   const scheduledDate = confirmedSlot?.slot_date || null
   const scheduledStartTime = confirmedSlot?.start_time || null
   const scheduledEndTime = confirmedSlot?.end_time || null
+  // ✅ FIX 2026-01-28: Mode date fixe = ne pas afficher l'heure de fin (calculée auto +1h)
+  const isFixedScheduling = confirmedSlot?.selected_by_manager === true
 
   // Compter les créneaux proposés (non sélectionnés)
   // Statuts DB: 'requested' (demandé), 'pending' (en attente), 'selected' (confirmé), 'rejected', 'cancelled'
@@ -1459,11 +1481,21 @@ export function InterventionDetailClient({
   const headerBadges: DetailPageHeaderBadge[] = [getTypeBadge(), getStatusBadge(), getQuoteBadge(), getUrgencyBadge()].filter(Boolean) as DetailPageHeaderBadge[];
 
   // Metadata: Show scheduled date/time in header when confirmed
+  // ✅ FIX 2026-01-28: Ne pas afficher l'heure de fin en mode date fixe (selected_by_manager)
   const headerMetadata: DetailPageHeaderMetadata[] = [];
   if (scheduledDate) {
-    const scheduledText = scheduledStartTime && scheduledEndTime
-      ? `${formatDate(scheduledDate)} • ${formatTimeRange(scheduledStartTime, scheduledEndTime)}`
-      : formatDate(scheduledDate);
+    let scheduledText: string;
+    if (scheduledStartTime) {
+      // Mode date fixe: afficher seulement l'heure de début
+      // Mode créneaux: afficher la plage horaire complète
+      scheduledText = isFixedScheduling
+        ? `${formatDate(scheduledDate)} • ${formatTime(scheduledStartTime)}`
+        : scheduledEndTime
+          ? `${formatDate(scheduledDate)} • ${formatTimeRange(scheduledStartTime, scheduledEndTime)}`
+          : `${formatDate(scheduledDate)} • ${formatTime(scheduledStartTime)}`;
+    } else {
+      scheduledText = formatDate(scheduledDate);
+    }
     headerMetadata.push({
       icon: Calendar,
       text: scheduledText
@@ -1850,24 +1882,28 @@ export function InterventionDetailClient({
                       title={intervention.title}
                       description={intervention.description || undefined}
                       instructions={intervention.instructions || undefined}
-                      locationDetails={{
-                        buildingName: intervention.lot?.building?.name || intervention.building?.name || null,
-                        lotReference: intervention.lot?.reference || null,
-                        fullAddress: (() => {
-                          const building = intervention.lot?.building || intervention.building
-                          if (!building) return null
-                          const parts: string[] = []
-                          if (building.address) parts.push(building.address)
-                          if (building.postal_code || building.city) {
-                            parts.push([building.postal_code, building.city].filter(Boolean).join(' '))
-                          }
-                          return parts.length > 0 ? parts.join(', ') : null
-                        })()
-                      }}
+                      locationDetails={(() => {
+                        // Priorité: adresse du lot (indépendant), sinon adresse du building
+                        const lotRecord = intervention.lot?.address_record
+                        const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
+                        const record = lotRecord || buildingRecord
+
+                        return {
+                          buildingName: intervention.lot?.building?.name || intervention.building?.name || null,
+                          lotReference: intervention.lot?.reference || null,
+                          fullAddress: record?.formatted_address
+                            || (record?.street || record?.city
+                              ? [record.street, record.postal_code, record.city].filter(Boolean).join(', ')
+                              : null),
+                          latitude: record?.lat || null,
+                          longitude: record?.lng || null
+                        }
+                      })()}
                       planning={{
                         scheduledDate,
                         scheduledStartTime,
                         scheduledEndTime,
+                        isFixedScheduling, // ✅ Mode date fixe: ne pas afficher l'heure de fin
                         status: planningStatus,
                         proposedSlotsCount,
                         quotesCount: transformedQuotes.length,
@@ -1882,6 +1918,33 @@ export function InterventionDetailClient({
                       onNavigateToPlanning={() => setActiveTab('planning')}
                     />
                   </div>
+
+                  {/* Carte de localisation (si coordonnées disponibles) */}
+                  {interventionAddress && (
+                    <div className="flex-shrink-0 mt-6">
+                      <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                        <MapPin className="h-4 w-4" />
+                        Localisation
+                      </h3>
+                      <GoogleMapsProvider>
+                        <GoogleMapPreview
+                          latitude={interventionAddress.latitude}
+                          longitude={interventionAddress.longitude}
+                          address={interventionAddress.formatted_address || (() => {
+                            const building = intervention.lot?.building || intervention.building
+                            if (!building?.address_record) return undefined
+                            const record = building.address_record
+                            if (record.formatted_address) return record.formatted_address
+                            const parts = [record.street, record.postal_code, record.city].filter(Boolean)
+                            return parts.length > 0 ? parts.join(', ') : undefined
+                          })()}
+                          height={200}
+                          className="rounded-lg border border-border shadow-sm"
+                          showOpenButton={true}
+                        />
+                      </GoogleMapsProvider>
+                    </div>
+                  )}
 
                   {/* Documents + Commentaires */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 flex-1 min-h-0 overflow-hidden">

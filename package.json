@@ -77,6 +77,7 @@
     "@upstash/ratelimit": "^2.0.6",
     "@upstash/redis": "^1.35.6",
     "@vercel/analytics": "latest",
+    "@vis.gl/react-google-maps": "^1.7.1",
     "autoprefixer": "^10.4.20",
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",

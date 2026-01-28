@@ -55,14 +55,10 @@ export default async function ContactDetailsPage({ params }: PageProps) {
         id,
         name,
         vat_number,
-        street,
-        street_number,
-        postal_code,
-        city,
-        country,
         email,
         phone,
-        is_active
+        is_active,
+        address_record:address_id(*)
       )
     `)
     .eq('id', resolvedParams.id)
@@ -127,9 +123,8 @@ export default async function ContactDetailsPage({ params }: PageProps) {
           id,
           reference,
           category,
-          street,
-          city,
-          building:building_id(id, name, address, city)
+          address_record:address_id(street, city),
+          building:building_id(id, name, address_record:address_id(street, city))
         ),
         contacts:contract_contacts(
           id,
@@ -183,9 +178,8 @@ export default async function ContactDetailsPage({ params }: PageProps) {
           id,
           reference,
           category,
-          street,
-          city,
-          building:building_id(id, name, address, city)
+          address_record:address_id(street, city),
+          building:building_id(id, name, address_record:address_id(street, city))
         ),
         contacts:contract_contacts(
           id,

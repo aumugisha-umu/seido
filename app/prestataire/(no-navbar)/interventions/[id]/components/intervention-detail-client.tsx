@@ -50,6 +50,7 @@ import { Building2, MapPin, User as UserIcon, Calendar } from 'lucide-react'
 import { QuoteSubmissionModal } from '@/components/intervention/modals/quote-submission-modal'
 import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
 import { ModifyChoiceModal } from '@/components/intervention/modals/modify-choice-modal'
+import { TimeSlotResponseModal } from '@/components/intervention/modals/time-slot-response-modal'
 
 // Multi-provider components
 import { LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
@@ -174,6 +175,10 @@ export function PrestataireInterventionDetailClient({
   const [modifyChoiceModalOpen, setModifyChoiceModalOpen] = useState(false)
   const [slotToModify, setSlotToModify] = useState<TimeSlot | null>(null)
   const [currentChoice, setCurrentChoice] = useState<'accepted' | 'rejected'>('accepted')
+
+  // Response modal state (for accept/reject with confirmation)
+  const [responseModalSlotId, setResponseModalSlotId] = useState<string | null>(null)
+  const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
 
   // États pour le nouveau design PreviewHybrid
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
@@ -409,6 +414,16 @@ export function PrestataireInterventionDetailClient({
     }))
   , [timeSlots])
 
+  // Slot sélectionné pour la modale de réponse
+  const selectedSlotForResponse = responseModalSlotId
+    ? timeSlots.find(s => s.id === responseModalSlotId)
+    : null
+
+  // Réponse actuelle de l'utilisateur pour ce slot
+  const currentUserResponseForSlot = selectedSlotForResponse
+    ? (selectedSlotForResponse as any).responses?.find((r: any) => r.user_id === currentUser.id)?.response
+    : null
+
   // Documents transformés pour DocumentsCard
   const transformedDocuments: InterventionDocument[] = useMemo(() =>
     documents.map(d => ({
@@ -491,19 +506,25 @@ export function PrestataireInterventionDetailClient({
     setRejectSlotModalOpen(true)
   }
 
-  // Handle accept slot - calls the server action directly
-  const handleAcceptSlot = async (slot: TimeSlot) => {
-    try {
-      const result = await acceptTimeSlotAction(slot.id, intervention.id)
-      if (result.success) {
-        toast.success('Créneau accepté avec succès')
-        handleRefresh()
-      } else {
-        toast.error(formatErrorMessage(result.error, 'Erreur lors de l\'acceptation du créneau'))
-      }
-    } catch (error) {
-      console.error('Error accepting slot:', error)
-      toast.error('Erreur lors de l\'acceptation du créneau')
+  // Handle accept slot - opens the response modal for confirmation
+  const handleAcceptSlot = (slot: TimeSlot) => {
+    console.log('🔵 [DEBUG] handleAcceptSlot called:', { slotId: slot?.id, interventionId: intervention.id })
+    if (!slot) {
+      console.error('🔴 [DEBUG] handleAcceptSlot: slot is undefined!')
+      toast.error('Erreur: créneau non trouvé')
+      return
+    }
+    // Open the response modal instead of calling action directly
+    setResponseModalSlotId(slot.id)
+    setIsResponseModalOpen(true)
+  }
+
+  // Handle opening response modal (for modify choice button)
+  const handleOpenResponseModal = (slotId: string) => {
+    const slotExists = timeSlots.some(s => s.id === slotId)
+    if (slotExists) {
+      setResponseModalSlotId(slotId)
+      setIsResponseModalOpen(true)
     }
   }
 
@@ -884,13 +905,17 @@ export function PrestataireInterventionDetailClient({
                     currentUserId={currentUser.id}
                     onAddSlot={handleOpenAvailabilityModal}
                     onApproveSlot={(slotId) => {
+                      console.log('🔵 [DEBUG] PlanningCard onApproveSlot called:', { slotId, timeSlotsCount: timeSlots.length })
                       const slot = timeSlots.find(s => s.id === slotId)
+                      console.log('🔵 [DEBUG] Slot found:', slot ? { id: slot.id, date: slot.slot_date } : 'NOT FOUND')
                       if (slot) handleAcceptSlot(slot)
+                      else console.error('🔴 [DEBUG] Slot not found in timeSlots array!')
                     }}
                     onRejectSlot={(slotId) => {
                       const slot = timeSlots.find(s => s.id === slotId)
                       if (slot) handleRejectSlot(slot)
                     }}
+                    onOpenResponseModal={handleOpenResponseModal}
                     className="flex-1 min-h-0"
                   />
                 </div>
@@ -993,6 +1018,31 @@ export function PrestataireInterventionDetailClient({
           handleRefresh()
         }}
       />
+
+      {/* Time Slot Response Modal (for accept/reject with confirmation) */}
+      {selectedSlotForResponse && (
+        <TimeSlotResponseModal
+          isOpen={isResponseModalOpen}
+          onClose={() => {
+            setIsResponseModalOpen(false)
+            setResponseModalSlotId(null)
+          }}
+          slot={{
+            id: selectedSlotForResponse.id,
+            slot_date: selectedSlotForResponse.slot_date || '',
+            start_time: selectedSlotForResponse.start_time || '',
+            end_time: selectedSlotForResponse.end_time || '',
+            notes: (selectedSlotForResponse as any).notes
+          }}
+          interventionId={intervention.id}
+          currentResponse={currentUserResponseForSlot}
+          onSuccess={() => {
+            setIsResponseModalOpen(false)
+            setResponseModalSlotId(null)
+            handleRefresh()
+          }}
+        />
+      )}
 
       {/* Modify Choice Modal */}
       <ModifyChoiceModal

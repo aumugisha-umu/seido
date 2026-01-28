@@ -23,9 +23,22 @@ interface LotData {
     building?: {
         id: string
         name: string
-        address?: string
-        city?: string
+        address_record?: {
+            id: string
+            street?: string | null
+            postal_code?: string | null
+            city?: string | null
+            formatted_address?: string | null
+        } | null
     }
+    // Address from centralized addresses table (for independent lots)
+    address_record?: {
+        id: string
+        street?: string | null
+        postal_code?: string | null
+        city?: string | null
+        formatted_address?: string | null
+    } | null
 }
 
 export function LotCardCompact({ item, actions }: CardComponentProps<LotData>) {
@@ -75,11 +88,55 @@ export function LotCardCompact({ item, actions }: CardComponentProps<LotData>) {
                                 <h3 className={cn(`${blockClass}__title`, "font-semibold text-sm text-slate-900 truncate")}>
                                     {lot.reference}
                                 </h3>
-                                {lot.building && (
-                                    <div className={cn(`${blockClass}__subtitle`, "flex items-center text-xs text-slate-600 mt-0.5")}>
-                                        <Building2 className="h-3 w-3 mr-1 flex-shrink-0" />
-                                        <span className="truncate">{lot.building.name}</span>
-                                    </div>
+                                {lot.building ? (
+                                    // Lot linked to a building: show building name AND address from address_record
+                                    (() => {
+                                        const buildingAddressRecord = lot.building?.address_record
+                                        let buildingAddressText: string | null = null
+
+                                        if (buildingAddressRecord?.formatted_address) {
+                                            buildingAddressText = buildingAddressRecord.formatted_address
+                                        } else if (buildingAddressRecord?.street || buildingAddressRecord?.city) {
+                                            const parts = [buildingAddressRecord.street, buildingAddressRecord.postal_code, buildingAddressRecord.city].filter(Boolean)
+                                            buildingAddressText = parts.join(', ')
+                                        }
+
+                                        return (
+                                            <div className={cn(`${blockClass}__subtitle`, "flex items-center text-xs text-slate-600 mt-0.5 gap-1")}>
+                                                <Building2 className="h-3 w-3 flex-shrink-0" />
+                                                <span className="flex-shrink-0">{lot.building.name}</span>
+                                                {buildingAddressText && (
+                                                    <>
+                                                        <span className="text-slate-400">•</span>
+                                                        <MapPin className="h-3 w-3 flex-shrink-0 text-slate-400" />
+                                                        <span className="truncate text-slate-400">
+                                                            {buildingAddressText}
+                                                        </span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        )
+                                    })()
+                                ) : (
+                                    // Independent lot: show its own address
+                                    (() => {
+                                        const addressRecord = lot.address_record
+                                        let addressText: string | null = null
+
+                                        if (addressRecord?.formatted_address) {
+                                            addressText = addressRecord.formatted_address
+                                        } else if (addressRecord?.street || addressRecord?.city) {
+                                            const parts = [addressRecord.street, addressRecord.postal_code, addressRecord.city].filter(Boolean)
+                                            addressText = parts.join(', ')
+                                        }
+
+                                        return addressText ? (
+                                            <div className={cn(`${blockClass}__subtitle`, "flex items-center text-xs text-slate-600 mt-0.5")}>
+                                                <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                                                <span className="truncate">{addressText}</span>
+                                            </div>
+                                        ) : null
+                                    })()
                                 )}
                                 {lot.apartment_number && (
                                     <div className={cn(`${blockClass}__detail`, "text-xs text-slate-600 mt-0.5")}>

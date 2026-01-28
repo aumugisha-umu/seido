@@ -116,6 +116,31 @@ export const permissions = {
    */
   canViewGroupConversation: (_role: UserRole): boolean => true,
 
+  /**
+   * Peut chatter avec un participant d'un rôle spécifique
+   * - Manager peut chatter avec tous (via group, tenant_to_managers, provider_to_managers)
+   * - Provider peut chatter avec managers uniquement (via provider_to_managers)
+   * - Tenant peut chatter avec managers uniquement (via tenant_to_managers)
+   * @param currentRole Le rôle de l'utilisateur courant
+   * @param targetRole Le rôle du participant cible
+   * @returns true si l'utilisateur peut initier un chat avec ce participant
+   */
+  canChatWithRole: (currentRole: UserRole, targetRole: UserRole): boolean => {
+    if (currentRole === 'manager') {
+      // Gestionnaire peut chatter avec tout le monde
+      return true
+    }
+    if (currentRole === 'provider') {
+      // Prestataire peut seulement chatter avec les gestionnaires
+      return targetRole === 'manager'
+    }
+    if (currentRole === 'tenant') {
+      // Locataire peut seulement chatter avec les gestionnaires
+      return targetRole === 'manager'
+    }
+    return false
+  },
+
   // ============================================================================
   // Participants
   // ============================================================================

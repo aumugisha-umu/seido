@@ -27,7 +27,16 @@ export async function POST(request: NextRequest) {
       return authResult.error
     }
 
-    const { supabase, user } = authResult.data
+    const { supabase, userProfile } = authResult.data
+
+    // Vérifier que le profil utilisateur existe
+    if (!userProfile) {
+      logger.error({}, "❌ [CONFIRM-PARTICIPATION] User profile not found")
+      return NextResponse.json({
+        success: false,
+        error: 'Profil utilisateur introuvable'
+      }, { status: 401 })
+    }
 
     // Parser et valider le body
     const body = await request.json()
@@ -49,7 +58,7 @@ export async function POST(request: NextRequest) {
     logger.info({
       interventionId,
       confirmed,
-      userId: user.id
+      userId: userProfile.id
     }, "📋 [CONFIRM-PARTICIPATION] Processing request")
 
     // Vérifier que l'utilisateur est bien assigné à cette intervention
@@ -58,14 +67,14 @@ export async function POST(request: NextRequest) {
       .from('intervention_assignments')
       .select('id, requires_confirmation, confirmation_status')
       .eq('intervention_id', interventionId)
-      .eq('user_id', user.id)
+      .eq('user_id', userProfile.id)
       .single()
 
     if (assignmentError || !assignment) {
       logger.error({
         error: assignmentError,
         interventionId,
-        userId: user.id
+        userId: userProfile.id
       }, "❌ [CONFIRM-PARTICIPATION] Assignment not found")
       return NextResponse.json({
         success: false,
@@ -121,7 +130,7 @@ export async function POST(request: NextRequest) {
     logger.info({
       assignmentId: assignment.id,
       newStatus,
-      userId: user.id
+      userId: userProfile.id
     }, "✅ [CONFIRM-PARTICIPATION] Status updated successfully")
 
     // ✅ FIX 2026-01-25: Vérifier si TOUTES les confirmations requises sont reçues

@@ -99,7 +99,7 @@ export class PropertyDocumentRepository extends BaseRepository<
       .select(`
         *,
         team:team_id(id, name),
-        building:building_id(id, name, address, city),
+        building:building_id(id, name, address_record:address_id(*)),
         lot:lot_id(id, reference, building:building_id(name)),
         uploaded_by_user:uploaded_by(id, name, email)
       `)
@@ -145,7 +145,7 @@ export class PropertyDocumentRepository extends BaseRepository<
       .from(this.tableName)
       .select(`
         *,
-        building:building_id(id, name, address),
+        building:building_id(id, name, address_record:address_id(*)),
         lot:lot_id(id, reference),
         uploaded_by_user:uploaded_by(id, name, email)
       `)
@@ -229,7 +229,7 @@ export class PropertyDocumentRepository extends BaseRepository<
       .select(`
         *,
         team:team_id(id, name),
-        building:building_id(id, name, address, city),
+        building:building_id(id, name, address_record:address_id(*)),
         lot:lot_id(id, reference, building:building_id(name)),
         uploaded_by_user:uploaded_by(id, name, email)
       `)

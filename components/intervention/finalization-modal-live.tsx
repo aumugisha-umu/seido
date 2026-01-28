@@ -369,7 +369,7 @@ export function FinalizationModalLive({
                           {intervention.lot.building && (
                             <span className="font-normal text-gray-600">
                               {' '}• {intervention.lot.building.name}
-                              {intervention.lot.building.address && ` • ${intervention.lot.building.address}`}
+                              {intervention.lot.building.address_record?.street && ` • ${intervention.lot.building.address_record.street}`}
                             </span>
                           )}
                         </p>

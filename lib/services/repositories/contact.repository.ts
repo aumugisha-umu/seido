@@ -21,11 +21,50 @@ import { logger } from '@/lib/logger'
 /**
  * Contact Repository
  * Manages all database operations for contacts (users table)
- * NEW SCHEMA: Contacts are now users with team_members for relationships
+ *
+ * IMPORTANT: This repository uses separate queries instead of PostgREST relations
+ * (e.g., `company:company_id(...)`) because RLS policies can cause silent failures
+ * when joining tables. The separate query approach is more robust with RLS.
  */
 export class ContactRepository extends BaseRepository<Contact, ContactInsert, ContactUpdate> {
   constructor(supabase: SupabaseClient) {
-    super(supabase, 'users')  // ✅ Updated to new simplified schema
+    super(supabase, 'users')
+  }
+
+  /**
+   * Helper: Fetch company with its address (separate queries for RLS compatibility)
+   */
+  private async fetchCompanyWithAddress(companyId: string) {
+    const { data: companyData } = await this.supabase
+      .from('companies')
+      .select('id, name, vat_number, email, phone, is_active, address_id')
+      .eq('id', companyId)
+      .maybeSingle()
+
+    if (!companyData) return null
+
+    let address_record = null
+    if (companyData.address_id) {
+      const { data: addressData } = await this.supabase
+        .from('addresses')
+        .select('*')
+        .eq('id', companyData.address_id)
+        .maybeSingle()
+      address_record = addressData
+    }
+    return { ...companyData, address_record }
+  }
+
+  /**
+   * Helper: Fetch team by ID
+   */
+  private async fetchTeam(teamId: string) {
+    const { data } = await this.supabase
+      .from('teams')
+      .select('id, name, description')
+      .eq('id', teamId)
+      .maybeSingle()
+    return data
   }
 
   /**
@@ -54,63 +93,57 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
   }
 
   /**
-   * Get contact (user) with team relations
-   * NEW SCHEMA: Queries users table directly with team_members
+   * Get contact (user) with team and company relations
    */
   async findByIdWithRelations(_id: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .select(`
-        *,
-        team:team_id(id, name, description),
-        company:company_id(id, name, vat_number, street, street_number, postal_code, city, country, email, phone, is_active)
-      `)
+      .select('*')
       .eq('id', _id)
-      .eq('deleted_at', null)  // Exclude soft-deleted users
-      .single()
+      .is('deleted_at', null)
+      .maybeSingle()
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        throw new NotFoundException(this.tableName, _id)
-      }
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
-    return { success: true as const, data }
+    if (!data) {
+      throw new NotFoundException(this.tableName, _id)
+    }
+
+    const [company, team] = await Promise.all([
+      data.company_id ? this.fetchCompanyWithAddress(data.company_id) : null,
+      data.team_id ? this.fetchTeam(data.team_id) : null
+    ])
+
+    return { success: true as const, data: { ...data, team, company } }
   }
 
   /**
-   * Get user by ID (same as findById, kept for compatibility)
-   * NEW SCHEMA: Returns user record directly
+   * Get user by ID with relations (returns array for compatibility)
    */
   async findByUser(userId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .select(`
-        *,
-        team:team_id(id, name, description),
-        company:company_id(id, name, vat_number, street, street_number, postal_code, city, country, email, phone, is_active)
-      `)
+      .select('*')
       .eq('id', userId)
-      .eq('deleted_at', null)
-      .single()
+      .is('deleted_at', null)
+      .maybeSingle()
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        logger.info('[CONTACT-REPO] User not found:', userId)
-        return { success: true as const, data: null }
-      }
-      logger.error('[CONTACT-REPO-DEBUG] Raw Supabase error in findByUser:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-        userId
-      })
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
-    return { success: true as const, data: data ? [data] : [] }
+    if (!data) {
+      return { success: true as const, data: [] }
+    }
+
+    const [company, team] = await Promise.all([
+      data.company_id ? this.fetchCompanyWithAddress(data.company_id) : null,
+      data.team_id ? this.fetchTeam(data.team_id) : null
+    ])
+
+    return { success: true as const, data: [{ ...data, team, company }] }
   }
 
   /**
@@ -143,54 +176,26 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
 
   /**
    * Get contacts by team
-   * Queries users table directly with team_id filter
-   * This ensures contacts remain visible even without team_members entries
-   * (e.g., after invitation revocation)
+   * Uses separate queries to avoid RLS issues with PostgREST relations
    * @param excludeUserId - Optional user ID to exclude from results (e.g., current user)
    */
   async findByTeam(teamId: string, role?: string, excludeUserId?: string) {
+    // Step 1: Fetch users
     let queryBuilder = this.supabase
       .from('users')
       .select(`
-        id,
-        name,
-        email,
-        phone,
-        company,
-        role,
-        provider_category,
-        speciality,
-        address,
-        is_active,
-        avatar_url,
-        notes,
-        first_name,
-        last_name,
-        is_company,
-        company_id,
-        auth_user_id,
-        company:company_id (
-          id,
-          name,
-          vat_number,
-          street,
-          street_number,
-          postal_code,
-          city,
-          country
-        ),
-        created_at,
-        updated_at
+        id, name, email, phone, company, role, provider_category, speciality,
+        address, is_active, avatar_url, notes, first_name, last_name,
+        is_company, company_id, auth_user_id, team_id, created_at, updated_at
       `)
       .eq('team_id', teamId)
-      .eq('is_active', true)  // Only active contacts (soft-delete filter)
+      .eq('is_active', true)
 
     if (role) {
       queryBuilder = queryBuilder.eq('role', role)
     }
 
     if (excludeUserId) {
-      // Exclude specific user (e.g., current user)
       queryBuilder = queryBuilder.neq('id', excludeUserId)
     }
 
@@ -200,23 +205,62 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       return createErrorResponse(handleError(error, 'users:query'))
     }
 
-    return { success: true as const, data: data || [] }
+    if (!data || data.length === 0) {
+      return { success: true as const, data: [] }
+    }
+
+    // Step 2: Get unique company IDs and fetch companies in batch
+    const companyIds = [...new Set(data.filter(u => u.company_id).map(u => u.company_id))]
+    let companiesMap: Record<string, any> = {}
+
+    if (companyIds.length > 0) {
+      const { data: companies } = await this.supabase
+        .from('companies')
+        .select('id, name, vat_number, email, phone, is_active, address_id')
+        .in('id', companyIds)
+
+      if (companies) {
+        // Get unique address IDs and fetch addresses in batch
+        const addressIds = [...new Set(companies.filter(c => c.address_id).map(c => c.address_id))]
+        let addressesMap: Record<string, any> = {}
+
+        if (addressIds.length > 0) {
+          const { data: addresses } = await this.supabase
+            .from('addresses')
+            .select('*')
+            .in('id', addressIds)
+
+          if (addresses) {
+            addressesMap = Object.fromEntries(addresses.map(a => [a.id, a]))
+          }
+        }
+
+        // Map companies with their addresses
+        companiesMap = Object.fromEntries(companies.map(c => [
+          c.id,
+          { ...c, address_record: c.address_id ? addressesMap[c.address_id] || null : null }
+        ]))
+      }
+    }
+
+    // Step 3: Enrich users with company data
+    const enrichedUsers = data.map(user => ({
+      ...user,
+      company: user.company_id ? companiesMap[user.company_id] || null : null
+    }))
+
+    return { success: true as const, data: enrichedUsers }
   }
 
   /**
-   * Get contacts by role
-   * NEW SCHEMA: Queries users table directly by role
+   * Get contacts by role with relations
    */
   async findByRole(role: string, teamId?: string) {
     let queryBuilder = this.supabase
       .from(this.tableName)
-      .select(`
-        *,
-        team:team_id(id, name, description),
-        company:company_id(id, name, vat_number, street, street_number, postal_code, city, country, email, phone, is_active)
-      `)
+      .select('*')
       .eq('role', role)
-      .eq('deleted_at', null)
+      .is('deleted_at', null)
       .eq('is_active', true)
 
     if (teamId) {
@@ -229,7 +273,20 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
 
-    return { success: true as const, data: data || [] }
+    if (!data || data.length === 0) {
+      return { success: true as const, data: [] }
+    }
+
+    // Enrich each user with company and team
+    const enrichedUsers = await Promise.all(data.map(async (user) => {
+      const [company, team] = await Promise.all([
+        user.company_id ? this.fetchCompanyWithAddress(user.company_id) : null,
+        user.team_id ? this.fetchTeam(user.team_id) : null
+      ])
+      return { ...user, team, company }
+    }))
+
+    return { success: true as const, data: enrichedUsers }
   }
 
   /**
@@ -369,31 +426,31 @@ export class ContactRepository extends BaseRepository<Contact, ContactInsert, Co
   }
   /**
    * Find a specific contact within a team
-   * Queries users table directly with team_id filter
-   * This ensures contacts remain accessible even without team_members entries
-   * (e.g., after invitation revocation)
+   * Used for contact edit page and other team-scoped operations
    */
   async findContactInTeam(teamId: string, contactId: string) {
     const { data, error } = await this.supabase
       .from('users')
-      .select(`
-        *,
-        team:team_id(id, name, description),
-        company:company_id(id, name, vat_number, street, street_number, postal_code, city, country, email, phone, is_active)
-      `)
-      .eq('team_id', teamId)
+      .select('*')
       .eq('id', contactId)
-      .eq('is_active', true)
-      .single()
+      .eq('team_id', teamId)
+      .maybeSingle()
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        return { success: true as const, data: null }
-      }
+      logger.error('[CONTACT-REPO] findContactInTeam error:', error.code, error.message)
       return createErrorResponse(handleError(error, 'users:query'))
     }
 
-    return { success: true as const, data: data as Contact }
+    if (!data) {
+      return { success: true as const, data: null }
+    }
+
+    const [company, team] = await Promise.all([
+      data.company_id ? this.fetchCompanyWithAddress(data.company_id) : null,
+      data.team_id ? this.fetchTeam(data.team_id) : null
+    ])
+
+    return { success: true as const, data: { ...data, team, company } as Contact }
   }
 }
 

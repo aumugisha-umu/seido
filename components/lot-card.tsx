@@ -48,9 +48,20 @@ interface LotCardProps {
     building?: {
       id: string
       name: string
-      address?: string
-      city?: string
+      address_record?: {
+        street?: string | null
+        postal_code?: string | null
+        city?: string | null
+        formatted_address?: string | null
+      } | null
     }
+    // Address from centralized addresses table (for independent lots)
+    address_record?: {
+      street?: string | null
+      postal_code?: string | null
+      city?: string | null
+      formatted_address?: string | null
+    } | null
   }
   interventions?: Array<{ id: string; lot_id: string }>
   mode?: "view" | "select"
@@ -77,7 +88,18 @@ export default function LotCard({
 
   const tenantName = tenants[0]?.user?.name || lot.tenant?.name || null
   const tenantCount = tenants.length || (lot.tenant ? 1 : 0)
-  const buildingAddress = lot.building ? `${lot.building.address}, ${lot.building.city}` : 'Adresse non disponible'
+
+  // Get address from address_record
+  const getAddressText = (record?: { street?: string | null; postal_code?: string | null; city?: string | null; formatted_address?: string | null } | null): string => {
+    if (!record) return ''
+    if (record.formatted_address) return record.formatted_address
+    if (record.street || record.city) {
+      const parts = [record.street, record.postal_code, record.city].filter(Boolean)
+      return parts.join(', ')
+    }
+    return ''
+  }
+  const buildingAddress = lot.building?.address_record ? getAddressText(lot.building.address_record) : 'Adresse non disponible'
 
   const handleCardClick = (e: React.MouseEvent) => {
     // Empêcher le clic si on clique sur un bouton

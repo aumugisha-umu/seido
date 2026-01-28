@@ -46,18 +46,18 @@ export async function GET(request: NextRequest) {
   const action = searchParams.get('action')
   const autoExecute = searchParams.get('auto_execute') === 'true'
 
-  logger.info('[EMAIL-CALLBACK] Processing magic link callback', {
+  logger.info({
     hasToken: !!tokenHash,
     next,
     hasAction: !!action,
     autoExecute
-  })
+  }, '[EMAIL-CALLBACK] Processing magic link callback')
 
   // Validation du paramètre next pour éviter open redirect
   // Ne permettre que les URLs relatives ou vers notre domaine
   const isValidNext = validateNextParameter(next, request.url)
   if (!isValidNext) {
-    logger.warn('[EMAIL-CALLBACK] Invalid next parameter detected, using default', { next })
+    logger.warn({ next }, '[EMAIL-CALLBACK] Invalid next parameter detected, using default')
     return NextResponse.redirect(
       new URL('/gestionnaire/dashboard', request.url)
     )
@@ -70,14 +70,20 @@ export async function GET(request: NextRequest) {
     // ✅ AMÉLIORATION: Vérifier d'abord si l'utilisateur est déjà connecté
     // Si oui, on peut rediriger directement sans vérifier le token OTP
     // Cela permet de réutiliser le lien même après consommation du token
-    const { data: existingSession } = await supabase.auth.getUser()
+    const { data: existingSession, error: sessionError } = await supabase.auth.getUser()
+
+    logger.info({
+      hasUser: !!existingSession?.user,
+      userId: existingSession?.user?.id,
+      sessionError: sessionError?.message || null
+    }, '[EMAIL-CALLBACK] Session check result')
 
     if (existingSession?.user) {
-      logger.info('[EMAIL-CALLBACK] User already authenticated, redirecting directly', {
+      logger.info({
         userId: existingSession.user.id,
         email: existingSession.user.email,
         hasAction: !!action
-      })
+      }, '[EMAIL-CALLBACK] User already authenticated, redirecting directly')
 
       // Construire l'URL de redirection avec les paramètres d'action si présents
       let redirectUrl = next
@@ -98,10 +104,10 @@ export async function GET(request: NextRequest) {
         redirectUrlObj.searchParams.set('pending_action', encoded)
         redirectUrl = redirectUrlObj.pathname + redirectUrlObj.search
 
-        logger.info('[EMAIL-CALLBACK] Action encoded for already-authenticated user', {
+        logger.info({
           action,
           paramsCount: Object.keys(actionParams).length
-        })
+        }, '[EMAIL-CALLBACK] Action encoded for already-authenticated user')
       }
 
       return NextResponse.redirect(new URL(redirectUrl, request.url))
@@ -109,7 +115,7 @@ export async function GET(request: NextRequest) {
 
     // Pas de session existante - validation du token_hash obligatoire
     if (!tokenHash) {
-      logger.error('[EMAIL-CALLBACK] Missing token_hash parameter and no existing session')
+      logger.error({}, '[EMAIL-CALLBACK] Missing token_hash parameter and no existing session')
       return NextResponse.redirect(
         new URL('/auth/login?error=missing_token&message=Lien+invalide.+Veuillez+vous+connecter.', request.url)
       )
@@ -122,10 +128,12 @@ export async function GET(request: NextRequest) {
     })
 
     if (error) {
-      logger.error('[EMAIL-CALLBACK] OTP verification failed:', {
+      logger.error({
         message: error.message,
-        status: error.status
-      })
+        status: error.status,
+        code: (error as any).code,
+        errorName: error.name
+      }, '[EMAIL-CALLBACK] OTP verification failed')
 
       // Gérer les erreurs spécifiques - proposer de se connecter manuellement
       if (error.message.includes('expired') || error.message.includes('Token has expired')) {
@@ -143,17 +151,17 @@ export async function GET(request: NextRequest) {
     }
 
     if (!data.session || !data.user) {
-      logger.error('[EMAIL-CALLBACK] No session returned after OTP verification')
+      logger.error({}, '[EMAIL-CALLBACK] No session returned after OTP verification')
       return NextResponse.redirect(
         new URL('/auth/login?error=no_session&message=Session+non+etablie', request.url)
       )
     }
 
-    logger.info('[EMAIL-CALLBACK] Session established successfully', {
+    logger.info({
       userId: data.user.id,
       email: data.user.email,
       role: data.user.user_metadata?.role
-    })
+    }, '[EMAIL-CALLBACK] Session established successfully')
 
     // Build redirect URL
     let redirectUrl = next
@@ -181,19 +189,19 @@ export async function GET(request: NextRequest) {
       redirectUrlObj.searchParams.set('pending_action', encoded)
       redirectUrl = redirectUrlObj.pathname + redirectUrlObj.search
 
-      logger.info('[EMAIL-CALLBACK] Action encoded for client execution', {
+      logger.info({
         action,
         paramsCount: Object.keys(actionParams).length
-      })
+      }, '[EMAIL-CALLBACK] Action encoded for client execution')
     } else if (action && !isValidAction(action)) {
-      logger.warn('[EMAIL-CALLBACK] Invalid action type received', { action })
+      logger.warn({ action }, '[EMAIL-CALLBACK] Invalid action type received')
     }
 
     // Rediriger vers la page cible
     return NextResponse.redirect(new URL(redirectUrl, request.url))
 
   } catch (error) {
-    logger.error('[EMAIL-CALLBACK] Exception during callback processing:', error)
+    logger.error({ error: error instanceof Error ? error.message : String(error) }, '[EMAIL-CALLBACK] Exception during callback processing')
     return NextResponse.redirect(
       new URL('/auth/login?error=exception&message=Erreur+interne', request.url)
     )

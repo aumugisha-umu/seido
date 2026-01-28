@@ -13,10 +13,11 @@ import { BuildingContactsNavigator } from "@/components/contacts/building-contac
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { logger } from '@/lib/logger'
 import type { Building, Lot } from '@/lib/services'
-import { BuildingStatsBadges } from './building-stats-badges'
+// Stats badges removed from overview
 import { ContactsGridPreview } from '@/components/ui/contacts-grid-preview'
 import { BuildingLotsGrid } from '@/components/patrimoine/lot-card-unified'
 import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
+import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
 
 interface BuildingContact {
   id: string
@@ -81,6 +82,12 @@ interface LotWithContacts {
   contracts?: LotContract[]  // Contracts with their contacts (tenants, guarantors)
 }
 
+interface BuildingAddress {
+  latitude: number
+  longitude: number
+  formatted_address: string | null
+}
+
 interface BuildingDetailsClientProps {
   building: Building
   lots: Lot[]
@@ -90,6 +97,7 @@ interface BuildingDetailsClientProps {
   lotsWithContacts: LotWithContacts[]
   lotContactIdsMap: Record<string, { lotId: string; lotContactId: string; lotReference: string }>
   teamId: string
+  buildingAddress?: BuildingAddress | null
 }
 
 export default function BuildingDetailsClient({
@@ -100,7 +108,8 @@ export default function BuildingDetailsClient({
   buildingContacts,
   teamId,
   lotsWithContacts,
-  lotContactIdsMap
+  lotContactIdsMap,
+  buildingAddress
 }: BuildingDetailsClientProps) {
   const [activeTab, setActiveTab] = useState("overview")
   const router = useRouter()
@@ -372,10 +381,22 @@ export default function BuildingDetailsClient({
     })
   }
 
+  // Get address text from address_record
+  const getAddressText = () => {
+    const record = building.address_record
+    if (record?.formatted_address) return record.formatted_address
+    if (record?.street || record?.city) {
+      const parts = [record.street, record.postal_code, record.city].filter(Boolean)
+      return parts.join(', ')
+    }
+    return null
+  }
+  const addressText = getAddressText()
+
   const headerMetadata: DetailPageHeaderMetadata[] = [
-    building.address && {
+    addressText && {
       icon: MapPin,
-      text: `${building.address}, ${building.city || ''}`
+      text: addressText
     }
   ].filter(Boolean) as DetailPageHeaderMetadata[]
 
@@ -466,21 +487,31 @@ export default function BuildingDetailsClient({
               <div className="flex-1 flex flex-col min-h-0 pb-6">
             {/* Overview Tab */}
             <TabsContent value="overview" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6 md:space-y-10">
-              {/* Section 1: Stats Badges */}
-              <BuildingStatsBadges
-                stats={{
-                  totalInterventions: stats.totalInterventions,
-                  activeInterventions: stats.activeInterventions,
-                  completedInterventions: stats.interventionStats.completed
-                }}
-                totalContacts={totalUniqueContacts}
-              />
-
-              {/* Section 1.5: Description (if exists) */}
+              {/* Section 1: Description (if exists) */}
               {(building as { description?: string }).description && (
                 <div className="bg-secondary/50 border border-secondary rounded-lg p-3 flex items-start gap-2 dark:bg-secondary/20">
                   <Info className="h-4 w-4 text-secondary-foreground flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-foreground whitespace-pre-wrap flex-1">{(building as { description: string }).description}</p>
+                </div>
+              )}
+
+              {/* Section 1.6: Map Preview (if coordinates available) */}
+              {buildingAddress && (
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-3 px-1 flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Localisation
+                  </h3>
+                  <GoogleMapsProvider>
+                    <GoogleMapPreview
+                      latitude={buildingAddress.latitude}
+                      longitude={buildingAddress.longitude}
+                      address={buildingAddress.formatted_address || addressText || undefined}
+                      height={250}
+                      className="rounded-lg border border-border shadow-sm"
+                      showOpenButton={true}
+                    />
+                  </GoogleMapsProvider>
                 </div>
               )}
 

@@ -159,6 +159,14 @@ const VALID_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> = {
   'contestee': ['cloturee_par_gestionnaire', 'annulee'] // Disputed can be finalized
 }
 
+// Helper pour formater une adresse depuis address_record
+function formatAddressFromRecord(addressRecord?: any): string {
+  if (!addressRecord) return 'Adresse non spécifiée'
+  if (addressRecord.formatted_address) return addressRecord.formatted_address
+  const parts = [addressRecord.street, addressRecord.postal_code, addressRecord.city].filter(Boolean)
+  return parts.length > 0 ? parts.join(', ') : 'Adresse non spécifiée'
+}
+
 /**
  * Intervention Service
  * Handles business logic for intervention management with Phase 3 schema support
@@ -263,7 +271,7 @@ export class InterventionService {
         .from('interventions')
         .select(`
           *,
-          building:building_id(id, name, address),
+          building:building_id(id, name, address_record:address_id(*)),
           lot:lot_id(id, reference, category)
         `)
         .eq('building_id', buildingId)
@@ -289,7 +297,7 @@ export class InterventionService {
         .from('interventions')
         .select(`
           *,
-          building:building_id(id, name, address),
+          building:building_id(id, name, address_record:address_id(*)),
           lot:lot_id(id, reference, category)
         `)
         .eq('lot_id', lotId)
@@ -316,7 +324,7 @@ export class InterventionService {
         .from('interventions')
         .select(`
           *,
-          building:building_id(id, name, address),
+          building:building_id(id, name, address_record:address_id(*)),
           lot:lot_id(id, reference, category),
           selected_time_slot:intervention_time_slots!intervention_id(
             id,
@@ -585,13 +593,41 @@ export class InterventionService {
 
       // Create provider conversation thread if assigning provider
       if (role === 'prestataire' && this.conversationRepo) {
-        await this.conversationRepo.createThread({
+        const threadResult = await this.conversationRepo.createThread({
           intervention_id: interventionId,
           thread_type: 'provider_to_managers',
           title: 'Communication avec le prestataire',
           created_by: assignedBy,
           team_id: intervention.data.team_id
         })
+
+        // ✅ FIX: Add participants after thread creation
+        // The repository only adds the creator. We need to add:
+        // 1. The assigned provider
+        // 2. Other team managers (if any besides the creator)
+        if (threadResult.success && threadResult.data) {
+          const threadId = threadResult.data.id
+          const teamId = intervention.data.team_id
+
+          // Add the assigned provider as participant
+          await this.conversationRepo.addParticipant(threadId, userId)
+
+          // Add all other team managers (besides the creator who is already added)
+          const { data: managers } = await this.interventionRepo.supabase
+            .from('users')
+            .select('id')
+            .eq('team_id', teamId)
+            .in('role', ['gestionnaire', 'admin'])
+            .is('deleted_at', null)
+
+          if (managers) {
+            for (const manager of managers) {
+              if (manager.id !== assignedBy) {
+                await this.conversationRepo.addParticipant(threadId, manager.id)
+              }
+            }
+          }
+        }
       }
 
       // Notification will be handled by NotificationService when needed
@@ -787,17 +823,44 @@ export class InterventionService {
       // Create provider conversation thread (one per provider in separate mode)
       if (this.conversationRepo) {
         // Check if thread already exists
-        const existingThread = await this.conversationRepo.getThreadsByIntervention(interventionId)
+        const existingThread = await this.conversationRepo.findThreadsByIntervention(interventionId)
         const hasProviderThread = existingThread.data?.some(t => t.thread_type === 'provider_to_managers')
 
         if (!hasProviderThread) {
-          await this.conversationRepo.createThread({
+          const threadResult = await this.conversationRepo.createThread({
             intervention_id: interventionId,
             thread_type: 'provider_to_managers',
             title: 'Communication avec le(s) prestataire(s)',
             created_by: assignedBy,
             team_id: intervention.data.team_id
           })
+
+          // ✅ FIX: Add participants after thread creation
+          if (threadResult.success && threadResult.data) {
+            const threadId = threadResult.data.id
+            const teamId = intervention.data.team_id
+
+            // Add all assigned providers as participants
+            for (const providerId of providerIds) {
+              await this.conversationRepo.addParticipant(threadId, providerId)
+            }
+
+            // Add all other team managers (besides the creator who is already added)
+            const { data: managers } = await this.interventionRepo.supabase
+              .from('users')
+              .select('id')
+              .eq('team_id', teamId)
+              .in('role', ['gestionnaire', 'admin'])
+              .is('deleted_at', null)
+
+            if (managers) {
+              for (const manager of managers) {
+                if (manager.id !== assignedBy) {
+                  await this.conversationRepo.addParticipant(threadId, manager.id)
+                }
+              }
+            }
+          }
         }
       }
 
@@ -1929,8 +1992,16 @@ export class InterventionService {
     if (!this.conversationRepo) return
 
     try {
+      // Get all team managers to add as participants
+      const { data: managers } = await this.interventionRepo.supabase
+        .from('users')
+        .select('id')
+        .eq('team_id', teamId)
+        .in('role', ['gestionnaire', 'admin'])
+        .is('deleted_at', null)
+
       // Create group thread (all participants)
-      await this.conversationRepo.createThread({
+      const groupThreadResult = await this.conversationRepo.createThread({
         intervention_id: interventionId,
         thread_type: 'group',
         title: 'Discussion générale',
@@ -1938,14 +2009,32 @@ export class InterventionService {
         team_id: teamId
       })
 
+      // ✅ FIX: Add all team managers as participants to group thread
+      if (groupThreadResult.success && groupThreadResult.data && managers) {
+        for (const manager of managers) {
+          if (manager.id !== createdBy) {
+            await this.conversationRepo.addParticipant(groupThreadResult.data.id, manager.id)
+          }
+        }
+      }
+
       // Create tenant to managers thread
-      await this.conversationRepo.createThread({
+      const tenantThreadResult = await this.conversationRepo.createThread({
         intervention_id: interventionId,
         thread_type: 'tenant_to_managers',
         title: 'Communication avec les gestionnaires',
         created_by: createdBy,
         team_id: teamId
       })
+
+      // ✅ FIX: Add all team managers as participants to tenant thread
+      if (tenantThreadResult.success && tenantThreadResult.data && managers) {
+        for (const manager of managers) {
+          if (manager.id !== createdBy) {
+            await this.conversationRepo.addParticipant(tenantThreadResult.data.id, manager.id)
+          }
+        }
+      }
 
       logger.info('Created initial conversation threads for intervention', interventionId)
     } catch (error) {
@@ -2176,24 +2265,26 @@ export class InterventionService {
       if (intervention.lot_id) {
         const { data: lot } = await this.interventionRepo.supabase
           .from('lots')
-          .select('reference, buildings(address, city)')
+          .select('reference, address_record:address_id(*), buildings(address_record:address_id(*))')
           .eq('id', intervention.lot_id)
           .single()
 
         if (lot) {
           lotReference = lot.reference || undefined
-          const building = (lot.buildings as any)
-          propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+          // Priorité: adresse du lot, sinon adresse du building
+          const lotAddr = (lot as any).address_record
+          const buildingAddr = (lot.buildings as any)?.address_record
+          propertyAddress = formatAddressFromRecord(lotAddr || buildingAddr)
         }
       } else if (intervention.building_id) {
         const { data: building } = await this.interventionRepo.supabase
           .from('buildings')
-          .select('address, city')
+          .select('address_record:address_id(*)')
           .eq('id', intervention.building_id)
           .single()
 
-        if (building) {
-          propertyAddress = `${building.address}, ${building.city}`
+        if (building?.address_record) {
+          propertyAddress = formatAddressFromRecord(building.address_record)
         }
       }
 
@@ -2235,24 +2326,26 @@ export class InterventionService {
       if (intervention.lot_id) {
         const { data: lot } = await this.interventionRepo.supabase
           .from('lots')
-          .select('reference, buildings(address, city)')
+          .select('reference, address_record:address_id(*), buildings(address_record:address_id(*))')
           .eq('id', intervention.lot_id)
           .single()
 
         if (lot) {
           lotReference = lot.reference || undefined
-          const building = (lot.buildings as any)
-          propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+          // Priorité: adresse du lot, sinon adresse du building
+          const lotAddr = (lot as any).address_record
+          const buildingAddr = (lot.buildings as any)?.address_record
+          propertyAddress = formatAddressFromRecord(lotAddr || buildingAddr)
         }
       } else if (intervention.building_id) {
         const { data: building } = await this.interventionRepo.supabase
           .from('buildings')
-          .select('address, city')
+          .select('address_record:address_id(*)')
           .eq('id', intervention.building_id)
           .single()
 
-        if (building) {
-          propertyAddress = `${building.address}, ${building.city}`
+        if (building?.address_record) {
+          propertyAddress = formatAddressFromRecord(building.address_record)
         }
       }
 
@@ -2292,24 +2385,26 @@ export class InterventionService {
       if (intervention.lot_id) {
         const { data: lot } = await this.interventionRepo.supabase
           .from('lots')
-          .select('reference, buildings(address, city)')
+          .select('reference, address_record:address_id(*), buildings(address_record:address_id(*))')
           .eq('id', intervention.lot_id)
           .single()
 
         if (lot) {
           lotReference = lot.reference || undefined
-          const building = (lot.buildings as any)
-          propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+          // Priorité: adresse du lot, sinon adresse du building
+          const lotAddr = (lot as any).address_record
+          const buildingAddr = (lot.buildings as any)?.address_record
+          propertyAddress = formatAddressFromRecord(lotAddr || buildingAddr)
         }
       } else if (intervention.building_id) {
         const { data: building } = await this.interventionRepo.supabase
           .from('buildings')
-          .select('address, city')
+          .select('address_record:address_id(*)')
           .eq('id', intervention.building_id)
           .single()
 
-        if (building) {
-          propertyAddress = `${building.address}, ${building.city}`
+        if (building?.address_record) {
+          propertyAddress = formatAddressFromRecord(building.address_record)
         }
       }
 
@@ -2361,24 +2456,26 @@ export class InterventionService {
       if (intervention.lot_id) {
         const { data: lot } = await this.interventionRepo.supabase
           .from('lots')
-          .select('reference, buildings(address, city)')
+          .select('reference, address_record:address_id(*), buildings(address_record:address_id(*))')
           .eq('id', intervention.lot_id)
           .single()
 
         if (lot) {
           lotReference = lot.reference || undefined
-          const building = (lot.buildings as any)
-          propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+          // Priorité: adresse du lot, sinon adresse du building
+          const lotAddr = (lot as any).address_record
+          const buildingAddr = (lot.buildings as any)?.address_record
+          propertyAddress = formatAddressFromRecord(lotAddr || buildingAddr)
         }
       } else if (intervention.building_id) {
         const { data: building } = await this.interventionRepo.supabase
           .from('buildings')
-          .select('address, city')
+          .select('address_record:address_id(*)')
           .eq('id', intervention.building_id)
           .single()
 
-        if (building) {
-          propertyAddress = `${building.address}, ${building.city}`
+        if (building?.address_record) {
+          propertyAddress = formatAddressFromRecord(building.address_record)
         }
       }
 
@@ -2432,24 +2529,26 @@ export class InterventionService {
       if (intervention.lot_id) {
         const { data: lot } = await this.interventionRepo.supabase
           .from('lots')
-          .select('reference, buildings(address, city)')
+          .select('reference, address_record:address_id(*), buildings(address_record:address_id(*))')
           .eq('id', intervention.lot_id)
           .single()
 
         if (lot) {
           lotReference = lot.reference || undefined
-          const building = (lot.buildings as any)
-          propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+          // Priorité: adresse du lot, sinon adresse du building
+          const lotAddr = (lot as any).address_record
+          const buildingAddr = (lot.buildings as any)?.address_record
+          propertyAddress = formatAddressFromRecord(lotAddr || buildingAddr)
         }
       } else if (intervention.building_id) {
         const { data: building } = await this.interventionRepo.supabase
           .from('buildings')
-          .select('address, city')
+          .select('address_record:address_id(*)')
           .eq('id', intervention.building_id)
           .single()
 
-        if (building) {
-          propertyAddress = `${building.address}, ${building.city}`
+        if (building?.address_record) {
+          propertyAddress = formatAddressFromRecord(building.address_record)
         }
       }
 
@@ -2515,23 +2614,25 @@ export class InterventionService {
       if (intervention.lot_id) {
         const { data: lot } = await this.interventionRepo.supabase
           .from('lots')
-          .select('buildings(address, city)')
+          .select('address_record:address_id(*), buildings(address_record:address_id(*))')
           .eq('id', intervention.lot_id)
           .single()
 
         if (lot) {
-          const building = (lot.buildings as any)
-          propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+          // Priorité: adresse du lot, sinon adresse du building
+          const lotAddr = (lot as any).address_record
+          const buildingAddr = (lot.buildings as any)?.address_record
+          propertyAddress = formatAddressFromRecord(lotAddr || buildingAddr)
         }
       } else if (intervention.building_id) {
         const { data: building } = await this.interventionRepo.supabase
           .from('buildings')
-          .select('address, city')
+          .select('address_record:address_id(*)')
           .eq('id', intervention.building_id)
           .single()
 
-        if (building) {
-          propertyAddress = `${building.address}, ${building.city}`
+        if (building?.address_record) {
+          propertyAddress = formatAddressFromRecord(building.address_record)
         }
       }
 

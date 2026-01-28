@@ -369,7 +369,10 @@ export const TimeSlotCard = ({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => onApprove(slot.id)}
+                onClick={() => {
+                  console.log('🟡 [DEBUG] TimeSlotCard Accepter button clicked:', { slotId: slot.id })
+                  onApprove(slot.id)
+                }}
                 className="text-green-700 border-green-300 hover:bg-green-50"
                 aria-label="Accepter ce créneau"
               >

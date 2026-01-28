@@ -368,10 +368,10 @@ export default function ContractDetailsClient({
                         <p className="text-sm text-muted-foreground">
                           Lot {contract.lot.reference}
                         </p>
-                        {(contract.lot.building?.address || contract.lot.street) && (
+                        {(contract.lot.building?.address_record?.street || contract.lot.address_record?.street) && (
                           <p className="text-sm text-muted-foreground">
-                            {contract.lot.building?.address || contract.lot.street}
-                            {contract.lot.city && `, ${contract.lot.city}`}
+                            {contract.lot.building?.address_record?.street || contract.lot.address_record?.street}
+                            {(contract.lot.building?.address_record?.city || contract.lot.address_record?.city) && `, ${contract.lot.building?.address_record?.city || contract.lot.address_record?.city}`}
                           </p>
                         )}
                         <Button

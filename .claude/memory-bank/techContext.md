@@ -50,23 +50,23 @@ npx playwright test      # Tests E2E
 
 # Database
 npm run supabase:types   # Regenerer lib/database.types.ts
-npm run supabase:migrate # Creer nouvelle migration
+npm run supabase:migrate # Creer nouvelle migration (avec timestamp correct)
 ```
 
 ## Structure des Dossiers
 
 ```
 app/[role]/          # Routes par role (admin, gestionnaire, prestataire, locataire)
-components/          # 369 composants
-hooks/               # 58 custom hooks
+components/          # 370 composants
+hooks/               # 59 custom hooks
 lib/services/        # Architecture Repository Pattern
   core/              # Clients Supabase, base repository, error handler
-  repositories/      # 21 repositories (acces donnees)
-  domain/            # 31 services (logique metier)
+  repositories/      # 22 repositories (acces donnees)
+  domain/            # 32 services (logique metier)
     email-notification/  # Module refactore (15 fichiers)
 tests/               # Infrastructure E2E
 docs/                # 226 fichiers markdown
-supabase/migrations/ # 132 migrations SQL (mis a jour 2026-01-26)
+supabase/migrations/ # 140+ migrations SQL (mis a jour 2026-01-29)
 ```
 
 ### Module email-notification (Refactore 2026-01)
@@ -99,15 +99,51 @@ lib/services/domain/
 
 ## Base de Donnees
 
-### Tables Principales (40 total)
+### Tables Principales (41 total - mis a jour 2026-01-29)
 
 | Phase | Tables |
 |-------|--------|
 | 1 | users, teams, team_members, companies, user_invitations, company_members |
-| 2 | buildings, lots, building_contacts, lot_contacts, property_documents |
-| 3 | interventions, intervention_*, conversation_*, notifications, activity_logs, **email_links**, **push_subscriptions** |
+| 2 | buildings, lots, building_contacts, lot_contacts, property_documents, **addresses** |
+| 3 | interventions, intervention_*, conversation_*, notifications, activity_logs, email_links, push_subscriptions |
 | 4 | contracts, contract_contacts, contract_documents, import_jobs |
 | 5 | intervention_types, intervention_type_categories |
+
+### Table addresses (NOUVEAU 2026-01-29)
+
+Table centralisee pour toutes les adresses avec support Google Maps :
+
+```sql
+CREATE TABLE addresses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Address fields (normalized)
+  street TEXT NOT NULL,
+  postal_code TEXT NOT NULL,
+  city TEXT NOT NULL,
+  country country NOT NULL DEFAULT 'belgique',
+
+  -- Google Maps geocoding data
+  latitude DOUBLE PRECISION,
+  longitude DOUBLE PRECISION,
+  place_id TEXT,
+  formatted_address TEXT,
+
+  -- Multi-tenant isolation
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+
+  -- Audit fields
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ,
+  deleted_by UUID REFERENCES users(id)
+);
+```
+
+**Relations FK:**
+- `buildings.address_id` → `addresses.id`
+- `lots.address_id` → `addresses.id`
+- `companies.address_id` → `addresses.id`
 
 ### Enums PostgreSQL (39 total)
 
@@ -116,9 +152,9 @@ Enums principaux utilises dans le schema :
 - `intervention_status` (**9 valeurs** - mis a jour 2026-01-26)
 - `quote_status`, `priority_type`, `contact_type`, etc.
 
-### Fonctions PostgreSQL (77 total)
+### Fonctions PostgreSQL (79 total - mis a jour 2026-01-29)
 
-**32 fonctions RLS** (verification permissions) + **45 fonctions utilitaires** (triggers, helpers)
+**32 fonctions RLS** (verification permissions) + **47 fonctions utilitaires** (triggers, helpers)
 
 ```sql
 -- Verification de role (RLS)
@@ -127,6 +163,9 @@ is_gestionnaire()
 
 -- Verification d'appartenance equipe (RLS)
 is_team_manager(team_id)
+
+-- Multi-profil (RLS) - NOUVEAU 2026-01-28
+get_my_profile_ids()  -- Retourne TOUS les profile IDs de l'auth user
 
 -- Recuperation team_id par relation (RLS)
 get_building_team_id(building_id)
@@ -144,12 +183,30 @@ get_current_user_id()
 
 -- Intervention (RLS)
 is_assigned_to_intervention(intervention_id)
+
+-- Conversations (RLS) - MIS A JOUR 2026-01-29
+can_view_conversation(thread_id)  -- Supporte multi-profil
 ```
 
 **Fonctions utilitaires notables** :
 - `tr_*` - Triggers pour denormalisation team_id
 - `sync_*` - Synchronisation donnees entre tables
 - `update_*_at` - Mise a jour timestamps
+- `add_team_managers_to_thread()` - Auto-ajout managers aux threads (NOUVEAU)
+- `add_assignment_to_conversation_participants()` - Auto-ajout participants (MIS A JOUR)
+
+### Triggers Conversation (NOUVEAU 2026-01-29)
+
+| Trigger | Table | Event | Fonction |
+|---------|-------|-------|----------|
+| `thread_add_managers` | `conversation_threads` | AFTER INSERT | `add_team_managers_to_thread()` |
+| `add_assignment_participants` | `intervention_assignments` | AFTER INSERT | `add_assignment_to_conversation_participants()` |
+
+**Ordre critique pour creation intervention:**
+1. INSERT intervention
+2. INSERT conversation_threads (trigger `thread_add_managers` ajoute gestionnaires)
+3. INSERT intervention_assignments (trigger ajoute locataires/prestataires aux threads existants)
+4. INSERT intervention_time_slots
 
 ### Vues PostgreSQL (6 total)
 
@@ -195,6 +252,9 @@ type UserRole = 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
 
 // Statuts des devis (table intervention_quotes)
 type QuoteStatus = 'pending' | 'sent' | 'accepted' | 'rejected'
+
+// Thread types (conversations)
+type ConversationThreadType = 'group' | 'tenant_to_managers' | 'provider_to_managers'
 ```
 
 ### Migration 2026-01-26: Suppression demande_de_devis
@@ -211,6 +271,18 @@ Fichier: `supabase/migrations/20260126120000_remove_demande_de_devis_status.sql`
 - `intervention_quotes` table - gere le cycle de vie des devis
 - Le statut intervention reste `planification` pendant la gestion des devis
 
+### Migrations Recentes (2026-01-29)
+
+| Migration | Description |
+|-----------|-------------|
+| `20260129200000_create_addresses_table.sql` | Table centralisee addresses + RLS |
+| `20260129200001_migrate_addresses_to_centralized_table.sql` | Migration donnees existantes |
+| `20260129200002_drop_legacy_address_columns.sql` | Suppression colonnes legacy |
+| `20260129200003_fix_multi_profile_conversation_access.sql` | `can_view_conversation()` multi-profil |
+| `20260129200004_fix_missing_conversation_participants.sql` | Fix participants manquants |
+| `20260129200005_add_managers_to_conversation_participants.sql` | Trigger `thread_add_managers` |
+| `20260129200006_conversation_email_notifications.sql` | Notifications email conversations |
+
 ## Variables d'Environnement Requises
 
 | Variable | Description |
@@ -224,7 +296,8 @@ Fichier: `supabase/migrations/20260126120000_remove_demande_de_devis_status.sql`
 | **VAPID_SUBJECT** | Email contact VAPID (mailto:support@...) |
 | **RESEND_WEBHOOK_SECRET** | Secret webhook Resend (Svix) |
 | **EMAIL_REPLY_SIGNING_SECRET** | Secret HMAC reply-to |
+| **NEXT_PUBLIC_GOOGLE_MAPS_API_KEY** | API Key Google Maps (a venir) |
 
 ---
-*Derniere mise a jour: 2026-01-26*
+*Derniere mise a jour: 2026-01-29*
 *Regenerer types: npm run supabase:types*

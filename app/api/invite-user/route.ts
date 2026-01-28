@@ -7,6 +7,8 @@ import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { getServiceRoleClient, isServiceRoleAvailable } from '@/lib/api-service-role-helper'
 import { inviteUserSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 import { createServerActionCompanyRepository } from '@/lib/services/repositories/company.repository'
+import { createAddressService, type GooglePlaceAddress } from '@/lib/services/domain/address.service'
+import { createServerSupabaseClient } from '@/lib/services'
 
 export async function POST(request: Request) {
   try {
@@ -62,6 +64,11 @@ export async function POST(request: Request) {
       postalCode,
       city,
       country,
+      // Google Maps geocoding data (for address creation)
+      companyLatitude,
+      companyLongitude,
+      companyPlaceId,
+      companyFormattedAddress,
       // Champs liaison à une entité (optionnel)
       linkedEntityType,
       linkedBuildingId,
@@ -207,7 +214,35 @@ export async function POST(request: Request) {
             )
           }
 
-          // Créer la nouvelle société
+          // Step 0a: Create address in centralized table if geocode data is provided
+          let addressId: string | undefined
+          if (companyLatitude && companyLongitude) {
+            logger.info({ companyLatitude, companyLongitude }, '📍 [STEP-0a] Creating address with geocode data...')
+            const supabase = await createServerSupabaseClient()
+            const addressService = createAddressService(supabase)
+
+            const fullStreet = streetNumber ? `${street} ${streetNumber}` : street
+            const addressData: GooglePlaceAddress = {
+              street: fullStreet || '',
+              postalCode: postalCode || '',
+              city: city || '',
+              country: country || 'BE',
+              latitude: companyLatitude,
+              longitude: companyLongitude,
+              placeId: companyPlaceId || '',
+              formattedAddress: companyFormattedAddress || ''
+            }
+
+            const addressResult = await addressService.createFromGooglePlace(addressData, teamId)
+            if (addressResult.success && addressResult.data) {
+              addressId = addressResult.data.id
+              logger.info({ addressId }, '✅ [STEP-0a] Address created successfully')
+            } else {
+              logger.warn({ error: addressResult.error }, '⚠️ [STEP-0a] Failed to create address, continuing without it')
+            }
+          }
+
+          // Créer la nouvelle société (with address_id if available)
           const companyResult = await companyRepository.createWithAddress({
             name: companyName,
             vat_number: vatNumber,
@@ -218,7 +253,8 @@ export async function POST(request: Request) {
             postal_code: postalCode,
             city,
             country,
-            is_active: true
+            is_active: true,
+            address_id: addressId // Link to centralized address if created
           })
 
           if (!companyResult.success || !companyResult.data) {

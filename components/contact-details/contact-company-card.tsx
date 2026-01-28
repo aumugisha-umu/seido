@@ -73,26 +73,23 @@ export function ContactCompanyCard({ company, onNavigateToCompany }: ContactComp
           </div>
         )}
 
-        {(company.street || company.city) && (
+        {(company.address_record?.street || company.address_record?.city) && (
           <div className="flex justify-between items-start">
             <span className="text-muted-foreground text-sm flex items-center gap-2">
               <MapPin className="h-4 w-4" />
               Adresse
             </span>
             <div className="text-sm font-medium text-foreground text-right max-w-[60%]">
-              {company.street && (
-                <p>
-                  {company.street_number && `${company.street_number} `}
-                  {company.street}
-                </p>
+              {company.address_record?.street && (
+                <p>{company.address_record.street}</p>
               )}
-              {(company.postal_code || company.city) && (
+              {(company.address_record?.postal_code || company.address_record?.city) && (
                 <p className="text-muted-foreground">
-                  {company.postal_code && `${company.postal_code} `}
-                  {company.city}
+                  {company.address_record?.postal_code && `${company.address_record.postal_code} `}
+                  {company.address_record?.city}
                 </p>
               )}
-              {company.country && <p className="text-muted-foreground">{company.country}</p>}
+              {company.address_record?.country && <p className="text-muted-foreground">{company.address_record.country}</p>}
             </div>
           </div>
         )}

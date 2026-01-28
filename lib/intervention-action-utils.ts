@@ -140,7 +140,7 @@ const getGestionnaireActions = (
     case 'planification':
       return [
         {
-          label: 'Proposer créneaux',
+          label: 'Gérer créneaux',
           icon: Clock,
           variant: 'primary',
           actionType: 'propose_slots',
@@ -149,7 +149,7 @@ const getGestionnaireActions = (
         {
           label: 'Gérer estimations',
           icon: FileText,
-          variant: 'secondary',
+          variant: 'primary',
           actionType: 'manage_quotes',
           href: `${baseUrl}?tab=planning`
         }
@@ -229,7 +229,7 @@ const getPrestataireActions = (
     case 'planification':
       return [
         {
-          label: 'Proposer créneaux',
+          label: 'Gérer créneaux',
           icon: CalendarCheck,
           variant: 'primary',
           actionType: 'propose_timeslots',

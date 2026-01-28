@@ -555,10 +555,10 @@ export default function InterventionEditClient({
                               : `Lot ${initialData.lot.reference}`)
                             : initialData.building?.name || 'Non défini'}
                         </span>
-                        {initialData.building?.address && (
+                        {initialData.building?.address_record?.street && (
                           <>
                             <span className="text-muted-foreground">•</span>
-                            <span className="text-sm text-muted-foreground">{initialData.building.address}</span>
+                            <span className="text-sm text-muted-foreground">{initialData.building.address_record.street}</span>
                           </>
                         )}
 

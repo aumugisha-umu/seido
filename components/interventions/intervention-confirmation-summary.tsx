@@ -300,6 +300,7 @@ export function InterventionConfirmationSummary({
                   <MapPin className="h-3 w-3" />
                   <span className="font-medium">{data.logement.name}</span>
                   {data.logement.building && <span className="text-muted-foreground">• {data.logement.building}</span>}
+                  {data.logement.address && <span className="text-muted-foreground">• {data.logement.address}</span>}
                 </CardDescription>
               </div>
             </div>

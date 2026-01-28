@@ -120,12 +120,27 @@ export interface LotData {
   building?: {
     id: string
     name: string
-    address?: string
-    city?: string
+    // Address from centralized addresses table
+    address_record?: {
+      id: string
+      street?: string | null
+      postal_code?: string | null
+      city?: string | null
+      formatted_address?: string | null
+    } | null
   }
   building_id?: string
   contracts?: LotContract[]
   interventions_count?: number
+  // Address from centralized addresses table (for independent lots)
+  address_record?: {
+    id: string
+    street?: string | null
+    postal_code?: string | null
+    city?: string | null
+    country?: string | null
+    formatted_address?: string | null
+  } | null
 }
 
 // ============================================================================

@@ -408,7 +408,82 @@ Architecture unifiee pour afficher les interventions de maniere coherente dans t
 
 > Verifie 2026-01-27: Toutes les pages de details utilisent correctement cette architecture.
 
-### 15. Skills Auto-Invocation Pattern (NOUVEAU 2026-01-27)
+### 15. Conversation Thread Creation Pattern (NOUVEAU 2026-01-29)
+
+Pattern critique pour creer les threads de conversation lors de la creation d'intervention :
+
+```
++-------------------------------------------------------------+
+| ORDRE CRITIQUE DE CREATION                                   |
+| (L'ordre est important car les triggers dependent des donnees)|
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| STEP 1: Create Intervention                                  |
+| INSERT INTO interventions (...)                              |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| STEP 2: Create Conversation Threads (Service Role)           |
+| ✅ AVANT les assignments!                                     |
+|                                                             |
+| → INSERT conversation_threads (thread_type = 'group')        |
+|   → TRIGGER thread_add_managers FIRES                        |
+|   → All team managers added to participants                  |
+|                                                             |
+| → INSERT conversation_threads (thread_type = 'tenant_to_...')|
+|   → TRIGGER fires, managers added                            |
+|                                                             |
+| → INSERT conversation_threads (thread_type = 'provider_to...')|
+|   → TRIGGER fires, managers added                            |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| STEP 3: Create Assignments                                   |
+| INSERT INTO intervention_assignments (role = 'locataire')    |
+|   → TRIGGER add_assignment_to_conversation_participants      |
+|   → Tenant added to 'group' + 'tenant_to_managers' threads   |
+|                                                             |
+| INSERT INTO intervention_assignments (role = 'prestataire')  |
+|   → TRIGGER fires, provider added to threads                 |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| STEP 4: Create Time Slots (Service Role)                     |
+| INSERT INTO intervention_time_slots (...)                    |
++-------------------------------------------------------------+
+```
+
+**Fichiers cles :**
+- `app/api/create-manager-intervention/route.ts` - Implementation de l'ordre
+- `lib/services/repositories/conversation-repository.ts` - Upsert avec ignoreDuplicates
+- `supabase/migrations/20260129200005_add_managers_to_conversation_participants.sql` - Triggers
+
+**Regle critique :** Les threads DOIVENT etre crees AVANT les assignments, sinon le trigger `add_assignment_to_conversation_participants` ne trouve pas les threads et ne peut pas ajouter les participants.
+
+**Pattern upsert pour eviter CONFLICT :**
+```typescript
+// Dans conversation-repository.ts
+const { error } = await this.supabase
+  .from('conversation_participants')
+  .upsert({
+    thread_id: thread.id,
+    user_id: input.created_by
+  }, {
+    onConflict: 'thread_id,user_id',
+    ignoreDuplicates: true
+  })
+```
+
+> Fix 2026-01-29 - Corrige le bug ou les participants n'etaient pas ajoutes aux threads
+
+---
+
+### 16. Skills Auto-Invocation Pattern (NOUVEAU 2026-01-27)
 
 Pattern d'orchestration des skills `superpowers:sp-*` base sur des "Red Flags" (pensees declencheuses) :
 
@@ -477,6 +552,9 @@ Pattern d'orchestration des skills `superpowers:sp-*` base sur des "Red Flags" (
 | Coder sans invoquer skill brainstorming | Invoquer sp-brainstorming AVANT |
 | Fixer bug sans diagnostic systematique | Invoquer sp-systematic-debugging |
 | Commiter sans verification | Invoquer sp-verification-before-completion |
+| Creer threads apres assignments | Creer threads AVANT assignments |
+| Insert participant sans ON CONFLICT | Upsert avec ignoreDuplicates |
+| Relations PostgREST nested avec RLS | Requetes separees + helpers prives |
 
 ## Conventions de Nommage
 
@@ -512,6 +590,116 @@ tests/               # Infrastructure E2E
 - `email-to-conversation.service.ts` - Sync emails -> conversations
 - `email-link.repository.ts` - Tracking liens emails
 
+### 17. Centralized Address Pattern (NOUVEAU 2026-01-29)
+
+Pattern pour la gestion centralisee des adresses avec support Google Maps :
+
+```
++-------------------------------------------------------------+
+| TABLE addresses (centralisee)                                |
+| - street, postal_code, city, country                         |
+| - latitude, longitude, place_id, formatted_address (Google)  |
+| - team_id (multi-tenant)                                     |
++-------------------------------------------------------------+
+              ^                ^                ^
+              |                |                |
++-------------+    +-----------+    +-----------+
+| buildings   |    | lots      |    | companies |
+| address_id ─┘    | address_id┘    | address_id┘
++-------------+    +-----------+    +-----------+
+```
+
+**Migration des donnees :**
+1. `20260129200000_create_addresses_table.sql` - Creation table + RLS
+2. `20260129200001_migrate_addresses_to_centralized_table.sql` - Migration donnees existantes
+3. `20260129200002_drop_legacy_address_columns.sql` - Suppression anciennes colonnes
+
+**Services :**
+- `lib/services/domain/address.service.ts` - Service domain
+- `lib/services/repositories/address.repository.ts` - Repository CRUD
+
+**Avantages :**
+- Single source of truth pour les adresses
+- Support Google Maps natif (geocoding, place_id)
+- Evite duplication des champs adresse dans chaque table
+- RLS par team_id
+
+### 18. Separate Queries Pattern for RLS Compatibility (NOUVEAU 2026-01-29)
+
+Pattern pour eviter les echecs silencieux des relations PostgREST avec RLS :
+
+```
++-------------------------------------------------------------+
+| PROBLEME: Relations PostgREST + RLS                          |
+|                                                             |
+| .select(`*, company:company_id(id, name, address:address_id(*))`)|
+|                                                             |
+| → Si RLS sur 'companies' ou 'addresses' bloque l'acces,      |
+| → La requete echoue SILENCIEUSEMENT (pas d'erreur visible)   |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| SOLUTION: Requetes Separees avec Helpers                     |
+|                                                             |
+| // Helpers prives dans le repository                         |
+| private async fetchCompanyWithAddress(companyId: string) {   |
+|   const company = await supabase.from('companies')...        |
+|   if (company.address_id) {                                  |
+|     const address = await supabase.from('addresses')...      |
+|     return { ...company, address_record: address }           |
+|   }                                                         |
+|   return { ...company, address_record: null }               |
+| }                                                           |
+|                                                             |
+| private async fetchTeam(teamId: string) {                    |
+|   return await supabase.from('teams')...                     |
+| }                                                           |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| UTILISATION: Promise.all pour parallelisme                   |
+|                                                             |
+| const [company, team] = await Promise.all([                  |
+|   data.company_id ? this.fetchCompanyWithAddress(...) : null,|
+|   data.team_id ? this.fetchTeam(...) : null                  |
+| ])                                                          |
+| return { ...data, company, team }                            |
++-------------------------------------------------------------+
+```
+
+**Optimisation pour les listes (Batch Queries) :**
+```typescript
+// Au lieu de N requetes (1 par user), faire 3 requetes max:
+// 1. Fetch all users
+const users = await supabase.from('users').select('*').in('team_id', teamId)
+
+// 2. Batch fetch companies
+const companyIds = [...new Set(users.filter(u => u.company_id).map(u => u.company_id))]
+const companies = await supabase.from('companies').select('*').in('id', companyIds)
+
+// 3. Batch fetch addresses
+const addressIds = [...new Set(companies.filter(c => c.address_id).map(c => c.address_id))]
+const addresses = await supabase.from('addresses').select('*').in('id', addressIds)
+
+// 4. Map results
+const companiesMap = Object.fromEntries(companies.map(c => [c.id, { ...c, address_record: ... }]))
+const enrichedUsers = users.map(u => ({ ...u, company: companiesMap[u.company_id] }))
+```
+
+**Fichier de reference :** `lib/services/repositories/contact.repository.ts`
+
+**Quand utiliser :**
+- Queries avec relations nested (ex: `company:company_id(address:address_id(*))`)
+- Tables avec RLS strictes
+- Erreurs Supabase silencieuses/vides
+
+**Avantages :**
+- Erreurs explicites pour chaque requete
+- Compatible avec toute configuration RLS
+- Performance optimisee avec batch pour les listes
+
 ---
-*Derniere mise a jour: 2026-01-27*
+*Derniere mise a jour: 2026-01-29*
 *References: lib/services/README.md, lib/server-context.ts, .claude/CLAUDE.md*

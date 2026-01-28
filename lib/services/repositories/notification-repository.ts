@@ -668,7 +668,7 @@ export class NotificationRepository extends BaseRepository<Notification, Notific
       .select(`
         id,
         name,
-        address,
+        address_record:address_id(street, city),
         team_id,
         building_contacts!building_contacts_building_id_fkey(
           user_id,

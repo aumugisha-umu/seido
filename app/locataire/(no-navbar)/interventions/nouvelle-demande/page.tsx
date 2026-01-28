@@ -10,7 +10,7 @@ export default async function NouvelleDemandServerPage() {
   const tenantService = await createServerTenantService()
   const lots = await tenantService.getSimpleTenantLots(profile.id)
 
-  // Transform lots to the expected format
+  // Transform lots to the expected format (using centralized address_record)
   const tenantLots = lots.map(lot => ({
     id: lot.id,
     apartment_number: lot.apartment_number,
@@ -18,9 +18,7 @@ export default async function NouvelleDemandServerPage() {
     building: lot.building ? {
       id: lot.building.id,
       name: lot.building.name,
-      address: lot.building.address,
-      postal_code: lot.building.postal_code,
-      city: lot.building.city
+      address_record: lot.building.address_record
     } : undefined,
     surface_area: lot.surface_area
   }))

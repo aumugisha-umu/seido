@@ -240,11 +240,11 @@ async function sendEmailNotifications(params: SendEmailParams): Promise<number> 
   if (intervention.building_id) {
     const { data: building } = await supabase
       .from('buildings')
-      .select('address, city')
+      .select('address_record:address_id(*)')
       .eq('id', intervention.building_id)
       .single()
-    if (building) {
-      propertyAddress = formatFullPropertyAddress(building)
+    if (building?.address_record) {
+      propertyAddress = formatFullPropertyAddress(building.address_record)
     }
   }
 

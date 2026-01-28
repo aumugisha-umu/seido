@@ -1001,6 +1001,22 @@ export class ConversationService {
               }
             })
           }
+          // ✅ FIX: Also add all team managers to group thread
+          // (they should see the general discussion even if not explicitly assigned)
+          const { data: groupManagers } = await this.conversationRepo.supabase
+            .from('users')
+            .select('id')
+            .eq('team_id', intervention.team_id)
+            .in('role', ['gestionnaire', 'admin'])
+            .is('deleted_at', null)
+
+          if (groupManagers) {
+            groupManagers.forEach((m: { id: string }) => {
+              if (!participantIds.includes(m.id)) {
+                participantIds.push(m.id)
+              }
+            })
+          }
           break
 
         case 'tenant_to_managers':

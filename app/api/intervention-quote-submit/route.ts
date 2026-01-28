@@ -316,21 +316,30 @@ export async function POST(request: NextRequest) {
               .select(`
                 lot_id,
                 building_id,
-                lots(reference, buildings(address, city)),
-                buildings(address, city)
+                lots(reference, address_record:address_id(*), buildings(address_record:address_id(*))),
+                buildings(address_record:address_id(*))
               `)
               .eq('id', emailInterventionId)
               .single()
+
+            // Helper to format address from address_record
+            const formatAddr = (rec: any) => {
+              if (!rec) return null
+              if (rec.formatted_address) return rec.formatted_address
+              const parts = [rec.street, rec.postal_code, rec.city].filter(Boolean)
+              return parts.length > 0 ? parts.join(', ') : null
+            }
 
             let propertyAddress = 'Adresse non spécifiée'
             if (interventionDetails) {
               if (interventionDetails.lot_id && interventionDetails.lots) {
                 const lot = interventionDetails.lots as any
-                const building = lot.buildings
-                propertyAddress = building ? `${building.address}, ${building.city}` : propertyAddress
+                const lotAddr = lot.address_record
+                const buildingAddr = lot.buildings?.address_record
+                propertyAddress = formatAddr(lotAddr) || formatAddr(buildingAddr) || propertyAddress
               } else if (interventionDetails.building_id && interventionDetails.buildings) {
                 const building = interventionDetails.buildings as any
-                propertyAddress = `${building.address}, ${building.city}`
+                propertyAddress = formatAddr(building.address_record) || propertyAddress
               }
             }
 

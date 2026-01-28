@@ -573,12 +573,12 @@ export const companiesTableConfig: DataTableConfig<CompanyData> = {
         {
             id: 'city',
             header: 'Ville',
-            accessorKey: 'city',
+            accessorKey: 'address_record.city',
             cell: (company) => (
-                company.city ? (
+                company.address_record?.city ? (
                     <div className="flex items-center gap-2 text-sm text-slate-600">
                         <MapPin className="h-3 w-3" />
-                        <span>{company.city}</span>
+                        <span>{company.address_record.city}</span>
                     </div>
                 ) : <span className="text-slate-400">-</span>
             )
@@ -587,7 +587,7 @@ export const companiesTableConfig: DataTableConfig<CompanyData> = {
 
     searchConfig: {
         placeholder: 'Rechercher une société...',
-        searchableFields: ['name', 'legal_name', 'vat_number', 'email', 'city']
+        searchableFields: ['name', 'legal_name', 'vat_number', 'email', 'address_record.city']
     },
 
     filters: [],

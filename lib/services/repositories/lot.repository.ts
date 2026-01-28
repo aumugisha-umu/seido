@@ -95,7 +95,8 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select(`
         *,
-        building:building_id(name, address, city, team_id),
+        address_record:address_id(*),
+        building:building_id(*, address_record:address_id(*)),
         lot_contacts(
           id,
           is_primary,
@@ -157,6 +158,8 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select(`
         *,
+        address_record:address_id(*),
+        building:building_id(*, address_record:address_id(*)),
         lot_contacts(
           id,
           is_primary,
@@ -199,7 +202,8 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select(`
         *,
-        building:building_id(name, address, city, team_id),
+        address_record:address_id(*),
+        building:building_id(*, address_record:address_id(*)),
         lot_contacts(
           id,
           is_primary,
@@ -258,20 +262,12 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
    * Get lot by ID with full relations
    */
   async findByIdWithRelations(_id: string) {
-    const startTime = Date.now()
-    console.log('🔍 [LOT-REPOSITORY] findByIdWithRelations called', {
-      lotId: _id,
-      timestamp: new Date().toISOString()
-    })
-
-    console.log('📍 [LOT-REPOSITORY] Step 1: Preparing Supabase query...')
-    const queryStart = Date.now()
-
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
         *,
-        building:building_id(name, address, city),
+        address_record:address_id(*),
+        building:building_id(*, address_record:address_id(*)),
         lot_contacts(
           id,
           is_primary,
@@ -281,29 +277,12 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .eq('id', _id)
       .single()
 
-    const queryElapsed = Date.now() - queryStart
-    console.log('⏱️ [LOT-REPOSITORY] Supabase query completed', {
-      elapsed: `${queryElapsed}ms`,
-      hasData: !!data,
-      hasError: !!error
-    })
-
     if (error) {
-      console.error('❌ [LOT-REPOSITORY] Query failed', {
-        errorCode: error.code,
-        errorMessage: error.message,
-        lotId: _id,
-        elapsed: `${Date.now() - startTime}ms`
-      })
-
       if (error.code === 'PGRST116') {
         throw new NotFoundException(this.tableName, _id)
       }
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
     }
-
-    console.log('📍 [LOT-REPOSITORY] Step 2: Post-processing data...')
-    const processStart = Date.now()
 
     // Post-process to extract tenants
     if (data) {
@@ -319,18 +298,6 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       data.status = isOccupied ? 'occupied' : 'vacant' // Add status field for compatibility
       data.tenants = tenants.map((contact: LotContact) => contact.user).filter((user): user is User => !!user)
     }
-
-    const processElapsed = Date.now() - processStart
-    const totalElapsed = Date.now() - startTime
-
-    console.log('✅ [LOT-REPOSITORY] findByIdWithRelations completed successfully', {
-      lotId: _id,
-      lotReference: data?.reference,
-      contactsCount: data?.lot_contacts?.length || 0,
-      tenantsCount: data?.tenants?.length || 0,
-      processElapsed: `${processElapsed}ms`,
-      totalElapsed: `${totalElapsed}ms`
-    })
 
     return { success: true as const, data }
   }
@@ -413,7 +380,8 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select(`
         *,
-        building:building_id(team_id)
+        address_record:address_id(*),
+        building:building_id(*, address_record:address_id(*))
       `)
       .eq('team_id', teamId)
       .ilike('reference', reference.trim())
@@ -497,7 +465,8 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select(`
         *,
-        building:building_id(name, address, city, team_id)
+        address_record:address_id(*),
+        building:building_id(*, address_record:address_id(*))
       `)
       .eq('category', category)
 
@@ -526,7 +495,8 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select(`
         *,
-        building:building_id(name, address, city),
+        address_record:address_id(*),
+        building:building_id(*, address_record:address_id(*)),
         lot_contacts!inner(
           user:user_id!inner(role)
         )
@@ -555,7 +525,8 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select(`
         *,
-        building:building_id(name, address, city),
+        address_record:address_id(*),
+        building:building_id(*, address_record:address_id(*)),
         lot_contacts(
           id,
           user:user_id(role)
@@ -595,7 +566,11 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
   async findByFloor(buildingId: string, floor: number) {
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .select('*')
+      .select(`
+        *,
+        address_record:address_id(*),
+        building:building_id(*, address_record:address_id(*))
+      `)
       .eq('building_id', buildingId)
       .eq('floor', floor)
       .order('reference')
@@ -617,7 +592,8 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select(`
         *,
-        building:building_id(name, address, city)
+        address_record:address_id(*),
+        building:building_id(*, address_record:address_id(*))
       `)
       .or(`reference.ilike.%${query}%`)
 
@@ -708,7 +684,11 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .select('*')
+      .select(`
+        *,
+        address_record:address_id(*),
+        building:building_id(*, address_record:address_id(*))
+      `)
       .in('id', lotIds)
 
     if (error) {

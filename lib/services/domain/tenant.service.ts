@@ -176,16 +176,12 @@ export class TenantService {
               reference,
               floor,
               category,
-              street,
-              city,
-              postal_code,
+              address_record:address_id(*),
               building:building_id(
                 id,
                 name,
-                address,
-                city,
-                postal_code,
-                description
+                description,
+                address_record:address_id(*)
               )
             )
           )

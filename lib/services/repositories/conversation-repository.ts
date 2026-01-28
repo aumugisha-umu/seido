@@ -202,18 +202,26 @@ export class ConversationRepository {
         return createErrorResponse(handleError(threadError, 'conversation:createThread'))
       }
 
-      // Add creator as first participant
+      // Add creator as participant (if not already added by trigger)
+      // The trigger thread_add_managers may have already added this user
+      // Use upsert with onConflict to handle this gracefully
       const { error: participantError } = await this.supabase
         .from('conversation_participants')
-        .insert({
+        .upsert({
           thread_id: thread.id,
           user_id: input.created_by
+        }, {
+          onConflict: 'thread_id,user_id',
+          ignoreDuplicates: true
         })
 
       if (participantError) {
-        // Rollback thread creation
-        await this.supabase.from('conversation_threads').delete().eq('id', thread.id)
-        return createErrorResponse(handleError(participantError, 'conversation:createThread:participant'))
+        // Only rollback if it's NOT a duplicate key error (which is expected)
+        if (!participantError.message?.includes('duplicate') && participantError.code !== '23505') {
+          await this.supabase.from('conversation_threads').delete().eq('id', thread.id)
+          return createErrorResponse(handleError(participantError, 'conversation:createThread:participant'))
+        }
+        // Duplicate is OK - trigger already added the user
       }
 
       return createSuccessResponse(thread)

@@ -44,27 +44,30 @@ export function isInteractiveEmailsEnabled(): boolean {
 /**
  * Format a property address as "postal code, city, country"
  *
+ * Uses centralized address_record from building or lot.
  * Handles two cases:
- * 1. Independent lot (without building_id): uses lot fields
- * 2. Lot linked to a building or direct building: uses building fields
+ * 1. Independent lot (without building_id): uses lot's address_record
+ * 2. Lot linked to a building or direct building: uses building's address_record
  *
- * @param building - Building data (can be null)
- * @param lot - Lot data (can be null)
+ * @param building - Building data with address_record (can be null)
+ * @param lot - Lot data with address_record (can be null)
  * @returns Formatted address or "Adresse non disponible"
  */
 export function formatPropertyAddress(
-  building: { postal_code?: string; city?: string; country?: string } | null,
-  lot: { building_id?: string | null; postal_code?: string | null; city?: string | null; country?: string | null } | null
+  building: { address_record?: { postal_code?: string; city?: string; country?: string } | null } | null,
+  lot: { building_id?: string | null; address_record?: { postal_code?: string | null; city?: string | null; country?: string | null } | null } | null
 ): string {
   // Case 1: Independent lot (no building_id)
-  if (lot && !lot.building_id) {
-    const parts = [lot.postal_code, lot.city, lot.country].filter(Boolean)
+  if (lot && !lot.building_id && lot.address_record) {
+    const addr = lot.address_record
+    const parts = [addr.postal_code, addr.city, addr.country].filter(Boolean)
     return parts.length > 0 ? parts.join(', ') : 'Adresse non disponible'
   }
 
   // Case 2: Building (linked lot or direct intervention on building)
-  if (building) {
-    const parts = [building.postal_code, building.city, building.country].filter(Boolean)
+  if (building?.address_record) {
+    const addr = building.address_record
+    const parts = [addr.postal_code, addr.city, addr.country].filter(Boolean)
     return parts.length > 0 ? parts.join(', ') : 'Adresse non disponible'
   }
 
@@ -72,17 +75,17 @@ export function formatPropertyAddress(
 }
 
 /**
- * Format a full property address as "address, city"
+ * Format a full property address as "street, city"
  *
- * @param building - Building data with address and city
+ * @param addressData - Address data with street and city (can be address_record from building/lot)
  * @returns Formatted full address
  */
 export function formatFullPropertyAddress(
-  building: { address?: string; city?: string } | null
+  addressData: { street?: string; city?: string } | null
 ): string {
-  if (!building) return 'Adresse non specifiee'
+  if (!addressData) return 'Adresse non specifiee'
 
-  const parts = [building.address, building.city].filter(Boolean)
+  const parts = [addressData.street, addressData.city].filter(Boolean)
   return parts.length > 0 ? parts.join(', ') : 'Adresse non specifiee'
 }
 

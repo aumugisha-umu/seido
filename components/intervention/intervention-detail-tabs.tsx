@@ -344,8 +344,8 @@ export function InterventionDetailTabs({
                         <h4 className="font-medium text-gray-900">Lot {intervention.lot.reference}</h4>
                       </div>
                       <p className="text-gray-600">
-                        {intervention.lot.building
-                          ? `${intervention.lot.building.address}, ${intervention.lot.building.city} ${intervention.lot.building.postal_code}`
+                        {intervention.lot.building?.address_record
+                          ? [intervention.lot.building.address_record.street, intervention.lot.building.address_record.city, intervention.lot.building.address_record.postal_code].filter(Boolean).join(', ')
                           : "Lot indépendant"
                         }
                       </p>
@@ -369,7 +369,10 @@ export function InterventionDetailTabs({
                         </Badge>
                       </div>
                       <p className="text-gray-600">
-                        {intervention.building.address}, {intervention.building.city} {intervention.building.postal_code}
+                        {intervention.building.address_record
+                          ? [intervention.building.address_record.street, intervention.building.address_record.city, intervention.building.address_record.postal_code].filter(Boolean).join(', ')
+                          : 'Adresse non disponible'
+                        }
                       </p>
                       <p className="text-sm text-gray-500">{intervention.building.name}</p>
                       <p className="text-sm text-amber-600 font-medium">

@@ -91,10 +91,10 @@ export function CompanyCardCompact({ company, onClick }: CompanyCardCompactProps
                         <span>{company.phone}</span>
                     </div>
                 )}
-                {(company.city || company.address) && (
+                {(company.address_record?.city || company.address_record?.street) && (
                     <div className={cn(`${blockClass}__detail`, "flex items-center gap-2")}>
                         <MapPin className="h-4 w-4 flex-shrink-0" />
-                        <span className="truncate">{company.address || company.city}</span>
+                        <span className="truncate">{company.address_record?.street || company.address_record?.city}</span>
                     </div>
                 )}
             </div>

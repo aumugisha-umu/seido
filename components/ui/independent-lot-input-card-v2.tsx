@@ -1,6 +1,6 @@
 "use client"
 
-import React from "react"
+import React, { useCallback } from "react"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,13 +8,6 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
 import {
   Building,
   Users,
@@ -30,6 +23,7 @@ import {
   MapPin
 } from "lucide-react"
 import { LotCategory, getAllLotCategories, getLotCategoryConfig } from "@/lib/lot-types"
+import { AddressFieldsWithMap, type GeocodeResult, type AddressFields } from "@/components/google-maps"
 
 /**
  * Component Icon Map
@@ -52,10 +46,22 @@ export interface IndependentLot {
   postalCode: string
   city: string
   country: string
+  // Geocode data (from Google Maps)
+  latitude?: number
+  longitude?: number
+  placeId?: string
+  formattedAddress?: string
   // Lot details
   floor: string
   doorNumber: string
   description: string
+}
+
+export interface GeocodeResultData {
+  latitude: number
+  longitude: number
+  placeId: string
+  formattedAddress: string
 }
 
 interface IndependentLotInputCardV2Props {
@@ -63,11 +69,14 @@ interface IndependentLotInputCardV2Props {
   lotNumber: number
   isExpanded: boolean
   onUpdate: (field: keyof IndependentLot, value: string) => void
+  onGeocodeResult?: (result: GeocodeResultData | null) => void
   onDuplicate: () => void
   onRemove: () => void
   onToggleExpand: () => void
   // Optional: hide action buttons (for edit mode where only one lot is edited)
   hideActions?: boolean
+  // Optional: show Google Maps integration (default: true)
+  showGoogleMaps?: boolean
 }
 
 /**
@@ -92,13 +101,75 @@ export function IndependentLotInputCardV2({
   lotNumber,
   isExpanded,
   onUpdate,
+  onGeocodeResult,
   onDuplicate,
   onRemove,
   onToggleExpand,
-  hideActions = false
+  hideActions = false,
+  showGoogleMaps = true
 }: IndependentLotInputCardV2Props) {
   const categories = getAllLotCategories()
   const categoryConfig = getLotCategoryConfig(lot.category)
+
+  // Handle address field changes from AddressFieldsWithMap (manual field edits)
+  const handleAddressFieldsChange = useCallback((fields: AddressFields) => {
+    console.log('📝 [LOT-CARD] handleAddressFieldsChange called:', {
+      lotId: lot.id,
+      fields
+    })
+    // STALE CLOSURE FIX: Always update all fields without comparison
+    // Comparisons against captured lot.* values can fail due to stale closures
+    onUpdate('street', fields.street)
+    onUpdate('postalCode', fields.postalCode)
+    onUpdate('city', fields.city)
+    onUpdate('country', fields.country)
+  }, [lot.id, onUpdate])
+
+  // Handle geocode result from AddressFieldsWithMap (autocomplete selection)
+  // STALE CLOSURE FIX: Always update all fields without comparison
+  const handleGeocodeResult = useCallback((result: GeocodeResult | null) => {
+    console.log('🗺️ [LOT-CARD] handleGeocodeResult called:', {
+      lotId: lot.id,
+      hasResult: !!result,
+      hasFields: !!result?.fields,
+      fields: result?.fields,
+      latitude: result?.latitude,
+      longitude: result?.longitude
+    })
+
+    if (result) {
+      // If result includes fields (from autocomplete), update the lot data
+      if (result.fields) {
+        console.log('✅ [LOT-CARD] Updating address fields:', {
+          lotId: lot.id,
+          street: result.fields.street,
+          postalCode: result.fields.postalCode,
+          city: result.fields.city,
+          country: result.fields.country
+        })
+        // ATOMIC UPDATE: Update all address fields at once without comparisons
+        // This avoids stale closure issues where captured lot.* values are outdated
+        onUpdate('street', result.fields.street)
+        onUpdate('postalCode', result.fields.postalCode)
+        onUpdate('city', result.fields.city)
+        onUpdate('country', result.fields.country)
+        console.log('✅ [LOT-CARD] onUpdate calls completed for all fields')
+      } else {
+        console.warn('⚠️ [LOT-CARD] result.fields is missing!', { result })
+      }
+      // Also pass to parent if callback provided (for geocode data: lat, lng, placeId)
+      if (onGeocodeResult) {
+        onGeocodeResult({
+          latitude: result.latitude,
+          longitude: result.longitude,
+          placeId: result.placeId,
+          formattedAddress: result.formattedAddress
+        })
+      }
+    } else {
+      console.warn('⚠️ [LOT-CARD] result is null')
+    }
+  }, [lot.id, onUpdate, onGeocodeResult])
 
   return (
     <Card
@@ -276,96 +347,26 @@ export function IndependentLotInputCardV2({
             </div>
           </div>
 
-          {/* ADDRESS SECTION - New for Independent Lots */}
+          {/* ADDRESS SECTION - With Google Maps Integration */}
           <div className="space-y-2">
-            {/* Street - Full Width */}
-            <div>
-              <Label
-                htmlFor={`street-${lot.id}`}
-                className="text-xs font-medium text-slate-700 mb-1 block"
-              >
-                Rue et numéro
-                <span className="text-red-500 ml-1">*</span>
-              </Label>
-              <Input
-                id={`street-${lot.id}`}
-                value={lot.street || ""}
-                onChange={(e) => onUpdate("street", e.target.value)}
-                placeholder="Ex: 123 Rue de la Paix"
-                className="h-9 text-sm"
-                required
-                aria-required="true"
-              />
+            <div className="flex items-center gap-2 mb-2">
+              <MapPin className="w-4 h-4 text-blue-600" />
+              <span className="text-sm font-medium text-slate-700">Adresse du lot</span>
             </div>
-
-            {/* Grid 3-Column: Postal Code + City + Country */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              {/* Postal Code */}
-              <div>
-                <Label
-                  htmlFor={`postalCode-${lot.id}`}
-                  className="text-xs font-medium text-slate-700 mb-1 block"
-                >
-                  Code postal
-                  <span className="text-red-500 ml-1">*</span>
-                </Label>
-                <Input
-                  id={`postalCode-${lot.id}`}
-                  value={lot.postalCode || ""}
-                  onChange={(e) => onUpdate("postalCode", e.target.value)}
-                  placeholder="Ex: 1000"
-                  className="h-9 text-sm"
-                  required
-                  aria-required="true"
-                />
-              </div>
-
-              {/* City */}
-              <div>
-                <Label
-                  htmlFor={`city-${lot.id}`}
-                  className="text-xs font-medium text-slate-700 mb-1 block"
-                >
-                  Ville
-                  <span className="text-red-500 ml-1">*</span>
-                </Label>
-                <Input
-                  id={`city-${lot.id}`}
-                  value={lot.city || ""}
-                  onChange={(e) => onUpdate("city", e.target.value)}
-                  placeholder="Ex: Bruxelles"
-                  className="h-9 text-sm"
-                  required
-                  aria-required="true"
-                />
-              </div>
-
-              {/* Country */}
-              <div>
-                <Label
-                  htmlFor={`country-${lot.id}`}
-                  className="text-xs font-medium text-slate-700 mb-1 block"
-                >
-                  Pays
-                  <span className="text-red-500 ml-1">*</span>
-                </Label>
-                <Select
-                  value={lot.country || "Belgique"}
-                  onValueChange={(value) => onUpdate("country", value)}
-                >
-                  <SelectTrigger id={`country-${lot.id}`} className="h-9 text-sm">
-                    <SelectValue placeholder="Sélectionner" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Belgique">Belgique</SelectItem>
-                    <SelectItem value="France">France</SelectItem>
-                    <SelectItem value="Luxembourg">Luxembourg</SelectItem>
-                    <SelectItem value="Pays-Bas">Pays-Bas</SelectItem>
-                    <SelectItem value="Allemagne">Allemagne</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            <AddressFieldsWithMap
+              street={lot.street || ""}
+              postalCode={lot.postalCode || ""}
+              city={lot.city || ""}
+              country={lot.country || "Belgique"}
+              latitude={lot.latitude}
+              longitude={lot.longitude}
+              onFieldsChange={handleAddressFieldsChange}
+              onGeocodeResult={handleGeocodeResult}
+              showAutocomplete={showGoogleMaps}
+              showMap={showGoogleMaps}
+              mapHeight={150}
+              required={true}
+            />
           </div>
 
           {/* LOT DETAILS SECTION */}

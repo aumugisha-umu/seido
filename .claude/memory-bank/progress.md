@@ -39,8 +39,114 @@
 - [x] **Fix affichage reponses en attente** (2026-01-26)
 - [x] **Pagination vue liste interventions** (2026-01-26)
 - [x] **Verification architecture cards unifiee** (2026-01-27)
+- [x] **Centralisation Adresses + Google Maps prep** (2026-01-28)
+- [x] **Fix Conversation Threads Multi-Profil** (2026-01-29)
 
 ## Sprint Actuel (Jan 2026)
+
+### 2026-01-29 - Fix PostgREST Relations + Conversation Threads + Centralisation Adresses
+
+**Ce qui a ete fait:**
+
+**1. Fix PostgREST Relations RLS (Session 2)**
+
+Probleme: La page contact edit retournait 404 car les relations PostgREST echouaient silencieusement.
+
+| Issue | Root Cause | Fix |
+|-------|------------|-----|
+| Page 404 silencieux | Relations PostgREST + RLS incompatibles | Requetes separees |
+| Erreur non visible | Objet error Supabase vide dans logs | Logging ameliore |
+| Code duplique | Meme pattern fetch dans 5 methodes | Helpers prives DRY |
+| Performance listes | N+1 queries potentiel | Batch queries |
+
+**Fichier refactore:** `lib/services/repositories/contact.repository.ts`
+- Nouveaux helpers: `fetchCompanyWithAddress()`, `fetchTeam()`
+- 5 methodes mises a jour avec `Promise.all` pour parallelisme
+- `findByTeam()` optimise avec batch queries (3 requetes max au lieu de N)
+
+**Pattern documente:** #18 "Separate Queries Pattern" dans systemPatterns.md
+
+---
+
+**2. Fix Conversation Threads Multi-Profil (Session 1 - MAJEUR)**
+
+Probleme: Les threads de conversation etaient crees mais les participants n'etaient pas ajoutes correctement.
+
+| Issue | Root Cause | Fix |
+|-------|------------|-----|
+| Threads non crees | `createInitialConversationThreads` jamais appele | Ajoute dans `create-manager-intervention/route.ts` |
+| CONFLICT error | Trigger + code ajoutent meme utilisateur | `upsert` avec `ignoreDuplicates` dans repository |
+| Participants manquants | Threads crees APRES assignments | Deplace creation AVANT assignments |
+| Migrations mal ordonnees | Timestamps avant migrations existantes | Renomme: 20260128 → 20260129200003+ |
+
+**2. Migrations Conversations Appliquees (4 fichiers)**
+
+- `20260129200003_fix_multi_profile_conversation_access.sql` - `can_view_conversation()` multi-profil
+- `20260129200004_fix_missing_conversation_participants.sql` - Fix participants manquants
+- `20260129200005_add_managers_to_conversation_participants.sql` - Trigger `thread_add_managers`
+- `20260129200006_conversation_email_notifications.sql` - Notifications email
+
+**3. Centralisation Adresses (3 migrations)**
+
+Nouvelle architecture adresses avec support Google Maps:
+
+- `20260129200000_create_addresses_table.sql` - Table centralisee + RLS
+- `20260129200001_migrate_addresses_to_centralized_table.sql` - Migration donnees
+- `20260129200002_drop_legacy_address_columns.sql` - Suppression colonnes legacy
+
+**4. Nouveaux Services Adresses**
+
+- `lib/services/domain/address.service.ts` - Service domain
+- `lib/services/repositories/address.repository.ts` - Repository CRUD
+
+**Fichiers modifies:**
+- `app/api/create-manager-intervention/route.ts` - Thread creation AVANT assignments
+- `lib/services/repositories/conversation-repository.ts` - Upsert participants
+- 7 migrations SQL
+
+**Pattern Documente:** Ordre creation intervention:
+```
+1. Create intervention
+2. Create threads (AVANT assignments!)
+3. Create assignments (trigger ajoute participants)
+4. Create time slots
+```
+
+---
+
+### 2026-01-28 - Nettoyage Logs Auth + Navigation Contact Preview + Fix Badge Messages
+
+**Ce qui a ete fait:**
+
+**1. Nettoyage Logs Auth Production-Ready**
+- Suppression de ~113 logs `logger.info` de debug dans 6 fichiers auth
+- Conservation de 31 logs `error/warn` critiques pour diagnostic
+- Fichiers nettoyes: `auth-service.ts`, `use-auth.tsx`, `auth-dal.ts`, `auth-guard.tsx`, `callback/page.tsx`, `auth-router.ts`
+- Imports inutilises (`logError`) retires
+
+**2. Bouton Oeil Navigation Contact Preview**
+- Ajout bouton Eye dans `participants-list.tsx` pour navigation vers fiche contact
+- Clic sur card → conversation, Clic sur oeil → `/gestionnaire/contacts/details/[id]`
+- Masque pour l'utilisateur connecte (meme comportement que bouton conversation)
+
+**3. Fix Badge Messages Non-Lus Conversation**
+- Correction du bug ou le badge n'apparaissait jamais sur "Discussion generale"
+- Root cause: `page.tsx` ne calculait pas `unread_count` pour les threads
+- Fix applique dans 3 pages: gestionnaire, locataire, prestataire
+
+**Fichiers modifies:**
+- `lib/auth-service.ts` - Nettoyage logs
+- `hooks/use-auth.tsx` - Nettoyage logs
+- `lib/auth-dal.ts` - Nettoyage logs
+- `components/auth-guard.tsx` - Nettoyage logs
+- `app/auth/callback/page.tsx` - Nettoyage logs
+- `lib/auth-router.ts` - Nettoyage logs
+- `components/interventions/shared/sidebar/participants-list.tsx` - Bouton oeil
+- `app/gestionnaire/(no-navbar)/interventions/[id]/page.tsx` - Fix badge
+- `app/locataire/(no-navbar)/interventions/[id]/page.tsx` - Fix badge
+- `app/prestataire/(no-navbar)/interventions/[id]/page.tsx` - Fix badge
+
+---
 
 ### 2026-01-27 - Integration Skills sp-* dans Ecosysteme Claude Code
 **Ce qui a ete fait:**
@@ -246,19 +352,19 @@
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-01-26)
+## Metriques Projet (2026-01-29)
 
 | Metrique | Valeur |
 |----------|--------|
-| Repositories | 21 |
-| Domain Services | 31 |
+| Repositories | **22** (+1 address) |
+| Domain Services | **32** (+1 address) |
 | API Routes | 113 |
-| Hooks | **59** (+1 use-pagination) |
-| Components | **370** (+1 intervention-pagination) |
-| DB Tables | 40 |
+| Hooks | 59 |
+| Components | 370 |
+| DB Tables | **41** (+1 addresses) |
 | DB Enums | 39 |
-| DB Functions | 77 |
-| Migrations | 131+ |
+| DB Functions | **79** (+2 conversation triggers) |
+| Migrations | **140+** |
 | Server Actions | 16 |
 
 ### Metriques Ecosysteme .claude/ (2026-01-23)
@@ -284,10 +390,14 @@
 | 2026-01 | Audit + Sync Memory Bank | 100% documentation a jour | Metriques precises |
 | 2026-01 | Props Email Standardises | Coherence templates ↔ service | Preview fiable |
 | 2026-01-23 | Optimisation .claude/ | Reduction duplication | -62% lignes, -6000 tokens/session |
-| **2026-01-25** | **PWA Push Notifications** | **Notifications temps reel mobile** | **4 canaux complets** |
-| **2026-01-26** | **Migration workflow devis** | **Suppression statut redondant** | **10 → 9 statuts, meilleure separation concerns** |
-| **2026-01-26** | **Pagination client-side** | **Donnees deja chargees + UX instantanee** | **Hook reutilisable + pattern documente** |
-| **2026-01-27** | **Integration Skills sp-*** | **Garantir code sans erreur via invocation automatique** | **16 fichiers .claude/ modifies, Red Flags universels** |
+| 2026-01-25 | PWA Push Notifications | Notifications temps reel mobile | 4 canaux complets |
+| 2026-01-26 | Migration workflow devis | Suppression statut redondant | 10 → 9 statuts, meilleure separation concerns |
+| 2026-01-26 | Pagination client-side | Donnees deja chargees + UX instantanee | Hook reutilisable + pattern documente |
+| 2026-01-27 | Integration Skills sp-* | Garantir code sans erreur via invocation automatique | 16 fichiers .claude/ modifies, Red Flags universels |
+| 2026-01-28 | Nettoyage Logs Auth | Production-ready, moins de bruit console | ~113 logs supprimes, 31 conserves (errors/warns) |
+| **2026-01-28** | **Centralisation Adresses** | **Table unique + Google Maps ready** | **Table addresses + migration donnees existantes** |
+| **2026-01-29** | **Thread creation order** | **Participants non ajoutes si threads apres assignments** | **Ordre: intervention → threads → assignments → slots** |
+| **2026-01-29** | **Trigger thread_add_managers** | **Managers pas explicitement participants** | **Auto-ajout managers a tous les threads intervention** |
 
 ---
-*Derniere mise a jour: 2026-01-27*
+*Derniere mise a jour: 2026-01-29*

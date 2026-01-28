@@ -182,6 +182,11 @@ export const inviteUserSchema = z.object({
   postalCode: z.string().max(20).trim().optional().nullable(),
   city: z.string().max(100).trim().optional().nullable(),
   country: z.string().length(2).trim().optional().nullable(),
+  // Google Maps geocoding data (for address creation)
+  companyLatitude: z.number().optional().nullable(),
+  companyLongitude: z.number().optional().nullable(),
+  companyPlaceId: z.string().max(500).optional().nullable(),
+  companyFormattedAddress: z.string().max(500).optional().nullable(),
   // Champs liaison à une entité (optionnel)
   linkedEntityType: z.enum(['building', 'lot', 'contract', 'intervention']).optional().nullable(),
   linkedBuildingId: uuidSchema.optional().nullable(),

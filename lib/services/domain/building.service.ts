@@ -233,7 +233,7 @@ export class BuildingService {
 
   /**
    * ⚡ OPTIMIZED: Get buildings summary by team (for list views)
-   * Returns minimal data: id, name, address, city, lots_count
+   * Returns minimal data: id, name, address_record, lots_count
    * 90% less data than getBuildingsByTeam()
    * Use this for list views to improve performance
    */
@@ -473,11 +473,12 @@ export class BuildingService {
         acc.occupied_lots += building.lot_stats?.occupied || 0
         acc.vacant_lots += building.lot_stats?.vacant || 0
 
-        // Track cities
-        if (!acc.by_city[building.city]) {
-          acc.by_city[building.city] = 0
+        // Track cities (from centralized address_record)
+        const city = building.address_record?.city || 'Non défini'
+        if (!acc.by_city[city]) {
+          acc.by_city[city] = 0
         }
-        acc.by_city[building.city]++
+        acc.by_city[city]++
 
         return acc
       },

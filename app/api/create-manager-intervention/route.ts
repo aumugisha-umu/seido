@@ -6,7 +6,7 @@ import { createQuoteRequestsForProviders } from './create-quote-requests'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { createManagerInterventionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 import { mapInterventionType, mapUrgencyLevel } from '@/lib/utils/intervention-mappers'
-import { createServerNotificationRepository, createServerUserRepository, createServerBuildingRepository, createServerLotRepository, createServerInterventionRepository } from '@/lib/services'
+import { createServerNotificationRepository, createServerUserRepository, createServerBuildingRepository, createServerLotRepository, createServerInterventionRepository, ConversationRepository } from '@/lib/services'
 import { NotificationService } from '@/lib/services/domain/notification.service'
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import { NotificationRepository } from '@/lib/services/repositories/notification-repository'
@@ -328,25 +328,25 @@ export async function POST(request: NextRequest) {
       hasFixedDateTime: schedulingType === 'fixed' && fixedDateTime?.date && fixedDateTime?.time
     }, "🔍 Analyse des conditions pour déterminer le statut")
 
-    // CAS 1: Planification si prestataires assignés + devis requis
+    // CAS 1: Planification si devis requis (besoin d'attendre les devis)
     // ✅ FIX 2026-01-26: Le statut demande_de_devis a été supprimé
     // Les devis sont maintenant gérés via requires_quote + intervention_quotes
-    if (selectedProviderIds && selectedProviderIds.length > 0 && expectsQuote) {
+    if (expectsQuote) {
       interventionStatus = 'planification'
-      logger.info({}, "✅ Statut déterminé: PLANIFICATION (prestataires + devis requis - géré via requires_quote)")
+      logger.info({}, "✅ Statut déterminé: PLANIFICATION (devis requis - géré via requires_quote)")
 
-      // CAS 2: Planifiée directement si conditions strictes remplies (SANS confirmation requise)
+      // CAS 2: Planifiée directement si date fixe + pas de confirmation requise
+      // ✅ FIX 2026-01-28: Retiré la condition "pas de prestataires" - si date fixe sans confirmation,
+      // l'intervention est planifiée même avec un prestataire assigné
     } else if (
-      selectedManagerIds.length === 1 && // Que le gestionnaire créateur
-      (!selectedProviderIds || selectedProviderIds.length === 0) && // Pas de prestataires
       schedulingType === 'fixed' && // Date/heure fixe
       fixedDateTime?.date && fixedDateTime?.time && // Date et heure définies
-      !requiresParticipantConfirmation // ✅ FIX 2026-01-25: Pas de confirmation requise des participants
+      !requiresParticipantConfirmation // Pas de confirmation requise des participants
     ) {
       interventionStatus = 'planifiee'
-      logger.info({}, "✅ Statut déterminé: PLANIFIEE (seul gestionnaire + date fixe, sans confirmation)")
+      logger.info({}, "✅ Statut déterminé: PLANIFIEE (date fixe, sans confirmation)")
 
-      // CAS 3: Planification dans tous les autres cas
+      // CAS 3: Planification dans tous les autres cas (slots, flexible, confirmation requise)
     } else {
       interventionStatus = 'planification'
       logger.info({}, "✅ Statut déterminé: PLANIFICATION (cas par défaut)")
@@ -404,6 +404,67 @@ export async function POST(request: NextRequest) {
 
     const intervention = interventionResult.data
     logger.info({ interventionId: intervention.id }, "✅ Intervention created successfully")
+
+    // ✅ CREATE CONVERSATION THREADS (BEFORE assignments)
+    // Threads must be created BEFORE assignments so that the trigger
+    // add_assignment_to_conversation_participants can find and populate them
+    try {
+      logger.info({ interventionId: intervention.id }, "💬 Creating conversation threads...")
+
+      // Use Service Role to bypass RLS for thread creation
+      const serviceClientForThreads = createServiceRoleSupabaseClient()
+      const conversationRepo = new ConversationRepository(serviceClientForThreads)
+
+      // Create GROUP thread (all participants - general discussion)
+      const groupThreadResult = await conversationRepo.createThread({
+        intervention_id: intervention.id,
+        thread_type: 'group',
+        title: 'Discussion générale',
+        created_by: user.id,
+        team_id: intervention.team_id
+      })
+
+      if (groupThreadResult.success) {
+        logger.info({ threadId: groupThreadResult.data?.id, type: 'group' }, "✅ Group thread created")
+      } else {
+        logger.error({ error: groupThreadResult.error }, "⚠️ Failed to create group thread")
+      }
+
+      // Create TENANT_TO_MANAGERS thread (for tenant-manager communication)
+      const tenantThreadResult = await conversationRepo.createThread({
+        intervention_id: intervention.id,
+        thread_type: 'tenant_to_managers',
+        title: 'Communication avec les gestionnaires',
+        created_by: user.id,
+        team_id: intervention.team_id
+      })
+
+      if (tenantThreadResult.success) {
+        logger.info({ threadId: tenantThreadResult.data?.id, type: 'tenant_to_managers' }, "✅ Tenant thread created")
+      } else {
+        logger.error({ error: tenantThreadResult.error }, "⚠️ Failed to create tenant thread")
+      }
+
+      // Create PROVIDER_TO_MANAGERS thread (for provider-manager communication)
+      const providerThreadResult = await conversationRepo.createThread({
+        intervention_id: intervention.id,
+        thread_type: 'provider_to_managers',
+        title: 'Communication avec les prestataires',
+        created_by: user.id,
+        team_id: intervention.team_id
+      })
+
+      if (providerThreadResult.success) {
+        logger.info({ threadId: providerThreadResult.data?.id, type: 'provider_to_managers' }, "✅ Provider thread created")
+      } else {
+        logger.error({ error: providerThreadResult.error }, "⚠️ Failed to create provider thread")
+      }
+
+      logger.info({ interventionId: intervention.id }, "✅ Conversation threads creation completed")
+    } catch (threadError) {
+      logger.error({ error: threadError }, "❌ Error creating conversation threads (non-blocking)")
+      // Don't fail the entire operation for thread creation errors
+    }
 
     // Handle multiple contact assignments
     logger.info({}, "👥 Creating contact assignments...")
@@ -743,12 +804,19 @@ export async function POST(request: NextRequest) {
         }))
 
       if (timeSlotsToInsert.length > 0) {
-        const { error: slotsError } = await supabase
+        // ✅ FIX 2026-01-28: Use service role to bypass RLS for time slot creation
+        // The RLS policy can_manage_time_slot() has timing issues with multi-profile checks
+        const serviceClientForSlots = createServiceRoleSupabaseClient()
+        const { error: slotsError } = await serviceClientForSlots
           .from('intervention_time_slots')
           .insert(timeSlotsToInsert)
 
         if (slotsError) {
-          logger.error({ error: slotsError }, "⚠️ Error creating time slots")
+          logger.error({ error: slotsError }, "❌ Error creating time slots")
+          return NextResponse.json({
+            success: false,
+            error: `Erreur lors de la création des créneaux: ${slotsError.message}`
+          }, { status: 500 })
         } else {
           logger.info({ count: timeSlotsToInsert.length }, "✅ Time slots created")
         }
@@ -769,7 +837,10 @@ export async function POST(request: NextRequest) {
         duration: '1 hour'
       }, "📅 Creating fixed slot with 1-hour default duration")
 
-      const { data: fixedSlot, error: fixedSlotError } = await supabase
+      // ✅ FIX 2026-01-28: Use service role to bypass RLS for time slot creation
+      // The RLS policy can_manage_time_slot() has timing issues with multi-profile checks
+      const serviceClientForFixedSlot = createServiceRoleSupabaseClient()
+      const { data: fixedSlot, error: fixedSlotError } = await serviceClientForFixedSlot
         .from('intervention_time_slots')
         .insert({
           intervention_id: intervention.id,
@@ -785,7 +856,11 @@ export async function POST(request: NextRequest) {
         .single()
 
       if (fixedSlotError) {
-        logger.error({ error: fixedSlotError }, "⚠️ Error creating fixed slot")
+        logger.error({ error: fixedSlotError }, "❌ Error creating fixed slot")
+        return NextResponse.json({
+          success: false,
+          error: `Erreur lors de la création du créneau: ${fixedSlotError.message}`
+        }, { status: 500 })
       } else {
         logger.info({ slotId: fixedSlot?.id }, "✅ Fixed slot created")
 

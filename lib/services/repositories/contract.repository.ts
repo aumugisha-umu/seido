@@ -114,8 +114,9 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
         .select(`
           *,
           lot:lot_id(
-            id, reference, category, street, city, postal_code,
-            building:building_id(id, name, address, city)
+            id, reference, category,
+            address_record:address_id(*),
+            building:building_id(id, name, address_record:address_id(*))
           ),
           team:team_id(id, name),
           created_by_user:created_by(id, name, email),
@@ -156,8 +157,9 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
         .select(`
           *,
           lot:lot_id(
-            id, reference, category, street, city,
-            building:building_id(id, name, address)
+            id, reference, category,
+            address_record:address_id(*),
+            building:building_id(id, name, address_record:address_id(*))
           ),
           contacts:contract_contacts(
             id, user_id, role, is_primary,
@@ -300,7 +302,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
           *,
           lot:lot_id(
             id, reference, category,
-            building:building_id(id, name, address)
+            building:building_id(id, name, address_record:address_id(*))
           ),
           contacts:contract_contacts(
             id, user_id, role, is_primary,
@@ -787,16 +789,12 @@ export class ContractContactRepository extends BaseRepository<ContractContact, C
               reference,
               floor,
               category,
-              street,
-              city,
-              postal_code,
+              address_record:address_id(*),
               building:building_id(
                 id,
                 name,
-                address,
-                city,
-                postal_code,
-                description
+                description,
+                address_record:address_id(*)
               )
             )
           )

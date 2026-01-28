@@ -70,8 +70,8 @@ export function CompanySelector({
                 <span className="font-medium">{company.name}</span>
                 <span className="text-xs text-gray-500">
                   {company.vat_number && `TVA: ${company.vat_number}`}
-                  {company.vat_number && company.city && ' • '}
-                  {company.city}
+                  {company.vat_number && company.address_record?.city && ' • '}
+                  {company.address_record?.city}
                 </span>
               </div>
             </div>

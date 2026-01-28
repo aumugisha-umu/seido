@@ -273,6 +273,31 @@ export default async function BuildingDetailsPage({
       elapsed: `${Date.now() - startTime}ms`
     })
 
+    // Step 6: Load address if building has address_id
+    let buildingAddress: { latitude: number; longitude: number; formatted_address: string | null } | null = null
+    if (building.address_id) {
+      logger.info('📍 [BUILDING-PAGE-SERVER] Step 6: Loading building address...', {
+        addressId: building.address_id
+      })
+      const { data: addressData } = await supabase
+        .from('addresses')
+        .select('latitude, longitude, formatted_address')
+        .eq('id', building.address_id)
+        .single()
+
+      if (addressData && addressData.latitude && addressData.longitude) {
+        buildingAddress = {
+          latitude: addressData.latitude,
+          longitude: addressData.longitude,
+          formatted_address: addressData.formatted_address
+        }
+        logger.info('✅ [BUILDING-PAGE-SERVER] Building address loaded', {
+          hasCoordinates: true,
+          elapsed: `${Date.now() - startTime}ms`
+        })
+      }
+    }
+
     logger.info('🎉 [BUILDING-PAGE-SERVER] All data loaded successfully', {
       buildingId: id,
       totalElapsed: `${Date.now() - startTime}ms`
@@ -290,6 +315,7 @@ export default async function BuildingDetailsPage({
         lotsWithContacts={lotsWithContracts}
         lotContactIdsMap={lotContactIdsMap}
         teamId={team.id}
+        buildingAddress={buildingAddress}
       />
     )
   } catch (error) {

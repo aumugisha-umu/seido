@@ -15,8 +15,9 @@
  * - requested: Quote has been requested, awaiting provider response
  * - received: Provider has submitted a quote, awaiting approval
  * - validated: Quote has been approved
+ * - rejected: Quote has been rejected
  */
-export type QuoteBadgeStatus = 'requested' | 'received' | 'validated' | null
+export type QuoteBadgeStatus = 'requested' | 'received' | 'validated' | 'rejected' | null
 
 /**
  * Quote object shape from the database
@@ -49,10 +50,13 @@ export interface QuoteStatusInfo {
 export const getQuoteBadgeStatus = (quotes: QuoteStatusInfo[] | undefined | null): QuoteBadgeStatus => {
   if (!quotes || quotes.length === 0) return null
 
-  // Check status priority: validated > received > requested
+  // Check status priority: validated > received > requested > rejected
+  // Show the "best" status (accepted beats sent, sent beats pending, etc.)
   if (quotes.some(q => q.status === 'accepted')) return 'validated'
   if (quotes.some(q => q.status === 'sent')) return 'received'
   if (quotes.some(q => q.status === 'pending')) return 'requested'
+  // Only show rejected if ALL quotes are rejected (no pending or sent)
+  if (quotes.every(q => q.status === 'rejected')) return 'rejected'
 
   return null
 }
@@ -63,6 +67,7 @@ export const getQuoteBadgeStatus = (quotes: QuoteStatusInfo[] | undefined | null
 
 /**
  * Returns the French label for a quote badge status
+ * Short labels with € icon for compact display
  *
  * @param status - The badge status
  * @returns French label string
@@ -70,11 +75,13 @@ export const getQuoteBadgeStatus = (quotes: QuoteStatusInfo[] | undefined | null
 export const getQuoteBadgeLabel = (status: QuoteBadgeStatus): string => {
   switch (status) {
     case 'requested':
-      return 'Estimation demandée'
+      return 'Demandé'
     case 'received':
-      return 'Estimation reçue'
+      return 'Reçu'
     case 'validated':
-      return 'Estimation validée'
+      return 'Validé'
+    case 'rejected':
+      return 'Refusé'
     default:
       return ''
   }
@@ -87,6 +94,7 @@ export const getQuoteBadgeLabel = (status: QuoteBadgeStatus): string => {
  * - Yellow (requested): Waiting state, action needed from provider
  * - Blue (received): Information state, quote ready for review
  * - Green (validated): Success state, quote approved
+ * - Red (rejected): Error state, quote was rejected
  *
  * @param status - The badge status
  * @returns Tailwind CSS class string
@@ -99,6 +107,8 @@ export const getQuoteBadgeColor = (status: QuoteBadgeStatus): string => {
       return 'bg-blue-100 text-blue-800 border-blue-200'
     case 'validated':
       return 'bg-green-100 text-green-800 border-green-200'
+    case 'rejected':
+      return 'bg-red-100 text-red-800 border-red-200'
     default:
       return ''
   }

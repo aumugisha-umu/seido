@@ -27,12 +27,17 @@ export interface BuildingLotItem {
 export interface BuildingData {
     id: string
     name: string
-    address: string
-    city?: string
-    postal_code?: string
     lots?: BuildingLotItem[]
     building_contacts?: Array<{ user?: { id: string; name: string; role: string } }>
     interventions_count?: number
+    // Address record from centralized addresses table
+    address_record?: {
+        id: string
+        street?: string | null
+        postal_code?: string | null
+        city?: string | null
+        formatted_address?: string | null
+    } | null
 }
 
 // Lot type
@@ -53,11 +58,25 @@ export interface LotData {
     building?: {
         id: string
         name: string
-        address?: string
-        city?: string
+        // Address record from centralized addresses table
+        address_record?: {
+            id: string
+            street?: string | null
+            postal_code?: string | null
+            city?: string | null
+            formatted_address?: string | null
+        } | null
     }
     building_name?: string
     interventions_count?: number
+    // Address record from centralized addresses table (for independent lots)
+    address_record?: {
+        id: string
+        street?: string | null
+        postal_code?: string | null
+        city?: string | null
+        formatted_address?: string | null
+    } | null
     // Contracts with contacts for expanded view
     contracts?: Array<{
         id: string
@@ -103,12 +122,27 @@ export const buildingsTableConfig: DataTableConfig<BuildingData> = {
             header: 'Adresse',
             accessorKey: 'address',
             sortable: true,
-            cell: (building) => (
-                <div className="flex items-center gap-1 text-sm text-slate-600">
-                    <MapPin className="h-3 w-3 flex-shrink-0" />
-                    <span className="truncate">{building.address}, {building.city || ''}</span>
-                </div>
-            )
+            cell: (building) => {
+                // Use address_record first, then fallback to inline fields
+                const addressRecord = (building as any).address_record
+                let addressText: string | null = null
+
+                if (addressRecord?.formatted_address) {
+                    addressText = addressRecord.formatted_address
+                } else if (addressRecord?.street || addressRecord?.city) {
+                    const parts = [addressRecord.street, addressRecord.postal_code, addressRecord.city].filter(Boolean)
+                    addressText = parts.join(', ')
+                }
+
+                return addressText ? (
+                    <div className="flex items-center gap-1 text-sm text-slate-600">
+                        <MapPin className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{addressText}</span>
+                    </div>
+                ) : (
+                    <span className="text-sm text-slate-400">-</span>
+                )
+            }
         },
         {
             id: 'lots_count',
@@ -286,17 +320,59 @@ export const lotsTableConfig: DataTableConfig<LotData> = {
         },
         {
             id: 'building',
-            header: 'Immeuble',
+            header: 'Immeuble / Adresse',
             accessorKey: 'building.name',
             sortable: true,
             cell: (lot) => {
-                if (!lot.building) return <span className="text-sm text-slate-400">-</span>
-                return (
-                    <div className="flex items-center gap-1 text-sm text-slate-600">
-                        <Building2 className="h-3 w-3 flex-shrink-0" />
-                        <span className="truncate">{lot.building.name}</span>
-                    </div>
-                )
+                // Lot linked to a building: show building name AND address from address_record
+                if (lot.building?.name) {
+                    const buildingAddressRecord = lot.building?.address_record
+                    let buildingAddressText: string | null = null
+
+                    if (buildingAddressRecord?.formatted_address) {
+                        buildingAddressText = buildingAddressRecord.formatted_address
+                    } else if (buildingAddressRecord?.street || buildingAddressRecord?.city) {
+                        const parts = [buildingAddressRecord.street, buildingAddressRecord.postal_code, buildingAddressRecord.city].filter(Boolean)
+                        buildingAddressText = parts.join(', ')
+                    }
+
+                    return (
+                        <div className="flex items-center gap-1 text-sm text-slate-600">
+                            <Building2 className="h-3 w-3 flex-shrink-0" />
+                            <span className="flex-shrink-0">{lot.building.name}</span>
+                            {buildingAddressText && (
+                                <>
+                                    <span className="text-slate-400">•</span>
+                                    <MapPin className="h-3 w-3 flex-shrink-0 text-slate-400" />
+                                    <span className="truncate text-slate-400">
+                                        {buildingAddressText}
+                                    </span>
+                                </>
+                            )}
+                        </div>
+                    )
+                }
+                // Independent lot: show its own address
+                const addressRecord = lot.address_record
+                let addressText: string | null = null
+
+                if (addressRecord?.formatted_address) {
+                    addressText = addressRecord.formatted_address
+                } else if (addressRecord?.street || addressRecord?.city) {
+                    const parts = [addressRecord.street, addressRecord.postal_code, addressRecord.city].filter(Boolean)
+                    addressText = parts.join(', ')
+                }
+
+                if (addressText) {
+                    return (
+                        <div className="flex items-center gap-1 text-sm text-slate-600">
+                            <MapPin className="h-3 w-3 flex-shrink-0" />
+                            <span className="truncate">{addressText}</span>
+                        </div>
+                    )
+                }
+
+                return <span className="text-sm text-slate-400">-</span>
             }
         },
         {

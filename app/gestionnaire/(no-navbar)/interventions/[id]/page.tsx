@@ -71,14 +71,14 @@ export default async function InterventionDetailPage({ params }: PageProps) {
       { data: comments },
       { data: linkedInterventions }
     ] = await Promise.all([
-      // Building
+      // Building (avec address_record pour la localisation)
       intervention.building_id
-        ? supabase.from('buildings').select('*').eq('id', intervention.building_id).single()
+        ? supabase.from('buildings').select('*, address_record:address_id(*)').eq('id', intervention.building_id).single()
         : Promise.resolve({ data: null }),
 
-      // Lot (avec building pour la localisation complète)
+      // Lot (avec building et address_record pour la localisation complète)
       intervention.lot_id
-        ? supabase.from('lots').select('*, building:building_id(*)').eq('id', intervention.lot_id).single()
+        ? supabase.from('lots').select('*, address_record:address_id(*), building:building_id(*, address_record:address_id(*))').eq('id', intervention.lot_id).single()
         : Promise.resolve({ data: null }),
 
       // Assignments (with company data for contacts navigator)
@@ -316,6 +316,74 @@ export default async function InterventionDetailPage({ params }: PageProps) {
     const providerAssignments = assignments?.filter(a => a.role === 'prestataire') || []
     const providerCount = providerAssignments.length
 
+    // Step 3: Load address for map (from lot or building)
+    let interventionAddress: { latitude: number; longitude: number; formatted_address: string | null } | null = null
+
+    // First try lot's address
+    if (lot && (lot as any).address_id) {
+      const { data: addressData } = await supabase
+        .from('addresses')
+        .select('latitude, longitude, formatted_address')
+        .eq('id', (lot as any).address_id)
+        .single()
+
+      if (addressData?.latitude && addressData?.longitude) {
+        interventionAddress = {
+          latitude: addressData.latitude,
+          longitude: addressData.longitude,
+          formatted_address: addressData.formatted_address
+        }
+      }
+    }
+
+    // If no lot address, try lot's building address
+    if (!interventionAddress && lot?.building_id) {
+      const { data: buildingData } = await supabase
+        .from('buildings')
+        .select('address_id')
+        .eq('id', lot.building_id)
+        .single()
+
+      if (buildingData?.address_id) {
+        const { data: addressData } = await supabase
+          .from('addresses')
+          .select('latitude, longitude, formatted_address')
+          .eq('id', buildingData.address_id)
+          .single()
+
+        if (addressData?.latitude && addressData?.longitude) {
+          interventionAddress = {
+            latitude: addressData.latitude,
+            longitude: addressData.longitude,
+            formatted_address: addressData.formatted_address
+          }
+        }
+      }
+    }
+
+    // If no lot, try building's address directly
+    if (!interventionAddress && building && (building as any).address_id) {
+      const { data: addressData } = await supabase
+        .from('addresses')
+        .select('latitude, longitude, formatted_address')
+        .eq('id', (building as any).address_id)
+        .single()
+
+      if (addressData?.latitude && addressData?.longitude) {
+        interventionAddress = {
+          latitude: addressData.latitude,
+          longitude: addressData.longitude,
+          formatted_address: addressData.formatted_address
+        }
+      }
+    }
+
+    logger.info('📍 [INTERVENTION-PAGE] Address loaded', {
+      hasAddress: !!interventionAddress,
+      fromLot: !!lot,
+      fromBuilding: !!building
+    })
+
     // ✅ Pass to Client Component
     return (
       <InterventionDetailClient
@@ -340,6 +408,7 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         isParentIntervention={isParentIntervention}
         isChildIntervention={isChildIntervention}
         providerCount={providerCount}
+        interventionAddress={interventionAddress}
       />
     )
   } catch (error) {

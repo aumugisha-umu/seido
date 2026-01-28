@@ -54,11 +54,31 @@ import { InterventionFileAttachment } from "@/components/intervention/interventi
 import { InterventionConfirmationSummary, type InterventionConfirmationData } from "@/components/interventions/intervention-confirmation-summary"
 import { Switch } from "@/components/ui/switch"
 
+// ✅ Type centralisé pour les adresses (table addresses)
+interface AddressRecord {
+  id?: string
+  street?: string | null
+  postal_code?: string | null
+  city?: string | null
+  country?: string | null
+  formatted_address?: string | null
+  lat?: number | null
+  lng?: number | null
+}
+
+// Helper pour extraire l'adresse formatée depuis address_record
+function getFormattedAddress(addressRecord?: AddressRecord | null): string {
+  if (!addressRecord) return ''
+  if (addressRecord.formatted_address) return addressRecord.formatted_address
+  const parts = [addressRecord.street, addressRecord.postal_code, addressRecord.city].filter(Boolean)
+  return parts.join(', ')
+}
+
 // Types for server-loaded data
 interface Building {
   id: string
   name: string
-  address: string
+  address_record?: AddressRecord | null
   lots?: Lot[]
 }
 
@@ -66,11 +86,14 @@ interface Lot {
   id: string
   reference: string
   building_id?: string | null
-  building?: { id: string; name: string; address: string }
+  address_record?: AddressRecord | null  // ✅ Lots indépendants ont leur propre adresse
+  building?: { id: string; name: string; address_record?: AddressRecord | null }
   building_name?: string
   status?: string
   floor?: number
   interventions?: number
+  is_occupied?: boolean  // ✅ Basé sur contrats actifs
+  tenant?: { name?: string | null }  // ✅ Locataire principal
 }
 
 interface BuildingsData {
@@ -483,12 +506,15 @@ export default function NouvelleInterventionClient({
         // If tenant has only one lot, auto-select it
         if (lots.length === 1) {
           const lot = lots[0]
+          // ✅ Adresse: priorité au lot indépendant, sinon adresse du building
+          const lotAddress = getFormattedAddress(lot.address_record)
+            || getFormattedAddress(lot.building?.address_record)
           setSelectedLogement({
             id: lot.id,
             name: lot.reference,
             type: "lot",
             building: lot.building?.name || "Immeuble",
-            address: lot.building?.address || "",
+            address: lotAddress,
             buildingId: lot.building_id,
             floor: lot.floor,
             tenant: lot.tenant?.name || null,
@@ -519,12 +545,15 @@ export default function NouvelleInterventionClient({
 
       if (lotResult && lotResult.success && lotResult.data) {
         const lot = lotResult.data as any
+        // ✅ Adresse: priorité au lot indépendant, sinon adresse du building
+        const lotAddress = getFormattedAddress(lot.address_record)
+          || getFormattedAddress(lot.building?.address_record)
         setSelectedLogement({
           id: lot.id,
           name: lot.reference,
           type: "lot",
           building: lot.building?.name || "Immeuble",
-          address: lot.building?.address || "",
+          address: lotAddress,
           buildingId: lot.building_id,
           floor: lot.floor,
           tenant: lot.tenant?.name || null,
@@ -1076,7 +1105,7 @@ export default function NouvelleInterventionClient({
       id: buildingId,
       name: buildingFromInitial?.name || `Immeuble ${buildingId.slice(0, 8)}`,
       building: buildingFromInitial?.name,
-      address: buildingFromInitial?.address || ""
+      address: getFormattedAddress(buildingFromInitial?.address_record)
     })
 
     // ✅ FIX: Générer titre par défaut AVANT le check des services
@@ -1124,7 +1153,7 @@ export default function NouvelleInterventionClient({
           name: result.data.name,
           type: "building",
           building: result.data.name,
-          address: result.data.address || "",
+          address: getFormattedAddress((result.data as any).address_record),
           buildingId: result.data.id
         })
         setSelectedBuildingId(String(result.data.id))
@@ -1155,7 +1184,7 @@ export default function NouvelleInterventionClient({
     for (const building of initialBuildingsData.buildings) {
       const lot = building.lots?.find(l => String(l.id) === lotId)
       if (lot) {
-        return { ...lot, building: { id: building.id, name: building.name, address: building.address } }
+        return { ...lot, building: { id: building.id, name: building.name, address_record: building.address_record } }
       }
     }
 
@@ -1182,13 +1211,16 @@ export default function NouvelleInterventionClient({
     // Align behavior with building selection: always set current selection to the lot
     // ✅ Utiliser les données initiales pour l'état optimiste (évite "Lot undefined")
     const lotFromInitial = findLotInInitialData(lotIdStr, buildingIdStr)
+    // ✅ Adresse: priorité au lot indépendant, sinon adresse du building
+    const lotAddress = getFormattedAddress(lotFromInitial?.address_record)
+      || getFormattedAddress(lotFromInitial?.building?.address_record)
     setSelectedLogement({
       type: "lot",
       id: lotIdStr,
       buildingId: buildingIdStr,
       name: lotFromInitial?.reference || `Lot ${lotIdStr.slice(0, 8)}`,
       building: lotFromInitial?.building?.name,
-      address: lotFromInitial?.building?.address,
+      address: lotAddress,
       is_occupied: lotFromInitial?.is_occupied || false
     })
     // ✅ Initialiser includeTenants depuis données initiales pour cohérence avec étape 1
@@ -1318,12 +1350,15 @@ export default function NouvelleInterventionClient({
           logger.warn("⚠️ [LOT-SELECT] Could not load tenant data from contracts:", tenantError)
         }
 
+        // ✅ Adresse: priorité au lot indépendant, sinon adresse du building
+        const lotDataAddress = getFormattedAddress(lotData.address_record)
+          || getFormattedAddress(lotData.building?.address_record)
         setSelectedLogement({
           id: lotData.id,
           name: lotData.reference,
           type: "lot",
           building: lotData.building?.name || "Immeuble",
-          address: lotData.building?.address || "",
+          address: lotDataAddress,
           buildingId: lotData.building_id || lotData.building?.id,
           floor: lotData.floor,
           tenant: tenantName,
@@ -1349,6 +1384,8 @@ export default function NouvelleInterventionClient({
         }
       } else {
         // Fallback to minimal data if lot not found (utilise données initiales)
+        const fallbackAddress = getFormattedAddress(lotFromInitial?.address_record)
+          || getFormattedAddress(lotFromInitial?.building?.address_record)
         setSelectedLotId(lotIdStr)
         setSelectedBuildingId(buildingIdStr)
         setSelectedLogement({
@@ -1357,12 +1394,14 @@ export default function NouvelleInterventionClient({
           buildingId: buildingIdStr,
           name: lotFromInitial?.reference || `Lot ${lotIdStr.slice(0, 8)}`,
           building: lotFromInitial?.building?.name,
-          address: lotFromInitial?.building?.address
+          address: fallbackAddress
         })
       }
     } catch (error) {
       logger.error("❌ Error loading lot data:", error)
       // Fallback to minimal data (utilise données initiales)
+      const fallbackAddress = getFormattedAddress(lotFromInitial?.address_record)
+        || getFormattedAddress(lotFromInitial?.building?.address_record)
       setSelectedLotId(lotIdStr)
       setSelectedBuildingId(buildingIdStr)
       setSelectedLogement({
@@ -1371,7 +1410,7 @@ export default function NouvelleInterventionClient({
         buildingId: buildingIdStr,
         name: lotFromInitial?.reference || `Lot ${lotIdStr.slice(0, 8)}`,
         building: lotFromInitial?.building?.name,
-        address: lotFromInitial?.building?.address
+        address: fallbackAddress
       })
     }
   }

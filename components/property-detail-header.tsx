@@ -82,7 +82,7 @@ export const PropertyDetailHeader = ({
     if (type === "lot") {
       return {
         title: property.reference || property.title,
-        subtitle: property.building ? `${property.building.name} • ${property.building.address}, ${property.building.city}` : "",
+        subtitle: property.building ? `${property.building.name} • ${property.building.address_record?.street || ''}, ${property.building.address_record?.city || ''}` : "",
         badges: [
           property.isOccupied !== undefined ? {
             color: property.isOccupied 

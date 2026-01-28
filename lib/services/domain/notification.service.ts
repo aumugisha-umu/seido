@@ -336,7 +336,7 @@ export class NotificationService {
           metadata: {
             building_id: buildingId,
             building_name: building.name,
-            address: building.address
+            address: building.address_record ? `${building.address_record.street || ''}, ${building.address_record.city || ''}`.trim().replace(/^,\s*|,\s*$/g, '') : ''
           },
           related_entity_type: 'building',
           related_entity_id: buildingId
@@ -400,12 +400,17 @@ export class NotificationService {
     teamId,
     deletedBy
   }: {
-    building: { id: string; name: string; address: string; team_id: string }
+    building: { id: string; name: string; team_id: string }
     teamId: string
     deletedBy: string
   }) {
     const buildingWithManagers = await this.repository.getBuildingWithManagers(building.id)
     const recipients = determineBuildingRecipients(buildingWithManagers, deletedBy)
+
+    // Format address from address_record
+    const formattedAddress = buildingWithManagers.address_record
+      ? `${buildingWithManagers.address_record.street || ''}, ${buildingWithManagers.address_record.city || ''}`.trim().replace(/^,\s*|,\s*$/g, '')
+      : ''
 
     const notifications = await Promise.all(
       recipients.map(recipient => {
@@ -423,7 +428,7 @@ export class NotificationService {
           is_personal: recipient.isPersonal,
           metadata: {
             building_name: building.name,
-            address: building.address
+            address: formattedAddress
           },
           related_entity_type: 'building',
           related_entity_id: building.id

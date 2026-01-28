@@ -21,6 +21,15 @@ import { logger } from '@/lib/logger'
 type Company = Database['public']['Tables']['companies']['Row']
 type CompanyInsert = Database['public']['Tables']['companies']['Insert']
 type CompanyUpdate = Database['public']['Tables']['companies']['Update']
+type Address = Database['public']['Tables']['addresses']['Row']
+
+// Company with joined address (renamed to avoid collision with address column)
+export type CompanyWithAddress = Company & {
+  address_record: Address | null
+}
+
+// Select query with address join (renamed to avoid overwriting address string)
+const SELECT_WITH_ADDRESS = '*, address_record:address_id(*)' as const
 
 /**
  * Company Repository
@@ -54,13 +63,13 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
   }
 
   /**
-   * Get all companies for a specific team
+   * Get all companies for a specific team with address
    */
-  async findByTeam(teamId: string) {
+  async findByTeam(teamId: string): Promise<{ success: true; data: CompanyWithAddress[] } | { success: false; error: { message: string } }> {
     try {
       const { data, error } = await this.supabase
         .from(this.tableName)
-        .select('*')
+        .select(SELECT_WITH_ADDRESS)
         .eq('team_id', teamId)
         .is('deleted_at', null)
         .order('name', { ascending: true })
@@ -71,7 +80,7 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
       }
 
       logger.info(`[COMPANY-REPO] Found ${data?.length || 0} companies for team ${teamId}`)
-      return { success: true as const, data: data || [] }
+      return { success: true as const, data: (data || []) as CompanyWithAddress[] }
     } catch (error) {
       logger.error('[COMPANY-REPO] Exception in findByTeam:', error)
       throw error
@@ -79,13 +88,13 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
   }
 
   /**
-   * Get active companies for a specific team (for selectors)
+   * Get active companies for a specific team (for selectors) with address
    */
-  async findActiveByTeam(teamId: string) {
+  async findActiveByTeam(teamId: string): Promise<{ success: true; data: CompanyWithAddress[] } | { success: false; error: { message: string } }> {
     try {
       const { data, error } = await this.supabase
         .from(this.tableName)
-        .select('id, name, vat_number, street, street_number, postal_code, city, country')
+        .select(SELECT_WITH_ADDRESS)
         .eq('team_id', teamId)
         .eq('is_active', true)
         .is('deleted_at', null)
@@ -97,7 +106,7 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
       }
 
       logger.info(`[COMPANY-REPO] Found ${data?.length || 0} active companies for team ${teamId}`)
-      return { success: true as const, data: data || [] }
+      return { success: true as const, data: (data || []) as CompanyWithAddress[] }
     } catch (error) {
       logger.error('[COMPANY-REPO] Exception in findActiveByTeam:', error)
       throw error
@@ -106,13 +115,13 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
 
   /**
    * Check if a VAT number already exists for a specific team
-   * Returns the company if found, null otherwise
+   * Returns the company with address if found, null otherwise
    */
-  async findByVatNumber(vatNumber: string, teamId: string) {
+  async findByVatNumber(vatNumber: string, teamId: string): Promise<{ success: true; data: CompanyWithAddress | null } | { success: false; error: { message: string } }> {
     try {
       const { data, error } = await this.supabase
         .from(this.tableName)
-        .select('*')
+        .select(SELECT_WITH_ADDRESS)
         .eq('vat_number', vatNumber)
         .eq('team_id', teamId)
         .is('deleted_at', null)
@@ -127,7 +136,7 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
         logger.info(`[COMPANY-REPO] VAT number ${vatNumber} already exists for team ${teamId}`)
       }
 
-      return { success: true as const, data }
+      return { success: true as const, data: data as CompanyWithAddress | null }
     } catch (error) {
       logger.error('[COMPANY-REPO] Exception in findByVatNumber:', error)
       throw error
@@ -135,20 +144,19 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
   }
 
   /**
-   * Create a company with full address
+   * Create a company with address reference
+   * @param companyData.address_id - Link to centralized addresses table
+   * NOTE: Address fields (street, city, etc.) are now stored in the addresses table
    */
   async createWithAddress(companyData: {
     name: string
     vat_number?: string
-    street?: string
-    street_number?: string
-    postal_code?: string
-    city?: string
-    country?: string
     team_id: string
     email?: string
     phone?: string
     notes?: string
+    is_active?: boolean
+    address_id?: string // Link to centralized addresses table
   }) {
     try {
       // Validate required fields
@@ -167,18 +175,14 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
         .insert({
           name: companyData.name,
           vat_number: companyData.vat_number || null,
-          street: companyData.street || null,
-          street_number: companyData.street_number || null,
-          postal_code: companyData.postal_code || null,
-          city: companyData.city || null,
-          country: companyData.country || 'BE',
           team_id: companyData.team_id,
           email: companyData.email || null,
           phone: companyData.phone || null,
           notes: companyData.notes || null,
-          is_active: true
+          is_active: companyData.is_active ?? true,
+          address_id: companyData.address_id || null // Link to centralized addresses
         })
-        .select()
+        .select(SELECT_WITH_ADDRESS)
         .single()
 
       if (error) {
@@ -187,7 +191,7 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
       }
 
       logger.info(`[COMPANY-REPO] Created company: ${data.name} (ID: ${data.id})`)
-      return { success: true as const, data }
+      return { success: true as const, data: data as CompanyWithAddress }
     } catch (error) {
       logger.error('[COMPANY-REPO] Exception in createWithAddress:', error)
       throw error
@@ -195,13 +199,13 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
   }
 
   /**
-   * Find company by name and team (for import linking)
+   * Find company by name and team (for import linking) with address
    */
-  async findByNameAndTeam(name: string, teamId: string) {
+  async findByNameAndTeam(name: string, teamId: string): Promise<{ success: true; data: CompanyWithAddress | null } | { success: false; error: { message: string } }> {
     try {
       const { data, error } = await this.supabase
         .from(this.tableName)
-        .select('*')
+        .select(SELECT_WITH_ADDRESS)
         .ilike('name', name)
         .eq('team_id', teamId)
         .is('deleted_at', null)
@@ -212,7 +216,7 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
         return createErrorResponse(handleError(error, `${this.tableName}:query`))
       }
 
-      return { success: true as const, data }
+      return { success: true as const, data: data as CompanyWithAddress | null }
     } catch (error) {
       logger.error('[COMPANY-REPO] Exception in findByNameAndTeam:', error)
       throw error
@@ -281,13 +285,13 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
   /**
    * Deactivate a company (soft deactivation)
    */
-  async deactivate(companyId: string) {
+  async deactivate(companyId: string): Promise<{ success: true; data: CompanyWithAddress } | { success: false; error: { message: string } }> {
     try {
       const { data, error } = await this.supabase
         .from(this.tableName)
         .update({ is_active: false })
         .eq('id', companyId)
-        .select()
+        .select(SELECT_WITH_ADDRESS)
         .single()
 
       if (error) {
@@ -296,7 +300,7 @@ export class CompanyRepository extends BaseRepository<Company, CompanyInsert, Co
       }
 
       logger.info(`[COMPANY-REPO] Deactivated company ${companyId}`)
-      return { success: true as const, data }
+      return { success: true as const, data: data as CompanyWithAddress }
     } catch (error) {
       logger.error('[COMPANY-REPO] Exception in deactivate:', error)
       throw error

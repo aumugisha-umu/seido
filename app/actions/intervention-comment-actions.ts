@@ -8,6 +8,7 @@
 import { createServerActionInterventionCommentRepository } from '@/lib/services/repositories/intervention-comment.repository'
 import { createServerActionSupabaseClient } from '@/lib/services'
 import { revalidatePath } from 'next/cache'
+import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 
@@ -27,20 +28,44 @@ const DeleteCommentSchema = z.object({
 
 /**
  * Helper to get authenticated user ID
+ *
+ * MULTI-PROFILE SUPPORT:
+ * - Uses getUser() instead of getSession()
+ * - Fetches ALL profiles (not .single())
+ * - Selects based on seido_current_team cookie
  */
 async function getAuthenticatedUserId(): Promise<string | null> {
   const supabase = await createServerActionSupabaseClient()
 
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return null
+  // Use getUser() for server-side validation
+  const { data: { user: authUser }, error } = await supabase.auth.getUser()
+  if (!authUser || error) return null
 
-  const { data: userData } = await supabase
+  // ✅ MULTI-PROFIL FIX: Récupérer TOUS les profils
+  const { data: profiles, error: profilesError } = await supabase
     .from('users')
-    .select('id')
-    .eq('auth_user_id', session.user.id)
-    .single()
+    .select('id, team_id')
+    .eq('auth_user_id', authUser.id)
+    .is('deleted_at', null)
+    .order('updated_at', { ascending: false })
 
-  return userData?.id || null
+  if (profilesError || !profiles || profiles.length === 0) {
+    return null
+  }
+
+  // Sélectionner le profil selon cookie seido_current_team
+  const cookieStore = await cookies()
+  const preferredTeamId = cookieStore.get('seido_current_team')?.value
+  let selectedProfile = profiles[0]
+
+  if (preferredTeamId && preferredTeamId !== 'all') {
+    const preferred = profiles.find(p => p.team_id === preferredTeamId)
+    if (preferred) {
+      selectedProfile = preferred
+    }
+  }
+
+  return selectedProfile?.id || null
 }
 
 /**

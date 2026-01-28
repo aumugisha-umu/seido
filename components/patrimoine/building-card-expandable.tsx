@@ -102,10 +102,22 @@ export function BuildingCardExpandable({
                                 <h3 className={cn(`${blockClass}__title`, "font-semibold text-sm text-slate-900 truncate")}>
                                     {building.name}
                                 </h3>
-                                <div className={cn(`${blockClass}__subtitle`, "flex items-center text-xs text-slate-600 mt-0.5")}>
-                                    <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
-                                    <span className="truncate">{building.address}</span>
-                                </div>
+                                {(() => {
+                                    const record = building.address_record
+                                    let addressText = ''
+                                    if (record?.formatted_address) {
+                                        addressText = record.formatted_address
+                                    } else if (record?.street || record?.city) {
+                                        const parts = [record.street, record.postal_code, record.city].filter(Boolean)
+                                        addressText = parts.join(', ')
+                                    }
+                                    return addressText ? (
+                                        <div className={cn(`${blockClass}__subtitle`, "flex items-center text-xs text-slate-600 mt-0.5")}>
+                                            <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                                            <span className="truncate">{addressText}</span>
+                                        </div>
+                                    ) : null
+                                })()}
                             </div>
                         </div>
 

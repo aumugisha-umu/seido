@@ -103,12 +103,14 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         creator:created_by(id, name, email, role),
         lot:lot_id(
           id, reference, building_id,
-          building:building_id(id, name, address, city, team_id),
+          address_record:address_id(*),
+          building:building_id(id, name, team_id, address_record:address_id(*)),
           lot_contacts(
             is_primary,
             user:user_id(id, name, email, phone, role, provider_category)
           )
         ),
+        building:building_id(id, name, team_id, address_record:address_id(*)),
         intervention_assignments(
           role,
           is_primary,
@@ -155,9 +157,10 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         creator:created_by(id, name, email, role),
         lot:lot_id(
           id, reference,
-          building:building_id(id, name, address, city, postal_code, team_id)
+          address_record:address_id(*),
+          building:building_id(id, name, team_id, address_record:address_id(*))
         ),
-        building:building_id(id, name, address, city, postal_code, team_id),
+        building:building_id(id, name, team_id, address_record:address_id(*)),
         intervention_assignments(
           id,
           role,
@@ -218,9 +221,9 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         *,
         lot:lot_id(
           id, reference,
-          building:building_id(id, name, address, team_id)
+          building:building_id(id, name, team_id, address_record:address_id(*))
         ),
-        building:building_id(id, name, address, team_id),
+        building:building_id(id, name, team_id, address_record:address_id(*)),
         intervention_assignments(
           role,
           is_primary,
@@ -253,7 +256,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         *,
         lot:lot_id(
           id, reference,
-          building:building_id(id, name, address, team_id)
+          building:building_id(id, name, team_id, address_record:address_id(*))
         ),
         intervention_assignments(
           role,
@@ -284,7 +287,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
           *,
           lot:lot_id(
             id, reference,
-            building:building_id(id, name, address, team_id)
+            building:building_id(id, name, team_id, address_record:address_id(*))
           ),
           intervention_assignments(
             role,
@@ -318,7 +321,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         *,
         lot:lot_id(
           id, reference,
-          building:building_id(id, name, address, team_id)
+          building:building_id(id, name, team_id, address_record:address_id(*))
         ),
         intervention_assignments(
           role,
@@ -362,7 +365,7 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         *,
         lot:lot_id(
           id, reference,
-          building:building_id(id, name, address, team_id)
+          building:building_id(id, name, team_id, address_record:address_id(*))
         ),
         intervention_assignments(
           role,
@@ -390,9 +393,10 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
         *,
         lot:lot_id(
           id, reference,
-          building:building_id(id, name, address, city, postal_code, team_id)
+          address_record:address_id(*),
+          building:building_id(id, name, team_id, address_record:address_id(*))
         ),
-        building:building_id(id, name, address, city, postal_code, team_id),
+        building:building_id(id, name, team_id, address_record:address_id(*)),
         intervention_assignments(
           role,
           is_primary,

@@ -166,12 +166,13 @@ export function InterventionsPageClient({
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
-                  className="flex items-center space-x-2"
+                  className="flex items-center gap-2"
                   onClick={() => navigate("/gestionnaire/interventions/nouvelle-intervention")}
                   isLoading={isNavigating}
+                  loadingText="Nouvelle intervention"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>Nouvelle intervention</span>
+                  Nouvelle intervention
                 </Button>
               </div>
             </div>

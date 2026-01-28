@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
-import { useBuildings } from "@/hooks/use-buildings"
+import { useBuildings, getAddressText } from "@/hooks/use-buildings"
 import type { Building as BuildingType, Lot as LotType } from "@/hooks/use-buildings"
 import LotCard from "@/components/lot-card"
 import ContentNavigator from "@/components/content-navigator"
@@ -211,7 +211,8 @@ function PropertySelectorView({
       if (searchTerm) {
         const searchLower = searchTerm.toLowerCase()
         const matchesName = building.name.toLowerCase().includes(searchLower)
-        const matchesAddress = building.address.toLowerCase().includes(searchLower)
+        const addressText = getAddressText(building.address_record)
+        const matchesAddress = addressText.toLowerCase().includes(searchLower)
         const matchesLots = (building.lots || []).some((lot: Lot) =>
           lot.reference.toLowerCase().includes(searchLower)
         )
@@ -331,10 +332,12 @@ function PropertySelectorView({
                           </div>
                           <div className="min-w-0 flex-1">
                             <h3 className="font-semibold text-base text-slate-900 truncate">{building.name}</h3>
-                            <div className="flex items-center text-xs text-slate-600 mt-1 min-w-0">
-                              <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
-                              <span className="truncate">{building.address}</span>
-                            </div>
+                            {getAddressText(building.address_record) && (
+                              <div className="flex items-center text-xs text-slate-600 mt-1 min-w-0">
+                                <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                                <span className="truncate">{getAddressText(building.address_record)}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                         
@@ -784,10 +787,14 @@ function PropertySelectorView({
                   </div>
                   {/* Address */}
                   <div className="sm:col-span-3 flex items-center text-sm text-slate-600">
-                    <div className="flex items-center gap-1 truncate">
-                      <MapPin className="h-3 w-3 flex-shrink-0" />
-                      <span className="truncate">{building.address}</span>
-                    </div>
+                    {getAddressText(building.address_record) ? (
+                      <div className="flex items-center gap-1 truncate">
+                        <MapPin className="h-3 w-3 flex-shrink-0" />
+                        <span className="truncate">{getAddressText(building.address_record)}</span>
+                      </div>
+                    ) : (
+                      <span className="text-slate-400">-</span>
+                    )}
                   </div>
                   {/* Total lots */}
                   <div className="sm:col-span-2 flex items-center">
@@ -1022,8 +1029,7 @@ function PropertySelectorView({
                 ? {
                     id: (lot as any).building?.id || "",
                     name: lot.building_name,
-                    address: (lot as any).building?.address || lot.address || undefined,
-                    city: (lot as any).building?.city || lot.city || undefined
+                    address_record: (lot as any).building?.address_record || undefined
                   }
                 : undefined,
               floor: (lot as any).floor,
@@ -1031,6 +1037,7 @@ function PropertySelectorView({
               rooms: (lot as any).rooms,
               apartment_number: (lot as any).apartment_number,
               category: (lot as any).category,
+              address_record: (lot as any).address_record || undefined,
             }
 
             return (
@@ -1158,37 +1165,28 @@ function PropertySelectorView({
 }
 
 /**
- * Wrapper that uses initialData directly (server-side data)
- * This skips the useBuildings hook entirely, avoiding duplicate fetches
+ * Main PropertySelector component
+ *
+ * IMPORTANT: This component ALWAYS calls useBuildings() to respect React's Rules of Hooks.
+ * The hook result is only used when initialData is not provided.
+ * This ensures a consistent hook count across renders, preventing the
+ * "Rendered fewer hooks than expected" error.
  */
-function PropertySelectorWithInitialData(props: PropertySelectorProps & { initialData: BuildingsData }) {
-  // DEBUG: Log received data in PropertySelector with detailed lot info
-  const buildingsArray = Array.isArray(props.initialData.buildings) ? props.initialData.buildings : []
-  const lotsArray = Array.isArray(props.initialData.lots) ? props.initialData.lots : []
-  
-  // Enhanced logging with JSON.stringify for better visibility
-  console.log('🔍 [PROPERTY-SELECTOR] Received initialData')
-  console.log('   buildingsCount:', buildingsArray.length)
-  console.log('   lotsCount:', lotsArray.length)
-  console.log('   teamId:', props.initialData.teamId)
-  console.log('   buildingsIsArray:', Array.isArray(props.initialData.buildings))
-  console.log('   lotsIsArray:', Array.isArray(props.initialData.lots))
-  console.log('   buildings:', buildingsArray)
-  console.log('   lots:', lotsArray)
-  if (buildingsArray.length > 0) {
-    console.log('   First building:', JSON.stringify(buildingsArray[0], null, 2))
-  }
-  if (lotsArray.length > 0) {
-    console.log('   First lot:', JSON.stringify(lotsArray[0], null, 2))
-  }
+export default function PropertySelector(props: PropertySelectorProps) {
+  // ALWAYS call the hook to respect React's Rules of Hooks
+  // The hook has internal caching that avoids unnecessary network requests
+  const hookResult = useBuildings()
 
-  // DEBUG: Specifically check first building's first lot
-  if (buildingsArray[0]?.lots?.[0]) {
-    console.log('🔍 [PROPERTY-SELECTOR] First building first lot:', {
-      reference: buildingsArray[0].lots[0].reference,
-      status: buildingsArray[0].lots[0].status,
-      is_occupied: buildingsArray[0].lots[0].is_occupied
-    })
+  // Use initialData if provided, otherwise use hook data
+  const buildingsArray = props.initialData?.buildings ?? hookResult.data?.buildings ?? []
+  const lotsArray = props.initialData?.lots ?? hookResult.data?.lots ?? []
+  const loading = props.initialData ? false : hookResult.loading
+
+  // Debug logs (keep for diagnostics, only when using initialData)
+  if (props.initialData) {
+    console.log('🔍 [PROPERTY-SELECTOR] Using initialData')
+    console.log('   buildingsCount:', buildingsArray.length)
+    console.log('   lotsCount:', lotsArray.length)
   }
 
   return (
@@ -1196,39 +1194,8 @@ function PropertySelectorWithInitialData(props: PropertySelectorProps & { initia
       {...props}
       buildings={buildingsArray}
       individualLots={lotsArray}
-      loading={false}
+      loading={loading}
     />
   )
-}
-
-/**
- * Wrapper that uses the useBuildings hook (client-side fetching)
- * This is used when no server-side data is provided
- */
-function PropertySelectorWithHook(props: PropertySelectorProps) {
-  const hookData = useBuildings()
-
-  return (
-    <PropertySelectorView
-      {...props}
-      buildings={hookData.data?.buildings || []}
-      individualLots={hookData.data?.lots || []}
-      loading={hookData.loading}
-    />
-  )
-}
-
-/**
- * Main PropertySelector component
- * Conditionally renders either the initialData version or hook version
- * This prevents duplicate data fetching when server-side data is available
- */
-export default function PropertySelector(props: PropertySelectorProps) {
-  // ⚡ PERFORMANCE: Choose the right component based on initialData availability
-  // If initialData is provided, use it directly (no hook call, no duplicate fetch)
-  // Otherwise, fetch data via the useBuildings hook
-  return props.initialData
-    ? <PropertySelectorWithInitialData {...props} initialData={props.initialData} />
-    : <PropertySelectorWithHook {...props} />
 }
 

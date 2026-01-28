@@ -16,6 +16,16 @@ const serwist = new Serwist({
   clientsClaim: true,
   navigationPreload: false,
   runtimeCaching: [
+    // 🗺️ Google Maps API - MUST bypass Service Worker completely
+    // The SW interferes with Google's dynamic library loading mechanism
+    {
+      matcher: ({ url }: { url: URL }) => {
+        return url.hostname.includes('googleapis.com') ||
+               url.hostname.includes('gstatic.com') ||
+               url.hostname.includes('google.com')
+      },
+      handler: new NetworkOnly(),
+    },
     // ⚡ OPTIMISATION: NetworkFirst pour les API stables (meilleure UX offline)
     {
       matcher: ({ url }: { url: URL }) => {

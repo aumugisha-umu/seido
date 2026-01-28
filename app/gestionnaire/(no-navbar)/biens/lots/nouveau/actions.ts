@@ -1,6 +1,7 @@
 'use server'
 
 import { createServerActionContactService, createServerActionLotService, createContactInvitationService, createServerActionSupabaseClient, createServerActionBuildingService } from '@/lib/services'
+import { createAddressService, type GooglePlaceAddress } from '@/lib/services/domain/address.service'
 import type { LotInsert, ContactInvitationData, Building } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { revalidateTag, revalidatePath } from 'next/cache'
@@ -273,6 +274,90 @@ export async function getBuildingWithRelations(buildingId: string): Promise<{
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error occurred'
+    }
+  }
+}
+
+/**
+ * Server Action pour créer une adresse avec données de géocodage
+ * Utilise le contexte de requête serveur pour accéder aux cookies (auth session)
+ *
+ * @param addressData - Données de l'adresse avec géocodage Google
+ * @param teamId - ID de l'équipe
+ */
+export async function createAddressAction(
+  addressData: {
+    street: string
+    postalCode: string
+    city: string
+    country: string
+    latitude?: number
+    longitude?: number
+    placeId?: string
+    formattedAddress?: string
+  },
+  teamId: string
+): Promise<{
+  success: boolean
+  data?: { id: string }
+  error?: string
+}> {
+  try {
+    logger.info('[SERVER-ACTION] Creating address with data:', {
+      street: addressData.street,
+      city: addressData.city,
+      hasGeocode: !!addressData.latitude
+    })
+
+    // Get authenticated Supabase client
+    const supabase = await createServerActionSupabaseClient()
+    const addressService = createAddressService(supabase)
+
+    let result
+
+    // If we have geocode data, create with full Google Place data
+    if (addressData.latitude && addressData.longitude && addressData.placeId) {
+      const googlePlaceData: GooglePlaceAddress = {
+        street: addressData.street,
+        postalCode: addressData.postalCode,
+        city: addressData.city,
+        country: addressData.country,
+        latitude: addressData.latitude,
+        longitude: addressData.longitude,
+        placeId: addressData.placeId,
+        formattedAddress: addressData.formattedAddress || `${addressData.street}, ${addressData.postalCode} ${addressData.city}, ${addressData.country}`
+      }
+
+      result = await addressService.createFromGooglePlace(googlePlaceData, teamId)
+    } else {
+      // Create manual address without geocode data
+      result = await addressService.createManual({
+        street: addressData.street,
+        postalCode: addressData.postalCode,
+        city: addressData.city,
+        country: addressData.country
+      }, teamId)
+    }
+
+    if (!result.success || !result.data) {
+      logger.error('[SERVER-ACTION] Failed to create address:', result.error)
+      return {
+        success: false,
+        error: result.error?.message || 'Address creation failed'
+      }
+    }
+
+    logger.info('[SERVER-ACTION] Address created successfully:', { addressId: result.data.id })
+
+    return {
+      success: true,
+      data: { id: result.data.id }
+    }
+  } catch (error) {
+    logger.error('[SERVER-ACTION] Exception in createAddressAction:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     }
   }
 }

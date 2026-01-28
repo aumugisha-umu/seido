@@ -924,7 +924,7 @@ export async function notifyContractExpiring({
         title,
         end_date,
         lot_id,
-        lots(reference, address, city)
+        lots(reference, address_record:address_id(*))
       `)
       .eq('id', contractId)
       .single()
@@ -1147,7 +1147,7 @@ export async function createContractNotification(contractId: string) {
         end_date,
         rent_amount,
         lot_id,
-        lots(reference, address, city)
+        lots(reference, address_record:address_id(*))
       `)
       .eq('id', contractId)
       .single()

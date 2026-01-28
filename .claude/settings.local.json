@@ -30,7 +30,11 @@
       "Bash(npm run build:*)",
       "Bash(node .claude/scripts:*)",
       "WebFetch(domain:blog.fsck.com)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "WebFetch(domain:visgl.github.io)",
+      "WebFetch(domain:m3.material.io)",
+      "Bash(timeout:*)",
+      "Bash(npx eslint:*)"
     ],
     "deny": [],
     "ask": []

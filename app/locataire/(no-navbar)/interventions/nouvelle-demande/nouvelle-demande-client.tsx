@@ -42,9 +42,11 @@ interface NouvelleDemandPageProps {
     building?: {
       id: string
       name: string
-      address: string
-      postal_code: string
-      city: string
+      address_record?: {
+        street?: string
+        postal_code?: string
+        city?: string
+      } | null
     }
     surface_area?: number
   }>
@@ -94,18 +96,25 @@ export default function NouvelleDemandePage({
 
   // Transform lots data for display (from server props)
   const logements = useMemo(() => {
-    return tenantLots.map(lot => ({
-      id: lot.id,
-      name: lot.apartment_number || `Lot ${lot.reference}`,
-      address: lot.building ?
-        `${lot.building.address}, ${lot.building.postal_code} ${lot.building.city}` :
-        "Lot indépendant",
-      surface: lot.surface_area ? `${lot.surface_area}m²` : "Surface non spécifiée",
-      building: lot.building?.name || `Lot ${lot.reference}`,
-      interventions: "Aucune intervention active",
-      reference: lot.reference,
-      building_id: lot.building?.id || null
-    }))
+    return tenantLots.map(lot => {
+      // Format address from address_record
+      const addressRecord = lot.building?.address_record
+      const addressParts = addressRecord
+        ? [addressRecord.street, addressRecord.postal_code, addressRecord.city].filter(Boolean)
+        : []
+      const formattedAddress = addressParts.length > 0 ? addressParts.join(', ') : "Lot indépendant"
+
+      return {
+        id: lot.id,
+        name: lot.apartment_number || `Lot ${lot.reference}`,
+        address: formattedAddress,
+        surface: lot.surface_area ? `${lot.surface_area}m²` : "Surface non spécifiée",
+        building: lot.building?.name || `Lot ${lot.reference}`,
+        interventions: "Aucune intervention active",
+        reference: lot.reference,
+        building_id: lot.building?.id || null
+      }
+    })
   }, [tenantLots])
 
   // Auto-select logement and skip step 1 if only one lot

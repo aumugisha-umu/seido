@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck, Info, Building2, MapPin, Calendar, Archive, Edit as EditIcon, Trash2, Home, ScrollText, Shield, Mail } from "lucide-react"
+import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck, Info, Building2, MapPin, Archive, Edit as EditIcon, Trash2, Home, ScrollText, Shield, Mail } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { determineAssignmentType } from '@/lib/services'
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
@@ -14,12 +14,13 @@ import { InterventionsNavigator } from "@/components/interventions/interventions
 import { logger } from '@/lib/logger'
 import { deleteLotAction } from './actions'
 import type { Lot } from '@/lib/services'
-import { LotStatsBadges } from './lot-stats-badges'
+// Stats badges removed from overview
 import { LotContactsGridPreview } from '@/components/ui/lot-contacts-grid-preview'
 import { ContractsNavigator } from '@/components/contracts/contracts-navigator'
 import { ContactCardCompact } from '@/components/contacts/contact-card-compact'
 import type { ContractWithRelations } from '@/lib/types/contract.types'
 import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
+import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
 
 // Helper function to get French label for lot category
 function getCategoryLabel(category: string): string {
@@ -73,6 +74,12 @@ interface Intervention {
   [key: string]: unknown
 }
 
+interface LotAddress {
+  latitude: number
+  longitude: number
+  formatted_address: string | null
+}
+
 interface LotDetailsClientProps {
   lot: Lot & {
     building?: {
@@ -96,6 +103,7 @@ interface LotDetailsClientProps {
   contracts: ContractWithRelations[]
   isOccupied: boolean
   teamId: string
+  lotAddress?: LotAddress | null
 }
 
 export default function LotDetailsClient({
@@ -106,7 +114,8 @@ export default function LotDetailsClient({
   interventionsWithDocs,
   contracts,
   isOccupied: initialIsOccupied,
-  teamId
+  teamId,
+  lotAddress
 }: LotDetailsClientProps) {
   const [activeTab, setActiveTab] = useState("overview")
   const router = useRouter()
@@ -401,22 +410,40 @@ export default function LotDetailsClient({
     })
   }
 
+  // Build address text for header: prioritize lot's own address, fallback to building address
+  const getAddressText = (): string | null => {
+    // 1. First, use lot's formatted address if available
+    if (lotAddress?.formatted_address) {
+      return lotAddress.formatted_address
+    }
+    // 2. Fallback: use building address_record if lot belongs to a building
+    const buildingRecord = lot.building?.address_record
+    if (buildingRecord?.formatted_address) {
+      return buildingRecord.formatted_address
+    }
+    if (buildingRecord?.street || buildingRecord?.city) {
+      const parts = [buildingRecord.street, buildingRecord.postal_code, buildingRecord.city].filter(Boolean)
+      return parts.join(', ')
+    }
+    return null
+  }
+
+  const addressText = getAddressText()
+
   const headerMetadata: DetailPageHeaderMetadata[] = [
+    // Show building name only if lot belongs to a building
     lot.building && {
       icon: Building2,
       text: lot.building.name
     },
-    lot.building && {
+    // Show address (lot's own or building's)
+    addressText && {
       icon: MapPin,
-      text: `${lot.building.address}, ${lot.building.city}`
+      text: addressText
     },
     lot.floor !== undefined && {
       icon: Info,
       text: `Étage ${lot.floor}`
-    },
-    lot.created_at && {
-      icon: Calendar,
-      text: `Créé le ${new Date(lot.created_at).toLocaleDateString('fr-FR')}`
     }
   ].filter(Boolean) as DetailPageHeaderMetadata[]
 
@@ -507,21 +534,31 @@ export default function LotDetailsClient({
             <div className="flex-1 flex flex-col min-h-0 pb-6">
         {activeTab === "overview" && (
           <div className="mt-0 flex-1 flex flex-col min-h-0 space-y-10">
-            {/* Section 1: Stats Badges */}
-            <LotStatsBadges
-              stats={{
-                totalInterventions: interventionStats.total,
-                activeInterventions: interventionStats.inProgress,
-                completedInterventions: interventionStats.completed
-              }}
-              totalContacts={contacts.length}
-            />
-
-            {/* Section 1.5: Description (if exists) */}
+            {/* Section 1: Description (if exists) */}
             {lot.description && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
                 <Info className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
                 <p className="text-sm text-foreground whitespace-pre-wrap flex-1">{lot.description}</p>
+              </div>
+            )}
+
+            {/* Section 1.6: Map Preview (if coordinates available) */}
+            {lotAddress && (
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3 px-1 flex items-center gap-2">
+                  <MapPin className="h-4 w-4" />
+                  Localisation
+                </h3>
+                <GoogleMapsProvider>
+                  <GoogleMapPreview
+                    latitude={lotAddress.latitude}
+                    longitude={lotAddress.longitude}
+                    address={lotAddress.formatted_address || lot.building?.address || undefined}
+                    height={250}
+                    className="rounded-lg border border-border shadow-sm"
+                    showOpenButton={true}
+                  />
+                </GoogleMapsProvider>
               </div>
             )}
 

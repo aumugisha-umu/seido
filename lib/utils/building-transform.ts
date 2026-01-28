@@ -73,13 +73,15 @@ export function transformBuildingForEdit(building: any): {
   lotContactAssignments: LotContactAssignments
   assignedManagers: LotManagerAssignments
 } {
+  // Extract address from address_record
+  const addressRecord = building.address_record
   return {
     buildingInfo: {
       name: building.name || "",
-      address: building.address || "",
-      postalCode: building.postal_code || "",
-      city: building.city || "",
-      country: dbEnumToCountry[building.country] || building.country || "Belgique",
+      address: addressRecord?.street || "",
+      postalCode: addressRecord?.postal_code || "",
+      city: addressRecord?.city || "",
+      country: dbEnumToCountry[addressRecord?.country] || addressRecord?.country || "Belgique",
       description: building.description || ""
     },
     lots: transformLotsFromDB(building.lots || []),

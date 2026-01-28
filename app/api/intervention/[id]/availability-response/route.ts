@@ -59,7 +59,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         *,
         lot:lot_id(
           id,
-          building:building_id(name, address, team_id),
+          building:building_id(name, team_id, address_record:address_id(*)),
           lot_contacts(user_id, is_primary)
         )
       `)

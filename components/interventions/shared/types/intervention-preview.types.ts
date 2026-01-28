@@ -345,6 +345,10 @@ export interface LocationDetails {
   lotReference?: string | null
   /** Adresse complète (rue, code postal, ville) */
   fullAddress?: string | null
+  /** Latitude (pour affichage carte) */
+  latitude?: number | null
+  /** Longitude (pour affichage carte) */
+  longitude?: number | null
 }
 
 /**
@@ -365,6 +369,8 @@ export interface InterventionDetailsCardProps {
     scheduledStartTime?: string | null
     /** Heure de fin du créneau confirmé */
     scheduledEndTime?: string | null
+    /** Mode date fixe (selected_by_manager) - ne pas afficher l'heure de fin */
+    isFixedScheduling?: boolean
     /** Statut du planning: pending (rien), proposed (créneaux proposés), scheduled (confirmé), completed */
     status: 'pending' | 'proposed' | 'scheduled' | 'completed'
     /** Nombre de créneaux proposés (pour status='proposed') */

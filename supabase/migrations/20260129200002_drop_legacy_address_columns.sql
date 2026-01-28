@@ -8,7 +8,6 @@
 -- ============================================================================
 -- SAFETY CHECK: Verify data migration is complete
 -- ============================================================================
--- These will raise an error if any records are missing address_id
 
 DO $$
 DECLARE
@@ -57,10 +56,17 @@ BEGIN
 END $$;
 
 -- ============================================================================
+-- DROP ALL DEPENDENT VIEWS FIRST
+-- ============================================================================
+-- These views use SELECT * and depend on the columns we're dropping
+
+DROP VIEW IF EXISTS buildings_active CASCADE;
+DROP VIEW IF EXISTS lots_active CASCADE;
+DROP VIEW IF EXISTS lots_with_contacts CASCADE;
+
+-- ============================================================================
 -- DROP LEGACY COLUMNS FROM BUILDINGS
 -- ============================================================================
--- Keep: id, name, description, address_id, team_id, metadata, timestamps
--- Drop: address, city, postal_code, country (now in addresses table)
 
 ALTER TABLE buildings
   DROP COLUMN IF EXISTS address,
@@ -71,8 +77,6 @@ ALTER TABLE buildings
 -- ============================================================================
 -- DROP LEGACY COLUMNS FROM LOTS
 -- ============================================================================
--- Keep: id, reference, category, floor, etc., address_id, building_id, team_id
--- Drop: street, city, postal_code, country (now in addresses table)
 
 ALTER TABLE lots
   DROP COLUMN IF EXISTS street,
@@ -83,8 +87,6 @@ ALTER TABLE lots
 -- ============================================================================
 -- DROP LEGACY COLUMNS FROM COMPANIES
 -- ============================================================================
--- Keep: id, name, siret, vat_number, address_id, team_id, etc.
--- Drop: street, street_number, city, postal_code, address, country
 
 ALTER TABLE companies
   DROP COLUMN IF EXISTS street,
@@ -95,21 +97,54 @@ ALTER TABLE companies
   DROP COLUMN IF EXISTS country;
 
 -- ============================================================================
+-- RECREATE VIEWS WITH NEW SCHEMA
+-- ============================================================================
+
+-- Recreate buildings_active view
+CREATE VIEW buildings_active AS
+SELECT * FROM buildings WHERE deleted_at IS NULL;
+
+COMMENT ON VIEW buildings_active IS
+'Vue sur immeubles actifs (non soft-deleted). Hérite automatiquement des politiques RLS de la table buildings.';
+
+GRANT SELECT ON buildings_active TO authenticated;
+
+-- Recreate lots_active view
+CREATE VIEW lots_active AS
+SELECT * FROM lots WHERE deleted_at IS NULL;
+
+COMMENT ON VIEW lots_active IS
+'Vue sur lots actifs (non soft-deleted). Inclut lots standalone et nested. Hérite des politiques RLS de la table lots.';
+
+GRANT SELECT ON lots_active TO authenticated;
+
+-- Recreate lots_with_contacts view
+CREATE OR REPLACE VIEW lots_with_contacts AS
+SELECT
+  l.*,
+  -- Compteurs par rôle
+  COUNT(DISTINCT lc.id) FILTER (WHERE u.role = 'locataire') AS active_tenants_count,
+  COUNT(DISTINCT lc.id) FILTER (WHERE u.role = 'gestionnaire') AS active_managers_count,
+  COUNT(DISTINCT lc.id) FILTER (WHERE u.role = 'prestataire') AS active_providers_count,
+  COUNT(DISTINCT lc.id) AS active_contacts_total,
+
+  -- Informations du locataire principal (pour compatibilité avec l'ancien schéma)
+  MAX(u.name) FILTER (WHERE u.role = 'locataire' AND lc.is_primary = TRUE) AS primary_tenant_name,
+  MAX(u.email) FILTER (WHERE u.role = 'locataire' AND lc.is_primary = TRUE) AS primary_tenant_email,
+  MAX(u.phone) FILTER (WHERE u.role = 'locataire' AND lc.is_primary = TRUE) AS primary_tenant_phone
+FROM lots l
+LEFT JOIN lot_contacts lc ON lc.lot_id = l.id
+LEFT JOIN users u ON lc.user_id = u.id
+WHERE l.deleted_at IS NULL
+GROUP BY l.id;
+
+COMMENT ON VIEW lots_with_contacts IS 'Vue agrégée: lots avec compteurs de contacts par rôle (locataires, gestionnaires, prestataires)';
+
+GRANT SELECT ON lots_with_contacts TO authenticated;
+
+-- ============================================================================
 -- ADD COMMENTS
 -- ============================================================================
 COMMENT ON COLUMN buildings.address_id IS 'Reference to centralized addresses table (required for all buildings)';
 COMMENT ON COLUMN lots.address_id IS 'Reference to centralized addresses table (required for independent lots, NULL for building lots)';
 COMMENT ON COLUMN companies.address_id IS 'Reference to centralized addresses table (optional for companies)';
-
--- ============================================================================
--- VERIFICATION QUERIES (run after migration)
--- ============================================================================
---
--- Verify buildings structure:
--- SELECT column_name FROM information_schema.columns WHERE table_name = 'buildings' ORDER BY ordinal_position;
---
--- Verify lots structure:
--- SELECT column_name FROM information_schema.columns WHERE table_name = 'lots' ORDER BY ordinal_position;
---
--- Verify companies structure:
--- SELECT column_name FROM information_schema.columns WHERE table_name = 'companies' ORDER BY ordinal_position;

@@ -44,20 +44,20 @@ const targetProfiles = [
 const founderBenefits = [
   {
     icon: Percent,
-    title: '-25% garanti 3 ans',
-    description: 'Tarif préférentiel sur le prix officiel, bloqué pendant 3 ans',
+    title: '-50% garanti pour 2026',
+    description: 'Tarif préférentiel sur le prix officiel',
     color: 'from-green-500 to-emerald-500'
   },
   {
     icon: Calendar,
     title: 'Accès prioritaire',
-    description: 'Utilisez SEIDO avant le lancement officiel fin 2026',
+    description: 'Utilisez SEIDO avant le lancement officiel',
     color: 'from-brand-primary to-brand-secondary'
   },
   {
     icon: MessageSquare,
     title: 'Votre voix compte',
-    description: 'Participez aux décisions de développement du produit',
+    description: 'Participez aux décisions de développement',
     color: 'from-orange-500 to-red-500'
   },
 ]
@@ -179,9 +179,9 @@ export function BetaAccessGate() {
                   </div>
 
                   {/* COLONNE DROITE - Formulaire */}
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 flex flex-col">
                     {/* Formulaire Fondateurs */}
-                    <form action={interestAction} className="space-y-4">
+                    <form action={interestAction} className="flex-1 flex flex-col gap-4">
                       {/* Ligne Prénom + Nom */}
                       <div className="grid grid-cols-2 gap-3">
                         <div>
@@ -283,8 +283,8 @@ export function BetaAccessGate() {
                         </div>
                       </div>
 
-                      {/* Message optionnel */}
-                      <div>
+                      {/* Message optionnel - prend l'espace disponible */}
+                      <div className="flex-1 flex flex-col min-h-[120px]">
                         <Label htmlFor="message" className="text-white landing-caption">
                           Message <span className="text-white/40">(optionnel)</span>
                         </Label>
@@ -293,30 +293,32 @@ export function BetaAccessGate() {
                           name="message"
                           placeholder="Parlez-nous de vos attentes, vos défis actuels..."
                           disabled={isInterestPending}
-                          className="mt-1 min-h-[80px] resize-none bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/20 transition-colors"
+                          className="mt-1 flex-1 resize-none bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/20 transition-colors"
                           maxLength={500}
                         />
                       </div>
 
-                      {/* Message d'erreur */}
-                      {interestState.error && (
-                        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
-                          <p className="text-sm text-red-200">{interestState.error}</p>
-                        </div>
-                      )}
+                      {/* Section bas de formulaire - alignée en bas */}
+                      <div className="mt-auto space-y-4">
+                        {/* Message d'erreur */}
+                        {interestState.error && (
+                          <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+                            <p className="text-sm text-red-200">{interestState.error}</p>
+                          </div>
+                        )}
 
-                      {/* Message de succès */}
-                      {interestState.success && (
-                        <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                          <p className="text-sm text-green-200">
-                            Merci ! Votre candidature a bien été enregistrée.
-                          </p>
-                        </div>
-                      )}
+                        {/* Message de succès */}
+                        {interestState.success && (
+                          <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg flex items-start gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-sm text-green-200">
+                              Merci ! Votre candidature a bien été enregistrée.
+                            </p>
+                          </div>
+                        )}
 
-                      {/* Bouton Submit */}
-                      <Button
+                        {/* Bouton Submit */}
+                        <Button
                         type="submit"
                         disabled={isInterestPending}
                         className="w-full h-12 bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
@@ -329,17 +331,10 @@ export function BetaAccessGate() {
                         ) : (
                           <>
                             <Send className="w-4 h-4 mr-2" />
-                            Parciciper au programme de co-développement
+                            Participer au programme de co-développement
                           </>
                         )}
-                      </Button>
-
-                      {/* Signature Arthur */}
-                      <div className="pt-4 border-t border-white/10 text-center lg:text-left">
-                        <p className="landing-caption text-white/60">
-                          <span className="text-brand-primary font-medium">Arthur</span>, fondateur de SEIDO,
-                          vous recontacte personnellement sous 48h
-                        </p>
+                        </Button>
                       </div>
                     </form>
                   </div>

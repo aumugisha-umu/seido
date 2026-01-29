@@ -425,5 +425,5 @@ can_view_conversation(thread_id) -- Supporte multi-profil
 | `2f9b7eb` | feat(addresses): migrate to centralized addresses table + fix PostgREST RLS issues |
 
 ## Files Recently Modified
-### 2026-01-29 18:20:02 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/pricing-cards.tsx`
+### 2026-01-29 18:45:46 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/auth/beta-access-gate.tsx`

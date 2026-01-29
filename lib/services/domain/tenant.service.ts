@@ -107,9 +107,22 @@ export class TenantService {
 
       // Get interventions for this tenant (filtered by team for multi-tenant isolation)
       // Only fetch interventions if tenant has at least one contract
+      logger.info({
+        actualUserId,
+        teamId: user.team_id,
+        contractStatus,
+        lotsCount: lots.length,
+        willFetchInterventions: contractStatus !== 'none'
+      }, '🔍 [getTenantData] Before fetching interventions')
+
       const interventions = contractStatus !== 'none'
         ? await this.getTenantInterventions(actualUserId, user.team_id)
         : []
+
+      logger.info({
+        actualUserId,
+        interventionsCount: interventions.length
+      }, '🔍 [getTenantData] After fetching interventions')
 
       // Get team data if user is part of a team
       let teamData = null
@@ -200,6 +213,13 @@ export class TenantService {
 
       // Filter to only ACTIVE or UPCOMING contracts
       const validStatuses = ['actif', 'a_venir']
+      logger.info({
+        userId,
+        contractsFound: data.length,
+        statuses: data.map((item: any) => item.contract?.status),
+        validStatuses
+      }, '🔍 [getTenantLots] Contract statuses found')
+
       const activeContracts = data.filter(
         (item: any) => {
           const status = item.contract?.status?.toLowerCase()
@@ -207,6 +227,11 @@ export class TenantService {
           return validStatuses.includes(status) && hasLot
         }
       )
+
+      logger.info({
+        userId,
+        activeContractsCount: activeContracts.length
+      }, '🔍 [getTenantLots] Active contracts after filter')
 
       if (activeContracts.length === 0) {
         return []

@@ -32,6 +32,9 @@ import {
   PlanningCard
 } from '@/components/interventions/shared'
 
+// Tab Localisation dédié
+import { LocalisationTab } from '@/components/interventions/shared/tabs/localisation-tab'
+
 // Chat component (functional, not mock)
 import { InterventionChatTab } from '@/components/interventions/intervention-chat-tab'
 
@@ -64,9 +67,18 @@ import {
 
 import type { Database } from '@/lib/database.types'
 
+type AddressRecord = Database['public']['Tables']['addresses']['Row'] | null
+
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
-  building?: Database['public']['Tables']['buildings']['Row']
-  lot?: Database['public']['Tables']['lots']['Row']
+  building?: Database['public']['Tables']['buildings']['Row'] & {
+    address_record?: AddressRecord
+  }
+  lot?: Database['public']['Tables']['lots']['Row'] & {
+    address_record?: AddressRecord
+    building?: Database['public']['Tables']['buildings']['Row'] & {
+      address_record?: AddressRecord
+    }
+  }
   tenant?: Database['public']['Tables']['users']['Row']
   creator?: {
     id: string
@@ -606,6 +618,36 @@ export function LocataireInterventionDetailClient({
                     />
                   </div>
                 </ContentWrapper>
+              </TabsContent>
+
+              {/* TAB: LOCALISATION */}
+              <TabsContent value="localisation" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+                  <LocalisationTab
+                    latitude={(() => {
+                      const lotRecord = intervention.lot?.address_record
+                      const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
+                      const record = lotRecord || buildingRecord
+                      return record?.lat || undefined
+                    })()}
+                    longitude={(() => {
+                      const lotRecord = intervention.lot?.address_record
+                      const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
+                      const record = lotRecord || buildingRecord
+                      return record?.lng || undefined
+                    })()}
+                    address={(() => {
+                      const lotRecord = intervention.lot?.address_record
+                      const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
+                      const record = lotRecord || buildingRecord
+                      if (!record) return undefined
+                      if (record.formatted_address) return record.formatted_address
+                      return [record.street, record.postal_code, record.city].filter(Boolean).join(', ') || undefined
+                    })()}
+                    buildingName={intervention.lot?.building?.name || intervention.building?.name || undefined}
+                    lotReference={intervention.lot?.reference || undefined}
+                  />
+                </div>
               </TabsContent>
 
               {/* TAB: CONVERSATIONS */}

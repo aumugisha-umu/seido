@@ -4,6 +4,7 @@
  */
 
 import { BaseRepository } from '../core/base-repository'
+import { logger } from '@/lib/logger'
 import {
   createBrowserSupabaseClient,
   createServerSupabaseClient,
@@ -197,6 +198,8 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
    *    - Includes building-level interventions where tenant is assigned
    */
   async findByTenant(tenantId: string, teamId?: string) {
+    logger.info({ tenantId, teamId }, '🔍 [findByTenant] Starting query')
+
     // Step 1: Get intervention IDs where tenant is assigned
     const { data: assignments, error: assignmentError } = await this.supabase
       .from('intervention_assignments')
@@ -204,11 +207,19 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       .eq('user_id', tenantId)
       .eq('role', 'locataire')
 
+    logger.info({
+      tenantId,
+      assignmentsCount: assignments?.length || 0,
+      assignmentError: assignmentError?.message || null,
+      interventionIds: assignments?.map(a => a.intervention_id) || []
+    }, '🔍 [findByTenant] Step 1 - Assignments query result')
+
     if (assignmentError) {
       return createErrorResponse(handleError(assignmentError, 'intervention:findByTenant:assignments'))
     }
 
     if (!assignments || assignments.length === 0) {
+      logger.warn({ tenantId }, '⚠️ [findByTenant] No assignments found for tenant')
       return { success: true as const, data: [] }
     }
 
@@ -235,9 +246,17 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
     // ✅ SECURITY: Multi-tenant isolation - direct filter on interventions table
     if (teamId) {
       query = query.eq('team_id', teamId)
+      logger.info({ teamId, interventionIds }, '🔍 [findByTenant] Step 2 - Filtering by teamId')
     }
 
     const { data, error } = await query.order('created_at', { ascending: false })
+
+    logger.info({
+      teamId,
+      interventionIds,
+      resultCount: data?.length || 0,
+      error: error?.message || null
+    }, '🔍 [findByTenant] Step 2 - Interventions query result')
 
     if (error) {
       return createErrorResponse(handleError(error, 'intervention:findByTenant'))

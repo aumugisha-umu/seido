@@ -7,6 +7,113 @@
 
 ---
 
+## ✅ COMPLETE: Fix Tenant Dashboard Not Showing Interventions (2026-01-29)
+
+### Probleme Initial
+Les interventions créées (par locataire ou gestionnaire) **n'apparaissaient pas dans le dashboard locataire**, malgré les notifications confirmant leur création.
+
+### Root Cause
+La migration `20260126120000_remove_demande_de_devis_status.sql` :
+1. **DROP** la vue `interventions_active` (Step 3)
+2. **MAIS NE LA RECRÉE PAS** à la fin (Step 10 manquant)
+
+La méthode `findByTenant()` dans `intervention.repository.ts` utilise `.from('interventions_active')` → erreur silencieuse "Could not find the table 'public.interventions_active' in the schema cache" → 0 résultats retournés.
+
+### Solution Appliquee
+1. **Nouvelle migration** : `20260129210000_fix_recreate_interventions_active_view.sql`
+   ```sql
+   CREATE OR REPLACE VIEW interventions_active AS
+   SELECT * FROM interventions WHERE deleted_at IS NULL;
+   ```
+2. **Correction migration originale** : Ajout du Step 10 manquant dans `20260126120000_remove_demande_de_devis_status.sql`
+3. **Regeneration types** : `npm run supabase:types`
+
+### Pattern PostgreSQL Enum Modification
+Quand on modifie un enum PostgreSQL, il faut :
+1. DROP les vues/contraintes dépendantes
+2. Modifier l'enum
+3. **RECRÉER les vues/contraintes** ← Step oublié
+
+---
+
+## ✅ COMPLETE: Fix Tenant Intervention Creation Missing Conversation Threads (2026-01-29)
+
+### Probleme Initial
+Quand un locataire créait une intervention, les **conversation threads n'étaient pas créés** (contrairement à la création côté gestionnaire).
+
+### Root Cause
+La route `app/api/create-intervention/route.ts` (utilisée par les locataires) ne créait pas les conversation threads, contrairement à `app/api/create-manager-intervention/route.ts`.
+
+### Solution Appliquee
+**Fichier modifié :** `app/api/create-intervention/route.ts`
+
+1. **Ajout des imports** pour ConversationRepository et createServiceRoleSupabaseClient
+2. **Création des 3 threads** (identique au pattern manager):
+   - `group` - Discussion générale
+   - `tenant_to_managers` - Communication locataire ↔ gestionnaires
+   - `provider_to_managers` - Communication prestataires ↔ gestionnaires
+3. **Ajout explicite du locataire** comme participant aux threads `group` et `tenant_to_managers`
+   - Note: Le locataire est assigné AVANT la création des threads, donc le trigger `add_assignment_to_conversation_participants` ne s'exécute pas pour lui
+
+### Pattern de Création Intervention (Locataire)
+```typescript
+// STEP 1: INSERT intervention (skipInitialSelect)
+// STEP 2: CREATE tenant assignment (pour RLS)
+// STEP 2.5: CREATE conversation threads + add tenant as participant
+// STEP 3: FETCH complete intervention
+// STEP 4: Auto-assign + notifications
+```
+
+---
+
+## ✅ COMPLETE: Fix Building Creation After Address Migration (2026-01-29)
+
+### Probleme Initial
+Erreur lors de la création d'un immeuble : `Could not find the 'address' column of 'buildings' in the schema cache`
+
+### Root Cause
+Après la migration `20260129200002_drop_legacy_address_columns.sql`, la table `buildings` n'a plus les colonnes `address`, `city`, `postal_code`, `country`. Ces champs sont maintenant dans la table centralisée `addresses` via `address_id`.
+
+Mais le `CompositeService.createCompleteProperty()` essayait encore d'insérer ces champs directement dans `buildings`.
+
+### Solution Appliquee
+**Fichier modifié :** `lib/services/domain/composite.service.ts`
+
+1. **Retrait des champs d'adresse legacy** lors de l'insertion du building :
+```typescript
+// AVANT (erreur schéma)
+const { latitude, longitude, place_id, ... } = data.building as any
+
+// APRES (correct)
+const {
+  latitude, longitude, place_id, formatted_address, formattedAddress, placeId,
+  address, city, postal_code, country,  // ← REMOVED: Legacy address columns
+  ...cleanBuildingData
+} = data.building as any
+```
+
+2. **Création d'adresse même sans géolocalisation** :
+```typescript
+// AVANT: Adresse créée seulement si lat/lng présents
+if (data.building.latitude && data.building.longitude) { ... }
+
+// APRES: Adresse créée si champ address présent
+const hasAddressData = data.building.address && data.building.address.trim() !== ''
+if (hasAddressData) {
+  if (hasGeocodingData) {
+    // createFromGooglePlace
+  } else {
+    // createManual (sans géolocalisation)
+  }
+}
+```
+
+### Méthodes Corrigées
+- `createCompleteProperty()` - Création building + address
+- `updateCompleteProperty()` - Mise à jour building (même correction)
+
+---
+
 ## ✅ COMPLETE: Fix PostgREST Relations RLS (2026-01-29)
 
 ### Probleme Initial
@@ -230,8 +337,10 @@ can_view_conversation(thread_id) -- Supporte multi-profil
 *Focus: Fix PostgREST Relations RLS + Centralisation Adresses*
 
 ## Files Recently Modified
-### 2026-01-28 21:31:40 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/lib/services/repositories/contact.repository.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/systemPatterns.md`
+### 2026-01-29 12:53:34 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/interventions/shared/tabs/localisation-tab.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/interventions/shared/layout/intervention-tabs.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/interventions/shared/cards/intervention-details-card.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/gestionnaire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/prestataire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/locataire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx`

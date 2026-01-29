@@ -41,8 +41,7 @@ import {
 } from 'lucide-react'
 import { InterventionDetailsCardProps } from '../types'
 import { formatDate, formatAmount, formatTime, formatTimeRange } from '../utils/helpers'
-import { GoogleMapsProvider } from '@/components/google-maps/google-maps-provider'
-import { GoogleMapPreview } from '@/components/google-maps/google-map-preview'
+// Note: GoogleMapsProvider et GoogleMapPreview ont été déplacés dans LocalisationTab
 
 /**
  * Configuration du statut planning
@@ -419,19 +418,7 @@ export const InterventionDetailsCard = ({
                   </div>
                 )}
               </div>
-              {/* Carte Google Maps si coordonnées disponibles */}
-              {locationDetails?.latitude && locationDetails?.longitude && (
-                <GoogleMapsProvider>
-                  <GoogleMapPreview
-                    latitude={locationDetails.latitude}
-                    longitude={locationDetails.longitude}
-                    address={locationDetails.fullAddress || undefined}
-                    height={180}
-                    className="rounded-lg border border-border shadow-sm mt-2"
-                    showOpenButton={true}
-                  />
-                </GoogleMapsProvider>
-              )}
+              {/* Note: La carte Google Maps a été déplacée dans l'onglet "Localisation" dédié */}
             </div>
           </>
         )}

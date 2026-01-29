@@ -44,6 +44,9 @@ import {
   PlanningCard
 } from '@/components/interventions/shared'
 
+// Tab Localisation dédié
+import { LocalisationTab } from '@/components/interventions/shared/tabs/localisation-tab'
+
 // Contacts navigator (grid/list views)
 import { InterventionContactsNavigator } from '@/components/interventions/intervention-contacts-navigator'
 
@@ -1919,32 +1922,7 @@ export function InterventionDetailClient({
                     />
                   </div>
 
-                  {/* Carte de localisation (si coordonnées disponibles) */}
-                  {interventionAddress && (
-                    <div className="flex-shrink-0 mt-6">
-                      <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                        <MapPin className="h-4 w-4" />
-                        Localisation
-                      </h3>
-                      <GoogleMapsProvider>
-                        <GoogleMapPreview
-                          latitude={interventionAddress.latitude}
-                          longitude={interventionAddress.longitude}
-                          address={interventionAddress.formatted_address || (() => {
-                            const building = intervention.lot?.building || intervention.building
-                            if (!building?.address_record) return undefined
-                            const record = building.address_record
-                            if (record.formatted_address) return record.formatted_address
-                            const parts = [record.street, record.postal_code, record.city].filter(Boolean)
-                            return parts.length > 0 ? parts.join(', ') : undefined
-                          })()}
-                          height={200}
-                          className="rounded-lg border border-border shadow-sm"
-                          showOpenButton={true}
-                        />
-                      </GoogleMapsProvider>
-                    </div>
-                  )}
+                  {/* Note: La carte de localisation a été déplacée dans l'onglet "Localisation" dédié */}
 
                   {/* Documents + Commentaires */}
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 flex-1 min-h-0 overflow-hidden">
@@ -1973,6 +1951,26 @@ export function InterventionDetailClient({
                     />
                   )}
                 </ContentWrapper>
+              </TabsContent>
+
+              {/* TAB: LOCALISATION */}
+              <TabsContent value="localisation" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+                  <LocalisationTab
+                    latitude={interventionAddress?.latitude}
+                    longitude={interventionAddress?.longitude}
+                    address={interventionAddress?.formatted_address || (() => {
+                      const lotRecord = intervention.lot?.address_record
+                      const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
+                      const record = lotRecord || buildingRecord
+                      if (!record) return undefined
+                      if (record.formatted_address) return record.formatted_address
+                      return [record.street, record.postal_code, record.city].filter(Boolean).join(', ') || undefined
+                    })()}
+                    buildingName={intervention.lot?.building?.name || intervention.building?.name || undefined}
+                    lotReference={intervention.lot?.reference || undefined}
+                  />
+                </div>
               </TabsContent>
 
               {/* TAB: CONVERSATIONS */}

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse, after } from 'next/server'
-import { createServerUserService, createServerTenantService, createServerBuildingService, createServerTeamService, createServerInterventionService } from '@/lib/services'
+import { createServerUserService, createServerTenantService, createServerBuildingService, createServerTeamService, createServerInterventionService, ConversationRepository } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { Database } from '@/lib/database.types'
 import { createInterventionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 import { mapInterventionType, mapUrgencyLevel } from '@/lib/utils/intervention-mappers'
+import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "🔧 create-intervention API route called")
@@ -210,6 +211,79 @@ export async function POST(request: NextRequest) {
         success: false,
         error: 'Erreur lors de l\'assignation du locataire'
       }, { status: 500 })
+    }
+
+    // ✅ STEP 2.5: CREATE CONVERSATION THREADS (BEFORE auto-assignments)
+    // Threads must be created BEFORE auto-assignments so that triggers can populate participants
+    try {
+      logger.info({ interventionId }, "💬 Creating conversation threads...")
+
+      // Use Service Role to bypass RLS for thread creation
+      const serviceClientForThreads = createServiceRoleSupabaseClient()
+      const conversationRepo = new ConversationRepository(serviceClientForThreads)
+
+      // Create GROUP thread (all participants - general discussion)
+      const groupThreadResult = await conversationRepo.createThread({
+        intervention_id: interventionId,
+        thread_type: 'group',
+        title: 'Discussion générale',
+        created_by: user.id,
+        team_id: teamId
+      })
+
+      if (groupThreadResult.success) {
+        logger.info({ threadId: groupThreadResult.data?.id, type: 'group' }, "✅ Group thread created")
+      } else {
+        logger.error({ error: groupThreadResult.error }, "⚠️ Failed to create group thread")
+      }
+
+      // Create TENANT_TO_MANAGERS thread (for tenant-manager communication)
+      const tenantThreadResult = await conversationRepo.createThread({
+        intervention_id: interventionId,
+        thread_type: 'tenant_to_managers',
+        title: 'Communication avec les gestionnaires',
+        created_by: user.id,
+        team_id: teamId
+      })
+
+      if (tenantThreadResult.success) {
+        logger.info({ threadId: tenantThreadResult.data?.id, type: 'tenant_to_managers' }, "✅ Tenant thread created")
+      } else {
+        logger.error({ error: tenantThreadResult.error }, "⚠️ Failed to create tenant thread")
+      }
+
+      // Create PROVIDER_TO_MANAGERS thread (for provider-manager communication)
+      const providerThreadResult = await conversationRepo.createThread({
+        intervention_id: interventionId,
+        thread_type: 'provider_to_managers',
+        title: 'Communication avec les prestataires',
+        created_by: user.id,
+        team_id: teamId
+      })
+
+      if (providerThreadResult.success) {
+        logger.info({ threadId: providerThreadResult.data?.id, type: 'provider_to_managers' }, "✅ Provider thread created")
+      } else {
+        logger.error({ error: providerThreadResult.error }, "⚠️ Failed to create provider thread")
+      }
+
+      // ✅ Add tenant as explicit participant to relevant threads
+      // Note: Tenant assignment was created BEFORE threads, so trigger didn't add them
+      // We need to manually add the tenant to the group thread and tenant_to_managers thread
+      const threadsToAddTenant = [
+        groupThreadResult.data?.id,
+        tenantThreadResult.data?.id
+      ].filter(Boolean)
+
+      for (const threadId of threadsToAddTenant) {
+        await conversationRepo.addParticipant(threadId!, user.id)
+      }
+      logger.info({ threadCount: threadsToAddTenant.length }, "✅ Tenant added to conversation threads")
+
+      logger.info({ interventionId }, "✅ Conversation threads creation completed")
+    } catch (threadError) {
+      logger.error({ error: threadError }, "❌ Error creating conversation threads (non-blocking)")
+      // Don't fail the entire operation for thread creation errors
     }
 
     // ✅ STEP 3: NOW fetch complete intervention (RLS will allow it thanks to assignment)

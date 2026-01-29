@@ -1,9 +1,55 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Fix Multi-Equipe Conversations + Centralisation Adresses
+**Objectif:** Fix Multi-Equipe Conversations + Centralisation Adresses + Memory Bank Sync
 **Branch:** `preview`
 **Sprint:** Multi-Team Support + Google Maps Integration (Jan 2026)
+**Dernière analyse:** Analyse approfondie complète (6 agents exploration) - 2026-01-29
+
+---
+
+## ✅ COMPLETE: Add Dedicated Localisation Tab in Intervention Preview (2026-01-29)
+
+### Objectif
+Créer un onglet "Localisation" dédié dans la prévisualisation d'intervention pour les 3 rôles, avec la carte Google Maps en grand format.
+
+### Probleme Initial
+La carte Google Maps apparaissait en double :
+1. Dans l'onglet "Général" (version compacte)
+2. En bas de page (section séparée)
+
+### Solution Implementee
+
+**Nouveau composant partagé :**
+```
+components/interventions/shared/tabs/localisation-tab.tsx
+```
+
+**Contenu de l'onglet :**
+- Carte Google Maps en grand format (400px de hauteur)
+- Infos immeuble + lot sous la carte
+- Adresse complète
+- Bouton "Ouvrir dans Google Maps"
+- Fallback si pas de coordonnées GPS
+
+### Nouvelle Structure des Onglets
+
+| Rôle | Onglets |
+|------|---------|
+| **Gestionnaire** | Général \| **Localisation** \| Conversations \| Planning et Estimations \| Contacts \| Emails |
+| **Prestataire** | Général \| **Localisation** \| Conversations \| Planification |
+| **Locataire** | Général \| **Localisation** \| Conversations \| Rendez-vous |
+
+### Fichiers Modifies
+
+| Fichier | Modification |
+|---------|--------------|
+| `components/interventions/shared/tabs/localisation-tab.tsx` | **Créé** - Composant partagé |
+| `components/interventions/shared/layout/intervention-tabs.tsx` | Ajout onglet + `MapPin` icon + grid-cols-6 |
+| `components/interventions/shared/cards/intervention-details-card.tsx` | Suppression GoogleMapPreview |
+| `app/gestionnaire/.../intervention-detail-client.tsx` | Import + TabsContent |
+| `app/prestataire/.../intervention-detail-client.tsx` | Import + type AddressRecord + TabsContent |
+| `app/locataire/.../intervention-detail-client.tsx` | Import + type AddressRecord + TabsContent |
 
 ---
 
@@ -315,9 +361,10 @@ can_view_conversation(thread_id) -- Supporte multi-profil
 - [ ] Verifier interventions prestataire multi-equipe
 
 ### Google Maps Integration
+- [x] Phase 1: Table addresses centralisée ✅
+- [x] Phase 4: Map display component (LocalisationTab) ✅
 - [ ] Phase 2: Composant AddressInput avec Places API
-- [ ] Phase 3: Geocoding service
-- [ ] Phase 4: Map display component
+- [ ] Phase 3: Geocoding service automatique
 
 ---
 
@@ -325,22 +372,58 @@ can_view_conversation(thread_id) -- Supporte multi-profil
 
 | Composant | Valeur |
 |-----------|--------|
-| Tables DB | **41** (+1 addresses) |
-| Migrations | **140+** |
+| **Tables DB** | **44** (+1 addresses, +3 quotes) |
+| **Migrations** | **145+** |
+| **API Routes** | **113** (10 domaines) |
+| **Pages** | **87** (5+ route groups) |
+| **Composants** | **230+** (22 directories) |
+| **Hooks** | **64** custom hooks |
+| **Services domain** | **32** |
+| **Repositories** | **22** |
 | Statuts intervention | 9 |
-| API Routes intervention | ~15 |
-| Hooks intervention | 8 |
 | Triggers conversation | 2 (thread_add_managers, add_assignment_to_conversation_participants) |
 
 ---
-*Derniere mise a jour: 2026-01-29 21:30*
-*Focus: Fix PostgREST Relations RLS + Centralisation Adresses*
+
+## Analyse Approfondie Application (2026-01-29)
+
+### Résultats 6 Agents d'Exploration
+
+| Agent | Périmètre | Findings |
+|-------|-----------|----------|
+| **Database** | Schema & migrations | 44 tables, 6 views, 39 enums, 79 fonctions RLS |
+| **API** | Routes structure | 113 routes, 10 domaines (interventions, auth, users, etc.) |
+| **Services** | Architecture | 32 services domain, 22 repositories, 4 client types Supabase |
+| **Pages** | App routes | 87 pages, 5+ route groups (admin, gestionnaire, prestataire, locataire, auth) |
+| **Components** | Shared UI | 230+ composants, 22 directories (interventions/, ui/, dashboards/, etc.) |
+| **Hooks** | Utilities | 64 hooks, 17 server action files, 13 utility files |
+
+### Architecture Vérifiée
+
+- ✅ Repository Pattern uniformément appliqué
+- ✅ Server Components par défaut (minimisation 'use client')
+- ✅ RLS multi-tenant via `get_my_profile_ids()` + `team_id`
+- ✅ Notification multi-canal (in-app, email, push)
+- ✅ Conversation threads avec triggers automatiques
+- ✅ Centralized addresses avec support Google Maps
+
+### Points de Vigilance
+
+- **PostgREST + RLS**: Relations nested échouent silencieusement → utiliser requêtes séparées
+- **Conversation threads**: Créer AVANT assignments (ordre critique)
+- **Enum modification**: DROP view → modify enum → RECREATE view
+
+---
+*Derniere mise a jour: 2026-01-29 18:00*
+*Focus: Analyse approfondie + Memory Bank sync + Localisation Tab + Fix Tenant Dashboard*
+
+## Commits Recents (preview branch)
+
+| Hash | Description |
+|------|-------------|
+| `b70f373` | feat(interventions): add dedicated Localisation tab + fix tenant dashboard |
+| `2f9b7eb` | feat(addresses): migrate to centralized addresses table + fix PostgREST RLS issues |
 
 ## Files Recently Modified
-### 2026-01-29 12:53:34 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/interventions/shared/tabs/localisation-tab.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/interventions/shared/layout/intervention-tabs.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/interventions/shared/cards/intervention-details-card.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/app/gestionnaire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/app/prestataire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/app/locataire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx`
+### 2026-01-29 18:20:02 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/pricing-cards.tsx`

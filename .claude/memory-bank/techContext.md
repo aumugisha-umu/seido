@@ -57,16 +57,19 @@ npm run supabase:migrate # Creer nouvelle migration (avec timestamp correct)
 
 ```
 app/[role]/          # Routes par role (admin, gestionnaire, prestataire, locataire)
-components/          # 370 composants
-hooks/               # 59 custom hooks
+  - 87 pages total (reparties en 5+ route groups)
+components/          # 230+ composants reutilisables (22 directories)
+hooks/               # 64 custom hooks
 lib/services/        # Architecture Repository Pattern
-  core/              # Clients Supabase, base repository, error handler
+  core/              # Clients Supabase (4 types), base repository, error handler
   repositories/      # 22 repositories (acces donnees)
   domain/            # 32 services (logique metier)
     email-notification/  # Module refactore (15 fichiers)
+app/actions/         # 17 server action files
+app/api/             # 113 API routes (10 domaines)
 tests/               # Infrastructure E2E
 docs/                # 226 fichiers markdown
-supabase/migrations/ # 140+ migrations SQL (mis a jour 2026-01-29)
+supabase/migrations/ # 145+ migrations SQL (mis a jour 2026-01-29)
 ```
 
 ### Module email-notification (Refactore 2026-01)
@@ -99,7 +102,7 @@ lib/services/domain/
 
 ## Base de Donnees
 
-### Tables Principales (41 total - mis a jour 2026-01-29)
+### Tables Principales (44 total - mis a jour 2026-01-29)
 
 | Phase | Tables |
 |-------|--------|
@@ -108,6 +111,7 @@ lib/services/domain/
 | 3 | interventions, intervention_*, conversation_*, notifications, activity_logs, email_links, push_subscriptions |
 | 4 | contracts, contract_contacts, contract_documents, import_jobs |
 | 5 | intervention_types, intervention_type_categories |
+| 6 | intervention_quotes, quote_attachments, quote_documents |
 
 ### Table addresses (NOUVEAU 2026-01-29)
 
@@ -299,5 +303,6 @@ Fichier: `supabase/migrations/20260126120000_remove_demande_de_devis_status.sql`
 | **NEXT_PUBLIC_GOOGLE_MAPS_API_KEY** | API Key Google Maps (a venir) |
 
 ---
-*Derniere mise a jour: 2026-01-29*
+*Derniere mise a jour: 2026-01-29 18:00*
+*Analyse approfondie: 44 tables, 113 routes, 64 hooks, 87 pages*
 *Regenerer types: npm run supabase:types*

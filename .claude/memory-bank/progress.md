@@ -44,7 +44,45 @@
 
 ## Sprint Actuel (Jan 2026)
 
-### 2026-01-29 - Fix PostgREST Relations + Conversation Threads + Centralisation Adresses
+### 2026-01-29 - Analyse Approfondie + Localisation Tab + Fix Dashboard Locataire
+
+**Ce qui a ete fait:**
+
+**1. Analyse Approfondie Application (6 agents parallèles)**
+
+Verification complète de l'application avec agents spécialisés:
+
+| Agent | Findings |
+|-------|----------|
+| Database | 44 tables, 6 views, 39 enums, 79 fonctions RLS |
+| API | 113 routes, 10 domaines |
+| Services | 32 services domain, 22 repositories |
+| Pages | 87 pages, 5+ route groups |
+| Components | 230+ composants, 22 directories |
+| Hooks | 64 hooks, 17 server actions |
+
+**2. Nouvel Onglet Localisation (Intervention Preview)**
+
+- Créé `components/interventions/shared/tabs/localisation-tab.tsx`
+- Carte Google Maps 400px en grand format
+- Intégré pour les 3 rôles (gestionnaire, prestataire, locataire)
+- Supprimé duplication carte dans autres onglets
+
+**3. Fix Dashboard Locataire (Vue interventions vide)**
+
+- Root cause: Migration `20260126120000` avait DROP la vue `interventions_active` sans la recréer
+- Fix: Nouvelle migration `20260129210000_fix_recreate_interventions_active_view.sql`
+- Pattern documenté: Modification enum PostgreSQL → DROP views → modify → RECREATE views
+
+**Fichiers crees:**
+- `components/interventions/shared/tabs/localisation-tab.tsx`
+- `supabase/migrations/20260129210000_fix_recreate_interventions_active_view.sql`
+
+**Memory Bank synchronisé** avec métriques correctes (44 tables, 64 hooks, 87 pages, etc.)
+
+---
+
+### 2026-01-29 (earlier) - Fix PostgREST Relations + Conversation Threads + Centralisation Adresses
 
 **Ce qui a ete fait:**
 
@@ -358,14 +396,16 @@ Nouvelle architecture adresses avec support Google Maps:
 |----------|--------|
 | Repositories | **22** (+1 address) |
 | Domain Services | **32** (+1 address) |
-| API Routes | 113 |
-| Hooks | 59 |
-| Components | 370 |
-| DB Tables | **41** (+1 addresses) |
+| API Routes | **113** (10 domaines) |
+| Hooks | **64** |
+| Components | **230+** (22 directories) |
+| Pages | **87** (5+ route groups) |
+| DB Tables | **44** (+1 addresses, +3 quotes) |
 | DB Enums | 39 |
 | DB Functions | **79** (+2 conversation triggers) |
-| Migrations | **140+** |
-| Server Actions | 16 |
+| Migrations | **145+** |
+| Server Actions | **17** files |
+| Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
 
 ### Metriques Ecosysteme .claude/ (2026-01-23)
 
@@ -400,4 +440,5 @@ Nouvelle architecture adresses avec support Google Maps:
 | **2026-01-29** | **Trigger thread_add_managers** | **Managers pas explicitement participants** | **Auto-ajout managers a tous les threads intervention** |
 
 ---
-*Derniere mise a jour: 2026-01-29*
+*Derniere mise a jour: 2026-01-29 18:00*
+*Analyse approfondie: 6 agents paralleles, Memory Bank synchronise*

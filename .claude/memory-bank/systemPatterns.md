@@ -13,11 +13,11 @@
 |                    Domain Services (31)                      |
 |  intervention, notification, email, gmail-oauth, etc.       |
 +-------------------------------------------------------------+
-|                    Repositories (21)                         |
-|  intervention, notification, user, building, email-link...  |
+|                    Repositories (22)                         |
+|  intervention, notification, user, building, address, etc.  |
 +-------------------------------------------------------------+
 |                    Supabase (PostgreSQL + RLS)               |
-|  38 tables | 77 fonctions | 209 indexes | 47 triggers       |
+|  44 tables | 79 fonctions | 209 indexes | 47 triggers       |
 +-------------------------------------------------------------+
 ```
 
@@ -408,6 +408,45 @@ Architecture unifiee pour afficher les interventions de maniere coherente dans t
 
 > Verifie 2026-01-27: Toutes les pages de details utilisent correctement cette architecture.
 
+### 14b. Intervention Preview Tab Structure (NOUVEAU 2026-01-29)
+
+Structure des onglets dans la vue de detail/preview d'une intervention :
+
+```
++-------------------------------------------------------------+
+| InterventionTabs (intervention-tabs.tsx)                     |
+| - Configuration par role via getTabsConfig(role)             |
+| - Grid responsive (grid-cols-3 a grid-cols-6 selon tabs)     |
++-------------------------------------------------------------+
+                           |
+    +----------------------+----------------------+
+    v                      v                      v
++----------+    +---------------+    +------------------+
+| Gestionnaire |  | Prestataire |    | Locataire        |
+| 6 onglets    |  | 4 onglets   |    | 4 onglets        |
++----------+    +---------------+    +------------------+
+```
+
+**Onglets par role:**
+
+| Role | Onglets |
+|------|---------|
+| **Gestionnaire** | General \| Localisation \| Conversations \| Planning et Estimations \| Contacts \| Emails |
+| **Prestataire** | General \| Localisation \| Conversations \| Planification |
+| **Locataire** | General \| Localisation \| Conversations \| Rendez-vous |
+
+**Composants partagés:**
+
+| Composant | Chemin | Description |
+|-----------|--------|-------------|
+| `InterventionTabs` | `shared/layout/intervention-tabs.tsx` | Config tabs + navigation |
+| `LocalisationTab` | `shared/tabs/localisation-tab.tsx` | Carte Google Maps 400px |
+| `InterventionDetailsCard` | `shared/cards/intervention-details-card.tsx` | Description + localisation texte |
+| `PlanningCard` | `shared/cards/planning-card.tsx` | Time slots |
+| `QuotesCard` | `shared/cards/quotes-card.tsx` | Devis/estimations |
+
+**Regle:** L'onglet "Localisation" contient la carte Google Maps en grand format. L'onglet "General" conserve uniquement le texte compact "Immeuble > Lot • Adresse".
+
 ### 15. Conversation Thread Creation Pattern (NOUVEAU 2026-01-29)
 
 Pattern critique pour creer les threads de conversation lors de la creation d'intervention :
@@ -571,12 +610,15 @@ Pattern d'orchestration des skills `superpowers:sp-*` base sur des "Red Flags" (
 
 ```
 app/[role]/          # Routes par role (admin, gestionnaire, prestataire, locataire)
-components/          # 369 composants
-hooks/               # 58 custom hooks
+  - 87 pages (5+ route groups)
+  - 113 API routes (10 domaines)
+components/          # 230+ composants (22 directories)
+hooks/               # 64 custom hooks
 lib/services/        # Architecture Repository Pattern
-  core/              # Clients Supabase, base repository, error handler
-  repositories/      # 21 repositories (acces donnees)
-  domain/            # 31 services (logique metier)
+  core/              # Clients Supabase (4 types), base repository, error handler
+  repositories/      # 22 repositories (acces donnees)
+  domain/            # 32 services (logique metier)
+app/actions/         # 17 server action files
 contexts/            # 3 React contexts (auth, team, realtime)
 tests/               # Infrastructure E2E
 ```
@@ -701,5 +743,6 @@ const enrichedUsers = users.map(u => ({ ...u, company: companiesMap[u.company_id
 - Performance optimisee avec batch pour les listes
 
 ---
-*Derniere mise a jour: 2026-01-29*
+*Derniere mise a jour: 2026-01-29 18:00*
+*Analyse approfondie: Architecture verifiee, metriques synchronisees*
 *References: lib/services/README.md, lib/server-context.ts, .claude/CLAUDE.md*

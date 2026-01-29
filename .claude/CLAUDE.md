@@ -156,12 +156,14 @@ npx playwright test      # Tests E2E
 
 ## Quick Reference
 
-### Intervention Status Values
+### Intervention Status Values (9 statuts - mis a jour 2026-01-26)
 
 ```typescript
+// NOTE: demande_de_devis et en_cours ont ete SUPPRIMES
+// Les devis sont geres via requires_quote + intervention_quotes
 type InterventionStatus =
-  | 'demande' | 'rejetee' | 'approuvee' | 'demande_de_devis'
-  | 'planification' | 'planifiee' | 'en_cours'
+  | 'demande' | 'rejetee' | 'approuvee'
+  | 'planification' | 'planifiee'
   | 'cloturee_par_prestataire' | 'cloturee_par_locataire'
   | 'cloturee_par_gestionnaire' | 'annulee'
 ```
@@ -342,6 +344,6 @@ sp-brainstorming → sp-writing-plans → sp-dispatching-parallel-agents → [ag
 
 ---
 
-**Last Updated**: 2026-01-25
+**Last Updated**: 2026-01-29
 **Status**: Production Ready
-**Current Focus**: User Experience (Google OAuth, Onboarding, Avatars, Notifications)
+**Current Focus**: Multi-Team Support + Google Maps Integration + Memory Bank Sync

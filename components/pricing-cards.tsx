@@ -1,6 +1,6 @@
 "use client"
 
-import { CheckCircle2, ArrowRight } from "lucide-react"
+import { CheckCircle2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -27,15 +27,19 @@ export function PricingCards({
   variant = 'dark',
   disabled = false,
   showButtons = true,
-  lotCount = 10,
+  lotCount = 3,
   className
 }: PricingCardsProps) {
   const isLight = variant === 'light'
 
-  // Calcul des prix totaux
-  const monthlyTotal = lotCount * 5
-  const annualTotal = lotCount * 50
-  const annualSavings = lotCount * 10 // Économie vs mensuel (2 mois)
+  // Seuil gratuit : 1-2 biens = gratuit
+  const FREE_TIER_LIMIT = 2
+  const isFreeTier = lotCount <= FREE_TIER_LIMIT
+
+  // Calcul des prix totaux (0€ si gratuit, sinon prix normal)
+  const monthlyTotal = isFreeTier ? 0 : lotCount * 5
+  const annualTotal = isFreeTier ? 0 : lotCount * 50
+  const annualSavings = isFreeTier ? 0 : lotCount * 10 // Économie vs mensuel (2 mois)
 
   // Couleurs conditionnelles selon le variant
   const colors = {
@@ -109,25 +113,35 @@ export function PricingCards({
         </h3>
 
         <div className="flex items-baseline gap-1 mb-1">
-          <span className={cn("text-4xl font-bold", colors.price)}>5€</span>
-          <span className={colors.subtitle}>/lot/mois</span>
+          {isFreeTier ? (
+            <span className={cn("text-4xl font-bold", colors.green)}>Gratuit</span>
+          ) : (
+            <>
+              <span className={cn("text-4xl font-bold", colors.price)}>5€</span>
+              <span className={colors.subtitle}>/lot/mois</span>
+            </>
+          )}
         </div>
-        <p className={cn("text-sm mb-6", colors.subtitle)}>
-          Total : <span className={cn("font-semibold", colors.title)}>{monthlyTotal}€/mois</span> pour {lotCount} lots
+        <p className={cn("text-sm mb-2", colors.subtitle)}>
+          {isFreeTier ? (
+            <span>1-2 biens = <span className={cn("font-semibold", colors.green)}>gratuit à vie</span></span>
+          ) : (
+            <>Total : <span className={cn("font-semibold", colors.title)}>{monthlyTotal}€/mois</span> pour {lotCount} lots</>
+          )}
         </p>
+
+        {/* Spacer pour aligner avec la card Annuel qui a "Économisez X€" */}
+        {!isFreeTier && <p className={cn("text-sm mb-6 invisible", colors.subtitle)}>Placeholder</p>}
+        {isFreeTier && <div className="mb-6" />}
 
         <ul className="space-y-3 mb-6 flex-grow">
           <li className={cn("flex items-center", colors.body)}>
             <CheckCircle2 className={cn("w-5 h-5 mr-3 flex-shrink-0", colors.greenCheck)} />
-            <span><strong className={colors.green}>1er mois offert</strong></span>
+            Importez vos données Excel
           </li>
           <li className={cn("flex items-center", colors.body)}>
             <CheckCircle2 className={cn("w-5 h-5 mr-3 flex-shrink-0", colors.greenCheck)} />
-            Sans engagement
-          </li>
-          <li className={cn("flex items-center", colors.body)}>
-            <CheckCircle2 className={cn("w-5 h-5 mr-3 flex-shrink-0", colors.greenCheck)} />
-            Import CSV inclus
+            Support 5/7
           </li>
         </ul>
 
@@ -177,26 +191,30 @@ export function PricingCards({
         </h3>
 
         <div className="flex items-baseline gap-1 mb-1">
-          <span className={cn("text-4xl font-bold", colors.price)}>50€</span>
-          <span className={colors.subtitle}>/lot/an</span>
+          {isFreeTier ? (
+            <span className={cn("text-4xl font-bold", colors.green)}>Gratuit</span>
+          ) : (
+            <>
+              <span className={cn("text-4xl font-bold", colors.price)}>50€</span>
+              <span className={colors.subtitle}>/lot/an</span>
+            </>
+          )}
         </div>
         <p className={cn("text-sm mb-2", colors.subtitle)}>
-          Total : <span className={cn("font-semibold", colors.title)}>{annualTotal}€/an</span> pour {lotCount} lots
+          {isFreeTier ? (
+            <span>1-2 biens = <span className={cn("font-semibold", colors.green)}>gratuit à vie</span></span>
+          ) : (
+            <>Total : <span className={cn("font-semibold", colors.title)}>{annualTotal}€/an</span> pour {lotCount} lots</>
+          )}
         </p>
 
-        <p className={cn("text-sm mb-6", colors.blue)}>
-          Économisez {annualSavings}€ vs mensuel
-        </p>
-
-        {/* Séparateur "Inclus (Annuel)" */}
-        <div className={cn("mb-4 pb-4 border-b", colors.borderBottom)}>
-          <p className={cn("text-sm flex items-center gap-2", colors.subtitle)}>
-            <ArrowRight className={cn("w-4 h-4", colors.blueCheck)} />
-            Inclus (Annuel) :
+        {!isFreeTier && (
+          <p className={cn("text-sm mb-6", colors.blue)}>
+            Économisez {annualSavings}€ vs mensuel
           </p>
-        </div>
+        )}
+        {isFreeTier && <div className="mb-6" />}
 
-        {/* Avantages exclusifs annuel */}
         <ul className="space-y-3 mb-6 flex-grow">
           <li className={cn("flex items-center", colors.title)}>
             <CheckCircle2 className={cn("w-5 h-5 mr-3 flex-shrink-0", colors.blueCheck)} />
@@ -204,11 +222,7 @@ export function PricingCards({
           </li>
           <li className={cn("flex items-center", colors.body)}>
             <CheckCircle2 className={cn("w-5 h-5 mr-3 flex-shrink-0", colors.blueCheck)} />
-            Données connectées & vérifiées
-          </li>
-          <li className={cn("flex items-center", colors.body)}>
-            <CheckCircle2 className={cn("w-5 h-5 mr-3 flex-shrink-0", colors.blueCheck)} />
-            Priorité support
+            Support prioritaire 7/7
           </li>
         </ul>
 

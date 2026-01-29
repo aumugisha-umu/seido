@@ -19,7 +19,7 @@ interface SubscriptionManagementSectionProps {
  * pour sélectionner le nombre de biens. Actuellement désactivé pendant la beta gratuite.
  */
 export function SubscriptionManagementSection({
-  defaultLotCount = 10
+  defaultLotCount = 3
 }: SubscriptionManagementSectionProps) {
   const [lotCount, setLotCount] = useState(defaultLotCount)
 
@@ -58,7 +58,7 @@ export function SubscriptionManagementSection({
                 <span className="text-lg font-bold text-primary">{lotCount} lots</span>
               </div>
               <p className="text-sm text-muted-foreground">
-                5 biens ou moins = gratuit à vie
+                1-2 biens = gratuit à vie
               </p>
             </div>
           </div>

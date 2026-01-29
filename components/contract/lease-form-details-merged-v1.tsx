@@ -412,7 +412,7 @@ export default function LeaseFormDetailsMergedV1({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Start date */}
-            <div>
+            <div className="space-y-1.5">
               <Label htmlFor="startDate" className="flex items-center gap-1.5">
                 Date de début <span className="text-destructive">*</span>
               </Label>
@@ -422,6 +422,19 @@ export default function LeaseFormDetailsMergedV1({
                 placeholder="Sélectionner une date"
                 className="w-full"
               />
+              {/* Calculated end date display */}
+              {startDate && durationMonths > 0 && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <span>Date de fin :</span>
+                  <span className="font-medium text-foreground">
+                    {endDateObj.toLocaleDateString('fr-FR', {
+                      day: '2-digit',
+                      month: 'long',
+                      year: 'numeric'
+                    })}
+                  </span>
+                </p>
+              )}
             </div>
 
             {/* Duration */}

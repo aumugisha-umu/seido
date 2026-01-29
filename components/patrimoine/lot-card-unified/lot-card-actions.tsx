@@ -75,10 +75,43 @@ export function LotCardActions({
     )
   }
 
-  // View mode - show dropdown menu with all actions
+  // View mode - show chevron + quick action button + dropdown menu
+  // Order: Chevron (expand) → Eye (view details) → Menu (other actions)
   return (
     <div className="flex items-center gap-1 flex-shrink-0">
-      {/* Dropdown menu with all actions */}
+      {/* 1. Chevron for expand/collapse (always visible in view mode) */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 w-8 p-0"
+        onClick={(e) => {
+          e.stopPropagation()
+          onToggleExpand?.()
+        }}
+        title={isExpanded ? "Réduire" : "Développer"}
+      >
+        {isExpanded ? (
+          <ChevronUp className="h-4 w-4 text-gray-500" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-gray-500" />
+        )}
+      </Button>
+
+      {/* 2. Quick access: View details button */}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+        onClick={(e) => {
+          e.stopPropagation()
+          router.push(`/gestionnaire/biens/lots/${lot.id}`)
+        }}
+        title="Voir détails"
+      >
+        <Eye className="h-4 w-4" />
+      </Button>
+
+      {/* 3. Dropdown menu with other actions */}
       {showDropdown && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -92,18 +125,6 @@ export function LotCardActions({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            {/* View details */}
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation()
-                router.push(`/gestionnaire/biens/lots/${lot.id}`)
-              }}
-              className="cursor-pointer"
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              Voir détails
-            </DropdownMenuItem>
-
             {/* Edit */}
             <DropdownMenuItem
               onClick={(e) => {
@@ -147,25 +168,6 @@ export function LotCardActions({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      )}
-
-      {/* Chevron for expandable variant */}
-      {variant === 'expandable' && (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 w-8 p-0"
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleExpand?.()
-          }}
-        >
-          {isExpanded ? (
-            <ChevronUp className="h-4 w-4 text-gray-500" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-gray-500" />
-          )}
-        </Button>
       )}
     </div>
   )

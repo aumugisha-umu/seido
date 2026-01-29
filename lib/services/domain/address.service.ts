@@ -270,15 +270,13 @@ export class AddressService {
       }
 
       if (!response.ok) {
-        logger.error('Google Geocoding API request failed', {
+        // Non-critical: geocoding is optional, warn and return null
+        logger.warn('Google Geocoding API HTTP request failed', {
           status: response.status,
           statusText: response.statusText,
           context: 'AddressService:geocodeAddress'
         })
-        return createErrorResponse({
-          code: 'EXTERNAL_API_ERROR',
-          message: `Google Geocoding API request failed: ${response.statusText}`
-        })
+        return createSuccessResponse(null)
       }
 
       // Parse JSON response with error handling
@@ -300,11 +298,9 @@ export class AddressService {
       try {
         data = await response.json()
       } catch (parseError) {
-        logger.error('Failed to parse Google Geocoding API response', { parseError })
-        return createErrorResponse({
-          code: 'PARSE_ERROR',
-          message: 'Invalid response from Google Geocoding API'
-        })
+        // Non-critical: geocoding is optional
+        logger.warn('Failed to parse Google Geocoding API response', { parseError })
+        return createSuccessResponse(null)
       }
 
       // Handle API response statuses
@@ -314,16 +310,20 @@ export class AddressService {
       }
 
       if (data.status !== 'OK') {
-        logger.error('Google Geocoding API error', {
+        // Use warn instead of error - geocoding failures are non-critical
+        // Common statuses: REQUEST_DENIED (API key), OVER_QUERY_LIMIT (quota)
+        logger.warn('Google Geocoding API returned non-OK status', {
           status: data.status,
           errorMessage: data.error_message,
           address: combinedAddress,
+          hint: data.status === 'REQUEST_DENIED' ? 'Check API key configuration' :
+                data.status === 'OVER_QUERY_LIMIT' ? 'API quota exceeded' :
+                'Check address format',
           context: 'AddressService:geocodeAddress'
         })
-        return createErrorResponse({
-          code: 'EXTERNAL_API_ERROR',
-          message: `Google Geocoding API error: ${data.status} - ${data.error_message || 'Unknown error'}`
-        })
+        // Return null instead of error - geocoding is optional
+        // The import will continue without coordinates
+        return createSuccessResponse(null)
       }
 
       // Extract result from first match
@@ -347,10 +347,15 @@ export class AddressService {
 
       return createSuccessResponse(geocodeResult)
     } catch (error) {
-      logger.error('Error geocoding address', { error, street, postalCode, city, country })
-      return createErrorResponse(
-        handleError(error instanceof Error ? error : new Error('Unknown error'), 'AddressService:geocodeAddress')
-      )
+      // Non-critical: geocoding is optional, continue without coordinates
+      // This handles timeout errors, network issues, etc.
+      const isAbortError = error instanceof Error && error.name === 'AbortError'
+      logger.warn('Geocoding failed (non-critical)', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        isTimeout: isAbortError,
+        street, postalCode, city, country
+      })
+      return createSuccessResponse(null)
     }
   }
 
@@ -377,12 +382,12 @@ export class AddressService {
       'luxemburg': 'luxembourg',
       'lu': 'luxembourg',
 
-      // Netherlands
-      'netherlands': 'pays_bas',
-      'pays-bas': 'pays_bas',
-      'pays bas': 'pays_bas',
-      'nl': 'pays_bas',
-      'nederland': 'pays_bas',
+      // Netherlands (enum value is 'pays-bas' with hyphen)
+      'netherlands': 'pays-bas',
+      'pays-bas': 'pays-bas',
+      'pays bas': 'pays-bas',
+      'nl': 'pays-bas',
+      'nederland': 'pays-bas',
 
       // Germany
       'germany': 'allemagne',

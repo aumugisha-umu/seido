@@ -303,7 +303,7 @@ export function BuildingLotsGrid({
             onAddContact={handleAddContact}
             onRemoveContact={handleRemoveContact}
             customActions={{
-              showDropdown: false
+              showDropdown: true
             }}
           />
         ))}

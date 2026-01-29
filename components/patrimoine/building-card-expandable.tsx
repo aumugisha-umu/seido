@@ -3,7 +3,14 @@
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Building2, MapPin, Home, Users, AlertCircle, Eye, Edit, ChevronDown, Check, X, Zap } from 'lucide-react'
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+    DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu"
+import { Building2, MapPin, Home, Users, AlertCircle, Eye, Edit, ChevronDown, Check, X, Zap, MoreVertical, Wrench, Archive } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import type { BuildingLotItem, BuildingData } from '@/config/table-configs/patrimoine.config'
@@ -330,7 +337,7 @@ function LotItemRow({ lot, isOccupied, onView, compact = false }: LotItemRowProp
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
+                            className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
                             onClick={(e) => {
                                 e.stopPropagation()
                                 onView()
@@ -339,6 +346,50 @@ function LotItemRow({ lot, isOccupied, onView, compact = false }: LotItemRowProp
                         >
                             <Eye className="h-3.5 w-3.5" />
                         </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <MoreVertical className="h-3.5 w-3.5" />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-48">
+                                <DropdownMenuItem
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)
+                                    }}
+                                    className="cursor-pointer"
+                                >
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Modifier
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        router.push(`/gestionnaire/interventions/nouvelle-intervention?lot=${lot.id}`)
+                                    }}
+                                    className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                >
+                                    <Wrench className="h-4 w-4 mr-2" />
+                                    Créer une intervention
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                    disabled
+                                >
+                                    <Archive className="h-4 w-4 mr-2" />
+                                    Archiver
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
                 </div>
             </div>
@@ -440,31 +491,63 @@ function LotItemRow({ lot, isOccupied, onView, compact = false }: LotItemRowProp
                 </div>
 
                 {/* Action buttons */}
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-0.5">
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
-                        onClick={(e) => {
-                            e.stopPropagation()
-                            router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)
-                        }}
-                        title="Modifier le lot"
-                    >
-                        <Edit className="h-3 w-3" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
+                        className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
                         onClick={(e) => {
                             e.stopPropagation()
                             onView()
                         }}
                         title="Voir les détails du lot"
                     >
-                        <Eye className="h-3 w-3" />
+                        <Eye className="h-3.5 w-3.5" />
                     </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-slate-500 hover:text-slate-700"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <MoreVertical className="h-3.5 w-3.5" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)
+                                }}
+                                className="cursor-pointer"
+                            >
+                                <Edit className="h-4 w-4 mr-2" />
+                                Modifier
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                onClick={(e) => {
+                                    e.stopPropagation()
+                                    router.push(`/gestionnaire/interventions/nouvelle-intervention?lot=${lot.id}`)
+                                }}
+                                className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            >
+                                <Wrench className="h-4 w-4 mr-2" />
+                                Créer une intervention
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                                onClick={(e) => e.stopPropagation()}
+                                className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                disabled
+                            >
+                                <Archive className="h-4 w-4 mr-2" />
+                                Archiver
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </div>
         </div>

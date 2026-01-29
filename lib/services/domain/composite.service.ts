@@ -577,9 +577,13 @@ export class CompositeService {
     const lots: Lot[] = []
 
     try {
-      // Step 0: Create address if geocoding data is provided
+      // Step 0: Create address in centralized addresses table
+      // Always create an address entry if we have an address string (even without geocoding data)
       let addressId: string | undefined
-      if (data.building.latitude && data.building.longitude && this.addressService) {
+      const hasAddressData = data.building.address && data.building.address.trim() !== ''
+      const hasGeocodingData = data.building.latitude && data.building.longitude
+
+      if (hasAddressData && this.addressService) {
         const addressOperation: CompositeOperation = {
           id: `address-${Date.now()}`,
           type: 'create',
@@ -601,31 +605,56 @@ export class CompositeService {
         }
         operations.push(addressOperation)
 
-        const addressResult = await this.addressService.createFromGooglePlace({
-          street: data.building.address,
-          postalCode: data.building.postal_code || '',
-          city: data.building.city,
-          country: data.building.country,
-          latitude: data.building.latitude,
-          longitude: data.building.longitude,
-          placeId: data.building.place_id || '',
-          formattedAddress: data.building.formatted_address || ''
-        }, data.building.team_id)
+        // Use createFromGooglePlace if we have geocoding data, otherwise create basic address
+        if (hasGeocodingData) {
+          const addressResult = await this.addressService.createFromGooglePlace({
+            street: data.building.address,
+            postalCode: data.building.postal_code || '',
+            city: data.building.city,
+            country: data.building.country,
+            latitude: data.building.latitude!,
+            longitude: data.building.longitude!,
+            placeId: data.building.place_id || '',
+            formattedAddress: data.building.formatted_address || ''
+          }, data.building.team_id)
 
-        if (addressResult.success) {
-          addressId = addressResult.data.id
-          addressOperation.entityId = addressId
-          addressOperation.status = 'completed'
+          if (addressResult.success) {
+            addressId = addressResult.data.id
+            addressOperation.entityId = addressId
+            addressOperation.status = 'completed'
+          } else {
+            addressOperation.status = 'failed'
+            console.warn('Address creation failed, continuing without address link:', addressResult.error)
+          }
         } else {
-          // Address creation failed but we can continue without it
-          addressOperation.status = 'failed'
-          console.warn('Address creation failed, continuing without address link:', addressResult.error)
+          // Create basic address without geocoding data using createManual
+          const addressResult = await this.addressService.createManual({
+            street: data.building.address,
+            postalCode: data.building.postal_code || '',
+            city: data.building.city,
+            country: data.building.country
+          }, data.building.team_id)
+
+          if (addressResult.success) {
+            addressId = addressResult.data.id
+            addressOperation.entityId = addressId
+            addressOperation.status = 'completed'
+          } else {
+            addressOperation.status = 'failed'
+            console.warn('Address creation failed, continuing without address link:', addressResult.error)
+          }
         }
       }
 
       // Step 1: Create building (with address_id if available)
-      // ⚠️ IMPORTANT: Remove Google Maps fields that belong to addresses table, not buildings
-      const { latitude, longitude, place_id, formatted_address, formattedAddress, placeId, ...cleanBuildingData } = data.building as any
+      // ⚠️ IMPORTANT: Remove ALL address fields that belong to addresses table, not buildings
+      // After migration 20260129200002, buildings table no longer has: address, city, postal_code, country
+      // These fields are now stored in the centralized addresses table via address_id
+      const {
+        latitude, longitude, place_id, formatted_address, formattedAddress, placeId,
+        address, city, postal_code, country,  // ← REMOVED: Legacy address columns (now in addresses table)
+        ...cleanBuildingData
+      } = data.building as any
       const buildingData = {
         ...cleanBuildingData,
         address_id: addressId
@@ -863,8 +892,14 @@ export class CompositeService {
     const lots: Lot[] = []
 
     try {
-      // ⚠️ IMPORTANT: Remove Google Maps fields that belong to addresses table, not buildings
-      const { latitude, longitude, place_id, formatted_address, formattedAddress, placeId, ...cleanBuildingData } = data.building as any
+      // ⚠️ IMPORTANT: Remove ALL address fields that belong to addresses table, not buildings
+      // After migration 20260129200002, buildings table no longer has: address, city, postal_code, country
+      // These fields are now stored in the centralized addresses table via address_id
+      const {
+        latitude, longitude, place_id, formatted_address, formattedAddress, placeId,
+        address, city, postal_code, country,  // ← REMOVED: Legacy address columns (now in addresses table)
+        ...cleanBuildingData
+      } = data.building as any
 
       // Step 1: Update building
       const buildingOperation: CompositeOperation = {

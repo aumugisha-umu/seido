@@ -1408,16 +1408,13 @@ export default function NewLotPage() {
               }
             }
 
-            // Step 2: Create lot with address_id link (preferred) or inline fields (fallback)
+            // Step 2: Create lot with address_id link
+            // Note: After migration 20260129200002, lots table no longer has street/postal_code/city/country columns
+            // All address data is stored in centralized addresses table via address_id
             const lotDataToCreate = {
               reference: lot.reference,
               building_id: null, // NULL = independent lot
               address_id: addressId, // Link to centralized address table
-              // Fallback to inline fields only if address creation failed
-              street: addressId ? null : (lot.street || null),
-              postal_code: addressId ? null : (lot.postalCode || null),
-              city: addressId ? null : (lot.city || null),
-              country: addressId ? null : (countryToDBEnum[lot.country] || lot.country),
               floor: lot.floor ? parseInt(lot.floor) : null,
               apartment_number: lot.doorNumber || null,
               category: lot.category,
@@ -1904,7 +1901,7 @@ export default function NewLotPage() {
           lots={lots}
           expandedLots={expandedLots}
           buildingReference={selectedBuilding?.name || "Immeuble sélectionné"}
-          buildingAddress={selectedBuilding?.address || ""}
+          buildingAddress={selectedBuilding?.address_record?.street || ""}
           onAddLot={addLot}
           onUpdateLot={updateLot}
           onDuplicateLot={duplicateLot}
@@ -2157,10 +2154,10 @@ export default function NewLotPage() {
           <BuildingContactsStepV3
             buildingInfo={{
               name: selectedBuilding?.name || "Immeuble",
-              address: selectedBuilding?.address || "",
-              postalCode: selectedBuilding?.postal_code || "",
-              city: selectedBuilding?.city || "",
-              country: selectedBuilding?.country || "",
+              address: selectedBuilding?.address_record?.street || "",
+              postalCode: selectedBuilding?.address_record?.postal_code || "",
+              city: selectedBuilding?.address_record?.city || "",
+              country: selectedBuilding?.address_record?.country || "",
               description: selectedBuilding?.description || ""
             }}
             teamManagers={teamManagers.map(tm => tm.user)} // Convert to UserType[]
@@ -2319,14 +2316,14 @@ export default function NewLotPage() {
         )
       }
 
-      // Préparer buildingInfo
+      // Préparer buildingInfo avec address_record (nouvelle structure centralisée)
       const buildingInfo = {
         name: selectedBuilding.name || "",
-        address: selectedBuilding.address || "",
-        postalCode: "", // Not available in building data
-        city: "", // Not available in building data
-        country: "", // Not available in building data
-        description: "" // Not available in building data
+        address: selectedBuilding.address_record?.street || "",
+        postalCode: selectedBuilding.address_record?.postal_code || "",
+        city: selectedBuilding.address_record?.city || "",
+        country: selectedBuilding.address_record?.country || "",
+        description: selectedBuilding.description || ""
       }
 
       // ✅ Use the same buildingManagers state that was populated at step 3

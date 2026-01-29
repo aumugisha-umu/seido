@@ -101,21 +101,28 @@ export async function GET() {
     // 4. Fetch all entity details in parallel
     const fetchPromises: Promise<void>[] = []
 
-    // Buildings
+    // Buildings (address is now in addresses table via address_id)
     const buildingIds = Array.from(countsByType.building.keys())
     if (buildingIds.length > 0) {
       fetchPromises.push(
         supabase
           .from('buildings')
-          .select('id, name, address')
+          .select('id, name, address_record:address_id(street, city, postal_code)')
           .in('id', buildingIds)
           .then(({ data: buildings }) => {
-            entities.buildings = (buildings || []).map(b => ({
-              id: b.id,
-              name: b.name,
-              address: b.address || undefined,
-              emailCount: countsByType.building.get(b.id) || 0
-            }))
+            entities.buildings = (buildings || []).map((b: any) => {
+              // Construire l'adresse depuis la relation address_record
+              const addressRecord = b.address_record
+              const address = addressRecord
+                ? `${addressRecord.street || ''}, ${addressRecord.postal_code || ''} ${addressRecord.city || ''}`.trim().replace(/^,\s*/, '')
+                : undefined
+              return {
+                id: b.id,
+                name: b.name,
+                address: address || undefined,
+                emailCount: countsByType.building.get(b.id) || 0
+              }
+            })
           })
       )
     }

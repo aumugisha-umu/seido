@@ -105,10 +105,10 @@ SELECT
     WHEN 'fr' THEN 'france'::country
     WHEN 'luxembourg' THEN 'luxembourg'::country
     WHEN 'lu' THEN 'luxembourg'::country
-    WHEN 'netherlands' THEN 'pays_bas'::country
-    WHEN 'pays-bas' THEN 'pays_bas'::country
-    WHEN 'pays bas' THEN 'pays_bas'::country
-    WHEN 'nl' THEN 'pays_bas'::country
+    WHEN 'netherlands' THEN 'pays-bas'::country
+    WHEN 'pays-bas' THEN 'pays-bas'::country
+    WHEN 'pays bas' THEN 'pays-bas'::country
+    WHEN 'nl' THEN 'pays-bas'::country
     WHEN 'germany' THEN 'allemagne'::country
     WHEN 'allemagne' THEN 'allemagne'::country
     WHEN 'de' THEN 'allemagne'::country

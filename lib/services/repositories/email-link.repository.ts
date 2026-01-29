@@ -167,7 +167,8 @@ export class EmailLinkRepository extends BaseRepository<EmailLinkRow, CreateEmai
 
         switch (entityType) {
             case 'building':
-                selectFields = 'id, name, address';
+                // address est maintenant dans la table addresses via address_id
+                selectFields = 'id, name, address_id, address_record:address_id(street, city, postal_code)';
                 query = this.supabase.from('buildings').select(selectFields).in('id', entityIds);
                 break;
             case 'lot':
@@ -200,7 +201,11 @@ export class EmailLinkRepository extends BaseRepository<EmailLinkRow, CreateEmai
         for (const entity of data as any[]) {
             switch (entityType) {
                 case 'building':
-                    result[entity.id] = { name: entity.name, address: entity.address };
+                    // Construire l'adresse depuis la relation address_record
+                    const buildingAddress = entity.address_record
+                        ? `${entity.address_record.street || ''}, ${entity.address_record.postal_code || ''} ${entity.address_record.city || ''}`.trim().replace(/^,\s*/, '')
+                        : undefined;
+                    result[entity.id] = { name: entity.name, address: buildingAddress };
                     break;
                 case 'lot':
                     result[entity.id] = {

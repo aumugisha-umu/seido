@@ -52,8 +52,13 @@ import {
   CompanyRepository,
   createServerActionCompanyRepository,
 } from '../repositories/company.repository';
+import {
+  AddressService,
+  createAddressService,
+} from './address.service';
 import type { BuildingInsert, LotInsert, UserInsert } from '../core/service-types';
 import type { Database } from '@/lib/database.types';
+import type { Address } from '../repositories/address.repository';
 
 type CompanyInsert = Database['public']['Tables']['companies']['Insert'];
 import type { ContractInsert, ContractContactInsert } from '@/lib/types/contract.types';
@@ -61,6 +66,23 @@ import type { ContractInsert, ContractContactInsert } from '@/lib/types/contract
 // ============================================================================
 // Service Class
 // ============================================================================
+
+// Geocoding result type
+interface GeocodeResult {
+  latitude: number;
+  longitude: number;
+  placeId: string;
+  formattedAddress: string;
+}
+
+// Address data for batch processing
+interface AddressData {
+  key: string;         // Unique key for mapping back to entity
+  street: string;
+  postalCode: string;
+  city: string;
+  country: string;
+}
 
 export class ImportService {
   constructor(
@@ -70,8 +92,128 @@ export class ImportService {
     private importJobRepo: ImportJobRepository,
     private contractRepo: ContractRepository,
     private contractContactRepo: ContractContactRepository,
-    private companyRepo: CompanyRepository
+    private companyRepo: CompanyRepository,
+    private addressService: AddressService
   ) {}
+
+  /**
+   * Geocode addresses in batch with rate limiting
+   * Google API limit: 50 requests/second
+   * @returns Map of address key to geocode result (or null if geocoding failed)
+   */
+  private async geocodeAddressesBatch(
+    addresses: AddressData[],
+    onProgress?: (processed: number, total: number) => void
+  ): Promise<Map<string, GeocodeResult | null>> {
+    const results = new Map<string, GeocodeResult | null>();
+    const BATCH_SIZE = 10;    // Parallel requests per batch
+    const DELAY_MS = 250;     // Delay between batches (40 req/sec)
+
+    if (addresses.length === 0) {
+      return results;
+    }
+
+    logger.info('[IMPORT-SERVICE] Starting batch geocoding', {
+      totalAddresses: addresses.length,
+      batchSize: BATCH_SIZE,
+      estimatedTimeSeconds: Math.ceil(addresses.length / BATCH_SIZE * DELAY_MS / 1000)
+    });
+
+    for (let i = 0; i < addresses.length; i += BATCH_SIZE) {
+      const batch = addresses.slice(i, i + BATCH_SIZE);
+
+      // Process batch in parallel
+      const batchPromises = batch.map(async (addr) => {
+        try {
+          const result = await this.addressService.geocodeAddress(
+            addr.street,
+            addr.postalCode,
+            addr.city,
+            addr.country
+          );
+
+          if (result.success && result.data) {
+            return { key: addr.key, geocode: result.data };
+          }
+          return { key: addr.key, geocode: null };
+        } catch (error) {
+          logger.warn('[IMPORT-SERVICE] Geocoding failed for address', {
+            key: addr.key,
+            error: error instanceof Error ? error.message : 'Unknown error'
+          });
+          return { key: addr.key, geocode: null };
+        }
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+
+      // Store results
+      for (const { key, geocode } of batchResults) {
+        results.set(key, geocode);
+      }
+
+      // Report progress
+      const processed = Math.min(i + BATCH_SIZE, addresses.length);
+      onProgress?.(processed, addresses.length);
+
+      // Rate limiting delay (skip on last batch)
+      if (i + BATCH_SIZE < addresses.length) {
+        await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+      }
+    }
+
+    const successCount = Array.from(results.values()).filter(r => r !== null).length;
+    logger.info('[IMPORT-SERVICE] Batch geocoding completed', {
+      total: addresses.length,
+      success: successCount,
+      failed: addresses.length - successCount
+    });
+
+    return results;
+  }
+
+  /**
+   * Create an address in the addresses table (with or without geocoding data)
+   */
+  private async createAddress(
+    data: { street: string; postalCode: string; city: string; country: string },
+    geocode: GeocodeResult | null,
+    teamId: string
+  ): Promise<string | null> {
+    try {
+      if (geocode) {
+        // Create with geocoding data
+        const result = await this.addressService.createFromGooglePlace({
+          street: data.street,
+          postalCode: data.postalCode,
+          city: data.city,
+          country: data.country,
+          latitude: geocode.latitude,
+          longitude: geocode.longitude,
+          placeId: geocode.placeId,
+          formattedAddress: geocode.formattedAddress
+        }, teamId);
+
+        return result.success ? result.data.id : null;
+      } else {
+        // Create without geocoding data (manual address)
+        const result = await this.addressService.createManual({
+          street: data.street,
+          postalCode: data.postalCode,
+          city: data.city,
+          country: data.country
+        }, teamId);
+
+        return result.success ? result.data.id : null;
+      }
+    } catch (error) {
+      logger.error('[IMPORT-SERVICE] Failed to create address', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        data
+      });
+      return null;
+    }
+  }
 
   /**
    * Validate parsed data (dry run)
@@ -199,6 +341,7 @@ export class ImportService {
 
     // Phase labels for progress reporting
     const PHASE_LABELS: Record<ImportPhase, string> = {
+      geocoding: 'Géolocalisation des adresses',
       companies: 'Création des sociétés',
       contacts: 'Création des contacts',
       buildings: 'Création des immeubles',
@@ -218,7 +361,7 @@ export class ImportService {
     ) => {
       if (!onProgress) return;
 
-      const totalPhases = 5;
+      const totalPhases = 6; // Now includes geocoding phase
       const totalProgress = Math.round(((phaseIndex + 1) / totalPhases) * 100);
 
       const event: ImportProgressEvent = {
@@ -353,9 +496,82 @@ export class ImportService {
     };
 
     try {
-      // 1. Import Companies first (no dependencies)
-      logger.info('[IMPORT-SERVICE] Step 1: Importing companies...', { count: data.companies.length });
-      const companyResult = await this.importCompanies(data.companies, teamId);
+      // =======================================================================
+      // Phase 0: GEOCODING - Batch geocode all addresses before import
+      // =======================================================================
+      logger.info('[IMPORT-SERVICE] Phase 0: Geocoding addresses...');
+
+      // Collect all addresses to geocode
+      const addressesToGeocode: AddressData[] = [];
+
+      // Buildings: all have addresses
+      for (const building of data.buildings) {
+        if (building.address && building.address.trim()) {
+          addressesToGeocode.push({
+            key: `building:${building.name}`,
+            street: building.address,
+            postalCode: building.postal_code || '',
+            city: building.city || '',
+            country: building.country || 'belgique'
+          });
+        }
+      }
+
+      // Independent lots: only those without building_name but with street
+      for (const lot of data.lots) {
+        if (!lot.building_name && lot.street && lot.street.trim()) {
+          addressesToGeocode.push({
+            key: `lot:${lot.reference}`,
+            street: lot.street,
+            postalCode: lot.postal_code || '',
+            city: lot.city || '',
+            country: 'belgique'
+          });
+        }
+      }
+
+      // Companies: those with street address
+      for (const company of data.companies) {
+        if (company.street && company.street.trim()) {
+          const street = company.street_number
+            ? `${company.street} ${company.street_number}`.trim()
+            : company.street;
+          addressesToGeocode.push({
+            key: `company:${company.name}`,
+            street,
+            postalCode: company.postal_code || '',
+            city: company.city || '',
+            country: company.country || 'belgique'
+          });
+        }
+      }
+
+      // Execute batch geocoding
+      let geocodeResults: Map<string, GeocodeResult | null> = new Map();
+      if (addressesToGeocode.length > 0) {
+        geocodeResults = await this.geocodeAddressesBatch(
+          addressesToGeocode,
+          (processed, total) => {
+            // Sub-progress for geocoding phase
+            logger.debug('[IMPORT-SERVICE] Geocoding progress', { processed, total });
+          }
+        );
+      }
+
+      const geocodeSuccessCount = Array.from(geocodeResults.values()).filter(r => r !== null).length;
+      emitProgress('geocoding', 0, addressesToGeocode.length, geocodeSuccessCount, 0, addressesToGeocode.length - geocodeSuccessCount);
+
+      logger.info('[IMPORT-SERVICE] Geocoding complete', {
+        total: addressesToGeocode.length,
+        success: geocodeSuccessCount,
+        failed: addressesToGeocode.length - geocodeSuccessCount
+      });
+
+      // =======================================================================
+      // Phase 1: Import Companies (no dependencies)
+      // =======================================================================
+      logger.info('[IMPORT-SERVICE] Phase 1: Importing companies...', { count: data.companies.length });
+      const companyResult = await this.importCompanies(data.companies, teamId, geocodeResults);
       logger.info('[IMPORT-SERVICE] Companies imported', {
         created: companyResult.created.length,
         updated: companyResult.updated.length,
@@ -366,11 +582,12 @@ export class ImportService {
       }
       created.companies = companyResult.created;
       updated.companies = companyResult.updated;
-      // Emit progress after companies
-      emitProgress('companies', 0, data.companies.length, companyResult.created.length, companyResult.updated.length, companyResult.errors.length);
+      emitProgress('companies', 1, data.companies.length, companyResult.created.length, companyResult.updated.length, companyResult.errors.length);
 
-      // 2. Import Contacts (depends on companies for linking)
-      logger.info('[IMPORT-SERVICE] Step 2: Importing contacts...', { count: data.contacts.length });
+      // =======================================================================
+      // Phase 2: Import Contacts (depends on companies for linking)
+      // =======================================================================
+      logger.info('[IMPORT-SERVICE] Phase 2: Importing contacts...', { count: data.contacts.length });
       const contactResult = await this.importContacts(data.contacts, teamId, companyResult.nameToId);
       logger.info('[IMPORT-SERVICE] Contacts imported', {
         created: contactResult.created.length,
@@ -384,12 +601,13 @@ export class ImportService {
       created.contacts = contactResult.created;
       updated.contacts = contactResult.updated;
       const createdContactsInfo = contactResult.createdContactsInfo;
-      // Emit progress after contacts
-      emitProgress('contacts', 1, data.contacts.length, contactResult.created.length, contactResult.updated.length, contactResult.errors.length);
+      emitProgress('contacts', 2, data.contacts.length, contactResult.created.length, contactResult.updated.length, contactResult.errors.length);
 
-      // 3. Import Buildings (no dependencies)
-      logger.info('[IMPORT-SERVICE] Step 3: Importing buildings...', { count: data.buildings.length });
-      const buildingResult = await this.importBuildings(data.buildings, teamId, userId);
+      // =======================================================================
+      // Phase 3: Import Buildings (with geocoded addresses)
+      // =======================================================================
+      logger.info('[IMPORT-SERVICE] Phase 3: Importing buildings...', { count: data.buildings.length });
+      const buildingResult = await this.importBuildings(data.buildings, teamId, userId, geocodeResults);
       logger.info('[IMPORT-SERVICE] Buildings imported', {
         created: buildingResult.created.length,
         updated: buildingResult.updated.length,
@@ -400,12 +618,13 @@ export class ImportService {
       }
       created.buildings = buildingResult.created;
       updated.buildings = buildingResult.updated;
-      // Emit progress after buildings
-      emitProgress('buildings', 2, data.buildings.length, buildingResult.created.length, buildingResult.updated.length, buildingResult.errors.length);
+      emitProgress('buildings', 3, data.buildings.length, buildingResult.created.length, buildingResult.updated.length, buildingResult.errors.length);
 
-      // 4. Import Lots (depends on buildings)
-      logger.info('[IMPORT-SERVICE] Step 4: Importing lots...', { count: data.lots.length });
-      const lotResult = await this.importLots(data.lots, teamId, userId, buildingResult.nameToId);
+      // =======================================================================
+      // Phase 4: Import Lots (depends on buildings, with geocoded addresses for independent lots)
+      // =======================================================================
+      logger.info('[IMPORT-SERVICE] Phase 4: Importing lots...', { count: data.lots.length });
+      const lotResult = await this.importLots(data.lots, teamId, userId, buildingResult.nameToId, geocodeResults);
       logger.info('[IMPORT-SERVICE] Lots imported', {
         created: lotResult.created.length,
         updated: lotResult.updated.length,
@@ -416,11 +635,12 @@ export class ImportService {
       }
       created.lots = lotResult.created;
       updated.lots = lotResult.updated;
-      // Emit progress after lots
-      emitProgress('lots', 3, data.lots.length, lotResult.created.length, lotResult.updated.length, lotResult.errors.length);
+      emitProgress('lots', 4, data.lots.length, lotResult.created.length, lotResult.updated.length, lotResult.errors.length);
 
-      // 5. Import Contracts (depends on lots and contacts)
-      logger.info('[IMPORT-SERVICE] Step 5: Importing contracts...', { count: data.contracts.length });
+      // =======================================================================
+      // Phase 5: Import Contracts (depends on lots and contacts)
+      // =======================================================================
+      logger.info('[IMPORT-SERVICE] Phase 5: Importing contracts...', { count: data.contracts.length });
       const contractResult = await this.importContracts(
         data.contracts,
         teamId,
@@ -438,8 +658,7 @@ export class ImportService {
       }
       created.contracts = contractResult.created;
       updated.contracts = contractResult.updated;
-      // Emit progress after contracts
-      emitProgress('contracts', 4, data.contracts.length, contractResult.created.length, contractResult.updated.length, contractResult.errors.length);
+      emitProgress('contracts', 5, data.contracts.length, contractResult.created.length, contractResult.updated.length, contractResult.errors.length);
 
       // All-or-nothing: if errors and mode is all_or_nothing, rollback
       if (errors.length > 0 && options.errorMode === 'all_or_nothing') {
@@ -679,9 +898,18 @@ export class ImportService {
   /**
    * Import companies
    */
+  /**
+   * Import companies (refactored for centralized addresses table)
+   *
+   * Flow:
+   * 1. For each company with address data:
+   *    a. Create address in addresses table (with geocoding data if available)
+   *    b. Create/update company with address_id reference
+   */
   private async importCompanies(
     companies: ParsedCompany[],
-    teamId: string
+    teamId: string,
+    geocodeResults?: Map<string, GeocodeResult | null>
   ): Promise<{
     created: string[];
     updated: string[];
@@ -690,62 +918,110 @@ export class ImportService {
   }> {
     const errors: ImportRowError[] = [];
     const nameToId = new Map<string, string>();
+    const created: string[] = [];
+    const updated: string[] = [];
 
     if (companies.length === 0) {
-      return { created: [], updated: [], errors, nameToId };
+      return { created, updated, errors, nameToId };
     }
 
-    // Convert to CompanyInsert format
-    const companiesToImport: CompanyInsert[] = companies.map((c) => ({
-      name: c.name,
-      legal_name: c.legal_name || null,
-      vat_number: c.vat_number || null,
-      street: c.street || null,
-      street_number: c.street_number || null,
-      postal_code: c.postal_code || null,
-      city: c.city || null,
-      country: this.normalizeCountryCode(c.country),
-      email: c.email || null,
-      phone: c.phone || null,
-      website: c.website || null,
-      team_id: teamId,
-      is_active: true,
-    }));
-
-    const result = await this.companyRepo.upsertMany(companiesToImport, teamId);
-
-    if (!result.success) {
-      errors.push({
-        row: 0,
-        sheet: SHEET_NAMES.COMPANIES,
-        field: '',
-        value: '',
-        message: result.error.message,
-        code: 'UNKNOWN',
-      });
-      return { created: [], updated: [], errors, nameToId };
-    }
-
-    // Build name to ID map for contact linking
     for (const company of companies) {
-      const companyResult = await this.companyRepo.findByNameAndTeam(company.name, teamId);
-      if (companyResult.success && companyResult.data) {
-        nameToId.set(company.name.toLowerCase().trim(), companyResult.data.id);
+      try {
+        // Step 1: Create address if address data provided
+        let addressId: string | null = null;
+        const hasAddressData = company.street && company.street.trim();
+
+        if (hasAddressData) {
+          const geocodeKey = `company:${company.name}`;
+          const geocode = geocodeResults?.get(geocodeKey) || null;
+
+          // Combine street and street_number
+          const street = company.street_number
+            ? `${company.street} ${company.street_number}`.trim()
+            : company.street!;
+
+          addressId = await this.createAddress(
+            {
+              street,
+              postalCode: company.postal_code || '',
+              city: company.city || '',
+              country: company.country || 'belgique'
+            },
+            geocode,
+            teamId
+          );
+        }
+
+        // Step 2: Check if company exists (for upsert logic)
+        const existingResult = await this.companyRepo.findByNameAndTeam(company.name, teamId);
+
+        // Step 3: Create or update company (without address fields - only address_id)
+        const companyData: CompanyInsert = {
+          name: company.name,
+          legal_name: company.legal_name || null,
+          vat_number: company.vat_number || null,
+          email: company.email || null,
+          phone: company.phone || null,
+          website: company.website || null,
+          team_id: teamId,
+          is_active: true,
+          address_id: addressId,
+        };
+
+        if (existingResult.success && existingResult.data) {
+          // Update existing company
+          const updateResult = await this.companyRepo.update(existingResult.data.id, companyData);
+          if (updateResult.success) {
+            const companyId = existingResult.data.id;
+            updated.push(companyId);
+            nameToId.set(company.name.toLowerCase().trim(), companyId);
+          } else {
+            errors.push({
+              row: company._rowIndex + 2,
+              sheet: SHEET_NAMES.COMPANIES,
+              field: 'name',
+              value: company.name,
+              message: `Échec de mise à jour: ${updateResult.error?.message || 'Erreur inconnue'}`,
+              code: 'UNKNOWN',
+            });
+          }
+        } else {
+          // Create new company
+          const createResult = await this.companyRepo.create(companyData);
+          if (createResult.success) {
+            const companyId = createResult.data.id;
+            created.push(companyId);
+            nameToId.set(company.name.toLowerCase().trim(), companyId);
+          } else {
+            errors.push({
+              row: company._rowIndex + 2,
+              sheet: SHEET_NAMES.COMPANIES,
+              field: 'name',
+              value: company.name,
+              message: `Échec de création: ${createResult.error?.message || 'Erreur inconnue'}`,
+              code: 'UNKNOWN',
+            });
+          }
+        }
+      } catch (error) {
+        errors.push({
+          row: company._rowIndex + 2,
+          sheet: SHEET_NAMES.COMPANIES,
+          field: 'name',
+          value: company.name,
+          message: `Exception: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+          code: 'UNKNOWN',
+        });
       }
     }
 
-    logger.info('[IMPORT-SERVICE] Companies imported with name map', {
-      created: result.created.length,
-      updated: result.updated.length,
+    logger.info('[IMPORT-SERVICE] Companies imported', {
+      created: created.length,
+      updated: updated.length,
       nameMapSize: nameToId.size,
     });
 
-    return {
-      created: result.created,
-      updated: result.updated,
-      errors,
-      nameToId,
-    };
+    return { created, updated, errors, nameToId };
   }
 
   /**
@@ -778,12 +1054,20 @@ export class ImportService {
   }
 
   /**
-   * Import buildings
+   * Import buildings (refactored for centralized addresses table)
+   *
+   * Flow:
+   * 1. Geocode all building addresses in batch
+   * 2. For each building:
+   *    a. Create address in addresses table (with geocoding data if available)
+   *    b. Create/update building with address_id reference
+   * 3. Assign gestionnaire as primary contact
    */
   private async importBuildings(
     buildings: ParsedBuilding[],
     teamId: string,
-    userId: string
+    userId: string,
+    geocodeResults?: Map<string, GeocodeResult | null>
   ): Promise<{
     created: string[];
     updated: string[];
@@ -792,81 +1076,159 @@ export class ImportService {
   }> {
     const errors: ImportRowError[] = [];
     const nameToId = new Map<string, string>();
+    const created: string[] = [];
+    const updated: string[] = [];
 
-    // Convert to BuildingInsert format
-    const buildingsToImport: BuildingInsert[] = buildings.map((b) => ({
-      name: b.name,
-      address: b.address,
-      city: b.city,
-      postal_code: b.postal_code,
-      country: b.country as 'france' | 'belgique' | 'suisse' | 'luxembourg' | 'allemagne' | 'pays-bas' | 'autre',
-      description: b.description,
-      team_id: teamId,
-    }));
-
-    const result = await this.buildingRepo.upsertMany(buildingsToImport, teamId);
-
-    if (!result.success) {
-      errors.push({
-        row: 0,
-        sheet: SHEET_NAMES.BUILDINGS,
-        field: '',
-        value: '',
-        message: result.error.message,
-        code: 'UNKNOWN',
-      });
-      return { created: [], updated: [], errors, nameToId };
+    if (buildings.length === 0) {
+      return { created, updated, errors, nameToId };
     }
 
-    // Build name to ID map for lot linking AND assign gestionnaire as contact
     const supabase = await createServerSupabaseClient();
+
     for (const building of buildings) {
-      const buildingResult = await this.buildingRepo.findByNameAndTeam(
-        building.name,
-        teamId
-      );
-      if (buildingResult.success && buildingResult.data) {
-        const buildingId = buildingResult.data.id;
-        nameToId.set(building.name.toLowerCase().trim(), buildingId);
+      try {
+        // Step 1: Create address in addresses table
+        const geocodeKey = `building:${building.name}`;
+        const geocode = geocodeResults?.get(geocodeKey) || null;
 
-        // Assign the importing gestionnaire as primary contact for this building
-        if (userId) {
-          const { error: contactError } = await supabase
-            .from('building_contacts')
-            .upsert({
-              building_id: buildingId,
-              user_id: userId,
-              role: 'gestionnaire',
-              is_primary: true,
-            }, { onConflict: 'building_id,user_id' });
+        let addressId: string | null = null;
+        if (building.address && building.address.trim()) {
+          addressId = await this.createAddress(
+            {
+              street: building.address,
+              postalCode: building.postal_code || '',
+              city: building.city || '',
+              country: building.country || 'belgique'
+            },
+            geocode,
+            teamId
+          );
+        }
 
-          if (contactError) {
-            logger.warn('[IMPORT-SERVICE] Failed to assign gestionnaire to building', {
-              buildingId,
-              userId,
-              error: contactError.message,
+        // Step 2: Check if building exists (for upsert logic)
+        const existingResult = await this.buildingRepo.findByNameAndTeam(
+          building.name,
+          teamId
+        );
+
+        // Step 3: Create or update building (without address fields - only address_id)
+        const buildingData: BuildingInsert = {
+          name: building.name,
+          description: building.description || null,
+          team_id: teamId,
+          address_id: addressId,
+        };
+
+        if (existingResult.success && existingResult.data) {
+          // Update existing building
+          const updateResult = await this.buildingRepo.update(existingResult.data.id, buildingData);
+          if (updateResult.success) {
+            const buildingId = existingResult.data.id;
+            updated.push(buildingId);
+            nameToId.set(building.name.toLowerCase().trim(), buildingId);
+
+            // Assign gestionnaire as primary contact
+            if (userId) {
+              await this.assignBuildingGestionnaire(supabase, buildingId, userId);
+            }
+          } else {
+            errors.push({
+              row: building._rowIndex + 2,
+              sheet: SHEET_NAMES.BUILDINGS,
+              field: 'name',
+              value: building.name,
+              message: `Échec de mise à jour: ${updateResult.error?.message || 'Erreur inconnue'}`,
+              code: 'UNKNOWN',
+            });
+          }
+        } else {
+          // Create new building
+          const createResult = await this.buildingRepo.create(buildingData);
+          if (createResult.success) {
+            const buildingId = createResult.data.id;
+            created.push(buildingId);
+            nameToId.set(building.name.toLowerCase().trim(), buildingId);
+
+            // Assign gestionnaire as primary contact
+            if (userId) {
+              await this.assignBuildingGestionnaire(supabase, buildingId, userId);
+            }
+          } else {
+            errors.push({
+              row: building._rowIndex + 2,
+              sheet: SHEET_NAMES.BUILDINGS,
+              field: 'name',
+              value: building.name,
+              message: `Échec de création: ${createResult.error?.message || 'Erreur inconnue'}`,
+              code: 'UNKNOWN',
             });
           }
         }
+      } catch (error) {
+        errors.push({
+          row: building._rowIndex + 2,
+          sheet: SHEET_NAMES.BUILDINGS,
+          field: 'name',
+          value: building.name,
+          message: `Exception: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+          code: 'UNKNOWN',
+        });
       }
     }
 
-    return {
-      created: result.created,
-      updated: result.updated,
-      errors,
-      nameToId,
-    };
+    logger.info('[IMPORT-SERVICE] Buildings imported', {
+      created: created.length,
+      updated: updated.length,
+      errors: errors.length
+    });
+
+    return { created, updated, errors, nameToId };
   }
 
   /**
-   * Import lots
+   * Helper to assign gestionnaire as primary contact for a building
+   */
+  private async assignBuildingGestionnaire(
+    supabase: ReturnType<typeof createServerSupabaseClient> extends Promise<infer T> ? T : never,
+    buildingId: string,
+    userId: string
+  ): Promise<void> {
+    const { error: contactError } = await supabase
+      .from('building_contacts')
+      .upsert({
+        building_id: buildingId,
+        user_id: userId,
+        role: 'gestionnaire',
+        is_primary: true,
+      }, { onConflict: 'building_id,user_id' });
+
+    if (contactError) {
+      logger.warn('[IMPORT-SERVICE] Failed to assign gestionnaire to building', {
+        buildingId,
+        userId,
+        error: contactError.message,
+      });
+    }
+  }
+
+  /**
+   * Import lots (refactored for centralized addresses table)
+   *
+   * Flow:
+   * 1. Resolve building references
+   * 2. For independent lots (no building_id) with address data:
+   *    a. Create address in addresses table (with geocoding data if available)
+   *    b. Create lot with address_id
+   * 3. For lots linked to buildings:
+   *    a. Create lot with building_id (inherits building's address)
+   * 4. Assign gestionnaire as primary contact for independent lots
    */
   private async importLots(
     lots: ParsedLot[],
     teamId: string,
     userId: string,
-    buildingNameToId: Map<string, string>
+    buildingNameToId: Map<string, string>,
+    geocodeResults?: Map<string, GeocodeResult | null>
   ): Promise<{
     created: string[];
     updated: string[];
@@ -875,103 +1237,162 @@ export class ImportService {
   }> {
     const errors: ImportRowError[] = [];
     const referenceToId = new Map<string, string>();
+    const created: string[] = [];
+    const updated: string[] = [];
 
-    // Resolve building IDs and convert to LotInsert format
-    const lotsToImport: (LotInsert & { _resolvedBuildingId?: string | null })[] = lots.map((l) => {
-      let buildingId: string | null = null;
-
-      if (l.building_name) {
-        const normalizedName = l.building_name.toLowerCase().trim();
-        buildingId = buildingNameToId.get(normalizedName) || null;
-
-        if (!buildingId) {
-          errors.push({
-            row: l._rowIndex + 2,
-            sheet: SHEET_NAMES.LOTS,
-            field: 'building_name',
-            value: l.building_name,
-            message: ERROR_MESSAGES.REFERENCE_NOT_FOUND('Immeuble', l.building_name),
-            code: 'REFERENCE_NOT_FOUND',
-          });
-        }
-      }
-
-      return {
-        reference: l.reference,
-        building_id: buildingId,
-        category: l.category as 'appartement' | 'collocation' | 'maison' | 'garage' | 'local_commercial' | 'autre',
-        floor: l.floor,
-        street: l.street,
-        city: l.city,
-        postal_code: l.postal_code,
-        description: l.description,
-        team_id: teamId,
-        _resolvedBuildingId: buildingId,
-      };
-    });
-
-    // Filter out lots with resolution errors
-    const validLots = lotsToImport.filter(
-      (l) => !l.building_id || buildingNameToId.has((lots.find(
-        (ol) => ol.reference === l.reference
-      )?.building_name || '').toLowerCase().trim())
-    );
-
-    if (validLots.length === 0 && lots.length > 0) {
-      return { created: [], updated: [], errors, referenceToId };
+    if (lots.length === 0) {
+      return { created, updated, errors, referenceToId };
     }
 
-    const result = await this.lotRepo.upsertMany(validLots, teamId);
-
-    if (!result.success) {
-      errors.push({
-        row: 0,
-        sheet: SHEET_NAMES.LOTS,
-        field: '',
-        value: '',
-        message: result.error.message,
-        code: 'UNKNOWN',
-      });
-      return { created: [], updated: [], errors, referenceToId };
-    }
-
-    // Build reference to ID map for contract linking AND assign gestionnaire to independent lots
     const supabase = await createServerSupabaseClient();
+
     for (const lot of lots) {
-      const lotResult = await this.lotRepo.findByReferenceAndTeam(lot.reference, teamId);
-      if (lotResult.success && lotResult.data) {
-        const lotId = lotResult.data.id;
-        referenceToId.set(lot.reference.toLowerCase().trim(), lotId);
+      try {
+        // Step 1: Resolve building reference if provided
+        let buildingId: string | null = null;
+        if (lot.building_name) {
+          const normalizedName = lot.building_name.toLowerCase().trim();
+          buildingId = buildingNameToId.get(normalizedName) || null;
 
-        // For INDEPENDENT lots (no building), assign the gestionnaire as primary contact
-        // Lots in buildings inherit the gestionnaire via building_contacts
-        if (userId && !lot.building_name) {
-          const { error: contactError } = await supabase
-            .from('lot_contacts')
-            .upsert({
-              lot_id: lotId,
-              user_id: userId,
-              role: 'gestionnaire',
-              is_primary: true,
-            }, { onConflict: 'lot_id,user_id' });
+          if (!buildingId) {
+            errors.push({
+              row: lot._rowIndex + 2,
+              sheet: SHEET_NAMES.LOTS,
+              field: 'building_name',
+              value: lot.building_name,
+              message: ERROR_MESSAGES.REFERENCE_NOT_FOUND('Immeuble', lot.building_name),
+              code: 'REFERENCE_NOT_FOUND',
+            });
+            continue; // Skip this lot
+          }
+        }
 
-          if (contactError) {
-            logger.warn('[IMPORT-SERVICE] Failed to assign gestionnaire to independent lot', {
-              lotId,
-              userId,
-              error: contactError.message,
+        // Step 2: For independent lots, create address if address data provided
+        let addressId: string | null = null;
+        const isIndependentLot = !buildingId;
+        const hasAddressData = lot.street && lot.street.trim();
+
+        if (isIndependentLot && hasAddressData) {
+          const geocodeKey = `lot:${lot.reference}`;
+          const geocode = geocodeResults?.get(geocodeKey) || null;
+
+          addressId = await this.createAddress(
+            {
+              street: lot.street!,
+              postalCode: lot.postal_code || '',
+              city: lot.city || '',
+              country: 'belgique' // Default for lots
+            },
+            geocode,
+            teamId
+          );
+        }
+
+        // Step 3: Check if lot exists (for upsert logic)
+        const existingResult = await this.lotRepo.findByReferenceAndTeam(lot.reference, teamId);
+
+        // Step 4: Create or update lot (without address fields - only address_id)
+        const lotData: LotInsert = {
+          reference: lot.reference,
+          building_id: buildingId,
+          category: (lot.category || 'autre') as 'appartement' | 'collocation' | 'maison' | 'garage' | 'local_commercial' | 'autre',
+          floor: lot.floor || null,
+          description: lot.description || null,
+          team_id: teamId,
+          address_id: addressId,
+        };
+
+        if (existingResult.success && existingResult.data) {
+          // Update existing lot
+          const updateResult = await this.lotRepo.update(existingResult.data.id, lotData);
+          if (updateResult.success) {
+            const lotId = existingResult.data.id;
+            updated.push(lotId);
+            referenceToId.set(lot.reference.toLowerCase().trim(), lotId);
+
+            // Assign gestionnaire for independent lots
+            if (userId && isIndependentLot) {
+              await this.assignLotGestionnaire(supabase, lotId, userId);
+            }
+          } else {
+            errors.push({
+              row: lot._rowIndex + 2,
+              sheet: SHEET_NAMES.LOTS,
+              field: 'reference',
+              value: lot.reference,
+              message: `Échec de mise à jour: ${updateResult.error?.message || 'Erreur inconnue'}`,
+              code: 'UNKNOWN',
+            });
+          }
+        } else {
+          // Create new lot - use skipInitialSelect to avoid RLS warning
+          // The gestionnaire will be assigned after creation, which enables viewing the lot
+          const createResult = await this.lotRepo.create(lotData, { skipInitialSelect: true });
+          if (createResult.success) {
+            const lotId = createResult.data.id;
+            created.push(lotId);
+            referenceToId.set(lot.reference.toLowerCase().trim(), lotId);
+
+            // Assign gestionnaire for independent lots - must happen after creation
+            if (userId && isIndependentLot) {
+              await this.assignLotGestionnaire(supabase, lotId, userId);
+            }
+          } else {
+            errors.push({
+              row: lot._rowIndex + 2,
+              sheet: SHEET_NAMES.LOTS,
+              field: 'reference',
+              value: lot.reference,
+              message: `Échec de création: ${createResult.error?.message || 'Erreur inconnue'}`,
+              code: 'UNKNOWN',
             });
           }
         }
+      } catch (error) {
+        errors.push({
+          row: lot._rowIndex + 2,
+          sheet: SHEET_NAMES.LOTS,
+          field: 'reference',
+          value: lot.reference,
+          message: `Exception: ${error instanceof Error ? error.message : 'Erreur inconnue'}`,
+          code: 'UNKNOWN',
+        });
       }
     }
 
-    return {
-      created: result.created,
-      updated: result.updated,
-      errors,
-      referenceToId,
-    };
+    logger.info('[IMPORT-SERVICE] Lots imported', {
+      created: created.length,
+      updated: updated.length,
+      errors: errors.length
+    });
+
+    return { created, updated, errors, referenceToId };
+  }
+
+  /**
+   * Helper to assign gestionnaire as primary contact for an independent lot
+   */
+  private async assignLotGestionnaire(
+    supabase: ReturnType<typeof createServerSupabaseClient> extends Promise<infer T> ? T : never,
+    lotId: string,
+    userId: string
+  ): Promise<void> {
+    const { error: contactError } = await supabase
+      .from('lot_contacts')
+      .upsert({
+        lot_id: lotId,
+        user_id: userId,
+        role: 'gestionnaire',
+        is_primary: true,
+      }, { onConflict: 'lot_id,user_id' });
+
+    if (contactError) {
+      logger.warn('[IMPORT-SERVICE] Failed to assign gestionnaire to independent lot', {
+        lotId,
+        userId,
+        error: contactError.message,
+      });
+    }
   }
 
   /**
@@ -1438,5 +1859,18 @@ export const createServerActionImportService = async () => {
   const contractContactRepo = await createServerActionContractContactRepository();
   const companyRepo = await createServerActionCompanyRepository();
 
-  return new ImportService(buildingRepo, lotRepo, userRepo, importJobRepo, contractRepo, contractContactRepo, companyRepo);
+  // Create AddressService for geocoding support
+  const supabase = await createServerSupabaseClient();
+  const addressService = createAddressService(supabase);
+
+  return new ImportService(
+    buildingRepo,
+    lotRepo,
+    userRepo,
+    importJobRepo,
+    contractRepo,
+    contractContactRepo,
+    companyRepo,
+    addressService
+  );
 };

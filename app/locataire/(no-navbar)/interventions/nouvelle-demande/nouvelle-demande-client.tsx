@@ -121,13 +121,36 @@ export default function NouvelleDemandePage({
   useEffect(() => {
     if (!selectedLogement && logements.length > 0) {
       setSelectedLogement(logements[0].id)
-      
+
       // If only one lot, skip to step 2 directly
       if (shouldSkipStepOne) {
         setCurrentStep(2)
       }
     }
   }, [selectedLogement, logements, shouldSkipStepOne])
+
+  // Moved before conditional return to respect React hooks rules
+  const selectedLogementData = logements.find((l) => l.id === selectedLogement)
+
+  // Génère automatiquement le titre de l'intervention
+  // Moved before conditional return to respect React hooks rules
+  const generateTitle = useMemo(() => {
+    return () => {
+      if (!formData.type || !selectedLogementData) return ""
+
+      const typeLabel = getTypeLabel(formData.type)
+      const lotRef = selectedLogementData.reference || selectedLogementData.name
+      const urgencyMap: Record<string, string> = {
+        'basse': 'Basse',
+        'normale': 'Normale',
+        'haute': 'Haute',
+        'urgente': 'Urgente',
+      }
+      const urgencyLabel = urgencyMap[formData.urgence] || 'Normale'
+
+      return `${typeLabel} - ${lotRef} (${urgencyLabel})`
+    }
+  }, [formData.type, formData.urgence, selectedLogementData, getTypeLabel])
 
   // Conditional return for no lots
   if (tenantLots.length === 0) {
@@ -261,27 +284,6 @@ export default function NouvelleDemandePage({
     const realInterventionId = createdInterventionId || generateInterventionId()
     router.push(`/locataire/interventions/${realInterventionId}`)
   }
-
-  const selectedLogementData = logements.find((l) => l.id === selectedLogement)
-
-  // Génère automatiquement le titre de l'intervention
-  const generateTitle = useMemo(() => {
-    return () => {
-      if (!formData.type || !selectedLogementData) return ""
-
-      const typeLabel = getTypeLabel(formData.type)
-      const lotRef = selectedLogementData.reference || selectedLogementData.name
-      const urgencyMap: Record<string, string> = {
-        'basse': 'Basse',
-        'normale': 'Normale',
-        'haute': 'Haute',
-        'urgente': 'Urgente',
-      }
-      const urgencyLabel = urgencyMap[formData.urgence] || 'Normale'
-
-      return `${typeLabel} - ${lotRef} (${urgencyLabel})`
-    }
-  }, [formData.type, formData.urgence, selectedLogementData, getTypeLabel])
 
   // Helper pour gérer la navigation
   const handleNext = () => {

@@ -140,6 +140,7 @@ export interface Comment {
   content: string
   date: string
   role?: string
+  is_internal?: boolean
 }
 
 /**
@@ -333,6 +334,7 @@ export interface CommentsCardProps {
   onAddComment?: (content: string) => void
   isLoading?: boolean
   className?: string
+  showHeader?: boolean // Afficher le header avec titre "Commentaires" (défaut: true)
 }
 
 /**
@@ -361,6 +363,8 @@ export interface InterventionDetailsCardProps {
   location?: string
   /** Détails de localisation (immeuble, lot, adresse) - affiché en entier */
   locationDetails?: LocationDetails
+  /** Statut de l'intervention (pour affichage contextuel) */
+  interventionStatus?: string
   /** Infos de planification (optionnel) */
   planning?: {
     /** Date planifiée */
@@ -406,6 +410,18 @@ export interface InterventionDetailsCardProps {
   createdBy?: string | null
   /** Date de création (ISO string) */
   createdAt?: string | null
+  /** Participants de l'intervention (optionnel, affiché en haut de la card) */
+  participants?: {
+    managers: Array<{ id: string; name: string; email?: string; avatar_url?: string | null; company_name?: string | null }>
+    providers: Array<{ id: string; name: string; email?: string; avatar_url?: string | null; company_name?: string | null }>
+    tenants: Array<{ id: string; name: string; email?: string; avatar_url?: string | null; company_name?: string | null }>
+  }
+  /** ID de l'utilisateur connecté (pour masquer l'icône chat sur soi-même) */
+  currentUserId?: string
+  /** Rôle de l'utilisateur connecté (pour filtrer les permissions de chat) */
+  currentUserRole?: 'gestionnaire' | 'locataire' | 'prestataire' | 'admin'
+  /** Callback pour ouvrir le chat avec un participant */
+  onOpenChat?: (participantId: string, threadType: 'group' | 'tenant_to_managers' | 'provider_to_managers') => void
   /** Callback pour naviguer vers l'onglet Planning */
   onNavigateToPlanning?: () => void
   className?: string

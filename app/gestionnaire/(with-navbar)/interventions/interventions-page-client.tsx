@@ -215,6 +215,7 @@ export function InterventionsPageClient({
             onInternalCommentChange={approvalHook.setInternalComment}
             onActionChange={approvalHook.handleActionChange}
             onConfirm={approvalHook.handleConfirmAction}
+            isLoading={approvalHook.isLoading}
           />
         )}
 

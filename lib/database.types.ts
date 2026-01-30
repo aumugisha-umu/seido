@@ -1526,6 +1526,7 @@ export type Database = {
           deleted_at: string | null
           id: string
           intervention_id: string
+          is_internal: boolean
           updated_at: string
           user_id: string
         }
@@ -1535,6 +1536,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           intervention_id: string
+          is_internal?: boolean
           updated_at?: string
           user_id: string
         }
@@ -1544,6 +1546,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           intervention_id?: string
+          is_internal?: boolean
           updated_at?: string
           user_id?: string
         }
@@ -3991,6 +3994,37 @@ export type Database = {
           entity_type: Database["public"]["Enums"]["email_link_entity_type"]
         }[]
       }
+      get_entity_activity_logs: {
+        Args: {
+          p_entity_id: string
+          p_entity_type: string
+          p_include_related?: boolean
+          p_limit?: number
+          p_team_id: string
+        }
+        Returns: {
+          action_type: string
+          created_at: string
+          description: string
+          entity_id: string
+          entity_name: string
+          entity_type: string
+          error_message: string
+          id: string
+          ip_address: unknown
+          metadata: Json
+          source_entity_name: string
+          source_entity_type: string
+          status: string
+          team_id: string
+          user_agent: string
+          user_avatar_url: string
+          user_email: string
+          user_id: string
+          user_name: string
+          user_role: string
+        }[]
+      }
       get_intervention_team_id: {
         Args: { p_intervention_id: string }
         Returns: string
@@ -4126,6 +4160,7 @@ export type Database = {
         | "quote"
         | "report"
         | "import"
+        | "contract"
       activity_status: "success" | "failure" | "pending"
       assignment_mode: "single" | "group" | "separate"
       charges_type: "forfaitaire" | "provision"
@@ -4432,6 +4467,7 @@ export const Constants = {
         "quote",
         "report",
         "import",
+        "contract",
       ],
       activity_status: ["success", "failure", "pending"],
       assignment_mode: ["single", "group", "separate"],

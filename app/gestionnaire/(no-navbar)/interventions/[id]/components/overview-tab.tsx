@@ -7,7 +7,6 @@
 
 import { useState } from 'react'
 import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
-import { InterventionProgressCard } from '@/components/interventions/intervention-progress-card'
 import { InterventionCommentsCard } from '@/components/interventions/intervention-comments-card'
 import { CancelQuoteRequestModal } from '@/components/intervention/modals/cancel-quote-request-modal'
 import { useQuoteCancellation } from '@/hooks/use-quote-cancellation'
@@ -320,16 +319,14 @@ export function OverviewTab({
 
         {/* Right sidebar - 1/3 width on large screens */}
         <div className="space-y-6">
-          {/* Comments Card - AU-DESSUS de Progression */}
+          {/* Comments Card */}
           <InterventionCommentsCard
             interventionId={intervention.id}
             comments={comments}
             currentUserId={currentUserId}
             currentUserRole={currentUserRole}
           />
-
-          {/* Progression Card */}
-          <InterventionProgressCard intervention={intervention} />
+          {/* Note: Progression moved to Activity tab */}
         </div>
       </div>
 

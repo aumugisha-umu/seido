@@ -200,11 +200,24 @@ export async function middleware(request: NextRequest) {
       }
     )
 
-    // 🎯 PHASE 2.1: VÉRIFIER COORDINATION AVEC AUTHPROVIDER
-    const { canProceed, reason: coordReason } = await canProceedWithMiddlewareCheck(
-      { get: (name) => request.cookies.get(name) },
-      pathname
-    )
+    // 🎯 Ne pas attendre AuthProvider pour les requêtes document (GET HTML) : la navigation
+    // doit toujours être authentifiée côté middleware pour éviter chargement long / pass-through.
+    const accept = request.headers.get('accept') ?? ''
+    const isDocumentRequest = request.method === 'GET' && accept.includes('text/html')
+
+    let canProceed: boolean
+    let coordReason: string
+    if (isDocumentRequest) {
+      canProceed = true
+      coordReason = 'Document request - proceed with auth'
+    } else {
+      const coord = await canProceedWithMiddlewareCheck(
+        { get: (name) => request.cookies.get(name) },
+        pathname
+      )
+      canProceed = coord.canProceed
+      coordReason = coord.reason
+    }
 
     if (!canProceed) {
       console.log('⏸️ [MIDDLEWARE] Coordination hold:', coordReason)

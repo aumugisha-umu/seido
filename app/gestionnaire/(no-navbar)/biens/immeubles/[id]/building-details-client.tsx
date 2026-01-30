@@ -2,11 +2,16 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Eye, FileText, Wrench, Plus, Home, Info, Building2, MapPin, Calendar, User, Archive, Edit as EditIcon, Mail } from "lucide-react"
+import {
+  EntityPreviewLayout,
+  EntityTabs,
+  TabContentWrapper,
+  EntityActivityLog
+} from '@/components/shared/entity-preview'
+import type { TabConfig } from '@/components/shared/entity-preview'
+import { Eye, FileText, Wrench, Plus, Home, Info, Building2, MapPin, Calendar, User, Archive, Edit as EditIcon, Mail, Activity } from "lucide-react"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
 import { BuildingContactsNavigator } from "@/components/contacts/building-contacts-navigator"
@@ -355,11 +360,13 @@ export default function BuildingDetailsClient({
       type: 'other'
     }))
 
-  const tabs = [
-    { id: "overview", label: "Vue d'ensemble", icon: Eye, count: null },
-    { id: "interventions", label: "Interventions", icon: Wrench, count: stats.totalInterventions },
-    { id: "documents", label: "Documents", icon: FileText, count: null },
-    { id: "emails", label: "Emails", icon: Mail, count: null },
+  // Tabs configuration for EntityTabs
+  const buildingTabs: TabConfig[] = [
+    { value: "overview", label: "Vue d'ensemble" },
+    { value: "interventions", label: "Interventions", count: stats.totalInterventions },
+    { value: "documents", label: "Documents" },
+    { value: "emails", label: "Emails" },
+    { value: "activity", label: "Activité" }
   ]
 
   // Prepare header data
@@ -451,42 +458,16 @@ export default function BuildingDetailsClient({
         </div>
       )}
 
-      {/* Tabs Navigation */}
-      <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4 mb-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="border-b border-border">
-            <TabsList className="inline-flex h-auto p-0 bg-transparent w-full justify-start">
-              {tabs.map((tab) => {
-                const Icon = tab.icon
-                return (
-                  <TabsTrigger
-                    key={tab.id}
-                    value={tab.id}
-                    className="flex items-center space-x-2 px-4 py-3 text-sm font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent hover:text-foreground transition-colors"
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
-                    {tab.count !== null && (
-                      <Badge variant="secondary" className="ml-1 text-xs bg-muted text-muted-foreground data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
-                        {tab.count}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                )
-              })}
-            </TabsList>
-          </div>
-        </Tabs>
-      </div>
-
-      {/* Card Content */}
-      <Card className="flex-1 flex flex-col content-max-width mx-auto w-full p-6 min-h-0 overflow-hidden">
-          <CardContent className="p-0 flex-1 flex flex-col min-h-0 overflow-y-auto">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
-              <div className="flex-1 flex flex-col min-h-0 pb-6">
+      {/* Main Content with EntityPreviewLayout */}
+      <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4 flex-1 flex flex-col min-h-0 pb-6">
+        <EntityPreviewLayout>
+          <EntityTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            tabs={buildingTabs}
+          >
             {/* Overview Tab */}
-            <TabsContent value="overview" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6 md:space-y-10">
+            <TabContentWrapper value="overview">
               {/* Section 1: Description (if exists) */}
               {(building as { description?: string }).description && (
                 <div className="bg-secondary/50 border border-secondary rounded-lg p-3 flex items-start gap-2 dark:bg-secondary/20">
@@ -567,10 +548,10 @@ export default function BuildingDetailsClient({
                   />
                 </div>
               </div>
-            </TabsContent>
+            </TabContentWrapper>
 
             {/* Interventions Tab */}
-            <TabsContent value="interventions" className="mt-0 flex-1 flex flex-col min-h-0">
+            <TabContentWrapper value="interventions">
               <InterventionsNavigator
                 interventions={interventions as any}
                 userContext="gestionnaire"
@@ -587,10 +568,10 @@ export default function BuildingDetailsClient({
                 showFilters={true}
                 isEmbeddedInCard={true}
               />
-            </TabsContent>
+            </TabContentWrapper>
 
             {/* Documents Tab */}
-            <TabsContent value="documents" className="mt-0 flex-1 flex flex-col min-h-0">
+            <TabContentWrapper value="documents">
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -610,20 +591,30 @@ export default function BuildingDetailsClient({
                   onDocumentDownload={handleDocumentDownload}
                 />
               </div>
-            </TabsContent>
+            </TabContentWrapper>
 
             {/* Emails Tab */}
-            <TabsContent value="emails" className="mt-0 flex-1 flex flex-col min-h-0">
+            <TabContentWrapper value="emails">
               <EntityEmailsTab
                 entityType="building"
                 entityId={building.id}
                 entityName={building.name}
               />
-            </TabsContent>
-              </div>
-            </Tabs>
-          </CardContent>
-        </Card>
+            </TabContentWrapper>
+
+            {/* Activity Tab */}
+            <TabContentWrapper value="activity">
+              <EntityActivityLog
+                entityType="building"
+                entityId={building.id}
+                teamId={teamId}
+                includeRelated={true}
+                emptyMessage="Aucune activité enregistrée pour cet immeuble"
+              />
+            </TabContentWrapper>
+          </EntityTabs>
+        </EntityPreviewLayout>
+      </div>
       </div>
     </>
   )

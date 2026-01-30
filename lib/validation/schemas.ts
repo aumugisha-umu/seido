@@ -473,6 +473,7 @@ export const interventionApproveSchema = z.object({
 export const interventionRejectSchema = z.object({
   interventionId: uuidSchema,
   reason: z.string().min(1).max(2000).trim(),
+  internalComment: z.string().max(2000).trim().optional(),
 })
 
 /**

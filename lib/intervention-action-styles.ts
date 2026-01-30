@@ -54,6 +54,7 @@ export const ACTION_STYLES = {
   // Critical main actions that deserve highest visual prominence
   filled: [
     'approve',              // Gestionnaire approves intervention request
+    'process_request',      // Gestionnaire processes new request (opens approval modal)
     'submit_quote',         // Prestataire submits quote
     'propose_slots',        // Gestionnaire proposes time slots (Planifier)
     'start_work',           // Prestataire starts intervention
@@ -114,7 +115,7 @@ export const ACTION_STYLES = {
 
 export function getActionMD3Type(actionKey: string): keyof typeof MD3_VARIANTS {
   for (const [type, actions] of Object.entries(ACTION_STYLES)) {
-    if (actions.includes(actionKey)) {
+    if ((actions as readonly string[]).includes(actionKey)) {
       return type as keyof typeof MD3_VARIANTS
     }
   }

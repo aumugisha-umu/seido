@@ -13,9 +13,12 @@ export interface InterventionAction {
   created_at?: string
   created_by?: string
   location?: string
+  address?: string | null
+  creator_name?: string | null
   tenant?: string
   assignedTo?: string
   hasFiles?: boolean
+  filesCount?: number
   lot?: { reference: string; building?: { name: string } }
   building?: { name: string }
   assigned_contact?: { name: string }
@@ -86,8 +89,11 @@ export class InterventionActionsService {
    * Actions d'approbation/rejet
    */
   // Nouvelles méthodes simplifiées pour le workflow
-  async approveIntervention(intervention: InterventionAction): Promise<APIResponse> {
+  async approveIntervention(intervention: InterventionAction, internalComment?: string): Promise<APIResponse> {
     logger.info(`✅ Approving intervention ${intervention.id}`)
+    if (internalComment) {
+      logger.info(`📝 Internal comment: ${internalComment}`)
+    }
 
     const response = await fetch('/api/intervention-approve', {
       method: 'POST',
@@ -95,7 +101,8 @@ export class InterventionActionsService {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        interventionId: intervention.id
+        interventionId: intervention.id,
+        notes: internalComment
       })
     })
 
@@ -109,9 +116,12 @@ export class InterventionActionsService {
     return result
   }
 
-  async rejectIntervention(intervention: InterventionAction, reason: string): Promise<APIResponse> {
+  async rejectIntervention(intervention: InterventionAction, reason: string, internalComment?: string): Promise<APIResponse> {
     logger.info(`❌ Rejecting intervention ${intervention.id}`)
     logger.info(`📝 Rejection reason: ${reason}`)
+    if (internalComment) {
+      logger.info(`📝 Internal comment: ${internalComment}`)
+    }
 
     if (!reason) {
       throw new Error('Le motif de rejet est requis')
@@ -124,7 +134,8 @@ export class InterventionActionsService {
       },
       body: JSON.stringify({
         interventionId: intervention.id,
-        rejectionReason: reason
+        reason: reason,
+        internalComment: internalComment
       })
     })
 

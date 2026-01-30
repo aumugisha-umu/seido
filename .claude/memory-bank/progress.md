@@ -41,8 +41,44 @@
 - [x] **Verification architecture cards unifiee** (2026-01-27)
 - [x] **Centralisation Adresses + Google Maps prep** (2026-01-28)
 - [x] **Fix Conversation Threads Multi-Profil** (2026-01-29)
+- [x] **Performance Optimization + UX Tabs** (2026-01-30)
 
 ## Sprint Actuel (Jan 2026)
+
+### 2026-01-30 - Performance Optimization + UX Intervention Tabs
+
+**Ce qui a été fait:**
+
+**1. Analyse Performance (4 agents parallèles)**
+
+| Issue | Root Cause | Fix |
+|-------|------------|-----|
+| Re-renders infinis | `useEffect` sans `[]` dans content-navigator.tsx | Ajout dependency array + garde NODE_ENV |
+| CSP violations | Domaines manquants connect-src | Ajout vercel-scripts, lh3.googleusercontent, frill-prod |
+| SW timeouts | Timeout 10s trop agressif | Augmenté à 30s + désactivé en dev |
+| Double query | activity-logs faisait 2 requêtes COUNT | Query unique avec `count: 'exact'` |
+
+**2. UX Intervention Tabs (Material Design)**
+
+- Tabs: Icônes retirées (texte seul pour clarté)
+- Responsive: Dropdown < 768px, Tabs horizontaux ≥ 768px
+- Nouveau composant `ParticipantsRow` (chips horizontaux)
+- Nouveau composant `ConversationSelector` (intégré dans Chat tab)
+
+**Fichiers modifiés:**
+- `components/content-navigator.tsx` - useEffect fix
+- `next.config.js` - SW disabled en dev + CSP étendu
+- `app/sw.ts` - Timeout 10s → 30s
+- `app/api/activity-logs/route.ts` - Query unique avec count
+- `components/interventions/shared/layout/intervention-tabs.tsx` - Responsive dropdown
+
+**Fichiers créés:**
+- `components/interventions/shared/layout/participants-row.tsx`
+- `components/interventions/shared/layout/conversation-selector.tsx`
+
+**Pattern documenté:** Service Worker en dev = source de problèmes CSP/cache → désactiver
+
+---
 
 ### 2026-01-29 - Analyse Approfondie + Localisation Tab + Fix Dashboard Locataire
 
@@ -390,7 +426,7 @@ Nouvelle architecture adresses avec support Google Maps:
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-01-29)
+## Metriques Projet (2026-01-30)
 
 | Metrique | Valeur |
 |----------|--------|
@@ -398,7 +434,7 @@ Nouvelle architecture adresses avec support Google Maps:
 | Domain Services | **32** (+1 address) |
 | API Routes | **113** (10 domaines) |
 | Hooks | **64** |
-| Components | **230+** (22 directories) |
+| Components | **232+** (+2 participants-row, conversation-selector) |
 | Pages | **87** (5+ route groups) |
 | DB Tables | **44** (+1 addresses, +3 quotes) |
 | DB Enums | 39 |
@@ -438,7 +474,9 @@ Nouvelle architecture adresses avec support Google Maps:
 | **2026-01-28** | **Centralisation Adresses** | **Table unique + Google Maps ready** | **Table addresses + migration donnees existantes** |
 | **2026-01-29** | **Thread creation order** | **Participants non ajoutes si threads apres assignments** | **Ordre: intervention → threads → assignments → slots** |
 | **2026-01-29** | **Trigger thread_add_managers** | **Managers pas explicitement participants** | **Auto-ajout managers a tous les threads intervention** |
+| **2026-01-30** | **SW disabled in dev** | **Timeouts CSP bloquaient l'app** | **Dev fluide, SW actif en prod uniquement** |
+| **2026-01-30** | **CSP connect-src exhaustif** | **SW intercepte tous fetch** | **Tous domaines dans connect-src, pas juste img-src/font-src** |
 
 ---
-*Derniere mise a jour: 2026-01-29 18:00*
-*Analyse approfondie: 6 agents paralleles, Memory Bank synchronise*
+*Derniere mise a jour: 2026-01-30 12:00*
+*Performance optimization: 4 agents paralleles, SW disabled en dev*

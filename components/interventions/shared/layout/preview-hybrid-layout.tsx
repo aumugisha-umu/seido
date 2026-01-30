@@ -89,7 +89,7 @@ export const ContentWrapper = ({
   }
 
   return (
-    <div className={cn('flex-1 flex flex-col min-h-0', paddingClasses[padding], className)}>
+    <div className={cn('flex-1 flex flex-col min-h-0 overflow-y-auto', paddingClasses[padding], className)}>
       {children}
     </div>
   )

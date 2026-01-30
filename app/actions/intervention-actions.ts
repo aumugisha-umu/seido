@@ -26,6 +26,84 @@ type InterventionUrgency = Database['public']['Enums']['intervention_urgency']
 type InterventionType = Database['public']['Enums']['intervention_type']
 type InterventionStatus = Database['public']['Enums']['intervention_status']
 type Intervention = Database['public']['Tables']['interventions']['Row']
+type UserRole = Database['public']['Enums']['user_role']
+
+/**
+ * Helper: Send system message when a participant is added to an intervention
+ * Message is sent to the GROUP thread so all participants see it
+ */
+async function sendParticipantAddedSystemMessage(
+  interventionId: string,
+  addedUserId: string,
+  addedUserRole: 'gestionnaire' | 'prestataire' | 'locataire',
+  addedByUser: { id: string; name: string }
+) {
+  const supabase = createServiceRoleSupabaseClient()
+
+  // Get the added user's details
+  const { data: addedUser, error: userError } = await supabase
+    .from('users')
+    .select('id, name, role')
+    .eq('id', addedUserId)
+    .single()
+
+  if (userError || !addedUser) {
+    logger.error('❌ [SYSTEM-MESSAGE] Could not find added user:', userError)
+    return
+  }
+
+  // Find the GROUP thread for this intervention
+  const { data: groupThread, error: threadError } = await supabase
+    .from('conversation_threads')
+    .select('id')
+    .eq('intervention_id', interventionId)
+    .eq('thread_type', 'group')
+    .single()
+
+  if (threadError || !groupThread) {
+    logger.error('❌ [SYSTEM-MESSAGE] Could not find group thread:', threadError)
+    return
+  }
+
+  // Format role in French
+  const roleFr: Record<string, string> = {
+    gestionnaire: 'Gestionnaire',
+    prestataire: 'Prestataire',
+    locataire: 'Locataire',
+    admin: 'Admin'
+  }
+  const roleLabel = roleFr[addedUserRole] || addedUserRole
+
+  // Build system message
+  const content = `🔔 ${addedUser.name} (${roleLabel}) a été ajouté à l'intervention par ${addedByUser.name}`
+
+  // Insert the system message
+  const { error: msgError } = await supabase
+    .from('conversation_messages')
+    .insert({
+      thread_id: groupThread.id,
+      user_id: addedByUser.id,
+      content,
+      metadata: {
+        source: 'system',
+        action: 'participant_added',
+        added_user_id: addedUserId,
+        added_user_name: addedUser.name,
+        added_user_role: addedUserRole
+      }
+    })
+
+  if (msgError) {
+    logger.error('❌ [SYSTEM-MESSAGE] Failed to insert message:', msgError)
+    return
+  }
+
+  logger.info('✅ [SYSTEM-MESSAGE] Participant added message sent:', {
+    threadId: groupThread.id,
+    addedUser: addedUser.name,
+    addedBy: addedByUser.name
+  })
+}
 
 // Action result type
 export type ActionResult<T> =
@@ -845,7 +923,7 @@ export async function getInterventionsAction(
 export async function assignUserAction(
   interventionId: string,
   userId: string,
-  role: 'gestionnaire' | 'prestataire'
+  role: 'gestionnaire' | 'prestataire' | 'locataire'
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
@@ -874,6 +952,14 @@ export async function assignUserAction(
       // Revalidate intervention pages
       revalidatePath(`/gestionnaire/interventions/${interventionId}`)
       revalidatePath(`/prestataire/interventions/${interventionId}`)
+
+      // Send system message to group thread
+      try {
+        await sendParticipantAddedSystemMessage(interventionId, userId, role, user)
+      } catch (msgError) {
+        // Don't fail the assignment if system message fails
+        logger.error('⚠️ [SERVER-ACTION] Failed to send system message:', msgError)
+      }
 
       return { success: true, data: undefined }
     }

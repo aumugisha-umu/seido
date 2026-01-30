@@ -84,16 +84,22 @@ export class InterventionCommentRepository extends BaseRepository<
 
   /**
    * Create a new comment
+   * @param interventionId - ID of the intervention
+   * @param userId - ID of the user creating the comment
+   * @param content - Comment content
+   * @param isInternal - If true, comment visible only to gestionnaires/admins (default: false)
    */
   async createComment(
     interventionId: string,
     userId: string,
-    content: string
+    content: string,
+    isInternal: boolean = false
   ) {
     const insert: InterventionCommentInsert = {
       intervention_id: interventionId,
       user_id: userId,
-      content: content.trim()
+      content: content.trim(),
+      is_internal: isInternal
     }
 
     await this.validate(insert)

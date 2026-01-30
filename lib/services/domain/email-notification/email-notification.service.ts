@@ -387,7 +387,7 @@ export class EmailNotificationService {
    */
   async sendInterventionStatusChangedBatch(
     interventionId: string,
-    statusChange?: { oldStatus: string; newStatus: string; reason?: string },
+    statusChange?: { oldStatus: string; newStatus: string; reason?: string; actorName?: string },
     filterOptions?: RecipientFilterOptions
   ): Promise<EmailBatchResult> {
     const startTime = Date.now()

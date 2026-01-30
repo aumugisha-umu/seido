@@ -25,6 +25,9 @@ interface UseActivityLogsOptions {
   teamId?: string
   userId?: string
   entityType?: string
+  entityId?: string  // Filter by specific entity (e.g., intervention ID)
+  /** Include related entities in logs (building → lots → contracts → interventions) */
+  includeRelated?: boolean
   actionType?: string
   status?: string
   startDate?: string
@@ -59,6 +62,8 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
     teamId,
     userId,
     entityType,
+    entityId,
+    includeRelated = false,
     actionType,
     status,
     startDate,
@@ -76,14 +81,16 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
 
     try {
       setError(null)
-      
+
       const params = new URLSearchParams({
         limit: limit.toString(),
       })
-      
+
       if (teamId) params.append('teamId', teamId)
       if (userId) params.append('userId', userId)
       if (entityType) params.append('entityType', entityType)
+      if (entityId) params.append('entityId', entityId)
+      if (includeRelated) params.append('includeRelated', 'true')
       if (actionType) params.append('actionType', actionType)
       if (status) params.append('status', status)
       if (startDate) params.append('startDate', startDate)
@@ -97,7 +104,7 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
       }
 
       const result = await response.json()
-      
+
       if (result.data) {
         setActivities(result.data || [])
       } else {
@@ -138,7 +145,7 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
     if (teamId) {
       fetchStats()
     }
-  }, [user?.id, teamId, userId, entityType, actionType, status, startDate, endDate, limit])
+  }, [user?.id, teamId, userId, entityType, entityId, actionType, status, startDate, endDate, limit])
 
   // Auto-refresh
   useEffect(() => {
@@ -152,7 +159,7 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
     }, refreshInterval)
     
     return () => clearInterval(interval)
-  }, [autoRefresh, refreshInterval, user?.id, teamId, userId, entityType, actionType, status, startDate, endDate, limit])
+  }, [autoRefresh, refreshInterval, user?.id, teamId, userId, entityType, entityId, actionType, status, startDate, endDate, limit])
 
   return {
     activities,

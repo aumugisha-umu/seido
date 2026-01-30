@@ -27,7 +27,6 @@ import {
   // Layout
   PreviewHybridLayout,
   ContentWrapper,
-  InterventionTabs,
   // Sidebar
   InterventionSidebar,
   // Cards
@@ -36,6 +35,13 @@ import {
   QuotesCard,
   PlanningCard
 } from '@/components/interventions/shared'
+
+// Unified tabs component (replaces InterventionTabs)
+import {
+  EntityTabs,
+  TabContentWrapper,
+  getInterventionTabsConfig
+} from '@/components/shared/entity-preview'
 
 // Tab Localisation dédié
 import { LocalisationTab } from '@/components/interventions/shared/tabs/localisation-tab'
@@ -196,6 +202,11 @@ export function PrestataireInterventionDetailClient({
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
   // Thread type à utiliser pour InterventionChatTab
   const [defaultThreadType, setDefaultThreadType] = useState<string | undefined>(undefined)
+
+  // ============================================================================
+  // Tabs Configuration (unified with EntityTabs)
+  // ============================================================================
+  const interventionTabs = useMemo(() => getInterventionTabsConfig('provider'), [])
 
   // ============================================================================
   // Auto-Execute Actions from Email Magic Links
@@ -503,6 +514,15 @@ export function PrestataireInterventionDetailClient({
   const handleGroupConversationClick = () => {
     setActiveConversation('group')
     setDefaultThreadType('group')
+    setActiveTab('conversations')
+  }
+
+  // Handler pour ouvrir le chat depuis un participant (icône message dans ParticipantsRow)
+  const handleOpenChatFromParticipant = (
+    _participantId: string,
+    threadType: 'group' | 'tenant_to_managers' | 'provider_to_managers'
+  ) => {
+    setDefaultThreadType(threadType)
     setActiveTab('conversations')
   }
 
@@ -820,10 +840,10 @@ export function PrestataireInterventionDetailClient({
             />
           }
           content={
-            <InterventionTabs
+            <EntityTabs
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              userRole="provider"
+              tabs={interventionTabs}
             >
               {/* TAB: GENERAL */}
               <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
@@ -855,6 +875,11 @@ export function PrestataireInterventionDetailClient({
                       title={intervention.title}
                       description={intervention.description || undefined}
                       instructions={intervention.instructions || undefined}
+                      interventionStatus={intervention.status}
+                      participants={participants}
+                      currentUserId={currentUser.id}
+                      currentUserRole="prestataire"
+                      onOpenChat={handleOpenChatFromParticipant}
                       planning={{
                         scheduledDate,
                         status: scheduledDate ? 'scheduled' : 'pending',
@@ -914,7 +939,7 @@ export function PrestataireInterventionDetailClient({
               </TabsContent>
 
               {/* TAB: CONVERSATIONS */}
-              <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
+              <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-y-auto h-full">
                 <InterventionChatTab
                   interventionId={intervention.id}
                   threads={threads}
@@ -962,7 +987,7 @@ export function PrestataireInterventionDetailClient({
                   />
                 </div>
               </TabsContent>
-            </InterventionTabs>
+            </EntityTabs>
           }
         />
       </div>

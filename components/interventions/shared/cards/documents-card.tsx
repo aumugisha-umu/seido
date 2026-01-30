@@ -1,7 +1,8 @@
 'use client'
 
 /**
- * DocumentsCard - Card des documents et rapports attachés
+ * DocumentsCard - Contenu des documents et rapports attachés
+ * Sans Card wrapper - utilisé directement dans ContentWrapper
  *
  * @example
  * <DocumentsCard
@@ -13,7 +14,6 @@
  */
 
 import { cn } from '@/lib/utils'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { FileText, Upload, FolderOpen } from 'lucide-react'
 import { DocumentsCardProps } from '../types'
@@ -21,7 +21,7 @@ import { DocumentItem } from '../atoms'
 import { permissions } from '../utils'
 
 /**
- * Card des documents
+ * Contenu des documents (sans Card wrapper)
  */
 export const DocumentsCard = ({
   documents = [],
@@ -37,33 +37,33 @@ export const DocumentsCard = ({
   const canDelete = permissions.canDeleteDocuments(userRole)
 
   return (
-    <Card className={cn('flex flex-col h-full', className)}>
-      <CardHeader className="pb-3 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <FileText className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            Rapports & Documents
-          </CardTitle>
+    <div className={cn('space-y-4', className)}>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-semibold flex items-center gap-2">
+          <FileText className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          Rapports & Documents
+        </h3>
 
-          {canUpload && onUpload && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onUpload}
-              disabled={isLoading}
-              aria-label="Ajouter un document"
-            >
-              <Upload className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
-              Ajouter
-            </Button>
-          )}
-        </div>
-      </CardHeader>
+        {canUpload && onUpload && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onUpload}
+            disabled={isLoading}
+            aria-label="Ajouter un document"
+          >
+            <Upload className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
+            Ajouter
+          </Button>
+        )}
+      </div>
 
-      <CardContent className="flex-1 overflow-hidden">
-        {/* Liste des documents avec scroll */}
+      {/* Content */}
+      <div>
+        {/* Liste des documents */}
         {documents.length > 0 ? (
-          <div className="space-y-2 max-h-full overflow-y-auto pr-1">
+          <div className="space-y-2">
             {documents.map((doc) => (
               <DocumentItem
                 key={doc.id}
@@ -93,8 +93,8 @@ export const DocumentsCard = ({
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 

@@ -23,7 +23,6 @@ import {
   // Layout
   PreviewHybridLayout,
   ContentWrapper,
-  InterventionTabs,
   // Sidebar
   InterventionSidebar,
   // Cards
@@ -31,6 +30,13 @@ import {
   DocumentsCard,
   PlanningCard
 } from '@/components/interventions/shared'
+
+// Unified tabs component (replaces InterventionTabs)
+import {
+  EntityTabs,
+  TabContentWrapper,
+  getInterventionTabsConfig
+} from '@/components/shared/entity-preview'
 
 // Tab Localisation dédié
 import { LocalisationTab } from '@/components/interventions/shared/tabs/localisation-tab'
@@ -183,6 +189,11 @@ export function LocataireInterventionDetailClient({
   const assignmentList = useMemo(() => {
     return (intervention as any).assignments || []
   }, [intervention])
+
+  // ============================================================================
+  // Tabs Configuration (unified with EntityTabs)
+  // ============================================================================
+  const interventionTabs = useMemo(() => getInterventionTabsConfig('tenant'), [])
 
   // ============================================================================
   // Participant Confirmation Logic
@@ -399,6 +410,15 @@ export function LocataireInterventionDetailClient({
     setActiveTab('conversations')
   }
 
+  // Handler pour ouvrir le chat depuis un participant (icône message dans ParticipantsRow)
+  const handleOpenChatFromParticipant = (
+    _participantId: string,
+    threadType: 'group' | 'tenant_to_managers' | 'provider_to_managers'
+  ) => {
+    setDefaultThreadType(threadType)
+    setActiveTab('conversations')
+  }
+
   // Handle time slot selection (tenants can select in planification status)
   const handleSelectSlot = async (slotId: string) => {
     try {
@@ -571,10 +591,10 @@ export function LocataireInterventionDetailClient({
             />
           }
           content={
-            <InterventionTabs
+            <EntityTabs
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              userRole="tenant"
+              tabs={interventionTabs}
             >
               {/* TAB: GENERAL */}
               <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
@@ -598,6 +618,11 @@ export function LocataireInterventionDetailClient({
                       title={intervention.title}
                       description={intervention.description || undefined}
                       instructions={intervention.instructions || undefined}
+                      interventionStatus={intervention.status}
+                      participants={participants}
+                      currentUserId={currentUser.id}
+                      currentUserRole="locataire"
+                      onOpenChat={handleOpenChatFromParticipant}
                       planning={{
                         scheduledDate,
                         status: scheduledDate ? 'scheduled' : 'pending',
@@ -651,7 +676,7 @@ export function LocataireInterventionDetailClient({
               </TabsContent>
 
               {/* TAB: CONVERSATIONS */}
-              <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
+              <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-y-auto h-full">
                 <InterventionChatTab
                   interventionId={intervention.id}
                   threads={threads}
@@ -678,7 +703,7 @@ export function LocataireInterventionDetailClient({
                   />
                 </div>
               </TabsContent>
-            </InterventionTabs>
+            </EntityTabs>
           }
         />
       </div>

@@ -88,6 +88,42 @@ export function ActivityTab({ intervention, activityLogs }: ActivityTabProps) {
       .slice(0, 2)
   }
 
+  // Extract actors from activity logs for each status
+  const getActorForStatus = (targetStatus: string | null, actionType?: string): string | null => {
+    if (!targetStatus && !actionType) return null
+
+    // Search for matching activity log
+    const log = activityLogs.find((log) => {
+      const metadata = log.metadata as any
+
+      // Match by action type first (create, approve, reject)
+      if (actionType) {
+        if (log.action_type === actionType) return true
+      }
+
+      // Match by new_status in metadata for status changes
+      if (targetStatus && metadata?.new_status === targetStatus) {
+        return true
+      }
+
+      return false
+    })
+
+    return log?.user?.name || null
+  }
+
+  // Extract actors for each step
+  const actors = {
+    createdBy: getActorForStatus(null, 'create'),
+    approvedBy: getActorForStatus('approuvee', 'approve'),
+    rejectedBy: getActorForStatus('rejetee', 'reject'),
+    scheduledBy: getActorForStatus('planifiee'),
+    completedBy: getActorForStatus('cloturee_par_gestionnaire') ||
+                 getActorForStatus('cloturee_par_prestataire') ||
+                 getActorForStatus('cloturee_par_locataire'),
+    cancelledBy: getActorForStatus('annulee')
+  }
+
   // Format activity description
   const formatDescription = (log: ActivityLog) => {
     // Parse metadata for additional context
@@ -136,6 +172,12 @@ export function ActivityTab({ intervention, activityLogs }: ActivityTabProps) {
             completedDate={intervention.completed_date}
             rejectedAt={intervention.status === 'rejetee' ? intervention.updated_at : null}
             cancelledAt={intervention.status === 'annulee' ? intervention.updated_at : null}
+            createdBy={actors.createdBy}
+            approvedBy={actors.approvedBy}
+            rejectedBy={actors.rejectedBy}
+            scheduledBy={actors.scheduledBy}
+            completedBy={actors.completedBy}
+            cancelledBy={actors.cancelledBy}
           />
         </CardContent>
       </Card>

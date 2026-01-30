@@ -133,12 +133,17 @@ export default function ContentNavigator({
   // Détecter si c'est le contexte dashboard (embedded sans bordure)
   const isDashboardEmbedded = className.includes('bg-transparent') || className.includes('border-0')
 
-  // #region agent log
+  // #region agent log (debug - runs only once on mount)
+  // Note: Ce code de debug était la cause principale des re-renders (7374ms+)
+  // car il n'avait pas de tableau de dépendances et s'exécutait à chaque render
   useEffect(() => {
+    // Debug code désactivé en production - décommenter si besoin de diagnostiquer
+    if (process.env.NODE_ENV !== 'development') return
+
     const outerDiv = document.querySelector('[data-content-navigator-outer]') as HTMLElement
     const paddingDiv = document.querySelector('[data-content-navigator-padding]') as HTMLElement
     const tabContentDiv = document.querySelector('[data-content-navigator-tab-content]') as HTMLElement
-    
+
     if (outerDiv && paddingDiv && tabContentDiv) {
       const logData = {
         location: 'content-navigator.tsx:136',
@@ -163,7 +168,7 @@ export default function ContentNavigator({
         body: JSON.stringify(logData)
       }).catch(() => {})
     }
-  })
+  }, []) // ✅ FIX CRITIQUE: Ajout du tableau de dépendances vide
   // #endregion
   return (
     <div data-content-navigator-outer className={`flex-1 min-h-0 flex flex-col ${!isDashboardEmbedded ? 'border border-slate-200 rounded-lg shadow-sm bg-white' : ''} ${className}`}>

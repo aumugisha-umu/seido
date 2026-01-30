@@ -110,6 +110,30 @@ interface ChatInterfaceProps {
   initialMessage?: string
 }
 
+// System message component (centered, different style)
+function SystemMessage({ message }: { message: Message }) {
+  const formatTime = (date: string) => {
+    try {
+      return format(new Date(date), 'HH:mm', { locale: fr })
+    } catch {
+      return ''
+    }
+  }
+
+  return (
+    <div className="flex justify-center my-3">
+      <div className="inline-flex flex-col items-center max-w-[80%]">
+        <div className="bg-slate-100 text-slate-600 px-4 py-2 rounded-full text-sm text-center">
+          {message.content}
+        </div>
+        <span className="text-xs text-muted-foreground mt-1">
+          {formatTime(message.created_at)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 // Message bubble component
 function MessageBubble({
   message,
@@ -128,14 +152,20 @@ function MessageBubble({
     }
   }
 
-  // Check if message is from email reply
+  // Check if message is from email reply or system
   const metadata = message.metadata as {
-    source?: 'email'
+    source?: 'email' | 'system'
     sender_email?: string
     sender_name?: string
     is_external?: boolean
     email_id?: string
+    action?: string
   } | null
+
+  // System messages are rendered separately
+  if (metadata?.source === 'system') {
+    return <SystemMessage message={message} />
+  }
 
   const isEmailMessage = metadata?.source === 'email'
 
@@ -714,7 +744,7 @@ export function ChatInterface({
 
       <Separator />
 
-      <CardContent className="flex-1 overflow-hidden p-0">
+      <CardContent className="flex-1 min-h-0 overflow-hidden p-0">
         <ScrollArea ref={scrollAreaRef} className="h-full">
           {isLoading ? (
             <MessagesLoading />

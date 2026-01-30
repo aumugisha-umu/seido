@@ -404,7 +404,7 @@ export function PendingActionsCard({
               )}>
                 {primaryActions.map((action, idx) => {
                   // Green background for primary workflow actions
-                  const isGreenAction = ['approve', 'finalize', 'validate_work', 'mark_completed', 'propose_slots'].includes(action.actionType)
+                  const isGreenAction = ['approve', 'process_request', 'finalize', 'validate_work', 'mark_completed', 'propose_slots'].includes(action.actionType)
                   return (
                   <Button
                     key={idx}

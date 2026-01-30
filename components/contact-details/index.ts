@@ -24,6 +24,6 @@ export { ContactAccessCard } from './contact-access-card'
 export { ContactContractsCard } from './contact-contracts-card'
 
 // Tabs
-export { ContactTabsNavigation } from './contact-tabs-navigation'
+// Note: ContactTabsNavigation removed - using EntityTabs from @/components/shared/entity-preview
 export { ContactInterventionsTab } from './contact-interventions-tab'
 export { ContactPropertiesTab } from './contact-properties-tab'

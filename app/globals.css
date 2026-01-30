@@ -861,6 +861,72 @@ input[autocomplete="cc-number"],
   .sticky-footer {
     @apply sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-6 py-4 mt-6 -mx-5 sm:-mx-6 lg:-mx-10;
   }
+
+  /* ============================================
+     ENTITY PREVIEW BEM COMPONENT
+     Unified layout for entity preview pages
+     (Building, Lot, Contract, Contact)
+     ============================================ */
+
+  /* Block: Main container */
+  .entity-preview {
+    @apply flex-1 flex flex-col min-h-0 overflow-hidden;
+  }
+
+  /* Container with card styling */
+  .entity-preview__container {
+    @apply flex-1 flex flex-col min-h-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  /* Tabs navigation area */
+  .entity-preview__tabs {
+    @apply flex-shrink-0 border-b border-slate-200;
+  }
+
+  /* Content area (scrollable) */
+  .entity-preview__content {
+    @apply flex-1 overflow-hidden flex flex-col;
+  }
+
+  /* Tab panel with padding */
+  .entity-preview__tab-panel {
+    @apply flex-1 p-4 sm:p-6 overflow-y-auto;
+  }
+
+  /* Activity log timeline */
+  .entity-preview__activity-log {
+    @apply space-y-6;
+  }
+
+  /* Activity log date group */
+  .entity-preview__activity-group {
+    @apply space-y-3;
+  }
+
+  /* Activity log date header */
+  .entity-preview__activity-date {
+    @apply text-xs font-medium text-slate-500 uppercase tracking-wide sticky top-0 bg-white py-1;
+  }
+
+  /* Activity log item */
+  .entity-preview__activity-item {
+    @apply flex gap-3 relative;
+  }
+
+  /* Activity log timeline line */
+  .entity-preview__activity-line {
+    @apply absolute left-[18px] top-10 bottom-0 w-px bg-slate-200;
+  }
+
+  /* Activity log avatar */
+  .entity-preview__activity-avatar {
+    @apply relative z-10 flex-shrink-0;
+  }
+
+  /* Activity log content */
+  .entity-preview__activity-content {
+    @apply flex-1 pb-6 min-w-0;
+  }
 }
 
 @keyframes gradient {

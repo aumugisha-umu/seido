@@ -447,6 +447,118 @@ Structure des onglets dans la vue de detail/preview d'une intervention :
 
 **Regle:** L'onglet "Localisation" contient la carte Google Maps en grand format. L'onglet "General" conserve uniquement le texte compact "Immeuble > Lot • Adresse".
 
+### 14c. Entity Preview Layout Architecture (NOUVEAU 2026-01-30)
+
+Architecture unifiee pour les pages de preview d'entites (Building, Lot, Contract, Contact) :
+
+```
++-------------------------------------------------------------+
+| COMPOSANTS PARTAGES (@/components/shared/entity-preview)     |
++-------------------------------------------------------------+
+                           |
+    +----------------------+----------------------+
+    |                      |                      |
+    v                      v                      v
++----------------+  +-------------+  +------------------+
+| EntityPreview  |  | EntityTabs  |  | EntityActivityLog|
+| Layout         |  | (MD3 style) |  | (timeline)       |
++----------------+  +-------------+  +------------------+
+        |                  |
+        |                  v
+        |         +------------------+
+        |         | TabContentWrapper|
+        |         +------------------+
+        v
++-------------------------------------------------------------+
+| PAGES DE DETAIL UTILISANT L'ARCHITECTURE                     |
++-------------------------------------------------------------+
+| Building  | building-details-client.tsx                      |
+| Lot       | lot-details-client.tsx                           |
+| Contract  | contract-details-client.tsx                      |
+| Contact   | contact-details-client.tsx                       |
++-------------------------------------------------------------+
+```
+
+**Fichiers du module :**
+
+| Fichier | Description |
+|---------|-------------|
+| `index.ts` | Barrel exports |
+| `types.ts` | TabConfig, EntityType, ActivityLogEntry |
+| `entity-tabs.tsx` | Tabs responsifs MD3 (dropdown mobile, horizontal desktop) |
+| `entity-preview-layout.tsx` | Layout wrapper + TabPanelWrapper |
+| `entity-activity-log.tsx` | Timeline des activity logs hierarchiques |
+
+**Import standardise :**
+```typescript
+import {
+  EntityPreviewLayout,
+  EntityTabs,
+  TabContentWrapper,
+  EntityActivityLog
+} from '@/components/shared/entity-preview'
+import type { TabConfig } from '@/components/shared/entity-preview'
+```
+
+**Configuration des tabs :**
+```typescript
+const tabs: TabConfig[] = [
+  { value: 'overview', label: 'Aperçu' },
+  { value: 'contracts', label: 'Contrats', count: contractsCount },
+  { value: 'interventions', label: 'Interventions', count: interventionsCount },
+  { value: 'activity', label: 'Activité' }
+]
+
+<EntityTabs activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs}>
+  <TabContentWrapper value="overview">
+    {/* Contenu aperçu */}
+  </TabContentWrapper>
+  <TabContentWrapper value="activity">
+    <EntityActivityLog
+      teamId={teamId}
+      entityType="building"
+      entityId={buildingId}
+      includeRelated={true}
+    />
+  </TabContentWrapper>
+</EntityTabs>
+```
+
+**Hierarchical Activity Logs (RPC Function) :**
+```sql
+-- Fonction get_entity_activity_logs dans Supabase
+-- Retourne les logs de l'entite ET de ses entites liees :
+-- Building: logs building + lots + contracts + interventions
+-- Lot: logs lot + contracts + interventions
+-- Contract: logs contract uniquement
+-- Contact: logs contact + interventions assignees
+```
+
+**Classes CSS BEM :**
+```css
+.entity-preview          /* Container principal */
+.entity-preview__tabs    /* Zone des onglets */
+.entity-preview__content /* Zone du contenu */
+.entity-preview__tab-panel /* Panel d'onglet individuel */
+```
+
+**UNIFICATION (2026-01-30) :**
+`InterventionTabs` a ete supprime et unifie avec `EntityTabs`.
+
+Pour les interventions, utiliser `getInterventionTabsConfig(role)` :
+```typescript
+import { EntityTabs, getInterventionTabsConfig } from '@/components/shared/entity-preview'
+
+const interventionTabs = useMemo(() => getInterventionTabsConfig('manager'), [])
+// ou 'provider', 'tenant'
+
+<EntityTabs tabs={interventionTabs} activeTab={activeTab} onTabChange={setActiveTab}>
+  {/* TabsContent */}
+</EntityTabs>
+```
+
+**Regle :** Utiliser `EntityTabs` + `getInterventionTabsConfig()` pour TOUTES les entites (Building, Lot, Contract, Contact, Intervention).
+
 ### 15. Conversation Thread Creation Pattern (NOUVEAU 2026-01-29)
 
 Pattern critique pour creer les threads de conversation lors de la creation d'intervention :
@@ -594,6 +706,7 @@ Pattern d'orchestration des skills `superpowers:sp-*` base sur des "Red Flags" (
 | Creer threads apres assignments | Creer threads AVANT assignments |
 | Insert participant sans ON CONFLICT | Upsert avec ignoreDuplicates |
 | Relations PostgREST nested avec RLS | Requetes separees + helpers prives |
+| Utiliser InterventionTabs (supprime) | EntityTabs + getInterventionTabsConfig() |
 
 ## Conventions de Nommage
 

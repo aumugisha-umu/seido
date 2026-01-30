@@ -13,7 +13,8 @@ import {
   Clock,
   FileText,
   Calendar,
-  Flag
+  Flag,
+  User
 } from 'lucide-react'
 import type { Database } from '@/lib/database.types'
 
@@ -34,6 +35,13 @@ interface StatusTimelineProps {
   completedDate?: string | null
   rejectedAt?: string | null
   cancelledAt?: string | null
+  // Acteurs pour chaque étape
+  createdBy?: string | null
+  approvedBy?: string | null
+  rejectedBy?: string | null
+  scheduledBy?: string | null
+  completedBy?: string | null
+  cancelledBy?: string | null
   onStepClick?: (status: InterventionStatus) => void
 }
 
@@ -131,6 +139,12 @@ export function StatusTimeline({
   completedDate,
   rejectedAt,
   cancelledAt,
+  createdBy,
+  approvedBy,
+  rejectedBy,
+  scheduledBy,
+  completedBy,
+  cancelledBy,
   onStepClick
 }: StatusTimelineProps) {
   const currentIndex = getStatusIndex(currentStatus)
@@ -195,6 +209,28 @@ export function StatusTimeline({
     }
   }
 
+  // Get step actor
+  const getStepActor = (step: InterventionStatus): string | null => {
+    switch (step) {
+      case 'demande':
+        return createdBy || null
+      case 'approuvee':
+        return approvedBy || null
+      case 'planifiee':
+        return scheduledBy || null
+      case 'cloturee_par_prestataire':
+      case 'cloturee_par_locataire':
+      case 'cloturee_par_gestionnaire':
+        return completedBy || null
+      case 'rejetee':
+        return rejectedBy || null
+      case 'annulee':
+        return cancelledBy || null
+      default:
+        return null
+    }
+  }
+
   return (
     <div className="relative">
       <div className="space-y-8">
@@ -202,6 +238,7 @@ export function StatusTimeline({
           const step = statusFlow[stepStatus]
           const state = getStepState(stepStatus)
           const date = getStepDate(stepStatus)
+          const actor = getStepActor(stepStatus)
           const Icon = step.icon
           const isLast = index === stepsToShow.length - 1
 
@@ -266,11 +303,21 @@ export function StatusTimeline({
                 {step.description && (
                   <p className="mt-0.5 text-xs text-muted-foreground">{step.description}</p>
                 )}
-                {date && (
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    <Clock className="inline-block w-3 h-3 mr-1" />
-                    {date}
-                  </p>
+                {(date || actor) && (
+                  <div className="mt-1 flex items-center gap-3 text-xs text-muted-foreground">
+                    {date && (
+                      <span className="flex items-center">
+                        <Clock className="w-3 h-3 mr-1" />
+                        {date}
+                      </span>
+                    )}
+                    {actor && (
+                      <span className="flex items-center">
+                        <User className="w-3 h-3 mr-1" />
+                        {actor}
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

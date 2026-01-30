@@ -6,8 +6,14 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
+import {
+  EntityPreviewLayout,
+  EntityTabs,
+  TabContentWrapper,
+  EntityActivityLog
+} from '@/components/shared/entity-preview'
+import type { TabConfig } from '@/components/shared/entity-preview'
 import { Separator } from '@/components/ui/separator'
 import { SeidoBadge } from '@/components/ui/seido-badge'
 import { ContractDatesDisplay } from '@/components/contracts/contract-dates-display'
@@ -33,7 +39,8 @@ import {
   Download,
   Eye,
   Mail,
-  ListTodo
+  ListTodo,
+  Activity
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -152,6 +159,16 @@ export default function ContractDetailsClient({
   const handleRenew = useCallback(() => {
     router.push(`/gestionnaire/contrats/nouveau?renew=${contract.id}`)
   }, [contract.id, router])
+
+  // Tabs configuration for EntityTabs
+  const contractTabs: TabConfig[] = [
+    { value: 'overview', label: 'Aperçu' },
+    { value: 'contacts', label: 'Contacts', count: contract.contacts?.length || 0 },
+    { value: 'documents', label: 'Documents', count: documents.length },
+    { value: 'emails', label: 'Emails' },
+    { value: 'interventions', label: 'Tâches', count: interventions?.length || 0 },
+    { value: 'activity', label: 'Activité' }
+  ]
 
   // Status badge configuration for DetailPageHeader
   const getStatusBadge = () => {
@@ -278,32 +295,14 @@ export default function ContractDetailsClient({
 
       {/* Main content */}
       <main className="content-max-width px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Aperçu
-            </TabsTrigger>
-            <TabsTrigger value="contacts" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Contacts ({contract.contacts?.length || 0})
-            </TabsTrigger>
-            <TabsTrigger value="documents" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Documents ({documents.length})
-            </TabsTrigger>
-            <TabsTrigger value="emails" className="flex items-center gap-2">
-              <Mail className="h-4 w-4" />
-              Emails
-            </TabsTrigger>
-            <TabsTrigger value="interventions" className="flex items-center gap-2">
-              <ListTodo className="h-4 w-4" />
-              Tâches ({interventions?.length || 0})
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
+        <EntityPreviewLayout>
+          <EntityTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            tabs={contractTabs}
+          >
+            {/* Overview Tab */}
+            <TabContentWrapper value="overview">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Main info */}
               <Card className="lg:col-span-2">
@@ -450,10 +449,10 @@ export default function ContractDetailsClient({
                 </Card>
               </div>
             </div>
-          </TabsContent>
+            </TabContentWrapper>
 
-          {/* Contacts Tab */}
-          <TabsContent value="contacts" className="space-y-6">
+            {/* Contacts Tab */}
+            <TabContentWrapper value="contacts">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -516,10 +515,10 @@ export default function ContractDetailsClient({
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+            </TabContentWrapper>
 
-          {/* Documents Tab */}
-          <TabsContent value="documents" className="space-y-6">
+            {/* Documents Tab */}
+            <TabContentWrapper value="documents">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -583,10 +582,10 @@ export default function ContractDetailsClient({
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+            </TabContentWrapper>
 
-          {/* Emails Tab */}
-          <TabsContent value="emails" className="space-y-6">
+            {/* Emails Tab */}
+            <TabContentWrapper value="emails">
             <Card>
               <CardContent className="p-0">
                 <EntityEmailsTab
@@ -596,10 +595,10 @@ export default function ContractDetailsClient({
                 />
               </CardContent>
             </Card>
-          </TabsContent>
+            </TabContentWrapper>
 
-          {/* Interventions Tab */}
-          <TabsContent value="interventions" className="space-y-6">
+            {/* Interventions Tab */}
+            <TabContentWrapper value="interventions">
             <InterventionsNavigator
               interventions={interventions || []}
               userContext="gestionnaire"
@@ -618,8 +617,20 @@ export default function ContractDetailsClient({
               showFilters={true}
               isEmbeddedInCard={true}
             />
-          </TabsContent>
-        </Tabs>
+            </TabContentWrapper>
+
+            {/* Activity Tab */}
+            <TabContentWrapper value="activity">
+              <EntityActivityLog
+                entityType="contract"
+                entityId={contract.id}
+                teamId={teamId}
+                includeRelated={false}
+                emptyMessage="Aucune activité enregistrée pour ce contrat"
+              />
+            </TabContentWrapper>
+          </EntityTabs>
+        </EntityPreviewLayout>
       </main>
 
       {/* Terminate Dialog */}

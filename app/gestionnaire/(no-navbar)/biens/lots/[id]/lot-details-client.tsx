@@ -1,10 +1,16 @@
 'use client'
 
 import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck, Info, Building2, MapPin, Archive, Edit as EditIcon, Trash2, Home, ScrollText, Shield, Mail } from "lucide-react"
+import {
+  EntityPreviewLayout,
+  EntityTabs,
+  TabContentWrapper,
+  EntityActivityLog
+} from '@/components/shared/entity-preview'
+import type { TabConfig } from '@/components/shared/entity-preview'
+import { Eye, FileText, Wrench, Users, Plus, AlertCircle, UserCheck, Info, Building2, MapPin, Archive, Edit as EditIcon, Trash2, Home, ScrollText, Shield, Mail, Activity } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { determineAssignmentType } from '@/lib/services'
 import { DeleteConfirmModal } from "@/components/delete-confirm-modal"
@@ -376,12 +382,14 @@ export default function LotDetailsClient({
     lotContactIds[contact.user_id] = contact.id
   })
 
-  const tabs = [
-    { id: "overview", label: "Vue d'ensemble", icon: Eye },
-    { id: "contracts", label: "Contrats", icon: ScrollText, count: contracts.length },
-    { id: "interventions", label: "Interventions", icon: Wrench, count: interventionStats.total },
-    { id: "documents", label: "Documents", icon: FileText },
-    { id: "emails", label: "Emails", icon: Mail },
+  // Tabs configuration for EntityTabs
+  const lotTabs: TabConfig[] = [
+    { value: "overview", label: "Vue d'ensemble" },
+    { value: "contracts", label: "Contrats", count: contracts.length },
+    { value: "interventions", label: "Interventions", count: interventionStats.total },
+    { value: "documents", label: "Documents" },
+    { value: "emails", label: "Emails" },
+    { value: "activity", label: "Activité" }
   ]
 
   // Prepare header data
@@ -498,42 +506,16 @@ export default function LotDetailsClient({
           </div>
         )}
 
-      {/* Tabs Navigation */}
-      <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-0 mb-6">
-        <div className="border-b border-border">
-          <nav className="-mb-px flex space-x-8">
-            {tabs.map((tab) => {
-              const Icon = tab.icon
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 py-3 px-4 border-b-2 font-medium text-sm transition-colors ${
-                    activeTab === tab.id
-                      ? "border-primary text-primary bg-card"
-                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
-                  }`}
-                >
-                  <Icon className="h-4 w-4" />
-                  <span>{tab.label}</span>
-                  {tab.count !== undefined && (
-                    <Badge variant="secondary" className="ml-1 text-xs bg-muted text-muted-foreground">
-                      {tab.count}
-                    </Badge>
-                  )}
-                </button>
-              )
-            })}
-          </nav>
-        </div>
-      </div>
-
-      {/* Card Content */}
-      <Card className="flex-1 flex flex-col content-max-width mx-auto w-full p-6 min-h-0 overflow-hidden">
-          <CardContent className="p-0 flex-1 flex flex-col min-h-0 overflow-y-auto">
-            <div className="flex-1 flex flex-col min-h-0 pb-6">
-        {activeTab === "overview" && (
-          <div className="mt-0 flex-1 flex flex-col min-h-0 space-y-10">
+      {/* Main Content with EntityPreviewLayout */}
+      <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4 flex-1 flex flex-col min-h-0 pb-6">
+        <EntityPreviewLayout>
+          <EntityTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            tabs={lotTabs}
+          >
+            {/* Overview Tab */}
+            <TabContentWrapper value="overview">
             {/* Section 1: Description (if exists) */}
             {lot.description && (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
@@ -691,11 +673,10 @@ export default function LotDetailsClient({
                 </p>
               </div>
             )}
-          </div>
-        )}
+            </TabContentWrapper>
 
-        {activeTab === "contracts" && (
-          <div className="flex-1 flex flex-col min-h-0">
+            {/* Contracts Tab */}
+            <TabContentWrapper value="contracts">
             {contracts.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
                 <ScrollText className="h-12 w-12 text-muted-foreground/30 mb-4" />
@@ -715,12 +696,11 @@ export default function LotDetailsClient({
                 className="border-0 shadow-none bg-transparent"
               />
             )}
-          </div>
-        )}
+            </TabContentWrapper>
 
-        {activeTab === "interventions" && (
-          <div className="flex-1 flex flex-col min-h-0">
-            <InterventionsNavigator
+            {/* Interventions Tab */}
+            <TabContentWrapper value="interventions">
+              <InterventionsNavigator
             interventions={interventions as any}
             userContext="gestionnaire"
             loading={false}
@@ -735,12 +715,11 @@ export default function LotDetailsClient({
             searchPlaceholder="Rechercher par titre, description, ou lot..."
             showFilters={true}
             isEmbeddedInCard={true}
-          />
-          </div>
-        )}
+              />
+            </TabContentWrapper>
 
-        {activeTab === "documents" && (
-          <div className="space-y-6 flex-1 flex flex-col min-h-0">
+            {/* Documents Tab */}
+            <TabContentWrapper value="documents">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-medium text-foreground">Documents du lot</h2>
@@ -750,29 +729,38 @@ export default function LotDetailsClient({
               </div>
             </div>
 
-            <DocumentsSection
-              interventions={transformInterventionsForDocuments(interventionsWithDocs)}
-              loading={false}
-              emptyMessage="Aucun document trouvé"
-              emptyDescription="Aucune intervention avec documents n'a été réalisée dans ce lot."
-              onDocumentView={handleDocumentView}
-              onDocumentDownload={handleDocumentDownload}
-            />
-          </div>
-        )}
+              <DocumentsSection
+                interventions={transformInterventionsForDocuments(interventionsWithDocs)}
+                loading={false}
+                emptyMessage="Aucun document trouvé"
+                emptyDescription="Aucune intervention avec documents n'a été réalisée dans ce lot."
+                onDocumentView={handleDocumentView}
+                onDocumentDownload={handleDocumentDownload}
+              />
+            </TabContentWrapper>
 
-        {activeTab === "emails" && (
-          <div className="flex-1 flex flex-col min-h-0">
-            <EntityEmailsTab
-              entityType="lot"
-              entityId={lot.id}
-              entityName={lot.reference || `Lot ${lot.apartment_number}`}
-            />
-          </div>
-        )}
-            </div>
-          </CardContent>
-        </Card>
+            {/* Emails Tab */}
+            <TabContentWrapper value="emails">
+              <EntityEmailsTab
+                entityType="lot"
+                entityId={lot.id}
+                entityName={lot.reference || `Lot ${lot.apartment_number}`}
+              />
+            </TabContentWrapper>
+
+            {/* Activity Tab */}
+            <TabContentWrapper value="activity">
+              <EntityActivityLog
+                entityType="lot"
+                entityId={lot.id}
+                teamId={teamId}
+                includeRelated={true}
+                emptyMessage="Aucune activité enregistrée pour ce lot"
+              />
+            </TabContentWrapper>
+          </EntityTabs>
+        </EntityPreviewLayout>
+      </div>
 
         {/* Delete Confirmation Modal */}
         <DeleteConfirmModal

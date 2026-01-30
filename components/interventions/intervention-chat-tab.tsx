@@ -14,6 +14,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { MessageSquare, Users, UserCheck, Shield, Briefcase } from 'lucide-react'
 import { ChatInterface } from '@/components/chat/chat-interface'
+import { ConversationSelector } from '@/components/interventions/shared/layout/conversation-selector'
 import { sendMessageAction } from '@/app/actions/conversation-actions'
 import { toast } from 'sonner'
 import { formatErrorMessage } from '@/lib/utils/error-formatter'
@@ -256,29 +257,49 @@ export function InterventionChatTab({
     )
   }
 
-  // Main layout: Chat interface only (no sidebar list)
-  // Le thread actif est déterminé par defaultThreadType ou le premier thread disponible
+  // Handle thread selection from ConversationSelector
+  const handleThreadSelect = (thread: Thread) => {
+    setActiveThread(thread)
+  }
+
+  // Main layout: Conversation selector + Chat interface
+  // Uses h-full to fill parent container, NO min-h to avoid overflow issues
   return (
-    <div className="h-full flex flex-col">
-      {activeThread ? (
-        <ChatInterface
-          threadId={activeThread.id}
-          currentUserId={currentUserId}
-          userRole={userRole}
-          initialMessages={initialMessagesByThread}
-          initialParticipants={initialParticipantsByThread}
-          onSendMessage={handleSendMessage}
-          initialMessage={initialMessage}
-        />
-      ) : (
-        <Card className="flex-1">
-          <CardContent className="flex items-center justify-center py-12 h-full">
-            <p className="text-muted-foreground">
-              Aucune conversation disponible
-            </p>
-          </CardContent>
-        </Card>
+    <div className="min-h-[600px] h-full flex flex-col gap-4">
+      {/* Conversation selector - Material Design chips */}
+      {visibleThreads.length > 1 && (
+        <div className="flex-shrink-0">
+          <ConversationSelector
+            threads={visibleThreads}
+            activeThreadId={activeThread?.id || null}
+            onThreadSelect={handleThreadSelect}
+            userRole={userRole}
+          />
+        </div>
       )}
+
+      {/* Chat interface - flex-1 fills remaining space, min-h-0 allows shrinking */}
+      <div className="flex-1 min-h-0">
+        {activeThread ? (
+          <ChatInterface
+            threadId={activeThread.id}
+            currentUserId={currentUserId}
+            userRole={userRole}
+            initialMessages={initialMessagesByThread}
+            initialParticipants={initialParticipantsByThread}
+            onSendMessage={handleSendMessage}
+            initialMessage={initialMessage}
+          />
+        ) : (
+          <Card className="h-full">
+            <CardContent className="flex items-center justify-center py-12 h-full">
+              <p className="text-muted-foreground">
+                Sélectionnez une conversation
+              </p>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }

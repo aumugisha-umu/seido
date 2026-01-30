@@ -31,11 +31,7 @@ import {
   InterventionDocument,
   TimelineEventData,
   // Layout
-  PreviewHybridLayout,
   ContentWrapper,
-  InterventionTabs,
-  // Sidebar
-  InterventionSidebar,
   // Cards
   InterventionDetailsCard,
   CommentsCard,
@@ -44,8 +40,12 @@ import {
   PlanningCard
 } from '@/components/interventions/shared'
 
-// Tab Localisation dédié
-import { LocalisationTab } from '@/components/interventions/shared/tabs/localisation-tab'
+// Unified tabs component (replaces InterventionTabs)
+import {
+  EntityTabs,
+  TabContentWrapper,
+  getInterventionTabsConfig
+} from '@/components/shared/entity-preview'
 
 // Contacts navigator (grid/list views)
 import { InterventionContactsNavigator } from '@/components/interventions/intervention-contacts-navigator'
@@ -70,7 +70,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Building2, MapPin, User, AlertCircle, Edit, XCircle, MoreVertical, UserCheck, CheckCircle, MessageSquare, Calendar, FileText, Loader2 } from 'lucide-react'
+import { Building2, MapPin, User, AlertCircle, Edit, XCircle, MoreVertical, UserCheck, CheckCircle, MessageSquare, MessageSquareText, Calendar, FileText, Loader2 } from 'lucide-react'
+
+// Dialog for comments modal
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 // Quote status utilities
 import { getQuoteBadgeStatus, getQuoteBadgeLabel, getQuoteBadgeColor } from '@/lib/utils/quote-status'
@@ -89,6 +97,10 @@ import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
 import { useTeamStatus } from '@/hooks/use-team-status'
 import { useToast } from '@/hooks/use-toast'
 import { useInterventionApproval } from '@/hooks/use-intervention-approval'
+import { useActivityLogs } from '@/hooks/use-activity-logs'
+
+// Activity tab
+import { ActivityTab } from './activity-tab'
 
 // Contact selector
 import { ContactSelector, type ContactSelectorRef } from '@/components/contact-selector'
@@ -123,10 +135,8 @@ import { CancelQuoteConfirmModal } from '@/components/intervention/modals/cancel
 import { FinalizationModalLive } from '@/components/intervention/finalization-modal-live'
 import dynamic from 'next/dynamic'
 
-// Dynamic imports for approval modals
+// Dynamic import for approval modal (now handles everything in one modal)
 const ApprovalModal = dynamic(() => import("@/components/intervention/modals/approval-modal").then(mod => ({ default: mod.ApprovalModal })), { ssr: false })
-const ApproveConfirmationModal = dynamic(() => import("@/components/intervention/modals/approve-confirmation-modal").then(mod => ({ default: mod.ApproveConfirmationModal })), { ssr: false })
-const RejectConfirmationModal = dynamic(() => import("@/components/intervention/modals/reject-confirmation-modal").then(mod => ({ default: mod.RejectConfirmationModal })), { ssr: false })
 
 // Multi-provider components
 import { LinkedInterventionsSection, LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
@@ -181,6 +191,7 @@ interface Comment {
   id: string
   content: string
   created_at: string
+  is_internal?: boolean
   user?: Pick<User, 'id' | 'name' | 'email' | 'avatar_url' | 'role'>
 }
 
@@ -323,6 +334,9 @@ export function InterventionDetailClient({
   // État pour le message initial dans le chat
   const [initialChatMessage, setInitialChatMessage] = useState<string | null>(null)
 
+  // État pour la modale de commentaires
+  const [isCommentsModalOpen, setIsCommentsModalOpen] = useState(false)
+
   // Helpers for button visibility based on intervention status
   const canModifyOrCancel = !['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire', 'annulee', 'demande'].includes(intervention.status)
   const canFinalize = ['planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire'].includes(intervention.status)
@@ -365,6 +379,22 @@ export function InterventionDetailClient({
     const activeQuote = getActiveQuote()
     setRequireQuote(activeQuote !== undefined)
   }, [quotes])
+
+  // ============================================================================
+  // Activity Logs for Activity Tab
+  // ============================================================================
+  const teamId = intervention.team_id || currentUserTeam?.id
+  const { activities: activityLogs, loading: activityLoading } = useActivityLogs({
+    teamId: teamId || undefined,
+    entityType: 'intervention',
+    entityId: intervention.id,
+    limit: 100
+  })
+
+  // ============================================================================
+  // Tabs Configuration (unified with EntityTabs)
+  // ============================================================================
+  const interventionTabs = useMemo(() => getInterventionTabsConfig('manager'), [])
 
   // ============================================================================
   // Participant Confirmation Logic
@@ -570,7 +600,8 @@ export function InterventionDetailClient({
       author: c.user?.name || 'Utilisateur',
       content: c.content,
       date: c.created_at,
-      role: c.user?.role || undefined
+      role: c.user?.role || undefined,
+      is_internal: c.is_internal || false
     }))
     , [comments])
 
@@ -707,6 +738,15 @@ export function InterventionDetailClient({
       ? `${intervention.lot.building?.name || intervention.building?.name || ''} - Lot ${intervention.lot.reference}`
       : intervention.building?.name || 'Localisation non spécifiée'
 
+    // Get address from lot or building
+    const lotRecord = intervention.lot?.address_record
+    const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
+    const addressRecord = lotRecord || buildingRecord
+    const address = addressRecord?.formatted_address
+      || (addressRecord?.street || addressRecord?.city
+        ? [addressRecord.street, addressRecord.postal_code, addressRecord.city].filter(Boolean).join(', ')
+        : null)
+
     return {
       id: intervention.id,
       type: intervention.type || '',
@@ -718,12 +758,15 @@ export function InterventionDetailClient({
       created_at: intervention.created_at,
       created_by: intervention.created_by,
       location,
+      address,
+      creator_name: intervention.creator?.name || null,
       lot: intervention.lot ? {
         reference: intervention.lot.reference || '',
         building: intervention.lot.building ? { name: intervention.lot.building.name } : undefined
       } : undefined,
       building: intervention.building ? { name: intervention.building.name } : undefined,
-      hasFiles: (documents?.length || 0) > 0
+      hasFiles: (documents?.length || 0) > 0,
+      filesCount: documents?.length || 0
     }
   }, [intervention, documents])
 
@@ -739,15 +782,47 @@ export function InterventionDetailClient({
     handleRefresh()
   }
 
+  // Auto-open approval modal when coming from card with action=process_request or action=revise_decision
+  useEffect(() => {
+    const actionParam = searchParams.get('action')
+    if (actionParam === 'process_request' && intervention.status === 'demande') {
+      // Small delay to ensure the component is fully mounted
+      setTimeout(() => {
+        approvalHook.openApprovalModal(interventionActionData)
+      }, 100)
+      // Clean up the URL to avoid re-triggering on refresh
+      const url = new URL(window.location.href)
+      url.searchParams.delete('action')
+      window.history.replaceState({}, '', url.toString())
+    } else if (actionParam === 'revise_decision' && intervention.status === 'rejetee') {
+      // Open approval modal with 'approve' pre-selected to reverse a rejection
+      setTimeout(() => {
+        approvalHook.handleApprovalAction(interventionActionData, 'approve')
+      }, 100)
+      // Clean up the URL
+      const url = new URL(window.location.href)
+      url.searchParams.delete('action')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [searchParams, intervention.status, interventionActionData, approvalHook])
+
   // Handler for header action buttons (from getRoleBasedActions)
   const handleHeaderActionClick = async (action: RoleBasedAction) => {
     // Special cases: some actions need specific handling
     switch (action.actionType) {
+      case 'process_request':
+        // Open approval modal without pre-selecting an action
+        approvalHook.openApprovalModal(interventionActionData)
+        return
       case 'approve':
         approvalHook.handleApprovalAction(interventionActionData, 'approve')
         return
       case 'reject':
         approvalHook.handleApprovalAction(interventionActionData, 'reject')
+        return
+      case 'revise_decision':
+        // Open approval modal with 'approve' pre-selected to reverse a rejection
+        approvalHook.handleApprovalAction(interventionActionData, 'approve')
         return
       case 'request_details':
         handleRequestDetails()
@@ -1262,6 +1337,15 @@ export function InterventionDetailClient({
     setActiveTab('conversations')
   }
 
+  // Handler pour ouvrir le chat depuis un participant (icône message dans ParticipantsRow)
+  const handleOpenChatFromParticipant = (
+    _participantId: string,
+    threadType: 'group' | 'tenant_to_managers' | 'provider_to_managers'
+  ) => {
+    setSelectedThreadType(threadType)
+    setActiveTab('conversations')
+  }
+
   // Handler pour demander des détails (ouvre le chat avec message prérempli)
   const handleRequestDetails = () => {
     // Récupérer le prénom du locataire ayant fait la demande
@@ -1526,9 +1610,10 @@ export function InterventionDetailClient({
   };
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
-      {/* Unified Detail Page Header */}
-      <DetailPageHeader
+    <GoogleMapsProvider>
+      <div className="h-screen flex flex-col overflow-hidden">
+        {/* Unified Detail Page Header */}
+        <DetailPageHeader
         onBack={() => router.push('/gestionnaire/interventions')}
         backButtonText="Retour"
         title={intervention.title}
@@ -1545,6 +1630,30 @@ export function InterventionDetailClient({
                     Action en attente
                   </span>
                 </div>
+              )}
+
+              {/* Comments button - only visible when there are comments */}
+              {transformedComments.length > 0 && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsCommentsModalOpen(true)}
+                        className="gap-2 min-h-[36px] relative"
+                      >
+                        <MessageSquareText className="w-4 h-4" />
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
+                          {transformedComments.length}
+                        </span>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>{transformedComments.length} commentaire{transformedComments.length > 1 ? 's' : ''} interne{transformedComments.length > 1 ? 's' : ''}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
               )}
 
               {/* Dynamic action buttons from getRoleBasedActions */}
@@ -1627,6 +1736,22 @@ export function InterventionDetailClient({
                   <AlertCircle className="w-4 h-4 text-amber-700" />
                   <span className="sr-only">Action en attente</span>
                 </div>
+              )}
+
+              {/* Comments button - tablet */}
+              {transformedComments.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setIsCommentsModalOpen(true)}
+                  className="h-9 w-9 relative"
+                >
+                  <MessageSquareText className="w-4 h-4" />
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
+                    {transformedComments.length}
+                  </span>
+                  <span className="sr-only">{transformedComments.length} commentaires</span>
+                </Button>
               )}
 
               {/* Dynamic action buttons from getRoleBasedActions */}
@@ -1719,6 +1844,17 @@ export function InterventionDetailClient({
                         <AlertCircle className="w-3 h-3 inline mr-1" />
                         Action en attente
                       </div>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+
+                  {/* Comments option - mobile */}
+                  {transformedComments.length > 0 && (
+                    <>
+                      <DropdownMenuItem onClick={() => setIsCommentsModalOpen(true)}>
+                        <MessageSquareText className="w-4 h-4 mr-2" />
+                        Commentaires ({transformedComments.length})
+                      </DropdownMenuItem>
                       <DropdownMenuSeparator />
                     </>
                   )}
@@ -1838,53 +1974,40 @@ export function InterventionDetailClient({
           onComplete={handleRefresh}
         />
 
-        {/* Nouveau design PreviewHybrid */}
-        <PreviewHybridLayout
-          className="flex-1"
-          sidebar={
-            <InterventionSidebar
-              participants={participants}
-              currentUserRole="manager"
-              currentUserId={serverUserId}
-              currentStatus={intervention.status}
-              timelineEvents={timelineEvents}
-              activeConversation={activeConversation}
-              showConversationButtons={true}
-              onConversationClick={handleConversationClick}
-              onGroupConversationClick={handleGroupConversationClick}
-              onParticipantClick={() => handleTabChange('contacts')}
-              assignmentMode={assignmentMode}
-              unreadCounts={unreadCounts}
-            />
-          }
-          content={
-            <InterventionTabs
-              activeTab={activeTab}
-              onTabChange={handleTabChange}
-              userRole="manager"
-            >
-              {/* TAB: GENERAL */}
-              <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
-                <ContentWrapper>
-                  {/* Bannières de confirmation si nécessaire */}
-                  {showConfirmationBanner && (
-                    <ConfirmationRequiredBanner
-                      interventionId={intervention.id}
-                      scheduledDate={intervention.scheduled_date}
-                      scheduledTime={null}
-                      onConfirm={handleConfirmationResponse}
-                      onReject={handleConfirmationResponse}
-                    />
-                  )}
-                  {showConfirmedBanner && <ConfirmationSuccessBanner />}
-                  {showRejectedBanner && <ConfirmationRejectedBanner />}
+        {/* Layout principal - Full width sans sidebar */}
+        <div className="flex-1 flex flex-col rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <EntityTabs
+            activeTab={activeTab}
+            onTabChange={handleTabChange}
+            tabs={interventionTabs}
+          >
+            {/* TAB: GENERAL */}
+            <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
+              <ContentWrapper>
+                {/* Bannières de confirmation si nécessaire */}
+                {showConfirmationBanner && (
+                  <ConfirmationRequiredBanner
+                    interventionId={intervention.id}
+                    scheduledDate={intervention.scheduled_date}
+                    scheduledTime={null}
+                    onConfirm={handleConfirmationResponse}
+                    onReject={handleConfirmationResponse}
+                  />
+                )}
+                {showConfirmedBanner && <ConfirmationSuccessBanner />}
+                {showRejectedBanner && <ConfirmationRejectedBanner />}
 
-                  {/* Détails de l'intervention */}
-                  <div className="flex-shrink-0">
-                    <InterventionDetailsCard
+                {/* Détails de l'intervention (avec participants intégrés) */}
+                <div className="flex-shrink-0">
+                  <InterventionDetailsCard
                       title={intervention.title}
                       description={intervention.description || undefined}
                       instructions={intervention.instructions || undefined}
+                      interventionStatus={intervention.status}
+                      participants={participants}
+                      currentUserId={serverUserId}
+                      currentUserRole={serverUserRole}
+                      onOpenChat={handleOpenChatFromParticipant}
                       locationDetails={(() => {
                         // Priorité: adresse du lot (indépendant), sinon adresse du building
                         const lotRecord = intervention.lot?.address_record
@@ -1898,8 +2021,8 @@ export function InterventionDetailClient({
                             || (record?.street || record?.city
                               ? [record.street, record.postal_code, record.city].filter(Boolean).join(', ')
                               : null),
-                          latitude: record?.lat || null,
-                          longitude: record?.lng || null
+                          latitude: record?.latitude || null,
+                          longitude: record?.longitude || null
                         }
                       })()}
                       planning={{
@@ -1916,31 +2039,13 @@ export function InterventionDetailClient({
                         selectedQuoteAmount,
                         responseStats
                       }}
-                      createdBy={intervention.creator?.name || null}
-                      createdAt={intervention.created_at || null}
                       onNavigateToPlanning={() => setActiveTab('planning')}
                     />
                   </div>
 
-                  {/* Note: La carte de localisation a été déplacée dans l'onglet "Localisation" dédié */}
-
-                  {/* Documents + Commentaires */}
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6 flex-1 min-h-0 overflow-hidden">
-                    <DocumentsCard
-                      documents={transformedDocuments}
-                      userRole="manager"
-                      onUpload={() => setIsDocumentUploadOpen(true)}
-                      onView={handleViewDocument}
-                      onDownload={handleDownloadDocument}
-                      className="overflow-hidden"
-                    />
-
-                    <CommentsCard
-                      comments={transformedComments}
-                      onAddComment={handleAddComment}
-                      className="overflow-hidden"
-                    />
-                  </div>
+                  {/* Note: La carte est maintenant intégrée dans InterventionDetailsCard */}
+                  {/* Note: Les commentaires sont maintenant accessibles via l'icône dans le header */}
+                  {/* Note: Les documents sont maintenant dans l'onglet "Documents" dédié */}
 
                   {/* Linked interventions section (for parent interventions in separate mode) */}
                   {isParentIntervention && linkedInterventions.length > 0 && (
@@ -1953,28 +2058,8 @@ export function InterventionDetailClient({
                 </ContentWrapper>
               </TabsContent>
 
-              {/* TAB: LOCALISATION */}
-              <TabsContent value="localisation" className="mt-0 flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
-                  <LocalisationTab
-                    latitude={interventionAddress?.latitude}
-                    longitude={interventionAddress?.longitude}
-                    address={interventionAddress?.formatted_address || (() => {
-                      const lotRecord = intervention.lot?.address_record
-                      const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
-                      const record = lotRecord || buildingRecord
-                      if (!record) return undefined
-                      if (record.formatted_address) return record.formatted_address
-                      return [record.street, record.postal_code, record.city].filter(Boolean).join(', ') || undefined
-                    })()}
-                    buildingName={intervention.lot?.building?.name || intervention.building?.name || undefined}
-                    lotReference={intervention.lot?.reference || undefined}
-                  />
-                </div>
-              </TabsContent>
-
               {/* TAB: CONVERSATIONS */}
-              <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
+              <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-y-auto h-full">
                 <div className="flex-1 flex flex-col min-h-0 p-4 sm:p-6">
                   <InterventionChatTab
                     interventionId={intervention.id}
@@ -2038,6 +2123,19 @@ export function InterventionDetailClient({
                 </div>
               </TabsContent>
 
+              {/* TAB: DOCUMENTS */}
+              <TabsContent value="documents" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+                  <DocumentsCard
+                    documents={transformedDocuments}
+                    userRole="manager"
+                    onUpload={() => setIsDocumentUploadOpen(true)}
+                    onView={handleViewDocument}
+                    onDownload={handleDownloadDocument}
+                  />
+                </div>
+              </TabsContent>
+
               {/* TAB: CONTACTS */}
               <TabsContent value="contacts" className="mt-0 flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 p-4 sm:p-6 overflow-hidden">
@@ -2058,9 +2156,26 @@ export function InterventionDetailClient({
                   />
                 </div>
               </TabsContent>
-            </InterventionTabs>
-          }
-        />
+
+              {/* TAB: ACTIVITÉ */}
+              <TabsContent value="activity" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+                  <ActivityTab
+                    intervention={intervention}
+                    activityLogs={activityLogs.map(log => ({
+                      ...log,
+                      user: log.user_name ? {
+                        id: log.user_id,
+                        name: log.user_name,
+                        email: log.user_email || '',
+                        avatar_url: log.user_avatar_url || null
+                      } : undefined
+                    }))}
+                  />
+                </div>
+              </TabsContent>
+          </EntityTabs>
+        </div>
 
         {/* Modale de choix de créneau */}
         {selectedFullSlotForChoice && (
@@ -2146,35 +2261,34 @@ export function InterventionDetailClient({
             onInternalCommentChange={approvalHook.setInternalComment}
             onActionChange={approvalHook.handleActionChange}
             onConfirm={approvalHook.handleConfirmAction}
-          />
-        )}
-
-        {approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "approve" && (
-          <ApproveConfirmationModal
-            isOpen={true}
-            onClose={approvalHook.closeConfirmationModal}
-            onConfirm={approvalHook.handleFinalConfirmation}
-            intervention={approvalHook.confirmationModal.intervention}
-            internalComment={approvalHook.internalComment}
-            onInternalCommentChange={approvalHook.setInternalComment}
             isLoading={approvalHook.isLoading}
           />
         )}
 
-        {approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "reject" && (
-          <RejectConfirmationModal
-            isOpen={true}
-            onClose={approvalHook.closeConfirmationModal}
-            onConfirm={approvalHook.handleFinalConfirmation}
-            intervention={approvalHook.confirmationModal.intervention}
-            rejectionReason={approvalHook.rejectionReason}
-            onRejectionReasonChange={approvalHook.setRejectionReason}
-            internalComment={approvalHook.internalComment}
-            onInternalCommentChange={approvalHook.setInternalComment}
-            isLoading={approvalHook.isLoading}
-          />
-        )}
+        {/* Modale des commentaires */}
+        <Dialog open={isCommentsModalOpen} onOpenChange={setIsCommentsModalOpen}>
+          <DialogContent className="sm:max-w-md max-h-[85vh] h-[500px] flex flex-col p-0 gap-0 overflow-hidden">
+            <DialogHeader className="px-4 py-3 border-b flex-shrink-0">
+              <DialogTitle className="flex items-center gap-2 text-base font-medium">
+                <MessageSquareText className="h-4 w-4 text-muted-foreground" />
+                Commentaires
+                {transformedComments.length > 0 && (
+                  <span className="text-xs text-muted-foreground font-normal">
+                    ({transformedComments.length})
+                  </span>
+                )}
+              </DialogTitle>
+            </DialogHeader>
+            <CommentsCard
+              comments={transformedComments}
+              onAddComment={handleAddComment}
+              className="flex-1 min-h-0"
+              showHeader={false}
+            />
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
+    </GoogleMapsProvider>
   )
 }

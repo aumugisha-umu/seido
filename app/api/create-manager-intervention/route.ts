@@ -445,19 +445,24 @@ export async function POST(request: NextRequest) {
         logger.error({ error: tenantThreadResult.error }, "⚠️ Failed to create tenant thread")
       }
 
-      // Create PROVIDER_TO_MANAGERS thread (for provider-manager communication)
-      const providerThreadResult = await conversationRepo.createThread({
-        intervention_id: intervention.id,
-        thread_type: 'provider_to_managers',
-        title: 'Communication avec les prestataires',
-        created_by: user.id,
-        team_id: intervention.team_id
-      })
+      // Create PROVIDER_TO_MANAGERS thread ONLY if providers are selected
+      // Thread will be created later when a provider is assigned if not created now
+      if (selectedProviderIds && selectedProviderIds.length > 0) {
+        const providerThreadResult = await conversationRepo.createThread({
+          intervention_id: intervention.id,
+          thread_type: 'provider_to_managers',
+          title: 'Communication avec les prestataires',
+          created_by: user.id,
+          team_id: intervention.team_id
+        })
 
-      if (providerThreadResult.success) {
-        logger.info({ threadId: providerThreadResult.data?.id, type: 'provider_to_managers' }, "✅ Provider thread created")
+        if (providerThreadResult.success) {
+          logger.info({ threadId: providerThreadResult.data?.id, type: 'provider_to_managers' }, "✅ Provider thread created")
+        } else {
+          logger.error({ error: providerThreadResult.error }, "⚠️ Failed to create provider thread")
+        }
       } else {
-        logger.error({ error: providerThreadResult.error }, "⚠️ Failed to create provider thread")
+        logger.info({}, "ℹ️ No providers selected, skipping provider_to_managers thread creation")
       }
 
       logger.info({ interventionId: intervention.id }, "✅ Conversation threads creation completed")

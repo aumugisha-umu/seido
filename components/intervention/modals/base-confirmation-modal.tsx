@@ -1,8 +1,13 @@
 "use client"
 
-import { AlertTriangle, Check, X } from "lucide-react"
+import { AlertTriangle, Check, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import {
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from "@/components/ui/unified-modal"
 import { type InterventionAction } from "@/lib/intervention-actions-service"
 
 interface BaseConfirmationModalProps {
@@ -34,11 +39,22 @@ export const BaseConfirmationModal = ({
   const getIcon = () => {
     switch (confirmVariant) {
       case "approve":
-        return <Check className="h-5 w-5 text-green-500" />
+        return <Check className="h-5 w-5" />
       case "reject":
-        return <X className="h-5 w-5 text-red-500" />
+        return <X className="h-5 w-5" />
       default:
-        return <AlertTriangle className="h-5 w-5 text-orange-500" />
+        return <AlertTriangle className="h-5 w-5" />
+    }
+  }
+
+  const getVariant = (): "default" | "success" | "warning" | "danger" => {
+    switch (confirmVariant) {
+      case "approve":
+        return "success"
+      case "reject":
+        return "danger"
+      default:
+        return "warning"
     }
   }
 
@@ -54,40 +70,28 @@ export const BaseConfirmationModal = ({
   }
 
   return (
-    <Dialog 
-      open={isOpen} 
+    <UnifiedModal
+      open={isOpen}
       onOpenChange={(open) => {
-        // Ne fermer que si explicitement demandé et pas en chargement
         if (!open && !isLoading && isOpen) {
           onClose()
         }
       }}
+      size="md"
+      preventCloseOnOutsideClick={isLoading}
+      preventCloseOnEscape={isLoading}
     >
-      <DialogContent 
-        className="max-w-md" 
-        onPointerDownOutside={(event) => {
-          // Empêcher la fermeture en cliquant en dehors pendant le chargement
-          if (isLoading) {
-            event.preventDefault()
-            return
-          }
-        }}
-        onEscapeKeyDown={(event) => {
-          // Empêcher la fermeture avec Escape pendant le chargement
-          if (isLoading) {
-            event.preventDefault()
-            return
-          }
-        }}
-      >
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <span>{title}</span>
-          </DialogTitle>
-        </DialogHeader>
+      <UnifiedModalHeader
+        title={title}
+        icon={getIcon()}
+        variant={getVariant()}
+      />
 
+      <UnifiedModalBody>
         <div className="space-y-4">
-          <p className="text-gray-600 leading-relaxed">{message}</p>
+          {message && (
+            <p className="text-gray-600 leading-relaxed">{message}</p>
+          )}
 
           {/* Informations sur l'intervention */}
           {intervention && (
@@ -102,32 +106,31 @@ export const BaseConfirmationModal = ({
           {/* Contenu additionnel personnalisable */}
           {children}
         </div>
+      </UnifiedModalBody>
 
-        <DialogFooter className="flex space-x-3">
-          <Button 
-            variant="outline" 
-            onClick={onClose}
-            disabled={isLoading}
-            className="text-gray-700 border-gray-300 hover:bg-gray-50"
-          >
-            Annuler
-          </Button>
-          <Button
-            onClick={onConfirm}
-            disabled={isLoading}
-            className={`${getButtonStyle()} text-white`}
-          >
-            {isLoading ? (
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                <span>Traitement...</span>
-              </div>
-            ) : (
-              confirmText
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button
+          variant="outline"
+          onClick={onClose}
+          disabled={isLoading}
+        >
+          Annuler
+        </Button>
+        <Button
+          onClick={onConfirm}
+          disabled={isLoading}
+          className={`${getButtonStyle()} text-white`}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Traitement...
+            </>
+          ) : (
+            confirmText
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

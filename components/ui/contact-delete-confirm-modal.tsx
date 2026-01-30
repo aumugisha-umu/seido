@@ -1,8 +1,13 @@
 "use client"
 
-import { AlertTriangle, User } from "lucide-react"
+import { AlertTriangle, User, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import {
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from "@/components/ui/unified-modal"
 
 interface ContactDeleteConfirmModalProps {
   isOpen: boolean
@@ -50,16 +55,27 @@ export function ContactDeleteConfirmModal({
   const contactTypeLabel = CONTACT_TYPE_LABELS[contactType] || 'Contact'
   const contextLabel = context === 'immeuble' ? "de l'immeuble" : 'du lot'
 
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <AlertTriangle className="h-5 w-5 text-orange-500" />
-            <span>Retirer le contact</span>
-          </DialogTitle>
-        </DialogHeader>
+  const handleOpenChange = (open: boolean) => {
+    if (!open && !isLoading) {
+      onClose()
+    }
+  }
 
+  return (
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={handleOpenChange}
+      size="sm"
+      preventCloseOnOutsideClick={isLoading}
+      preventCloseOnEscape={isLoading}
+    >
+      <UnifiedModalHeader
+        title="Retirer le contact"
+        icon={<AlertTriangle className="h-5 w-5" />}
+        variant="warning"
+      />
+
+      <UnifiedModalBody>
         <div className="space-y-4">
           <p className="text-gray-600">
             Êtes-vous sûr de vouloir retirer ce contact {contextLabel} ?
@@ -98,31 +114,31 @@ export function ContactDeleteConfirmModal({
             </p>
           </div>
         </div>
+      </UnifiedModalBody>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={isLoading}
-          >
-            Annuler
-          </Button>
-          <Button
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="bg-red-600 hover:bg-red-700 text-white"
-          >
-            {isLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                Suppression...
-              </>
-            ) : (
-              "Retirer le contact"
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button
+          variant="outline"
+          onClick={onClose}
+          disabled={isLoading}
+        >
+          Annuler
+        </Button>
+        <Button
+          variant="destructive"
+          onClick={onConfirm}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Suppression...
+            </>
+          ) : (
+            "Retirer le contact"
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

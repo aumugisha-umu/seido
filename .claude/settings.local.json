@@ -34,7 +34,8 @@
       "WebFetch(domain:visgl.github.io)",
       "WebFetch(domain:m3.material.io)",
       "Bash(timeout:*)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "WebFetch(domain:docs.stripe.com)"
     ],
     "deny": [],
     "ask": []

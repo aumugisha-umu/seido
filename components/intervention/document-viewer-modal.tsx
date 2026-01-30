@@ -1,15 +1,19 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { useState, useEffect, useCallback } from "react"
+import {
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+} from "@/components/ui/unified-modal"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { 
-  Download, 
-  ExternalLink, 
-  FileText, 
-  Image as ImageIcon, 
+import {
+  Download,
+  ExternalLink,
+  FileText,
+  Image as ImageIcon,
   File,
   AlertTriangle,
   Loader2,
@@ -19,7 +23,7 @@ import {
 } from "lucide-react"
 import { format } from "date-fns"
 import { fr } from "date-fns/locale"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 interface Document {
   id: string
   name: string
@@ -69,22 +73,7 @@ export const DocumentViewerModal = ({
   const [zoom, setZoom] = useState(100)
   const [rotation, setRotation] = useState(0)
 
-  // Load document view URL when modal opens
-  useEffect(() => {
-    if (isOpen && document) {
-      loadDocumentView()
-    } else {
-      // Reset state when modal closes
-      setViewUrl(null)
-      setDocumentInfo(null)
-      setInterventionInfo(null)
-      setError(null)
-      setZoom(100)
-      setRotation(0)
-    }
-  }, [isOpen, document, loadDocumentView])
-
-  const loadDocumentView = async () => {
+  const loadDocumentView = useCallback(async () => {
     if (!document) return
     
     setLoading(true)
@@ -108,7 +97,22 @@ export const DocumentViewerModal = ({
     } finally {
       setLoading(false)
     }
-  }
+  }, [document])
+
+  // Load document view URL when modal opens
+  useEffect(() => {
+    if (isOpen && document) {
+      loadDocumentView()
+    } else {
+      // Reset state when modal closes
+      setViewUrl(null)
+      setDocumentInfo(null)
+      setInterventionInfo(null)
+      setError(null)
+      setZoom(100)
+      setRotation(0)
+    }
+  }, [isOpen, document, loadDocumentView])
 
   const handleDownload = async () => {
     if (document && onDownload) {
@@ -199,42 +203,34 @@ export const DocumentViewerModal = ({
   const isImage = (mimeType: string) => mimeType.startsWith('image/')
   const isPDF = (mimeType: string) => mimeType === 'application/pdf'
 
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-sky-100 rounded-lg flex items-center justify-center">
-                {document?.type?.startsWith('image/') ? (
-                  <ImageIcon className="h-5 w-5 text-sky-600" />
-                ) : document?.type === 'application/pdf' ? (
-                  <File className="h-5 w-5 text-sky-600" />
-                ) : (
-                  <FileText className="h-5 w-5 text-sky-600" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-slate-900 truncate">
-                  {document?.name || 'Chargement...'}
-                </h3>
-                {interventionInfo && (
-                  <p className="text-sm text-slate-600">
-                    {interventionInfo.title} - {interventionInfo.reference}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              {documentInfo && (
-                <Badge className={getDocumentTypeColor(documentInfo.documentType)}>
-                  {getDocumentTypeLabel(documentInfo.documentType)}
-                </Badge>
-              )}
-            </div>
-          </DialogTitle>
-        </DialogHeader>
+  // Determine icon based on document type
+  const getDocumentIcon = () => {
+    if (document?.type?.startsWith('image/')) {
+      return <ImageIcon className="h-5 w-5" />
+    } else if (document?.type === 'application/pdf') {
+      return <File className="h-5 w-5" />
+    }
+    return <FileText className="h-5 w-5" />
+  }
 
+  return (
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={(open) => !open && onClose()}
+      size="full"
+    >
+      <UnifiedModalHeader
+        title={document?.name || 'Chargement...'}
+        subtitle={interventionInfo ? `${interventionInfo.title} - ${interventionInfo.reference}` : undefined}
+        icon={getDocumentIcon()}
+        badge={documentInfo ? (
+          <Badge className={getDocumentTypeColor(documentInfo.documentType)}>
+            {getDocumentTypeLabel(documentInfo.documentType)}
+          </Badge>
+        ) : undefined}
+      />
+
+      <UnifiedModalBody className="flex flex-col gap-3 min-h-[60vh] max-h-[75vh]">
         {/* Document Info Bar */}
         {documentInfo && (
           <div className="flex-shrink-0 bg-slate-50 p-3 rounded-lg border">
@@ -302,10 +298,10 @@ export const DocumentViewerModal = ({
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>
                   {error}
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="mt-3" 
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
                     onClick={loadDocumentView}
                   >
                     Réessayer
@@ -358,7 +354,7 @@ export const DocumentViewerModal = ({
             </div>
           ) : null}
         </div>
-      </DialogContent>
-    </Dialog>
+      </UnifiedModalBody>
+    </UnifiedModal>
   )
 }

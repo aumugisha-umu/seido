@@ -2,13 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from '@/components/ui/unified-modal'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -67,7 +65,7 @@ export function StartConversationModal({
       } else {
         toast.error('Impossible de charger les gestionnaires')
       }
-    } catch (error) {
+    } catch {
       toast.error('Erreur lors du chargement')
     } finally {
       setIsLoading(false)
@@ -120,7 +118,7 @@ export function StartConversationModal({
           : (result.error as { message?: string })?.message || 'Échec de la création'
         toast.error(errorMessage)
       }
-    } catch (error) {
+    } catch {
       toast.error('Erreur lors de la création')
     } finally {
       setIsCreating(false)
@@ -137,122 +135,128 @@ export function StartConversationModal({
     return '??'
   }
 
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[450px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <MessageSquarePlus className="h-5 w-5 text-primary" />
-            Démarrer une conversation
-          </DialogTitle>
-          <DialogDescription>
-            Sélectionnez les membres de l'équipe à inclure dans cette discussion interne.
-          </DialogDescription>
-        </DialogHeader>
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!isCreating) {
+      onOpenChange(newOpen)
+    }
+  }
 
-        <div className="py-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+  return (
+    <UnifiedModal
+      open={open}
+      onOpenChange={handleOpenChange}
+      size="md"
+      preventCloseOnOutsideClick={isCreating}
+      preventCloseOnEscape={isCreating}
+    >
+      <UnifiedModalHeader
+        title="Démarrer une conversation"
+        subtitle="Sélectionnez les membres de l'équipe à inclure dans cette discussion interne."
+        icon={<MessageSquarePlus className="h-5 w-5" />}
+      />
+
+      <UnifiedModalBody>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : gestionnaires.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>Aucun gestionnaire trouvé</p>
+          </div>
+        ) : (
+          <>
+            {/* Quick actions */}
+            <div className="flex gap-2 mb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectAll}
+                disabled={selectedIds.size === gestionnaires.length}
+              >
+                Tout sélectionner
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDeselectAll}
+                disabled={selectedIds.size <= 1}
+              >
+                Tout désélectionner
+              </Button>
             </div>
-          ) : gestionnaires.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>Aucun gestionnaire trouvé</p>
+
+            {/* Gestionnaires list */}
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {gestionnaires.map((gestionnaire) => {
+                const isCurrentUser = gestionnaire.id === currentUserId
+                const isSelected = selectedIds.has(gestionnaire.id)
+
+                return (
+                  <label
+                    key={gestionnaire.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      isSelected
+                        ? 'bg-primary/5 border-primary/30'
+                        : 'hover:bg-muted/50'
+                    } ${isCurrentUser ? 'cursor-default' : ''}`}
+                  >
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => handleToggle(gestionnaire.id)}
+                      disabled={isCurrentUser}
+                    />
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={gestionnaire.avatar_url || undefined} />
+                      <AvatarFallback className="text-xs">
+                        {getInitials(gestionnaire.name, gestionnaire.email)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">
+                        {gestionnaire.name || 'Sans nom'}
+                        {isCurrentUser && (
+                          <span className="text-xs text-muted-foreground ml-2">(vous)</span>
+                        )}
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {gestionnaire.email}
+                      </div>
+                    </div>
+                  </label>
+                )
+              })}
             </div>
+
+            <div className="mt-4 text-sm text-muted-foreground">
+              {selectedIds.size} participant{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
+            </div>
+          </>
+        )}
+      </UnifiedModalBody>
+
+      <UnifiedModalFooter>
+        <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isCreating}>
+          Annuler
+        </Button>
+        <Button
+          onClick={handleConfirm}
+          disabled={isCreating || isLoading || selectedIds.size === 0}
+        >
+          {isCreating ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Création...
+            </>
           ) : (
             <>
-              {/* Quick actions */}
-              <div className="flex gap-2 mb-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSelectAll}
-                  disabled={selectedIds.size === gestionnaires.length}
-                >
-                  Tout sélectionner
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDeselectAll}
-                  disabled={selectedIds.size <= 1}
-                >
-                  Tout désélectionner
-                </Button>
-              </div>
-
-              {/* Gestionnaires list */}
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {gestionnaires.map((gestionnaire) => {
-                  const isCurrentUser = gestionnaire.id === currentUserId
-                  const isSelected = selectedIds.has(gestionnaire.id)
-
-                  return (
-                    <label
-                      key={gestionnaire.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                        isSelected
-                          ? 'bg-primary/5 border-primary/30'
-                          : 'hover:bg-muted/50'
-                      } ${isCurrentUser ? 'cursor-default' : ''}`}
-                    >
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => handleToggle(gestionnaire.id)}
-                        disabled={isCurrentUser}
-                      />
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={gestionnaire.avatar_url || undefined} />
-                        <AvatarFallback className="text-xs">
-                          {getInitials(gestionnaire.name, gestionnaire.email)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">
-                          {gestionnaire.name || 'Sans nom'}
-                          {isCurrentUser && (
-                            <span className="text-xs text-muted-foreground ml-2">(vous)</span>
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {gestionnaire.email}
-                        </div>
-                      </div>
-                    </label>
-                  )
-                })}
-              </div>
-
-              <div className="mt-4 text-sm text-muted-foreground">
-                {selectedIds.size} participant{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
-              </div>
+              <MessageSquarePlus className="mr-2 h-4 w-4" />
+              Démarrer la conversation
             </>
           )}
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isCreating}>
-            Annuler
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={isCreating || isLoading || selectedIds.size === 0}
-          >
-            {isCreating ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Création...
-              </>
-            ) : (
-              <>
-                <MessageSquarePlus className="mr-2 h-4 w-4" />
-                Démarrer la conversation
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

@@ -1,17 +1,20 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { FileText, User, MapPin, Wrench, Clock, AlertTriangle } from "lucide-react"
+import { FileText, User, MapPin, Wrench, Clock, AlertTriangle, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import {
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from "@/components/ui/unified-modal"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { Label } from "@/components/ui/label"
-import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { logger } from '@/lib/logger'
-import { cn } from "@/lib/utils"
 import {
   getInterventionLocationText,
   getInterventionLocationIcon,
@@ -130,18 +133,27 @@ export const QuoteRequestModal = ({
     onSubmit()
   }
 
-  return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-sm sm:max-w-2xl lg:max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="space-y-3 pb-6">
-          <DialogTitle className="text-2xl font-semibold text-slate-900 leading-snug">
-            Demander une estimation
-          </DialogTitle>
-          <p className="text-slate-600">
-            Sélectionnez un prestataire et définissez les modalités pour la demande d'estimation
-          </p>
-        </DialogHeader>
+  const handleOpenChange = (open: boolean) => {
+    if (!open && !isLoading) {
+      onClose()
+    }
+  }
 
+  return (
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={handleOpenChange}
+      size="lg"
+      preventCloseOnOutsideClick={isLoading}
+      preventCloseOnEscape={isLoading}
+    >
+      <UnifiedModalHeader
+        title="Demander une estimation"
+        subtitle="Sélectionnez un prestataire et définissez les modalités pour la demande d'estimation"
+        icon={<FileText className="h-5 w-5" />}
+      />
+
+      <UnifiedModalBody className="max-h-[60vh] overflow-y-auto">
         <div className="space-y-6">
           {/* Résumé de l'intervention */}
           <div className="bg-slate-50 rounded-lg p-4 space-y-3">
@@ -310,34 +322,34 @@ export const QuoteRequestModal = ({
             </div>
           )}
         </div>
+      </UnifiedModalBody>
 
-        <DialogFooter className="pt-6 border-t">
-          <Button
-            variant="outline"
-            onClick={onClose}
-            disabled={isLoading}
-          >
-            Annuler
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!isFormValid() || isLoading}
-            className="min-w-[180px]"
-          >
-            {isLoading ? (
-              <div className="flex items-center gap-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                <span>Envoi...</span>
-              </div>
-            ) : (
-              <>
-                <FileText className="h-4 w-4 mr-2" />
-                Demander l'estimation
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button
+          variant="outline"
+          onClick={onClose}
+          disabled={isLoading}
+        >
+          Annuler
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={!isFormValid() || isLoading}
+          className="min-w-[180px]"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Envoi...
+            </>
+          ) : (
+            <>
+              <FileText className="h-4 w-4 mr-2" />
+              Demander l&apos;estimation
+            </>
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

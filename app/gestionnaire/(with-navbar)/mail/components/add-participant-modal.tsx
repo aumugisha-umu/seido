@@ -2,13 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from '@/components/ui/unified-modal'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -76,7 +74,7 @@ export function AddParticipantModal({
       } else {
         toast.error('Impossible de charger les gestionnaires')
       }
-    } catch (error) {
+    } catch {
       toast.error('Erreur lors du chargement')
     } finally {
       setIsLoading(false)
@@ -125,7 +123,7 @@ export function AddParticipantModal({
           : (result.error as { message?: string })?.message || 'Échec de l\'ajout'
         toast.error(errorMessage)
       }
-    } catch (error) {
+    } catch {
       toast.error('Erreur lors de l\'ajout')
     } finally {
       setIsAdding(false)
@@ -145,125 +143,131 @@ export function AddParticipantModal({
   // All gestionnaires are already participants
   const allAlreadyAdded = gestionnaires.length === 0 && !isLoading
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!isAdding) {
+      onOpenChange(newOpen)
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[450px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5 text-primary" />
-            Ajouter des participants
-          </DialogTitle>
-          <DialogDescription>
-            Sélectionnez les membres de l'équipe à ajouter à cette discussion.
-          </DialogDescription>
-        </DialogHeader>
+    <UnifiedModal
+      open={open}
+      onOpenChange={handleOpenChange}
+      size="md"
+      preventCloseOnOutsideClick={isAdding}
+      preventCloseOnEscape={isAdding}
+    >
+      <UnifiedModalHeader
+        title="Ajouter des participants"
+        subtitle="Sélectionnez les membres de l'équipe à ajouter à cette discussion."
+        icon={<UserPlus className="h-5 w-5" />}
+      />
 
-        <div className="py-4">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      <UnifiedModalBody>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : allAlreadyAdded ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500 opacity-70" />
+            <p className="font-medium">Tous les gestionnaires sont déjà participants</p>
+            <p className="text-sm mt-1">Aucun membre supplémentaire disponible</p>
+          </div>
+        ) : gestionnaires.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+            <p>Aucun gestionnaire trouvé</p>
+          </div>
+        ) : (
+          <>
+            {/* Quick actions */}
+            <div className="flex gap-2 mb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSelectAll}
+                disabled={selectedIds.size === gestionnaires.length}
+              >
+                Tout sélectionner
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleDeselectAll}
+                disabled={selectedIds.size === 0}
+              >
+                Tout désélectionner
+              </Button>
             </div>
-          ) : allAlreadyAdded ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <CheckCircle2 className="h-8 w-8 mx-auto mb-2 text-green-500 opacity-70" />
-              <p className="font-medium">Tous les gestionnaires sont déjà participants</p>
-              <p className="text-sm mt-1">Aucun membre supplémentaire disponible</p>
-            </div>
-          ) : gestionnaires.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
-              <p>Aucun gestionnaire trouvé</p>
-            </div>
-          ) : (
-            <>
-              {/* Quick actions */}
-              <div className="flex gap-2 mb-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSelectAll}
-                  disabled={selectedIds.size === gestionnaires.length}
-                >
-                  Tout sélectionner
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleDeselectAll}
-                  disabled={selectedIds.size === 0}
-                >
-                  Tout désélectionner
-                </Button>
-              </div>
 
-              {/* Gestionnaires list */}
-              <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                {gestionnaires.map((gestionnaire) => {
-                  const isSelected = selectedIds.has(gestionnaire.id)
+            {/* Gestionnaires list */}
+            <div className="space-y-2 max-h-[300px] overflow-y-auto">
+              {gestionnaires.map((gestionnaire) => {
+                const isSelected = selectedIds.has(gestionnaire.id)
 
-                  return (
-                    <label
-                      key={gestionnaire.id}
-                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                        isSelected
-                          ? 'bg-primary/5 border-primary/30'
-                          : 'hover:bg-muted/50'
-                      }`}
-                    >
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={() => handleToggle(gestionnaire.id)}
-                      />
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={gestionnaire.avatar_url || undefined} />
-                        <AvatarFallback className="text-xs">
-                          {getInitials(gestionnaire.name, gestionnaire.email)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">
-                          {gestionnaire.name || 'Sans nom'}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {gestionnaire.email}
-                        </div>
+                return (
+                  <label
+                    key={gestionnaire.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      isSelected
+                        ? 'bg-primary/5 border-primary/30'
+                        : 'hover:bg-muted/50'
+                    }`}
+                  >
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={() => handleToggle(gestionnaire.id)}
+                    />
+                    <Avatar className="h-8 w-8">
+                      <AvatarImage src={gestionnaire.avatar_url || undefined} />
+                      <AvatarFallback className="text-xs">
+                        {getInitials(gestionnaire.name, gestionnaire.email)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-sm truncate">
+                        {gestionnaire.name || 'Sans nom'}
                       </div>
-                    </label>
-                  )
-                })}
-              </div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {gestionnaire.email}
+                      </div>
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
 
-              <div className="mt-4 text-sm text-muted-foreground">
-                {selectedIds.size} participant{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
-              </div>
-            </>
-          )}
-        </div>
+            <div className="mt-4 text-sm text-muted-foreground">
+              {selectedIds.size} participant{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
+            </div>
+          </>
+        )}
+      </UnifiedModalBody>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isAdding}>
-            {allAlreadyAdded ? 'Fermer' : 'Annuler'}
+      <UnifiedModalFooter>
+        <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isAdding}>
+          {allAlreadyAdded ? 'Fermer' : 'Annuler'}
+        </Button>
+        {!allAlreadyAdded && (
+          <Button
+            onClick={handleConfirm}
+            disabled={isAdding || isLoading || selectedIds.size === 0}
+          >
+            {isAdding ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Ajout...
+              </>
+            ) : (
+              <>
+                <UserPlus className="mr-2 h-4 w-4" />
+                Ajouter
+              </>
+            )}
           </Button>
-          {!allAlreadyAdded && (
-            <Button
-              onClick={handleConfirm}
-              disabled={isAdding || isLoading || selectedIds.size === 0}
-            >
-              {isAdding ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Ajout...
-                </>
-              ) : (
-                <>
-                  <UserPlus className="mr-2 h-4 w-4" />
-                  Ajouter
-                </>
-              )}
-            </Button>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        )}
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

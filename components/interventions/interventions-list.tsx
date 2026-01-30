@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { PendingActionsCard } from "@/components/dashboards/shared/pending-actions-card"
+import { InterventionCard } from "@/components/dashboards/shared/intervention-card"
 import { InterventionsEmptyState } from "./interventions-empty-state"
 import type { InterventionWithRelations } from "@/lib/services"
 import { logger } from '@/lib/logger'
@@ -93,7 +93,7 @@ export function InterventionsList({
     return (
       <div className={`space-y-3 ${className}`}>
         {displayedInterventions.map((intervention) => (
-          <PendingActionsCard
+          <InterventionCard
             key={intervention.id}
             intervention={intervention}
             userRole={userContext}
@@ -192,7 +192,7 @@ export function InterventionsList({
       <div className={`flex gap-3 overflow-x-auto overflow-y-hidden pb-2 ${className}`}>
         {displayedInterventions.map((intervention) => (
           <div key={intervention.id} className="min-w-[320px] max-w-[320px] lg:min-w-[360px] lg:max-w-[360px] flex-shrink-0">
-            <PendingActionsCard
+            <InterventionCard
               intervention={intervention}
               userRole={userContext}
               userId={userId}
@@ -206,9 +206,9 @@ export function InterventionsList({
 
   // Default grid layout with vertical scroll
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 h-full overflow-y-auto pb-4 ${className}`}>
+    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4 ${className}`}>
       {displayedInterventions.map((intervention) => (
-        <PendingActionsCard
+        <InterventionCard
           key={intervention.id}
           intervention={intervention}
           userRole={userContext}

@@ -208,7 +208,7 @@ const getGestionnaireActions = (
         {
           label: 'Modifier décision',
           icon: RotateCcw,
-          variant: 'primary',
+          variant: 'secondary',
           actionType: 'revise_decision',
           href: `${baseUrl}?action=revise_decision`
         }

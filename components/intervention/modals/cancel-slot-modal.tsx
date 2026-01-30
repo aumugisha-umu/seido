@@ -7,15 +7,13 @@
 
 import { useState } from 'react'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from '@/components/ui/unified-modal'
 import { Button } from '@/components/ui/button'
-import { AlertTriangle, Calendar, Clock } from 'lucide-react'
+import { AlertTriangle, Calendar, Clock, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -79,23 +77,22 @@ export function CancelSlotModal({
   if (!slot) return null
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-destructive/10 p-3">
-              <AlertTriangle className="w-6 h-6 text-destructive" />
-            </div>
-            <div>
-              <DialogTitle>Annuler ce créneau?</DialogTitle>
-              <DialogDescription>
-                Cette action ne peut pas être annulée
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={handleClose}
+      size="md"
+      preventCloseOnOutsideClick={cancelling}
+      preventCloseOnEscape={cancelling}
+    >
+      <UnifiedModalHeader
+        title="Annuler ce créneau ?"
+        subtitle="Cette action ne peut pas être annulée"
+        icon={<AlertTriangle className="h-5 w-5" />}
+        variant="danger"
+      />
 
-        <div className="space-y-4 py-4">
+      <UnifiedModalBody>
+        <div className="space-y-4">
           {/* Slot information */}
           <div className="rounded-lg bg-muted p-4 space-y-3">
             <div className="flex items-center gap-2 text-sm">
@@ -128,26 +125,31 @@ export function CancelSlotModal({
             </p>
           </div>
         </div>
+      </UnifiedModalBody>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClose}
-            disabled={cancelling}
-          >
-            Annuler
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={handleConfirm}
-            disabled={cancelling}
-          >
-            {cancelling ? 'Annulation...' : 'Confirmer l\'annulation'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button
+          variant="outline"
+          onClick={handleClose}
+          disabled={cancelling}
+        >
+          Retour
+        </Button>
+        <Button
+          variant="destructive"
+          onClick={handleConfirm}
+          disabled={cancelling}
+        >
+          {cancelling ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Annulation...
+            </>
+          ) : (
+            "Confirmer l'annulation"
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

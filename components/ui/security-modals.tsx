@@ -1,14 +1,19 @@
 "use client"
 
 import { useState } from "react"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import {
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from "@/components/ui/unified-modal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useToast } from "@/hooks/use-toast"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 import {
   Lock,
   Mail,
@@ -17,6 +22,7 @@ import {
   CheckCircle,
   AlertCircle,
   Shield,
+  Loader2,
 } from "lucide-react"
 
 interface ChangePasswordModalProps {
@@ -45,13 +51,13 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
   const [error, setError] = useState("")
   const { toast } = useToast()
 
-  const validatePassword = (_password: string) => {
+  const validatePassword = (password: string) => {
     const requirements = {
-      length: _password.length >= 8,
-      uppercase: /[A-Z]/.test(_password),
-      lowercase: /[a-z]/.test(_password),
-      number: /\d/.test(_password),
-      special: /[!@#$%^&*(),.?":{}|<>]/.test(_password)
+      length: password.length >= 8,
+      uppercase: /[A-Z]/.test(password),
+      lowercase: /[a-z]/.test(password),
+      number: /\d/.test(password),
+      special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
     }
     return requirements
   }
@@ -69,7 +75,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    
+
     // Validations côté client
     if (!formData.currentPassword) {
       setError("Veuillez entrer votre mot de passe actuel")
@@ -127,20 +133,30 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
     }
   }
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && !isLoading) {
+      handleClose()
+    } else {
+      onOpenChange(newOpen)
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Lock className="h-5 w-5" />
-            Changer le mot de passe
-          </DialogTitle>
-          <DialogDescription>
-            Modifiez votre mot de passe pour sécuriser votre compte.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <UnifiedModal
+      open={open}
+      onOpenChange={handleOpenChange}
+      size="md"
+      preventCloseOnOutsideClick={isLoading}
+      preventCloseOnEscape={isLoading}
+    >
+      <UnifiedModalHeader
+        title="Changer le mot de passe"
+        subtitle="Modifiez votre mot de passe pour sécuriser votre compte."
+        icon={<Lock className="h-5 w-5" />}
+      />
+
+      <UnifiedModalBody>
+        <form onSubmit={handleSubmit} className="space-y-4" id="change-password-form">
           {/* Mot de passe actuel */}
           <div className="space-y-2">
             <Label htmlFor="current-password">Mot de passe actuel</Label>
@@ -197,7 +213,7 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
                 )}
               </Button>
             </div>
-            
+
             {/* Critères de sécurité compacts */}
             {formData.newPassword && (
               <div className="grid grid-cols-2 gap-2 text-xs mt-2">
@@ -262,24 +278,32 @@ export function ChangePasswordModal({ open, onOpenChange }: ChangePasswordModalP
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-
-          {/* Boutons d'action */}
-          <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
-              Annuler
-            </Button>
-            <Button 
-              type="submit" 
-              className="flex-1" 
-              disabled={isLoading || !isPasswordValid || formData.newPassword !== formData.confirmPassword}
-            >
-              <Shield className="h-4 w-4 mr-2" />
-              {isLoading ? "Modification..." : "Modifier"}
-            </Button>
-          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </UnifiedModalBody>
+
+      <UnifiedModalFooter>
+        <Button variant="outline" onClick={handleClose} disabled={isLoading}>
+          Annuler
+        </Button>
+        <Button
+          type="submit"
+          form="change-password-form"
+          disabled={isLoading || !isPasswordValid || formData.newPassword !== formData.confirmPassword}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Modification...
+            </>
+          ) : (
+            <>
+              <Shield className="h-4 w-4 mr-2" />
+              Modifier
+            </>
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }
 
@@ -293,9 +317,9 @@ export function ChangeEmailModal({ open, onOpenChange, currentEmail }: ChangeEma
   const [error, setError] = useState("")
   const { toast } = useToast()
 
-  const isEmailValid = (_email: string) => {
+  const isEmailValid = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    return emailRegex.test(_email)
+    return emailRegex.test(email)
   }
 
   const handleClose = () => {
@@ -308,7 +332,7 @@ export function ChangeEmailModal({ open, onOpenChange, currentEmail }: ChangeEma
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
-    
+
     // Validations côté client
     if (!formData.currentPassword) {
       setError("Veuillez entrer votre mot de passe actuel")
@@ -357,7 +381,7 @@ export function ChangeEmailModal({ open, onOpenChange, currentEmail }: ChangeEma
       })
 
       handleClose()
-      
+
       // Recharger la page pour récupérer les nouvelles données
       setTimeout(() => {
         window.location.reload()
@@ -371,20 +395,30 @@ export function ChangeEmailModal({ open, onOpenChange, currentEmail }: ChangeEma
     }
   }
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen && !isLoading) {
+      handleClose()
+    } else {
+      onOpenChange(newOpen)
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[450px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Mail className="h-5 w-5" />
-            Changer l'email
-          </DialogTitle>
-          <DialogDescription>
-            Modifiez votre adresse email. Vous devrez confirmer votre nouveau email.
-          </DialogDescription>
-        </DialogHeader>
-        
-        <form onSubmit={handleSubmit} className="space-y-4">
+    <UnifiedModal
+      open={open}
+      onOpenChange={handleOpenChange}
+      size="sm"
+      preventCloseOnOutsideClick={isLoading}
+      preventCloseOnEscape={isLoading}
+    >
+      <UnifiedModalHeader
+        title="Changer l'email"
+        subtitle="Modifiez votre adresse email. Vous devrez confirmer votre nouveau email."
+        icon={<Mail className="h-5 w-5" />}
+      />
+
+      <UnifiedModalBody>
+        <form onSubmit={handleSubmit} className="space-y-4" id="change-email-form">
           {/* Email actuel (lecture seule) */}
           <div className="space-y-2">
             <Label htmlFor="current-email">Email actuel</Label>
@@ -441,7 +475,7 @@ export function ChangeEmailModal({ open, onOpenChange, currentEmail }: ChangeEma
             {formData.newEmail && !isEmailValid(formData.newEmail) && (
               <p className="text-sm text-red-600 flex items-center gap-1">
                 <AlertCircle className="h-3 w-3" />
-                Format d'email invalide
+                Format d&apos;email invalide
               </p>
             )}
             <p className="text-xs text-slate-600">
@@ -456,23 +490,31 @@ export function ChangeEmailModal({ open, onOpenChange, currentEmail }: ChangeEma
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-
-          {/* Boutons d'action */}
-          <div className="flex gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={handleClose} className="flex-1">
-              Annuler
-            </Button>
-            <Button 
-              type="submit" 
-              className="flex-1" 
-              disabled={isLoading || !isEmailValid(formData.newEmail) || !formData.currentPassword}
-            >
-              <Mail className="h-4 w-4 mr-2" />
-              {isLoading ? "Modification..." : "Modifier"}
-            </Button>
-          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </UnifiedModalBody>
+
+      <UnifiedModalFooter>
+        <Button variant="outline" onClick={handleClose} disabled={isLoading}>
+          Annuler
+        </Button>
+        <Button
+          type="submit"
+          form="change-email-form"
+          disabled={isLoading || !isEmailValid(formData.newEmail) || !formData.currentPassword}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Modification...
+            </>
+          ) : (
+            <>
+              <Mail className="h-4 w-4 mr-2" />
+              Modifier
+            </>
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

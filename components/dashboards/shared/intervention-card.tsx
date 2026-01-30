@@ -37,7 +37,7 @@ import { useToast } from "@/hooks/use-toast"
 // TYPES
 // ============================================================================
 
-interface PendingActionsCardProps {
+interface InterventionCardProps {
   /** Intervention data */
   intervention: {
     id: string
@@ -75,9 +75,9 @@ interface PendingActionsCardProps {
 // ============================================================================
 
 /**
- * PendingActionsCard - Carte d'intervention avec boutons d'action adaptés au rôle
+ * InterventionCard - Carte d'intervention avec boutons d'action adaptés au rôle
  *
- * Affiche une intervention nécessitant une action de l'utilisateur avec:
+ * Affiche une intervention avec:
  * - Titre et type de l'intervention
  * - Badge de statut avec message d'action contextuel
  * - Boutons d'action primaires générés selon le rôle
@@ -85,21 +85,21 @@ interface PendingActionsCardProps {
  *
  * @example
  * ```tsx
- * <PendingActionsCard
+ * <InterventionCard
  *   intervention={intervention}
  *   userRole="prestataire"
  *   onActionComplete={(id) => removeFromList(id)}
  * />
  * ```
  */
-export function PendingActionsCard({
+export function InterventionCard({
   intervention,
   userRole,
   userId,
   onActionComplete,
   enableAnimations = true,
   customActionHandlers
-}: PendingActionsCardProps) {
+}: InterventionCardProps) {
   const router = useRouter()
   const { toast } = useToast()
 
@@ -244,7 +244,7 @@ export function PendingActionsCard({
       className={cn(
         "group relative bg-card dark:bg-white/5 rounded-2xl p-5 shadow-sm dark:shadow-none",
         "transition-all duration-300 border border-border dark:border-white/10",
-        "hover:border-primary/30 h-full flex flex-col dark:backdrop-blur-sm",
+        "hover:border-primary/30 flex flex-col dark:backdrop-blur-sm",
         "will-change-transform",
         isRemoving && !prefersReducedMotion && "slide-out-right",
         isRemoving && prefersReducedMotion && "opacity-0"
@@ -364,7 +364,7 @@ export function PendingActionsCard({
 
       {/* Description */}
       {intervention.description && (
-        <p className="text-muted-foreground text-sm mb-3 line-clamp-2 flex-1">
+        <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
           {intervention.description}
         </p>
       )}
@@ -464,3 +464,6 @@ export function PendingActionsCard({
     </div>
   )
 }
+
+// Backward compatibility alias
+export { InterventionCard as PendingActionsCard }

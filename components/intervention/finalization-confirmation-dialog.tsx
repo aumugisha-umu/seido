@@ -7,17 +7,15 @@
 
 import { useState } from 'react'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from '@/components/ui/unified-modal'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
+import { CheckCircle2, XCircle, AlertTriangle, Loader2 } from 'lucide-react'
 
 interface FinalizationConfirmationDialogProps {
   isOpen: boolean
@@ -51,31 +49,22 @@ export function FinalizationConfirmationDialog({
   const isApprove = action === 'approve'
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[550px]">
-        <DialogHeader>
-          <div className="flex items-center gap-3 mb-2">
-            {isApprove ? (
-              <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6 text-green-600" />
-              </div>
-            ) : (
-              <div className="w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                <XCircle className="w-6 h-6 text-red-600" />
-              </div>
-            )}
-            <div>
-              <DialogTitle className="text-xl">
-                {isApprove ? 'Finaliser l\'intervention' : 'Refuser la clôture'}
-              </DialogTitle>
-              <DialogDescription className="text-sm">
-                Intervention {interventionRef}
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={handleClose}
+      size="md"
+      preventCloseOnOutsideClick={isLoading}
+      preventCloseOnEscape={isLoading}
+    >
+      <UnifiedModalHeader
+        title={isApprove ? "Finaliser l'intervention" : 'Refuser la clôture'}
+        subtitle={`Intervention ${interventionRef}`}
+        icon={isApprove ? <CheckCircle2 className="h-5 w-5" /> : <XCircle className="h-5 w-5" />}
+        variant={isApprove ? 'success' : 'danger'}
+      />
 
-        <div className="space-y-4 py-4">
+      <UnifiedModalBody>
+        <div className="space-y-4">
           {/* Warning message for reject */}
           {!isApprove && (
             <div className="flex gap-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
@@ -123,11 +112,11 @@ export function FinalizationConfirmationDialog({
                 <>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Marquer l'intervention comme <strong>finalisée</strong></span>
+                    <span>Marquer l&apos;intervention comme <strong>finalisée</strong></span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
-                    <span>Archiver l'intervention dans l'historique</span>
+                    <span>Archiver l&apos;intervention dans l&apos;historique</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
@@ -138,7 +127,7 @@ export function FinalizationConfirmationDialog({
                 <>
                   <li className="flex items-start gap-2">
                     <XCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
-                    <span>Refuser la clôture de l'intervention</span>
+                    <span>Refuser la clôture de l&apos;intervention</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <XCircle className="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0" />
@@ -153,47 +142,47 @@ export function FinalizationConfirmationDialog({
             </ul>
           </div>
         </div>
+      </UnifiedModalBody>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={isLoading}
-          >
-            Annuler
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={!note.trim() || isLoading}
-            className={
-              isApprove
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-red-600 hover:bg-red-700"
-            }
-          >
-            {isLoading ? (
-              <>
-                <span className="animate-spin mr-2">⏳</span>
-                Traitement...
-              </>
-            ) : (
-              <>
-                {isApprove ? (
-                  <>
-                    <CheckCircle2 className="w-4 h-4 mr-2" />
-                    Confirmer la finalisation
-                  </>
-                ) : (
-                  <>
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Confirmer le refus
-                  </>
-                )}
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button
+          variant="outline"
+          onClick={handleClose}
+          disabled={isLoading}
+        >
+          Annuler
+        </Button>
+        <Button
+          onClick={handleConfirm}
+          disabled={!note.trim() || isLoading}
+          className={
+            isApprove
+              ? "bg-green-600 hover:bg-green-700"
+              : "bg-red-600 hover:bg-red-700"
+          }
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Traitement...
+            </>
+          ) : (
+            <>
+              {isApprove ? (
+                <>
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Confirmer la finalisation
+                </>
+              ) : (
+                <>
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Confirmer le refus
+                </>
+              )}
+            </>
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

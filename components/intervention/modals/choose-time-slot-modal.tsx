@@ -10,17 +10,14 @@ import { useState } from 'react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from '@/components/ui/unified-modal'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Clock, CheckCircle, AlertTriangle, Calendar } from 'lucide-react'
+import { Clock, CheckCircle, AlertTriangle, Calendar, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { chooseTimeSlotAsManagerAction } from '@/app/actions/intervention-actions'
 import type { Database } from '@/lib/database.types'
@@ -73,19 +70,22 @@ export const ChooseTimeSlotModal = ({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-primary" />
-            Confirmer la sélection du créneau
-          </DialogTitle>
-          <DialogDescription>
-            Vous vous apprêtez à planifier définitivement cette intervention.
-          </DialogDescription>
-        </DialogHeader>
+    <UnifiedModal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="md"
+      preventCloseOnOutsideClick={loading}
+      preventCloseOnEscape={loading}
+    >
+      <UnifiedModalHeader
+        title="Confirmer la sélection du créneau"
+        subtitle="Vous vous apprêtez à planifier définitivement cette intervention."
+        icon={<CheckCircle className="h-5 w-5" />}
+        variant="success"
+      />
 
-        <div className="space-y-4 py-4">
+      <UnifiedModalBody>
+        <div className="space-y-4">
           {/* Selected slot details */}
           <div className="rounded-lg border bg-slate-50 p-4 space-y-3">
             <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
@@ -113,7 +113,7 @@ export const ChooseTimeSlotModal = ({
               <AlertTriangle className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-amber-800">
                 ⚠️ Une demande de devis est en cours. En validant ce créneau, vous planifiez
-                l'intervention indépendamment de la réponse du prestataire.
+                l&apos;intervention indépendamment de la réponse du prestataire.
               </AlertDescription>
             </Alert>
           )}
@@ -126,32 +126,34 @@ export const ChooseTimeSlotModal = ({
             </p>
           </div>
         </div>
+      </UnifiedModalBody>
 
-        <DialogFooter className="gap-2">
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={loading}
-          >
-            Annuler
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={loading}
-            className="gap-2"
-          >
-            {loading ? (
-              <>Planification en cours...</>
-            ) : (
-              <>
-                <CheckCircle className="h-4 w-4" />
-                Confirmer et planifier
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button
+          variant="outline"
+          onClick={() => onOpenChange(false)}
+          disabled={loading}
+        >
+          Annuler
+        </Button>
+        <Button
+          onClick={handleConfirm}
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Planification en cours...
+            </>
+          ) : (
+            <>
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Confirmer et planifier
+            </>
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }
 

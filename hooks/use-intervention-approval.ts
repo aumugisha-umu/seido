@@ -140,18 +140,9 @@ export const useInterventionApproval = () => {
     setError(null)
   }, [])
 
-  // Legacy: pour compatibilité avec l'ancien code
-  const confirmationModal = { isOpen: false, intervention: null, action: null, rejectionReason: "", internalComment: "" }
-  const successModal = { isOpen: false, action: null, interventionTitle: "" }
-  const closeConfirmationModal = () => {}
-  const closeSuccessModal = () => {}
-  const handleFinalConfirmation = handleConfirmAction
-
   return {
     // États
     approvalModal,
-    confirmationModal, // Legacy
-    successModal, // Legacy
     rejectionReason,
     internalComment,
     isLoading,
@@ -167,9 +158,6 @@ export const useInterventionApproval = () => {
     openApprovalModal,
     handleActionChange,
     handleConfirmAction,
-    handleFinalConfirmation, // Legacy
     closeApprovalModal,
-    closeConfirmationModal, // Legacy
-    closeSuccessModal, // Legacy
   }
 }

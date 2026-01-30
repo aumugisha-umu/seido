@@ -42,8 +42,69 @@
 - [x] **Centralisation Adresses + Google Maps prep** (2026-01-28)
 - [x] **Fix Conversation Threads Multi-Profil** (2026-01-29)
 - [x] **Performance Optimization + UX Tabs** (2026-01-30)
+- [x] **Accessibility WCAG AA ApprovalModal** (2026-01-30)
+- [x] **Card Refactoring: PendingActionsCard → InterventionCard** (2026-01-30)
+- [x] **Fix Finalization Modal z-index** (2026-01-30) - Modale invisible corrigée
 
 ## Sprint Actuel (Jan 2026)
+
+### 2026-01-30 - Finalization Modal z-index Fix
+
+**Problème:** La modale de finalisation était invisible malgré un state React correct.
+
+**Root cause:** CSS z-index manquant sur `.unified-modal__content` - la modale se rendait derrière l'overlay.
+
+**Solution:**
+```css
+.unified-modal__overlay { z-index: 9998; }
+.unified-modal__content { z-index: 9999; }
+```
+
+**Fichiers modifiés:**
+- `app/globals.css` - z-index overlay/content
+- `intervention-detail-client.tsx` - useEffect stabilisé avec ref
+- `finalization-modal-live.tsx` - Imports Lucide fusionnés
+- `unified-modal.tsx` - Cleanup
+
+---
+
+### 2026-01-30 - Accessibility WCAG AA + Card Refactoring
+
+**Ce qui a été fait:**
+
+**1. ApprovalModal Accessibility (WCAG 2.1 AA)**
+
+| Amélioration | Avant | Après |
+|--------------|-------|-------|
+| Touch targets | `p-1.5` (24px) | `p-2.5` (40px) |
+| Icônes décoratives | Lisibles par screen readers | `aria-hidden="true"` |
+| Contraste | `text-slate-400` (~2.5:1) | `text-slate-500/600` (>4.5:1) |
+| Focus states | Absents | `focus-visible:ring-2` |
+| Loading state | Non annoncé | `role="status" aria-live="polite"` |
+
+**2. InterventionCard Refactoring**
+
+- **Renommage:** `PendingActionsCard` → `InterventionCard`
+- **Fix sizing:** Retrait `h-full` (cards stretched) → hauteur auto CSS Grid
+- **Suppression legacy:** `intervention-overview-card.tsx` (wrapper inutile)
+- **Inline content:** overview-tab.tsx utilise directement les sous-composants
+
+**Fichiers créés:**
+- `components/dashboards/shared/intervention-card.tsx`
+
+**Fichiers modifiés:**
+- `components/intervention/modals/approval-modal.tsx` - A11y fixes
+- `components/dashboards/shared/index.ts` - Export InterventionCard
+- `components/interventions/interventions-list.tsx` - Fix h-full + rename import
+- `app/gestionnaire/.../overview-tab.tsx` - Inline content
+- `app/prestataire/.../overview-tab.tsx` - Inline content
+- `lib/intervention-action-utils.ts` - "Modifier décision" → variant secondary
+
+**Fichiers supprimés:**
+- `components/dashboards/shared/pending-actions-card.tsx`
+- `components/interventions/intervention-overview-card.tsx`
+
+---
 
 ### 2026-01-30 - Performance Optimization + UX Intervention Tabs
 

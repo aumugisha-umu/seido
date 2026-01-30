@@ -3,8 +3,10 @@
 import { useState, useEffect } from "react"
 import { Check, X, MapPin, User, Paperclip, Clock, ChevronLeft, Flame, Wrench, Image as ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
+import {
+  UnifiedModal,
+  UnifiedModalBody,
+} from "@/components/ui/unified-modal"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
@@ -133,17 +135,16 @@ export const ApprovalModal = ({
   const creatorName = intervention.creator_name || intervention.tenant || 'Locataire'
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && !isLoading && onClose()}>
-      <DialogContent
-        className="max-w-md p-0 gap-0 overflow-hidden"
-        onPointerDownOutside={(e) => isLoading && e.preventDefault()}
-        onEscapeKeyDown={(e) => isLoading && e.preventDefault()}
-      >
-        {/* Accessible title (visually hidden) */}
-        <VisuallyHidden>
-          <DialogTitle>Traiter la demande d&apos;intervention</DialogTitle>
-        </VisuallyHidden>
-
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={(open) => !open && !isLoading && onClose()}
+      size="md"
+      preventCloseOnOutsideClick={isLoading}
+      preventCloseOnEscape={isLoading}
+      showCloseButton={false}
+      aria-labelledby="approval-modal-title"
+    >
+      <UnifiedModalBody className="p-0">
         <div
           className={cn(
             "transition-opacity duration-150",
@@ -435,7 +436,11 @@ export const ApprovalModal = ({
             </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+        {/* Accessible title (visually hidden) */}
+        <h2 id="approval-modal-title" className="sr-only">
+          Traiter la demande d&apos;intervention
+        </h2>
+      </UnifiedModalBody>
+    </UnifiedModal>
   )
 }

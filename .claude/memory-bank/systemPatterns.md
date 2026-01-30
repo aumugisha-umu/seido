@@ -386,15 +386,16 @@ Architecture unifiee pour afficher les interventions de maniere coherente dans t
                            |
                            v
 +-------------------------------------------------------------+
-| PendingActionsCard (pending-actions-card.tsx)                |
+| InterventionCard (intervention-card.tsx)                     |
 | - Card intervention UNIFIEE pour tous les roles              |
 | - Badges statut + urgence                                     |
-| - Boutons d'action contextuels                               |
+| - Boutons d'action contextuels (via getRoleBasedActions)     |
 | - Message "En attente de X reponse(s)"                       |
+| - Hauteur auto (pas de h-full) - CSS Grid align par rangée   |
 +-------------------------------------------------------------+
 ```
 
-**Avantage principal:** La modification d'un composant (ex: `InterventionsList` ou `PendingActionsCard`) cascade automatiquement vers TOUTES les pages de details.
+**Avantage principal:** La modification d'un composant (ex: `InterventionsList` ou `InterventionCard`) cascade automatiquement vers TOUTES les pages de details.
 
 **Pages utilisant cette architecture:**
 | Page | Fichier |
@@ -541,6 +542,17 @@ const tabs: TabConfig[] = [
 .entity-preview__content /* Zone du contenu */
 .entity-preview__tab-panel /* Panel d'onglet individuel */
 ```
+
+**UnifiedModal z-index Pattern (FIX 2026-01-30) :**
+
+Les modales Radix avec CSS custom DOIVENT avoir des z-index explicites sur overlay ET content :
+```css
+/* globals.css - OBLIGATOIRE */
+.unified-modal__overlay { @apply fixed inset-0 z-[9998] ... }
+.unified-modal__content { @apply fixed z-[9999] ... }
+```
+
+**Pourquoi :** Sans z-index explicite, le content peut se rendre DERRIÈRE l'overlay (bug invisible car le DOM est correct mais l'affichage est caché).
 
 **UNIFICATION (2026-01-30) :**
 `InterventionTabs` a ete supprime et unifie avec `EntityTabs`.

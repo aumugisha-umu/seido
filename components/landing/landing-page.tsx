@@ -119,6 +119,23 @@ export function LandingPage() {
                             Vos interventions sous contrôle. Vos locataires informés. Vos prestataires autonomes. <span className="font-bold">Vous, enfin libéré des relances.</span>
                         </p>
 
+                        <div className="flex flex-col sm:flex-row gap-4 mb-8 md:mb-10 max-w-2xl">
+                            <Link href="/auth/signup">
+                                <Button size="lg" className="w-full sm:w-auto h-12 md:h-14 px-8 md:px-10 text-base md:text-lg bg-white text-black hover:bg-white/90 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all hover:scale-105">
+                                    Tester gratuitement
+                                </Button>
+                            </Link>
+                            <Button
+                                size="lg"
+                                variant="outline"
+                                className="w-full sm:w-auto h-12 md:h-14 px-8 md:px-10 text-base md:text-lg border-white/30 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all hover:scale-105"
+                                onClick={() => setShowDemoModal(true)}
+                            >
+                                <Mail className="w-4 md:w-5 h-4 md:h-5 mr-2 md:mr-3" />
+                                Voir SEIDO en action
+                            </Button>
+                        </div>
+
                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-8 md:mb-10 max-w-2xl">
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
                                 <CheckCircle2 className="h-4 w-4 text-blue-300" />
@@ -132,18 +149,6 @@ export function LandingPage() {
                                 <CheckCircle2 className="h-4 w-4 text-blue-300" />
                                 <span className="landing-caption text-white/80">Locataires & prestataires inclus</span>
                             </div>
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-4">
-                            <Link href="/auth/signup">
-                                <Button size="lg" className="w-full sm:w-auto h-12 md:h-14 px-8 md:px-10 text-base md:text-lg bg-white text-black hover:bg-white/90 rounded-full shadow-[0_0_30px_rgba(255,255,255,0.2)] transition-all hover:scale-105">
-                                    Tester gratuitement
-                                </Button>
-                            </Link>
-                            <Button size="lg" variant="outline" className="w-full sm:w-auto h-12 md:h-14 px-8 md:px-10 text-base md:text-lg border-white/30 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all hover:scale-105" onClick={() => setShowDemoModal(true)}>
-                                <Mail className="w-4 md:w-5 h-4 md:h-5 mr-2 md:mr-3" />
-                                Voir SEIDO en action
-                            </Button>
                         </div>
                     </div>
                 </div>

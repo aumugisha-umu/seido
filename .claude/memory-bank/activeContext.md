@@ -4,7 +4,91 @@
 **Objectif:** Unified Entity Preview Layout + Memory Bank Sync
 **Branch:** `preview`
 **Sprint:** Multi-Team Support + Google Maps Integration (Jan 2026)
-**Dernière analyse:** EntityTabs unification - 2026-01-30
+**Dernière analyse:** Finalization Modal z-index fix - 2026-01-30
+
+---
+
+## ✅ COMPLETE: Finalization Modal z-index Fix (2026-01-30)
+
+### Problème
+La modale de finalisation d'intervention ne s'affichait pas visuellement malgré :
+- State React correct (`showFinalizationModal: true`)
+- Composant Radix rendant (`open: true`)
+- Portal Radix fonctionnel
+
+### Root Cause
+**CSS z-index manquant** sur `.unified-modal__content`. L'overlay avait `z-50` mais le contenu n'avait pas de z-index défini, causant un rendu **derrière** l'overlay.
+
+### Solution Appliquée
+
+**1. CSS z-index (globals.css)**
+```css
+/* AVANT */
+.unified-modal__overlay { @apply fixed inset-0 bg-black/50 ... }
+.unified-modal__content { @apply fixed bg-background ... }
+
+/* APRÈS */
+.unified-modal__overlay { @apply fixed inset-0 z-[9998] bg-black/50 ... }
+.unified-modal__content { @apply fixed z-[9999] bg-background ... }
+```
+
+**2. useEffect URL action stabilisé (intervention-detail-client.tsx)**
+- Ajout `processedUrlActionRef` pour éviter re-triggering
+- Lecture URL directe au lieu de `useSearchParams()` instable
+- Dépendances minimales avec commentaire explicatif
+
+### Fichiers Modifiés
+
+| Fichier | Modification |
+|---------|--------------|
+| `app/globals.css` | z-index overlay/content |
+| `intervention-detail-client.tsx` | useEffect stabilisé + ref |
+| `finalization-modal-live.tsx` | Imports Lucide fusionnés |
+| `unified-modal.tsx` | Cleanup debug logs |
+
+### Pattern à Retenir
+
+**Pour les modales Radix avec CSS custom :**
+```css
+/* L'overlay ET le content doivent avoir des z-index explicites */
+.modal__overlay { z-index: 9998; }
+.modal__content { z-index: 9999; }
+```
+
+---
+
+## ✅ COMPLETE: Accessibility + Card Refactoring (2026-01-30)
+
+### ApprovalModal Accessibility (WCAG AA)
+- Touch targets: Back buttons `p-1.5` → `p-2.5` (24px → 40px)
+- `aria-hidden="true"` sur 12 icônes décoratives
+- Contraste: `text-slate-400` → `text-slate-500/600`
+- Focus states: `focus-visible:ring-2` sur tous les boutons
+- Loading state: `role="status" aria-live="polite"`
+
+### InterventionCard Refactoring
+**Renommage:** `PendingActionsCard` → `InterventionCard`
+
+| Fichier | Changement |
+|---------|------------|
+| `intervention-card.tsx` | Nouveau fichier, fix sizing (retrait `h-full`) |
+| `pending-actions-card.tsx` | **SUPPRIMÉ** |
+| `intervention-overview-card.tsx` | **SUPPRIMÉ** (legacy wrapper) |
+
+**Fix sizing grid:**
+```typescript
+// AVANT - Cards stretched to full height
+<div className="grid ... h-full">
+
+// APRÈS - Cards auto-height, aligned per row
+<div className="grid ...">
+```
+
+**Inline overview content:**
+- `overview-tab.tsx` (gestionnaire + prestataire) utilise maintenant directement:
+  - `InterventionProviderGuidelines`
+  - `InterventionSchedulingPreview`
+  - Description inline
 
 ---
 
@@ -247,8 +331,8 @@ useEffect(() => { ... }, [])
 **Important:** Le SW intercepte tous les fetch, donc TOUS les domaines doivent être dans `connect-src`, pas seulement dans leur directive spécifique (img-src, font-src, etc.)
 
 ---
-*Derniere mise a jour: 2026-01-30 12:00*
-*Focus: Performance optimization + UX intervention tabs*
+*Derniere mise a jour: 2026-01-30 20:00*
+*Focus: Accessibility WCAG AA + Card refactoring*
 
 ## Commits Recents (preview branch)
 
@@ -260,6 +344,9 @@ useEffect(() => { ... }, [])
 | `b70f373` | feat(interventions): add dedicated Localisation tab + fix tenant dashboard |
 
 ## Files Recently Modified
-### 2026-01-30 17:31:04 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/intervention/modals/approval-modal.tsx`
-- `C:/Users/arthu/.claude/plans/wiggly-sauteeing-kernighan.md`
+### 2026-01-30 21:53:39 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/intervention/finalization-modal-live.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/gestionnaire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/systemPatterns.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`

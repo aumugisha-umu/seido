@@ -43,9 +43,12 @@ export async function GET(
             reference,
             building:building_id(
               name,
-              address,
-              city,
-              postal_code
+              address_record:address_id(
+                formatted_address,
+                street,
+                city,
+                postal_code
+              )
             )
           )
         )

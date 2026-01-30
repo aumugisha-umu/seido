@@ -34,7 +34,12 @@ export async function GET(
           building:building_id(
             id,
             name,
-            address
+            address_record:address_id(
+              formatted_address,
+              street,
+              city,
+              postal_code
+            )
           )
         )
       `)

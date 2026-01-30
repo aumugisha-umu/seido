@@ -305,6 +305,9 @@ export function InterventionDetailClient({
   const [requireQuote, setRequireQuote] = useState(intervention.requires_quote || false)
   const [showFinalizationModal, setShowFinalizationModal] = useState(false)
 
+  // Ref to track if URL action has been processed (prevents re-triggering from unstable deps)
+  const processedUrlActionRef = useRef(false)
+
   // États pour le nouveau design PreviewHybrid
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
   const [selectedSlotIdForChoice, setSelectedSlotIdForChoice] = useState<string | null>(null)
@@ -782,29 +785,49 @@ export function InterventionDetailClient({
     handleRefresh()
   }
 
-  // Auto-open approval modal when coming from card with action=process_request or action=revise_decision
+  // Auto-open modals when coming from card/dashboard with action query param
+  // FIX 2026-01-30: Use ref to prevent re-triggering and read URL directly for stability
+  // Note: approvalHook callbacks and interventionActionData are intentionally excluded from deps
+  // because: 1) processedUrlActionRef prevents re-execution, 2) they are memoized/useCallback stable
   useEffect(() => {
-    const actionParam = searchParams.get('action')
+    // Skip if already processed to prevent re-triggering from unstable dependencies
+    if (processedUrlActionRef.current) return
+
+    // Read URL directly instead of using unstable searchParams object
+    const url = new URL(window.location.href)
+    const actionParam = url.searchParams.get('action')
+
+    if (!actionParam) return
+
+    // Mark as processed BEFORE any state changes
+    processedUrlActionRef.current = true
+
+    // Handle different action types
     if (actionParam === 'process_request' && intervention.status === 'demande') {
-      // Small delay to ensure the component is fully mounted
       setTimeout(() => {
         approvalHook.openApprovalModal(interventionActionData)
       }, 100)
-      // Clean up the URL to avoid re-triggering on refresh
-      const url = new URL(window.location.href)
-      url.searchParams.delete('action')
-      window.history.replaceState({}, '', url.toString())
     } else if (actionParam === 'revise_decision' && intervention.status === 'rejetee') {
-      // Open approval modal with 'approve' pre-selected to reverse a rejection
       setTimeout(() => {
         approvalHook.handleApprovalAction(interventionActionData, 'approve')
       }, 100)
-      // Clean up the URL
-      const url = new URL(window.location.href)
+    } else if (actionParam === 'finalize' && ['planifiee', 'cloturee_par_prestataire', 'cloturee_par_locataire'].includes(intervention.status)) {
+      setTimeout(() => {
+        setShowFinalizationModal(true)
+      }, 100)
+    } else {
+      // Unknown action or status mismatch, reset the flag to allow future processing
+      processedUrlActionRef.current = false
+      return
+    }
+
+    // Clean up URL after state update is queued
+    requestAnimationFrame(() => {
       url.searchParams.delete('action')
       window.history.replaceState({}, '', url.toString())
-    }
-  }, [searchParams, intervention.status, interventionActionData, approvalHook])
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intervention.status])
 
   // Handler for header action buttons (from getRoleBasedActions)
   const handleHeaderActionClick = async (action: RoleBasedAction) => {
@@ -858,7 +881,7 @@ export function InterventionDetailClient({
           }
           return
         } else if (action.href) {
-          // For finalize with href (e.g., cloturee_par_prestataire), open the modal
+          // For finalize with href, open the modal directly
           setShowFinalizationModal(true)
           return
         }

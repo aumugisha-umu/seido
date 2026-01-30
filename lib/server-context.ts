@@ -120,7 +120,11 @@ export interface ServerActionAuthContext {
  */
 export const getServerAuthContext = cache(async (requiredRole?: string): Promise<ServerAuthContext> => {
   try {
-    logger.info('🔍 [SERVER-CONTEXT] Getting authenticated context (READ-ONLY)...', { requiredRole })
+    // Skip verbose logging during build phase
+    const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
+    if (!isBuildPhase) {
+      logger.info('🔍 [SERVER-CONTEXT] Getting authenticated context (READ-ONLY)...', { requiredRole })
+    }
 
     // ✅ PERF: Paralléliser création client + auth check
     // Note: teamService n'est plus utilisé ici car on extrait les teams des profils
@@ -135,12 +139,14 @@ export const getServerAuthContext = cache(async (requiredRole?: string): Promise
 
     const { user, profile, allProfiles } = authResult
 
-    logger.info('✅ [SERVER-CONTEXT] User authenticated:', {
-      userId: profile.id,
-      email: profile.email,
-      role: profile.role,
-      totalProfiles: allProfiles?.length || 1
-    })
+    if (!isBuildPhase) {
+      logger.info('✅ [SERVER-CONTEXT] User authenticated:', {
+        userId: profile.id,
+        email: profile.email,
+        role: profile.role,
+        totalProfiles: allProfiles?.length || 1
+      })
+    }
 
     // ✅ FIX (Jan 2026): Extraire teams des profils déjà chargés
     // Évite les problèmes RLS avec team_members (get_user_id_from_auth() LIMIT 1)
@@ -172,10 +178,12 @@ export const getServerAuthContext = cache(async (requiredRole?: string): Promise
       redirect('/auth/unauthorized?reason=no_team')
     }
 
-    logger.info('✅ [SERVER-CONTEXT] Teams extracted from profiles:', {
-      count: teams.length,
-      teamIds: teams.map(t => t.id)
-    })
+    if (!isBuildPhase) {
+      logger.info('✅ [SERVER-CONTEXT] Teams extracted from profiles:', {
+        count: teams.length,
+        teamIds: teams.map(t => t.id)
+      })
+    }
 
     // ✅ MULTI-ÉQUIPE: Filtrer les équipes avec le même rôle
     // Un utilisateur peut avoir différents rôles dans différentes équipes
@@ -192,11 +200,13 @@ export const getServerAuthContext = cache(async (requiredRole?: string): Promise
           .map(p => p.team_id)
       )
       sameRoleTeams = teams.filter(t => sameRoleTeamIds.has(t.id))
-      logger.info('✅ [SERVER-CONTEXT] Filtered teams by role:', {
-        currentRole,
-        totalTeams: teams.length,
-        sameRoleTeams: sameRoleTeams.length
-      })
+      if (!isBuildPhase) {
+        logger.info('✅ [SERVER-CONTEXT] Filtered teams by role:', {
+          currentRole,
+          totalTeams: teams.length,
+          sameRoleTeams: sameRoleTeams.length
+        })
+      }
     } else {
       // Un seul profil = toutes les équipes ont le même rôle
       sameRoleTeams = teams
@@ -230,15 +240,17 @@ export const getServerAuthContext = cache(async (requiredRole?: string): Promise
       primaryTeam = sameRoleTeams[0]
     }
 
-    logger.info('✅ [SERVER-CONTEXT] Context loaded successfully (READ-ONLY):', {
-      userId: profile.id,
-      teamId: primaryTeam.id,
-      teamName: primaryTeam.name,
-      totalTeams: teams.length,
-      sameRoleTeams: sameRoleTeams.length,
-      isConsolidatedView,
-      activeTeamIds
-    })
+    if (!isBuildPhase) {
+      logger.info('✅ [SERVER-CONTEXT] Context loaded successfully (READ-ONLY):', {
+        userId: profile.id,
+        teamId: primaryTeam.id,
+        teamName: primaryTeam.name,
+        totalTeams: teams.length,
+        sameRoleTeams: sameRoleTeams.length,
+        isConsolidatedView,
+        activeTeamIds
+      })
+    }
 
     return {
       user,
@@ -251,7 +263,11 @@ export const getServerAuthContext = cache(async (requiredRole?: string): Promise
       supabase
     }
   } catch (error) {
-    logger.error('❌ [SERVER-CONTEXT] Error getting auth context:', error)
+    // During build phase, auth errors are expected (no session) - don't log as errors
+    const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
+    if (!isBuildPhase) {
+      logger.error('❌ [SERVER-CONTEXT] Error getting auth context:', error)
+    }
 
     // Si erreur d'authentification, rediriger vers login
     if (error instanceof Error && error.message.includes('auth')) {
@@ -291,7 +307,11 @@ export const getServerAuthContext = cache(async (requiredRole?: string): Promise
  */
 export const getServerActionAuthContext = async (requiredRole?: string): Promise<ServerActionAuthContext> => {
   try {
-    logger.info('🔍 [SERVER-ACTION-CONTEXT] Getting authenticated context (READ-WRITE)...', { requiredRole })
+    // Skip verbose logging during build phase
+    const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
+    if (!isBuildPhase) {
+      logger.info('🔍 [SERVER-ACTION-CONTEXT] Getting authenticated context (READ-WRITE)...', { requiredRole })
+    }
 
     // ✅ PERF: Paralléliser création client + auth check
     const [supabase, authResult] = await Promise.all([
@@ -305,12 +325,14 @@ export const getServerActionAuthContext = async (requiredRole?: string): Promise
 
     const { user, profile, allProfiles } = authResult
 
-    logger.info('✅ [SERVER-ACTION-CONTEXT] User authenticated:', {
-      userId: profile.id,
-      email: profile.email,
-      role: profile.role,
-      totalProfiles: allProfiles?.length || 1
-    })
+    if (!isBuildPhase) {
+      logger.info('✅ [SERVER-ACTION-CONTEXT] User authenticated:', {
+        userId: profile.id,
+        email: profile.email,
+        role: profile.role,
+        totalProfiles: allProfiles?.length || 1
+      })
+    }
 
     // ✅ FIX (Jan 2026): Extraire teams des profils déjà chargés
     // Évite les problèmes RLS avec team_members
@@ -378,15 +400,17 @@ export const getServerActionAuthContext = async (requiredRole?: string): Promise
       primaryTeam = sameRoleTeams[0]
     }
 
-    logger.info('✅ [SERVER-ACTION-CONTEXT] Context loaded successfully (READ-WRITE):', {
-      userId: profile.id,
-      teamId: primaryTeam.id,
-      teamName: primaryTeam.name,
-      totalTeams: teams.length,
-      sameRoleTeams: sameRoleTeams.length,
-      isConsolidatedView,
-      activeTeamIds
-    })
+    if (!isBuildPhase) {
+      logger.info('✅ [SERVER-ACTION-CONTEXT] Context loaded successfully (READ-WRITE):', {
+        userId: profile.id,
+        teamId: primaryTeam.id,
+        teamName: primaryTeam.name,
+        totalTeams: teams.length,
+        sameRoleTeams: sameRoleTeams.length,
+        isConsolidatedView,
+        activeTeamIds
+      })
+    }
 
     return {
       user,
@@ -399,7 +423,11 @@ export const getServerActionAuthContext = async (requiredRole?: string): Promise
       supabase
     }
   } catch (error) {
-    logger.error('❌ [SERVER-ACTION-CONTEXT] Error getting auth context:', error)
+    // During build phase, auth errors are expected (no session) - don't log as errors
+    const isBuildPhase = process.env.NEXT_PHASE === 'phase-production-build'
+    if (!isBuildPhase) {
+      logger.error('❌ [SERVER-ACTION-CONTEXT] Error getting auth context:', error)
+    }
 
     // Si erreur d'authentification, rediriger vers login
     if (error instanceof Error && error.message.includes('auth')) {

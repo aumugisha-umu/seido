@@ -344,7 +344,9 @@ useEffect(() => { ... }, [])
 | `b70f373` | feat(interventions): add dedicated Localisation tab + fix tenant dashboard |
 
 ## Files Recently Modified
-### 2026-01-30 22:13:45 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/app/layout.tsx`
+### 2026-01-30 22:28:43 (Auto-updated)
 - `C:/Users/arthu/Desktop/Coding/Seido-app/hooks/use-intervention-types.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/app/locataire/(no-navbar)/interventions/nouvelle-demande/nouvelle-demande-client.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/lib/services/domain/company-lookup.service.ts`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/lib/server-context.ts`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/hooks/use-team-contacts.ts`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/api/company/lookup/route.ts`

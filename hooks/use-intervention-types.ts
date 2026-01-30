@@ -7,7 +7,7 @@
  * ✅ Waits for auth before fetching (RLS requires auth.uid())
  */
 
-import useSWR from 'swr'
+import useSWR from 'swr/immutable'
 import { createBrowserSupabaseClient } from '@/lib/services'
 import { PROBLEM_TYPES_FALLBACK } from '@/lib/intervention-data'
 import { useAuth } from '@/hooks/use-auth'

@@ -50,8 +50,44 @@
 - [x] **Tenant Dashboard UX** (2026-01-31) - Affichage étage/porte/description avec alignement corrigé
 - [x] **Extension Types Locataire** (2026-01-31) - Dropdown locataire: 20 → 27 types (ajout catégorie "Locataire")
 - [x] **Fix Confirmation Gestionnaire** (2026-01-31) - Header "Intervention créée" affiché après création, pas avant
+- [x] **Auth API Optimization** (2026-01-31) - Réduction de 250+ appels à 1 par navigation
 
 ## Sprint Actuel (Jan 2026)
+
+### 2026-01-31 - Auth API Optimization (Session 5) - CRITIQUE PERFORMANCE
+
+**Problème résolu:** 250+ appels API `/auth/v1/user` en 10 minutes pour un seul utilisateur connecté.
+
+**Root Causes Identifiées:**
+
+| Cause | Impact |
+|-------|--------|
+| `getUser()` avec retry loop | Jusqu'à 4 appels réseau par invocation |
+| `getSession()` avec double validation | Appelait `getSession()` + `getUser()` |
+| `createServerSupabaseClient()` non cached | Nouveau client créé à chaque appel |
+| Middleware + Pages = double validation | 2 appels `getUser()` par navigation |
+
+**Solution:**
+
+**Principe clé:** Le middleware fait l'unique appel réseau `getUser()`. Les pages utilisent `getSession()` qui lit le JWT localement (ZERO network call).
+
+**Fichiers modifiés:**
+
+| Fichier | Changement |
+|---------|------------|
+| `lib/auth-dal.ts` | `getUser()` utilise `getSession()` au lieu de `supabase.auth.getUser()` |
+| `lib/auth-dal.ts` | Suppression du retry loop dans `getUser()` |
+| `lib/auth-dal.ts` | `getSession()` n'appelle plus `getUser()` en double |
+| `lib/services/core/supabase-client.ts` | Ajout `cache()` wrapper sur `createServerSupabaseClient` |
+| `hooks/use-auth.tsx` | Flag `initialSessionHandled` pour éviter appels dupliqués |
+
+**Résultat:**
+- **Avant**: 250+ appels en 10 minutes
+- **Après**: 1 appel par navigation (comportement attendu)
+
+**Commit:** `2431cc3` perf(auth): reduce auth API calls from 250+ to 1 per navigation
+
+---
 
 ### 2026-01-31 - Formulaire Intervention Locataire + Confirmation Gestionnaire (Session 4)
 
@@ -671,7 +707,8 @@ Nouvelle architecture adresses avec support Google Maps:
 | **2026-01-30** | **SW disabled in dev** | **Timeouts CSP bloquaient l'app** | **Dev fluide, SW actif en prod uniquement** |
 | **2026-01-30** | **CSP connect-src exhaustif** | **SW intercepte tous fetch** | **Tous domaines dans connect-src, pas juste img-src/font-src** |
 | **2026-01-31** | **Auth Refactoring Complet** | **Appels auth redondants, bug multi-profil** | **14 fichiers refactorisés, ~250 lignes supprimées, nouveau helper centralisé** |
+| **2026-01-31** | **Auth API Optimization** | **250+ appels API en 10 min** | **getSession() local au lieu de getUser() réseau, cache() sur supabase client** |
 
 ---
-*Derniere mise a jour: 2026-01-31 21:30*
-*Session 4: Extension types locataire + Fix confirmation gestionnaire*
+*Derniere mise a jour: 2026-01-31 22:45*
+*Session 5: Auth API Optimization - 250+ → 1 appel par navigation*

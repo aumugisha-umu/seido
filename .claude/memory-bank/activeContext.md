@@ -86,6 +86,47 @@
 
 ---
 
+## ✅ COMPLETE: Auth API Optimization (2026-01-31) - CRITIQUE PERFORMANCE
+
+### Problème
+**250+ appels API `/auth/v1/user` en 10 minutes** pour un seul utilisateur connecté.
+
+### Root Causes Identifiées
+| Cause | Impact |
+|-------|--------|
+| `getUser()` avec retry loop | Jusqu'à 4 appels réseau par invocation |
+| `getSession()` avec double validation | Appelait `getSession()` + `getUser()` |
+| `createServerSupabaseClient()` non cached | Nouveau client créé à chaque appel |
+| Middleware + Pages = double validation | 2 appels `getUser()` par navigation |
+
+### Solution Appliquée
+
+**Principe clé :** Le middleware fait l'unique appel réseau `getUser()`. Les pages utilisent `getSession()` qui lit le JWT localement.
+
+| Fichier | Changement |
+|---------|------------|
+| `lib/auth-dal.ts` | `getUser()` utilise `getSession()` au lieu de `supabase.auth.getUser()` |
+| `lib/auth-dal.ts` | Suppression du retry loop dans `getUser()` |
+| `lib/auth-dal.ts` | `getSession()` n'appelle plus `getUser()` en double |
+| `lib/services/core/supabase-client.ts` | Ajout `cache()` wrapper sur `createServerSupabaseClient` |
+| `hooks/use-auth.tsx` | Flag `initialSessionHandled` pour éviter appels dupliqués |
+
+### Résultat
+- **Avant**: 250+ appels en 10 minutes
+- **Après**: 1 appel par navigation (comportement attendu)
+
+### Pattern Appliqué
+```typescript
+// ✅ CORRECT - Pages/Layouts (lecture JWT locale)
+const { data: { session } } = await supabase.auth.getSession()
+return session?.user ?? null
+
+// ✅ CORRECT - Middleware seulement (validation réseau)
+const { data: { user } } = await supabase.auth.getUser()
+```
+
+---
+
 ## ✅ COMPLETE: Auth Refactoring (2026-01-31) - MAJEUR
 
 ### Objectif
@@ -525,20 +566,20 @@ export async function getInterventionTypesServer() { ... }
 ```
 
 ---
-*Derniere mise a jour: 2026-01-31 21:30*
-*Focus: Formulaire Intervention Locataire + Confirmation Gestionnaire*
+*Derniere mise a jour: 2026-01-31 22:45*
+*Focus: Auth API Optimization - 250+ → 1 appel par navigation*
 
 ## Commits Recents (preview branch)
 
 | Hash | Description |
 |------|-------------|
+| `2431cc3` | perf(auth): reduce auth API calls from 250+ to 1 per navigation |
+| `a719010` | refactor(auth): centralize authentication + fix intervention forms UX |
 | `e4429f4` | fix(beta-gate): improve form layout and UX |
 | `c51b6f4` | feat(landing): optimize B2B copywriting + update pricing free tier to 1-2 biens |
-| `46735c9` | feat(addresses): update address handling and UI components for centralized structure |
-| `b70f373` | feat(interventions): add dedicated Localisation tab + fix tenant dashboard |
 
 ## Files Recently Modified
-### 2026-01-31 21:15:49 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/auto-memory/last-sync`
+### 2026-01-31 22:45:00 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/lib/auth-dal.ts`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/lib/services/core/supabase-client.ts`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/hooks/use-auth.tsx`

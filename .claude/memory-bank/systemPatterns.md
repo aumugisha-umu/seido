@@ -1087,7 +1087,68 @@ const effectiveTeamId = propTeamId || team?.id
 
 > Voir `use-global-notifications.ts` pour exemple de ce pattern.
 
+### 21. Auth API Optimization Pattern (NOUVEAU 2026-01-31)
+
+Pattern critique pour éviter les appels API d'authentification excessifs :
+
+```
++-------------------------------------------------------------+
+| ARCHITECTURE AUTH OPTIMISÉE                                  |
++-------------------------------------------------------------+
+|                                                             |
+| MIDDLEWARE (1 appel réseau)    PAGES/LAYOUTS (0 appel)      |
+| ┌─────────────────────────┐    ┌────────────────────────┐   |
+| │ supabase.auth.getUser() │    │ supabase.auth.         │   |
+| │ → Valide token serveur  │    │ getSession()           │   |
+| │ → 1 appel réseau        │    │ → Lit JWT cookie       │   |
+| └─────────────────────────┘    │ → 0 appel réseau       │   |
+|                                └────────────────────────┘   |
++-------------------------------------------------------------+
+```
+
+**Règle critique :**
+- `getUser()` = appel réseau vers Supabase Auth API (à éviter dans les pages)
+- `getSession()` = lecture locale du JWT depuis les cookies (recommandé)
+
+**Pattern correct (lib/auth-dal.ts) :**
+
+```typescript
+// ✅ CORRECT - Pages/Layouts utilisent getSession() (local)
+export const getUser = cache(async () => {
+  const supabase = await createServerSupabaseClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  return session?.user ?? null  // Pas d'appel réseau!
+})
+
+// ❌ INTERDIT dans les pages - Uniquement dans middleware
+const { data: { user } } = await supabase.auth.getUser()
+```
+
+**Pattern cache() sur client Supabase :**
+
+```typescript
+// ✅ CORRECT - Cache le client par requête
+export const createServerSupabaseClient = cache(async () => {
+  // ... création client
+})
+
+// ❌ INTERDIT - Crée un nouveau client à chaque appel
+export async function createServerSupabaseClient() {
+  // Chaque appel = nouvelle instance = potentiel double auth
+}
+```
+
+**Fichiers clés :**
+- `lib/auth-dal.ts` - DAL centralisé (getUser, getSession cachés)
+- `lib/services/core/supabase-client.ts` - Client avec cache()
+- `middleware.ts:230` - Seul endroit avec getUser() réseau
+- `hooks/use-auth.tsx` - AuthProvider client avec flag anti-duplicate
+
+**Résultat mesuré :**
+- **Avant**: 250+ appels `/auth/v1/user` en 10 minutes
+- **Après**: 1 appel par navigation
+
 ---
-*Derniere mise a jour: 2026-01-31 14:00*
-*Analyse approfondie: Migration Auth COMPLETE - tous fichiers documentes*
+*Derniere mise a jour: 2026-01-31 22:45*
+*Analyse approfondie: Migration Auth COMPLETE + Optimization API calls*
 *References: lib/services/README.md, lib/server-context.ts, lib/api-auth-helper.ts, .claude/CLAUDE.md*

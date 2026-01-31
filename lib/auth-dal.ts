@@ -18,57 +18,49 @@ import { logger } from '@/lib/logger'
 /** Nom du cookie pour persister le choix d'équipe courante */
 export const CURRENT_TEAM_COOKIE = 'seido_current_team'
 /**
- * ✅ PATTERN 2025: getUser() avec cache React et retry logic
+ * ✅ PATTERN 2025 OPTIMISÉ: getUser() avec cache React
  * Fonction centrale pour toute vérification auth server-side
  * Cache automatique pendant le cycle de rendu
+ *
+ * ⚠️ FIX (Jan 2026): ZERO NETWORK CALL OPTIMIZATION
+ * Le middleware fait déjà `supabase.auth.getUser()` qui valide le token côté serveur.
+ * Dans les pages/layouts, on peut utiliser `getSession()` qui lit le cookie JWT
+ * SANS faire d'appel réseau (le token est déjà validé par le middleware).
+ *
+ * Cette optimisation réduit les appels auth de 2 à 1 par navigation.
  */
 export const getUser = cache(async () => {
   const supabase = await createServerSupabaseClient()
 
-  // ✅ NOUVEAU: Retry logic pour éviter les race conditions après login
-  let retryCount = 0
-  const maxRetries = 3
+  try {
+    // ✅ OPTIMISATION: Utiliser getSession() au lieu de getUser()
+    // getSession() lit le JWT depuis les cookies SANS appel réseau
+    // Le middleware a DÉJÀ validé le token avec getUser()
+    // Donc on peut faire confiance au JWT pour les pages
+    const { data: { session }, error } = await supabase.auth.getSession()
 
-  while (retryCount <= maxRetries) {
-    try {
-      // ✅ SÉCURITÉ: getUser() recommandé vs getSession()
-      const { data: { user }, error } = await supabase.auth.getUser()
-
-      if (error) {
-        if (retryCount === maxRetries) {
-          return null
-        }
-        retryCount++
-        await new Promise(resolve => setTimeout(resolve, 100))
-        continue
+    if (error) {
+      if (process.env.NODE_ENV === 'development') {
+        logger.warn('⚠️ [AUTH-DAL] getSession error:', error.message)
       }
-
-      if (!user) {
-        if (retryCount === maxRetries) {
-          return null
-        }
-        retryCount++
-        await new Promise(resolve => setTimeout(resolve, 100))
-        continue
-      }
-
-      return user
-    } catch (error) {
-      if (retryCount === maxRetries) {
-        logger.error('❌ [AUTH-DAL] Exception in getUser after retries:', error)
-        return null
-      }
-      retryCount++
-      await new Promise(resolve => setTimeout(resolve, 100))
+      return null
     }
-  }
 
-  return null
+    // Retourner l'user depuis la session (pas d'appel réseau)
+    return session?.user ?? null
+  } catch (error) {
+    logger.error('❌ [AUTH-DAL] Exception in getUser:', error)
+    return null
+  }
 })
 
 /**
  * ✅ PATTERN 2025: getSession() avec validation
  * Pour les cas où on a besoin de la session complète
+ *
+ * ⚠️ FIX (Jan 2026): Removed double validation (getSession + getUser) that was
+ * causing 2x auth API calls. The session from getSession() is already validated
+ * by Supabase middleware. If you need user verification, use getUser() directly.
  */
 export const getSession = cache(async () => {
   const supabase = await createServerSupabaseClient()
@@ -80,14 +72,7 @@ export const getSession = cache(async () => {
       return null
     }
 
-    // ✅ DOUBLE VALIDATION: Vérifier que l'utilisateur existe vraiment
-    if (session?.user) {
-      const { data: { user }, error: userError } = await supabase.auth.getUser()
-      if (userError || !user) {
-        return null
-      }
-    }
-
+    // ✅ Session is already validated by middleware - no need for double call
     return session
   } catch (error) {
     logger.error('❌ [AUTH-DAL] Exception in getSession:', error)
@@ -300,16 +285,17 @@ export type AuthState = {
 /**
  * ✅ UTILITAIRE: Helper pour Server Components
  * Récupère l'état auth complet de manière optimisée
+ *
+ * ⚠️ FIX (Jan 2026): Now uses only getUser() instead of parallel getUser + getSession.
+ * This avoids redundant auth API calls. Session is rarely needed; use getSession()
+ * separately only when you actually need the full session object.
  */
 export async function getAuthState(): Promise<AuthState> {
-  const [user, session] = await Promise.all([
-    getUser(),
-    getSession()
-  ])
+  const user = await getUser()
 
   return {
     isAuthenticated: !!user,
     user,
-    session
+    session: null // ✅ Lazy load: call getSession() only when actually needed
   }
 }

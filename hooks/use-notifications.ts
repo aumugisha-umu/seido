@@ -50,7 +50,7 @@ interface UseNotificationsReturn {
 }
 
 export const useNotifications = (options: UseNotificationsOptions = {}): UseNotificationsReturn => {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -66,17 +66,10 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
   } = options
 
   const fetchNotifications = async () => {
-    logger.info('🔍 [USE-NOTIFICATIONS] fetchNotifications called with:', {
-      userId: user?.id,
-      teamId,
-      scope,
-      read,
-      type,
-      limit
-    })
-    
+    // Attendre que l'auth soit prête avant de fetch
+    if (authLoading) return
+
     if (!user?.id || !teamId) {
-      logger.info('❌ [USE-NOTIFICATIONS] Missing user ID or team ID, skipping fetch')
       setLoading(false)
       return
     }
@@ -100,26 +93,15 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
       if (type) params.append('type', type)
 
       const url = `/api/notifications?${params}`
-      logger.info('📡 [USE-NOTIFICATIONS] Fetching from:', url)
-      
       const response = await fetch(url)
-      
-      logger.info('📡 [USE-NOTIFICATIONS] Response status:', response.status)
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
-        logger.info('❌ [USE-NOTIFICATIONS] Error response:', errorData)
         throw new Error(`Failed to fetch notifications: ${errorData.details || response.statusText}`)
       }
 
       const result = await response.json()
-      
-      logger.info('📬 [USE-NOTIFICATIONS] API result:', {
-        success: result.success,
-        dataLength: result.data?.length || 0,
-        data: result.data
-      })
-      
+
       if (result.success) {
         setNotifications(result.data || [])
       } else {
@@ -205,18 +187,18 @@ export const useNotifications = (options: UseNotificationsOptions = {}): UseNoti
     }
   }
 
-  // Fetch initial data
+  // Fetch initial data (authLoading dependency ensures re-fetch when auth completes)
   useEffect(() => {
     fetchNotifications()
-  }, [user?.id, teamId, read, type, limit])
+  }, [user?.id, teamId, read, type, limit, authLoading, scope])
 
   // Auto-refresh
   useEffect(() => {
-    if (!autoRefresh) return
+    if (!autoRefresh || authLoading) return
 
     const interval = setInterval(fetchNotifications, refreshInterval)
     return () => clearInterval(interval)
-  }, [autoRefresh, refreshInterval, user?.id, teamId, read, type, limit])
+  }, [autoRefresh, refreshInterval, user?.id, teamId, read, type, limit, authLoading, scope])
 
   // Calculate unread count
   const unreadCount = notifications.filter(n => !n.read).length

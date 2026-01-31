@@ -360,8 +360,8 @@ export default function LotEditClient({
                 </p>
                 <div className="space-y-1 text-sm text-blue-800">
                   <p><strong>Nom :</strong> {building.name}</p>
-                  {building.address && <p><strong>Adresse :</strong> {building.address}</p>}
-                  {building.city && <p><strong>Ville :</strong> {building.city}</p>}
+                  {building.address_record?.street && <p><strong>Adresse :</strong> {building.address_record.street}</p>}
+                  {building.address_record?.city && <p><strong>Ville :</strong> {building.address_record.city}</p>}
                 </div>
                 <p className="text-xs text-blue-700 mt-3">
                   ℹ️ L'association à un immeuble ne peut pas être modifiée en mode édition.

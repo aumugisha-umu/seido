@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
           description,
           status,
           team_id,
-          lot:lot_id(id, reference, building:building_id(name, address))
+          lot:lot_id(id, reference, building:building_id(name, address_record:address_id(*)))
         ),
         provider:provider_id(id, name, email, phone, provider_category)
       `)

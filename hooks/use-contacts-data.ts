@@ -66,14 +66,8 @@ export function useContactsData() {
       setError(null)
       logger.info("🔄 [CONTACTS-DATA] Fetching contacts data for:", userId, bypassCache ? "(bypassing cache)" : "")
 
-      // Initialiser le client Supabase et s'assurer que la session est prête (post idle)
-      const supabase = createBrowserSupabaseClient()
-      try {
-        const { data: sessionRes, error: sessionErr } = await supabase.auth.getSession()
-        if (sessionErr || !sessionRes?.session) {
-          await supabase.auth.refreshSession()
-        }
-      } catch {}
+      // ✅ Session gérée par AuthProvider + use-session-keepalive.ts
+      // Pas besoin de vérification défensive ici
 
       // 1. Récupérer l'équipe de l'utilisateur avec gestion d'erreur robuste
       let userTeams = []
@@ -113,6 +107,9 @@ export function useContactsData() {
 
       // ⚡ OPTIMISATION: Charger les 2 queries EN PARALLÈLE (API redondante supprimée)
       logger.info("🏃 [CONTACTS-DATA] Loading team members and ALL invitations IN PARALLEL...")
+
+      // ✅ Créer le client Supabase pour les requêtes directes
+      const supabase = createBrowserSupabaseClient()
 
       const [membersResult, invitationsResult] = await Promise.allSettled([
         // Query 1: Team members

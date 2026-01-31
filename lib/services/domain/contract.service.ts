@@ -49,6 +49,48 @@ interface ContractServiceDependencies {
 }
 
 // ============================================================================
+// DATE HELPERS
+// ============================================================================
+
+/**
+ * Parse une chaîne de date ISO (YYYY-MM-DD) en Date locale.
+ * Évite le bug de timezone où new Date("2026-01-01") devient 31 déc en UTC+1.
+ */
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+/**
+ * Formate une Date en chaîne ISO (YYYY-MM-DD) sans conversion timezone.
+ */
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * Calcule la date de fin du contrat (dernier jour inclus).
+ *
+ * Logique métier: un bail d'1 an commençant le 1er janvier se termine
+ * le 31 décembre (dernier jour du bail), pas le 1er janvier suivant.
+ *
+ * Formule: start_date + N mois - 1 jour
+ * Exemple: 01/01/2026 + 12 mois - 1 jour = 31/12/2026
+ *
+ * Correspond à la formule PostgreSQL:
+ * start_date + make_interval(months => duration_months) - interval '1 day'
+ */
+function calculateContractEndDate(startDate: string, durationMonths: number): Date {
+  const date = parseLocalDate(startDate)
+  date.setMonth(date.getMonth() + durationMonths)
+  date.setDate(date.getDate() - 1) // Dernier jour du bail
+  return date
+}
+
+// ============================================================================
 // CONTRACT SERVICE
 // ============================================================================
 
@@ -80,12 +122,11 @@ export class ContractService {
     const today = new Date()
     today.setHours(0, 0, 0, 0) // Normaliser à minuit
 
-    const start = new Date(startDate)
+    const start = parseLocalDate(startDate)
     start.setHours(0, 0, 0, 0)
 
-    // Calculer end_date (start + duration_months)
-    const end = new Date(start)
-    end.setMonth(end.getMonth() + durationMonths)
+    // Calculer end_date (dernier jour du bail)
+    const end = calculateContractEndDate(startDate, durationMonths)
     end.setHours(0, 0, 0, 0)
 
     if (end < today) {
@@ -377,7 +418,8 @@ export class ContractService {
     const oldContract = existing.data
 
     // Calculate new start date (day after old end date)
-    const oldEndDate = new Date(oldContract.end_date)
+    // Note: end_date est le dernier jour du bail, donc +1 jour = premier jour du nouveau bail
+    const oldEndDate = parseLocalDate(oldContract.end_date)
     const newStartDate = new Date(oldEndDate)
     newStartDate.setDate(newStartDate.getDate() + 1)
 
@@ -388,7 +430,7 @@ export class ContractService {
       created_by: newData.created_by || oldContract.created_by,
       title: newData.title || `${oldContract.title} (Renouvelé)`,
       contract_type: newData.contract_type || oldContract.contract_type,
-      start_date: newData.start_date || newStartDate.toISOString().split('T')[0],
+      start_date: newData.start_date || formatLocalDate(newStartDate),
       duration_months: newData.duration_months || oldContract.duration_months,
       payment_frequency: newData.payment_frequency || oldContract.payment_frequency,
       payment_frequency_value: newData.payment_frequency_value || oldContract.payment_frequency_value,
@@ -975,7 +1017,7 @@ export class ContractService {
    * Calculate days remaining until contract expiry
    */
   calculateDaysRemaining(endDate: string): number {
-    const end = new Date(endDate)
+    const end = parseLocalDate(endDate)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     end.setHours(0, 0, 0, 0)
@@ -1006,7 +1048,17 @@ export class ContractService {
    * Validate contract dates
    */
   private validateDates(startDate: string, durationMonths: number): void {
-    const start = new Date(startDate)
+    // Valider le format et la validité de la date
+    const parts = startDate.split('-')
+    if (parts.length !== 3) {
+      throw new ValidationException(
+        'La date de début est invalide',
+        'start_date',
+        startDate
+      )
+    }
+
+    const start = parseLocalDate(startDate)
     if (isNaN(start.getTime())) {
       throw new ValidationException(
         'La date de début est invalide',
@@ -1025,17 +1077,21 @@ export class ContractService {
   }
 
   /**
-   * Calcule la date de fin à partir de la date de début et durée en mois.
-   * Reproduit le calcul PostgreSQL: start_date + make_interval(months => duration_months)
+   * Calcule la date de fin du contrat (dernier jour inclus).
+   *
+   * Logique métier: un bail d'1 an commençant le 1er janvier se termine
+   * le 31 décembre (dernier jour du bail), pas le 1er janvier suivant.
+   *
+   * Correspond à la formule PostgreSQL:
+   * start_date + make_interval(months => duration_months) - interval '1 day'
    *
    * @param startDate - Date de début (format YYYY-MM-DD)
    * @param durationMonths - Durée en mois
    * @returns Date de fin au format YYYY-MM-DD
    */
   private calculateEndDate(startDate: string, durationMonths: number): string {
-    const start = new Date(startDate)
-    start.setMonth(start.getMonth() + durationMonths)
-    return start.toISOString().split('T')[0]
+    const endDate = calculateContractEndDate(startDate, durationMonths)
+    return formatLocalDate(endDate)
   }
 
   /**

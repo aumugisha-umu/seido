@@ -64,41 +64,96 @@ export async function POST(request: Request) {
     }, '✅ [STEP-1] Found invitation:')
 
     // ============================================================================
-    // ÉTAPE 2: Générer un nouveau lien d'invitation officiel Supabase
+    // ÉTAPE 1.5: MULTI-ÉQUIPE - Vérifier si c'est un utilisateur existant
     // ============================================================================
-    logger.info({}, '🔗 [STEP-2] Generating official Supabase invitation link...')
+    logger.info({ email: invitation.email }, '🔍 [STEP-1.5] Checking if user has existing auth account...')
 
-    const { data: inviteLink, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
-      type: 'invite', // ✅ CHANGEMENT: 'invite' au lieu de 'magiclink' pour régénérer une invitation complète
-      email: invitation.email,
-      options: {
-        redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
-        data: {
-          // ✅ Métadonnées complètes pour l'auth user (comme invitation originale)
-          full_name: `${invitation.first_name} ${invitation.last_name}`,
-          first_name: invitation.first_name,
-          last_name: invitation.last_name,
-          display_name: `${invitation.first_name} ${invitation.last_name}`,
-          role: invitation.role,
-          provider_category: invitation.provider_category,
-          team_id: invitation.team_id,
-          password_set: false // ✅ CRITIQUE: Indique que l'utilisateur doit définir son mot de passe
+    // ✅ OPTIMISATION (Jan 2026): Requête indexée sur public.users au lieu de listUsers()
+    // Un utilisateur "existant" = a un auth_user_id lié (a déjà créé un compte sur une autre équipe)
+    const { data: existingUserWithAuth } = await supabaseAdmin
+      .from('users')
+      .select('id, auth_user_id')
+      .eq('email', invitation.email)
+      .not('auth_user_id', 'is', null)
+      .is('deleted_at', null)
+      .limit(1)
+      .maybeSingle()
+
+    const isExistingUser = !!existingUserWithAuth?.auth_user_id
+    const existingAuthUserId = existingUserWithAuth?.auth_user_id || null
+
+    logger.info({
+      hasAuthUser: isExistingUser,
+      existingAuthUserId
+    }, '✅ [STEP-1.5] Auth user check completed (optimized query)')
+
+    // ============================================================================
+    // ÉTAPE 2: Générer le lien approprié selon le type d'utilisateur
+    // ============================================================================
+    let hashedToken: string
+    let magicLink: string
+
+    if (isExistingUser) {
+      // ✅ MULTI-ÉQUIPE: Utilisateur existant = magic link (pas de création de compte)
+      logger.info({}, '🔗 [STEP-2A] Generating magic link for existing user...')
+
+      const { data: linkData, error: linkError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'magiclink',
+        email: invitation.email,
+        options: {
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?team_id=${invitation.team_id}`
         }
+      })
+
+      if (linkError || !linkData?.properties?.hashed_token) {
+        logger.error({ linkError }, '❌ [STEP-2A] Failed to generate magic link:')
+        return NextResponse.json(
+          { error: 'Échec de la génération du lien: ' + (linkError?.message || 'Unknown error') },
+          { status: 500 }
+        )
       }
-    })
 
-    if (inviteError || !inviteLink?.properties?.action_link) {
-      logger.error({ inviteError: inviteError }, '❌ [STEP-2] Failed to generate invitation link:')
-      return NextResponse.json(
-        { error: 'Échec de la génération du lien d\'invitation: ' + (inviteError?.message || 'Unknown error') },
-        { status: 500 }
-      )
+      hashedToken = linkData.properties.hashed_token
+      // ✅ Ajouter team_id pour acceptation auto de l'invitation
+      // ✅ BUGFIX: Utiliser type=magiclink pour matcher le token généré avec type: 'magiclink'
+      magicLink = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=magiclink&team_id=${invitation.team_id}`
+      logger.info({ magicLink: magicLink.substring(0, 80) + '...' }, '✅ [STEP-2A] Magic link generated for existing user')
+
+    } else {
+      // Nouvel utilisateur = lien d'invitation complet (création de compte)
+      logger.info({}, '🔗 [STEP-2B] Generating invitation link for new user...')
+
+      const { data: inviteLink, error: inviteError } = await supabaseAdmin.auth.admin.generateLink({
+        type: 'invite',
+        email: invitation.email,
+        options: {
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+          data: {
+            // Métadonnées complètes pour l'auth user
+            full_name: `${invitation.first_name} ${invitation.last_name}`,
+            first_name: invitation.first_name,
+            last_name: invitation.last_name,
+            display_name: `${invitation.first_name} ${invitation.last_name}`,
+            role: invitation.role,
+            provider_category: invitation.provider_category,
+            team_id: invitation.team_id,
+            password_set: false
+          }
+        }
+      })
+
+      if (inviteError || !inviteLink?.properties?.hashed_token) {
+        logger.error({ inviteError }, '❌ [STEP-2B] Failed to generate invitation link:')
+        return NextResponse.json(
+          { error: 'Échec de la génération du lien d\'invitation: ' + (inviteError?.message || 'Unknown error') },
+          { status: 500 }
+        )
+      }
+
+      hashedToken = inviteLink.properties.hashed_token
+      magicLink = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
+      logger.info({ magicLink: magicLink.substring(0, 80) + '...' }, '✅ [STEP-2B] Invitation link generated for new user')
     }
-
-    const hashedToken = inviteLink.properties.hashed_token
-    // ✅ Construire l'URL avec notre domaine (pas celui de Supabase dashboard)
-    const magicLink = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
-    logger.info({ magicLink: magicLink.substring(0, 100) + '...' }, '✅ [STEP-2] Invitation link generated')
 
     // ============================================================================
     // ÉTAPE 3: Mettre à jour le token dans user_invitations
@@ -123,24 +178,47 @@ export async function POST(request: Request) {
     }
 
     // ============================================================================
-    // ÉTAPE 4: Envoyer l'email avec le template officiel
+    // ÉTAPE 4: Récupérer le nom d'équipe et envoyer l'email
     // ============================================================================
-    logger.info({}, '📨 [STEP-4] Sending invitation email via Resend...')
+    logger.info({ isExistingUser }, '📨 [STEP-4] Fetching team name and sending email...')
 
-    const emailResult = await emailService.sendInvitationEmail(invitation.email, {
-      firstName: invitation.first_name,
-      inviterName: `${currentUserProfile.first_name || currentUserProfile.name || 'Un membre'}`,
-      teamName: invitation.team_id,
-      role: invitation.role,
-      invitationUrl: magicLink, // ✅ Lien officiel Supabase
-      expiresIn: 7,
-    })
+    // ✅ FIX (Jan 2026): Récupérer le vrai nom d'équipe au lieu de passer l'UUID
+    const { data: teamData } = await supabaseAdmin
+      .from('teams')
+      .select('name')
+      .eq('id', invitation.team_id)
+      .single()
+    const teamName = teamData?.name || 'votre équipe'
+
+    let emailResult
+    if (isExistingUser) {
+      // ✅ MULTI-ÉQUIPE: Utilisateur existant = email avec magic link
+      emailResult = await emailService.sendTeamAdditionEmail(invitation.email, {
+        firstName: invitation.first_name,
+        inviterName: `${currentUserProfile.first_name || currentUserProfile.name || 'Un membre'}`,
+        teamName,
+        role: invitation.role,
+        magicLinkUrl: magicLink  // ✅ Magic link pour connexion auto + acceptation invitation
+      })
+      logger.info({ teamName }, '📧 [STEP-4] Using team addition email template')
+    } else {
+      // Nouvel utilisateur = email d'invitation classique
+      emailResult = await emailService.sendInvitationEmail(invitation.email, {
+        firstName: invitation.first_name,
+        inviterName: `${currentUserProfile.first_name || currentUserProfile.name || 'Un membre'}`,
+        teamName,
+        role: invitation.role,
+        invitationUrl: magicLink,
+        expiresIn: 7,
+      })
+      logger.info({ teamName }, '📧 [STEP-4] Using invitation email template')
+    }
 
     if (!emailResult.success) {
       logger.warn({ emailResult: emailResult.error }, '⚠️ [STEP-4] Failed to send email via Resend:')
       // Non bloquant - on retourne quand même le lien
     } else {
-      logger.info({ emailResult: emailResult.emailId }, '✅ [STEP-4] Invitation email sent successfully via Resend:')
+      logger.info({ emailResult: emailResult.emailId }, '✅ [STEP-4] Email sent successfully via Resend:')
     }
 
     // ============================================================================

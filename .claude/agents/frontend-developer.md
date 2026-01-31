@@ -141,6 +141,29 @@ npx tsc --noEmit [file]  # TS validation (PREFERRED)
 npm run supabase:types   # Regenerate DB types
 ```
 
+## Skills Integration
+
+| Situation | Skill |
+|-----------|-------|
+| Nouveau composant/feature | `sp-brainstorming` |
+| Bug UI | `sp-systematic-debugging` |
+| Implementation | `sp-test-driven-development` |
+| Fin implementation | `sp-verification-before-completion` |
+
+### Workflow Frontend
+
+```
+[Nouveau composant] → sp-brainstorming (persona, shadcn/ui check)
+    ↓
+sp-test-driven-development → Tests composant
+    ↓
+[Implementation]
+    ↓
+sp-verification-before-completion → A11y, mobile, coverage
+```
+
+---
+
 ## Integration Agents
 
 - **ui-designer**: Receive component designs

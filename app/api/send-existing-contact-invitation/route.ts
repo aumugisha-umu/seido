@@ -106,8 +106,19 @@ export async function POST(request: Request) {
     // ============================================================================
     logger.info({ email: contact.email }, '🔍 Checking if auth user exists (multi-team support)')
 
-    const { data: authUsersData } = await supabaseAdmin.auth.admin.listUsers()
-    const existingAuthUser = authUsersData?.users?.find(u => u.email === contact.email)
+    // ✅ OPTIMISATION (Jan 2026): Requête indexée sur public.users au lieu de listUsers()
+    const { data: existingUserWithAuth } = await supabaseAdmin
+      .from('users')
+      .select('id, auth_user_id')
+      .eq('email', contact.email)
+      .not('auth_user_id', 'is', null)
+      .is('deleted_at', null)
+      .limit(1)
+      .maybeSingle()
+
+    const existingAuthUser = existingUserWithAuth?.auth_user_id
+      ? { id: existingUserWithAuth.auth_user_id }
+      : null
 
     let authUserId: string
     let invitationUrl: string
@@ -125,7 +136,7 @@ export async function POST(request: Request) {
         type: 'invite',
         email: contact.email,
         options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
           data: {
             full_name: contact.name,
             first_name: contact.first_name,
@@ -166,7 +177,7 @@ export async function POST(request: Request) {
         type: 'magiclink',
         email: contact.email,
         options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?team_id=${contact.team_id}`
+          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback?team_id=${contact.team_id}`
         }
       })
 
@@ -179,8 +190,9 @@ export async function POST(request: Request) {
       }
 
       hashedToken = magicLink.properties.hashed_token
-      // ✅ Construire l'URL avec notre domaine (pas celui de Supabase dashboard)
-      invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=invite`
+      // ✅ Construire l'URL avec notre domaine + team_id pour acceptation auto
+      // ✅ BUGFIX: Utiliser type=magiclink pour matcher le token généré avec type: 'magiclink'
+      invitationUrl = `${EMAIL_CONFIG.appUrl}/auth/confirm?token_hash=${hashedToken}&type=magiclink&team_id=${contact.team_id}`
 
       logger.info({}, '✅ Magic link generated for existing auth user')
     }
@@ -239,9 +251,17 @@ export async function POST(request: Request) {
     }
 
     // ============================================================================
-    // ÉTAPE 7: SEND EMAIL
+    // ÉTAPE 7: FETCH TEAM NAME AND SEND EMAIL
     // ============================================================================
-    logger.info({}, '📨 Sending email')
+    logger.info({}, '📨 Fetching team name and sending email')
+
+    // ✅ FIX (Jan 2026): Récupérer le vrai nom d'équipe au lieu de passer l'UUID
+    const { data: teamData } = await supabaseAdmin
+      .from('teams')
+      .select('name')
+      .eq('id', contact.team_id)
+      .single()
+    const teamName = teamData?.name || 'votre équipe'
 
     try {
       if (isNewAuthUser) {
@@ -249,25 +269,23 @@ export async function POST(request: Request) {
         await emailService.sendInvitationEmail(contact.email, {
           firstName: contact.first_name,
           inviterName: currentUser.first_name || currentUser.name || 'Un membre',
-          teamName: contact.team_id,
+          teamName,
           role: contact.role,
           invitationUrl,
           expiresIn: 7
         })
-        logger.info({}, '✅ Invitation email sent')
+        logger.info({ teamName }, '✅ Invitation email sent (new user)')
       } else {
-        // Email: "Vous avez été ajouté à une nouvelle équipe"
-        // TODO: Créer template sendTeamAdditionEmail
-        // Pour l'instant, on envoie l'invitation standard
-        await emailService.sendInvitationEmail(contact.email, {
+        // ✅ MULTI-ÉQUIPE: Email différencié pour utilisateur existant
+        // Email: "Vous avez été ajouté à une nouvelle équipe" + magic link
+        await emailService.sendTeamAdditionEmail(contact.email, {
           firstName: contact.first_name,
           inviterName: currentUser.first_name || currentUser.name || 'Un membre',
-          teamName: contact.team_id,
+          teamName,
           role: contact.role,
-          invitationUrl,
-          expiresIn: 7
+          magicLinkUrl: invitationUrl  // Magic link pour connexion auto + acceptation
         })
-        logger.info({}, '✅ Team addition email sent (using invitation template)')
+        logger.info({ teamName }, '✅ Team addition email sent (existing user)')
       }
     } catch (emailError) {
       logger.warn({ emailError }, '⚠️ Failed to send email (non-blocking)')

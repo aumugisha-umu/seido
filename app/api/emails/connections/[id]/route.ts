@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { getApiAuthContext } from '@/lib/api-auth-helper';
 
 export async function DELETE(
     request: Request,
@@ -7,13 +7,13 @@ export async function DELETE(
 ) {
     try {
         const { id } = await params;
-        const supabase = await createSupabaseServerClient();
+        const authContext = await getApiAuthContext();
 
-        // Check authentication
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
+        if (!authContext) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        const { supabase } = authContext;
 
         // Récupérer le paramètre deleteEmails du body
         let deleteEmails = false;

@@ -101,6 +101,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "activity_logs_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "activity_logs_lot_id_fkey"
             columns: ["lot_id"]
             isOneToOne: false
@@ -133,6 +140,72 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      addresses: {
+        Row: {
+          city: string
+          country: Database["public"]["Enums"]["country"]
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          formatted_address: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          place_id: string | null
+          postal_code: string
+          street: string
+          team_id: string
+          updated_at: string
+        }
+        Insert: {
+          city: string
+          country?: Database["public"]["Enums"]["country"]
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          formatted_address?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          place_id?: string | null
+          postal_code: string
+          street: string
+          team_id: string
+          updated_at?: string
+        }
+        Update: {
+          city?: string
+          country?: Database["public"]["Enums"]["country"]
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          formatted_address?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          place_id?: string | null
+          postal_code?: string
+          street?: string
+          team_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "addresses_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "addresses_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
             referencedColumns: ["id"]
           },
         ]
@@ -205,9 +278,7 @@ export type Database = {
       buildings: {
         Row: {
           active_interventions: number | null
-          address: string
-          city: string
-          country: Database["public"]["Enums"]["country"]
+          address_id: string | null
           created_at: string
           deleted_at: string | null
           deleted_by: string | null
@@ -216,7 +287,6 @@ export type Database = {
           metadata: Json | null
           name: string
           occupied_lots: number | null
-          postal_code: string
           team_id: string
           total_interventions: number | null
           total_lots: number | null
@@ -225,9 +295,7 @@ export type Database = {
         }
         Insert: {
           active_interventions?: number | null
-          address: string
-          city: string
-          country?: Database["public"]["Enums"]["country"]
+          address_id?: string | null
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
@@ -236,7 +304,6 @@ export type Database = {
           metadata?: Json | null
           name: string
           occupied_lots?: number | null
-          postal_code: string
           team_id: string
           total_interventions?: number | null
           total_lots?: number | null
@@ -245,9 +312,7 @@ export type Database = {
         }
         Update: {
           active_interventions?: number | null
-          address?: string
-          city?: string
-          country?: Database["public"]["Enums"]["country"]
+          address_id?: string | null
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
@@ -256,7 +321,6 @@ export type Database = {
           metadata?: Json | null
           name?: string
           occupied_lots?: number | null
-          postal_code?: string
           team_id?: string
           total_interventions?: number | null
           total_lots?: number | null
@@ -264,6 +328,13 @@ export type Database = {
           vacant_lots?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "buildings_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "buildings_deleted_by_fkey"
             columns: ["deleted_by"]
@@ -282,9 +353,7 @@ export type Database = {
       }
       companies: {
         Row: {
-          address: string | null
-          city: string | null
-          country: string | null
+          address_id: string | null
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -296,18 +365,13 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
-          postal_code: string | null
-          street: string | null
-          street_number: string | null
           team_id: string
           updated_at: string | null
           vat_number: string | null
           website: string | null
         }
         Insert: {
-          address?: string | null
-          city?: string | null
-          country?: string | null
+          address_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -319,18 +383,13 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
-          postal_code?: string | null
-          street?: string | null
-          street_number?: string | null
           team_id: string
           updated_at?: string | null
           vat_number?: string | null
           website?: string | null
         }
         Update: {
-          address?: string | null
-          city?: string | null
-          country?: string | null
+          address_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -342,15 +401,19 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
-          postal_code?: string | null
-          street?: string | null
-          street_number?: string | null
           team_id?: string
           updated_at?: string | null
           vat_number?: string | null
           website?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "companies_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "fk_companies_deleted_by"
             columns: ["deleted_by"]
@@ -861,6 +924,7 @@ export type Database = {
           email_id: string | null
           id: string
           intervention_id: string | null
+          last_email_notification_at: string | null
           last_message_at: string | null
           message_count: number | null
           team_id: string
@@ -874,6 +938,7 @@ export type Database = {
           email_id?: string | null
           id?: string
           intervention_id?: string | null
+          last_email_notification_at?: string | null
           last_message_at?: string | null
           message_count?: number | null
           team_id: string
@@ -887,6 +952,7 @@ export type Database = {
           email_id?: string | null
           id?: string
           intervention_id?: string | null
+          last_email_notification_at?: string | null
           last_message_at?: string | null
           message_count?: number | null
           team_id?: string
@@ -914,6 +980,13 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_threads_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -1115,6 +1188,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "email_webhook_logs_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "email_webhook_logs_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -1236,6 +1316,13 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "emails_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -1417,6 +1504,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "intervention_assignments_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "intervention_assignments_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
@@ -1432,6 +1526,7 @@ export type Database = {
           deleted_at: string | null
           id: string
           intervention_id: string
+          is_internal: boolean
           updated_at: string
           user_id: string
         }
@@ -1441,6 +1536,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           intervention_id: string
+          is_internal?: boolean
           updated_at?: string
           user_id: string
         }
@@ -1450,6 +1546,7 @@ export type Database = {
           deleted_at?: string | null
           id?: string
           intervention_id?: string
+          is_internal?: boolean
           updated_at?: string
           user_id?: string
         }
@@ -1459,6 +1556,13 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_comments_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -1553,6 +1657,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "intervention_documents_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "intervention_documents_message_id_fkey"
             columns: ["message_id"]
             isOneToOne: false
@@ -1619,6 +1730,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "intervention_links_child_intervention_id_fkey"
+            columns: ["child_intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "intervention_links_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
@@ -1630,6 +1748,13 @@ export type Database = {
             columns: ["parent_intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_links_parent_intervention_id_fkey"
+            columns: ["parent_intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -1728,6 +1853,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "intervention_quotes_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "intervention_quotes_provider_id_fkey"
             columns: ["provider_id"]
             isOneToOne: false
@@ -1819,6 +1951,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "intervention_reports_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "intervention_reports_team_id_fkey"
             columns: ["team_id"]
             isOneToOne: false
@@ -1907,6 +2046,13 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_time_slots_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
             referencedColumns: ["id"]
           },
           {
@@ -2282,11 +2428,10 @@ export type Database = {
       lots: {
         Row: {
           active_interventions: number | null
+          address_id: string | null
           apartment_number: string | null
           building_id: string | null
           category: Database["public"]["Enums"]["lot_category"]
-          city: string | null
-          country: Database["public"]["Enums"]["country"] | null
           created_at: string
           deleted_at: string | null
           deleted_by: string | null
@@ -2294,20 +2439,17 @@ export type Database = {
           floor: number | null
           id: string
           metadata: Json | null
-          postal_code: string | null
           reference: string
-          street: string | null
           team_id: string
           total_interventions: number | null
           updated_at: string
         }
         Insert: {
           active_interventions?: number | null
+          address_id?: string | null
           apartment_number?: string | null
           building_id?: string | null
           category?: Database["public"]["Enums"]["lot_category"]
-          city?: string | null
-          country?: Database["public"]["Enums"]["country"] | null
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
@@ -2315,20 +2457,17 @@ export type Database = {
           floor?: number | null
           id?: string
           metadata?: Json | null
-          postal_code?: string | null
           reference: string
-          street?: string | null
           team_id: string
           total_interventions?: number | null
           updated_at?: string
         }
         Update: {
           active_interventions?: number | null
+          address_id?: string | null
           apartment_number?: string | null
           building_id?: string | null
           category?: Database["public"]["Enums"]["lot_category"]
-          city?: string | null
-          country?: Database["public"]["Enums"]["country"] | null
           created_at?: string
           deleted_at?: string | null
           deleted_by?: string | null
@@ -2336,14 +2475,19 @@ export type Database = {
           floor?: number | null
           id?: string
           metadata?: Json | null
-          postal_code?: string | null
           reference?: string
-          street?: string | null
           team_id?: string
           total_interventions?: number | null
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "lots_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lots_building_id_fkey"
             columns: ["building_id"]
@@ -3124,6 +3268,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "activity_logs_intervention_id_fkey"
+            columns: ["intervention_id"]
+            isOneToOne: false
+            referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "activity_logs_lot_id_fkey"
             columns: ["lot_id"]
             isOneToOne: false
@@ -3163,9 +3314,7 @@ export type Database = {
       buildings_active: {
         Row: {
           active_interventions: number | null
-          address: string | null
-          city: string | null
-          country: Database["public"]["Enums"]["country"] | null
+          address_id: string | null
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -3174,7 +3323,6 @@ export type Database = {
           metadata: Json | null
           name: string | null
           occupied_lots: number | null
-          postal_code: string | null
           team_id: string | null
           total_interventions: number | null
           total_lots: number | null
@@ -3183,9 +3331,7 @@ export type Database = {
         }
         Insert: {
           active_interventions?: number | null
-          address?: string | null
-          city?: string | null
-          country?: Database["public"]["Enums"]["country"] | null
+          address_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -3194,7 +3340,6 @@ export type Database = {
           metadata?: Json | null
           name?: string | null
           occupied_lots?: number | null
-          postal_code?: string | null
           team_id?: string | null
           total_interventions?: number | null
           total_lots?: number | null
@@ -3203,9 +3348,7 @@ export type Database = {
         }
         Update: {
           active_interventions?: number | null
-          address?: string | null
-          city?: string | null
-          country?: Database["public"]["Enums"]["country"] | null
+          address_id?: string | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -3214,7 +3357,6 @@ export type Database = {
           metadata?: Json | null
           name?: string | null
           occupied_lots?: number | null
-          postal_code?: string | null
           team_id?: string | null
           total_interventions?: number | null
           total_lots?: number | null
@@ -3222,6 +3364,13 @@ export type Database = {
           vacant_lots?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "buildings_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "buildings_deleted_by_fkey"
             columns: ["deleted_by"]
@@ -3241,6 +3390,7 @@ export type Database = {
       contracts_active: {
         Row: {
           charges_amount: number | null
+          charges_type: Database["public"]["Enums"]["charges_type"] | null
           comments: string | null
           contract_type: Database["public"]["Enums"]["contract_type"] | null
           created_at: string | null
@@ -3271,6 +3421,7 @@ export type Database = {
         }
         Insert: {
           charges_amount?: number | null
+          charges_type?: Database["public"]["Enums"]["charges_type"] | null
           comments?: string | null
           contract_type?: Database["public"]["Enums"]["contract_type"] | null
           created_at?: string | null
@@ -3301,6 +3452,7 @@ export type Database = {
         }
         Update: {
           charges_amount?: number | null
+          charges_type?: Database["public"]["Enums"]["charges_type"] | null
           comments?: string | null
           contract_type?: Database["public"]["Enums"]["contract_type"] | null
           created_at?: string | null
@@ -3402,14 +3554,206 @@ export type Database = {
           },
         ]
       }
+      interventions_active: {
+        Row: {
+          assignment_mode: Database["public"]["Enums"]["assignment_mode"] | null
+          building_id: string | null
+          completed_date: string | null
+          contract_id: string | null
+          created_at: string | null
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          description: string | null
+          estimated_cost: number | null
+          final_cost: number | null
+          has_attachments: boolean | null
+          id: string | null
+          is_contested: boolean | null
+          lot_id: string | null
+          metadata: Json | null
+          provider_guidelines: string | null
+          reference: string | null
+          requested_date: string | null
+          requires_participant_confirmation: boolean | null
+          requires_quote: boolean | null
+          scheduled_date: string | null
+          scheduling_method: string | null
+          scheduling_type:
+            | Database["public"]["Enums"]["intervention_scheduling_type"]
+            | null
+          selected_slot_id: string | null
+          specific_location: string | null
+          status: Database["public"]["Enums"]["intervention_status"] | null
+          team_id: string | null
+          title: string | null
+          type: string | null
+          updated_at: string | null
+          urgency: Database["public"]["Enums"]["intervention_urgency"] | null
+        }
+        Insert: {
+          assignment_mode?:
+            | Database["public"]["Enums"]["assignment_mode"]
+            | null
+          building_id?: string | null
+          completed_date?: string | null
+          contract_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          estimated_cost?: number | null
+          final_cost?: number | null
+          has_attachments?: boolean | null
+          id?: string | null
+          is_contested?: boolean | null
+          lot_id?: string | null
+          metadata?: Json | null
+          provider_guidelines?: string | null
+          reference?: string | null
+          requested_date?: string | null
+          requires_participant_confirmation?: boolean | null
+          requires_quote?: boolean | null
+          scheduled_date?: string | null
+          scheduling_method?: string | null
+          scheduling_type?:
+            | Database["public"]["Enums"]["intervention_scheduling_type"]
+            | null
+          selected_slot_id?: string | null
+          specific_location?: string | null
+          status?: Database["public"]["Enums"]["intervention_status"] | null
+          team_id?: string | null
+          title?: string | null
+          type?: string | null
+          updated_at?: string | null
+          urgency?: Database["public"]["Enums"]["intervention_urgency"] | null
+        }
+        Update: {
+          assignment_mode?:
+            | Database["public"]["Enums"]["assignment_mode"]
+            | null
+          building_id?: string | null
+          completed_date?: string | null
+          contract_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          description?: string | null
+          estimated_cost?: number | null
+          final_cost?: number | null
+          has_attachments?: boolean | null
+          id?: string | null
+          is_contested?: boolean | null
+          lot_id?: string | null
+          metadata?: Json | null
+          provider_guidelines?: string | null
+          reference?: string | null
+          requested_date?: string | null
+          requires_participant_confirmation?: boolean | null
+          requires_quote?: boolean | null
+          scheduled_date?: string | null
+          scheduling_method?: string | null
+          scheduling_type?:
+            | Database["public"]["Enums"]["intervention_scheduling_type"]
+            | null
+          selected_slot_id?: string | null
+          specific_location?: string | null
+          status?: Database["public"]["Enums"]["intervention_status"] | null
+          team_id?: string | null
+          title?: string | null
+          type?: string | null
+          updated_at?: string | null
+          urgency?: Database["public"]["Enums"]["intervention_urgency"] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interventions_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_building_id_fkey"
+            columns: ["building_id"]
+            isOneToOne: false
+            referencedRelation: "buildings_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_deleted_by_fkey"
+            columns: ["deleted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "lots_with_contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_selected_slot_id_fkey"
+            columns: ["selected_slot_id"]
+            isOneToOne: false
+            referencedRelation: "intervention_time_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lots_active: {
         Row: {
           active_interventions: number | null
+          address_id: string | null
           apartment_number: string | null
           building_id: string | null
           category: Database["public"]["Enums"]["lot_category"] | null
-          city: string | null
-          country: Database["public"]["Enums"]["country"] | null
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -3417,20 +3761,17 @@ export type Database = {
           floor: number | null
           id: string | null
           metadata: Json | null
-          postal_code: string | null
           reference: string | null
-          street: string | null
           team_id: string | null
           total_interventions: number | null
           updated_at: string | null
         }
         Insert: {
           active_interventions?: number | null
+          address_id?: string | null
           apartment_number?: string | null
           building_id?: string | null
           category?: Database["public"]["Enums"]["lot_category"] | null
-          city?: string | null
-          country?: Database["public"]["Enums"]["country"] | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -3438,20 +3779,17 @@ export type Database = {
           floor?: number | null
           id?: string | null
           metadata?: Json | null
-          postal_code?: string | null
           reference?: string | null
-          street?: string | null
           team_id?: string | null
           total_interventions?: number | null
           updated_at?: string | null
         }
         Update: {
           active_interventions?: number | null
+          address_id?: string | null
           apartment_number?: string | null
           building_id?: string | null
           category?: Database["public"]["Enums"]["lot_category"] | null
-          city?: string | null
-          country?: Database["public"]["Enums"]["country"] | null
           created_at?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
@@ -3459,14 +3797,19 @@ export type Database = {
           floor?: number | null
           id?: string | null
           metadata?: Json | null
-          postal_code?: string | null
           reference?: string | null
-          street?: string | null
           team_id?: string | null
           total_interventions?: number | null
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "lots_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lots_building_id_fkey"
             columns: ["building_id"]
@@ -3504,11 +3847,10 @@ export type Database = {
           active_managers_count: number | null
           active_providers_count: number | null
           active_tenants_count: number | null
+          address_id: string | null
           apartment_number: string | null
           building_id: string | null
           category: Database["public"]["Enums"]["lot_category"] | null
-          city: string | null
-          country: Database["public"]["Enums"]["country"] | null
           created_at: string | null
           deleted_at: string | null
           deleted_by: string | null
@@ -3516,17 +3858,22 @@ export type Database = {
           floor: number | null
           id: string | null
           metadata: Json | null
-          postal_code: string | null
           primary_tenant_email: string | null
           primary_tenant_name: string | null
           primary_tenant_phone: string | null
           reference: string | null
-          street: string | null
           team_id: string | null
           total_interventions: number | null
           updated_at: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "lots_address_id_fkey"
+            columns: ["address_id"]
+            isOneToOne: false
+            referencedRelation: "addresses"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "lots_building_id_fkey"
             columns: ["building_id"]
@@ -3647,6 +3994,37 @@ export type Database = {
           entity_type: Database["public"]["Enums"]["email_link_entity_type"]
         }[]
       }
+      get_entity_activity_logs: {
+        Args: {
+          p_entity_id: string
+          p_entity_type: string
+          p_include_related?: boolean
+          p_limit?: number
+          p_team_id: string
+        }
+        Returns: {
+          action_type: string
+          created_at: string
+          description: string
+          entity_id: string
+          entity_name: string
+          entity_type: string
+          error_message: string
+          id: string
+          ip_address: unknown
+          metadata: Json
+          source_entity_name: string
+          source_entity_type: string
+          status: string
+          team_id: string
+          user_agent: string
+          user_avatar_url: string
+          user_email: string
+          user_id: string
+          user_name: string
+          user_role: string
+        }[]
+      }
       get_intervention_team_id: {
         Args: { p_intervention_id: string }
         Returns: string
@@ -3663,6 +4041,12 @@ export type Database = {
         }[]
       }
       get_lot_team_id: { Args: { lot_uuid: string }; Returns: string }
+      get_my_profile_ids: {
+        Args: never
+        Returns: {
+          profile_id: string
+        }[]
+      }
       get_team_id_from_storage_path: {
         Args: { storage_path: string }
         Returns: string
@@ -3776,6 +4160,7 @@ export type Database = {
         | "quote"
         | "report"
         | "import"
+        | "contract"
       activity_status: "success" | "failure" | "pending"
       assignment_mode: "single" | "group" | "separate"
       charges_type: "forfaitaire" | "provision"
@@ -3873,7 +4258,6 @@ export type Database = {
       invitation_status: "pending" | "accepted" | "expired" | "cancelled"
       lot_category:
         | "appartement"
-        | "collocation"
         | "maison"
         | "garage"
         | "local_commercial"
@@ -4082,6 +4466,7 @@ export const Constants = {
         "quote",
         "report",
         "import",
+        "contract",
       ],
       activity_status: ["success", "failure", "pending"],
       assignment_mode: ["single", "group", "separate"],
@@ -4190,7 +4575,6 @@ export const Constants = {
       invitation_status: ["pending", "accepted", "expired", "cancelled"],
       lot_category: [
         "appartement",
-        "collocation",
         "maison",
         "garage",
         "local_commercial",

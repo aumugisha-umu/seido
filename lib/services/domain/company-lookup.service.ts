@@ -51,11 +51,20 @@ export class CompanyLookupService {
 
   /**
    * Create Redis client (lazy initialization)
+   * Disabled during Next.js static build to avoid connection errors
    */
   private createRedisClient(): Redis | null {
     try {
+      // Skip Redis during Next.js build phase to avoid connection errors
+      if (process.env.NEXT_PHASE === 'phase-production-build') {
+        return null
+      }
+
       if (!process.env.REDIS_URL) {
-        logger.warn('[COMPANY-LOOKUP] Redis URL not configured, caching disabled')
+        // Only warn in runtime, not during build
+        if (typeof window !== 'undefined' || process.env.NODE_ENV === 'development') {
+          logger.warn('[COMPANY-LOOKUP] Redis URL not configured, caching disabled')
+        }
         return null
       }
       return new Redis(process.env.REDIS_URL, {

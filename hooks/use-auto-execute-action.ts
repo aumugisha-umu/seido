@@ -146,24 +146,48 @@ const ACTION_LABELS: Record<EmailActionType, string> = {
 // ══════════════════════════════════════════════════════════════
 
 /**
+ * Convert base64url to standard base64
+ * base64url uses - instead of + and _ instead of /
+ */
+function base64UrlToBase64(base64url: string): string {
+  // Replace URL-safe characters with standard base64 characters
+  let base64 = base64url.replace(/-/g, '+').replace(/_/g, '/')
+  // Add padding if needed
+  const padding = base64.length % 4
+  if (padding) {
+    base64 += '='.repeat(4 - padding)
+  }
+  return base64
+}
+
+/**
  * Decode pending action from base64url encoded string
+ * Uses browser-compatible atob() instead of Node.js Buffer
  */
 function decodePendingAction(encoded: string): PendingAction | null {
   try {
-    // Decode base64url to JSON string
-    const jsonString = Buffer.from(encoded, 'base64url').toString('utf-8')
+    // Convert base64url to standard base64, then decode
+    const base64 = base64UrlToBase64(encoded)
+    const jsonString = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
     const parsed = JSON.parse(jsonString)
 
     // Validate structure
     if (!parsed.action || typeof parsed.action !== 'string') {
-      logger.warn('[AUTO-EXECUTE] Invalid action structure: missing action')
+      logger.warn({ encoded }, '[AUTO-EXECUTE] Invalid action structure: missing action')
       return null
     }
 
     if (!parsed.params || typeof parsed.params !== 'object') {
-      logger.warn('[AUTO-EXECUTE] Invalid action structure: missing params')
+      logger.warn({ encoded }, '[AUTO-EXECUTE] Invalid action structure: missing params')
       return null
     }
+
+    logger.debug({ action: parsed.action, params: parsed.params }, '[AUTO-EXECUTE] Action decoded successfully')
 
     return {
       action: parsed.action as EmailActionType,
@@ -171,7 +195,7 @@ function decodePendingAction(encoded: string): PendingAction | null {
     }
   } catch (error) {
     logger.error(
-      { error: error instanceof Error ? error.message : 'Unknown' },
+      { error: error instanceof Error ? error.message : 'Unknown', encoded },
       '[AUTO-EXECUTE] Failed to decode pending action'
     )
     return null

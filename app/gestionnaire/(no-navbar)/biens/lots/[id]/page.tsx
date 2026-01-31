@@ -5,7 +5,8 @@ import {
   createServerInterventionService,
   createServerLotContactRepository,
   createServerBuildingRepository,
-  createServerContractService
+  createServerContractService,
+  createServerSupabaseClient
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
 import LotDetailsClient from './lot-details-client'
@@ -95,6 +96,14 @@ export default async function LotDetailsPage({
     logger.info('✅ [LOT-PAGE-SERVER] Lot loaded', {
       lotId: lot.id,
       lotReference: lot.reference,
+      hasAddressId: !!(lot as any).address_id,
+      hasAddressRecord: !!(lot as any).address_record,
+      addressRecordData: (lot as any).address_record ? {
+        id: (lot as any).address_record.id,
+        latitude: (lot as any).address_record.latitude,
+        longitude: (lot as any).address_record.longitude,
+        formattedAddress: (lot as any).address_record.formatted_address
+      } : null,
       elapsed: `${Date.now() - startTime}ms`
     })
 
@@ -305,8 +314,107 @@ export default async function LotDetailsPage({
       interventionsWithDocs = []
     }
 
+    // Step 5: Load address (lot's own or fallback to building's)
+    let lotAddress: { latitude: number; longitude: number; formatted_address: string | null } | null = null
+    const supabase = await createServerSupabaseClient()
+
+    // First, try to use address_record from the lot (already fetched by repository via JOIN)
+    const addressRecord = (lot as any).address_record
+    if (addressRecord && addressRecord.latitude && addressRecord.longitude) {
+      logger.info('📍 [LOT-PAGE-SERVER] Step 5: Using address_record from lot...', {
+        addressId: addressRecord.id,
+        hasCoordinates: true
+      })
+      lotAddress = {
+        latitude: addressRecord.latitude,
+        longitude: addressRecord.longitude,
+        formatted_address: addressRecord.formatted_address
+      }
+      logger.info('✅ [LOT-PAGE-SERVER] Lot address loaded from address_record', {
+        hasCoordinates: true,
+        elapsed: `${Date.now() - startTime}ms`
+      })
+    }
+    // Fallback: If no address_record but address_id exists, query separately
+    else if ((lot as any).address_id) {
+      logger.info('📍 [LOT-PAGE-SERVER] Step 5: Loading lot address via address_id (fallback)...', {
+        addressId: (lot as any).address_id
+      })
+      const { data: addressData } = await supabase
+        .from('addresses')
+        .select('latitude, longitude, formatted_address')
+        .eq('id', (lot as any).address_id)
+        .single()
+
+      if (addressData && addressData.latitude && addressData.longitude) {
+        lotAddress = {
+          latitude: addressData.latitude,
+          longitude: addressData.longitude,
+          formatted_address: addressData.formatted_address
+        }
+        logger.info('✅ [LOT-PAGE-SERVER] Lot address loaded via direct query', {
+          hasCoordinates: true,
+          elapsed: `${Date.now() - startTime}ms`
+        })
+      }
+    }
+
+    // If lot has no address, try building's address (use pre-fetched building.address_record if available)
+    if (!lotAddress && lot.building_id) {
+      // First, try to use building.address_record from the lot (already fetched by repository via JOIN)
+      const buildingRecord = (lot as any).building
+      const buildingAddressRecord = buildingRecord?.address_record
+
+      if (buildingAddressRecord && buildingAddressRecord.latitude && buildingAddressRecord.longitude) {
+        logger.info('📍 [LOT-PAGE-SERVER] Step 5b: Using building.address_record from lot...', {
+          buildingId: lot.building_id,
+          addressId: buildingAddressRecord.id
+        })
+        lotAddress = {
+          latitude: buildingAddressRecord.latitude,
+          longitude: buildingAddressRecord.longitude,
+          formatted_address: buildingAddressRecord.formatted_address
+        }
+        logger.info('✅ [LOT-PAGE-SERVER] Building address loaded from address_record', {
+          hasCoordinates: true,
+          elapsed: `${Date.now() - startTime}ms`
+        })
+      } else {
+        // Fallback: query building and address separately
+        logger.info('📍 [LOT-PAGE-SERVER] Step 5b: Loading building address (fallback query)...', {
+          buildingId: lot.building_id
+        })
+        const { data: buildingData } = await supabase
+          .from('buildings')
+          .select('address_id')
+          .eq('id', lot.building_id)
+          .single()
+
+        if (buildingData?.address_id) {
+          const { data: addressData } = await supabase
+            .from('addresses')
+            .select('latitude, longitude, formatted_address')
+            .eq('id', buildingData.address_id)
+            .single()
+
+          if (addressData && addressData.latitude && addressData.longitude) {
+            lotAddress = {
+              latitude: addressData.latitude,
+              longitude: addressData.longitude,
+              formatted_address: addressData.formatted_address
+            }
+            logger.info('✅ [LOT-PAGE-SERVER] Building address loaded via direct query', {
+              hasCoordinates: true,
+              elapsed: `${Date.now() - startTime}ms`
+            })
+          }
+        }
+      }
+    }
+
     logger.info('🎉 [LOT-PAGE-SERVER] All data loaded successfully', {
       lotId: id,
+      hasAddress: !!lotAddress,
       totalElapsed: `${Date.now() - startTime}ms`
     })
 
@@ -321,6 +429,7 @@ export default async function LotDetailsPage({
         contracts={contracts}
         isOccupied={hasTenant}
         teamId={team.id}
+        lotAddress={lotAddress}
       />
     )
   } catch (error) {

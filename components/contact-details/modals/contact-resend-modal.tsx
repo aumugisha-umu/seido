@@ -1,15 +1,13 @@
 'use client'
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from '@/components/ui/unified-modal'
 import { Button } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
+import { Loader2, RefreshCw } from 'lucide-react'
 import type { ContactWithCompany } from '../types'
 
 interface ContactResendModalProps {
@@ -31,24 +29,29 @@ export function ContactResendModal({
   onResendInvitation
 }: ContactResendModalProps) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Relancer l&apos;invitation</DialogTitle>
-          <DialogDescription>
-            Un nouvel email d&apos;invitation sera envoyé à <strong>{contact.email}</strong>.
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annuler
-          </Button>
-          <Button onClick={onResendInvitation} disabled={invitationLoading}>
-            {invitationLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Renvoyer
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <UnifiedModal
+      open={open}
+      onOpenChange={onOpenChange}
+      size="sm"
+      preventCloseOnOutsideClick={invitationLoading}
+    >
+      <UnifiedModalHeader
+        title="Relancer l'invitation"
+        subtitle={`Un nouvel email d'invitation sera envoyé à ${contact.email}.`}
+        icon={<RefreshCw className="h-5 w-5" />}
+      />
+
+      <UnifiedModalBody className="py-2" />
+
+      <UnifiedModalFooter>
+        <Button variant="outline" onClick={() => onOpenChange(false)}>
+          Annuler
+        </Button>
+        <Button onClick={onResendInvitation} disabled={invitationLoading}>
+          {invitationLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Renvoyer
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

@@ -1,7 +1,8 @@
 'use client'
 
 /**
- * PlanningCard - Card de gestion du planning et des créneaux
+ * PlanningCard - Contenu du planning et des créneaux
+ * Sans Card wrapper - utilisé directement dans ContentWrapper
  *
  * @example
  * <PlanningCard
@@ -14,7 +15,6 @@
  */
 
 import { cn } from '@/lib/utils'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -30,7 +30,7 @@ import { formatDate, formatTime } from '../utils/helpers'
 import { permissions } from '../utils'
 
 /**
- * Card de planning
+ * Contenu du planning (sans Card wrapper)
  */
 export const PlanningCard = ({
   timeSlots = [],
@@ -61,30 +61,30 @@ export const PlanningCard = ({
   )
 
   return (
-    <Card className={cn('flex flex-col', className)}>
-      <CardHeader className="pb-3 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            Planning
-          </CardTitle>
+    <div className={cn('space-y-4', className)}>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-semibold flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          Planning
+        </h3>
 
-          {canPropose && onAddSlot && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onAddSlot}
-              disabled={isLoading}
-              aria-label="Proposer un créneau horaire"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
-              Proposer un créneau
-            </Button>
-          )}
-        </div>
-      </CardHeader>
+        {canPropose && onAddSlot && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onAddSlot}
+            disabled={isLoading}
+            aria-label="Proposer un créneau horaire"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
+            Proposer un créneau
+          </Button>
+        )}
+      </div>
 
-      <CardContent className="space-y-4 flex-1 overflow-y-auto">
+      {/* Content */}
+      <div className="space-y-4">
         {/* Date planifiée confirmée */}
         {scheduledDate && (
           <div className="p-4 rounded-lg bg-green-50 border border-green-200">
@@ -182,8 +182,8 @@ export const PlanningCard = ({
             )}
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
 

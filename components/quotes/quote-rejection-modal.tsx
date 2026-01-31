@@ -5,16 +5,15 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from "@/components/ui/unified-modal"
 import { X, Loader2, AlertTriangle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+
 interface QuoteRejectionModalProps {
   isOpen: boolean
   onClose: () => void
@@ -51,12 +50,8 @@ export function QuoteRejectionModal({
     try {
       const response = await fetch(`/api/quotes/${quote.id}/reject`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          reason: reason.trim()
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: reason.trim() })
       })
 
       const data = await response.json()
@@ -68,7 +63,6 @@ export function QuoteRejectionModal({
       toast({
         title: "Estimation rejetée",
         description: "L'estimation a été rejetée avec succès.",
-        variant: "default",
       })
 
       setReason("")
@@ -79,7 +73,7 @@ export function QuoteRejectionModal({
       logger.error('Erreur lors du rejet:', error)
       toast({
         title: "Erreur",
-        description: error instanceof Error ? error.message : "Erreur lors du rejet de l'estimation",
+        description: error instanceof Error ? error.message : "Erreur lors du rejet",
         variant: "destructive",
       })
     } finally {
@@ -97,26 +91,28 @@ export function QuoteRejectionModal({
   const isReasonValid = reason.trim().length > 0
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <X className="h-5 w-5 text-red-600" />
-            <span>Rejeter l'estimation</span>
-          </DialogTitle>
-          <DialogDescription>
-            Vous êtes sur le point de rejeter l'estimation de <strong>{quote.providerName}</strong>
-            d'un montant de <strong>{quote.totalAmount.toFixed(2)} €</strong>.
-          </DialogDescription>
-        </DialogHeader>
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={handleClose}
+      size="md"
+      preventCloseOnOutsideClick={isLoading}
+      preventCloseOnEscape={isLoading}
+    >
+      <UnifiedModalHeader
+        title="Rejeter l'estimation"
+        subtitle={`${quote.providerName} - ${quote.totalAmount.toFixed(2)} €`}
+        icon={<X className="h-5 w-5" />}
+        variant="danger"
+      />
 
-        <div className="space-y-4 py-4">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+      <UnifiedModalBody>
+        <div className="space-y-4">
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
             <div className="flex items-start space-x-2">
-              <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
+              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
               <div>
-                <h4 className="font-medium text-yellow-900 mb-1">Attention :</h4>
-                <p className="text-sm text-yellow-800">
+                <h4 className="font-medium text-amber-900 mb-1">Attention :</h4>
+                <p className="text-sm text-amber-800">
                   Cette action est définitive. Le prestataire sera notifié du rejet avec le motif fourni.
                 </p>
               </div>
@@ -141,34 +137,30 @@ export function QuoteRejectionModal({
             )}
           </div>
         </div>
+      </UnifiedModalBody>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={isLoading}
-          >
-            Annuler
-          </Button>
-          <Button
-            onClick={handleReject}
-            disabled={isLoading || !isReasonValid}
-            variant="destructive"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Rejet...
-              </>
-            ) : (
-              <>
-                <X className="h-4 w-4 mr-2" />
-                Rejeter l'estimation
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button variant="outline" onClick={handleClose} disabled={isLoading}>
+          Annuler
+        </Button>
+        <Button
+          onClick={handleReject}
+          disabled={isLoading || !isReasonValid}
+          variant="destructive"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Rejet...
+            </>
+          ) : (
+            <>
+              <X className="h-4 w-4 mr-2" />
+              Rejeter l&apos;estimation
+            </>
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

@@ -8,7 +8,7 @@ import {
 import { getServerAuthContext } from '@/lib/server-context'
 import NouvelleInterventionClient from './nouvelle-intervention-client'
 import { logger } from '@/lib/logger'
-import { getInterventionTypesServer } from '@/hooks/use-intervention-types'
+import { getInterventionTypesServer } from '@/lib/services/domain/intervention-types.server'
 
 export default async function NouvelleInterventionPage() {
   const startTime = Date.now()

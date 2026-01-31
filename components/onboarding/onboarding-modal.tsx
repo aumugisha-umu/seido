@@ -3,11 +3,9 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import {
-    Dialog,
-    DialogContent,
-    DialogTitle,
-} from "@/components/ui/dialog"
-import { VisuallyHidden } from "@/components/ui/visually-hidden"
+    UnifiedModal,
+    UnifiedModalBody,
+} from "@/components/ui/unified-modal"
 import { Button } from "@/components/ui/button"
 import {
     Sparkles,
@@ -229,15 +227,18 @@ export function OnboardingModal({
     const isFirstSlide = currentSlide === 0
 
     return (
-        <Dialog open={open} onOpenChange={handleOpenChange}>
-            <DialogContent
-                className="max-w-2xl p-0 overflow-hidden"
-                showCloseButton={false}
-            >
+        <UnifiedModal
+            open={open}
+            onOpenChange={handleOpenChange}
+            size="lg"
+            showCloseButton={false}
+            aria-labelledby="onboarding-title"
+        >
+            <UnifiedModalBody className="p-0">
                 {/* Accessible title for screen readers */}
-                <VisuallyHidden>
-                    <DialogTitle>Guide de découverte SEIDO</DialogTitle>
-                </VisuallyHidden>
+                <h2 id="onboarding-title" className="sr-only">
+                    Guide de découverte SEIDO
+                </h2>
 
                 {/* Slide Content */}
                 <div
@@ -342,8 +343,8 @@ export function OnboardingModal({
                         )}
                     </div>
                 </div>
-            </DialogContent>
-        </Dialog>
+            </UnifiedModalBody>
+        </UnifiedModal>
     )
 }
 

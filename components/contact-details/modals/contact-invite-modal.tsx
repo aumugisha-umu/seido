@@ -1,17 +1,15 @@
 'use client'
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle
-} from '@/components/ui/dialog'
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from '@/components/ui/unified-modal'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Mail } from 'lucide-react'
 import type { ContactWithCompany } from '../types'
 
 interface ContactInviteModalProps {
@@ -49,29 +47,27 @@ export function ContactInviteModal({
     }
   }
 
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Inviter {contact.name}</DialogTitle>
-          <DialogDescription>
-            {contact.email ? (
-              <>
-                Un email d&apos;invitation sera envoyé à <strong>{contact.email}</strong> pour
-                créer son compte et accéder à l&apos;application.
-              </>
-            ) : (
-              <>
-                Ce contact n&apos;a pas d&apos;adresse email. Veuillez en saisir une pour envoyer
-                l&apos;invitation.
-              </>
-            )}
-          </DialogDescription>
-        </DialogHeader>
+  const subtitle = contact.email
+    ? `Un email d'invitation sera envoyé à ${contact.email} pour créer son compte.`
+    : "Ce contact n'a pas d'adresse email. Veuillez en saisir une."
 
+  return (
+    <UnifiedModal
+      open={open}
+      onOpenChange={handleOpenChange}
+      size="sm"
+      preventCloseOnOutsideClick={invitationLoading}
+    >
+      <UnifiedModalHeader
+        title={`Inviter ${contact.name}`}
+        subtitle={subtitle}
+        icon={<Mail className="h-5 w-5" />}
+      />
+
+      <UnifiedModalBody>
         {/* Conditional email input when contact has no email */}
         {!contact.email && (
-          <div className="space-y-2 py-4">
+          <div className="space-y-2">
             <Label htmlFor="invitation-email" className="text-sm font-medium">
               Adresse email <span className="text-destructive">*</span>
             </Label>
@@ -89,20 +85,20 @@ export function ContactInviteModal({
             {emailError && <p className="text-sm text-destructive">{emailError}</p>}
           </div>
         )}
+      </UnifiedModalBody>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => handleOpenChange(false)}>
-            Annuler
-          </Button>
-          <Button
-            onClick={onSendInvitation}
-            disabled={invitationLoading || (!contact.email && !emailInput.trim())}
-          >
-            {invitationLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Envoyer l&apos;invitation
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button variant="outline" onClick={() => handleOpenChange(false)}>
+          Annuler
+        </Button>
+        <Button
+          onClick={onSendInvitation}
+          disabled={invitationLoading || (!contact.email && !emailInput.trim())}
+        >
+          {invitationLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Envoyer l&apos;invitation
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

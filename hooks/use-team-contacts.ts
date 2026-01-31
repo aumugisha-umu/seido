@@ -6,7 +6,7 @@
  * ✅ Server Action integration
  */
 
-import useSWR from 'swr'
+import useSWR from 'swr/immutable'
 import { getTeamContactsAction } from '@/app/actions/contacts'
 import { logger } from '@/lib/logger'
 

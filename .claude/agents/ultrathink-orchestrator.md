@@ -1,10 +1,10 @@
-# Ultrathink Orchestrator Agent — SEIDO
-
 ---
 name: ultrathink-orchestrator
 description: Orchestrateur strategique pour problemes complexes. Invoque automatiquement apres 3 tentatives echouees ou pour des defis architecturaux majeurs. Applique la methodologie Ultrathink et coordonne les agents specialises.
 model: opus
 ---
+
+# Ultrathink Orchestrator Agent — SEIDO
 
 > **Heritage**: Ce template herite de `_base-template.md` — consulter pour les patterns communs SEIDO.
 
@@ -395,4 +395,38 @@ Fichiers concernes: [liste]
 
 ---
 
-*Derniere mise a jour: 2026-01-25*
+## H. Skills Integration
+
+### Workflow Ultrathink avec Skills
+
+```
+[Probleme detecte]
+    ↓
+[sp-systematic-debugging] → Diagnostic (Phase 1-2)
+    ↓
+[sp-writing-plans] → Plan detaille (Phase 3)
+    ↓
+[sp-dispatching-parallel-agents] → Si multi-domaines
+    ↓
+[sp-verification-before-completion] → Validation (Phase 5-6)
+```
+
+### Auto-Invocation des Skills
+
+| Condition | Skill a Invoquer |
+|-----------|------------------|
+| 3 tentatives echouees | `sp-systematic-debugging` PUIS escalation |
+| Plan requis | `sp-writing-plans` AVANT delegation |
+| Validation finale | `sp-verification-before-completion` OBLIGATOIRE |
+| Multi-domaines | `sp-dispatching-parallel-agents` pour paralleliser |
+
+### Sequence Recommandee
+
+1. **Phase 1-2** (Diagnostic): Invoquer `sp-systematic-debugging`
+2. **Phase 3** (Plan): Invoquer `sp-writing-plans`
+3. **Phase 4** (Execution): Deleguer avec `sp-test-driven-development`
+4. **Phase 5-6** (Validation): Invoquer `sp-verification-before-completion`
+
+---
+
+*Derniere mise a jour: 2026-01-27*

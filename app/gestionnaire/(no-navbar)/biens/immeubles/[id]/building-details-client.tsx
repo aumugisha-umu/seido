@@ -2,21 +2,27 @@
 
 import React, { useState, useEffect, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
-import { Eye, FileText, Wrench, Plus, Home, Info, Building2, MapPin, Calendar, User, Archive, Edit as EditIcon, Mail } from "lucide-react"
+import {
+  EntityPreviewLayout,
+  EntityTabs,
+  TabContentWrapper,
+  EntityActivityLog
+} from '@/components/shared/entity-preview'
+import type { TabConfig } from '@/components/shared/entity-preview'
+import { Eye, FileText, Wrench, Plus, Home, Info, Building2, MapPin, Calendar, User, Archive, Edit as EditIcon, Mail, Activity } from "lucide-react"
 import { DocumentsSection } from "@/components/intervention/documents-section"
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
 import { BuildingContactsNavigator } from "@/components/contacts/building-contacts-navigator"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { logger } from '@/lib/logger'
 import type { Building, Lot } from '@/lib/services'
-import { BuildingStatsBadges } from './building-stats-badges'
+// Stats badges removed from overview
 import { ContactsGridPreview } from '@/components/ui/contacts-grid-preview'
 import { BuildingLotsGrid } from '@/components/patrimoine/lot-card-unified'
 import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
+import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
 
 interface BuildingContact {
   id: string
@@ -81,6 +87,12 @@ interface LotWithContacts {
   contracts?: LotContract[]  // Contracts with their contacts (tenants, guarantors)
 }
 
+interface BuildingAddress {
+  latitude: number
+  longitude: number
+  formatted_address: string | null
+}
+
 interface BuildingDetailsClientProps {
   building: Building
   lots: Lot[]
@@ -90,6 +102,7 @@ interface BuildingDetailsClientProps {
   lotsWithContacts: LotWithContacts[]
   lotContactIdsMap: Record<string, { lotId: string; lotContactId: string; lotReference: string }>
   teamId: string
+  buildingAddress?: BuildingAddress | null
 }
 
 export default function BuildingDetailsClient({
@@ -100,7 +113,8 @@ export default function BuildingDetailsClient({
   buildingContacts,
   teamId,
   lotsWithContacts,
-  lotContactIdsMap
+  lotContactIdsMap,
+  buildingAddress
 }: BuildingDetailsClientProps) {
   const [activeTab, setActiveTab] = useState("overview")
   const router = useRouter()
@@ -346,11 +360,13 @@ export default function BuildingDetailsClient({
       type: 'other'
     }))
 
-  const tabs = [
-    { id: "overview", label: "Vue d'ensemble", icon: Eye, count: null },
-    { id: "interventions", label: "Interventions", icon: Wrench, count: stats.totalInterventions },
-    { id: "documents", label: "Documents", icon: FileText, count: null },
-    { id: "emails", label: "Emails", icon: Mail, count: null },
+  // Tabs configuration for EntityTabs
+  const buildingTabs: TabConfig[] = [
+    { value: "overview", label: "Vue d'ensemble" },
+    { value: "interventions", label: "Interventions", count: stats.totalInterventions },
+    { value: "documents", label: "Documents" },
+    { value: "emails", label: "Emails" },
+    { value: "activity", label: "Activité" }
   ]
 
   // Prepare header data
@@ -372,10 +388,22 @@ export default function BuildingDetailsClient({
     })
   }
 
+  // Get address text from address_record
+  const getAddressText = () => {
+    const record = building.address_record
+    if (record?.formatted_address) return record.formatted_address
+    if (record?.street || record?.city) {
+      const parts = [record.street, record.postal_code, record.city].filter(Boolean)
+      return parts.join(', ')
+    }
+    return null
+  }
+  const addressText = getAddressText()
+
   const headerMetadata: DetailPageHeaderMetadata[] = [
-    building.address && {
+    addressText && {
       icon: MapPin,
-      text: `${building.address}, ${building.city || ''}`
+      text: addressText
     }
   ].filter(Boolean) as DetailPageHeaderMetadata[]
 
@@ -430,57 +458,41 @@ export default function BuildingDetailsClient({
         </div>
       )}
 
-      {/* Tabs Navigation */}
-      <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4 mb-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="border-b border-border">
-            <TabsList className="inline-flex h-auto p-0 bg-transparent w-full justify-start">
-              {tabs.map((tab) => {
-                const Icon = tab.icon
-                return (
-                  <TabsTrigger
-                    key={tab.id}
-                    value={tab.id}
-                    className="flex items-center space-x-2 px-4 py-3 text-sm font-medium text-muted-foreground data-[state=active]:text-primary data-[state=active]:bg-card data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none border-b-2 border-transparent hover:text-foreground transition-colors"
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.label.split(' ')[0]}</span>
-                    {tab.count !== null && (
-                      <Badge variant="secondary" className="ml-1 text-xs bg-muted text-muted-foreground data-[state=active]:bg-primary/10 data-[state=active]:text-primary">
-                        {tab.count}
-                      </Badge>
-                    )}
-                  </TabsTrigger>
-                )
-              })}
-            </TabsList>
-          </div>
-        </Tabs>
-      </div>
-
-      {/* Card Content */}
-      <Card className="flex-1 flex flex-col content-max-width mx-auto w-full p-6 min-h-0 overflow-hidden">
-          <CardContent className="p-0 flex-1 flex flex-col min-h-0 overflow-y-auto">
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0">
-              <div className="flex-1 flex flex-col min-h-0 pb-6">
+      {/* Main Content with EntityPreviewLayout */}
+      <div className="content-max-width mx-auto w-full px-4 sm:px-6 lg:px-8 mt-4 flex-1 flex flex-col min-h-0 pb-6">
+        <EntityPreviewLayout>
+          <EntityTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            tabs={buildingTabs}
+          >
             {/* Overview Tab */}
-            <TabsContent value="overview" className="mt-0 flex-1 flex flex-col min-h-0 space-y-6 md:space-y-10">
-              {/* Section 1: Stats Badges */}
-              <BuildingStatsBadges
-                stats={{
-                  totalInterventions: stats.totalInterventions,
-                  activeInterventions: stats.activeInterventions,
-                  completedInterventions: stats.interventionStats.completed
-                }}
-                totalContacts={totalUniqueContacts}
-              />
-
-              {/* Section 1.5: Description (if exists) */}
+            <TabContentWrapper value="overview">
+              {/* Section 1: Description (if exists) */}
               {(building as { description?: string }).description && (
                 <div className="bg-secondary/50 border border-secondary rounded-lg p-3 flex items-start gap-2 dark:bg-secondary/20">
                   <Info className="h-4 w-4 text-secondary-foreground flex-shrink-0 mt-0.5" />
                   <p className="text-sm text-foreground whitespace-pre-wrap flex-1">{(building as { description: string }).description}</p>
+                </div>
+              )}
+
+              {/* Section 1.6: Map Preview (if coordinates available) */}
+              {buildingAddress && (
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-3 px-1 flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    Localisation
+                  </h3>
+                  <GoogleMapsProvider>
+                    <GoogleMapPreview
+                      latitude={buildingAddress.latitude}
+                      longitude={buildingAddress.longitude}
+                      address={buildingAddress.formatted_address || addressText || undefined}
+                      height={250}
+                      className="rounded-lg border border-border shadow-sm"
+                      showOpenButton={true}
+                    />
+                  </GoogleMapsProvider>
                 </div>
               )}
 
@@ -536,10 +548,10 @@ export default function BuildingDetailsClient({
                   />
                 </div>
               </div>
-            </TabsContent>
+            </TabContentWrapper>
 
             {/* Interventions Tab */}
-            <TabsContent value="interventions" className="mt-0 flex-1 flex flex-col min-h-0">
+            <TabContentWrapper value="interventions">
               <InterventionsNavigator
                 interventions={interventions as any}
                 userContext="gestionnaire"
@@ -556,10 +568,10 @@ export default function BuildingDetailsClient({
                 showFilters={true}
                 isEmbeddedInCard={true}
               />
-            </TabsContent>
+            </TabContentWrapper>
 
             {/* Documents Tab */}
-            <TabsContent value="documents" className="mt-0 flex-1 flex flex-col min-h-0">
+            <TabContentWrapper value="documents">
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -579,20 +591,30 @@ export default function BuildingDetailsClient({
                   onDocumentDownload={handleDocumentDownload}
                 />
               </div>
-            </TabsContent>
+            </TabContentWrapper>
 
             {/* Emails Tab */}
-            <TabsContent value="emails" className="mt-0 flex-1 flex flex-col min-h-0">
+            <TabContentWrapper value="emails">
               <EntityEmailsTab
                 entityType="building"
                 entityId={building.id}
                 entityName={building.name}
               />
-            </TabsContent>
-              </div>
-            </Tabs>
-          </CardContent>
-        </Card>
+            </TabContentWrapper>
+
+            {/* Activity Tab */}
+            <TabContentWrapper value="activity">
+              <EntityActivityLog
+                entityType="building"
+                entityId={building.id}
+                teamId={teamId}
+                includeRelated={true}
+                emptyMessage="Aucune activité enregistrée pour cet immeuble"
+              />
+            </TabContentWrapper>
+          </EntityTabs>
+        </EntityPreviewLayout>
+      </div>
       </div>
     </>
   )

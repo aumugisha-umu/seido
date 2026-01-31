@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { AlertTriangle, ChevronRight, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { filterPendingActions } from "@/lib/intervention-alert-utils"
-import { PendingActionsCard } from "./pending-actions-card"
+import { InterventionCard } from "./intervention-card"
 import type { UserRole } from "@/lib/intervention-action-utils"
 
 // ============================================================================
@@ -257,7 +257,7 @@ export function PendingActionsSection({
               key={intervention.id}
               className="flex-shrink-0 w-[85cqw] @sm:w-[45cqw] @lg:w-[31cqw] min-w-[320px] max-w-[450px] snap-start"
             >
-              <PendingActionsCard
+              <InterventionCard
                 intervention={intervention}
                 userRole={userRole}
                 userId={userId}

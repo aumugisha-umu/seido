@@ -1,7 +1,7 @@
 'use client'
 
 import { Badge } from '@/components/ui/badge'
-import { FileText } from 'lucide-react'
+import { Euro } from 'lucide-react'
 import {
   getQuoteBadgeStatus,
   getQuoteBadgeLabel,
@@ -40,10 +40,11 @@ interface QuoteStatusBadgeProps {
  * showing the quote state as a separate visual indicator that can be displayed
  * at any point in the intervention lifecycle.
  *
- * Badge states:
- * - **Estimation demandee** (yellow): Quote requested, waiting for provider
- * - **Estimation recue** (blue): Provider submitted a quote, awaiting review
- * - **Estimation validee** (green): Quote has been approved
+ * Badge states (with € icon):
+ * - **€ Demandé** (yellow): Quote requested, waiting for provider
+ * - **€ Reçu** (blue): Provider submitted a quote, awaiting review
+ * - **€ Validé** (green): Quote has been approved
+ * - **€ Refusé** (red): All quotes have been rejected
  *
  * @example
  * ```tsx
@@ -75,7 +76,7 @@ export const QuoteStatusBadge = ({
       variant="outline"
       className={`${colorClass} flex items-center gap-1 ${className}`}
     >
-      <FileText className="w-3 h-3" />
+      <Euro className="w-3 h-3" />
       {label}
     </Badge>
   )

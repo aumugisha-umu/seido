@@ -6,8 +6,8 @@
  */
 
 import { useState } from 'react'
-import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
-import { InterventionProgressCard } from '@/components/interventions/intervention-progress-card'
+import { InterventionSchedulingPreview } from '@/components/interventions/intervention-scheduling-preview'
+import { InterventionProviderGuidelines } from '@/components/interventions/intervention-provider-guidelines'
 import { InterventionCommentsCard } from '@/components/interventions/intervention-comments-card'
 import { CancelQuoteRequestModal } from '@/components/intervention/modals/cancel-quote-request-modal'
 import { useQuoteCancellation } from '@/hooks/use-quote-cancellation'
@@ -274,14 +274,31 @@ export function OverviewTab({
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main content - 2/3 width on large screens */}
         <div className="lg:col-span-2 space-y-6">
-          <InterventionOverviewCard
-            intervention={intervention}
+          {/* Description */}
+          {intervention.description && (
+            <div className="space-y-2">
+              <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
+              <p className="text-sm whitespace-pre-wrap">{intervention.description}</p>
+            </div>
+          )}
+
+          {/* Provider Guidelines */}
+          <InterventionProviderGuidelines
+            interventionId={intervention.id}
+            guidelines={intervention.provider_guidelines || null}
+            currentUserRole={currentUserRole}
+            onUpdate={onRefresh}
+          />
+
+          {/* Scheduling Preview */}
+          <InterventionSchedulingPreview
             managers={managers}
             providers={providers}
             tenants={tenants}
             requireQuote={requireQuote}
             quotes={quotes}
             schedulingType={schedulingType}
+            scheduledDate={intervention.scheduled_date}
             schedulingSlots={schedulingSlotsForPreview}
             fullTimeSlots={timeSlots}
             onOpenProgrammingModal={onOpenProgrammingModal}
@@ -291,10 +308,9 @@ export function OverviewTab({
             onEditSlot={onEditSlot}
             canManageSlots={['approuvee', 'demande_de_devis', 'planification'].includes(intervention.status)}
             currentUserId={currentUserId}
+            currentUserRole={currentUserRole}
             onEditParticipants={onEditParticipants}
             onEditQuotes={onEditQuotes}
-            currentUserRole={currentUserRole}
-            onUpdate={onRefresh}
             onCancelQuoteRequest={handleCancelQuoteRequest}
             onApproveQuote={onApproveQuote}
             onRejectQuote={onRejectQuote}
@@ -320,16 +336,14 @@ export function OverviewTab({
 
         {/* Right sidebar - 1/3 width on large screens */}
         <div className="space-y-6">
-          {/* Comments Card - AU-DESSUS de Progression */}
+          {/* Comments Card */}
           <InterventionCommentsCard
             interventionId={intervention.id}
             comments={comments}
             currentUserId={currentUserId}
             currentUserRole={currentUserRole}
           />
-
-          {/* Progression Card */}
-          <InterventionProgressCard intervention={intervention} />
+          {/* Note: Progression moved to Activity tab */}
         </div>
       </div>
 

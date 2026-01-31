@@ -16,6 +16,16 @@ const serwist = new Serwist({
   clientsClaim: true,
   navigationPreload: false,
   runtimeCaching: [
+    // 🗺️ Google Maps API - MUST bypass Service Worker completely
+    // The SW interferes with Google's dynamic library loading mechanism
+    {
+      matcher: ({ url }: { url: URL }) => {
+        return url.hostname.includes('googleapis.com') ||
+               url.hostname.includes('gstatic.com') ||
+               url.hostname.includes('google.com')
+      },
+      handler: new NetworkOnly(),
+    },
     // ⚡ OPTIMISATION: NetworkFirst pour les API stables (meilleure UX offline)
     {
       matcher: ({ url }: { url: URL }) => {
@@ -54,6 +64,8 @@ const serwist = new Serwist({
       }),
     },
     // Fallback NetworkOnly pour autres API
+    // ⚠️ Timeout augmenté de 10s à 30s pour éviter les erreurs de timeout prématurées
+    // Les requêtes complexes (activity-logs, rapports) peuvent prendre plus de 10s
     {
       matcher: ({ url }: { url: URL }) => url.pathname.startsWith('/api/'),
       handler: new NetworkOnly({
@@ -63,7 +75,7 @@ const serwist = new Serwist({
             maxAgeSeconds: 24 * 60 * 60,
           }),
         ],
-        networkTimeoutSeconds: 10,
+        networkTimeoutSeconds: 30,
       }),
     },
     {

@@ -205,8 +205,8 @@ export async function notifyInterventionStatusChange({
     // ═══════════════════════════════════════════════════════════════════════════
     // Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
     const statusMessages: Record<string, string> = {
-      approuvee: 'Intervention approuvée',
-      rejetee: 'Intervention rejetée',
+      approuvee: '✅ Intervention approuvée',
+      rejetee: '❌ Demande refusée',
       planification: 'Planification en cours',
       planifiee: 'Intervention planifiée',
       en_cours: 'Intervention en cours',
@@ -216,9 +216,20 @@ export async function notifyInterventionStatusChange({
       annulee: 'Intervention annulée'
     }
 
+    // Custom messages for approval/rejection
+    const getPushMessage = (): string => {
+      if (newStatus === 'approuvee') {
+        return 'Votre demande a été approuvée. La planification peut commencer.'
+      }
+      if (newStatus === 'rejetee' && reason) {
+        return `Motif : ${reason}`
+      }
+      return reason || `Statut changé de ${oldStatus} vers ${newStatus}`
+    }
+
     sendPushToNotificationRecipients(notifications, {
       title: statusMessages[newStatus] || 'Mise à jour intervention',
-      message: reason || `Statut changé de ${oldStatus} vers ${newStatus}`,
+      message: getPushMessage(),
       url: `/gestionnaire/interventions/${interventionId}`,
       type: 'status_change'
     }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyInterventionStatusChange'))
@@ -251,7 +262,8 @@ export async function notifyInterventionStatusChange({
         statusChange: {
           oldStatus,
           newStatus,
-          reason
+          reason,
+          actorName: profile.name || 'Votre gestionnaire'  // Pass manager name for email templates
         }
       })
 
@@ -924,7 +936,7 @@ export async function notifyContractExpiring({
         title,
         end_date,
         lot_id,
-        lots(reference, address, city)
+        lots(reference, address_record:address_id(*))
       `)
       .eq('id', contractId)
       .single()
@@ -1147,7 +1159,7 @@ export async function createContractNotification(contractId: string) {
         end_date,
         rent_amount,
         lot_id,
-        lots(reference, address, city)
+        lots(reference, address_record:address_id(*))
       `)
       .eq('id', contractId)
       .single()

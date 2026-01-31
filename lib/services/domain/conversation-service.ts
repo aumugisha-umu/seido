@@ -41,6 +41,7 @@ import {
   createSuccessResponse
 } from '../core/error-handler'
 import { isSuccessResponse, isErrorResponse } from '../core/type-guards'
+import { formatUserName } from './email-notification/helpers'
 
 // Type aliases
 type ConversationThread = Database['public']['Tables']['conversation_threads']['Row']
@@ -608,7 +609,8 @@ export class ConversationService {
    */
 
   /**
-   * Send notification for new message
+   * Send in-app notification for new message
+   * Note: Push and email notifications are handled separately in conversation-notification-actions.ts
    */
   async notifyNewMessage(message: ConversationMessage, threadId: string) {
     try {
@@ -626,43 +628,60 @@ export class ConversationService {
 
       // Also notify all team managers (team transparency)
       const intervention = await this.interventionRepo.findById(thread.data.intervention_id)
-      if (intervention.success && intervention.data) {
-        // Get all team managers
-        const { data: managers } = await this.conversationRepo.supabase
-          .from('users')
-          .select('id')
-          .eq('team_id', intervention.data.team_id)
-          .in('role', ['gestionnaire', 'admin'])
+      if (!intervention.success || !intervention.data) return
 
-        if (managers) {
-          // Add managers who aren't already participants
-          managers.forEach(manager => {
-            if (!recipientIds.includes(manager.id)) {
-              recipientIds.push(manager.id)
+      // Get all team managers
+      const { data: managers } = await this.conversationRepo.supabase
+        .from('users')
+        .select('id')
+        .eq('team_id', intervention.data.team_id)
+        .in('role', ['gestionnaire', 'admin'])
+
+      if (managers) {
+        // Add managers who aren't already participants
+        managers.forEach(manager => {
+          if (!recipientIds.includes(manager.id)) {
+            recipientIds.push(manager.id)
+          }
+        })
+      }
+
+      // Get sender info for notifications
+      const { data: sender } = await this.conversationRepo.supabase
+        .from('users')
+        .select('id, name, first_name, last_name, role')
+        .eq('id', message.user_id)
+        .single()
+
+      const senderName = formatUserName(sender, 'Un participant')
+
+      // ════════════════════════════════════════════════════════════
+      // IN-APP NOTIFICATIONS
+      // Note: Push/email notifications are handled in conversation-notification-actions.ts
+      // ════════════════════════════════════════════════════════════
+      if (recipientIds.length > 0) {
+        // Create one notification per recipient (notifications table requires user_id)
+        for (const recipientId of recipientIds) {
+          await this.notificationRepo.create({
+            type: 'chat', // Valid notification_type enum value
+            user_id: recipientId,
+            title: 'Nouveau message',
+            message: `${senderName} : "${message.content.substring(0, 60)}${message.content.length > 60 ? '...' : ''}"`,
+            team_id: thread.data.team_id,
+            related_entity_type: 'intervention',
+            related_entity_id: thread.data.intervention_id,
+            created_by: message.user_id,
+            metadata: {
+              thread_id: threadId,
+              message_id: message.id,
+              preview: message.content.substring(0, 100)
             }
           })
         }
       }
 
-      // Send notification to all recipients
-      if (recipientIds.length > 0) {
-        await this.notificationRepo.create({
-          type: 'new_message',
-          title: 'Nouveau message',
-          message: `Nouveau message dans la conversation "${thread.data.title || 'Sans titre'}"`,
-          team_id: thread.data.team_id,
-          intervention_id: thread.data.intervention_id,
-          created_by: message.user_id,
-          target_users: recipientIds,
-          metadata: {
-            thread_id: threadId,
-            message_id: message.id,
-            preview: message.content.substring(0, 100)
-          }
-        })
-      }
     } catch (error) {
-      logger.error('Failed to send new message notification', error)
+      logger.error({ error }, '❌ [CONVERSATION] Failed to send new message notification')
     }
   }
 
@@ -982,6 +1001,22 @@ export class ConversationService {
               }
             })
           }
+          // ✅ FIX: Also add all team managers to group thread
+          // (they should see the general discussion even if not explicitly assigned)
+          const { data: groupManagers } = await this.conversationRepo.supabase
+            .from('users')
+            .select('id')
+            .eq('team_id', intervention.team_id)
+            .in('role', ['gestionnaire', 'admin'])
+            .is('deleted_at', null)
+
+          if (groupManagers) {
+            groupManagers.forEach((m: { id: string }) => {
+              if (!participantIds.includes(m.id)) {
+                participantIds.push(m.id)
+              }
+            })
+          }
           break
 
         case 'tenant_to_managers':
@@ -1181,15 +1216,28 @@ export class ConversationService {
     if (!this.notificationRepo) return
 
     try {
-      await this.notificationRepo.create({
-        type: 'thread_created',
-        title: 'Nouvelle conversation créée',
-        message: `Une nouvelle conversation "${thread.title}" a été créée pour l'intervention`,
-        team_id: thread.team_id,
-        intervention_id: thread.intervention_id,
-        created_by: createdBy,
-        metadata: { thread_id: thread.id }
-      })
+      // Get team managers to notify
+      const { data: managers } = await this.conversationRepo.supabase
+        .from('users')
+        .select('id')
+        .eq('team_id', thread.team_id)
+        .in('role', ['gestionnaire', 'admin'])
+
+      const recipientIds = (managers || []).map(m => m.id).filter(id => id !== createdBy)
+
+      for (const recipientId of recipientIds) {
+        await this.notificationRepo.create({
+          type: 'system', // Valid notification_type enum value
+          user_id: recipientId,
+          title: 'Nouvelle conversation créée',
+          message: `Une nouvelle conversation "${thread.title}" a été créée pour l'intervention`,
+          team_id: thread.team_id,
+          related_entity_type: 'intervention',
+          related_entity_id: thread.intervention_id,
+          created_by: createdBy,
+          metadata: { thread_id: thread.id }
+        })
+      }
     } catch (error) {
       logger.error('Failed to send thread created notification', error)
     }
@@ -1203,13 +1251,14 @@ export class ConversationService {
       if (!thread.success || !thread.data) return
 
       await this.notificationRepo.create({
-        type: 'participant_added',
+        type: 'chat', // Valid notification_type enum value
+        user_id: userId,
         title: 'Ajouté à une conversation',
         message: `Vous avez été ajouté à la conversation "${thread.data.title}"`,
         team_id: thread.data.team_id,
-        intervention_id: thread.data.intervention_id,
+        related_entity_type: 'intervention',
+        related_entity_id: thread.data.intervention_id,
         created_by: addedBy,
-        target_users: [userId],
         metadata: { thread_id: threadId }
       })
     } catch (error) {
@@ -1225,13 +1274,14 @@ export class ConversationService {
       if (!thread.success || !thread.data) return
 
       await this.notificationRepo.create({
-        type: 'participant_removed',
+        type: 'chat', // Valid notification_type enum value
+        user_id: userId,
         title: 'Retiré d\'une conversation',
         message: `Vous avez été retiré de la conversation "${thread.data.title}"`,
         team_id: thread.data.team_id,
-        intervention_id: thread.data.intervention_id,
+        related_entity_type: 'intervention',
+        related_entity_id: thread.data.intervention_id,
         created_by: removedBy,
-        target_users: [userId],
         metadata: { thread_id: threadId }
       })
     } catch (error) {

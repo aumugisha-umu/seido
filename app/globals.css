@@ -4,6 +4,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Reset portal positioning (Next.js/Radix Portal container) */
+nextjs-portal {
+  left: unset;
+  top: unset;
+}
+
 /* ========================================
    CONTENTSQUARE/CLARITY PRIVACY MASKING
    RGPD Compliance - Mask sensitive data
@@ -861,6 +867,72 @@ input[autocomplete="cc-number"],
   .sticky-footer {
     @apply sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-6 py-4 mt-6 -mx-5 sm:-mx-6 lg:-mx-10;
   }
+
+  /* ============================================
+     ENTITY PREVIEW BEM COMPONENT
+     Unified layout for entity preview pages
+     (Building, Lot, Contract, Contact)
+     ============================================ */
+
+  /* Block: Main container */
+  .entity-preview {
+    @apply flex-1 flex flex-col min-h-0 overflow-hidden;
+  }
+
+  /* Container with card styling */
+  .entity-preview__container {
+    @apply flex-1 flex flex-col min-h-0 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm;
+  }
+
+  /* Tabs navigation area */
+  .entity-preview__tabs {
+    @apply flex-shrink-0 border-b border-slate-200;
+  }
+
+  /* Content area (scrollable) */
+  .entity-preview__content {
+    @apply flex-1 overflow-hidden flex flex-col;
+  }
+
+  /* Tab panel with padding */
+  .entity-preview__tab-panel {
+    @apply flex-1 p-4 sm:p-6 overflow-y-auto;
+  }
+
+  /* Activity log timeline */
+  .entity-preview__activity-log {
+    @apply space-y-6;
+  }
+
+  /* Activity log date group */
+  .entity-preview__activity-group {
+    @apply space-y-3;
+  }
+
+  /* Activity log date header */
+  .entity-preview__activity-date {
+    @apply text-xs font-medium text-slate-500 uppercase tracking-wide sticky top-0 bg-white py-1;
+  }
+
+  /* Activity log item */
+  .entity-preview__activity-item {
+    @apply flex gap-3 relative;
+  }
+
+  /* Activity log timeline line */
+  .entity-preview__activity-line {
+    @apply absolute left-[18px] top-10 bottom-0 w-px bg-slate-200;
+  }
+
+  /* Activity log avatar */
+  .entity-preview__activity-avatar {
+    @apply relative z-10 flex-shrink-0;
+  }
+
+  /* Activity log content */
+  .entity-preview__activity-content {
+    @apply flex-1 pb-6 min-w-0;
+  }
 }
 
 @keyframes gradient {
@@ -994,4 +1066,227 @@ input:-webkit-autofill:active {
   -webkit-text-fill-color: white !important;
   transition: background-color 5000s ease-in-out 0s;
   box-shadow: inset 0 0 20px 20px rgba(255, 255, 255, 0.1);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   UNIFIED MODAL - Composant modal réutilisable BEM
+   Block: unified-modal
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Block */
+.unified-modal {
+  @apply fixed inset-0 z-50;
+}
+
+/* Elements */
+.unified-modal__overlay {
+  @apply fixed inset-0 z-[9998] bg-black/50
+         data-[state=open]:animate-in data-[state=closed]:animate-out
+         data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0;
+}
+
+.unified-modal__content {
+  @apply fixed z-[9999] bg-background border shadow-lg rounded-lg
+         data-[state=open]:animate-in data-[state=closed]:animate-out
+         data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0
+         flex flex-col max-h-[90vh] overflow-hidden;
+}
+
+.unified-modal__header {
+  @apply flex items-center gap-3 p-4 border-b border-slate-100
+         flex-shrink-0;
+}
+
+.unified-modal__header-icon {
+  @apply p-2 rounded-lg bg-slate-100;
+}
+
+.unified-modal__header-title {
+  @apply text-lg font-semibold text-slate-900;
+}
+
+.unified-modal__header-subtitle {
+  @apply text-sm text-muted-foreground;
+}
+
+.unified-modal__header-close {
+  @apply ml-auto p-2 rounded-lg hover:bg-slate-100
+         focus:outline-none focus:ring-2 focus:ring-slate-400
+         transition-colors;
+}
+
+.unified-modal__body {
+  @apply flex-1 overflow-y-auto p-6;
+}
+
+.unified-modal__footer {
+  @apply flex items-center gap-3 p-4 border-t border-slate-100
+         flex-shrink-0 bg-slate-50/50;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Size Modifiers (Desktop centered)
+   ───────────────────────────────────────────────────────────────── */
+
+.unified-modal__content--sm {
+  @apply w-full max-w-sm top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+         data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95;
+}
+
+.unified-modal__content--md {
+  @apply w-full max-w-md top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+         data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95;
+}
+
+.unified-modal__content--lg {
+  @apply w-full max-w-2xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+         data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95;
+}
+
+.unified-modal__content--xl {
+  @apply w-full max-w-4xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+         data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95;
+}
+
+.unified-modal__content--full {
+  @apply w-[95vw] max-w-7xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+         data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Mobile Bottom Sheet Modifier
+   ───────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  /* sm et md restent centrés sur mobile */
+  .unified-modal__content--sm,
+  .unified-modal__content--md {
+    @apply max-w-[calc(100%-2rem)];
+  }
+
+  /* lg, xl, full deviennent bottom sheet */
+  .unified-modal__content--lg,
+  .unified-modal__content--xl,
+  .unified-modal__content--full {
+    @apply top-auto bottom-0 left-0 right-0
+           translate-x-0 translate-y-0
+           max-w-full w-full max-h-[90vh]
+           rounded-b-none rounded-t-2xl;
+
+    animation-name: slideUp !important;
+  }
+
+  .unified-modal__content--lg[data-state="closed"],
+  .unified-modal__content--xl[data-state="closed"],
+  .unified-modal__content--full[data-state="closed"] {
+    animation-name: slideDown !important;
+  }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(0); }
+  to { transform: translateY(100%); }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Footer Alignment Modifiers
+   ───────────────────────────────────────────────────────────────── */
+
+.unified-modal__footer--left {
+  @apply justify-start;
+}
+
+.unified-modal__footer--center {
+  @apply justify-center;
+}
+
+.unified-modal__footer--right {
+  @apply justify-end;
+}
+
+.unified-modal__footer--between {
+  @apply justify-between;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Variant Modifiers (couleurs header)
+   ───────────────────────────────────────────────────────────────── */
+
+.unified-modal__header--success {
+  @apply bg-emerald-50 border-emerald-100;
+}
+
+.unified-modal__header--success .unified-modal__header-icon {
+  @apply bg-emerald-100 text-emerald-600;
+}
+
+.unified-modal__header--danger {
+  @apply bg-red-50 border-red-100;
+}
+
+.unified-modal__header--danger .unified-modal__header-icon {
+  @apply bg-red-100 text-red-600;
+}
+
+.unified-modal__header--warning {
+  @apply bg-amber-50 border-amber-100;
+}
+
+.unified-modal__header--warning .unified-modal__header-icon {
+  @apply bg-amber-100 text-amber-600;
+}
+
+/* ============================================
+   SUCCESS TOAST ANIMATIONS
+   B2B Professional - Subtle engagement feedback
+   ============================================ */
+
+/* Success bounce animation for toast checkmark icon */
+@keyframes success-bounce {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-success-bounce {
+  animation: success-bounce 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Subtle ring pulse behind success icon */
+@keyframes success-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.animate-success-ring {
+  animation: success-ring 0.6s ease-out forwards;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .animate-success-bounce,
+  .animate-success-ring {
+    animation: none;
+    opacity: 1;
+    transform: scale(1);
+  }
 }

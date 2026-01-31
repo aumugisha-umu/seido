@@ -34,31 +34,20 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
 
   /**
    * Validation hook for building data
+   * Note: Address fields are now in the centralized addresses table via address_id
    */
   protected async validate(data: BuildingInsert | BuildingUpdate): Promise<void> {
     if ('name' in data && data.name) {
       validateLength(data.name, 2, 100, 'name')
     }
 
-    if ('address' in data && data.address) {
-      validateLength(data.address, 5, 200, 'address')
-    }
-
-    if ('city' in data && data.city) {
-      validateLength(data.city, 2, 100, 'city')
-    }
-
-    if ('postal_code' in data && data.postal_code) {
-      validateLength(data.postal_code, 3, 20, 'postal_code')
-    }
-
     if ('total_lots' in data && data.total_lots !== undefined) {
       validateNumber(data.total_lots, 0, 10000, 'total_lots')
     }
 
-    // For insert, validate required fields
+    // For insert, validate required fields (address is now via address_id)
     if (this.isInsertData(data)) {
-      validateRequired(data, ['name', 'address', 'city', 'postal_code'])
+      validateRequired(data, ['name'])
     }
   }
 
@@ -66,7 +55,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
    * Type guard to check if data is for insert
    */
   private isInsertData(data: BuildingInsert | BuildingUpdate): data is BuildingInsert {
-    return 'name' in data && 'address' in data && 'city' in data && 'postal_code' in data
+    return 'name' in data
   }
 
   /**
@@ -77,6 +66,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .from(this.tableName)
       .select(`
         *,
+        address_record:address_id(*),
         team:team_id(id, name, description),
         lots(
           id,
@@ -134,7 +124,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
 
   /**
    * ⚡ OPTIMIZED: Get buildings summary by team (for list views)
-   * Returns minimal data: id, name, address, city, postal_code, lots count
+   * Returns minimal data: id, name, address_record, lots count
    * 90% less data transferred compared to findByTeam()
    *
    * ✅ Next.js 15: Uses native Data Cache (no custom cache layer)
@@ -146,10 +136,9 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .select(`
         id,
         name,
-        address,
-        city,
-        postal_code,
+        address_id,
         team_id,
+        address_record:address_id(*),
         lots(id),
         building_contacts(
           is_primary,
@@ -185,6 +174,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .from(this.tableName)
       .select(`
         *,
+        address_record:address_id(*),
         team:team_id(id, name, description),
         lots(
           id,
@@ -226,6 +216,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .from(this.tableName)
       .select(`
         *,
+        address_record:address_id(*),
         team:team_id(id, name, description),
         lots(
           id,
@@ -268,6 +259,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .from(this.tableName)
       .select(`
         *,
+        address_record:address_id(*),
         team:team_id(
           id,
           name,
@@ -317,27 +309,43 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
 
   /**
    * Search buildings by name or address
+   * Note: Since address fields are now in the addresses table, we search in both
    */
   async search(query: string, options?: { teamId?: string; city?: string }) {
     validateLength(query, 1, 100, 'search query')
 
+    // First, search by name
     let queryBuilder = this.supabase
       .from(this.tableName)
-      .select('*')
-      .or(`name.ilike.%${query}%,address.ilike.%${query}%,city.ilike.%${query}%`)
+      .select('*, address_record:address_id!inner(*)')
+      .or(`name.ilike.%${query}%,address_id.street.ilike.%${query}%,address_id.city.ilike.%${query}%,address_id.formatted_address.ilike.%${query}%`)
 
     if (options?.teamId) {
       queryBuilder = queryBuilder.eq('team_id', options.teamId)
     }
 
     if (options?.city) {
-      queryBuilder = queryBuilder.eq('city', options.city)
+      queryBuilder = queryBuilder.eq('address_id.city', options.city)
     }
 
     const { data, error } = await queryBuilder.order('name')
 
     if (error) {
-      return createErrorResponse(handleError(error, `${this.tableName}:query`))
+      // Fallback: search by name only if the complex query fails
+      const fallbackQuery = this.supabase
+        .from(this.tableName)
+        .select('*, address_record:address_id(*)')
+        .ilike('name', `%${query}%`)
+
+      if (options?.teamId) {
+        fallbackQuery.eq('team_id', options.teamId)
+      }
+
+      const fallbackResult = await fallbackQuery.order('name')
+      if (fallbackResult.error) {
+        return createErrorResponse(handleError(fallbackResult.error, `${this.tableName}:query`))
+      }
+      return { success: true as const, data: fallbackResult.data || [] }
     }
 
     return { success: true as const, data: data || [] }
@@ -352,6 +360,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .from(this.tableName)
       .select(`
         *,
+        address_record:address_id(*),
         lots(
           id,
           lot_contacts(
@@ -433,13 +442,13 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
   }
 
   /**
-   * Get buildings by city
+   * Get buildings by city (searches in centralized addresses table)
    */
   async findByCity(city: string, options?: { teamId?: string }) {
     let queryBuilder = this.supabase
       .from(this.tableName)
-      .select('*')
-      .eq('city', city)
+      .select('*, address_record:address_id!inner(*)')
+      .ilike('address_id.city', city)
 
     if (options?.teamId) {
       queryBuilder = queryBuilder.eq('team_id', options.teamId)
@@ -455,7 +464,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
   }
 
   /**
-   * Get nearby buildings by postal code
+   * Get nearby buildings by postal code (searches in centralized addresses table)
    */
   async findNearby(postalCode: string, range = 2) {
     // Extract numeric part of postal code for range search
@@ -465,10 +474,10 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
 
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .select('*')
-      .gte('postal_code', minCode + '000')
-      .lte('postal_code', maxCode + '999')
-      .order('postal_code')
+      .select('*, address_record:address_id!inner(*)')
+      .gte('address_id.postal_code', minCode + '000')
+      .lte('address_id.postal_code', maxCode + '999')
+      .order('name')
 
     if (error) {
       return createErrorResponse(handleError(error, `${this.tableName}:query`))
@@ -510,7 +519,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
   async findByNameAndTeam(name: string, teamId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .select('*')
+      .select('*, address_record:address_id(*)')
       .eq('team_id', teamId)
       .ilike('name', name.trim())
       .limit(1)
@@ -593,6 +602,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
       .from(this.tableName)
       .select(`
         *,
+        address_record:address_id(*),
         building_contacts!inner(user_id)
       `)
       .eq('building_contacts.user_id', gestionnaireId)
@@ -647,7 +657,7 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     // Return the updated building
     const { data, error } = await this.supabase
       .from(this.tableName)
-      .select('*')
+      .select('*, address_record:address_id(*)')
       .eq('id', buildingId)
       .single()
 
@@ -656,6 +666,73 @@ export class BuildingRepository extends BaseRepository<Building, BuildingInsert,
     }
 
     return { success: true as const, data: data as unknown as Building }
+  }
+
+  /**
+   * Override findById to include address join
+   */
+  async findById(id: string, _useCache = true) {
+    const { data, error } = await this.supabase
+      .from(this.tableName)
+      .select('*, address_record:address_id(*)')
+      .eq('id', id)
+      .single()
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        throw new NotFoundException(this.tableName, id)
+      }
+      return createErrorResponse(handleError(error, `${this.tableName}:findById`))
+    }
+
+    return { success: true as const, data }
+  }
+
+  /**
+   * Override findAll to include address join
+   */
+  async findAll(
+    options: { orderBy?: string; orderDirection?: 'asc' | 'desc'; limit?: number; offset?: number } = {},
+    filters: Record<string, unknown> = {}
+  ) {
+    let query = this.supabase
+      .from(this.tableName)
+      .select('*, address_record:address_id(*)')
+
+    // Apply filters
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        query = query.eq(key, value as unknown)
+      }
+    })
+
+    // Apply ordering
+    if (options.orderBy) {
+      query = query.order(options.orderBy, {
+        ascending: options.orderDirection !== 'desc'
+      })
+    }
+
+    // Apply pagination
+    if (options.limit) {
+      query = query.limit(options.limit)
+    }
+    if (options.offset) {
+      query = query.range(options.offset, options.offset + (options.limit || 10) - 1)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      return createErrorResponse(handleError(error, `${this.tableName}:findAll`))
+    }
+
+    return {
+      data: data || [],
+      error: null,
+      success: true as const,
+      count: data?.length || 0
+    }
   }
 }
 

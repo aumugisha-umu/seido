@@ -7,7 +7,8 @@
  */
 
 import { useState, useMemo } from 'react'
-import { InterventionOverviewCard } from '@/components/interventions/intervention-overview-card'
+import { InterventionSchedulingPreview } from '@/components/interventions/intervention-scheduling-preview'
+import { InterventionProviderGuidelines } from '@/components/interventions/intervention-provider-guidelines'
 import { TimeSlotProposer } from '@/components/interventions/time-slot-proposer'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -257,20 +258,35 @@ export function OverviewTab({
   return (
     <>
       <div className="space-y-6">
-        {/* Intervention details with Estimation and Planification sections */}
-        <InterventionOverviewCard
-          intervention={intervention}
+        {/* Description */}
+        {intervention.description && (
+          <div className="space-y-2">
+            <h3 className="text-sm font-medium text-muted-foreground">Description</h3>
+            <p className="text-sm whitespace-pre-wrap">{intervention.description}</p>
+          </div>
+        )}
+
+        {/* Provider Guidelines */}
+        <InterventionProviderGuidelines
+          interventionId={intervention.id}
+          guidelines={intervention.provider_guidelines || null}
+          currentUserRole="prestataire"
+          onUpdate={onRefresh}
+        />
+
+        {/* Scheduling Preview */}
+        <InterventionSchedulingPreview
           managers={managers}
           providers={providers}
           tenants={tenants}
           requireQuote={requireQuote}
           quotes={quotes}
           schedulingType={schedulingType}
+          scheduledDate={intervention.scheduled_date}
           schedulingSlots={schedulingSlotsForPreview}
           fullTimeSlots={timeSlots}
           currentUserId={currentUser.id}
           currentUserRole="prestataire"
-          onUpdate={onRefresh}
           onRejectSlot={onRejectSlot}
           onApproveSlot={onAcceptSlot}
           canManageSlots={intervention.status === 'planification'}

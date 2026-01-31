@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { ManagerInterventionCard } from "@/components/dashboards/manager/manager-intervention-card"
+import { InterventionCard } from "@/components/dashboards/shared/intervention-card"
 import { InterventionsEmptyState } from "./interventions-empty-state"
 import type { InterventionWithRelations } from "@/lib/services"
 import { logger } from '@/lib/logger'
@@ -15,12 +15,6 @@ interface EmptyStateConfig {
   createButtonAction?: () => void
 }
 
-interface ContactContext {
-  contactId: string
-  contactName: string
-  contactRole?: 'gestionnaire' | 'prestataire' | 'locataire'
-}
-
 interface InterventionsListProps {
   interventions: InterventionWithRelations[]
   loading?: boolean
@@ -28,10 +22,13 @@ interface InterventionsListProps {
   maxItems?: number
   emptyStateConfig?: EmptyStateConfig
   showStatusActions?: boolean
-  contactContext?: ContactContext
   className?: string
   userContext?: 'gestionnaire' | 'prestataire' | 'locataire'
   horizontal?: boolean
+  /** User ID for role-specific actions (e.g., prestataire quotes) */
+  userId?: string
+  /** Callback when an action completes successfully */
+  onActionComplete?: (interventionId: string) => void
 }
 
 export function InterventionsList({
@@ -41,10 +38,11 @@ export function InterventionsList({
   maxItems,
   emptyStateConfig,
   showStatusActions = true,
-  contactContext,
   className = "",
   userContext = 'gestionnaire',
-  horizontal = false
+  horizontal = false,
+  userId,
+  onActionComplete
 }: InterventionsListProps) {
   const router = useRouter()
 
@@ -52,9 +50,9 @@ export function InterventionsList({
   const displayedInterventions = maxItems ? interventions.slice(0, maxItems) : interventions
 
   // Handle action completion callback
-  const handleActionComplete = () => {
-    // Could trigger a refresh of the interventions list if needed
-    logger.info('[InterventionsList] Action completed, list may need refresh')
+  const handleActionComplete = (interventionId: string) => {
+    logger.info('[InterventionsList] Action completed for intervention:', interventionId)
+    onActionComplete?.(interventionId)
   }
 
   // Compact rendering for dashboard (list view)
@@ -95,13 +93,11 @@ export function InterventionsList({
     return (
       <div className={`space-y-3 ${className}`}>
         {displayedInterventions.map((intervention) => (
-          <ManagerInterventionCard
+          <InterventionCard
             key={intervention.id}
             intervention={intervention}
-            userContext={userContext}
-            compact={true}
-            showStatusActions={showStatusActions}
-            contactContext={contactContext}
+            userRole={userContext}
+            userId={userId}
             onActionComplete={handleActionComplete}
           />
         ))}
@@ -196,11 +192,10 @@ export function InterventionsList({
       <div className={`flex gap-3 overflow-x-auto overflow-y-hidden pb-2 ${className}`}>
         {displayedInterventions.map((intervention) => (
           <div key={intervention.id} className="min-w-[320px] max-w-[320px] lg:min-w-[360px] lg:max-w-[360px] flex-shrink-0">
-            <ManagerInterventionCard
+            <InterventionCard
               intervention={intervention}
-              userContext={userContext}
-              showStatusActions={showStatusActions}
-              contactContext={contactContext}
+              userRole={userContext}
+              userId={userId}
               onActionComplete={handleActionComplete}
             />
           </div>
@@ -209,14 +204,16 @@ export function InterventionsList({
     )
   }
 
-  // Default grid layout - utilise ManagerInterventionCard (unification avec dashboard)
+  // Default grid layout with vertical scroll
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 ${className}`}>
+    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4 ${className}`}>
       {displayedInterventions.map((intervention) => (
-        <ManagerInterventionCard
+        <InterventionCard
           key={intervention.id}
           intervention={intervention}
-          userContext={userContext}
+          userRole={userContext}
+          userId={userId}
+          onActionComplete={handleActionComplete}
         />
       ))}
     </div>

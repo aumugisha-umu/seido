@@ -3,10 +3,13 @@
 /**
  * Intervention Comment Server Actions
  * Server-side operations for managing intervention comments
+ *
+ * ✅ REFACTORED (Jan 2026): Uses centralized getServerActionAuthContextOrNull()
+ *    instead of duplicated local auth helper
  */
 
 import { createServerActionInterventionCommentRepository } from '@/lib/services/repositories/intervention-comment.repository'
-import { createServerActionSupabaseClient } from '@/lib/services'
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
@@ -24,24 +27,6 @@ const AddCommentSchema = z.object({
 const DeleteCommentSchema = z.object({
   commentId: z.string().uuid()
 })
-
-/**
- * Helper to get authenticated user ID
- */
-async function getAuthenticatedUserId(): Promise<string | null> {
-  const supabase = await createServerActionSupabaseClient()
-
-  const { data: { session } } = await supabase.auth.getSession()
-  if (!session) return null
-
-  const { data: userData } = await supabase
-    .from('users')
-    .select('id')
-    .eq('auth_user_id', session.user.id)
-    .single()
-
-  return userData?.id || null
-}
 
 /**
  * Add a comment to an intervention
@@ -62,11 +47,12 @@ export async function addInterventionComment(
 
     const { interventionId, content } = validated.data
 
-    // Get authenticated user
-    const userId = await getAuthenticatedUserId()
-    if (!userId) {
+    // ✅ REFACTORED: Use centralized auth context
+    const authContext = await getServerActionAuthContextOrNull()
+    if (!authContext) {
       return { success: false, error: 'Non authentifié' }
     }
+    const userId = authContext.profile.id
 
     // Create comment
     const repository = await createServerActionInterventionCommentRepository()
@@ -115,11 +101,12 @@ export async function deleteInterventionComment(
 
     const { commentId } = validated.data
 
-    // Get authenticated user
-    const userId = await getAuthenticatedUserId()
-    if (!userId) {
+    // ✅ REFACTORED: Use centralized auth context
+    const authContext = await getServerActionAuthContextOrNull()
+    if (!authContext) {
       return { success: false, error: 'Non authentifié' }
     }
+    const userId = authContext.profile.id
 
     // Delete comment
     const repository = await createServerActionInterventionCommentRepository()

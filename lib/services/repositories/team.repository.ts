@@ -298,17 +298,10 @@ export class TeamRepository extends BaseRepository<Team, TeamInsert, TeamUpdate>
    */
   private async fetchUserTeamsFromDB(userId: string): Promise<{ success: true; data: TeamWithMembers[] }> {
     try {
-      // 🔍 DEBUG: Log user ID and session status
-      logger.info('🔍 [TEAM-REPO-DEBUG] Fetching teams for user:', userId)
-
-      // Check if Supabase user is authenticated (using getUser() for secure server-side auth)
-      const { data: { user }, error: userError } = await this.supabase.auth.getUser()
-      logger.info('🔍 [TEAM-REPO-DEBUG] Supabase auth status:', {
-        hasUser: !!user,
-        authUserId: user?.id,
-        userError: userError?.message,
-        requestedUserId: userId
-      })
+      // ✅ REFACTORED (Jan 2026): Removed debug auth call
+      // Auth is now verified at entry points (layouts, middleware, server actions)
+      // No need to re-fetch here - just use the userId passed in
+      logger.debug('🔍 [TEAM-REPO] Fetching teams for user:', userId)
 
       // STEP 1: Get user's team memberships (no JOIN to avoid RLS recursion)
       const { data: memberData, error: memberError } = await this.supabase

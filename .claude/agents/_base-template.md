@@ -73,6 +73,40 @@ useRealtimeNotificationsV2({ onInsert: (n) => {} })
 | Channels realtime multiples | RealtimeProvider unique |
 | `npm run build` automatique | `npx tsc --noEmit [file]` |
 
+---
+
+## Skills Integration
+
+**Tous les agents SEIDO utilisent les skills sp-* selon leur expertise.**
+
+### Skills Disponibles
+
+| Skill | Quand l'utiliser |
+|-------|------------------|
+| `sp-brainstorming` | **Avant** tout travail creatif |
+| `sp-systematic-debugging` | **Avant** proposer un fix |
+| `sp-test-driven-development` | **Avant** coder |
+| `sp-verification-before-completion` | **Avant** claim done/commit |
+| `sp-writing-plans` | Tache complexe multi-step |
+| `sp-requesting-code-review` | Avant merge/PR |
+
+### Red Flags Universels
+
+| Pensee | Skill a Invoquer |
+|--------|------------------|
+| "Je vais creer/ajouter/modifier..." | `sp-brainstorming` |
+| "Ca ne marche pas / bug / erreur..." | `sp-systematic-debugging` |
+| "Je vais implementer..." | `sp-test-driven-development` |
+| "C'est fait / fini / pret..." | `sp-verification-before-completion` |
+
+### Workflow Standard
+
+1. **Process Skills First**: brainstorming/debugging AVANT implementation
+2. **Chain Skills**: brainstorming → writing-plans → TDD
+3. **Never Skip Verification**: verification obligatoire avant commit
+
+---
+
 ## Intervention Status Flow
 
 ```

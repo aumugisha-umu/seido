@@ -16,7 +16,7 @@
  * @created 2025-11-28
  */
 
-import { useEffect, useCallback, useState, useOptimistic, startTransition } from 'react'
+import { useEffect, useCallback, useState, useOptimistic, startTransition, useRef } from 'react'
 import { useRealtime, useRealtimeOptional } from '@/contexts/realtime-context'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 import type { Database } from '@/lib/database.types'
@@ -72,6 +72,19 @@ export function useRealtimeNotificationsV2(
 ): UseRealtimeNotificationsReturn {
   const { onInsert, onUpdate, onDelete, enabled = true } = options
 
+  // ✅ FIX: Stocker les callbacks dans refs pour éviter les re-subscriptions
+  // Pattern officiel React pour les callbacks stables dans les effects
+  const onInsertRef = useRef(onInsert)
+  const onUpdateRef = useRef(onUpdate)
+  const onDeleteRef = useRef(onDelete)
+
+  // Mettre à jour les refs quand les callbacks changent (sans re-trigger l'effect)
+  useEffect(() => {
+    onInsertRef.current = onInsert
+    onUpdateRef.current = onUpdate
+    onDeleteRef.current = onDelete
+  })
+
   // Utiliser le context Realtime centralisé
   const realtimeContext = useRealtimeOptional()
 
@@ -92,21 +105,21 @@ export function useRealtimeNotificationsV2(
 
         switch (eventType) {
           case 'INSERT':
-            if (newRecord && onInsert) {
-              onInsert(newRecord as DbNotification)
+            if (newRecord && onInsertRef.current) {
+              onInsertRef.current(newRecord as DbNotification)
             }
             break
 
           case 'UPDATE':
-            if (newRecord && onUpdate) {
-              onUpdate(newRecord as DbNotification)
+            if (newRecord && onUpdateRef.current) {
+              onUpdateRef.current(newRecord as DbNotification)
             }
             break
 
           case 'DELETE':
             // Note: DELETE ne renvoie que l'ancien record (old)
-            if (oldRecord && onDelete) {
-              onDelete(oldRecord as DbNotification)
+            if (oldRecord && onDeleteRef.current) {
+              onDeleteRef.current(oldRecord as DbNotification)
             }
             break
         }
@@ -115,7 +128,7 @@ export function useRealtimeNotificationsV2(
 
     // Cleanup: se désabonner quand le composant se démonte
     return unsubscribe
-  }, [enabled, realtimeContext, onInsert, onUpdate, onDelete])
+  }, [enabled, realtimeContext]) // ✅ Plus de dépendance sur onInsert/onUpdate/onDelete
 
   return {
     isConnected: realtimeContext?.isConnected ?? false
@@ -211,11 +224,20 @@ export function useNotificationsState(
     }
   )
 
-  // S'abonner aux événements realtime
+  // ✅ FIX: Stocker les fonctions instables dans refs pour éviter les re-renders
+  const addOptimisticUpdateRef = useRef(addOptimisticUpdate)
+  const onNewNotificationRef = useRef(onNewNotification)
+
+  useEffect(() => {
+    addOptimisticUpdateRef.current = addOptimisticUpdate
+    onNewNotificationRef.current = onNewNotification
+  })
+
+  // S'abonner aux événements realtime - callbacks maintenant stables grâce aux refs
   const { isConnected } = useRealtimeNotificationsV2({
-    onInsert: useCallback((notification: DbNotification) => {
+    onInsert: (notification: DbNotification) => {
       startTransition(() => {
-        addOptimisticUpdate({ type: 'INSERT', notification })
+        addOptimisticUpdateRef.current({ type: 'INSERT', notification })
       })
       // Mettre à jour le state réel
       setNotifications(prev => {
@@ -223,42 +245,42 @@ export function useNotificationsState(
         return [notification, ...prev]
       })
       // Callback utilisateur
-      onNewNotification?.(notification)
-    }, [addOptimisticUpdate, onNewNotification]),
+      onNewNotificationRef.current?.(notification)
+    },
 
-    onUpdate: useCallback((notification: DbNotification) => {
+    onUpdate: (notification: DbNotification) => {
       startTransition(() => {
-        addOptimisticUpdate({ type: 'UPDATE', notification })
+        addOptimisticUpdateRef.current({ type: 'UPDATE', notification })
       })
       setNotifications(prev =>
         prev.map(n => n.id === notification.id ? notification : n)
       )
-    }, [addOptimisticUpdate]),
+    },
 
-    onDelete: useCallback((notification: DbNotification) => {
+    onDelete: (notification: DbNotification) => {
       startTransition(() => {
-        addOptimisticUpdate({ type: 'DELETE', notification })
+        addOptimisticUpdateRef.current({ type: 'DELETE', notification })
       })
       setNotifications(prev =>
         prev.filter(n => n.id !== notification.id)
       )
-    }, [addOptimisticUpdate])
+    }
   })
 
-  // Actions utilisateur
+  // Actions utilisateur - stables grâce aux refs
   const markAsRead = useCallback((notificationId: string) => {
     startTransition(() => {
-      addOptimisticUpdate({ type: 'MARK_READ', notificationId })
+      addOptimisticUpdateRef.current({ type: 'MARK_READ', notificationId })
     })
     // Note: L'appel API pour persister est fait par le composant appelant
     // via markNotificationAsRead server action
-  }, [addOptimisticUpdate])
+  }, [])
 
   const markAllAsRead = useCallback(() => {
     startTransition(() => {
-      addOptimisticUpdate({ type: 'MARK_ALL_READ' })
+      addOptimisticUpdateRef.current({ type: 'MARK_ALL_READ' })
     })
-  }, [addOptimisticUpdate])
+  }, [])
 
   // Calculer le nombre de non lus
   const unreadCount = optimisticNotifications.filter(n => !n.read).length

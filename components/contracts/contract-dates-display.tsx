@@ -4,6 +4,15 @@ import { cn } from '@/lib/utils'
 import { Calendar, Clock, AlertTriangle } from 'lucide-react'
 import type { ContractDatesDisplayProps } from '@/lib/types/contract.types'
 
+/**
+ * Parse une chaîne de date ISO (YYYY-MM-DD) en Date locale.
+ * Évite le bug de timezone où new Date("2026-01-01") devient 31 déc en UTC+1.
+ */
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
 export function ContractDatesDisplay({
   startDate,
   endDate,
@@ -12,7 +21,7 @@ export function ContractDatesDisplay({
   showProgress = false
 }: ContractDatesDisplayProps) {
   const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr)
+    const date = parseLocalDate(dateStr)
     return date.toLocaleDateString('fr-FR', {
       day: 'numeric',
       month: compact ? 'short' : 'long',
@@ -21,7 +30,7 @@ export function ContractDatesDisplay({
   }
 
   const calculateDaysRemaining = () => {
-    const end = new Date(endDate)
+    const end = parseLocalDate(endDate)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     end.setHours(0, 0, 0, 0)
@@ -37,8 +46,8 @@ export function ContractDatesDisplay({
 
   // Calculate progress percentage for the progress bar
   const calculateProgress = () => {
-    const start = new Date(startDate)
-    const end = new Date(endDate)
+    const start = parseLocalDate(startDate)
+    const end = parseLocalDate(endDate)
     const today = new Date()
 
     const totalDuration = end.getTime() - start.getTime()

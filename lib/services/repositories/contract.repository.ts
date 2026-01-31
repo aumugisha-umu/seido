@@ -106,40 +106,77 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
 
   /**
    * Get contract by ID with all relations
+   * ✅ Optimized: uses parallel queries instead of nested JOINs (2026-01-30)
    */
   async findByIdWithRelations(id: string) {
     try {
-      const { data, error } = await this.supabase
-        .from(this.tableName)
-        .select(`
-          *,
-          lot:lot_id(
-            id, reference, category, street, city, postal_code,
-            building:building_id(id, name, address, city)
-          ),
-          team:team_id(id, name),
-          created_by_user:created_by(id, name, email),
-          contacts:contract_contacts(
+      // Step 1: Parallel fetch of contract base + contacts + documents
+      const [contractResult, contactsResult, documentsResult] = await Promise.all([
+        // Base contract with lot/team (reduced nesting)
+        this.supabase
+          .from(this.tableName)
+          .select(`
+            *,
+            lot:lot_id(id, reference, category, building_id, address_id),
+            team:team_id(id, name),
+            created_by_user:created_by(id, name, email)
+          `)
+          .eq('id', id)
+          .is('deleted_at', null)
+          .single(),
+
+        // Contacts separately (1 JOIN)
+        this.supabase
+          .from('contract_contacts')
+          .select(`
             id, user_id, role, is_primary, notes,
             user:user_id(id, name, email, phone, first_name, last_name)
-          ),
-          documents:contract_documents(
+          `)
+          .eq('contract_id', id),
+
+        // Documents separately (0 JOIN)
+        this.supabase
+          .from('contract_documents')
+          .select(`
             id, document_type, filename, original_filename, file_size, mime_type,
             storage_path, title, description, uploaded_at, uploaded_by
-          )
-        `)
-        .eq('id', id)
-        .is('deleted_at', null)
-        .single()
+          `)
+          .eq('contract_id', id)
+          .is('deleted_at', null)
+      ])
 
-      if (error) {
-        if (error.code === 'PGRST116') {
+      if (contractResult.error) {
+        if (contractResult.error.code === 'PGRST116') {
           throw new NotFoundException('contracts', id)
         }
-        return createErrorResponse(handleError(error, 'contract:findByIdWithRelations'))
+        return createErrorResponse(handleError(contractResult.error, 'contract:findByIdWithRelations'))
       }
 
-      return { success: true as const, data: data as ContractWithRelations }
+      const contract = contractResult.data
+
+      // Step 2: Fetch building info if lot exists
+      let building = null
+      if (contract.lot?.building_id) {
+        const { data: buildingData } = await this.supabase
+          .from('buildings')
+          .select('id, name, address_id')
+          .eq('id', contract.lot.building_id)
+          .single()
+        building = buildingData
+      }
+
+      // Step 3: Assemble result
+      const result = {
+        ...contract,
+        lot: contract.lot ? {
+          ...contract.lot,
+          building: building
+        } : null,
+        contacts: contactsResult.data || [],
+        documents: documentsResult.data || []
+      }
+
+      return { success: true as const, data: result as ContractWithRelations }
     } catch (error) {
       logger.error({ error, id }, '❌ [CONTRACT-REPO] findByIdWithRelations error')
       return createErrorResponse(handleError(error as Error, 'contract:findByIdWithRelations'))
@@ -148,6 +185,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
 
   /**
    * Get all contracts for a team
+   * ✅ Optimized: removed nested address_record fetches (2026-01-30)
    */
   async findByTeam(teamId: string, options?: { includeExpired?: boolean; status?: ContractStatus }) {
     try {
@@ -155,10 +193,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
         .from(this.tableName)
         .select(`
           *,
-          lot:lot_id(
-            id, reference, category, street, city,
-            building:building_id(id, name, address)
-          ),
+          lot:lot_id(id, reference, category, building:building_id(id, name)),
           contacts:contract_contacts(
             id, user_id, role, is_primary,
             user:user_id(id, name, email, phone)
@@ -286,6 +321,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
 
   /**
    * Get contracts expiring within X days
+   * ✅ Optimized: removed nested address_record fetches (2026-01-30)
    */
   async findExpiringSoon(teamId: string, days: number = 30) {
     try {
@@ -298,10 +334,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
         .from(this.tableName)
         .select(`
           *,
-          lot:lot_id(
-            id, reference, category,
-            building:building_id(id, name, address)
-          ),
+          lot:lot_id(id, reference, category, building:building_id(id, name)),
           contacts:contract_contacts(
             id, user_id, role, is_primary,
             user:user_id(id, name, email)
@@ -763,6 +796,7 @@ export class ContractContactRepository extends BaseRepository<ContractContact, C
   /**
    * Get ACTIVE contracts for a tenant user with lot and building details
    * Used by TenantService to display tenant's properties
+   * ✅ Optimized: removed nested address_record fetches (2026-01-30)
    *
    * @param userId - The tenant user ID
    * @returns Active contracts with lot and building data
@@ -787,17 +821,7 @@ export class ContractContactRepository extends BaseRepository<ContractContact, C
               reference,
               floor,
               category,
-              street,
-              city,
-              postal_code,
-              building:building_id(
-                id,
-                name,
-                address,
-                city,
-                postal_code,
-                description
-              )
+              building:building_id(id, name, description)
             )
           )
         `)

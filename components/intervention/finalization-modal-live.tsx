@@ -12,20 +12,24 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog'
-import { VisuallyHidden } from '@/components/ui/visually-hidden'
+import {
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from '@/components/ui/unified-modal'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Loader2, AlertCircle } from 'lucide-react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
+  Loader2,
+  AlertCircle,
   CheckCircle2,
   XCircle,
   User,
@@ -256,28 +260,39 @@ export function FinalizationModalLive({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="!w-[900px] !max-w-[90vw] !max-h-[90vh] flex flex-col p-0 overflow-hidden">
-        {/* Loading state */}
-        {isLoading && (
-          <>
-            <VisuallyHidden>
-              <DialogTitle>Chargement des données de finalisation</DialogTitle>
-            </VisuallyHidden>
-            <div className="flex flex-col h-[400px] bg-white rounded-xl items-center justify-center">
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={(open) => !open && onClose()}
+      size="full"
+      preventCloseOnOutsideClick={isProcessing}
+      preventCloseOnEscape={isProcessing}
+    >
+      {/* Loading state */}
+      {isLoading && (
+        <>
+          <UnifiedModalHeader
+            title="Chargement..."
+            icon={<Loader2 className="h-5 w-5 animate-spin" />}
+          />
+          <UnifiedModalBody>
+            <div className="flex flex-col h-[300px] items-center justify-center">
               <Loader2 className="w-8 h-8 animate-spin text-sky-600 mb-4" />
               <p className="text-sm text-gray-600">Chargement des données...</p>
             </div>
-          </>
-        )}
+          </UnifiedModalBody>
+        </>
+      )}
 
-        {/* Error state */}
-        {!isLoading && (error || !data) && (
-          <>
-            <VisuallyHidden>
-              <DialogTitle>Erreur de chargement</DialogTitle>
-            </VisuallyHidden>
-            <div className="flex flex-col h-[400px] bg-white rounded-xl items-center justify-center p-8">
+      {/* Error state */}
+      {!isLoading && (error || !data) && (
+        <>
+          <UnifiedModalHeader
+            title="Erreur de chargement"
+            icon={<AlertCircle className="h-5 w-5" />}
+            variant="danger"
+          />
+          <UnifiedModalBody>
+            <div className="flex flex-col items-center justify-center p-8">
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
@@ -286,36 +301,30 @@ export function FinalizationModalLive({
               </Alert>
               <Button onClick={onClose} className="mt-4">Fermer</Button>
             </div>
-          </>
-        )}
+          </UnifiedModalBody>
+        </>
+      )}
 
-        {/* Main content */}
-        {!isLoading && !error && data && intervention && (
-          <div className="flex flex-col min-h-0 h-full">
-            {/* Header */}
-            <div className="px-6 py-4 border-b border-gray-100 flex-shrink-0">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <DialogTitle className="text-2xl font-light text-gray-900">
-                    Finalisation de l'intervention
-                  </DialogTitle>
-                  <p className="text-sm font-normal text-gray-500">
-                    {intervention.reference} • {intervention.title}
-                  </p>
-                </div>
-                <Badge
-                  variant="secondary"
-                  className="bg-green-50 text-green-700 border-green-200 text-sm font-normal px-3 py-1"
-                >
-                  <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
-                  {data.tenantValidation ? 'Validé par le locataire' : 'Clôturé par le prestataire'}
-                </Badge>
-              </div>
-            </div>
+      {/* Main content */}
+      {!isLoading && !error && data && intervention && (
+        <>
+          <UnifiedModalHeader
+            title="Finalisation de l'intervention"
+            subtitle={`${intervention.reference} • ${intervention.title}`}
+            icon={<CheckCircle2 className="h-5 w-5" />}
+            variant="success"
+            badge={
+              <Badge
+                variant="secondary"
+                className="bg-green-50 text-green-700 border-green-200 text-sm font-normal px-3 py-1"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5 mr-1.5" />
+                {data.tenantValidation ? 'Validé par le locataire' : 'Clôturé par le prestataire'}
+              </Badge>
+            }
+          />
 
-            {/* Scrollable Content */}
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <div className="px-6 py-6 space-y-6">
+          <UnifiedModalBody className="space-y-6">
 
                 {/* Section 1: Informations générales + Bien */}
                 <Card className="border-gray-100 shadow-sm">
@@ -369,7 +378,7 @@ export function FinalizationModalLive({
                           {intervention.lot.building && (
                             <span className="font-normal text-gray-600">
                               {' '}• {intervention.lot.building.name}
-                              {intervention.lot.building.address && ` • ${intervention.lot.building.address}`}
+                              {intervention.lot.building.address_record?.street && ` • ${intervention.lot.building.address_record.street}`}
                             </span>
                           )}
                         </p>
@@ -563,63 +572,55 @@ export function FinalizationModalLive({
                   </CardContent>
                 </Card>
 
-              </div>
+          </UnifiedModalBody>
+
+          <UnifiedModalFooter className="flex-col sm:flex-row gap-2">
+            <div className="flex-1 space-y-1">
+              <p className="text-sm font-semibold text-gray-900">
+                Décision de finalisation
+              </p>
+              <p className="text-xs text-gray-600">
+                {scheduleFollowUp
+                  ? 'Après validation, vous serez redirigé vers la création d\'intervention'
+                  : 'Validez ou refusez la clôture définitive de cette intervention'}
+              </p>
             </div>
 
-            {/* Sticky Footer - Decision Section */}
-            <div className="bg-white border-t border-gray-200 shadow-lg px-6 py-4 flex-shrink-0 relative z-10">
-              <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-gray-900">
-                    Décision de finalisation
-                  </p>
-                  <p className="text-xs text-gray-600">
-                    {scheduleFollowUp
-                      ? 'Après validation, vous serez redirigé vers la création d\'intervention'
-                      : 'Validez ou refusez la clôture définitive de cette intervention'}
-                  </p>
-                </div>
-
-                <div className="flex items-center space-x-3">
-                  <Button
-                    variant="outline"
-                    size="lg"
-                    onClick={handleRejectClick}
-                    disabled={isProcessing}
-                    className="rounded-full px-6 border-gray-300 hover:bg-gray-50"
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Refuser
-                  </Button>
-                  <Button
-                    size="lg"
-                    onClick={handleFinalize}
-                    disabled={isProcessing}
-                    className="rounded-full px-6 bg-green-600 hover:bg-green-700 text-white shadow-md"
-                  >
-                    {isProcessing ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                    )}
-                    {scheduleFollowUp ? 'Finaliser et Programmer' : 'Finaliser l\'intervention'}
-                  </Button>
-                </div>
-              </div>
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="outline"
+                onClick={handleRejectClick}
+                disabled={isProcessing}
+              >
+                <XCircle className="w-4 h-4 mr-2" />
+                Refuser
+              </Button>
+              <Button
+                onClick={handleFinalize}
+                disabled={isProcessing}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {isProcessing ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                )}
+                {scheduleFollowUp ? 'Finaliser et Programmer' : 'Finaliser l\'intervention'}
+              </Button>
             </div>
+          </UnifiedModalFooter>
 
-            {/* Rejection Confirmation Dialog (kept for reject action only) */}
-            <FinalizationConfirmationDialog
-              isOpen={showRejectDialog}
-              onClose={() => setShowRejectDialog(false)}
-              onConfirm={handleRejectConfirm}
-              action="reject"
-              interventionRef={intervention?.reference || ''}
-              isLoading={isProcessing}
-            />
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+          {/* Rejection Confirmation Dialog (kept for reject action only) */}
+          <FinalizationConfirmationDialog
+            isOpen={showRejectDialog}
+            onClose={() => setShowRejectDialog(false)}
+            onConfirm={handleRejectConfirm}
+            action="reject"
+            interventionRef={intervention?.reference || ''}
+            isLoading={isProcessing}
+          />
+        </>
+      )}
+    </UnifiedModal>
   )
 }

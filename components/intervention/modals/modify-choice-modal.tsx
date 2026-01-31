@@ -7,18 +7,16 @@
 
 import { useState, useEffect } from 'react'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from '@/components/ui/unified-modal'
 import { Button } from '@/components/ui/button'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { AlertCircle, Calendar, Clock, Edit3, Check, X } from 'lucide-react'
+import { AlertCircle, Calendar, Clock, Edit3, Check, X, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -133,23 +131,21 @@ export function ModifyChoiceModal({
   const hasChanges = selectedChoice !== currentResponse || (isRejectSelected && reason.trim().length > 0)
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[550px]">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-blue-500/10 p-3">
-              <Edit3 className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <DialogTitle>Modifier votre choix</DialogTitle>
-              <DialogDescription>
-                Changez votre décision pour ce créneau
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={handleClose}
+      size="md"
+      preventCloseOnOutsideClick={submitting}
+      preventCloseOnEscape={submitting}
+    >
+      <UnifiedModalHeader
+        title="Modifier votre choix"
+        subtitle="Changez votre décision pour ce créneau"
+        icon={<Edit3 className="h-5 w-5" />}
+      />
 
-        <div className="space-y-4 py-4">
+      <UnifiedModalBody>
+        <div className="space-y-4">
           {/* Slot information */}
           <div className="rounded-lg bg-muted p-4 space-y-3">
             <div className="flex items-center gap-2 text-sm">
@@ -259,26 +255,33 @@ export function ModifyChoiceModal({
             </p>
           </div>
         </div>
+      </UnifiedModalBody>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClose}
-            disabled={submitting}
-          >
-            Annuler
-          </Button>
-          <Button
-            type="button"
-            onClick={handleConfirm}
-            disabled={submitting || (isRejectSelected && !reason.trim())}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {submitting ? 'Modification...' : 'Confirmer'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleClose}
+          disabled={submitting}
+        >
+          Annuler
+        </Button>
+        <Button
+          type="button"
+          onClick={handleConfirm}
+          disabled={submitting || (isRejectSelected && !reason.trim())}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          {submitting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Modification...
+            </>
+          ) : (
+            'Confirmer'
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

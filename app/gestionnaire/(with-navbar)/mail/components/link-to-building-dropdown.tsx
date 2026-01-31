@@ -59,7 +59,7 @@ export function LinkToBuildingDropdown({
                 <BuildingIcon className="h-4 w-4" />
                 <div>
                   <div className="font-medium">{building.name}</div>
-                  <div className="text-xs text-muted-foreground">{building.address}</div>
+                  <div className="text-xs text-muted-foreground">{building.address_record?.street || ''}</div>
                 </div>
               </div>
               {currentBuildingId === building.id && !currentLotId && (

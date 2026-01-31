@@ -1,8 +1,13 @@
 "use client"
 
-import { AlertTriangle } from "lucide-react"
+import { AlertTriangle, Check, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import {
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from "@/components/ui/unified-modal"
 import { type InterventionAction } from "@/lib/intervention-actions-service"
 
 interface ConfirmationModalProps {
@@ -25,15 +30,18 @@ export const ConfirmationModal = ({
   onConfirm,
 }: ConfirmationModalProps) => {
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <AlertTriangle className="h-5 w-5 text-orange-500" />
-            <span>Confirmer l'action</span>
-          </DialogTitle>
-        </DialogHeader>
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={(open) => !open && onClose()}
+      size="sm"
+    >
+      <UnifiedModalHeader
+        title="Confirmer l'action"
+        icon={<AlertTriangle className="h-5 w-5" />}
+        variant={action === "reject" ? "danger" : "warning"}
+      />
 
+      <UnifiedModalBody>
         <div className="space-y-4">
           <p className="text-gray-600">
             {action === "approve"
@@ -60,23 +68,33 @@ export const ConfirmationModal = ({
             </div>
           )}
         </div>
+      </UnifiedModalBody>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Annuler
-          </Button>
-          <Button
-            onClick={onConfirm}
-            className={
-              action === "reject"
-                ? "bg-red-600 hover:bg-red-700"
-                : "bg-green-600 hover:bg-green-700"
-            }
-          >
-            {action === "reject" ? "Confirmer le rejet" : "Confirmer l'approbation"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button variant="outline" onClick={onClose}>
+          Annuler
+        </Button>
+        <Button
+          onClick={onConfirm}
+          className={
+            action === "reject"
+              ? "bg-red-600 hover:bg-red-700"
+              : "bg-emerald-600 hover:bg-emerald-700"
+          }
+        >
+          {action === "reject" ? (
+            <>
+              <X className="h-4 w-4 mr-2" />
+              Confirmer le rejet
+            </>
+          ) : (
+            <>
+              <Check className="h-4 w-4 mr-2" />
+              Confirmer l&apos;approbation
+            </>
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

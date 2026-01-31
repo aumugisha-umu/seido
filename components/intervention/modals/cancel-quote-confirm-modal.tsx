@@ -1,16 +1,13 @@
 "use client"
 
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { AlertTriangle } from "lucide-react"
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from "@/components/ui/unified-modal"
+import { Button } from "@/components/ui/button"
+import { AlertTriangle, Loader2 } from "lucide-react"
 
 interface CancelQuoteConfirmModalProps {
   isOpen: boolean
@@ -27,52 +24,65 @@ export function CancelQuoteConfirmModal({
   providerName,
   isLoading = false
 }: CancelQuoteConfirmModalProps) {
+  const handleOpenChange = (open: boolean) => {
+    if (!open && !isLoading) {
+      onClose()
+    }
+  }
+
   return (
-    <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Annuler la demande d'estimation ?</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-3">
-            <span className="block">
-              Êtes-vous sûr de vouloir annuler la demande d'estimation envoyée à{" "}
-              <span className="font-semibold text-slate-900">{providerName}</span> ?
-            </span>
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={handleOpenChange}
+      size="sm"
+      preventCloseOnOutsideClick={isLoading}
+      preventCloseOnEscape={isLoading}
+    >
+      <UnifiedModalHeader
+        title="Annuler la demande d'estimation ?"
+        icon={<AlertTriangle className="h-5 w-5" />}
+        variant="warning"
+      />
 
-            <span className="flex items-start gap-2 text-amber-600 bg-amber-50 p-3 rounded-md border border-amber-200">
-              <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-              <span className="text-sm">
-                L'intervention reviendra au statut "En planification"
-              </span>
-            </span>
+      <UnifiedModalBody>
+        <div className="space-y-3">
+          <p className="text-muted-foreground">
+            Êtes-vous sûr de vouloir annuler la demande d&apos;estimation envoyée à{" "}
+            <span className="font-semibold text-foreground">{providerName}</span> ?
+          </p>
 
-            <span className="block text-sm text-slate-500">
-              Cette action est irréversible. Le prestataire ne pourra plus soumettre d'estimation pour cette demande.
+          <div className="flex items-start gap-2 text-amber-600 bg-amber-50 p-3 rounded-md border border-amber-200">
+            <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+            <span className="text-sm">
+              L&apos;intervention reviendra au statut &ldquo;En planification&rdquo;
             </span>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isLoading}>
-            Annuler
-          </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={(e) => {
-              e.preventDefault()
-              onConfirm()
-            }}
-            disabled={isLoading}
-            className="bg-red-600 hover:bg-red-700 focus:ring-red-600 flex items-center gap-2"
-          >
-            {isLoading ? (
-              <>
-                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block"></span>
-                <span>Annulation...</span>
-              </>
-            ) : (
-              "Confirmer l'annulation"
-            )}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+          </div>
+
+          <p className="text-sm text-muted-foreground">
+            Cette action est irréversible. Le prestataire ne pourra plus soumettre d&apos;estimation pour cette demande.
+          </p>
+        </div>
+      </UnifiedModalBody>
+
+      <UnifiedModalFooter>
+        <Button variant="outline" onClick={onClose} disabled={isLoading}>
+          Retour
+        </Button>
+        <Button
+          variant="destructive"
+          onClick={onConfirm}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Annulation...
+            </>
+          ) : (
+            "Confirmer l'annulation"
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

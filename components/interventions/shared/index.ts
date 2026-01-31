@@ -44,23 +44,28 @@
  *   // Atoms
  *   RoleBadge, StatusBadge, ParticipantAvatar,
  *   // Layout
- *   PreviewHybridLayout, InterventionTabs,
+ *   PreviewHybridLayout,
  *   // Sidebar
  *   InterventionSidebar,
  *   // Cards
  *   InterventionDetailsCard, QuotesCard, PlanningCard
  * } from '@/components/interventions/shared'
+ *
+ * // Pour les tabs, utilisez EntityTabs avec getInterventionTabsConfig
+ * import { EntityTabs, getInterventionTabsConfig } from '@/components/shared/entity-preview'
  * ```
  *
  * @example
  * // Exemple complet pour une vue Manager
- * import { PreviewHybridLayout, InterventionSidebar, InterventionTabs } from '@/components/interventions/shared'
+ * import { PreviewHybridLayout, InterventionSidebar } from '@/components/interventions/shared'
+ * import { EntityTabs, getInterventionTabsConfig } from '@/components/shared/entity-preview'
  *
  * function ManagerView({ intervention, participants }) {
+ *   const tabs = useMemo(() => getInterventionTabsConfig('manager'), [])
  *   return (
  *     <PreviewHybridLayout
  *       sidebar={<InterventionSidebar {...sidebarProps} />}
- *       content={<InterventionTabs userRole="manager">...</InterventionTabs>}
+ *       content={<EntityTabs tabs={tabs}>...</EntityTabs>}
  *     />
  *   )
  * }

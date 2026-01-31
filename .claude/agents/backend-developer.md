@@ -119,6 +119,29 @@ export async function createBuildingAction(data: BuildingInput) {
 - ❌ Manual auth → Use `getServerAuthContext()`
 - ❌ Skip cache invalidation → Use revalidateTag
 
+## Skills Integration
+
+| Situation | Skill |
+|-----------|-------|
+| Nouveau service/API | `sp-brainstorming` |
+| Bug API/service | `sp-systematic-debugging` |
+| Implementation | `sp-test-driven-development` |
+| Fin implementation | `sp-verification-before-completion` |
+
+### Workflow Backend
+
+```
+[Nouveau service] → sp-brainstorming (architecture, patterns SEIDO)
+    ↓
+sp-test-driven-development → Tests service
+    ↓
+[Implementation]
+    ↓
+sp-verification-before-completion → RLS, cache invalidation, types
+```
+
+---
+
 ## Integration Agents
 
 - **API-designer**: Endpoint design

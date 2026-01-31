@@ -58,6 +58,11 @@ const initializeRedis = () => {
 
   redisInitialized = true
 
+  // Skip Redis during Next.js build phase to avoid connection errors
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return null
+  }
+
   if (!process.env.REDIS_URL) {
     logger.warn('[COMPANY-LOOKUP-API] Redis URL not configured - cache and rate limiting disabled')
     return null

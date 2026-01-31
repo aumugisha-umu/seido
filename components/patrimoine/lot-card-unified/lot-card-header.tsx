@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, Building2, Users, Check, X } from "lucide-react"
+import { Home, Building2, Users, Check, X, MapPin } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
@@ -116,18 +116,65 @@ export function LotCardHeader({
         )} />
       </div>
 
-      {/* Reference and Building */}
+      {/* Reference and Building/Address */}
       <div className="min-w-0 flex-1">
         <h3 className="font-semibold text-base text-slate-900 truncate">
           {lot.reference}
         </h3>
 
-        {/* Building name (optional) */}
-        {showBuilding && lot.building?.name && (
-          <div className="flex items-center text-xs text-slate-500 mt-0.5">
-            <Building2 className="h-3 w-3 mr-1 flex-shrink-0" />
-            <span className="truncate">{lot.building.name}</span>
-          </div>
+        {/* Building name + address OR lot's own address (for independent lots) */}
+        {showBuilding && (
+          lot.building?.name ? (
+            // Lot linked to a building: show building name AND address from address_record
+            (() => {
+              const buildingAddressRecord = lot.building?.address_record
+              let buildingAddressText: string | null = null
+
+              if (buildingAddressRecord?.formatted_address) {
+                buildingAddressText = buildingAddressRecord.formatted_address
+              } else if (buildingAddressRecord?.street || buildingAddressRecord?.city) {
+                const parts = [buildingAddressRecord.street, buildingAddressRecord.postal_code, buildingAddressRecord.city].filter(Boolean)
+                buildingAddressText = parts.join(', ')
+              }
+
+              return (
+                <div className="flex items-center text-xs text-slate-500 mt-0.5 gap-1">
+                  <Building2 className="h-3 w-3 flex-shrink-0" />
+                  <span className="flex-shrink-0">{lot.building.name}</span>
+                  {buildingAddressText && (
+                    <>
+                      <span className="text-slate-400">•</span>
+                      <MapPin className="h-3 w-3 flex-shrink-0 text-slate-400" />
+                      <span className="truncate text-slate-400">
+                        {buildingAddressText}
+                      </span>
+                    </>
+                  )}
+                </div>
+              )
+            })()
+          ) : (
+            // Independent lot: show its own address
+            (() => {
+              // Priority: address_record.formatted_address > address_record fields > inline fields
+              const addressRecord = lot.address_record
+              let addressText: string | null = null
+
+              if (addressRecord?.formatted_address) {
+                addressText = addressRecord.formatted_address
+              } else if (addressRecord?.street || addressRecord?.city) {
+                const parts = [addressRecord.street, addressRecord.postal_code, addressRecord.city].filter(Boolean)
+                addressText = parts.join(', ')
+              }
+
+              return addressText ? (
+                <div className="flex items-center text-xs text-slate-500 mt-0.5">
+                  <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                  <span className="truncate">{addressText}</span>
+                </div>
+              ) : null
+            })()
+          )
         )}
 
         {/* Apartment number (if available) */}
@@ -214,7 +261,7 @@ export function LotCardBadges({
 
           {lot.door_number && (
             <span className="text-xs text-slate-500">
-              • Porte {lot.door_number}
+              • Porte/Boîte {lot.door_number}
             </span>
           )}
 

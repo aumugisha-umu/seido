@@ -136,12 +136,33 @@ const initialFormData: Partial<ContractFormData> = {
 // HELPER FUNCTIONS
 // ============================================================================
 
+/**
+ * Parse une chaîne de date ISO (YYYY-MM-DD) en Date locale.
+ * Évite le bug de timezone où new Date("2026-01-01") devient 31 déc en UTC+1.
+ */
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+/**
+ * Calcule la date de fin du contrat (dernier jour inclus).
+ *
+ * Logique métier: un bail d'1 an commençant le 1er janvier se termine
+ * le 31 décembre (dernier jour du bail), pas le 1er janvier suivant.
+ */
+function calculateContractEndDate(startDate: string, durationMonths: number): Date {
+  const date = parseLocalDate(startDate)
+  date.setMonth(date.getMonth() + durationMonths)
+  date.setDate(date.getDate() - 1) // Dernier jour du bail
+  return date
+}
+
 // Generate contract reference from lot and dates: BAIL-{LOT_REF}-{START}-{END}
 function generateContractReference(lotReference: string | undefined, startDate: string, durationMonths: number): string {
   if (!lotReference || !startDate) return ''
-  const start = new Date(startDate)
-  const end = new Date(startDate)
-  end.setMonth(end.getMonth() + durationMonths)
+  const start = parseLocalDate(startDate)
+  const end = calculateContractEndDate(startDate, durationMonths)
 
   const formatDate = (d: Date) => `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
   return `BAIL-${lotReference}-${formatDate(start)}-${formatDate(end)}`
@@ -239,9 +260,9 @@ export default function ContractFormContainer({
   const [scheduledInterventions, setScheduledInterventions] = useState<ScheduledInterventionData[]>([])
 
   // État de l'overlap check (remonté depuis LeaseFormDetailsMerged pour validation step)
+  // Note (2026-01): hasOverlap n'est plus bloquant (warning seulement), seul hasDuplicateTenant bloque
   const [overlapCheckResult, setOverlapCheckResult] = useState<{
     hasOverlap: boolean
-    isColocationAllowed: boolean
     hasDuplicateTenant: boolean
   } | null>(null)
 
@@ -283,9 +304,8 @@ export default function ContractFormContainer({
       return
     }
 
-    const startDate = new Date(formData.startDate)
-    const endDate = new Date(formData.startDate)
-    endDate.setMonth(endDate.getMonth() + formData.durationMonths)
+    const startDate = parseLocalDate(formData.startDate)
+    const endDate = calculateContractEndDate(formData.startDate, formData.durationMonths)
 
     // Filtrer les templates selon le type de charges
     const applicableTemplates = LEASE_INTERVENTION_TEMPLATES.filter(template => {
@@ -469,10 +489,9 @@ export default function ContractFormContainer({
         const hasDuration = !!formData.durationMonths
         const hasRent = !!(formData.rentAmount && formData.rentAmount > 0)
         const hasLocataire = (formData.contacts || []).some(c => c.role === 'locataire')
-        // ✅ Bloquer si doublon OU si chevauchement sur lot non-colocation
+        // ✅ Seul le doublon locataire est bloquant - les chevauchements sont en warning (colocation/cohabitation permise)
         const noDuplicateTenant = !overlapCheckResult?.hasDuplicateTenant
-        const noBlockingOverlap = !overlapCheckResult?.hasOverlap || overlapCheckResult?.isColocationAllowed
-        return hasStartDate && hasDuration && hasRent && hasLocataire && noDuplicateTenant && noBlockingOverlap
+        return hasStartDate && hasDuration && hasRent && hasLocataire && noDuplicateTenant
       case 2: // Documents (optionnel - toujours valide)
         return true
       case 3: // Interventions (optionnel - toujours valide)
@@ -695,14 +714,12 @@ export default function ContractFormContainer({
   const submitIcon = mode === 'create' ? Check : Save
   const SubmitIcon = submitIcon
 
-  // Calculate end date for interventions step
+  // Calculate end date for interventions step (dernier jour du bail)
   const endDateCalc = useMemo(() => {
     if (!formData.startDate || !formData.durationMonths) {
       return new Date()
     }
-    const end = new Date(formData.startDate)
-    end.setMonth(end.getMonth() + (formData.durationMonths || 12))
-    return end
+    return calculateContractEndDate(formData.startDate, formData.durationMonths || 12)
   }, [formData.startDate, formData.durationMonths])
 
   // Render step content
@@ -924,7 +941,7 @@ export default function ContractFormContainer({
                       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Date d'effet</p>
                       <p className="text-sm mt-1 flex items-center gap-2">
                         <Calendar className="h-3 w-3" />
-                        {new Date(formData.startDate!).toLocaleDateString('fr-FR', { dateStyle: 'long' })}
+                        {parseLocalDate(formData.startDate!).toLocaleDateString('fr-FR', { dateStyle: 'long' })}
                       </p>
                     </div>
                     <div>

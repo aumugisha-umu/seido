@@ -23,9 +23,9 @@ export const SHEET_NAMES = {
 
 // IMPORTANT: These categories MUST match the database enum `lot_category`
 // See database.types.ts for the source of truth
+// Note: 'collocation' was removed in 2026-01 - it's a mode of occupation, not a property type
 export const LOT_CATEGORIES = [
   'appartement',
-  'collocation',
   'maison',
   'garage',        // Also used for parking spaces (box fermé, place parking)
   'local_commercial',
@@ -34,7 +34,6 @@ export const LOT_CATEGORIES = [
 
 export const LOT_CATEGORY_LABELS: Record<string, string> = {
   'appartement': 'Appartement',
-  'collocation': 'Collocation',
   'maison': 'Maison',
   'garage': 'Garage / Parking',
   'local_commercial': 'Local commercial',
@@ -180,7 +179,7 @@ export const LOT_TEMPLATE: TemplateConfig = {
     ['CTR-A01', 'Bruxelles Centre', 'appartement', 1, '', '', '', 'belgique', 'T2 50m², pied-à-terre'],
     ['CTR-A02', 'Bruxelles Centre', 'appartement', 2, '', '', '', 'belgique', 'T3 65m², lumineux'],
     ['CTR-A03', 'Bruxelles Centre', 'appartement', 3, '', '', '', 'belgique', 'T4 80m², rénové'],
-    ['CTR-K01', 'Bruxelles Centre', 'collocation', 4, '', '', '', 'belgique', 'Coloc 4 chambres, 120m²'],
+    ['CTR-K01', 'Bruxelles Centre', 'appartement', 4, '', '', '', 'belgique', 'Coloc 4 chambres, 120m²'],
     ['CTR-C01', 'Bruxelles Centre', 'autre', -1, '', '', '', 'belgique', 'Cave 20m² stockage'],
     // ============================================================================
     // TOUR HORIZON - 6 lots
@@ -262,7 +261,7 @@ export const LOT_TEMPLATE: TemplateConfig = {
     ['AND-A02', 'Anderlecht Square', 'appartement', 1, '', '', '', 'belgique', 'T3 65m², lumineux'],
     ['AND-A03', 'Anderlecht Square', 'appartement', 2, '', '', '', 'belgique', 'T3 68m², balcon'],
     ['AND-A04', 'Anderlecht Square', 'appartement', 3, '', '', '', 'belgique', 'T4 85m², familial'],
-    ['AND-K01', 'Anderlecht Square', 'collocation', 4, '', '', '', 'belgique', 'Coloc 5 ch, 130m²'],
+    ['AND-K01', 'Anderlecht Square', 'appartement', 4, '', '', '', 'belgique', 'Coloc 5 ch, 130m²'],
     ['AND-P01', 'Anderlecht Square', 'garage', -1, '', '', '', 'belgique', 'Place souterraine'],
     ['AND-C01', 'Anderlecht Square', 'autre', -1, '', '', '', 'belgique', 'Cave 10m²'],
     // ============================================================================

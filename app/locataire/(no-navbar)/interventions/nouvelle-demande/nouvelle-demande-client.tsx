@@ -9,6 +9,9 @@ import {
   Home,
   Building2,
   AlertTriangle,
+  Tag,
+  FileText,
+  Paperclip,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -42,9 +45,11 @@ interface NouvelleDemandPageProps {
     building?: {
       id: string
       name: string
-      address: string
-      postal_code: string
-      city: string
+      address_record?: {
+        street?: string
+        postal_code?: string
+        city?: string
+      } | null
     }
     surface_area?: number
   }>
@@ -94,31 +99,61 @@ export default function NouvelleDemandePage({
 
   // Transform lots data for display (from server props)
   const logements = useMemo(() => {
-    return tenantLots.map(lot => ({
-      id: lot.id,
-      name: lot.apartment_number || `Lot ${lot.reference}`,
-      address: lot.building ?
-        `${lot.building.address}, ${lot.building.postal_code} ${lot.building.city}` :
-        "Lot indépendant",
-      surface: lot.surface_area ? `${lot.surface_area}m²` : "Surface non spécifiée",
-      building: lot.building?.name || `Lot ${lot.reference}`,
-      interventions: "Aucune intervention active",
-      reference: lot.reference,
-      building_id: lot.building?.id || null
-    }))
+    return tenantLots.map(lot => {
+      // Format address from address_record
+      const addressRecord = lot.building?.address_record
+      const addressParts = addressRecord
+        ? [addressRecord.street, addressRecord.postal_code, addressRecord.city].filter(Boolean)
+        : []
+      const formattedAddress = addressParts.length > 0 ? addressParts.join(', ') : "Lot indépendant"
+
+      return {
+        id: lot.id,
+        name: lot.apartment_number || `Lot ${lot.reference}`,
+        address: formattedAddress,
+        surface: lot.surface_area ? `${lot.surface_area}m²` : "Surface non spécifiée",
+        building: lot.building?.name || `Lot ${lot.reference}`,
+        interventions: "Aucune intervention active",
+        reference: lot.reference,
+        building_id: lot.building?.id || null
+      }
+    })
   }, [tenantLots])
 
   // Auto-select logement and skip step 1 if only one lot
   useEffect(() => {
     if (!selectedLogement && logements.length > 0) {
       setSelectedLogement(logements[0].id)
-      
+
       // If only one lot, skip to step 2 directly
       if (shouldSkipStepOne) {
         setCurrentStep(2)
       }
     }
   }, [selectedLogement, logements, shouldSkipStepOne])
+
+  // Moved before conditional return to respect React hooks rules
+  const selectedLogementData = logements.find((l) => l.id === selectedLogement)
+
+  // Génère automatiquement le titre de l'intervention
+  // Moved before conditional return to respect React hooks rules
+  const generateTitle = useMemo(() => {
+    return () => {
+      if (!formData.type || !selectedLogementData) return ""
+
+      const typeLabel = getTypeLabel(formData.type)
+      const lotRef = selectedLogementData.reference || selectedLogementData.name
+      const urgencyMap: Record<string, string> = {
+        'basse': 'Basse',
+        'normale': 'Normale',
+        'haute': 'Haute',
+        'urgente': 'Urgente',
+      }
+      const urgencyLabel = urgencyMap[formData.urgence] || 'Normale'
+
+      return `${typeLabel} - ${lotRef} (${urgencyLabel})`
+    }
+  }, [formData.type, formData.urgence, selectedLogementData, getTypeLabel])
 
   // Conditional return for no lots
   if (tenantLots.length === 0) {
@@ -224,10 +259,10 @@ export default function NouvelleDemandePage({
       // Store the real intervention ID
       setCreatedInterventionId(result.intervention.id)
 
-      // ✅ Pattern simplifié: toast + redirect immédiat (sans délai 500ms)
+      // ✅ Toast amélioré: feedback humain pour le persona locataire (Emma)
       toast({
-        title: "Demande d'intervention créée avec succès",
-        description: `Votre demande "${result.intervention.title}" a été transmise à votre gestionnaire.`,
+        title: "Demande envoyée !",
+        description: "C'est noté ! On revient vers vous sous 24h.",
         variant: "success",
       })
 
@@ -252,27 +287,6 @@ export default function NouvelleDemandePage({
     const realInterventionId = createdInterventionId || generateInterventionId()
     router.push(`/locataire/interventions/${realInterventionId}`)
   }
-
-  const selectedLogementData = logements.find((l) => l.id === selectedLogement)
-
-  // Génère automatiquement le titre de l'intervention
-  const generateTitle = useMemo(() => {
-    return () => {
-      if (!formData.type || !selectedLogementData) return ""
-
-      const typeLabel = getTypeLabel(formData.type)
-      const lotRef = selectedLogementData.reference || selectedLogementData.name
-      const urgencyMap: Record<string, string> = {
-        'basse': 'Basse',
-        'normale': 'Normale',
-        'haute': 'Haute',
-        'urgente': 'Urgente',
-      }
-      const urgencyLabel = urgencyMap[formData.urgence] || 'Normale'
-
-      return `${typeLabel} - ${lotRef} (${urgencyLabel})`
-    }
-  }, [formData.type, formData.urgence, selectedLogementData, getTypeLabel])
 
   // Helper pour gérer la navigation
   const handleNext = () => {
@@ -377,22 +391,22 @@ export default function NouvelleDemandePage({
             {/* Type de problème + Urgence sur la même ligne */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="sm:col-span-1">
-                <Label htmlFor="type" className="text-sm font-medium text-gray-700">
-                  Type de problème <span className="text-red-500">*</span>
+                <Label htmlFor="type" icon={Tag} required>
+                  Type de problème
                 </Label>
                 <div className="mt-2">
                   <InterventionTypeCombobox
                     value={formData.type}
                     onValueChange={(value) => handleInputChange("type", value)}
                     placeholder="Sélectionnez le type"
-                    categoryFilter="bien"
+                    categoryFilter={["bien", "locataire"]}
                   />
                 </div>
               </div>
 
               <div className="sm:col-span-1">
-                <Label htmlFor="urgence" className="text-sm font-medium text-gray-700">
-                  Urgence
+                <Label htmlFor="urgence" icon={AlertTriangle}>
+                  Urgence <span className="text-muted-foreground font-normal">(optionnel)</span>
                 </Label>
                 <Select value={formData.urgence} onValueChange={(value) => handleInputChange("urgence", value)}>
                   <SelectTrigger className="mt-2 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
@@ -412,8 +426,8 @@ export default function NouvelleDemandePage({
             </div>
 
             <div>
-              <Label htmlFor="description" className="text-sm font-medium text-gray-700">
-                Description détaillée *
+              <Label htmlFor="description" icon={FileText} required>
+                Description détaillée
               </Label>
               <Textarea
                 id="description"
@@ -425,7 +439,9 @@ export default function NouvelleDemandePage({
             </div>
 
             <div>
-              <Label className="text-sm font-medium text-gray-700">Pièces jointes (optionnel)</Label>
+              <Label icon={Paperclip}>
+                Pièces jointes <span className="text-muted-foreground font-normal">(optionnel)</span>
+              </Label>
               <p className="text-xs text-gray-500 mt-1">
                 Ajoutez des photos ou documents pour illustrer le problème (max 10MB par fichier)
               </p>
@@ -449,6 +465,7 @@ export default function NouvelleDemandePage({
 
   const renderStep3 = () => {
     const confirmationData: InterventionConfirmationData = {
+      variant: 'tenant', // Tenant-specific display with timeline
       logement: {
         type: 'lot',
         name: selectedLogementData?.name || '',
@@ -459,7 +476,7 @@ export default function NouvelleDemandePage({
         title: generateTitle(),
         description: formData.description,
         category: formData.type,
-        urgency: formData.urgence,
+        urgency: formData.urgence || 'normale',
       },
       contacts: [], // Locataire n'assigne pas de contacts
       files: fileUpload.files.map(fileWithPreview => {
@@ -471,7 +488,9 @@ export default function NouvelleDemandePage({
           id: fileWithPreview.id,
           name: fileWithPreview.file.name,
           size: (fileWithPreview.file.size / (1024 * 1024)).toFixed(1) + ' MB',
-          type: documentTypeLabel,
+          type: fileWithPreview.file.type,
+          previewUrl: fileWithPreview.preview, // Image preview URL
+          category: documentTypeLabel, // Document category for display
         }
       }),
     }
@@ -485,6 +504,9 @@ export default function NouvelleDemandePage({
         totalSteps={shouldSkipStepOne ? 2 : 3}
         isLoading={isCreating}
         showFooter={false}
+        showPlanning={false}
+        showSuccessHeader={false}
+        onGoToDashboard={() => router.push('/locataire/dashboard')}
       />
     )
   }
@@ -501,9 +523,9 @@ export default function NouvelleDemandePage({
     return undefined
   }
 
-  // Structure unifiée pour tous les steps
+  // Structure unifiée pour tous les steps (alignée sur le pattern gestionnaire)
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
       {/* Header - Sticky au niveau supérieur */}
       <StepProgressHeader
         title="Déclarer un sinistre"
@@ -514,19 +536,22 @@ export default function NouvelleDemandePage({
         currentStep={shouldSkipStepOne ? currentStep - 1 : currentStep}
       />
 
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-2">
-        {/* Step 1: Sélection du logement */}
-        {currentStep === 1 && !shouldSkipStepOne && renderStep1()}
+      {/* Main Content with horizontal padding and bottom space for footer */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pb-10 bg-gray-50">
+        <main className="max-w-6xl mx-auto w-full pt-2">
+          {/* Step 1: Sélection du logement */}
+          {currentStep === 1 && !shouldSkipStepOne && renderStep1()}
 
-        {/* Step 2: Formulaire de demande */}
-        {currentStep === 2 && renderStep2()}
+          {/* Step 2: Formulaire de demande */}
+          {currentStep === 2 && renderStep2()}
 
-        {/* Step 3: Confirmation */}
-        {currentStep === 3 && renderStep3()}
-      </main>
+          {/* Step 3: Confirmation */}
+          {currentStep === 3 && renderStep3()}
+        </main>
+      </div>
 
-      {/* Navigation Sticky */}
-      <div className="sticky-footer">
+      {/* Footer Navigation - Always visible at bottom */}
+      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex justify-between w-full max-w-6xl mx-auto">
           {/* Bouton Retour */}
           {currentStep > 1 && (
@@ -572,15 +597,15 @@ export default function NouvelleDemandePage({
           )}
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
 function LoadingSkeleton() {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <>
       {/* Header skeleton */}
-      <div className="sticky top-20 z-40 bg-gray-50/80 backdrop-blur-sm border-b border-gray-200 px-6 py-4 mb-6">
+      <div className="sticky top-0 z-40 bg-gray-50/80 backdrop-blur-sm border-b border-gray-200 px-6 py-4">
         <div className="max-w-7xl mx-auto">
           <Skeleton className="h-8 w-64 mb-2" />
           <Skeleton className="h-5 w-96" />
@@ -588,29 +613,31 @@ function LoadingSkeleton() {
       </div>
 
       {/* Content skeleton */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-8 pt-2">
-        <Card>
-          <CardContent className="p-6 space-y-6">
-            <div className="space-y-4">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i}>
-                  <Skeleton className="h-4 w-32 mb-2" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </main>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pb-10 bg-gray-50">
+        <main className="max-w-6xl mx-auto w-full pt-2">
+          <Card>
+            <CardContent className="p-6 space-y-6">
+              <div className="space-y-4">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i}>
+                    <Skeleton className="h-4 w-32 mb-2" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </main>
+      </div>
 
       {/* Navigation skeleton */}
-      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-6 py-4">
+      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-4 sm:px-6 lg:px-8 py-4">
         <div className="flex justify-between w-full max-w-6xl mx-auto">
           <Skeleton className="h-10 w-24" />
           <Skeleton className="h-10 w-32" />
         </div>
       </div>
-    </div>
+    </>
   )
 }
 

@@ -19,6 +19,7 @@ import {
 import { useRouter } from "next/navigation"
 import { useToast } from "@/hooks/use-toast"
 import { BuildingInfoForm } from "@/components/building-info-form"
+import { GoogleMapsProvider } from "@/components/google-maps"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 import { createTeamService, createContactInvitationService } from "@/lib/services"
 import { updateCompleteProperty } from "@/app/actions/building-actions"
@@ -551,18 +552,21 @@ export default function EditBuildingClient({
       {currentStep === 1 && (
         <Card className="shadow-sm content-max-width">
           <CardContent className="p-6 space-y-6">
-            <BuildingInfoForm
-              buildingInfo={buildingInfo}
-              setBuildingInfo={setBuildingInfo}
-              teamManagers={teamManagers}
-              userTeam={userTeam}
-              isLoading={false}
-              onCreateManager={openGestionnaireModal}
-              showManagerSection={false}
-              showAddressSection={true}
-              entityType="immeuble"
-              buildingId={buildingId}
-            />
+            <GoogleMapsProvider>
+              <BuildingInfoForm
+                buildingInfo={buildingInfo}
+                setBuildingInfo={setBuildingInfo}
+                teamManagers={teamManagers}
+                userTeam={userTeam}
+                isLoading={false}
+                onCreateManager={openGestionnaireModal}
+                showManagerSection={false}
+                showAddressSection={true}
+                showMapPreview={true}
+                entityType="immeuble"
+                buildingId={buildingId}
+              />
+            </GoogleMapsProvider>
           </CardContent>
         </Card>
       )}

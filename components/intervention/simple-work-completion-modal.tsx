@@ -1,23 +1,21 @@
 "use client"
 
 import { useState } from "react"
-import { CheckCircle, X, Upload } from "lucide-react"
+import { CheckCircle, X, Upload, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from "@/components/ui/unified-modal"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import type { SimpleWorkCompletionData } from "./closure/simple-types"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+
 interface SimpleWorkCompletionModalProps {
   intervention: {
     id: string
@@ -110,19 +108,22 @@ export function SimpleWorkCompletionModal({
   const isFormValid = workReport.trim().length > 0
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            Terminer l'intervention
-          </DialogTitle>
-          <DialogDescription>
-            {intervention.title}
-          </DialogDescription>
-        </DialogHeader>
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={handleClose}
+      size="md"
+      preventCloseOnOutsideClick={isLoading}
+      preventCloseOnEscape={isLoading}
+    >
+      <UnifiedModalHeader
+        title="Terminer l'intervention"
+        subtitle={intervention.title}
+        icon={<CheckCircle className="h-5 w-5" />}
+        variant="success"
+      />
 
-        <div className="space-y-4 py-4">
+      <UnifiedModalBody>
+        <div className="space-y-4">
           {/* Message d'erreur */}
           {error && (
             <Alert variant="destructive">
@@ -202,25 +203,34 @@ export function SimpleWorkCompletionModal({
             </div>
           </div>
         </div>
+      </UnifiedModalBody>
 
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClose}
-            disabled={isLoading}
-          >
-            Annuler
-          </Button>
-          <Button
-            type="button"
-            onClick={handleSubmit}
-            disabled={!isFormValid || isLoading}
-          >
-            {isLoading ? "Traitement..." : "Terminer l'intervention"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button
+          variant="outline"
+          onClick={handleClose}
+          disabled={isLoading}
+        >
+          Annuler
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={!isFormValid || isLoading}
+          className="bg-emerald-600 hover:bg-emerald-700"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Traitement...
+            </>
+          ) : (
+            <>
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Terminer l&apos;intervention
+            </>
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

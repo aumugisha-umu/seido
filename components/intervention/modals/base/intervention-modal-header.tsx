@@ -82,10 +82,12 @@ const getInterventionLocationText = (intervention: InterventionData): string => 
 
     if (isQuoteStage) {
       // Show postal code, city, country for quote stage
-      // Priority: lot's own location fields, fallback to building's
-      const postal = lot.postal_code || building?.postal_code || ''
-      const city = lot.city || building?.city || ''
-      const country = lot.country || building?.country || ''
+      // Priority: lot's address_record, fallback to building's address_record
+      const lotAddr = lot.address_record
+      const buildingAddr = building?.address_record
+      const postal = lotAddr?.postal_code || buildingAddr?.postal_code || ''
+      const city = lotAddr?.city || buildingAddr?.city || ''
+      const country = lotAddr?.country || buildingAddr?.country || ''
 
       const locationParts = [postal, city, formatCountry(country)].filter(Boolean)
       console.log('🔍 [LOCATION-DEBUG] Location parts:', locationParts)
@@ -108,11 +110,12 @@ const getInterventionLocationText = (intervention: InterventionData): string => 
     const building = intervention.building
 
     if (isQuoteStage) {
-      // Show postal code, city, country for quote stage
+      // Show postal code, city, country for quote stage (from address_record)
+      const addr = building.address_record
       const locationParts = [
-        building.postal_code,
-        building.city,
-        formatCountry(building.country)
+        addr?.postal_code,
+        addr?.city,
+        formatCountry(addr?.country)
       ].filter(Boolean)
 
       console.log('🔍 [LOCATION-DEBUG] Building location parts:', locationParts)

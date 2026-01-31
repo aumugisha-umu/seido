@@ -4,13 +4,14 @@ import React from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Plus, MapPin } from "lucide-react"
-import { IndependentLotInputCardV2, type IndependentLot } from "@/components/ui/independent-lot-input-card-v2"
+import { IndependentLotInputCardV2, type IndependentLot, type GeocodeResultData } from "@/components/ui/independent-lot-input-card-v2"
 
 interface IndependentLotsStepV2Props {
   lots: IndependentLot[]
   expandedLots: { [key: string]: boolean }
   onAddLot: () => void
   onUpdateLot: (id: string, field: keyof IndependentLot, value: string) => void
+  onGeocodeResult?: (lotId: string, result: GeocodeResultData | null) => void
   onDuplicateLot: (id: string) => void
   onRemoveLot: (id: string) => void
   onToggleLotExpansion: (lotId: string) => void
@@ -43,6 +44,7 @@ export function IndependentLotsStepV2({
   expandedLots,
   onAddLot,
   onUpdateLot,
+  onGeocodeResult,
   onDuplicateLot,
   onRemoveLot,
   onToggleLotExpansion
@@ -120,10 +122,18 @@ export function IndependentLotsStepV2({
                   lot={lot}
                   lotNumber={lotNumber}
                   isExpanded={isExpanded}
-                  onUpdate={(field, value) => onUpdateLot(lot.id, field, value)}
+                  onUpdate={(field, value) => {
+                    console.log('📤 [STEP-V2] onUpdate called:', { lotId: lot.id, field, value })
+                    onUpdateLot(lot.id, field, value)
+                  }}
+                  onGeocodeResult={onGeocodeResult ? (result) => {
+                    console.log('📤 [STEP-V2] onGeocodeResult called:', { lotId: lot.id, result })
+                    onGeocodeResult(lot.id, result)
+                  } : undefined}
                   onDuplicate={() => onDuplicateLot(lot.id)}
                   onRemove={() => onRemoveLot(lot.id)}
                   onToggleExpand={() => onToggleLotExpansion(lot.id)}
+                  showGoogleMaps={true}
                 />
               </div>
             )

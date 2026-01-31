@@ -14,6 +14,7 @@ import { Step3Contact } from "./steps/step-3-contact"
 import { Step4Confirmation } from "./steps/step-4-confirmation"
 import { getTypeLabel } from "@/components/interventions/intervention-type-icon"
 import { isValidEmail } from "@/lib/validation/patterns"
+import { GoogleMapsProvider } from "@/components/google-maps"
 
 // Types
 interface Company {
@@ -39,6 +40,11 @@ interface ContactFormData {
   postalCode?: string
   city?: string
   country?: string
+  // Google Maps geocoding data (for address creation)
+  companyLatitude?: number
+  companyLongitude?: number
+  companyPlaceId?: string
+  companyFormattedAddress?: string
 
   // Step 3: Informations contact
   firstName?: string
@@ -363,6 +369,13 @@ export function ContactCreationClient({
         payload.postalCode = formData.postalCode
         payload.city = formData.city
         payload.country = formData.country
+        // Google Maps geocoding data for address creation
+        if (formData.companyLatitude && formData.companyLongitude) {
+          payload.companyLatitude = formData.companyLatitude
+          payload.companyLongitude = formData.companyLongitude
+          payload.companyPlaceId = formData.companyPlaceId
+          payload.companyFormattedAddress = formData.companyFormattedAddress
+        }
       }
 
       // Ajouter les champs de liaison à une entité (si sélectionnés)
@@ -490,20 +503,41 @@ export function ContactCreationClient({
             )}
 
             {currentStep === 2 && (
-              <Step2Company
-                teamId={teamId}
-                companies={initialCompanies}
-                companyMode={formData.companyMode}
-                companyId={formData.companyId}
-                companyName={formData.companyName}
-                vatNumber={formData.vatNumber}
-                street={formData.street}
-                streetNumber={formData.streetNumber}
-                postalCode={formData.postalCode}
-                city={formData.city}
-                country={formData.country}
-                onFieldChange={handleInputChange}
-              />
+              <GoogleMapsProvider>
+                <Step2Company
+                  teamId={teamId}
+                  companies={initialCompanies}
+                  companyMode={formData.companyMode}
+                  companyId={formData.companyId}
+                  companyName={formData.companyName}
+                  vatNumber={formData.vatNumber}
+                  street={formData.street}
+                  streetNumber={formData.streetNumber}
+                  postalCode={formData.postalCode}
+                  city={formData.city}
+                  country={formData.country}
+                  onFieldChange={handleInputChange}
+                  onGeocodeResult={(result) => {
+                    if (result) {
+                      setFormData(prev => ({
+                        ...prev,
+                        companyLatitude: result.latitude,
+                        companyLongitude: result.longitude,
+                        companyPlaceId: result.placeId,
+                        companyFormattedAddress: result.formattedAddress
+                      }))
+                    } else {
+                      setFormData(prev => ({
+                        ...prev,
+                        companyLatitude: undefined,
+                        companyLongitude: undefined,
+                        companyPlaceId: undefined,
+                        companyFormattedAddress: undefined
+                      }))
+                    }
+                  }}
+                />
+              </GoogleMapsProvider>
             )}
 
             {currentStep === 3 && (

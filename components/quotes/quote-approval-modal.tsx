@@ -5,16 +5,15 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from "@/components/ui/unified-modal"
 import { Check, Loader2 } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+
 interface QuoteApprovalModalProps {
   isOpen: boolean
   onClose: () => void
@@ -38,71 +37,39 @@ export function QuoteApprovalModal({
 
   const handleApprove = async () => {
     logger.info('🚀 [APPROVAL] Starting quote approval process')
-    logger.info('📋 [APPROVAL] Quote data:', {
-      id: quote.id,
-      providerName: quote.providerName,
-      totalAmount: quote.totalAmount
-    })
-    logger.info('💬 [APPROVAL] Comments:', comments.trim() || null)
 
     setIsLoading(true)
 
     try {
-      const apiUrl = `/api/quotes/${quote.id}/approve`
-      logger.info('🌐 [APPROVAL] Calling API:', apiUrl)
-
-      const requestBody = {
-        comments: comments.trim() || null
-      }
-      logger.info('📤 [APPROVAL] Request body:', requestBody)
-
-      const response = await fetch(apiUrl, {
+      const response = await fetch(`/api/quotes/${quote.id}/approve`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comments: comments.trim() || null })
       })
 
-      logger.info('📥 [APPROVAL] Response status:', response.status)
-      logger.info('📥 [APPROVAL] Response ok:', response.ok)
-
       const data = await response.json()
-      logger.info('📄 [APPROVAL] Response data:', data)
 
       if (!response.ok) {
-        logger.error('❌ [APPROVAL] API error:', data.error)
-        if (data.debug) {
-          logger.error('🐛 [APPROVAL] Debug info from API:', data.debug)
-        }
         throw new Error(data.error || 'Erreur lors de l\'approbation')
       }
 
-      logger.info('✅ [APPROVAL] Success! Showing toast notification')
       toast({
         title: "Estimation approuvée",
-        description: "L'estimation a été approuvée avec succès. L'intervention passe en phase de planification.",
-        variant: "default",
+        description: "L'estimation a été approuvée. L'intervention passe en phase de planification.",
       })
 
-      logger.info('🔄 [APPROVAL] Calling onSuccess callback')
       setComments("")
       onClose()
       onSuccess()
 
     } catch (error) {
-      logger.error('❌ [APPROVAL] Error caught:', error)
-      logger.error('❌ [APPROVAL] Error type:', typeof error)
-      logger.error('❌ [APPROVAL] Error message:', error instanceof Error ? error.message : 'Unknown error')
-      logger.error('❌ [APPROVAL] Full error object:', error)
-
+      logger.error('❌ [APPROVAL] Error:', error)
       toast({
         title: "Erreur",
-        description: error instanceof Error ? error.message : "Erreur lors de l'approbation de l'estimation",
+        description: error instanceof Error ? error.message : "Erreur lors de l'approbation",
         variant: "destructive",
       })
     } finally {
-      logger.info('🏁 [APPROVAL] Process completed, setting loading to false')
       setIsLoading(false)
     }
   }
@@ -115,26 +82,28 @@ export function QuoteApprovalModal({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <Check className="h-5 w-5 text-green-600" />
-            <span>Approuver l'estimation</span>
-          </DialogTitle>
-          <DialogDescription>
-            Vous êtes sur le point d'approuver l'estimation de <strong>{quote.providerName}</strong>
-            d'un montant de <strong>{quote.totalAmount.toFixed(2)} €</strong>.
-          </DialogDescription>
-        </DialogHeader>
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={handleClose}
+      size="md"
+      preventCloseOnOutsideClick={isLoading}
+      preventCloseOnEscape={isLoading}
+    >
+      <UnifiedModalHeader
+        title="Approuver l'estimation"
+        subtitle={`${quote.providerName} - ${quote.totalAmount.toFixed(2)} €`}
+        icon={<Check className="h-5 w-5" />}
+        variant="success"
+      />
 
-        <div className="space-y-4 py-4">
+      <UnifiedModalBody>
+        <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-            <h4 className="font-medium text-blue-900 mb-1">Conséquences de l'approbation :</h4>
+            <h4 className="font-medium text-blue-900 mb-1">Conséquences de l&apos;approbation :</h4>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>• L'estimation sera marquée comme approuvée</li>
-              <li>• L'intervention passera au statut "Planification"</li>
-              <li>• Toutes les autres estimations en attente seront automatiquement rejetées</li>
+              <li>• L&apos;estimation sera marquée comme approuvée</li>
+              <li>• L&apos;intervention passera au statut &quot;Planification&quot;</li>
+              <li>• Les autres estimations en attente seront automatiquement rejetées</li>
             </ul>
           </div>
 
@@ -150,34 +119,26 @@ export function QuoteApprovalModal({
             />
           </div>
         </div>
+      </UnifiedModalBody>
 
-        <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={isLoading}
-          >
-            Annuler
-          </Button>
-          <Button
-            onClick={handleApprove}
-            disabled={isLoading}
-            className="bg-green-600 hover:bg-green-700"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Approbation...
-              </>
-            ) : (
-              <>
-                <Check className="h-4 w-4 mr-2" />
-                Approuver l'estimation
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button variant="outline" onClick={handleClose} disabled={isLoading}>
+          Annuler
+        </Button>
+        <Button onClick={handleApprove} disabled={isLoading} className="bg-emerald-600 hover:bg-emerald-700">
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Approbation...
+            </>
+          ) : (
+            <>
+              <Check className="h-4 w-4 mr-2" />
+              Approuver l&apos;estimation
+            </>
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

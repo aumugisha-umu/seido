@@ -20,18 +20,20 @@ import { logger } from '@/lib/logger'
 interface ConfirmPageProps {
   searchParams: Promise<{
     token_hash?: string
-    type?: 'email' | 'invite' | 'recovery' | 'signup'
+    type?: 'email' | 'invite' | 'recovery' | 'signup' | 'magiclink'
+    team_id?: string  // Pour acceptation auto des invitations multi-équipe
   }>
 }
 
 export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
   const params = await searchParams
-  const { token_hash, type } = params
+  const { token_hash, type, team_id } = params
 
   logger.info('🔐 [CONFIRM-PAGE] Page loaded:', {
     type,
     hasToken: !!token_hash,
-    tokenLength: token_hash?.length || 0
+    tokenLength: token_hash?.length || 0,
+    teamId: team_id || 'none'
   })
 
   // Validation des paramètres
@@ -59,9 +61,11 @@ export default async function ConfirmPage({ searchParams }: ConfirmPageProps) {
   // Utilise InviteRecoveryFlow qui appelle une Server Action pour verifyOtp
   // ============================================================================
 
-  if (type === 'invite' || type === 'recovery') {
+  if (type === 'invite' || type === 'recovery' || type === 'magiclink') {
     logger.info(`✅ [CONFIRM-PAGE] Rendering InviteRecoveryFlow for type: ${type}`)
-    return <InviteRecoveryFlow tokenHash={token_hash} type={type} />
+    // ✅ BUGFIX: magiclink est traité comme invite (utilisateur existant)
+    const flowType = type === 'magiclink' ? 'magiclink' : type
+    return <InviteRecoveryFlow tokenHash={token_hash} type={flowType} teamId={team_id} />
   }
 
   // Type non reconnu

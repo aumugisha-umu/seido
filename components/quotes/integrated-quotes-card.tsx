@@ -8,10 +8,10 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { QuotesComparison } from "@/components/intervention/quotes-comparison"
 import { QuoteRequestModal } from "@/components/intervention/modals/quote-request-modal"
-import { QuoteValidationModal } from "@/components/quotes/quote-validation-modal"
+import { QuoteApprovalModal } from "@/components/quotes/quote-approval-modal"
+import { QuoteRejectionModal } from "@/components/quotes/quote-rejection-modal"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
-import { useQuoteToast } from "@/hooks/use-quote-toast"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 interface Quote {
   id: string
   intervention_id: string
@@ -67,21 +67,24 @@ export function IntegratedQuotesCard({
 }: IntegratedQuotesCardProps) {
   const [quotes, setQuotes] = useState<Quote[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSubmitting, _setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // État pour le modal de validation
-  const [validationModal, setValidationModal] = useState<{
+  // État pour les modals de validation (approbation et rejet séparés)
+  const [approvalModal, setApprovalModal] = useState<{
     isOpen: boolean
     quote: Quote | null
-    action: 'approve' | 'reject'
   }>({
     isOpen: false,
-    quote: null,
-    action: 'approve'
+    quote: null
   })
-
-  const quoteToast = useQuoteToast()
+  const [rejectionModal, setRejectionModal] = useState<{
+    isOpen: boolean
+    quote: Quote | null
+  }>({
+    isOpen: false,
+    quote: null
+  })
 
   const {
     quoteRequestModal,
@@ -123,120 +126,31 @@ export function IntegratedQuotesCard({
     fetchQuotes()
   }, [interventionId, fetchQuotes])
 
-  // Fonctions pour gérer le modal de validation
-  const openValidationModal = (quote: Quote, action: 'approve' | 'reject') => {
-    setValidationModal({
-      isOpen: true,
-      quote,
-      action
-    })
+  // Fonctions pour gérer les modals de validation
+  const openApprovalModal = (quote: Quote) => {
+    setApprovalModal({ isOpen: true, quote })
   }
 
-  const closeValidationModal = () => {
-    setValidationModal({
-      isOpen: false,
-      quote: null,
-      action: 'approve'
-    })
+  const closeApprovalModal = () => {
+    setApprovalModal({ isOpen: false, quote: null })
   }
 
-  // Fonction de validation via le modal
-  const handleQuoteValidation = async (quoteId: string, action: 'approve' | 'reject', comments?: string) => {
-    if (action === 'approve') {
-      await handleQuoteApprove(quoteId, comments)
-    } else {
-      await handleQuoteReject(quoteId, comments || 'Estimation non retenue')
-    }
+  const openRejectionModal = (quote: Quote) => {
+    setRejectionModal({ isOpen: true, quote })
   }
 
-  // Approuver une estimation
-  const handleQuoteApprove = async (quoteId: string, comments?: string) => {
-    setIsSubmitting(true)
-    try {
-      const response = await fetch('/api/intervention-quote-validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quoteId,
-          action: 'approve',
-          comments
-        })
-      })
-
-      if (response.ok) {
-        await fetchQuotes()
-        onQuoteStatusChange?.()
-
-        // Toast de succès pour approbation
-        const quote = quotes.find(q => q.id === quoteId)
-        if (quote) {
-          quoteToast.quoteApproved(quote.provider.name, quote.total_amount, intervention.title)
-        }
-      } else {
-        const errorData = await response.json()
-        const errorMessage = errorData.error || 'Erreur lors de l\'approbation'
-        setError(errorMessage)
-        quoteToast.quoteError(errorMessage, 'l\'approbation de l\'estimation')
-      }
-    } catch (err) {
-      logger.error('Error approving quote:', err)
-      setError('Erreur lors de l\'approbation de l\'estimation')
-    } finally {
-      setIsSubmitting(false)
-    }
+  const closeRejectionModal = () => {
+    setRejectionModal({ isOpen: false, quote: null })
   }
 
-  // Rejeter une estimation
-  const handleQuoteReject = async (quoteId: string, reason: string) => {
-    setIsSubmitting(true)
-    try {
-      const response = await fetch('/api/intervention-quote-validate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quoteId,
-          action: 'reject',
-          rejectionReason: reason
-        })
-      })
-
-      if (response.ok) {
-        await fetchQuotes()
-        onQuoteStatusChange?.()
-
-        // Toast pour rejet
-        const quote = quotes.find(q => q.id === quoteId)
-        if (quote) {
-          quoteToast.quoteRejected(quote.provider.name, reason, intervention.title)
-        }
-      } else {
-        const errorData = await response.json()
-        const errorMessage = errorData.error || 'Erreur lors du rejet'
-        setError(errorMessage)
-        quoteToast.quoteError(errorMessage, 'le rejet de l\'estimation')
-      }
-    } catch (err) {
-      logger.error('Error rejecting quote:', err)
-      setError('Erreur lors du rejet de l\'estimation')
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  // Couleurs selon Design System SEIDO
-  const getStatusColor = (_status: string) => {
-    switch (status) {
-      case 'demande': return 'bg-amber-100 text-amber-800 border-amber-200'
-      case 'approuvee': return 'bg-emerald-100 text-emerald-800 border-emerald-200'
-      case 'demande_de_devis': return 'bg-sky-100 text-sky-800 border-sky-200'
-      case 'planifiee': return 'bg-emerald-100 text-emerald-800 border-emerald-200'
-      default: return 'bg-slate-100 text-slate-800 border-slate-200'
-    }
+  // Callback après validation réussie (appelé par les modals détaillées)
+  const handleQuoteValidationSuccess = async () => {
+    await fetchQuotes()
+    onQuoteStatusChange?.()
   }
 
   const pendingQuotes = quotes.filter(q => q.status === 'pending')
   const approvedQuotes = quotes.filter(q => q.status === 'accepted')
-  const _rejectedQuotes = quotes.filter(q => q.status === 'rejected')
 
   // Si l'intervention n'est pas en phase d'estimation
   if (intervention.status !== 'demande_de_devis' && quotes.length === 0) {
@@ -417,7 +331,7 @@ export function IntegratedQuotesCard({
                             variant="default"
                             size="sm"
                             className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                            onClick={() => openValidationModal(quote, 'reject')}
+                            onClick={() => openRejectionModal(quote)}
                             disabled={isSubmitting}
                           >
                             <XCircle className="w-4 h-4 mr-1" />
@@ -427,7 +341,7 @@ export function IntegratedQuotesCard({
                             variant="default"
                             size="sm"
                             className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                            onClick={() => openValidationModal(quote, 'approve')}
+                            onClick={() => openApprovalModal(quote)}
                             disabled={isSubmitting}
                           >
                             <CheckCircle className="w-4 h-4 mr-1" />
@@ -504,8 +418,8 @@ export function IntegratedQuotesCard({
         <QuotesComparison
           intervention={intervention}
           quotes={quotes}
-          onQuoteApprove={handleQuoteApprove}
-          onQuoteReject={handleQuoteReject}
+          onApproveClick={openApprovalModal}
+          onRejectClick={openRejectionModal}
           isLoading={isSubmitting}
         />
       )}
@@ -528,15 +442,31 @@ export function IntegratedQuotesCard({
         />
       )}
 
-      {/* Modal de validation d'estimation */}
-      <QuoteValidationModal
-        isOpen={validationModal.isOpen}
-        onClose={closeValidationModal}
-        quote={validationModal.quote}
-        action={validationModal.action}
-        onConfirm={handleQuoteValidation}
-        isLoading={isSubmitting}
-      />
+      {/* Modals de validation d'estimation (détaillées) */}
+      {approvalModal.quote && (
+        <QuoteApprovalModal
+          isOpen={approvalModal.isOpen}
+          onClose={closeApprovalModal}
+          onSuccess={handleQuoteValidationSuccess}
+          quote={{
+            id: approvalModal.quote.id,
+            providerName: approvalModal.quote.provider.name,
+            totalAmount: approvalModal.quote.total_amount
+          }}
+        />
+      )}
+      {rejectionModal.quote && (
+        <QuoteRejectionModal
+          isOpen={rejectionModal.isOpen}
+          onClose={closeRejectionModal}
+          onSuccess={handleQuoteValidationSuccess}
+          quote={{
+            id: rejectionModal.quote.id,
+            providerName: rejectionModal.quote.provider.name,
+            totalAmount: rejectionModal.quote.total_amount
+          }}
+        />
+      )}
     </>
   )
 }

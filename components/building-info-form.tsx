@@ -1,29 +1,27 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Badge } from "@/components/ui/badge"
 import {
   Building,
-  MapPin,
-  Calendar,
   Hash,
   FileText,
-  User,
-  Users as UsersIcon,
-  AlertTriangle,
   Home,
   Car,
   Store,
   MoreHorizontal,
+  Users as UsersIcon,
+  Tag,
+  Layers,
+  DoorOpen,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { createBuildingService } from "@/lib/services"
+import { AddressFieldsWithMap, type GeocodeResult } from "@/components/google-maps"
 
 /**
  * Component Icon Map for Lot Categories
@@ -37,27 +35,6 @@ const iconComponents = {
   MoreHorizontal
 }
 
-const countries = [
-  "Belgique",
-  "France",
-  "Luxembourg",
-  "Pays-Bas",
-  "Allemagne",
-  "Espagne",
-  "Italie",
-  "Portugal",
-  "Royaume-Uni",
-  "Suisse",
-  "Autriche",
-  "République tchèque",
-  "Pologne",
-  "Danemark",
-  "Suède",
-  "Norvège",
-  "Finlande",
-  "Autre"
-]
-
 interface BuildingInfo {
   name: string
   address: string
@@ -69,6 +46,11 @@ interface BuildingInfo {
   floor?: string
   doorNumber?: string
   category?: LotCategory
+  // Google Maps geocoding data
+  latitude?: number
+  longitude?: number
+  placeId?: string
+  formattedAddress?: string
 }
 
 interface BuildingInfoFormProps {
@@ -81,6 +63,7 @@ interface BuildingInfoFormProps {
   onCreateManager?: () => void
   showManagerSection?: boolean
   showAddressSection?: boolean
+  showMapPreview?: boolean // Show Google Map preview when coordinates are available
   entityType?: "immeuble" | "lot"
   showTitle?: boolean
   defaultReference?: string
@@ -99,6 +82,7 @@ export const BuildingInfoForm = ({
   onCreateManager,
   showManagerSection = true,
   showAddressSection = true,
+  showMapPreview = true,
   entityType = "immeuble",
   showTitle = false,
   categoryCountsByTeam = {},
@@ -162,10 +146,8 @@ export const BuildingInfoForm = ({
         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
           {/* Référence du lot - PREMIER (prend l'espace fixe) */}
           <div className="lg:w-80 lg:flex-shrink-0">
-            <Label htmlFor="name" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-              <Home className="w-4 h-4" />
+            <Label htmlFor="name" icon={Home} required>
               Référence du lot
-              <span className="text-red-500">*</span>
             </Label>
             <Input
               id="name"
@@ -196,9 +178,8 @@ export const BuildingInfoForm = ({
 
           {/* Catégorie du lot - SECOND (plus large sur desktop) */}
           <div className="lg:flex-1 lg:max-w-2xl min-w-0">
-            <Label className="text-sm font-medium text-gray-700 mb-2 block">
+            <Label icon={Tag} required className="mb-2">
               Catégorie du lot
-              <span className="text-red-500 ml-1">*</span>
             </Label>
 
             {/* Chips wrap (responsive sur toutes tailles d'écran) */}
@@ -293,10 +274,8 @@ export const BuildingInfoForm = ({
       ) : (
         // Référence de l'immeuble - Pleine largeur
         <div>
-          <Label htmlFor="name" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <Building className="w-4 h-4" />
+          <Label htmlFor="name" icon={Building} required>
             Référence de l'immeuble
-            <span className="text-red-500">*</span>
           </Label>
           <Input
             id="name"
@@ -344,104 +323,66 @@ export const BuildingInfoForm = ({
 
 
       {showAddressSection && (
-        <>
-          <div>
-            <Label htmlFor="address" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-              <MapPin className="w-4 h-4" />
-              Rue et numéro*
-            </Label>
-            <Input
-              id="address"
-              name="address"
-              placeholder="Rue de la Paix 123"
-              value={buildingInfo.address || ""}
-              onChange={(e) => setBuildingInfo({ ...buildingInfo, address: e.target.value })}
-              onBlur={(e) => {
-                const domValue = e.target.value
-                if (buildingInfo.address !== domValue) {
-                  setBuildingInfo({ ...buildingInfo, address: domValue })
-                }
-              }}
-              className="mt-1 h-10 sm:h-11"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 min-w-0">
-            <div className="min-w-0">
-              <Label htmlFor="postalCode" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <Hash className="w-4 h-4" />
-                Code postal*
-              </Label>
-              <Input
-                id="postalCode"
-                name="postalCode"
-                placeholder="1000"
-                value={buildingInfo.postalCode || ""}
-                onChange={(e) => setBuildingInfo({ ...buildingInfo, postalCode: e.target.value })}
-                onBlur={(e) => {
-                  const domValue = e.target.value
-                  if (buildingInfo.postalCode !== domValue) {
-                    setBuildingInfo({ ...buildingInfo, postalCode: domValue })
-                  }
-                }}
-                className="mt-1 h-10 sm:h-11"
-                required
-              />
-            </div>
-            <div className="min-w-0">
-              <Label htmlFor="city" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <MapPin className="w-4 h-4" />
-                Ville*
-              </Label>
-              <Input
-                id="city"
-                name="city"
-                placeholder="Bruxelles"
-                value={buildingInfo.city || ""}
-                onChange={(e) => setBuildingInfo({ ...buildingInfo, city: e.target.value })}
-                onBlur={(e) => {
-                  const domValue = e.target.value
-                  if (buildingInfo.city !== domValue) {
-                    setBuildingInfo({ ...buildingInfo, city: domValue })
-                  }
-                }}
-                className="mt-1 h-10 sm:h-11"
-                required
-              />
-            </div>
-            <div className="sm:col-span-2 lg:col-span-1 min-w-0">
-              <Label htmlFor="country" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <MapPin className="w-4 h-4" />
-                Pays*
-              </Label>
-              <Select
-                value={buildingInfo.country || ""}
-                onValueChange={(value) => setBuildingInfo({ ...buildingInfo, country: value })}
-              >
-                <SelectTrigger className="w-full h-10 sm:h-11">
-                  <SelectValue placeholder="Sélectionnez un pays" />
-                </SelectTrigger>
-                <SelectContent>
-                  {countries.map((country) => (
-                    <SelectItem key={country} value={country}>
-                      {country}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </>
+        <AddressFieldsWithMap
+          street={buildingInfo.address || ""}
+          postalCode={buildingInfo.postalCode || ""}
+          city={buildingInfo.city || ""}
+          country={buildingInfo.country || ""}
+          latitude={buildingInfo.latitude}
+          longitude={buildingInfo.longitude}
+          onFieldsChange={(fields) => {
+            // This is called for manual field edits only (not autocomplete)
+            // For autocomplete, onGeocodeResult handles the atomic update
+            setBuildingInfo({
+              ...buildingInfo,
+              address: fields.street,
+              postalCode: fields.postalCode,
+              city: fields.city,
+              country: fields.country
+            })
+          }}
+          onGeocodeResult={(result: GeocodeResult | null) => {
+            if (result) {
+              // FIX: Use result.fields if available for ATOMIC update
+              // This avoids stale closure issues when both callbacks fire
+              if (result.fields) {
+                setBuildingInfo({
+                  ...buildingInfo,
+                  // Address fields from result.fields (not stale!)
+                  address: result.fields.street,
+                  postalCode: result.fields.postalCode,
+                  city: result.fields.city,
+                  country: result.fields.country,
+                  // Geocode data
+                  latitude: result.latitude,
+                  longitude: result.longitude,
+                  placeId: result.placeId,
+                  formattedAddress: result.formattedAddress
+                })
+              } else {
+                // Manual geocoding (no fields) - just update coords
+                setBuildingInfo({
+                  ...buildingInfo,
+                  latitude: result.latitude,
+                  longitude: result.longitude,
+                  placeId: result.placeId,
+                  formattedAddress: result.formattedAddress
+                })
+              }
+            }
+          }}
+          showAutocomplete={true}
+          showMap={showMapPreview}
+          required={true}
+        />
       )}
 
       {entityType === "lot" && (
         // Champs spécifiques aux lots (étage et numéro de porte)
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 min-w-0">
             <div className="min-w-0">
-              <Label htmlFor="floor" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <Building className="w-4 h-4" />
-                Étage <span className="text-sm text-gray-500">(optionnel)</span>
+              <Label htmlFor="floor" icon={Layers}>
+                Étage <span className="text-muted-foreground font-normal">(optionnel)</span>
               </Label>
               <Input
                 id="floor"
@@ -452,9 +393,8 @@ export const BuildingInfoForm = ({
               />
             </div>
             <div className="min-w-0">
-              <Label htmlFor="doorNumber" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <Hash className="w-4 h-4" />
-                Numéro de porte/boîte <span className="text-sm text-gray-500">(optionnel)</span>
+              <Label htmlFor="doorNumber" icon={DoorOpen}>
+                Porte/Boîte <span className="text-muted-foreground font-normal">(optionnel)</span>
               </Label>
               <Input
                 id="doorNumber"
@@ -468,9 +408,8 @@ export const BuildingInfoForm = ({
       )}
 
       <div>
-        <Label htmlFor="description" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          <FileText className="w-4 h-4" />
-          Description <span className="text-sm text-gray-500">(optionnel)</span>
+        <Label htmlFor="description" icon={FileText}>
+          Description <span className="text-muted-foreground font-normal">(optionnel)</span>
         </Label>
         <Textarea
           id="description"

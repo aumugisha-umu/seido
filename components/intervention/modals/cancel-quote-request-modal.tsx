@@ -1,15 +1,13 @@
 "use client"
 
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from "@/components/ui/unified-modal"
+import { Button } from "@/components/ui/button"
+import { AlertTriangle, Loader2 } from "lucide-react"
 
 interface CancelQuoteRequestModalProps {
   isOpen: boolean
@@ -26,44 +24,57 @@ export function CancelQuoteRequestModal({
   providerName,
   isLoading = false
 }: CancelQuoteRequestModalProps) {
+  const handleOpenChange = (open: boolean) => {
+    if (!open && !isLoading) {
+      onClose()
+    }
+  }
+
   return (
-    <AlertDialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Annuler la demande d'estimation</AlertDialogTitle>
-          <AlertDialogDescription className="space-y-2">
-            <span className="block">
-              Êtes-vous sûr de vouloir annuler la demande d'estimation envoyée à{" "}
-              <span className="font-semibold text-slate-900">{providerName}</span> ?
-            </span>
-            <span className="block text-sm text-amber-600">
-              Cette action est irréversible. Le prestataire ne pourra plus soumettre d'estimation pour cette demande.
-            </span>
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel disabled={isLoading}>
-            Annuler
-          </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={(e) => {
-              e.preventDefault()
-              onConfirm()
-            }}
-            disabled={isLoading}
-            className="bg-red-600 hover:bg-red-700 focus:ring-red-600 flex items-center gap-2"
-          >
-            {isLoading ? (
-              <>
-                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white inline-block"></span>
-                <span>Annulation...</span>
-              </>
-            ) : (
-              "Confirmer l'annulation"
-            )}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={handleOpenChange}
+      size="sm"
+      preventCloseOnOutsideClick={isLoading}
+      preventCloseOnEscape={isLoading}
+    >
+      <UnifiedModalHeader
+        title="Annuler la demande d'estimation"
+        icon={<AlertTriangle className="h-5 w-5" />}
+        variant="warning"
+      />
+
+      <UnifiedModalBody>
+        <div className="space-y-3">
+          <p className="text-muted-foreground">
+            Êtes-vous sûr de vouloir annuler la demande d&apos;estimation envoyée à{" "}
+            <span className="font-semibold text-foreground">{providerName}</span> ?
+          </p>
+          <p className="text-sm text-amber-600">
+            Cette action est irréversible. Le prestataire ne pourra plus soumettre d&apos;estimation pour cette demande.
+          </p>
+        </div>
+      </UnifiedModalBody>
+
+      <UnifiedModalFooter>
+        <Button variant="outline" onClick={onClose} disabled={isLoading}>
+          Retour
+        </Button>
+        <Button
+          variant="destructive"
+          onClick={onConfirm}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Annulation...
+            </>
+          ) : (
+            "Confirmer l'annulation"
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

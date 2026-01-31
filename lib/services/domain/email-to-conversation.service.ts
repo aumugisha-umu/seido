@@ -53,6 +53,18 @@ export interface EmailToConversationInput {
 
   /** Team ID for the conversation */
   teamId: string
+
+  /**
+   * Target thread type (optional)
+   * - If specified, routes to the specific thread type
+   * - If not specified, defaults to 'group' for backward compatibility
+   *
+   * Thread types:
+   * - 'group': General conversation (all participants)
+   * - 'tenant_to_managers': Private thread between tenant and managers
+   * - 'provider_to_managers': Private thread between provider and managers
+   */
+  threadType?: 'group' | 'tenant_to_managers' | 'provider_to_managers'
 }
 
 export interface EmailToConversationResult {
@@ -182,7 +194,8 @@ export async function syncEmailReplyToConversation(
     interventionId: input.interventionId,
     emailId: input.emailId,
     senderEmail: input.senderEmail,
-    hasSenderId: !!input.senderUserId
+    hasSenderId: !!input.senderUserId,
+    threadType: input.threadType || 'group'
   }
 
   logger.info(logContext, '📧 [EMAIL-CONV] Starting email → conversation sync')
@@ -238,31 +251,36 @@ export async function syncEmailReplyToConversation(
     }
 
     // ═══════════════════════════════════════════════════════════
-    // 2. Find the "group" conversation thread for this intervention
+    // 2. Find the target conversation thread for this intervention
+    //    Uses threadType if specified, otherwise defaults to 'group'
     // ═══════════════════════════════════════════════════════════
+    const targetThreadType = input.threadType || 'group'
+
     const { data: thread, error: threadError } = await supabase
       .from('conversation_threads')
       .select('id')
       .eq('intervention_id', input.interventionId)
-      .eq('thread_type', 'group')
+      .eq('thread_type', targetThreadType)
       .maybeSingle()
 
     if (threadError) {
       logger.error(
-        { ...logContext, error: threadError },
+        { ...logContext, error: threadError, threadType: targetThreadType },
         '❌ [EMAIL-CONV] Error finding conversation thread'
       )
       return { success: false, error: `Thread query failed: ${threadError.message}` }
     }
 
     if (!thread) {
-      // No group thread exists for this intervention
-      // This can happen for older interventions created before the chat system
+      // Target thread doesn't exist for this intervention
+      // This can happen for:
+      // - Older interventions created before the chat system
+      // - Private threads that haven't been created yet
       logger.info(
-        logContext,
-        '📧 [EMAIL-CONV] No "group" thread found for intervention - skipping conversation sync'
+        { ...logContext, threadType: targetThreadType },
+        `📧 [EMAIL-CONV] No "${targetThreadType}" thread found for intervention - skipping conversation sync`
       )
-      return { success: true, error: 'No group thread exists for this intervention' }
+      return { success: true, error: `No ${targetThreadType} thread exists for this intervention` }
     }
 
     // ═══════════════════════════════════════════════════════════

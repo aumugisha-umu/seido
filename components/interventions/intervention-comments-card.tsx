@@ -10,8 +10,9 @@ import { useState, useTransition, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import { SeidoBadge } from '@/components/ui/seido-badge'
-import { MessageSquare, Trash2, Plus } from 'lucide-react'
+import { MessageSquare, Trash2, Plus, Lock } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -26,6 +27,7 @@ interface Comment {
   id: string
   content: string
   created_at: string
+  is_internal?: boolean
   user?: Pick<User, 'id' | 'name' | 'email' | 'avatar_url' | 'role'>
 }
 
@@ -152,13 +154,23 @@ export function InterventionCommentsCard({
 
                   {/* Content */}
                   <div className="flex-1 min-w-0 space-y-1">
-                    {/* Header: name, role, date */}
+                    {/* Header: name, role, date, internal badge */}
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium text-sm">
                         {user?.name || 'Utilisateur inconnu'}
                       </span>
                       {user?.role && (
                         <SeidoBadge type="role" value={user.role} size="sm" />
+                      )}
+                      {/* Internal badge - only shown for gestionnaires/admins */}
+                      {comment.is_internal && (canAddComment) && (
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] px-1.5 py-0 h-5 gap-1 text-amber-600 border-amber-300 bg-amber-50"
+                        >
+                          <Lock className="h-3 w-3" />
+                          Interne
+                        </Badge>
                       )}
                       <span className="text-xs text-muted-foreground">
                         {format(new Date(comment.created_at), 'dd MMM yyyy à HH:mm', {

@@ -15,7 +15,7 @@ export default async function ContactsPage() {
   try {
     // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
     logger.info("🔵 [CONTACTS-PAGE] Server-side fetch starting")
-    const { user, profile, team } = await getServerAuthContext('gestionnaire')
+    const { user, profile, team, activeTeamIds, isConsolidatedView } = await getServerAuthContext('gestionnaire')
 
     // ✅ Defensive guard in case team is unexpectedly missing
     if (!team || !team.id) {
@@ -36,60 +36,101 @@ export default async function ContactsPage() {
     // ✅ Create services
     const contactService = await createServerContactService()
     const companyRepository = await createServerCompanyRepository()
+    const supabase = await createServerSupabaseClient()
 
     // ✅ Parallel data fetching (Dashboard pattern)
     let contacts: any[] = []
     let allInvitations: any[] = []
     let companies: any[] = []
 
-    const supabase = await createServerSupabaseClient()
+    // ✅ MULTI-ÉQUIPE: Vue consolidée = fetch de toutes les équipes actives
+    if (isConsolidatedView && activeTeamIds.length > 1) {
+      logger.info(`🔄 [CONTACTS-PAGE] Consolidated view - fetching from ${activeTeamIds.length} teams`)
 
-    const [contactsResult, invitationsResult, companiesResult] = await Promise.allSettled([
-      contactService.getContactsByTeam(team.id, undefined, profile.id), // ✅ Exclude current user (using profile.id from users table)
-      // ✅ Fetch ALL invitations (not just pending) for proper status mapping
-      // This ensures expired invitations are correctly detected
-      supabase
-        .from('user_invitations')
-        .select('*')
-        .eq('team_id', team.id)
-        .order('created_at', { ascending: false }),
-      companyRepository.findByTeam(team.id)
-    ])
+      // Fetch data from all teams in parallel
+      const [contactsResults, invitationsResults, companiesResults] = await Promise.all([
+        Promise.all(
+          activeTeamIds.map(teamId => contactService.getContactsByTeam(teamId, undefined, profile.id))
+        ),
+        Promise.all(
+          activeTeamIds.map(teamId =>
+            supabase
+              .from('user_invitations')
+              .select('*')
+              .eq('team_id', teamId)
+              .order('created_at', { ascending: false })
+          )
+        ),
+        Promise.all(
+          activeTeamIds.map(teamId => companyRepository.findByTeam(teamId))
+        )
+      ])
 
-    // Process contacts result
-    if (contactsResult.status === 'fulfilled' && contactsResult.value.success && contactsResult.value.data) {
-      contacts = contactsResult.value.data
-      logger.info(`✅ [CONTACTS-PAGE] Loaded ${contacts.length} contacts`)
+      // Merge contacts
+      contacts = contactsResults
+        .filter(r => r.success && r.data)
+        .flatMap(r => r.data || [])
+
+      // Merge invitations
+      allInvitations = invitationsResults
+        .filter(r => !r.error && r.data)
+        .flatMap(r => r.data || [])
+
+      // Merge companies
+      companies = companiesResults
+        .filter(r => r.success && r.data)
+        .flatMap(r => r.data || [])
+
+      logger.info(`✅ [CONTACTS-PAGE] Consolidated: ${contacts.length} contacts, ${allInvitations.length} invitations, ${companies.length} companies from ${activeTeamIds.length} teams`)
     } else {
-      logger.error('❌ [CONTACTS-PAGE] Failed to load contacts:',
-        contactsResult.status === 'rejected' ? contactsResult.reason : 'No data')
-    }
+      // ✅ Vue standard: une seule équipe
+      const [contactsResult, invitationsResult, companiesResult] = await Promise.allSettled([
+        contactService.getContactsByTeam(team.id, undefined, profile.id), // ✅ Exclude current user (using profile.id from users table)
+        // ✅ Fetch ALL invitations (not just pending) for proper status mapping
+        // This ensures expired invitations are correctly detected
+        supabase
+          .from('user_invitations')
+          .select('*')
+          .eq('team_id', team.id)
+          .order('created_at', { ascending: false }),
+        companyRepository.findByTeam(team.id)
+      ])
 
-    // Process invitations result
-    if (invitationsResult.status === 'fulfilled' && !invitationsResult.value.error) {
-      allInvitations = invitationsResult.value.data || []
-      logger.info(`✅ [CONTACTS-PAGE] Loaded ${allInvitations.length} invitations (all statuses)`)
-    } else {
-      const errorDetail = invitationsResult.status === 'rejected'
-        ? invitationsResult.reason
-        : invitationsResult.value.error
+      // Process contacts result
+      if (contactsResult.status === 'fulfilled' && contactsResult.value.success && contactsResult.value.data) {
+        contacts = contactsResult.value.data
+        logger.info(`✅ [CONTACTS-PAGE] Loaded ${contacts.length} contacts`)
+      } else {
+        logger.error('❌ [CONTACTS-PAGE] Failed to load contacts:',
+          contactsResult.status === 'rejected' ? contactsResult.reason : 'No data')
+      }
 
-      logger.error('❌ [CONTACTS-PAGE] Failed to load invitations:', {
-        status: invitationsResult.status,
-        error: errorDetail,
-        message: errorDetail?.message || String(errorDetail),
-        code: errorDetail?.code,
-        details: errorDetail?.details
-      })
-    }
+      // Process invitations result
+      if (invitationsResult.status === 'fulfilled' && !invitationsResult.value.error) {
+        allInvitations = invitationsResult.value.data || []
+        logger.info(`✅ [CONTACTS-PAGE] Loaded ${allInvitations.length} invitations (all statuses)`)
+      } else {
+        const errorDetail = invitationsResult.status === 'rejected'
+          ? invitationsResult.reason
+          : invitationsResult.value.error
 
-    // Process companies result
-    if (companiesResult.status === 'fulfilled' && companiesResult.value.success && companiesResult.value.data) {
-      companies = companiesResult.value.data
-      logger.info(`✅ [CONTACTS-PAGE] Loaded ${companies.length} companies`)
-    } else {
-      logger.error('❌ [CONTACTS-PAGE] Failed to load companies:',
-        companiesResult.status === 'rejected' ? companiesResult.reason : 'No data')
+        logger.error('❌ [CONTACTS-PAGE] Failed to load invitations:', {
+          status: invitationsResult.status,
+          error: errorDetail,
+          message: errorDetail?.message || String(errorDetail),
+          code: errorDetail?.code,
+          details: errorDetail?.details
+        })
+      }
+
+      // Process companies result
+      if (companiesResult.status === 'fulfilled' && companiesResult.value.success && companiesResult.value.data) {
+        companies = companiesResult.value.data
+        logger.info(`✅ [CONTACTS-PAGE] Loaded ${companies.length} companies`)
+      } else {
+        logger.error('❌ [CONTACTS-PAGE] Failed to load companies:',
+          companiesResult.status === 'rejected' ? companiesResult.reason : 'No data')
+      }
     }
 
     // ✅ Build invitation status map using unified utility (checks expires_at)

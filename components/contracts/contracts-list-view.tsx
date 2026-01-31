@@ -43,6 +43,15 @@ import { CONTRACT_STATUS_LABELS, CONTRACT_STATUS_COLORS } from '@/lib/types/cont
  * Similaire à InterventionsListViewV1.
  */
 
+/**
+ * Parse une chaîne de date ISO (YYYY-MM-DD) en Date locale.
+ * Évite le bug de timezone où new Date("2026-01-01") devient 31 déc en UTC+1.
+ */
+const parseLocalDate = (dateStr: string): Date => {
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
 interface ContractsListViewProps {
   /** Liste des contrats à afficher */
   contracts: ContractWithRelations[]
@@ -152,10 +161,10 @@ export function ContractsListView({
         return sortDirection === 'asc' ? aValue - bValue : bValue - aValue
       }
 
-      // Date comparison
+      // Date comparison (utilise parseLocalDate pour éviter le bug timezone)
       if (sortField.includes('_date')) {
-        const aDate = new Date(aValue).getTime()
-        const bDate = new Date(bValue).getTime()
+        const aDate = parseLocalDate(aValue).getTime()
+        const bDate = parseLocalDate(bValue).getTime()
         return sortDirection === 'asc' ? aDate - bDate : bDate - aDate
       }
 
@@ -185,7 +194,7 @@ export function ContractsListView({
    * 📐 Calculate days remaining
    */
   const getDaysRemaining = (endDate: string) => {
-    const end = new Date(endDate)
+    const end = parseLocalDate(endDate)
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     end.setHours(0, 0, 0, 0)
@@ -218,10 +227,10 @@ export function ContractsListView({
   }
 
   /**
-   * 📐 Format date
+   * 📐 Format date (utilise parseLocalDate pour éviter le bug timezone)
    */
   const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('fr-FR', {
+    return parseLocalDate(date).toLocaleDateString('fr-FR', {
       day: '2-digit',
       month: 'short',
       year: 'numeric'

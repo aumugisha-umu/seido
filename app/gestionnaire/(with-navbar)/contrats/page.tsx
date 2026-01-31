@@ -14,28 +14,51 @@ export default async function ContratsPage() {
 
   try {
     // AUTH + TEAM en 1 ligne (cached via React.cache())
-    const { profile, team } = await getServerAuthContext('gestionnaire')
+    const { profile, team, activeTeamIds, isConsolidatedView } = await getServerAuthContext('gestionnaire')
 
     // Create service
     const contractService = await createServerContractService()
 
-    // Fetch all contracts for team
-    const result = await contractService.getByTeam(team.id, { includeExpired: true })
-
     let contracts: ContractWithRelations[] = []
 
-    if (result.success && result.data) {
-      contracts = result.data
-      logger.info(`✅ [CONTRATS-PAGE] Loaded ${contracts.length} contracts`)
-    } else {
-      logger.error(`❌ [CONTRATS-PAGE] Failed to load contracts: ${result.error?.message || 'Unknown error'}`)
-    }
+    // ✅ MULTI-ÉQUIPE: Vue consolidée = fetch de toutes les équipes actives
+    if (isConsolidatedView && activeTeamIds.length > 1) {
+      logger.info(`🔄 [CONTRATS-PAGE] Consolidated view - fetching from ${activeTeamIds.length} teams`)
 
-    // Transition automatique des statuts (a_venir → actif, actif → expire)
-    // Exécuté au chargement pour synchroniser les statuts avec les dates
-    transitionContractStatuses(team.id).catch((err) => {
-      logger.warn('⚠️ [CONTRATS-PAGE] Failed to transition contract statuses:', err)
-    })
+      const results = await Promise.all(
+        activeTeamIds.map(teamId => contractService.getByTeam(teamId, { includeExpired: true }))
+      )
+
+      // Merge all successful results
+      contracts = results
+        .filter(r => r.success && r.data)
+        .flatMap(r => r.data || [])
+
+      logger.info(`✅ [CONTRATS-PAGE] Consolidated: ${contracts.length} contracts from ${activeTeamIds.length} teams`)
+
+      // Transition statuses for all teams (async, non-blocking)
+      activeTeamIds.forEach(teamId => {
+        transitionContractStatuses(teamId).catch((err) => {
+          logger.warn(`⚠️ [CONTRATS-PAGE] Failed to transition contract statuses for team ${teamId}:`, err)
+        })
+      })
+    } else {
+      // ✅ Vue standard: une seule équipe
+      const result = await contractService.getByTeam(team.id, { includeExpired: true })
+
+      if (result.success && result.data) {
+        contracts = result.data
+        logger.info(`✅ [CONTRATS-PAGE] Loaded ${contracts.length} contracts`)
+      } else {
+        logger.error(`❌ [CONTRATS-PAGE] Failed to load contracts: ${result.error?.message || 'Unknown error'}`)
+      }
+
+      // Transition automatique des statuts (a_venir → actif, actif → expire)
+      // Exécuté au chargement pour synchroniser les statuts avec les dates
+      transitionContractStatuses(team.id).catch((err) => {
+        logger.warn('⚠️ [CONTRATS-PAGE] Failed to transition contract statuses:', err)
+      })
+    }
 
     // Check for expiring contracts and send notifications (async, non-blocking)
     checkExpiringContracts().catch((err) => {

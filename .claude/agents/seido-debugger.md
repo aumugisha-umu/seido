@@ -135,6 +135,27 @@ Consult: `docs/troubleshooting-checklist.md`
 7. Performance (slow)
 8. E2E Tests (flaky)
 
+## Skills Integration
+
+**`sp-systematic-debugging` EST le workflow principal de cet agent.**
+
+### Invocation Automatique
+
+DES le debut de chaque session debug:
+1. Invoquer `sp-systematic-debugging`
+2. Suivre les 4 phases du skill
+3. Terminer avec `sp-verification-before-completion`
+
+### Mapping Skills par Domaine
+
+| Domaine | Skills |
+|---------|--------|
+| Bug RLS/permissions | `sp-systematic-debugging` (focus RLS) |
+| Bug workflow | `sp-systematic-debugging` + `sp-test-driven-development` |
+| Bug performance | `sp-systematic-debugging` + verification |
+
+---
+
 ## Integration Agents
 
 - **backend-developer**: Service issues

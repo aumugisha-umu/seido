@@ -35,20 +35,18 @@ export async function POST(request: NextRequest) {
 
     const {
       interventionId,
-      reason: rejectionReason
+      reason: rejectionReason,
+      internalComment
     } = validation.data
 
-    // Keep internalComment from body (not in schema)
-    const { internalComment } = body
-
-    logger.info({ interventionId, rejectionReason }, "📝 Rejecting intervention")
+    logger.info({ interventionId, rejectionReason, internalComment: internalComment || '(empty)' }, "📝 Rejecting intervention")
 
     // Get intervention details
     const { data: intervention, error: interventionError } = await supabase
       .from('interventions')
       .select(`
         *,
-        lot:lot_id(id, reference, building:building_id(name, address, team_id)),
+        lot:lot_id(id, reference, building:building_id(name, team_id, address_record:address_id(*))),
         team:team_id(id, name)
       `)
       .eq('id', interventionId)
@@ -88,12 +86,20 @@ export async function POST(request: NextRequest) {
 
     logger.info({}, "❌ Intervention rejected successfully")
 
-    // ✅ BUG FIX 2026-01-25: Save rejection reason as comment in intervention_comments table
+    // ✅ Save rejection reason as PUBLIC comment (visible to tenant)
     try {
       const commentRepository = await createServerActionInterventionCommentRepository()
-      const rejectionComment = `❌ **Rejet:** ${rejectionReason}${internalComment ? `\n\n_Note interne:_ ${internalComment}` : ''}`
-      await commentRepository.createComment(interventionId, user.id, rejectionComment)
-      logger.info({ interventionId }, "💬 Rejection comment saved")
+
+      // 1. Save rejection reason as PUBLIC comment (is_internal: false)
+      const rejectionCommentContent = `❌ **Demande rejetée**\n\n${rejectionReason}`
+      await commentRepository.createComment(interventionId, user.id, rejectionCommentContent, false)
+      logger.info({ interventionId }, "💬 Rejection reason saved as public comment")
+
+      // 2. Save internal comment if provided (is_internal: true)
+      if (internalComment?.trim()) {
+        await commentRepository.createComment(interventionId, user.id, internalComment.trim(), true)
+        logger.info({ interventionId }, "💬 Internal comment saved")
+      }
     } catch (commentError) {
       logger.warn({ commentError }, "⚠️ Could not save rejection comment (non-blocking)")
     }

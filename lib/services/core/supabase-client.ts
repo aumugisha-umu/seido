@@ -218,6 +218,18 @@ export const withRetry = async <T>(
 
 /**
  * Get current user ID from authenticated session
+ *
+ * @deprecated Use `useAuth()` hook in Client Components instead.
+ * This function makes a direct auth call which should be avoided.
+ * Auth state should come from AuthProvider context.
+ *
+ * @example
+ * // ❌ DEPRECATED
+ * const userId = await getCurrentUserId()
+ *
+ * // ✅ RECOMMENDED (Client Component)
+ * const { user } = useAuth()
+ * const userId = user?.id
  */
 export async function getCurrentUserId(client?: ReturnType<typeof createBrowserSupabaseClient>): Promise<string | null> {
   try {
@@ -232,6 +244,17 @@ export async function getCurrentUserId(client?: ReturnType<typeof createBrowserS
 
 /**
  * Check if user is authenticated
+ *
+ * @deprecated Use `useAuth()` hook in Client Components instead.
+ * This function makes a direct auth call which should be avoided.
+ *
+ * @example
+ * // ❌ DEPRECATED
+ * const isAuth = await isAuthenticated()
+ *
+ * // ✅ RECOMMENDED (Client Component)
+ * const { user, isLoading } = useAuth()
+ * const isAuth = !isLoading && !!user
  */
 export async function isAuthenticated(client?: ReturnType<typeof createBrowserSupabaseClient>): Promise<boolean> {
   try {
@@ -246,7 +269,23 @@ export async function isAuthenticated(client?: ReturnType<typeof createBrowserSu
 
 /**
  * Get server session (for API routes and Server Components)
- * Helper for authentication checks on the server
+ *
+ * @deprecated Use centralized auth helpers instead:
+ * - Server Components: `getServerAuthContext()` from `lib/server-context`
+ * - Server Actions: `getServerActionAuthContextOrNull()` from `lib/server-context`
+ * - API Routes: `getApiAuthContext()` from `lib/api-auth-context`
+ *
+ * @example
+ * // ❌ DEPRECATED
+ * const session = await getServerSession()
+ *
+ * // ✅ RECOMMENDED (Server Component)
+ * import { getServerAuthContext } from '@/lib/server-context'
+ * const { user, profile, team, supabase } = await getServerAuthContext('gestionnaire')
+ *
+ * // ✅ RECOMMENDED (Server Action)
+ * import { getServerActionAuthContextOrNull } from '@/lib/server-context'
+ * const authContext = await getServerActionAuthContextOrNull()
  */
 export async function getServerSession() {
   const supabase = await createServerSupabaseClient()

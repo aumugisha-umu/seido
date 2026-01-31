@@ -4,16 +4,21 @@
  * Conversation Server Actions
  * Server-side operations for intervention conversations with real-time messaging
  * Handles team transparency, thread management, and notifications
+ *
+ * ✅ REFACTORED (Jan 2026): Uses centralized getServerActionAuthContextOrNull()
+ *    instead of duplicated local auth helper
  */
 
 import {
   createServerActionConversationService,
   createServerActionSupabaseClient
 } from '@/lib/services'
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
+import { sendConversationNotifications } from './conversation-notification-actions'
 
 // Type aliases
 type ConversationThread = Database['public']['Tables']['conversation_threads']['Row']
@@ -62,26 +67,8 @@ const PaginationSchema = z.object({
   limit: z.number().positive().max(100).optional().default(50)
 })
 
-/**
- * Helper to get auth session and user ID
- */
-async function getAuthenticatedUser() {
-  const supabase = await createServerActionSupabaseClient()
-  const { data: { session }, error } = await supabase.auth.getSession()
-
-  if (!session || error) {
-    return null
-  }
-
-  // Get database user ID from auth user ID
-  const { data: userData } = await supabase
-    .from('users')
-    .select('id, role, team_id')
-    .eq('auth_user_id', session.user.id)
-    .single()
-
-  return userData
-}
+// ✅ REFACTORED: Auth helper removed - now using centralized getServerActionAuthContextOrNull()
+// from lib/server-context.ts
 
 /**
  * THREAD MANAGEMENT
@@ -95,7 +82,8 @@ export async function getThreadsByInterventionAction(
 ): Promise<ActionResult<ThreadWithDetails[]>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -134,7 +122,8 @@ export async function createThreadAction(
 ): Promise<ActionResult<ConversationThread>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -187,7 +176,8 @@ export async function getThreadAction(
 ): Promise<ActionResult<ThreadWithDetails>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -244,7 +234,8 @@ export async function getThreadParticipantsAction(
 ): Promise<ActionResult<ParticipantWithUser[]>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -319,7 +310,8 @@ export async function getMessagesAction(
 ): Promise<ActionResult<MessageWithUser[]>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -384,7 +376,8 @@ export async function sendMessageAction(
 
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -431,11 +424,11 @@ export async function sendMessageAction(
     )
 
     if (result.success && result.data) {
-      // Get thread to find intervention ID
+      // Get thread to find intervention ID and team_id
       const supabase = await createServerActionSupabaseClient()
       const { data: thread } = await supabase
         .from('conversation_threads')
-        .select('intervention_id')
+        .select('intervention_id, team_id')
         .eq('id', threadId)
         .single()
 
@@ -444,6 +437,19 @@ export async function sendMessageAction(
         revalidatePath(`/gestionnaire/interventions/${thread.intervention_id}/chat`)
         revalidatePath(`/locataire/interventions/${thread.intervention_id}/chat`)
         revalidatePath(`/prestataire/interventions/${thread.intervention_id}/chat`)
+
+        // Send push and email notifications (async, non-blocking)
+        sendConversationNotifications({
+          messageId: result.data.id,
+          messageContent: result.data.content,
+          messageCreatedAt: result.data.created_at,
+          messageUserId: result.data.user_id,
+          threadId,
+          teamId: thread.team_id,
+          interventionId: thread.intervention_id
+        }).catch(err => {
+          logger.warn({ err }, '⚠️ [CONVERSATION-ACTION] Push/email notifications failed (non-blocking)')
+        })
       }
 
       return { success: true, data: result.data }
@@ -469,7 +475,8 @@ export async function sendMessageAction(
 export async function deleteMessageAction(messageId: string): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -536,7 +543,8 @@ export async function addParticipantAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const currentUser = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const currentUser = authContext?.profile
     if (!currentUser) {
       return { success: false, error: 'Authentication required' }
     }
@@ -694,7 +702,8 @@ export async function removeParticipantAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -753,7 +762,8 @@ export async function removeParticipantAction(
 export async function markThreadAsReadAction(threadId: string): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -804,7 +814,8 @@ export async function markThreadAsReadAction(threadId: string): Promise<ActionRe
 export async function getUnreadCountAction(): Promise<ActionResult<number>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -829,7 +840,8 @@ export async function addProviderToGroupThreadAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -949,7 +961,8 @@ export async function getManagerAccessibleThreadsAction(
 ): Promise<ActionResult<ThreadWithDetails[]>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }

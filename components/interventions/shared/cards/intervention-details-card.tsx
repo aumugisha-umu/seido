@@ -21,7 +21,6 @@
  */
 
 import { cn } from '@/lib/utils'
-import { Card, CardContent } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card'
@@ -40,12 +39,21 @@ import {
   HelpCircle
 } from 'lucide-react'
 import { InterventionDetailsCardProps } from '../types'
-import { formatDate, formatAmount, formatTimeRange } from '../utils/helpers'
+import { formatDate, formatAmount, formatTime, formatTimeRange } from '../utils/helpers'
+import { GoogleMapPreview } from '@/components/google-maps/google-map-preview'
+import { ParticipantsRow } from '../layout/participants-row'
 
 /**
  * Configuration du statut planning
+ * @param status - Statut du planning (pending, proposed, scheduled, completed)
+ * @param interventionStatus - Statut de l'intervention pour affichage contextuel
+ * @param proposedCount - Nombre de créneaux proposés
  */
-const getPlanningStatusConfig = (status: 'pending' | 'proposed' | 'scheduled' | 'completed', proposedCount?: number) => {
+const getPlanningStatusConfig = (
+  status: 'pending' | 'proposed' | 'scheduled' | 'completed',
+  interventionStatus?: string,
+  proposedCount?: number
+) => {
   switch (status) {
     case 'completed':
       return {
@@ -74,21 +82,46 @@ const getPlanningStatusConfig = (status: 'pending' | 'proposed' | 'scheduled' | 
           : '1 créneau proposé'
       }
     default:
+      // Statut 'pending' - Affichage contextuel selon le statut de l'intervention
+      if (interventionStatus === 'demande') {
+        return {
+          icon: HelpCircle,
+          label: 'Après approbation',
+          color: 'text-slate-500',
+          bgColor: 'bg-slate-50',
+          description: null // Pas de description redondante
+        }
+      }
+      if (interventionStatus === 'rejetee') {
+        return {
+          icon: XCircle,
+          label: 'Non applicable',
+          color: 'text-slate-500',
+          bgColor: 'bg-slate-50',
+          description: null // Pas de description redondante
+        }
+      }
+      // Statuts approuvee, planification, planifiee, etc.
       return {
         icon: AlertCircle,
         label: 'En attente',
         color: 'text-amber-600',
         bgColor: 'bg-amber-50',
-        description: 'Aucun créneau proposé'
+        description: null // Pas de description redondante
       }
   }
 }
 
 /**
  * Configuration du statut estimation
+ * @param status - Statut des devis (pending, received, approved)
+ * @param interventionStatus - Statut de l'intervention pour affichage contextuel
+ * @param requestedCount - Nombre de demandes de devis en attente
+ * @param receivedCount - Nombre de devis reçus
  */
 const getQuotesStatusConfig = (
   status: 'pending' | 'received' | 'approved',
+  interventionStatus?: string,
   requestedCount: number = 0,
   receivedCount: number = 0
 ) => {
@@ -118,6 +151,24 @@ const getQuotesStatusConfig = (
           bgColor: 'bg-amber-50'
         }
       }
+      // Affichage contextuel selon le statut de l'intervention
+      if (interventionStatus === 'demande') {
+        return {
+          icon: HelpCircle,
+          label: 'Après approbation',
+          color: 'text-slate-500',
+          bgColor: 'bg-slate-50'
+        }
+      }
+      if (interventionStatus === 'rejetee') {
+        return {
+          icon: XCircle,
+          label: 'Non applicable',
+          color: 'text-slate-500',
+          bgColor: 'bg-slate-50'
+        }
+      }
+      // Statuts approuvee, planification, planifiee, etc.
       return {
         icon: AlertCircle,
         label: 'En attente',
@@ -132,13 +183,15 @@ const getQuotesStatusConfig = (
  */
 interface PlanningStatusSectionProps {
   planning: NonNullable<InterventionDetailsCardProps['planning']>
+  interventionStatus?: string
   onNavigateToPlanning?: () => void
 }
 
-const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatusSectionProps) => {
-  const planningConfig = getPlanningStatusConfig(planning.status, planning.proposedSlotsCount)
+const PlanningStatusSection = ({ planning, interventionStatus, onNavigateToPlanning }: PlanningStatusSectionProps) => {
+  const planningConfig = getPlanningStatusConfig(planning.status, interventionStatus, planning.proposedSlotsCount)
   const quotesConfig = getQuotesStatusConfig(
     planning.quotesStatus,
+    interventionStatus,
     planning.requestedQuotesCount || 0,
     planning.receivedQuotesCount || 0
   )
@@ -189,11 +242,19 @@ const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatu
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium">Planning</p>
-            <p className="text-xs text-muted-foreground truncate">
-              {planning.scheduledDate
-                ? `${formatDate(planning.scheduledDate)}${planning.scheduledStartTime && planning.scheduledEndTime ? ` • ${formatTimeRange(planning.scheduledStartTime, planning.scheduledEndTime)}` : ''}`
-                : planningConfig.description}
-            </p>
+            {(planning.scheduledDate || planningConfig.description) && (
+              <p className="text-xs text-muted-foreground truncate">
+                {planning.scheduledDate
+                  ? `${formatDate(planning.scheduledDate)}${planning.scheduledStartTime
+                      ? planning.isFixedScheduling
+                        ? ` • ${formatTime(planning.scheduledStartTime)}`  // Mode date fixe: seulement l'heure de début
+                        : planning.scheduledEndTime
+                          ? ` • ${formatTimeRange(planning.scheduledStartTime, planning.scheduledEndTime)}`
+                          : ` • ${formatTime(planning.scheduledStartTime)}`
+                      : ''}`
+                  : planningConfig.description}
+              </p>
+            )}
           </div>
           {/* Badges container */}
           <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -277,11 +338,11 @@ const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatu
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium">Estimation</p>
-            <p className="text-xs text-muted-foreground truncate">
-              {planning.selectedQuoteAmount
-                ? formatAmount(planning.selectedQuoteAmount)
-                : quotesConfig.label}
-            </p>
+            {planning.selectedQuoteAmount && (
+              <p className="text-xs text-muted-foreground truncate">
+                {formatAmount(planning.selectedQuoteAmount)}
+              </p>
+            )}
           </div>
           {planning.selectedQuoteAmount ? (
             <Badge
@@ -310,10 +371,14 @@ const PlanningStatusSection = ({ planning, onNavigateToPlanning }: PlanningStatu
           ) : (
             <Badge
               variant="outline"
-              className="text-xs bg-slate-100 text-slate-500 border-transparent shrink-0"
-              aria-label="Aucune estimation"
+              className={cn(
+                'text-xs border-transparent shrink-0',
+                quotesConfig.bgColor,
+                quotesConfig.color
+              )}
+              aria-label={quotesConfig.label}
             >
-              Aucune
+              {quotesConfig.label}
             </Badge>
           )}
         </div>
@@ -343,67 +408,83 @@ export const InterventionDetailsCard = ({
   instructions,
   location,
   locationDetails,
+  interventionStatus,
   planning,
+  participants,
+  currentUserId,
+  currentUserRole,
+  onOpenChat,
   createdBy,
   createdAt,
   onNavigateToPlanning,
   className
 }: InterventionDetailsCardProps) => {
   const hasLocationDetails = locationDetails?.buildingName || locationDetails?.lotReference || locationDetails?.fullAddress
-  const hasContent = description || instructions || location || hasLocationDetails || planning || createdBy || createdAt
+  const hasParticipants = participants && (
+    participants.managers.length > 0 ||
+    participants.providers.length > 0 ||
+    participants.tenants.length > 0
+  )
+  const hasContent = hasParticipants || description || instructions || location || hasLocationDetails || planning || createdBy || createdAt
 
   if (!hasContent) {
     return null
   }
 
   return (
-    <Card className={cn('w-full', className)}>
-
-      <CardContent className="space-y-4">
-        {/* Description */}
-        {description && (
-          <div className="space-y-1.5">
-            <h4 className="text-sm font-medium text-muted-foreground">
-              Description
-            </h4>
-            <p className="text-sm leading-relaxed">{description}</p>
-          </div>
+    <div className={cn('space-y-4', className)}>
+        {/* Participants */}
+        {hasParticipants && participants && (
+          <ParticipantsRow
+            participants={participants}
+            currentUserId={currentUserId}
+            currentUserRole={currentUserRole}
+            onOpenChat={onOpenChat}
+          />
         )}
 
-        {/* Localisation détaillée (immeuble, lot, adresse) */}
+        {/* Description */}
+        {description && (
+          <>
+            {hasParticipants && <Separator />}
+            <div className="space-y-1.5">
+              <h4 className="text-sm font-medium text-muted-foreground">
+                Description
+              </h4>
+              <p className="text-sm leading-relaxed">{description}</p>
+            </div>
+          </>
+        )}
+
+        {/* Localisation détaillée (immeuble, lot, adresse) avec carte */}
         {hasLocationDetails && (
           <>
-            {description && <Separator />}
-            <div className="space-y-2">
+            {(hasParticipants || description) && <Separator />}
+            <div className="space-y-3">
               <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
                 Localisation
               </h4>
-              {/* Desktop: une ligne | Mobile: plusieurs lignes */}
+              {/* Infos texte : Immeuble, Lot, Adresse */}
               <div className="flex items-center gap-1.5 text-sm flex-wrap">
-                {/* Immeuble */}
                 {locationDetails?.buildingName && (
                   <div className="flex items-center gap-1.5">
                     <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
                     <span className="font-medium">{locationDetails.buildingName}</span>
                   </div>
                 )}
-                {/* Séparateur */}
                 {locationDetails?.buildingName && locationDetails?.lotReference && (
                   <span className="text-muted-foreground">›</span>
                 )}
-                {/* Lot */}
                 {locationDetails?.lotReference && (
                   <div className="flex items-center gap-1.5">
                     <Home className="h-4 w-4 text-muted-foreground flex-shrink-0" aria-hidden="true" />
                     <span>Lot {locationDetails.lotReference}</span>
                   </div>
                 )}
-                {/* Séparateur adresse */}
                 {(locationDetails?.buildingName || locationDetails?.lotReference) && locationDetails?.fullAddress && (
                   <span className="text-muted-foreground hidden sm:inline">•</span>
                 )}
-                {/* Adresse complète */}
                 {locationDetails?.fullAddress && (
                   <div className="flex items-center gap-1.5 text-muted-foreground w-full sm:w-auto">
                     <MapPin className="h-4 w-4 flex-shrink-0 sm:hidden" aria-hidden="true" />
@@ -411,6 +492,17 @@ export const InterventionDetailsCard = ({
                   </div>
                 )}
               </div>
+              {/* Carte Google Maps pleine largeur */}
+              {locationDetails?.latitude && locationDetails?.longitude &&
+               !(locationDetails.latitude === 0 && locationDetails.longitude === 0) && (
+                <GoogleMapPreview
+                  latitude={locationDetails.latitude}
+                  longitude={locationDetails.longitude}
+                  address={locationDetails.fullAddress || undefined}
+                  height={180}
+                  showOpenButton={true}
+                />
+              )}
             </div>
           </>
         )}
@@ -449,6 +541,7 @@ export const InterventionDetailsCard = ({
             {(description || hasLocationDetails || instructions || location) && <Separator />}
             <PlanningStatusSection
               planning={planning}
+              interventionStatus={interventionStatus}
               onNavigateToPlanning={onNavigateToPlanning}
             />
           </>
@@ -473,8 +566,7 @@ export const InterventionDetailsCard = ({
             </div>
           </>
         )}
-      </CardContent>
-    </Card>
+    </div>
   )
 }
 

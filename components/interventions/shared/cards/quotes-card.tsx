@@ -13,7 +13,6 @@
  */
 
 import { cn } from '@/lib/utils'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -247,35 +246,35 @@ export const QuotesCard = ({
   }
 
   return (
-    <Card className={cn('flex flex-col', className)}>
-      <CardHeader className="pb-3 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Euro className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
-            Estimation
-            {quotes.length > 0 && (
-              <Badge variant="secondary" className="text-xs" aria-label={`${quotes.length} estimation(s)`}>
-                {quotes.length}
-              </Badge>
-            )}
-          </CardTitle>
-
-          {canSubmit && onAddQuote && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onAddQuote}
-              disabled={isLoading}
-              aria-label="Créer une nouvelle estimation"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
-              Nouvelle estimation
-            </Button>
+    <div className={cn('space-y-4', className)}>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="text-base font-semibold flex items-center gap-2">
+          <Euro className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
+          Estimation
+          {quotes.length > 0 && (
+            <Badge variant="secondary" className="text-xs" aria-label={`${quotes.length} estimation(s)`}>
+              {quotes.length}
+            </Badge>
           )}
-        </div>
-      </CardHeader>
+        </h3>
 
-      <CardContent className="space-y-6 flex-1 overflow-y-auto">
+        {canSubmit && onAddQuote && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onAddQuote}
+            disabled={isLoading}
+            aria-label="Créer une nouvelle estimation"
+          >
+            <Plus className="h-3.5 w-3.5 mr-1.5" aria-hidden="true" />
+            Nouvelle estimation
+          </Button>
+        )}
+      </div>
+
+      {/* Content */}
+      <div className="space-y-6">
         {/* Message si aucune estimation */}
         {quotes.length === 0 && (
           <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
@@ -373,7 +372,7 @@ export const QuotesCard = ({
             </div>
           </div>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }

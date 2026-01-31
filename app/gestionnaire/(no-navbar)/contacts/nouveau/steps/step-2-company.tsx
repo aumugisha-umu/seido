@@ -1,12 +1,15 @@
 'use client'
 
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { useMapsLibrary } from '@vis.gl/react-google-maps'
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CompanySelector } from "@/components/ui/company-selector"
 import { CompanySearch } from "@/components/ui/company-search"
-import { Building2, Plus } from "lucide-react"
+import { GoogleMapPreview } from "@/components/google-maps/google-map-preview"
+import { Building2, Plus, Loader2, MapPin, Hash, Globe, FileDigit } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import type { CompanyLookupResult } from '@/lib/types/cbeapi.types'
 import { getVatCodeForCountry } from "@/lib/constants/vat"
@@ -15,6 +18,16 @@ interface Company {
   id: string
   name: string
   vat_number?: string | null
+}
+
+/**
+ * Geocode result for map preview and address creation
+ */
+export interface GeocodeResult {
+  latitude: number
+  longitude: number
+  placeId: string
+  formattedAddress: string
 }
 
 interface Step2CompanyProps {
@@ -30,7 +43,26 @@ interface Step2CompanyProps {
   city?: string
   country?: string
   onFieldChange: (field: string, value: any) => void
+  // Optional: callback when geocoding completes
+  onGeocodeResult?: (result: GeocodeResult | null) => void
 }
+
+/**
+ * Map country code to full name for geocoding
+ */
+const COUNTRY_CODE_TO_NAME: Record<string, string> = {
+  'BE': 'Belgium',
+  'FR': 'France',
+  'NL': 'Netherlands',
+  'DE': 'Germany',
+  'LU': 'Luxembourg',
+  'CH': 'Switzerland'
+}
+
+/**
+ * Debounce delay for geocoding manual field changes (in ms)
+ */
+const GEOCODE_DEBOUNCE_MS = 800
 
 export function Step2Company({
   teamId,
@@ -44,9 +76,140 @@ export function Step2Company({
   postalCode,
   city,
   country,
-  onFieldChange
+  onFieldChange,
+  onGeocodeResult
 }: Step2CompanyProps) {
   const { toast } = useToast()
+
+  // Geocoding library
+  const geocoding = useMapsLibrary('geocoding')
+
+  // State for geocoding
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [formattedAddress, setFormattedAddress] = useState<string>('')
+  const [isGeocoding, setIsGeocoding] = useState(false)
+
+  // Refs for geocoding
+  const geocoderRef = useRef<google.maps.Geocoder | null>(null)
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Initialize geocoder when library is ready
+  useEffect(() => {
+    if (geocoding && !geocoderRef.current) {
+      geocoderRef.current = new google.maps.Geocoder()
+    }
+  }, [geocoding])
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current)
+      }
+    }
+  }, [])
+
+  /**
+   * Geocode the address and update state
+   */
+  const geocodeAddress = useCallback(async (
+    addressStreet: string,
+    addressStreetNumber: string,
+    addressPostalCode: string,
+    addressCity: string,
+    addressCountry: string
+  ) => {
+    if (!geocoderRef.current) return
+
+    // Build address string - combine street and street number
+    const fullStreet = addressStreetNumber
+      ? `${addressStreet} ${addressStreetNumber}`
+      : addressStreet
+
+    // Map country code to full name for better geocoding
+    const countryName = COUNTRY_CODE_TO_NAME[addressCountry] || addressCountry
+
+    const addressParts = [
+      fullStreet,
+      addressPostalCode,
+      addressCity,
+      countryName
+    ].filter(Boolean)
+
+    if (addressParts.length < 2) {
+      // Not enough data to geocode
+      setCoords(null)
+      setFormattedAddress('')
+      if (onGeocodeResult) {
+        onGeocodeResult(null)
+      }
+      return
+    }
+
+    const combinedAddress = addressParts.join(', ')
+
+    setIsGeocoding(true)
+    try {
+      const result = await geocoderRef.current.geocode({ address: combinedAddress })
+
+      if (result.results[0]) {
+        const location = result.results[0].geometry.location
+        const newCoords = {
+          lat: location.lat(),
+          lng: location.lng()
+        }
+
+        setCoords(newCoords)
+        setFormattedAddress(result.results[0].formatted_address)
+
+        if (onGeocodeResult) {
+          onGeocodeResult({
+            latitude: newCoords.lat,
+            longitude: newCoords.lng,
+            placeId: result.results[0].place_id,
+            formattedAddress: result.results[0].formatted_address
+          })
+        }
+      } else {
+        // No results
+        setCoords(null)
+        setFormattedAddress('')
+        if (onGeocodeResult) {
+          onGeocodeResult(null)
+        }
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error)
+      setCoords(null)
+      setFormattedAddress('')
+      if (onGeocodeResult) {
+        onGeocodeResult(null)
+      }
+    } finally {
+      setIsGeocoding(false)
+    }
+  }, [onGeocodeResult])
+
+  /**
+   * Trigger debounced geocoding when address fields change
+   */
+  const triggerDebouncedGeocode = useCallback(() => {
+    // Clear previous timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current)
+    }
+
+    // Set new timer for debounced geocoding
+    debounceTimerRef.current = setTimeout(() => {
+      geocodeAddress(
+        street || '',
+        streetNumber || '',
+        postalCode || '',
+        city || '',
+        country || 'BE'
+      )
+    }, GEOCODE_DEBOUNCE_MS)
+  }, [geocodeAddress, street, streetNumber, postalCode, city, country])
 
   // Formater le numéro de TVA : supprimer espaces et caractères spéciaux, mettre en majuscule
   const normalizeVatNumber = (value: string): string => {
@@ -106,12 +269,33 @@ export function Step2Company({
     onFieldChange('city', company.city)
     onFieldChange('country', company.country)
 
+    // Trigger immediate geocoding with the new data
+    geocodeAddress(
+      company.street,
+      company.street_number,
+      company.postal_code,
+      company.city,
+      company.country
+    )
+
     toast({
-      title: "✅ Entreprise trouvée",
-      description: `Les données de ${company.name} ont été pré-remplies.`,
+      title: "Entreprise trouvee",
+      description: `Les donnees de ${company.name} ont ete pre-remplies.`,
       variant: "default"
     })
   }
+
+  /**
+   * Handle manual field change with debounced geocoding
+   */
+  const handleAddressFieldChange = (field: string, value: string) => {
+    onFieldChange(field, value)
+    // Trigger debounced geocoding after any address field change
+    triggerDebouncedGeocode()
+  }
+
+  // Check if we have valid coordinates to show map
+  const hasValidCoords = coords && coords.lat !== 0 && coords.lng !== 0
 
 
   return (
@@ -183,8 +367,8 @@ export function Step2Company({
             <h3 className="font-semibold text-foreground">Sélection de la société</h3>
           </div>
           <div className="space-y-3">
-            <Label>
-              Société <span className="text-red-500">*</span>
+            <Label icon={Building2} required>
+              Société
             </Label>
             <CompanySelector
               companies={companies}
@@ -231,8 +415,8 @@ export function Step2Company({
           {/* Nom de la société + Numéro de TVA */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="company-name">
-                Nom de la société <span className="text-red-500">*</span>
+              <Label htmlFor="company-name" icon={Building2} required>
+                Nom de la société
               </Label>
               <Input
                 id="company-name"
@@ -243,8 +427,8 @@ export function Step2Company({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vat-number">
-                Numéro de TVA <span className="text-red-500">*</span>
+              <Label htmlFor="vat-number" icon={FileDigit} required>
+                Numéro de TVA
               </Label>
               <Input
                 id="vat-number"
@@ -270,24 +454,24 @@ export function Step2Company({
           {/* Adresse - Grid 6 colonnes */}
           <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
             <div className="space-y-2 sm:col-span-4">
-              <Label htmlFor="street">
-                Rue <span className="text-red-500">*</span>
+              <Label htmlFor="street" icon={MapPin} required>
+                Rue
               </Label>
               <Input
                 id="street"
                 value={street || ''}
-                onChange={(e) => onFieldChange('street', e.target.value)}
+                onChange={(e) => handleAddressFieldChange('street', e.target.value)}
                 placeholder="Rue de la Paix"
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="street-number">
-                N° <span className="text-red-500">*</span>
+              <Label htmlFor="street-number" icon={Hash} required>
+                N°
               </Label>
               <Input
                 id="street-number"
                 value={streetNumber || ''}
-                onChange={(e) => onFieldChange('streetNumber', e.target.value)}
+                onChange={(e) => handleAddressFieldChange('streetNumber', e.target.value)}
                 placeholder="42"
               />
             </div>
@@ -295,32 +479,32 @@ export function Step2Company({
 
           <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="postal-code">
-                Code postal <span className="text-red-500">*</span>
+              <Label htmlFor="postal-code" icon={Hash} required>
+                Code postal
               </Label>
               <Input
                 id="postal-code"
                 value={postalCode || ''}
-                onChange={(e) => onFieldChange('postalCode', e.target.value)}
+                onChange={(e) => handleAddressFieldChange('postalCode', e.target.value)}
                 placeholder="1000"
               />
             </div>
             <div className="space-y-2 sm:col-span-3">
-              <Label htmlFor="city">
-                Ville <span className="text-red-500">*</span>
+              <Label htmlFor="city" icon={Building2} required>
+                Ville
               </Label>
               <Input
                 id="city"
                 value={city || ''}
-                onChange={(e) => onFieldChange('city', e.target.value)}
+                onChange={(e) => handleAddressFieldChange('city', e.target.value)}
                 placeholder="Bruxelles"
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="country">
-                Pays <span className="text-red-500">*</span>
+              <Label htmlFor="country" icon={Globe} required>
+                Pays
               </Label>
-              <Select value={country || 'BE'} onValueChange={(value) => onFieldChange('country', value)}>
+              <Select value={country || 'BE'} onValueChange={(value) => handleAddressFieldChange('country', value)}>
                 <SelectTrigger id="country" className="w-full">
                   <SelectValue placeholder="Sélectionnez un pays" />
                 </SelectTrigger>
@@ -335,6 +519,30 @@ export function Step2Company({
               </Select>
             </div>
           </div>
+
+          {/* Geocoding Status */}
+          {isGeocoding && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Recherche de l&apos;adresse sur la carte...</span>
+            </div>
+          )}
+
+          {/* Map Preview */}
+          {hasValidCoords && (
+            <div className="space-y-2">
+              <Label icon={MapPin}>
+                Aperçu sur la carte
+              </Label>
+              <GoogleMapPreview
+                latitude={coords.lat}
+                longitude={coords.lng}
+                address={formattedAddress}
+                height={180}
+                showOpenButton={true}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>

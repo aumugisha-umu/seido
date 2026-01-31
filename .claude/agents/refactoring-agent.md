@@ -110,6 +110,31 @@ redirect('/gestionnaire/xxx')
 - ❌ Over-Engineering
 - ❌ Using Deprecated Patterns (legacy realtime, notification singleton)
 
+## Skills Integration
+
+| Situation | Skill |
+|-----------|-------|
+| Refactoring majeur | `sp-writing-plans` |
+| Optimisation performance | `sp-brainstorming` + mesures |
+| Bug decouvert | `sp-systematic-debugging` |
+| Avant commit | `sp-verification-before-completion` |
+
+### Workflow Refactoring
+
+```
+[Besoin refactoring] → sp-brainstorming (pourquoi? impact?)
+    ↓
+sp-writing-plans → Plan detaille avec etapes
+    ↓
+sp-test-driven-development → Tests AVANT refactoring
+    ↓
+[Refactoring incrementiel]
+    ↓
+sp-verification-before-completion → Pas de regression
+```
+
+---
+
 ## Integration Agents
 
 - **API-designer**: API improvements

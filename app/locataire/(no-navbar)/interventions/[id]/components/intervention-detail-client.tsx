@@ -9,7 +9,6 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { TabsContent } from '@/components/ui/tabs'
-import { DocumentsTab } from '@/app/gestionnaire/(no-navbar)/interventions/[id]/components/documents-tab'
 import { selectTimeSlotAction, validateByTenantAction } from '@/app/actions/intervention-actions'
 import { toast } from 'sonner'
 import { formatErrorMessage } from '@/lib/utils/error-formatter'
@@ -19,27 +18,36 @@ import { Building2, MapPin, Calendar } from 'lucide-react'
 import {
   // Types
   TimeSlot as SharedTimeSlot,
-  Message,
   InterventionDocument,
   TimelineEventData,
   // Layout
   PreviewHybridLayout,
   ContentWrapper,
-  InterventionTabs,
   // Sidebar
   InterventionSidebar,
   // Cards
   InterventionDetailsCard,
   DocumentsCard,
-  PlanningCard,
-  ConversationCard
+  PlanningCard
 } from '@/components/interventions/shared'
+
+// Unified tabs component (replaces InterventionTabs)
+import {
+  EntityTabs,
+  TabContentWrapper,
+  getInterventionTabsConfig
+} from '@/components/shared/entity-preview'
+
+// Tab Localisation dédié
+import { LocalisationTab } from '@/components/interventions/shared/tabs/localisation-tab'
+
+// Chat component (functional, not mock)
+import { InterventionChatTab } from '@/components/interventions/intervention-chat-tab'
 
 // Intervention components
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
 import type { DetailPageHeaderBadge, DetailPageHeaderMetadata } from '@/components/ui/detail-page-header'
 import { InterventionActionPanelHeader } from '@/components/intervention/intervention-action-panel-header'
-import { ChatTab } from './chat-tab'
 
 // Modals
 // ProgrammingModal removed - locataires don't need to program interventions
@@ -65,9 +73,18 @@ import {
 
 import type { Database } from '@/lib/database.types'
 
+type AddressRecord = Database['public']['Tables']['addresses']['Row'] | null
+
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
-  building?: Database['public']['Tables']['buildings']['Row']
-  lot?: Database['public']['Tables']['lots']['Row']
+  building?: Database['public']['Tables']['buildings']['Row'] & {
+    address_record?: AddressRecord
+  }
+  lot?: Database['public']['Tables']['lots']['Row'] & {
+    address_record?: AddressRecord
+    building?: Database['public']['Tables']['buildings']['Row'] & {
+      address_record?: AddressRecord
+    }
+  }
   tenant?: Database['public']['Tables']['users']['Row']
   creator?: {
     id: string
@@ -96,6 +113,8 @@ interface LocataireInterventionDetailClientProps {
   threads: Thread[]
   timeSlots: TimeSlot[]
   currentUser: User
+  initialMessagesByThread?: Record<string, any[]>
+  initialParticipantsByThread?: Record<string, any[]>
 }
 
 export function LocataireInterventionDetailClient({
@@ -103,7 +122,9 @@ export function LocataireInterventionDetailClient({
   documents,
   threads,
   timeSlots,
-  currentUser
+  currentUser,
+  initialMessagesByThread,
+  initialParticipantsByThread
 }: LocataireInterventionDetailClientProps) {
   const router = useRouter()
   const planning = useInterventionPlanning()
@@ -159,13 +180,20 @@ export function LocataireInterventionDetailClient({
     }
   })
 
-  // États pour le nouveau design PreviewHybrid
+  // État pour suivre le thread de conversation actif (pour la sidebar)
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
+  // Thread type à utiliser pour InterventionChatTab
+  const [defaultThreadType, setDefaultThreadType] = useState<string | undefined>(undefined)
 
   // Get assignments from intervention (locataire component uses nested data)
   const assignmentList = useMemo(() => {
     return (intervention as any).assignments || []
   }, [intervention])
+
+  // ============================================================================
+  // Tabs Configuration (unified with EntityTabs)
+  // ============================================================================
+  const interventionTabs = useMemo(() => getInterventionTabsConfig('tenant'), [])
 
   // ============================================================================
   // Participant Confirmation Logic
@@ -368,17 +396,26 @@ export function LocataireInterventionDetailClient({
   const scheduledDate = confirmedSlot?.slot_date || null
   const scheduledStartTime = confirmedSlot?.start_time || null
 
-  // Messages mock (à remplacer par de vraies données si disponibles)
-  const mockMessages: Message[] = useMemo(() => [], [])
-
   // Callbacks pour les conversations
   const handleConversationClick = (participantId: string) => {
     setActiveConversation(participantId)
+    // Pour un locataire, une conversation individuelle est tenant_to_managers
+    setDefaultThreadType('tenant_to_managers')
     setActiveTab('conversations')
   }
 
   const handleGroupConversationClick = () => {
     setActiveConversation('group')
+    setDefaultThreadType('group')
+    setActiveTab('conversations')
+  }
+
+  // Handler pour ouvrir le chat depuis un participant (icône message dans ParticipantsRow)
+  const handleOpenChatFromParticipant = (
+    _participantId: string,
+    threadType: 'group' | 'tenant_to_managers' | 'provider_to_managers'
+  ) => {
+    setDefaultThreadType(threadType)
     setActiveTab('conversations')
   }
 
@@ -554,10 +591,10 @@ export function LocataireInterventionDetailClient({
             />
           }
           content={
-            <InterventionTabs
+            <EntityTabs
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              userRole="tenant"
+              tabs={interventionTabs}
             >
               {/* TAB: GENERAL */}
               <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
@@ -581,6 +618,11 @@ export function LocataireInterventionDetailClient({
                       title={intervention.title}
                       description={intervention.description || undefined}
                       instructions={intervention.instructions || undefined}
+                      interventionStatus={intervention.status}
+                      participants={participants}
+                      currentUserId={currentUser.id}
+                      currentUserRole="locataire"
+                      onOpenChat={handleOpenChatFromParticipant}
                       planning={{
                         scheduledDate,
                         status: scheduledDate ? 'scheduled' : 'pending',
@@ -603,21 +645,46 @@ export function LocataireInterventionDetailClient({
                 </ContentWrapper>
               </TabsContent>
 
+              {/* TAB: LOCALISATION */}
+              <TabsContent value="localisation" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+                  <LocalisationTab
+                    latitude={(() => {
+                      const lotRecord = intervention.lot?.address_record
+                      const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
+                      const record = lotRecord || buildingRecord
+                      return record?.lat || undefined
+                    })()}
+                    longitude={(() => {
+                      const lotRecord = intervention.lot?.address_record
+                      const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
+                      const record = lotRecord || buildingRecord
+                      return record?.lng || undefined
+                    })()}
+                    address={(() => {
+                      const lotRecord = intervention.lot?.address_record
+                      const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
+                      const record = lotRecord || buildingRecord
+                      if (!record) return undefined
+                      if (record.formatted_address) return record.formatted_address
+                      return [record.street, record.postal_code, record.city].filter(Boolean).join(', ') || undefined
+                    })()}
+                    buildingName={intervention.lot?.building?.name || intervention.building?.name || undefined}
+                    lotReference={intervention.lot?.reference || undefined}
+                  />
+                </div>
+              </TabsContent>
+
               {/* TAB: CONVERSATIONS */}
-              <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
-                <ConversationCard
-                  messages={mockMessages}
+              <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-y-auto h-full">
+                <InterventionChatTab
+                  interventionId={intervention.id}
+                  threads={threads}
+                  initialMessagesByThread={initialMessagesByThread}
+                  initialParticipantsByThread={initialParticipantsByThread}
                   currentUserId={currentUser.id}
-                  currentUserRole="tenant"
-                  conversationType={activeConversation === 'group' ? 'group' : 'individual'}
-                  participantName={
-                    activeConversation !== 'group'
-                      ? [...participants.managers, ...participants.providers, ...participants.tenants]
-                          .find(p => p.id === activeConversation)?.name
-                      : undefined
-                  }
-                  onSendMessage={(content) => console.log('Send message:', content)}
-                  className="flex-1 mx-4"
+                  userRole="locataire"
+                  defaultThreadType={defaultThreadType}
                 />
               </TabsContent>
 
@@ -636,7 +703,7 @@ export function LocataireInterventionDetailClient({
                   />
                 </div>
               </TabsContent>
-            </InterventionTabs>
+            </EntityTabs>
           }
         />
       </div>

@@ -159,17 +159,16 @@ export function InterventionContactsNavigator({
 
   const hasCompanies = companies.length > 0
 
-  // BEM Classes
+  // BEM Classes - Sans border/shadow car utilisé dans ContentWrapper
   const blockClass = cn(
     "intervention-contacts-navigator",
     "flex-1 min-h-0 flex flex-col overflow-hidden",
-    "border border-slate-200 rounded-lg shadow-sm bg-white",
     className
   )
 
   const contentClass = cn(
     "intervention-contacts-navigator__content",
-    "p-4 space-y-4 flex-1 flex flex-col min-h-0 overflow-hidden"
+    "space-y-4 flex-1 flex flex-col min-h-0 overflow-hidden"
   )
 
   const headerClass = cn(

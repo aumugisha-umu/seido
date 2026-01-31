@@ -100,6 +100,16 @@ CREATE TRIGGER interventions_validate_status_transition
     EXECUTE FUNCTION validate_intervention_status_transition();
 
 -- ============================================================================
+-- STEP 10: Recreate the interventions_active view
+-- ============================================================================
+
+CREATE VIEW interventions_active AS
+SELECT * FROM interventions WHERE deleted_at IS NULL;
+
+COMMENT ON VIEW interventions_active IS
+'Vue sur interventions actives (non soft-deleted). Hérite automatiquement des politiques RLS de la table interventions.';
+
+-- ============================================================================
 -- VERIFICATION QUERY (for post-migration check)
 -- ============================================================================
 

@@ -1,6 +1,6 @@
 "use client"
 
-import { 
+import {
   Calendar,
   User,
   Building,
@@ -24,11 +24,13 @@ import {
   UserX,
   UserCog,
   Eye,
-  Tag
+  Tag,
+  ExternalLink
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import Link from "next/link"
 
 // Types basés sur notre schema DB
 type ActivityActionType = 'create' | 'update' | 'delete' | 'assign' | 'unassign' | 'approve' | 'reject' | 'complete' | 'cancel' | 'upload' | 'download' | 'invite' | 'accept_invite' | 'status_change' | 'login' | 'logout'
@@ -129,25 +131,32 @@ const getStatusColor = (status: ActivityStatus) => {
   }
 }
 
-// Badge de statut
+// Badge de statut avec couleurs sémantiques
 const getStatusBadge = (status: ActivityStatus) => {
-  const variants = {
-    success: 'default' as const,
-    failed: 'destructive' as const,
-    in_progress: 'secondary' as const,
-    cancelled: 'outline' as const,
+  const config = {
+    success: {
+      label: 'Réussi',
+      className: 'bg-emerald-100 text-emerald-700 border-emerald-200'
+    },
+    failed: {
+      label: 'Échec',
+      className: 'bg-red-100 text-red-700 border-red-200'
+    },
+    in_progress: {
+      label: 'En cours',
+      className: 'bg-amber-100 text-amber-700 border-amber-200'
+    },
+    cancelled: {
+      label: 'Annulé',
+      className: 'bg-slate-100 text-slate-600 border-slate-200'
+    },
   }
 
-  const labels = {
-    success: 'Réussi',
-    failed: 'Échec',
-    in_progress: 'En cours',
-    cancelled: 'Annulé',
-  }
+  const { label, className } = config[status]
 
   return (
-    <Badge variant={variants[status]} className="text-xs">
-      {labels[status]}
+    <Badge variant="outline" className={`text-xs border ${className}`}>
+      {label}
     </Badge>
   )
 }
@@ -207,6 +216,43 @@ const getUserInitials = (_name: string) => {
     .join('')
     .toUpperCase()
     .slice(0, 2)
+}
+
+// Générer l'URL de navigation vers l'entité
+const getEntityUrl = (entityType: ActivityEntityType, entityId?: string): string | null => {
+  if (!entityId) return null
+
+  // Routes basées sur le rôle gestionnaire (par défaut)
+  const routes: Partial<Record<ActivityEntityType, string>> = {
+    intervention: `/gestionnaire/interventions/${entityId}`,
+    building: `/gestionnaire/patrimoine/immeubles/${entityId}`,
+    lot: `/gestionnaire/patrimoine/lots/${entityId}`,
+    contact: `/gestionnaire/contacts/${entityId}`,
+    document: null, // Les documents n'ont pas de page dédiée
+    user: null, // Pas de page publique pour les utilisateurs
+    team: null, // Pas de page dédiée pour les équipes
+    invitation: null, // Pas de page pour les invitations
+    session: null, // Pas de page pour les sessions
+  }
+
+  return routes[entityType] ?? null
+}
+
+// Labels français pour les types d'entités
+const getEntityLabel = (entityType: ActivityEntityType): string => {
+  const labels: Record<ActivityEntityType, string> = {
+    intervention: 'intervention',
+    building: 'immeuble',
+    lot: 'lot',
+    contact: 'contact',
+    document: 'document',
+    user: 'utilisateur',
+    team: 'équipe',
+    team_member: 'membre',
+    invitation: 'invitation',
+    session: 'session',
+  }
+  return labels[entityType] || entityType
 }
 
 export default function ActivityLog({ activities, loading, error }: ActivityLogProps) {
@@ -312,7 +358,7 @@ export default function ActivityLog({ activities, loading, error }: ActivityLogP
                       </p>
                     )}
 
-                    {/* Tags informatifs */}
+                    {/* Tags informatifs - incluant le statut */}
                     <div className="flex flex-wrap gap-0.5 sm:gap-1">
                       {/* Timestamp */}
                       <div className="flex items-center gap-1 bg-slate-100 px-1 sm:px-1.5 py-0.5 rounded-full">
@@ -321,6 +367,9 @@ export default function ActivityLog({ activities, loading, error }: ActivityLogP
                           {formatActivityDate(activity.created_at)}
                         </span>
                       </div>
+
+                      {/* Badge de statut - intégré avec les tags */}
+                      {getStatusBadge(activity.status)}
 
                       {/* Contexte patrimonial (prioritaire) */}
                       {(activity as any).display_context && (
@@ -332,14 +381,26 @@ export default function ActivityLog({ activities, loading, error }: ActivityLogP
                         </div>
                       )}
 
-                      {/* Référence technique (secondaire) */}
+                      {/* Référence technique (secondaire) - cliquable si URL disponible */}
                       {activity.entity_name && (
-                        <div className="flex items-center gap-1 bg-slate-100 px-1 sm:px-1.5 py-0.5 rounded-full">
-                          <Tag className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-slate-500 flex-shrink-0" />
-                          <span className="text-xs text-slate-600 font-mono truncate max-w-[80px] sm:max-w-none">
-                            {activity.entity_name}
-                          </span>
-                        </div>
+                        getEntityUrl(activity.entity_type, activity.entity_id) ? (
+                          <Link
+                            href={getEntityUrl(activity.entity_type, activity.entity_id)!}
+                            className="flex items-center gap-1 bg-blue-50 hover:bg-blue-100 px-1 sm:px-1.5 py-0.5 rounded-full transition-colors group"
+                          >
+                            <Tag className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-blue-500 flex-shrink-0" />
+                            <span className="text-xs text-blue-700 font-mono truncate max-w-[80px] sm:max-w-none group-hover:underline">
+                              {activity.entity_name}
+                            </span>
+                          </Link>
+                        ) : (
+                          <div className="flex items-center gap-1 bg-slate-100 px-1 sm:px-1.5 py-0.5 rounded-full">
+                            <Tag className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-slate-500 flex-shrink-0" />
+                            <span className="text-xs text-slate-600 font-mono truncate max-w-[80px] sm:max-w-none">
+                              {activity.entity_name}
+                            </span>
+                          </div>
+                        )
                       )}
 
                       {/* Rôle utilisateur */}
@@ -352,10 +413,17 @@ export default function ActivityLog({ activities, loading, error }: ActivityLogP
                     </div>
                   </div>
 
-                  {/* Badge de statut */}
-                  <div className="flex-shrink-0 self-start sm:self-center">
-                    {getStatusBadge(activity.status)}
-                  </div>
+                  {/* Bouton de navigation vers l'entité - sur la droite de la card */}
+                  {getEntityUrl(activity.entity_type, activity.entity_id) && (
+                    <Link
+                      href={getEntityUrl(activity.entity_type, activity.entity_id)!}
+                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-primary text-primary-foreground text-xs font-medium rounded-md hover:bg-primary/90 transition-colors"
+                    >
+                      <Eye className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Voir</span>
+                      <ExternalLink className="h-3 w-3 opacity-70" />
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>

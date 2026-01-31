@@ -10,21 +10,37 @@ export default async function InterventionsPage() {
   try {
     // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
     logger.info("🔵 [INTERVENTIONS-PAGE] Server-side fetch starting")
-    const { profile, team } = await getServerAuthContext('gestionnaire')
+    const { profile, team, activeTeamIds, isConsolidatedView } = await getServerAuthContext('gestionnaire')
 
     // ✅ Create service
     const interventionService = await createServerInterventionService()
 
-    // ✅ Fetch interventions using team_id
-    const result = await interventionService.getByTeam(team.id, {})
-
     let interventions: any[] = []
 
-    if (result.success && result.data) {
-      interventions = result.data
-      logger.info(`✅ [INTERVENTIONS-PAGE] Loaded ${interventions.length} interventions`)
+    // ✅ MULTI-ÉQUIPE: Vue consolidée = fetch de toutes les équipes actives
+    if (isConsolidatedView && activeTeamIds.length > 1) {
+      logger.info(`🔄 [INTERVENTIONS-PAGE] Consolidated view - fetching from ${activeTeamIds.length} teams`)
+
+      const results = await Promise.all(
+        activeTeamIds.map(teamId => interventionService.getByTeam(teamId, {}))
+      )
+
+      // Merge all successful results
+      interventions = results
+        .filter(r => r.success && r.data)
+        .flatMap(r => r.data || [])
+
+      logger.info(`✅ [INTERVENTIONS-PAGE] Consolidated: ${interventions.length} interventions from ${activeTeamIds.length} teams`)
     } else {
-      logger.error(`❌ [INTERVENTIONS-PAGE] Failed to load interventions: ${result.error || 'Unknown error'}`)
+      // ✅ Vue standard: une seule équipe
+      const result = await interventionService.getByTeam(team.id, {})
+
+      if (result.success && result.data) {
+        interventions = result.data
+        logger.info(`✅ [INTERVENTIONS-PAGE] Loaded ${interventions.length} interventions`)
+      } else {
+        logger.error(`❌ [INTERVENTIONS-PAGE] Failed to load interventions: ${result.error || 'Unknown error'}`)
+      }
     }
 
     logger.info(`📊 [INTERVENTIONS-PAGE] Server data ready - Interventions: ${interventions.length}`)

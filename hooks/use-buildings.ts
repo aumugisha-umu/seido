@@ -9,14 +9,22 @@ import {
 } from "@/lib/services"
 import { logger } from '@/lib/logger'
 
+// Address record from centralized addresses table
+export interface AddressRecord {
+  id: string
+  street?: string | null
+  postal_code?: string | null
+  city?: string | null
+  formatted_address?: string | null
+}
+
 export interface Building {
   id: string
   name: string
-  address: string
-  city?: string
-  postal_code?: string
   team_id: string
   lots?: Lot[]
+  // Address from centralized addresses table
+  address_record?: AddressRecord | null
   [key: string]: unknown
 }
 
@@ -30,7 +38,22 @@ export interface Lot {
   tenant?: unknown
   lot_tenants?: unknown[]
   interventions?: number
+  // Address from centralized addresses table (for independent lots)
+  address_record?: AddressRecord | null
   [key: string]: unknown
+}
+
+/**
+ * Helper to get formatted address text from address_record
+ */
+export function getAddressText(addressRecord?: AddressRecord | null): string {
+  if (!addressRecord) return ''
+  if (addressRecord.formatted_address) return addressRecord.formatted_address
+  if (addressRecord.street || addressRecord.city) {
+    const parts = [addressRecord.street, addressRecord.postal_code, addressRecord.city].filter(Boolean)
+    return parts.join(', ')
+  }
+  return ''
 }
 
 export interface BuildingsData {

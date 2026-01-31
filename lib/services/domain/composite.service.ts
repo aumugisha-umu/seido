@@ -8,6 +8,8 @@ import { BuildingService, createBuildingService, createServerBuildingService, cr
 import { LotService, createLotService, createServerLotService, createServerActionLotService } from './lot.service'
 import { ContactService, createContactService, createServerContactService, createServerActionContactService } from './contact.service'
 import { TeamService, createTeamService, createServerTeamService, createServerActionTeamService } from './team.service'
+import { AddressService, createAddressService } from './address.service'
+import { createServerActionSupabaseClient } from '../core/supabase-client'
 import type {
   User,
   Building,
@@ -84,6 +86,11 @@ export interface CreateCompletePropertyData {
     country: string
     team_id: string
     description?: string
+    // Google Maps geocoding data (optional)
+    latitude?: number
+    longitude?: number
+    place_id?: string
+    formatted_address?: string
   }
   lots: Array<{
     reference: string
@@ -184,7 +191,8 @@ export class CompositeService {
     private buildingService: BuildingService,
     private lotService: LotService,
     private teamService?: TeamService,
-    private contactService?: ContactService
+    private contactService?: ContactService,
+    private addressService?: AddressService
   ) {}
 
   /**
@@ -569,19 +577,101 @@ export class CompositeService {
     const lots: Lot[] = []
 
     try {
-      // Step 1: Create building
+      // Step 0: Create address in centralized addresses table
+      // Always create an address entry if we have an address string (even without geocoding data)
+      let addressId: string | undefined
+      const hasAddressData = data.building.address && data.building.address.trim() !== ''
+      const hasGeocodingData = data.building.latitude && data.building.longitude
+
+      if (hasAddressData && this.addressService) {
+        const addressOperation: CompositeOperation = {
+          id: `address-${Date.now()}`,
+          type: 'create',
+          service: 'address',
+          entity: 'address',
+          data: {
+            street: data.building.address,
+            postal_code: data.building.postal_code,
+            city: data.building.city,
+            country: data.building.country,
+            latitude: data.building.latitude,
+            longitude: data.building.longitude,
+            place_id: data.building.place_id,
+            formatted_address: data.building.formatted_address,
+            team_id: data.building.team_id
+          },
+          status: 'pending',
+          timestamp: new Date().toISOString()
+        }
+        operations.push(addressOperation)
+
+        // Use createFromGooglePlace if we have geocoding data, otherwise create basic address
+        if (hasGeocodingData) {
+          const addressResult = await this.addressService.createFromGooglePlace({
+            street: data.building.address,
+            postalCode: data.building.postal_code || '',
+            city: data.building.city,
+            country: data.building.country,
+            latitude: data.building.latitude!,
+            longitude: data.building.longitude!,
+            placeId: data.building.place_id || '',
+            formattedAddress: data.building.formatted_address || ''
+          }, data.building.team_id)
+
+          if (addressResult.success) {
+            addressId = addressResult.data.id
+            addressOperation.entityId = addressId
+            addressOperation.status = 'completed'
+          } else {
+            addressOperation.status = 'failed'
+            console.warn('Address creation failed, continuing without address link:', addressResult.error)
+          }
+        } else {
+          // Create basic address without geocoding data using createManual
+          const addressResult = await this.addressService.createManual({
+            street: data.building.address,
+            postalCode: data.building.postal_code || '',
+            city: data.building.city,
+            country: data.building.country
+          }, data.building.team_id)
+
+          if (addressResult.success) {
+            addressId = addressResult.data.id
+            addressOperation.entityId = addressId
+            addressOperation.status = 'completed'
+          } else {
+            addressOperation.status = 'failed'
+            console.warn('Address creation failed, continuing without address link:', addressResult.error)
+          }
+        }
+      }
+
+      // Step 1: Create building (with address_id if available)
+      // ⚠️ IMPORTANT: Remove ALL address fields that belong to addresses table, not buildings
+      // After migration 20260129200002, buildings table no longer has: address, city, postal_code, country
+      // These fields are now stored in the centralized addresses table via address_id
+      const {
+        latitude, longitude, place_id, formatted_address, formattedAddress, placeId,
+        address, city, postal_code, country,  // ← REMOVED: Legacy address columns (now in addresses table)
+        ...cleanBuildingData
+      } = data.building as any
+      const buildingData = {
+        ...cleanBuildingData,
+        address_id: addressId
+      }
+
       const buildingOperation: CompositeOperation = {
         id: `building-${Date.now()}`,
         type: 'create',
         service: 'building',
         entity: 'building',
-        data: data.building,
+        data: buildingData,
         status: 'pending',
         timestamp: new Date().toISOString()
       }
       operations.push(buildingOperation)
 
-      const buildingResult = await this.buildingService.create(data.building)
+      const buildingResult = await this.buildingService.create(buildingData)
       if (!buildingResult.success) {
         buildingOperation.status = 'failed'
         // ✅ Safely access error message from RepositoryError object
@@ -802,6 +892,15 @@ export class CompositeService {
     const lots: Lot[] = []
 
     try {
+      // ⚠️ IMPORTANT: Remove ALL address fields that belong to addresses table, not buildings
+      // After migration 20260129200002, buildings table no longer has: address, city, postal_code, country
+      // These fields are now stored in the centralized addresses table via address_id
+      const {
+        latitude, longitude, place_id, formatted_address, formattedAddress, placeId,
+        address, city, postal_code, country,  // ← REMOVED: Legacy address columns (now in addresses table)
+        ...cleanBuildingData
+      } = data.building as any
+
       // Step 1: Update building
       const buildingOperation: CompositeOperation = {
         id: `building-update-${Date.now()}`,
@@ -809,13 +908,13 @@ export class CompositeService {
         service: 'building',
         entity: 'building',
         entityId: data.buildingId,
-        data: data.building,
+        data: cleanBuildingData,
         status: 'pending',
         timestamp: new Date().toISOString()
       }
       operations.push(buildingOperation)
 
-      const buildingResult = await this.buildingService.update(data.buildingId, data.building)
+      const buildingResult = await this.buildingService.update(data.buildingId, cleanBuildingData)
       if (!buildingResult.success) {
         buildingOperation.status = 'failed'
         const errorMsg = buildingResult.error?.message || String(buildingResult.error)
@@ -1434,6 +1533,8 @@ export const createServerCompositeService = async () => {
  * This is the CRITICAL factory for Server Actions like building creation
  */
 export const createServerActionCompositeService = async () => {
+  const supabase = await createServerActionSupabaseClient()
+
   const [
     userService,
     buildingService,
@@ -1448,11 +1549,15 @@ export const createServerActionCompositeService = async () => {
     createServerActionContactService()
   ])
 
+  // Create address service with the same authenticated supabase client
+  const addressService = createAddressService(supabase)
+
   return new CompositeService(
     userService,
     buildingService,
     lotService,
     teamService,
-    contactService
+    contactService,
+    addressService
   )
 }

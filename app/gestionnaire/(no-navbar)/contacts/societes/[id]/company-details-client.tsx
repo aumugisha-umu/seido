@@ -76,17 +76,19 @@ export function CompanyDetailsClient({
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
     const [isDeleting, setIsDeleting] = useState(false)
 
-    // Format address
+    // Format address (from centralized address_record)
     const formatAddress = () => {
+        const addr = company.address_record
+        if (!addr) return null
         const parts = []
-        if (company.street) {
-            parts.push(`${company.street}${company.street_number ? ` ${company.street_number}` : ''}`)
+        if (addr.street) {
+            parts.push(addr.street)
         }
-        if (company.postal_code || company.city) {
-            parts.push(`${company.postal_code || ''} ${company.city || ''}`.trim())
+        if (addr.postal_code || addr.city) {
+            parts.push(`${addr.postal_code || ''} ${addr.city || ''}`.trim())
         }
-        if (company.country) {
-            parts.push(company.country)
+        if (addr.country) {
+            parts.push(addr.country)
         }
         return parts.join(', ') || null
     }

@@ -107,8 +107,8 @@ export class InterventionDataEnricher {
         ? (await this.buildingRepository.findById(buildingIdToFetch)).data
         : null
 
-      // 4. Format addresses
-      const propertyAddress = formatFullPropertyAddress(building)
+      // 4. Format addresses (building.address_record contains the centralized address)
+      const propertyAddress = formatFullPropertyAddress(building?.address_record)
       const lotReference = lot?.reference || undefined
 
       // 5. Fetch creator (if requested)

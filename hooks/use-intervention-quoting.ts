@@ -79,10 +79,13 @@ export const useInterventionQuoting = (teamIdProp?: string) => {
   const [providersLoading, setProvidersLoading] = useState(false)
 
   // Récupérer les prestataires disponibles
+  // Note: Ce hook est principalement utilisé par les gestionnaires
+  // Les prestataires n'ont pas besoin de cette fonctionnalité, donc team_id peut être undefined
   useEffect(() => {
     const fetchProviders = async () => {
       if (!teamId) {
-        logger.warn('🚨 [PROVIDERS] No team_id available (teamIdProp:', teamIdProp, ', user?.team_id:', user?.team_id, ')')
+        // Use debug level instead of warn - this is expected for non-gestionnaire users
+        logger.debug('ℹ️ [PROVIDERS] No team_id available - skipping provider fetch (expected for prestataires)')
         return
       }
 

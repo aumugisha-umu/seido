@@ -30,6 +30,8 @@ export interface TenantData {
     is_primary: boolean
     start_date?: string
     end_date?: string
+    rent_amount?: number
+    charges_amount?: number
     contractStatus?: TenantContractStatus  // Status of the contract for this lot
   }>
   interventions: unknown[]
@@ -107,9 +109,22 @@ export class TenantService {
 
       // Get interventions for this tenant (filtered by team for multi-tenant isolation)
       // Only fetch interventions if tenant has at least one contract
+      logger.info({
+        actualUserId,
+        teamId: user.team_id,
+        contractStatus,
+        lotsCount: lots.length,
+        willFetchInterventions: contractStatus !== 'none'
+      }, '🔍 [getTenantData] Before fetching interventions')
+
       const interventions = contractStatus !== 'none'
         ? await this.getTenantInterventions(actualUserId, user.team_id)
         : []
+
+      logger.info({
+        actualUserId,
+        interventionsCount: interventions.length
+      }, '🔍 [getTenantData] After fetching interventions')
 
       // Get team data if user is part of a team
       let teamData = null
@@ -154,11 +169,15 @@ export class TenantService {
     is_primary: boolean
     start_date?: string
     end_date?: string
+    rent_amount?: number
+    charges_amount?: number
+    contractStatus?: TenantContractStatus
   }>> {
     try {
       const supabase = this.getSupabaseClient()
 
       // Query contract_contacts to find tenant's active contracts with lot data
+      // NOTE: lots table does NOT have surface_area/rooms - those would need to be in metadata
       const { data, error } = await supabase
         .from('contract_contacts')
         .select(`
@@ -171,21 +190,22 @@ export class TenantService {
             status,
             start_date,
             end_date,
+            rent_amount,
+            charges_amount,
             lot:lot_id(
               id,
               reference,
               floor,
+              apartment_number,
+              description,
               category,
-              street,
-              city,
-              postal_code,
+              metadata,
+              address_record:address_id(*),
               building:building_id(
                 id,
                 name,
-                address,
-                city,
-                postal_code,
-                description
+                description,
+                address_record:address_id(*)
               )
             )
           )
@@ -204,6 +224,13 @@ export class TenantService {
 
       // Filter to only ACTIVE or UPCOMING contracts
       const validStatuses = ['actif', 'a_venir']
+      logger.info({
+        userId,
+        contractsFound: data.length,
+        statuses: data.map((item: any) => item.contract?.status),
+        validStatuses
+      }, '🔍 [getTenantLots] Contract statuses found')
+
       const activeContracts = data.filter(
         (item: any) => {
           const status = item.contract?.status?.toLowerCase()
@@ -211,6 +238,11 @@ export class TenantService {
           return validStatuses.includes(status) && hasLot
         }
       )
+
+      logger.info({
+        userId,
+        activeContractsCount: activeContracts.length
+      }, '🔍 [getTenantLots] Active contracts after filter')
 
       if (activeContracts.length === 0) {
         return []
@@ -224,6 +256,8 @@ export class TenantService {
           is_primary: item.is_primary || false,
           start_date: item.contract.start_date || undefined,
           end_date: item.contract.end_date || undefined,
+          rent_amount: item.contract.rent_amount || undefined,
+          charges_amount: item.contract.charges_amount || undefined,
           contractStatus: status === 'actif' ? 'actif' : 'a_venir' as TenantContractStatus
         }
       })

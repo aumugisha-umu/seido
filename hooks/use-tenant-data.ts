@@ -6,12 +6,14 @@ import { useAuth } from './use-auth'
 import { useResolvedUserId } from './use-resolved-user-id'
 import { logger } from '@/lib/logger'
 import type { TenantContractStatus } from '@/lib/services/domain/tenant.service'
+import { transformTenantLotForClient } from '@/lib/utils/tenant-transform'
 
 export interface TenantData {
   id: string
   reference: string
   floor?: number
   apartment_number?: string
+  description?: string
   surface_area?: number
   rooms?: number
   charges_amount?: number
@@ -19,12 +21,24 @@ export interface TenantData {
   building?: {
     id: string
     name: string
-    address: string
-    city: string
-    postal_code: string
     description?: string
+    // Address from address_record (joined from addresses table)
+    address_record?: {
+      street?: string
+      city?: string
+      postal_code?: string
+      formatted_address?: string
+    } | null
   } | null
   is_primary?: boolean
+  // Contract data for Property Info Card
+  contract?: {
+    start_date?: string
+    end_date?: string
+    rent_amount?: number
+    charges_amount?: number
+    status?: 'actif' | 'a_venir'
+  }
 }
 
 export interface TenantStats {
@@ -156,16 +170,8 @@ export const useTenantData = () => {
       setLoading(true)
       setError(null)
 
-      // Initialiser le client Supabase et s'assurer que la session est prête
-      const supabase = createBrowserSupabaseClient()
-      try {
-        const { data: sessionRes, error: sessionErr } = await supabase.auth.getSession()
-        if (sessionErr || !sessionRes?.session) {
-          await supabase.auth.refreshSession()
-        }
-      } catch {
-        // Continue anyway - let the service handle it
-      }
+      // ✅ Session gérée par AuthProvider + use-session-keepalive.ts
+      // Pas besoin de vérification défensive ici
 
       // Fetch all tenant data avec l'ID résolu
       const tenantService = createTenantService()
@@ -178,19 +184,11 @@ export const useTenantData = () => {
       // Extract tenant lot data (primary lot)
       const primaryLot = data.lots.find(l => l.is_primary)?.lot || data.lots[0]?.lot
 
-      // Transform data to match hook interfaces
-      const transformedTenantProperties: TenantData[] = data.lots.map((item: any) => ({
-        id: item.lot.id,
-        reference: item.lot.reference,
-        floor: item.lot.floor,
-        apartment_number: item.lot.apartment_number,
-        surface_area: item.lot.surface_area,
-        rooms: item.lot.rooms,
-        charges_amount: item.lot.charges_amount,
-        category: item.lot.category,
-        building: item.lot.building || null,
-        is_primary: item.is_primary // Keep track of primary status if needed
-      }))
+      // ✅ Utiliser la fonction utilitaire centralisée pour la transformation
+      // Cela garantit la cohérence avec locataire-dashboard.tsx (SSR)
+      const transformedTenantProperties: TenantData[] = data.lots.map((item: any) =>
+        transformTenantLotForClient(item)
+      )
 
       const transformedTenantData = transformedTenantProperties.find((p: any) => p.is_primary) || transformedTenantProperties[0] || null
 
@@ -216,6 +214,9 @@ export const useTenantData = () => {
       }
 
       // Enrichir les interventions avec quotes, slots et assignments
+      // ✅ Créer le client Supabase pour les requêtes d'enrichissement
+      const supabase = createBrowserSupabaseClient()
+
       const interventionsWithDetails: EnrichedIntervention[] = await Promise.all(
         rawInterventions.map(async (i: RawIntervention) => {
           const [{ data: quotes }, { data: timeSlots }, { data: assignments }] = await Promise.all([

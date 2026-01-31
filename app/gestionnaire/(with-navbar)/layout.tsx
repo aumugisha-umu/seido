@@ -17,6 +17,8 @@ import DashboardHeader from "@/components/dashboard-header"
  * - /gestionnaire/parametres
  * - /gestionnaire/profile
  * - /gestionnaire/mail
+ *
+ * ✅ MULTI-ÉQUIPE (Jan 2026): Passe sameRoleTeams au header pour le sélecteur
  */
 
 export default async function WithNavbarLayout({
@@ -25,7 +27,7 @@ export default async function WithNavbarLayout({
   children: React.ReactNode
 }) {
   // ✅ Fetch data for DashboardHeader (cached via React.cache())
-  const { user, profile, team } = await getServerAuthContext('gestionnaire')
+  const { user, profile, team, sameRoleTeams } = await getServerAuthContext('gestionnaire')
 
   const userName = profile.name || user.email?.split('@')[0] || 'Utilisateur'
   const userInitial = userName.charAt(0).toUpperCase()
@@ -40,6 +42,7 @@ export default async function WithNavbarLayout({
         teamId={team.id}
         userId={profile.id}
         avatarUrl={profile.avatar_url || undefined}
+        teams={sameRoleTeams}
       />
       <main className="flex-1 overflow-y-auto">
         {children}

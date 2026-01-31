@@ -91,6 +91,21 @@ export interface UrgentIntervention {
 
 // ✅ Mapping functions centralisées dans lib/utils/intervention-mappers.ts
 
+// Helper to format building address from new centralized address pattern
+const formatBuildingAddress = (building: any): string => {
+  if (!building) return 'Adresse inconnue'
+
+  // New pattern: address_record contains the centralized address
+  const addressRecord = building.address_record
+  if (addressRecord) {
+    if (addressRecord.formatted_address) return addressRecord.formatted_address
+    const parts = [addressRecord.street, addressRecord.postal_code, addressRecord.city].filter(Boolean)
+    if (parts.length > 0) return parts.join(', ')
+  }
+
+  return 'Adresse inconnue'
+}
+
 export const usePrestataireData = (userId: string) => {
   const [data, setData] = useState<{
     stats: PrestataireDashboardStats
@@ -138,18 +153,8 @@ export const usePrestataireData = (userId: string) => {
       loadingRef.current = true
       setData(prev => ({ ...prev, loading: true, error: null }))
 
-      // ✅ Initialiser le client Supabase et s'assurer que la session est prête
-      const supabase = createBrowserSupabaseClient()
-      try {
-        const { data: sessionRes, error: sessionErr } = await supabase.auth.getSession()
-        if (sessionErr || !sessionRes?.session) {
-          logger.warn('⚠️ [PRESTATAIRE-DATA] Session issue, attempting refresh...')
-          await supabase.auth.refreshSession()
-        }
-      } catch (sessionError) {
-        logger.warn('⚠️ [PRESTATAIRE-DATA] Session check failed:', sessionError)
-        // Continue anyway - let the service handle it
-      }
+      // ✅ Session gérée par AuthProvider + use-session-keepalive.ts
+      // Pas besoin de vérification défensive ici
 
       // ✅ CORRECTION: Nettoyer l'ID utilisateur si c'est un JWT-only ID
       const cleanUserId = userId.startsWith('jwt_') ? userId.replace('jwt_', '') : userId
@@ -193,6 +198,9 @@ export const usePrestataireData = (userId: string) => {
       logger.info('🔄 [PRESTATAIRE-DATA] Enriching interventions with quotes, slots and assignments (BATCH)...')
 
       const interventionIds = (interventions || []).map((i: Intervention) => i.id)
+
+      // ✅ Créer le client Supabase pour les requêtes batch
+      const supabase = createBrowserSupabaseClient()
 
       // 3 requêtes batch au lieu de 3*N requêtes
       const [
@@ -258,7 +266,7 @@ export const usePrestataireData = (userId: string) => {
           displayStatus: frontendStatus,  // ✅ Nouveau: statut frontend pour l'affichage
           createdAt: intervention.created_at || '',
           estimatedDuration: "2-3 heures", // TODO: Add this field to database
-          location: `${intervention.lot?.reference || 'N/A'} - ${intervention.lot?.building?.address || 'Adresse inconnue'}`,
+          location: `${intervention.lot?.reference || 'N/A'} - ${formatBuildingAddress(intervention.lot?.building)}`,
           tenant: intervention.tenant?.name || 'Locataire inconnu',
           requestedBy: intervention.manager?.name ? `${intervention.manager.name} (Gestionnaire)` : 'Gestionnaire',
           needsQuote: ['devis-a-fournir', 'approuvee'].includes(frontendStatus),

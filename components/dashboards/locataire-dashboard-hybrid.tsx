@@ -3,24 +3,36 @@
 import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Wrench, Plus, Bell, Calendar, MapPin, ArrowUpRight, Droplets, Zap, Flame, Key, Hammer, Paintbrush, AlertTriangle, CheckCircle2, ChevronDown, Building2, LayoutGrid } from "lucide-react"
+import { Plus, Bell, ChevronDown, Building2, LayoutGrid, Home, Calendar, CreditCard } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { TenantData, TenantIntervention } from "@/hooks/use-tenant-data"
 import { cn } from "@/lib/utils"
-import { getStatusLabel } from "@/lib/intervention-utils"
 import { useAuth } from "@/hooks/use-auth"
 import { useGlobalNotifications } from "@/hooks/use-global-notifications"
 import { useNotificationPopover } from "@/hooks/use-notification-popover"
-import { useTeamStatus } from "@/hooks/use-team-status"
 import UserMenu from "@/components/user-menu"
 import NotificationPopover from "@/components/notification-popover"
-import { DashboardInterventionsSection } from "@/components/dashboards/shared/dashboard-interventions-section"
 import { PendingActionsSection } from "@/components/dashboards/shared/pending-actions-section"
+import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
+
+// Helper functions for formatting
+const formatDate = (dateStr?: string) => {
+  if (!dateStr) return '—'
+  return new Date(dateStr).toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  })
+}
+
+const formatCurrency = (amount?: number) => {
+  if (!amount) return '—'
+  return new Intl.NumberFormat('fr-FR').format(amount)
+}
 
 interface LocataireDashboardHybridProps {
   tenantData: TenantData | null
@@ -109,8 +121,13 @@ export default function LocataireDashboardHybrid({
   )
 
   // Get current property display info
-  const currentProperty = selectedPropertyId === 'all'
-    ? { name: 'Vue d\'ensemble', address: 'Tous les logements', building: null }
+  // When 'all' is selected, use a minimal object; otherwise use the actual property data
+  const currentProperty: TenantData = selectedPropertyId === 'all'
+    ? {
+        id: 'all',
+        reference: 'all',
+        building: null
+      }
     : tenantProperties.find(p => p.id === selectedPropertyId) || tenantData
 
   return (
@@ -119,7 +136,7 @@ export default function LocataireDashboardHybrid({
       <header className="header">
         <div className="header__container">
           <nav className="header__nav">
-            {/* Left: Logo + Download Button + Property Selector */}
+            {/* Left: Logo + Title */}
             <div className="flex items-center gap-4 flex-1 min-w-0">
               {/* Logo */}
               <div className="header__logo">
@@ -134,61 +151,20 @@ export default function LocataireDashboardHybrid({
                 </Link>
               </div>
 
-              {/* Property Selector */}
-              <div className="min-w-0 flex-1">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-auto p-0 hover:bg-transparent flex items-center gap-2 max-w-full">
-                      <div className="text-left min-w-0">
-                        <h1 className="header__title flex items-center gap-1 truncate">
-                          <span className="truncate">{selectedPropertyId === 'all' ? 'Vue d\'ensemble' : 'Mon Logement'}</span>
-                          <ChevronDown className="h-5 w-5 text-gray-500 flex-shrink-0" />
-                        </h1>
-                        <p className="header__subtitle truncate">
-                          {selectedPropertyId === 'all'
-                            ? `${tenantProperties.length} logement${tenantProperties.length > 1 ? 's' : ''}`
-                            : currentProperty.building?.address}
-                        </p>
-                      </div>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-64">
-                    <DropdownMenuItem
-                      onClick={() => setSelectedPropertyId('all')}
-                      className={cn(
-                        "cursor-pointer",
-                        selectedPropertyId === 'all' && "bg-slate-100"
-                      )}
-                    >
-                      <LayoutGrid className="h-4 w-4 mr-2" />
-                      <div className="flex-1">
-                        <div className="font-medium">Vue d'ensemble</div>
-                        <div className="text-xs text-gray-500">Tous les logements</div>
-                      </div>
-                    </DropdownMenuItem>
-                    {tenantProperties.map((property) => (
-                      <DropdownMenuItem
-                        key={property.id}
-                        onClick={() => setSelectedPropertyId(property.id)}
-                        className={cn(
-                          "cursor-pointer",
-                          selectedPropertyId === property.id && "bg-slate-100"
-                        )}
-                      >
-                        <Building2 className="h-4 w-4 mr-2" />
-                        <div className="flex-1">
-                          <div className="font-medium">{property.reference}</div>
-                          <div className="text-xs text-gray-500">{property.building?.address}</div>
-                        </div>
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
             </div>
 
-            {/* Right: Notifications + User Menu */}
+            {/* Right: Report Button + Notifications + User Menu */}
             <div className="header__actions">
+              {/* Report Problem Button (desktop only) */}
+              {canCreateIntervention && (
+                <Button
+                  onClick={() => router.push('/locataire/interventions/nouvelle-demande')}
+                  className="hidden sm:flex bg-primary hover:bg-primary/90 text-white font-medium h-9 px-4 rounded-lg"
+                >
+                  <Plus className="h-4 w-4 mr-1.5" />
+                  Signaler un problème
+                </Button>
+              )}
               {/* Notifications Popover */}
               <Popover open={isNotificationPopoverOpen} onOpenChange={setIsNotificationPopoverOpen}>
                 <PopoverTrigger asChild>
@@ -237,24 +213,145 @@ export default function LocataireDashboardHybrid({
 
       <div className="dashboard__container space-y-8">
 
-        {/* --- ACTION ZONE (V3 Style) - Only shown if can create interventions --- */}
-        {canCreateIntervention && (
-          <div className="bg-gray-900 rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
-            <div className="relative z-10">
-              <h2 className="text-xl font-bold mb-2">Un problème technique ?</h2>
-              <p className="text-gray-300 mb-6 text-sm max-w-[80%]">Signalez-le rapidement pour une intervention.</p>
-              <Button
-                onClick={() => router.push('/locataire/interventions/nouvelle-demande')}
-                className="w-full bg-white text-black hover:bg-gray-100 font-bold h-12 rounded-xl px-8 justify-center"
-              >
-                <Plus className="h-5 w-5 mr-2" />
-                Créer une demande
-              </Button>
+        {/* --- PROPERTY INFO CARD (Replaces old Action Zone) --- */}
+        <div className="bg-gradient-to-r from-primary to-primary/80 rounded-2xl p-6 text-white shadow-xl">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+
+            {/* Left: Property Selector + Details */}
+            <div className="flex-1 min-w-0">
+              {/* Property Selector (moved from header) */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="flex items-center gap-2 text-left hover:opacity-90 transition-opacity group">
+                    <Home className="h-5 w-5 opacity-70 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <h2 className="text-xl font-bold flex items-center gap-2">
+                        <span className="truncate">
+                          {selectedPropertyId === 'all'
+                            ? 'Vue d\'ensemble'
+                            : (currentProperty.building?.name || 'Mon Logement')}
+                          {selectedPropertyId !== 'all' && currentProperty.apartment_number && ` - ${currentProperty.apartment_number}`}
+                        </span>
+                        <ChevronDown className="h-5 w-5 opacity-70 flex-shrink-0 group-hover:opacity-100 transition-opacity" />
+                      </h2>
+                      <p className="text-white/80 text-sm mt-0.5 truncate">
+                        {selectedPropertyId === 'all'
+                          ? `${tenantProperties.length} logement${tenantProperties.length > 1 ? 's' : ''}`
+                          : currentProperty.building?.address_record?.formatted_address
+                            || `${currentProperty.building?.address_record?.street || ''}, ${currentProperty.building?.address_record?.postal_code || ''} ${currentProperty.building?.address_record?.city || ''}`}
+                      </p>
+                    </div>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-72">
+                  <DropdownMenuItem
+                    onClick={() => setSelectedPropertyId('all')}
+                    className={cn(
+                      "cursor-pointer",
+                      selectedPropertyId === 'all' && "bg-slate-100"
+                    )}
+                  >
+                    <LayoutGrid className="h-4 w-4 mr-2" />
+                    <div className="flex-1">
+                      <div className="font-medium">Vue d'ensemble</div>
+                      <div className="text-xs text-gray-500">Tous les logements</div>
+                    </div>
+                  </DropdownMenuItem>
+                  {tenantProperties.map((property) => (
+                    <DropdownMenuItem
+                      key={property.id}
+                      onClick={() => setSelectedPropertyId(property.id)}
+                      className={cn(
+                        "cursor-pointer",
+                        selectedPropertyId === property.id && "bg-slate-100"
+                      )}
+                    >
+                      <Building2 className="h-4 w-4 mr-2" />
+                      <div className="flex-1">
+                        <div className="font-medium">
+                          {property.building?.name || property.reference}
+                          {property.apartment_number && ` - ${property.apartment_number}`}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {property.building?.address_record?.street || property.building?.address_record?.formatted_address || ''}
+                        </div>
+                      </div>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Property Details: étage, porte, description */}
+              {/* pl-7 = icon width (20px) + gap-2 (8px) to align with address text above */}
+              {selectedPropertyId !== 'all' && (
+                <div className="flex items-center gap-2 mt-1 pl-7 text-sm text-white/80 flex-wrap">
+                  {[
+                    currentProperty.floor !== undefined && currentProperty.floor !== null && (currentProperty.floor === 0 ? 'RDC' : `${currentProperty.floor}ème étage`),
+                    currentProperty.apartment_number && `Porte ${currentProperty.apartment_number}`,
+                    currentProperty.description,
+                  ].filter(Boolean).map((detail, index) => (
+                    <span key={index} className="flex items-center gap-2">
+                      {index > 0 && <span className="opacity-50">•</span>}
+                      <span>{detail}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
-            <div className="absolute -right-4 -bottom-8 opacity-10">
-              <Wrench className="h-40 w-40" />
-            </div>
+
+            {/* Right: Contract/Lease Info - Toujours afficher quand un logement spécifique est sélectionné */}
+            {selectedPropertyId !== 'all' && (
+              <div className="flex-shrink-0 lg:text-right lg:border-l lg:border-white/20 lg:pl-6 pt-4 lg:pt-0 border-t lg:border-t-0 border-white/20">
+                {/* Badge toujours visible */}
+                <Badge className="bg-white/20 text-white border-0 mb-2 hover:bg-white/30">
+                  <Calendar className="h-3 w-3 mr-1" />
+                  {currentProperty.contract?.status === 'actif' ? 'Bail en cours' : 'Bail à venir'}
+                </Badge>
+
+                {/* Dates - uniquement si disponibles */}
+                {(currentProperty.contract?.start_date || currentProperty.contract?.end_date) && (
+                  <p className="text-sm font-medium">
+                    {formatDate(currentProperty.contract?.start_date)} — {formatDate(currentProperty.contract?.end_date)}
+                  </p>
+                )}
+
+                {/* Loyer - uniquement si disponible */}
+                {(currentProperty.contract?.rent_amount || currentProperty.contract?.charges_amount) && (
+                  <p className="text-sm text-white/80 mt-1 flex items-center lg:justify-end gap-1">
+                    <CreditCard className="h-3.5 w-3.5" />
+                    <span>Loyer: </span>
+                    <span className="font-semibold text-white">
+                      {formatCurrency(currentProperty.contract?.rent_amount)}€
+                    </span>
+                    {currentProperty.contract?.charges_amount && (
+                      <span className="text-white/60"> (+{formatCurrency(currentProperty.contract?.charges_amount)}€ charges)</span>
+                    )}
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Overview stats when "all" is selected */}
+            {selectedPropertyId === 'all' && (
+              <div className="flex-shrink-0 lg:text-right lg:border-l lg:border-white/20 lg:pl-6 pt-4 lg:pt-0 border-t lg:border-t-0 border-white/20">
+                <p className="text-lg font-semibold">{tenantProperties.length} logement{tenantProperties.length > 1 ? 's' : ''}</p>
+                <p className="text-sm text-white/80">
+                  {sortedInterventions.length} intervention{sortedInterventions.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+            )}
           </div>
+        </div>
+
+        {/* Mobile: Floating Action Button for Report Problem */}
+        {canCreateIntervention && (
+          <Button
+            onClick={() => router.push('/locataire/interventions/nouvelle-demande')}
+            className="sm:hidden fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary hover:bg-primary/90 shadow-lg p-0"
+            aria-label="Signaler un problème"
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
         )}
 
         {/* --- PENDING ACTIONS SECTION: Orange wrapper with horizontal scroll --- */}
@@ -263,11 +360,15 @@ export default function LocataireDashboardHybrid({
           userRole="locataire"
         />
 
-        {/* --- INTERVENTIONS SECTION (Reusable Component) --- */}
-        <DashboardInterventionsSection
+        {/* --- INTERVENTIONS SECTION (Unified InterventionsNavigator) --- */}
+        <InterventionsNavigator
           interventions={sortedInterventions}
           userContext="locataire"
-          title="Vos Interventions"
+          tabsPreset="dashboard"
+          showHeader={true}
+          headerConfig={{ title: "Vos Interventions" }}
+          showSortOptions={true}
+          compact={true}
         />
       </div>
     </div>

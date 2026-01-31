@@ -20,7 +20,8 @@ import {
   Eye,
   Edit,
   XCircle,
-  CalendarPlus
+  CalendarPlus,
+  RotateCcw
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -53,6 +54,8 @@ export type ActionType =
   // Gestionnaire actions
   | 'approve'
   | 'reject'
+  | 'process_request'
+  | 'revise_decision'
   | 'request_details'
   | 'request_quotes'
   | 'start_planning'
@@ -93,19 +96,11 @@ const getGestionnaireActions = (
     case 'demande':
       return [
         {
-          label: 'Approuver',
-          icon: Check,
+          label: 'Traiter la demande',
+          icon: FileText,
           variant: 'primary',
-          actionType: 'approve',
-          apiRoute: '/api/intervention-approve',
-          apiMethod: 'POST'
-        },
-        {
-          label: 'Rejeter',
-          icon: X,
-          variant: 'destructive',
-          actionType: 'reject',
-          href: `${baseUrl}?action=reject`
+          actionType: 'process_request',
+          href: `${baseUrl}?action=process_request`
         },
         {
           label: 'Demander détails',
@@ -140,7 +135,7 @@ const getGestionnaireActions = (
     case 'planification':
       return [
         {
-          label: 'Proposer créneaux',
+          label: 'Gérer créneaux',
           icon: Clock,
           variant: 'primary',
           actionType: 'propose_slots',
@@ -149,7 +144,7 @@ const getGestionnaireActions = (
         {
           label: 'Gérer estimations',
           icon: FileText,
-          variant: 'secondary',
+          variant: 'primary',
           actionType: 'manage_quotes',
           href: `${baseUrl}?tab=planning`
         }
@@ -208,6 +203,17 @@ const getGestionnaireActions = (
         }
       ]
 
+    case 'rejetee':
+      return [
+        {
+          label: 'Modifier décision',
+          icon: RotateCcw,
+          variant: 'secondary',
+          actionType: 'revise_decision',
+          href: `${baseUrl}?action=revise_decision`
+        }
+      ]
+
     default:
       return []
   }
@@ -229,7 +235,7 @@ const getPrestataireActions = (
     case 'planification':
       return [
         {
-          label: 'Proposer créneaux',
+          label: 'Gérer créneaux',
           icon: CalendarCheck,
           variant: 'primary',
           actionType: 'propose_timeslots',

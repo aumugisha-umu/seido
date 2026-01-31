@@ -7,17 +7,15 @@
 
 import { useState } from 'react'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from '@/components/ui/unified-modal'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { AlertCircle, Calendar, Clock, X } from 'lucide-react'
+import { AlertCircle, Calendar, Clock, X, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import { toast } from 'sonner'
@@ -107,23 +105,22 @@ export function RejectSlotModal({
   if (!slot) return null
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[550px]">
-        <DialogHeader>
-          <div className="flex items-center gap-3">
-            <div className="rounded-full bg-orange-500/10 p-3">
-              <X className="w-6 h-6 text-orange-600" />
-            </div>
-            <div>
-              <DialogTitle>Rejeter ce créneau</DialogTitle>
-              <DialogDescription>
-                Veuillez indiquer pourquoi ce créneau ne vous convient pas
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={handleClose}
+      size="md"
+      preventCloseOnOutsideClick={rejecting}
+      preventCloseOnEscape={rejecting}
+    >
+      <UnifiedModalHeader
+        title="Rejeter ce créneau"
+        subtitle="Veuillez indiquer pourquoi ce créneau ne vous convient pas"
+        icon={<X className="h-5 w-5" />}
+        variant="warning"
+      />
 
-        <div className="space-y-4 py-4">
+      <UnifiedModalBody>
+        <div className="space-y-4">
           {/* Slot information */}
           <div className="rounded-lg bg-muted p-4 space-y-3">
             <div className="flex items-center gap-2 text-sm">
@@ -181,27 +178,34 @@ export function RejectSlotModal({
             </p>
           </div>
         </div>
+      </UnifiedModalBody>
 
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleClose}
-            disabled={rejecting}
-          >
-            Annuler
-          </Button>
-          <Button
-            type="button"
-            variant="default"
-            onClick={handleConfirm}
-            disabled={rejecting || !reason.trim()}
-            className="bg-orange-600 hover:bg-orange-700"
-          >
-            {rejecting ? 'Enregistrement...' : 'Rejeter ce créneau'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button
+          variant="outline"
+          onClick={handleClose}
+          disabled={rejecting}
+        >
+          Annuler
+        </Button>
+        <Button
+          onClick={handleConfirm}
+          disabled={rejecting || !reason.trim()}
+          className="bg-orange-600 hover:bg-orange-700"
+        >
+          {rejecting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Enregistrement...
+            </>
+          ) : (
+            <>
+              <X className="h-4 w-4 mr-2" />
+              Rejeter ce créneau
+            </>
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

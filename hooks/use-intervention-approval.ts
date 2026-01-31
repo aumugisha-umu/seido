@@ -1,11 +1,11 @@
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
 import {
   interventionActionsService,
   type InterventionAction,
-  type ApprovalData
 } from "@/lib/intervention-actions-service"
+import { useToast } from "@/hooks/use-toast"
 
 interface ApprovalModal {
   isOpen: boolean
@@ -13,42 +13,15 @@ interface ApprovalModal {
   action: "approve" | "reject" | null
 }
 
-interface ConfirmationModal {
-  isOpen: boolean
-  intervention: InterventionAction | null
-  action: "approve" | "reject" | null
-  rejectionReason: string
-  internalComment: string
-}
-
-interface SuccessModal {
-  isOpen: boolean
-  action: "approve" | "reject" | null
-  interventionTitle: string
-}
-
 export const useInterventionApproval = () => {
   const router = useRouter()
-  
-  // État des modals
+  const { toast } = useToast()
+
+  // État de la modale unique
   const [approvalModal, setApprovalModal] = useState<ApprovalModal>({
     isOpen: false,
     intervention: null,
     action: null,
-  })
-
-  const [confirmationModal, setConfirmationModal] = useState<ConfirmationModal>({
-    isOpen: false,
-    intervention: null,
-    action: null,
-    rejectionReason: "",
-    internalComment: "",
-  })
-
-  const [successModal, setSuccessModal] = useState<SuccessModal>({
-    isOpen: false,
-    action: null,
-    interventionTitle: "",
   })
 
   // État des formulaires
@@ -59,8 +32,8 @@ export const useInterventionApproval = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Actions
-  const handleApprovalAction = (intervention: InterventionAction, action: "approve" | "reject") => {
+  // Ouvrir la modale avec une action pré-sélectionnée
+  const handleApprovalAction = useCallback((intervention: InterventionAction, action: "approve" | "reject") => {
     setApprovalModal({
       isOpen: true,
       intervention,
@@ -68,143 +41,108 @@ export const useInterventionApproval = () => {
     })
     setRejectionReason("")
     setInternalComment("")
-  }
+  }, [])
 
-  const handleActionChange = (action: "approve" | "reject") => {
+  // Ouvrir la modale sans pré-sélection (pour "Traiter la demande")
+  const openApprovalModal = useCallback((intervention: InterventionAction) => {
+    setApprovalModal({
+      isOpen: true,
+      intervention,
+      action: null,
+    })
+    setRejectionReason("")
+    setInternalComment("")
+  }, [])
+
+  // Changer l'action sélectionnée
+  const handleActionChange = useCallback((action: "approve" | "reject") => {
     setApprovalModal(prev => ({
       ...prev,
       action: action
     }))
-    
-    // Reset rejection reason when switching to approve
+
     if (action === "approve") {
       setRejectionReason("")
     }
-  }
+  }, [])
 
-  const handleConfirmAction = (actionOverride?: "approve" | "reject") => {
+  // Confirmer l'action (appel API direct)
+  const handleConfirmAction = useCallback(async (actionOverride?: "approve" | "reject") => {
     const action = actionOverride || approvalModal.action
-    
-    if (action === "approve") {
-      setConfirmationModal({
-        isOpen: true,
-        intervention: approvalModal.intervention,
-        action: "approve",
-        rejectionReason: "",
-        internalComment: internalComment,
-      })
-    } else if (action === "reject") {
-      setConfirmationModal({
-        isOpen: true,
-        intervention: approvalModal.intervention,
-        action: "reject",
-        rejectionReason: rejectionReason,
-        internalComment: internalComment,
-      })
-    }
+    const intervention = approvalModal.intervention
 
-    setApprovalModal({ isOpen: false, intervention: null, action: null })
-  }
-
-  const handleFinalConfirmation = async () => {
-    if (!confirmationModal.intervention) return
-
-    const approvalData: ApprovalData = {
-      action: confirmationModal.action as "approve" | "reject",
-      rejectionReason: rejectionReason, // ✅ Utilise la valeur actuelle
-      internalComment: internalComment, // ✅ Utilise la valeur actuelle
-    }
+    if (!intervention || !action) return
 
     setIsLoading(true)
     setError(null)
 
     try {
-      if (confirmationModal.action === "approve") {
+      if (action === "approve") {
         await interventionActionsService.approveIntervention(
-          confirmationModal.intervention
+          intervention,
+          internalComment?.trim() || undefined
         )
 
-        setSuccessModal({
-          isOpen: true,
-          action: confirmationModal.action,
-          interventionTitle: confirmationModal.intervention.title || "",
+        toast({
+          title: "Intervention approuvée",
+          description: "L'intervention passe en phase de planification.",
         })
 
-        // Rafraîchir les données (trigger un re-fetch)
-        // Note: Dans un vrai contexte, on pourrait utiliser SWR mutate ou similar
-        setTimeout(() => {
-          window.location.reload() // Simple refresh pour maintenant
-        }, 2000)
-
-      } else if (confirmationModal.action === "reject") {
-        if (!rejectionReason) {
+      } else if (action === "reject") {
+        if (!rejectionReason.trim()) {
           throw new Error('Le motif de rejet est requis')
         }
 
+        logger.info(`📝 [HOOK] Rejecting with internalComment: "${internalComment || '(empty)'}"`)
+
         await interventionActionsService.rejectIntervention(
-          confirmationModal.intervention,
-          rejectionReason
+          intervention,
+          rejectionReason.trim(),
+          internalComment?.trim() || undefined
         )
 
-        setSuccessModal({
-          isOpen: true,
-          action: confirmationModal.action,
-          interventionTitle: confirmationModal.intervention.title || "",
+        toast({
+          title: "Intervention rejetée",
+          description: "Le locataire sera notifié du rejet.",
         })
-
-        // Rafraîchir les données après rejet aussi
-        setTimeout(() => {
-          window.location.reload()
-        }, 2000)
       }
-    } catch (error) {
-      logger.error("Error processing intervention:", error)
-      setError(error instanceof Error ? error.message : 'Erreur inconnue')
+
+      // Fermer la modale
+      setApprovalModal({ isOpen: false, intervention: null, action: null })
+      setRejectionReason("")
+      setInternalComment("")
+
+      // Rafraîchir la page après un court délai
+      setTimeout(() => {
+        router.refresh()
+      }, 500)
+
+    } catch (err) {
+      logger.error("Error processing intervention:", err)
+      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue'
+      setError(errorMessage)
+
+      toast({
+        title: "Erreur",
+        description: errorMessage,
+        variant: "destructive",
+      })
     } finally {
       setIsLoading(false)
     }
+  }, [approvalModal.action, approvalModal.intervention, rejectionReason, router, toast])
 
-    // Reset états
-    setConfirmationModal({
-      isOpen: false,
-      intervention: null,
-      action: null,
-      rejectionReason: "",
-      internalComment: "",
-    })
-    setRejectionReason("")
-    setInternalComment("")
-  }
-
-  const closeApprovalModal = () => {
+  // Fermer la modale
+  const closeApprovalModal = useCallback(() => {
     setApprovalModal({ isOpen: false, intervention: null, action: null })
     setRejectionReason("")
     setInternalComment("")
-  }
-
-  const closeConfirmationModal = () => {
-    setConfirmationModal({
-      isOpen: false,
-      intervention: null,
-      action: null,
-      rejectionReason: "",
-      internalComment: "",
-    })
-  }
-
-  const closeSuccessModal = () => {
-    setSuccessModal({
-      isOpen: false,
-      action: null,
-      interventionTitle: "",
-    })
-  }
+    setError(null)
+  }, [])
 
   return {
     // États
     approvalModal,
-    confirmationModal,
-    successModal,
     rejectionReason,
     internalComment,
     isLoading,
@@ -217,12 +155,9 @@ export const useInterventionApproval = () => {
 
     // Actions
     handleApprovalAction,
+    openApprovalModal,
     handleActionChange,
     handleConfirmAction,
-    handleFinalConfirmation,
     closeApprovalModal,
-    closeConfirmationModal,
-    closeSuccessModal,
   }
 }
-

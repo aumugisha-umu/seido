@@ -4,9 +4,13 @@
  * Email Conversation Server Actions
  * Server-side operations for email-linked internal team conversations
  * Allows gestionnaires to start private discussions about specific emails
+ *
+ * ✅ REFACTORED (Jan 2026): Uses centralized getServerActionAuthContextOrNull()
+ *    instead of duplicated local auth helper
  */
 
 import { createServerActionSupabaseClient, createServiceRoleSupabaseClient } from '@/lib/services'
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
@@ -46,27 +50,6 @@ interface TeamGestionnaire {
 }
 
 /**
- * Helper to get authenticated user with DB ID
- */
-async function getAuthenticatedUser() {
-  const supabase = await createServerActionSupabaseClient()
-  const { data: { session }, error } = await supabase.auth.getSession()
-
-  if (!session || error) {
-    return null
-  }
-
-  // Get database user ID from auth user ID
-  const { data: userData } = await supabase
-    .from('users')
-    .select('id, role, team_id, name, email')
-    .eq('auth_user_id', session.user.id)
-    .single()
-
-  return userData
-}
-
-/**
  * Get email conversation thread if it exists
  * Returns the thread with participants if found, null otherwise
  */
@@ -75,7 +58,8 @@ export async function getEmailConversationAction(
 ): Promise<ActionResult<ThreadWithParticipants | null>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -140,7 +124,8 @@ export async function createEmailConversationAction(
 ): Promise<ActionResult<ThreadWithParticipants>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -294,7 +279,8 @@ export async function addEmailConversationParticipantsAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -390,7 +376,8 @@ export async function getTeamGestionnairesAction(
 ): Promise<ActionResult<TeamGestionnaire[]>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -448,7 +435,8 @@ export async function getEmailConversationParticipantsAction(
 ): Promise<ActionResult<ParticipantInfo[]>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }

@@ -4,21 +4,43 @@
  * QuoteSubmissionModal
  * Modal for providers to submit quotes for interventions
  *
- * Uses the base intervention modal components for consistent UI
+ * Uses UnifiedModal for consistent UI
  */
 
 import { useState, useRef, useCallback } from 'react'
-import { Wrench, Send } from 'lucide-react'
+import { Wrench, Send, Loader2 } from 'lucide-react'
 import {
-  InterventionModalBase,
-  InterventionModalHeader,
-  InterventionModalContent,
-  InterventionModalFooter,
-  type InterventionData
-} from './base'
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from '@/components/ui/unified-modal'
+import { Button } from '@/components/ui/button'
 import { QuoteSubmissionForm } from '@/components/intervention/quote-submission-form'
 import { useAuth } from '@/hooks/use-auth'
-import type { Database } from '@/lib/database.types'
+
+// Re-export InterventionData type for compatibility
+export interface InterventionData {
+  id: string
+  title: string
+  description?: string | null
+  urgency?: string
+  priority?: string
+  type?: string
+  location?: string
+  address?: string
+  building_name?: string
+  unit_reference?: string
+  created_at?: string
+  time_slots?: Array<{
+    id: string
+    status: string
+    slot_date: string
+    start_time: string
+    end_time?: string
+  }>
+  scheduling_type?: string
+}
 
 interface QuoteSubmissionModalProps {
   // Modal control
@@ -157,23 +179,23 @@ export function QuoteSubmissionModal({
   }
 
   return (
-    <InterventionModalBase
+    <UnifiedModal
       open={open}
       onOpenChange={onOpenChange}
       size="xl"
+      preventCloseOnOutsideClick={isLoading}
+      preventCloseOnEscape={isLoading}
     >
-      <InterventionModalHeader
+      <UnifiedModalHeader
         title={getModalTitle()}
-        icon={Wrench}
-        intervention={intervention}
-        summaryAdditionalContent={managerMessageContent}
-        onClose={handleClose}
+        icon={<Wrench className="h-5 w-5" />}
+        subtitle={`${intervention.title}${intervention.location ? ` • ${intervention.location}` : ''}${intervention.address ? ` • ${intervention.address}` : ''}`}
       />
 
-      <InterventionModalContent
-        backgroundColor="slate"
-        padding="lg"
-      >
+      <UnifiedModalBody className="space-y-4">
+        {/* Manager message card (if present) */}
+        {managerMessageContent}
+
         <QuoteSubmissionForm
           intervention={{
             id: intervention.id,
@@ -193,17 +215,29 @@ export function QuoteSubmissionModal({
           onLoadingChange={setIsLoading}
           hideEstimationSection={hideEstimationSection}
         />
-      </InterventionModalContent>
+      </UnifiedModalBody>
 
-      <InterventionModalFooter
-        onCancel={handleClose}
-        onConfirm={handleSubmit}
-        confirmLabel={getButtonLabel()}
-        confirmIcon={Send}
-        confirmDisabled={!isFormValid}
-        isLoading={isLoading}
-        loadingText={getLoadingText()}
-      />
-    </InterventionModalBase>
+      <UnifiedModalFooter>
+        <Button variant="outline" onClick={handleClose} disabled={isLoading}>
+          Annuler
+        </Button>
+        <Button
+          onClick={handleSubmit}
+          disabled={!isFormValid || isLoading}
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              {getLoadingText()}
+            </>
+          ) : (
+            <>
+              <Send className="h-4 w-4 mr-2" />
+              {getButtonLabel()}
+            </>
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

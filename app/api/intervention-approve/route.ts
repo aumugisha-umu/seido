@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
-import { createServerInterventionService } from '@/lib/services'
+import { createServerInterventionService, createServerActionInterventionCommentRepository } from '@/lib/services'
 import { requireApiRole } from '@/lib/api-auth-helper'
 import { interventionApproveSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
       .from('interventions')
       .select(`
         *,
-        lot:lot_id(id, reference, building:building_id(name, address, team_id)),
+        lot:lot_id(id, reference, building:building_id(name, team_id, address_record:address_id(*))),
         team:team_id(id, name)
       `)
       .eq('id', interventionId)
@@ -85,6 +85,17 @@ export async function POST(request: NextRequest) {
     })
 
     logger.info({}, "✅ Intervention approved successfully")
+
+    // ✅ Save internal comment if provided (is_internal: true)
+    if (internalComment?.trim()) {
+      try {
+        const commentRepository = await createServerActionInterventionCommentRepository()
+        await commentRepository.createComment(interventionId, user.id, internalComment.trim(), true)
+        logger.info({ interventionId }, "💬 Internal comment saved for approval")
+      } catch (commentError) {
+        logger.warn({ commentError }, "⚠️ Could not save internal comment (non-blocking)")
+      }
+    }
 
     // Send notifications with proper logic (personal/team)
     try {

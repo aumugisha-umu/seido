@@ -19,6 +19,7 @@ import { ImpersonationBanner } from "@/components/impersonation-banner"
 import "./globals.css"
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://seido.app'),
   title: "SEIDO - Gestion Immobilière",
   description: "Plateforme de gestion immobilière multi-rôles pour propriétaires, gestionnaires, locataires et prestataires",
   generator: "v0.app",

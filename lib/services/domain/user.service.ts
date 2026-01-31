@@ -50,7 +50,7 @@ export class UserService {
   }
 
   /**
-   * Get user by auth user ID
+   * Get user by auth user ID (returns most recent profile)
    */
   async getByAuthUserId(authUserId: string) {
     return this.repository.findByAuthUserId(authUserId)
@@ -61,6 +61,20 @@ export class UserService {
    */
   async findByAuthUserId(authUserId: string) {
     return this.getByAuthUserId(authUserId)
+  }
+
+  /**
+   * Get ALL profiles for an auth user ID (multi-team support)
+   *
+   * ✅ MULTI-ÉQUIPE (Jan 2026): Retourne tous les profils d'un utilisateur
+   * Un utilisateur peut avoir plusieurs profils (1 par équipe)
+   * avec des rôles différents dans chaque équipe.
+   *
+   * @param authUserId - L'ID d'authentification Supabase
+   * @returns Tous les profils actifs avec info équipe
+   */
+  async getAllByAuthUserId(authUserId: string) {
+    return this.repository.findAllByAuthUserId(authUserId)
   }
 
   /**

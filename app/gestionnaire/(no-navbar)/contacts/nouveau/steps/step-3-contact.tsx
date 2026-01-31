@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
 import { PhoneInput } from "@/components/ui/phone-input"
-import { Mail, FileText, User, Loader2 } from "lucide-react"
+import { Mail, FileText, User, Loader2, Phone } from "lucide-react"
 import { isValidEmail } from "@/lib/validation/patterns"
 import { EntityLinkSection } from "@/components/contact-details/entity-link-section"
 
@@ -142,12 +142,10 @@ export function Step3Contact({
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="first-name">
+            <Label htmlFor="first-name" icon={User} required={personOrCompany === 'person'}>
               Prénom
-              {personOrCompany === 'person' ? (
-                <span className="text-red-500">*</span>
-              ) : (
-                <span className="text-sm text-muted-foreground ml-1">(optionnel)</span>
+              {personOrCompany !== 'person' && (
+                <span className="text-muted-foreground font-normal">(optionnel)</span>
               )}
             </Label>
             <Input
@@ -159,12 +157,10 @@ export function Step3Contact({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="last-name">
+            <Label htmlFor="last-name" icon={User} required={personOrCompany === 'person'}>
               Nom
-              {personOrCompany === 'person' ? (
-                <span className="text-red-500">*</span>
-              ) : (
-                <span className="text-sm text-muted-foreground ml-1">(optionnel)</span>
+              {personOrCompany !== 'person' && (
+                <span className="text-muted-foreground font-normal">(optionnel)</span>
               )}
             </Label>
             <Input
@@ -193,14 +189,10 @@ export function Step3Contact({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Email */}
           <div className="space-y-2">
-            <Label htmlFor="email">
+            <Label htmlFor="email" icon={Mail} required={inviteToApp}>
               Email
-              {inviteToApp ? (
-                <span className="text-red-500">*</span>
-              ) : personOrCompany === 'company' ? (
-                <span className="text-sm text-muted-foreground ml-1">(optionnel)</span>
-              ) : (
-                <span className="text-sm text-muted-foreground ml-1">(optionnel)</span>
+              {!inviteToApp && (
+                <span className="text-muted-foreground font-normal">(optionnel)</span>
               )}
             </Label>
             <div className="relative">
@@ -231,13 +223,8 @@ export function Step3Contact({
 
           {/* Téléphone */}
           <div className="space-y-2">
-            <Label htmlFor="phone">
-              Téléphone
-              {!inviteToApp && personOrCompany === 'company' ? (
-                <span className="text-sm text-muted-foreground ml-1">(optionnel)</span>
-              ) : (
-                <span className="text-sm text-muted-foreground">(optionnel)</span>
-              )}
+            <Label htmlFor="phone" icon={Phone}>
+              Téléphone <span className="text-muted-foreground font-normal">(optionnel)</span>
             </Label>
             <PhoneInput
               value={phone || ''}
@@ -254,8 +241,8 @@ export function Step3Contact({
           <h3 className="font-semibold text-foreground">Notes complémentaires</h3>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="notes">
-            Notes <span className="text-sm text-muted-foreground">(optionnel)</span>
+          <Label htmlFor="notes" icon={FileText}>
+            Notes <span className="text-muted-foreground font-normal">(optionnel)</span>
           </Label>
           <Textarea
             id="notes"

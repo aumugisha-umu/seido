@@ -8,13 +8,12 @@
 
 import { useState, useEffect } from 'react'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+} from '@/components/ui/unified-modal'
 import { Button } from '@/components/ui/button'
-import { Download, FileText } from 'lucide-react'
+import { Download, FileText, Loader2 } from 'lucide-react'
 
 interface PreviewDocument {
   id: string
@@ -72,44 +71,42 @@ export function DocumentPreviewModal({
     return type.replace(/_/g, ' ')
   }
 
-  return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0 gap-0">
-        {/* Header - pr-10 pour laisser place au bouton X */}
-        <DialogHeader className="flex-shrink-0 p-6 pb-4 border-b pr-14">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <DialogTitle className="text-lg font-semibold truncate">
-                {document.name}
-              </DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                {formatDocumentType(document.type) && (
-                  <span className="capitalize">{formatDocumentType(document.type)}</span>
-                )}
-                {document.size && (
-                  <span>{formatDocumentType(document.type) ? ' • ' : ''}{document.size}</span>
-                )}
-                {document.date && (
-                  <span> • {document.date}</span>
-                )}
-              </p>
-            </div>
-            {onDownload && (
-              <Button variant="outline" size="sm" onClick={onDownload} className="flex-shrink-0">
-                <Download className="h-4 w-4 mr-2" aria-hidden="true" />
-                Télécharger
-              </Button>
-            )}
-          </div>
-        </DialogHeader>
+  // Build subtitle from document metadata
+  const buildSubtitle = () => {
+    const parts: string[] = []
+    const formattedType = formatDocumentType(document.type)
+    if (formattedType) parts.push(formattedType)
+    if (document.size) parts.push(document.size)
+    if (document.date) parts.push(document.date)
+    return parts.join(' • ')
+  }
 
-        {/* Content */}
-        <div className="flex-1 min-h-0 flex items-center justify-center bg-slate-50 overflow-hidden relative">
+  return (
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={handleClose}
+      size="xl"
+    >
+      <UnifiedModalHeader
+        title={document.name}
+        subtitle={buildSubtitle()}
+        icon={<FileText className="h-5 w-5" />}
+      >
+        {onDownload && (
+          <Button variant="outline" size="sm" onClick={onDownload} className="flex-shrink-0">
+            <Download className="h-4 w-4 mr-2" aria-hidden="true" />
+            Télécharger
+          </Button>
+        )}
+      </UnifiedModalHeader>
+
+      <UnifiedModalBody className="p-0 min-h-[400px] max-h-[70vh]">
+        <div className="h-full flex items-center justify-center bg-slate-50 overflow-hidden relative">
           {/* Loading state */}
           {loading && canPreview && (
             <div className="absolute inset-0 flex items-center justify-center bg-slate-50 z-10">
               <div className="flex flex-col items-center gap-3">
-                <div className="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full" />
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="text-sm text-muted-foreground">Chargement...</p>
               </div>
             </div>
@@ -122,9 +119,9 @@ export function DocumentPreviewModal({
                 <FileText className="h-8 w-8 text-red-500" aria-hidden="true" />
               </div>
               <div>
-                <p className="font-medium text-slate-900">Impossible de charger l'aperçu</p>
+                <p className="font-medium text-slate-900">Impossible de charger l&apos;aperçu</p>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Le fichier n'a pas pu être chargé
+                  Le fichier n&apos;a pas pu être chargé
                 </p>
               </div>
               {onDownload && (
@@ -138,10 +135,11 @@ export function DocumentPreviewModal({
 
           {/* Image preview */}
           {!error && isImage && document.url && (
+            // eslint-disable-next-line @next/next/no-img-element
             <img
               src={document.url}
               alt={document.name}
-              className="max-w-full max-h-[calc(90vh-140px)] object-contain"
+              className="max-w-full max-h-[70vh] object-contain"
               onLoad={() => setLoading(false)}
               onError={() => { setLoading(false); setError(true) }}
             />
@@ -151,7 +149,7 @@ export function DocumentPreviewModal({
           {!error && isPdf && document.url && (
             <iframe
               src={`${document.url}#toolbar=1&navpanes=0`}
-              className="w-full h-[calc(90vh-140px)] border-0"
+              className="w-full h-[70vh] border-0"
               title={document.name}
               onLoad={() => setLoading(false)}
               onError={() => { setLoading(false); setError(true) }}
@@ -179,7 +177,7 @@ export function DocumentPreviewModal({
             </div>
           )}
         </div>
-      </DialogContent>
-    </Dialog>
+      </UnifiedModalBody>
+    </UnifiedModal>
   )
 }

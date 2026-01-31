@@ -1,9 +1,15 @@
 "use client"
 
 import { useState } from "react"
-import { Tabs, TabsContent } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import {
+  EntityPreviewLayout,
+  EntityTabs,
+  TabContentWrapper,
+  EntityActivityLog
+} from '@/components/shared/entity-preview'
+import type { TabConfig } from '@/components/shared/entity-preview'
 import {
   Eye,
   User,
@@ -16,7 +22,8 @@ import {
   Loader2,
   Archive,
   Edit as EditIcon,
-  Trash2
+  Trash2,
+  Activity
 } from "lucide-react"
 import { useRouter } from "next/navigation"
 import type { InterventionWithRelations, Lot, Building } from '@/lib/services'
@@ -48,7 +55,6 @@ import {
   ContactCompanyCard,
   ContactAccessCard,
   ContactContractsCard,
-  ContactTabsNavigation,
   ContactInterventionsTab,
   ContactPropertiesTab
 } from "@/components/contact-details"
@@ -247,11 +253,13 @@ export function ContactDetailsClient({
 
   const stats = getStats()
 
-  const tabs = [
-    { id: "overview", label: "Vue d'ensemble", icon: Eye, count: null },
-    { id: "interventions", label: "Interventions", icon: Wrench, count: stats.interventionStats.total },
-    { id: "properties", label: "Biens", icon: Home, count: stats.totalProperties },
-    { id: "emails", label: "Emails", icon: Mail, count: null }
+  // Tabs configuration for EntityTabs
+  const contactTabs: TabConfig[] = [
+    { value: "overview", label: "Vue d'ensemble" },
+    { value: "interventions", label: "Interventions", count: stats.interventionStats.total },
+    { value: "properties", label: "Biens", count: stats.totalProperties },
+    { value: "emails", label: "Emails" },
+    { value: "activity", label: "Activité" }
   ]
 
   // ============================================================================
@@ -323,12 +331,14 @@ export function ContactDetailsClient({
 
       <div className="layout-padding min-h-screen bg-background">
         <div className="content-max-width px-4 sm:px-6 lg:px-8">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <ContactTabsNavigation tabs={tabs} />
-
-            <div className="py-8">
+          <EntityPreviewLayout>
+            <EntityTabs
+              activeTab={activeTab}
+              onTabChange={setActiveTab}
+              tabs={contactTabs}
+            >
               {/* Overview Tab */}
-              <TabsContent value="overview" className="mt-0">
+              <TabContentWrapper value="overview">
                 <div className="space-y-8">
                   {/* Stats Cards */}
                   <ContactOverviewStats
@@ -367,20 +377,20 @@ export function ContactDetailsClient({
                     onNavigateToContract={handleNavigateToContract}
                   />
                 </div>
-              </TabsContent>
+              </TabContentWrapper>
 
               {/* Interventions Tab */}
-              <TabsContent value="interventions" className="mt-0">
+              <TabContentWrapper value="interventions">
                 <ContactInterventionsTab
                   contact={contact}
                   interventions={interventions}
                   stats={stats.interventionStats}
                   onCreateIntervention={handleCreateIntervention}
                 />
-              </TabsContent>
+              </TabContentWrapper>
 
               {/* Properties Tab */}
-              <TabsContent value="properties" className="mt-0">
+              <TabContentWrapper value="properties">
                 <ContactPropertiesTab
                   contact={contact}
                   properties={properties}
@@ -392,18 +402,29 @@ export function ContactDetailsClient({
                   onCreateLot={handleCreateLot}
                   onCreateBuilding={handleCreateBuilding}
                 />
-              </TabsContent>
+              </TabContentWrapper>
 
               {/* Emails Tab */}
-              <TabsContent value="emails" className="mt-0">
+              <TabContentWrapper value="emails">
                 <EntityEmailsTab
                   entityType="contact"
                   entityId={contactId}
                   entityName={contact.name}
                 />
-              </TabsContent>
-            </div>
-          </Tabs>
+              </TabContentWrapper>
+
+              {/* Activity Tab */}
+              <TabContentWrapper value="activity">
+                <EntityActivityLog
+                  entityType="contact"
+                  entityId={contactId}
+                  teamId={currentUser.team_id}
+                  includeRelated={true}
+                  emptyMessage="Aucune activité enregistrée pour ce contact"
+                />
+              </TabContentWrapper>
+            </EntityTabs>
+          </EntityPreviewLayout>
         </div>
 
         {/* ========================================================================== */}

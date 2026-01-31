@@ -37,6 +37,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { useSaveFormState, useRestoreFormState, loadFormState, clearFormState } from "@/hooks/use-form-persistence"
 import { BuildingInfoForm } from "@/components/building-info-form"
+import { GoogleMapsProvider } from "@/components/google-maps"
 import ContactSelector, { ContactSelectorRef } from "@/components/contact-selector"
 import { useManagerStats } from "@/hooks/use-manager-stats"
 import { createTeamService, createBuildingService, createLotService, createContactInvitationService } from "@/lib/services"
@@ -81,6 +82,11 @@ interface BuildingInfo {
   city: string
   country: string
   description: string
+  // Google Maps geocoding data
+  latitude?: number
+  longitude?: number
+  placeId?: string
+  formattedAddress?: string
 }
 
 interface Lot {
@@ -721,6 +727,11 @@ export default function NewImmeubleePage({
         postal_code: buildingInfo.postalCode.trim() || "",
         description: buildingInfo.description.trim(),
         team_id: userTeam!.id,
+        // Google Maps geocoding data (if available)
+        latitude: buildingInfo.latitude,
+        longitude: buildingInfo.longitude,
+        place_id: buildingInfo.placeId,
+        formatted_address: buildingInfo.formattedAddress,
       }
 
       // Preparer les donnees des lots
@@ -932,23 +943,26 @@ export default function NewImmeubleePage({
         {currentStep === 1 && (
           <Card className="shadow-sm content-max-width min-w-0">
             <CardContent className="px-6 py-6 space-y-6">
-              <BuildingInfoForm
-                buildingInfo={buildingInfo}
-                setBuildingInfo={setBuildingInfo}
-                onNameChange={handleBuildingNameChange}
-                teamManagers={teamManagers}
-                userTeam={userTeam}
-                isLoading={false}
-                onCreateManager={openGestionnaireModal}
-                showManagerSection={false}
-                showAddressSection={true}
-                buildingsCount={managerData?.buildings?.length || 0}
-                categoryCountsByTeam={categoryCountsByTeam}
-                onNameValidationChange={({ isChecking, isDuplicate }) => {
-                  setIsNameChecking(isChecking)
-                  setIsNameDuplicate(isDuplicate)
-                }}
-              />
+              <GoogleMapsProvider>
+                <BuildingInfoForm
+                  buildingInfo={buildingInfo}
+                  setBuildingInfo={setBuildingInfo}
+                  onNameChange={handleBuildingNameChange}
+                  teamManagers={teamManagers}
+                  userTeam={userTeam}
+                  isLoading={false}
+                  onCreateManager={openGestionnaireModal}
+                  showManagerSection={false}
+                  showAddressSection={true}
+                  showMapPreview={true}
+                  buildingsCount={managerData?.buildings?.length || 0}
+                  categoryCountsByTeam={categoryCountsByTeam}
+                  onNameValidationChange={({ isChecking, isDuplicate }) => {
+                    setIsNameChecking(isChecking)
+                    setIsNameDuplicate(isDuplicate)
+                  }}
+                />
+              </GoogleMapsProvider>
             </CardContent>
           </Card>
         )}

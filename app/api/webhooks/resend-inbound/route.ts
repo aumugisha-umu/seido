@@ -276,11 +276,20 @@ export async function POST(request: NextRequest) {
 
     // ═══════════════════════════════════════════════════════════
     // 4. Extraire et parser l'adresse reply-to
+    //    Supports deux formats :
+    //    - Conversation: reply+conv_{interventionId}_{threadType}_{hash}@
+    //    - Intervention: reply+int_{interventionId}_{hash}@
     // ═══════════════════════════════════════════════════════════
     const toAddress = event.data.to[0] // Premier destinataire
-    const parsed = EmailReplyService.parseReplyToAddress(toAddress)
 
-    if (!parsed) {
+    // Try conversation format first (new format)
+    const convParsed = EmailReplyService.parseConversationReplyToAddress(toAddress)
+
+    // Fallback to intervention format (legacy)
+    const intParsed = convParsed ? null : EmailReplyService.parseReplyToAddress(toAddress)
+
+    // Neither format matched
+    if (!convParsed && !intParsed) {
       logger.warn(
         { to: toAddress, from: event.data.from },
         '⚠️ [RESEND-INBOUND] Invalid reply-to format - email ignored'
@@ -306,19 +315,45 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    logger.info(
-      { parsed, from: event.data.from },
-      '📧 [RESEND-INBOUND] Reply-to address parsed successfully'
-    )
-
     // ═══════════════════════════════════════════════════════════
     // 5. Vérifier le hash (sécurité anti-falsification)
     // ═══════════════════════════════════════════════════════════
-    if (!EmailReplyService.verifyHash(parsed.type, parsed.id, parsed.hash)) {
+    let isValidHash = false
+    let interventionId: string
+
+    if (convParsed) {
+      // Conversation format: verify with intervention ID + thread type
+      isValidHash = EmailReplyService.verifyConversationHash(
+        convParsed.interventionId,
+        convParsed.threadType,
+        convParsed.hash
+      )
+      interventionId = convParsed.interventionId
+
+      logger.info(
+        { interventionId, threadType: convParsed.threadType, from: event.data.from },
+        '📧 [RESEND-INBOUND] Conversation reply-to address parsed'
+      )
+    } else if (intParsed) {
+      // Intervention format: verify with type + ID
+      isValidHash = EmailReplyService.verifyHash(intParsed.type, intParsed.id, intParsed.hash)
+      interventionId = intParsed.id
+
+      logger.info(
+        { interventionId, from: event.data.from },
+        '📧 [RESEND-INBOUND] Intervention reply-to address parsed'
+      )
+    } else {
+      // Should never reach here due to earlier check, but TypeScript needs it
+      return NextResponse.json({ success: true, ignored: true, reason: 'Parse error' })
+    }
+
+    if (!isValidHash) {
       // SECURITY: Enhanced logging for potential tampering attempts
       logger.error(
         {
-          parsed,
+          convParsed,
+          intParsed,
           from: event.data.from,
           to: event.data.to,
           svixId,
@@ -335,7 +370,7 @@ export async function POST(request: NextRequest) {
         recipientAddress: toAddress,
         senderAddress: event.data.from,
         subject: event.data.subject,
-        interventionId: parsed.id, // Keep for forensics even though hash is invalid
+        interventionId: interventionId, // Keep for forensics even though hash is invalid
         status: 'invalid_hash',
         errorMessage: 'HMAC hash verification failed - potential tampering',
         processingTimeMs: Date.now() - startTime
@@ -351,7 +386,7 @@ export async function POST(request: NextRequest) {
     }
 
     logger.info(
-      { interventionId: parsed.id },
+      { interventionId },
       '✅ [RESEND-INBOUND] Hash verification passed'
     )
 
@@ -362,7 +397,8 @@ export async function POST(request: NextRequest) {
       success: true,
       processing: true,
       emailId: event.data.email_id,
-      interventionId: parsed.id,
+      interventionId: interventionId,
+      threadType: convParsed?.threadType || null,
       duration: Date.now() - startTime
     })
 
@@ -379,7 +415,12 @@ export async function POST(request: NextRequest) {
 
     // Capture variables for closure (avoid stale references)
     const asyncEmailData = event.data
-    const asyncParsed = parsed
+    // Create a unified parsed object that works with both formats
+    const asyncParsed = convParsed
+      ? { type: 'intervention' as const, id: convParsed.interventionId, hash: convParsed.hash, threadType: convParsed.threadType }
+      : intParsed
+        ? { ...intParsed, threadType: undefined }
+        : { type: 'intervention' as const, id: interventionId, hash: '', threadType: undefined }
     const asyncLoggingContext = loggingContext
 
     after(async () => {
@@ -396,7 +437,8 @@ export async function POST(request: NextRequest) {
     logger.info(
       {
         emailId: event.data.email_id,
-        interventionId: parsed.id,
+        interventionId: interventionId,
+        threadType: convParsed?.threadType || null,
         duration: Date.now() - startTime
       },
       '📧 [RESEND-INBOUND] Email received and queued for processing'
@@ -442,10 +484,13 @@ interface LoggingContext {
  * 5. Créer le lien email ↔ intervention
  * 6. Télécharger les pièces jointes (URLs doivent être fetch séparément)
  * 7. Notifier les gestionnaires
+ *
+ * Note: threadType is extracted from conversation reply-to format (conv_{id}_{threadType}_{hash})
+ * and allows routing email replies to the correct conversation thread.
  */
 async function processEmailAsync(
   emailData: ResendInboundWebhookPayload['data'],
-  parsed: { type: 'intervention'; id: string },
+  parsed: { type: 'intervention'; id: string; threadType?: 'group' | 'tenant_to_managers' | 'provider_to_managers' },
   loggingContext: LoggingContext
 ): Promise<ProcessedEmail | null> {
   const supabase = createServiceRoleSupabaseClient()
@@ -688,9 +733,9 @@ async function processEmailAsync(
   // ═══════════════════════════════════════════════════════════
   // 5.1 NEW: Sync email reply to intervention conversation
   // ═══════════════════════════════════════════════════════════
-  // This creates a message in the "group" conversation thread so
-  // all intervention participants can see the email reply inline
-  // with other conversation messages.
+  // This creates a message in the appropriate conversation thread:
+  // - If threadType is specified (from conv_ format), route to that specific thread
+  // - Otherwise, default to "group" thread for backward compatibility
   try {
     const syncResult = await syncEmailReplyToConversation({
       interventionId: intervention.id,
@@ -699,7 +744,9 @@ async function processEmailAsync(
       senderEmail: senderEmail,
       senderName: emailData.from,
       emailId: email.id,
-      teamId: intervention.team_id
+      teamId: intervention.team_id,
+      // NEW: Pass threadType if available (from conversation reply-to format)
+      threadType: parsed.threadType
     })
 
     if (syncResult.success && syncResult.messageId) {
@@ -707,14 +754,15 @@ async function processEmailAsync(
         {
           emailId: email.id,
           messageId: syncResult.messageId,
-          threadId: syncResult.threadId
+          threadId: syncResult.threadId,
+          threadType: parsed.threadType || 'group'
         },
         '✅ [RESEND-INBOUND] Email synced to conversation'
       )
     } else if (syncResult.error) {
       // Non-blocking: log but continue
       logger.info(
-        { emailId: email.id, reason: syncResult.error },
+        { emailId: email.id, reason: syncResult.error, threadType: parsed.threadType },
         '📧 [RESEND-INBOUND] Email not synced to conversation (expected in some cases)'
       )
     }

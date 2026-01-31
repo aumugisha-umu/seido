@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import {
   FileText,
   User,
@@ -8,22 +7,13 @@ import {
   Clock,
   CheckCircle,
   X,
-  AlertTriangle,
-  Star,
   Phone,
   Mail,
-  Info,
-  MessageSquare,
   Calendar
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { Textarea } from "@/components/ui/textarea"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 
 interface Quote {
   id: string
@@ -69,57 +59,23 @@ interface Intervention {
 interface QuotesComparisonProps {
   intervention: Intervention
   quotes: Quote[]
-  onQuoteApprove: (quoteId: string, comments?: string) => void
-  onQuoteReject: (quoteId: string, reason: string) => void
+  onApproveClick: (quote: Quote) => void
+  onRejectClick: (quote: Quote) => void
   isLoading: boolean
 }
 
 export const QuotesComparison = ({
-  intervention,
+  intervention: _intervention,
   quotes,
-  onQuoteApprove,
-  onQuoteReject,
+  onApproveClick,
+  onRejectClick,
   isLoading
 }: QuotesComparisonProps) => {
-  const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
-  const [showApprovalModal, setShowApprovalModal] = useState(false)
-  const [showRejectionModal, setShowRejectionModal] = useState(false)
-  const [approvalComments, setApprovalComments] = useState("")
-  const [rejectionReason, setRejectionReason] = useState("")
-
   const pendingQuotes = quotes.filter(q => q.status === 'pending')
   const approvedQuotes = quotes.filter(q => q.status === 'accepted')
   const rejectedQuotes = quotes.filter(q => q.status === 'rejected')
 
-  const handleApproveClick = (quote: Quote) => {
-    setSelectedQuote(quote)
-    setApprovalComments("")
-    setShowApprovalModal(true)
-  }
-
-  const handleRejectClick = (quote: Quote) => {
-    setSelectedQuote(quote)
-    setRejectionReason("")
-    setShowRejectionModal(true)
-  }
-
-  const confirmApproval = () => {
-    if (selectedQuote) {
-      onQuoteApprove(selectedQuote.id, approvalComments || undefined)
-      setShowApprovalModal(false)
-      setSelectedQuote(null)
-      setApprovalComments("")
-    }
-  }
-
-  const confirmRejection = () => {
-    if (selectedQuote && rejectionReason.trim()) {
-      onQuoteReject(selectedQuote.id, rejectionReason.trim())
-      setShowRejectionModal(false)
-      setSelectedQuote(null)
-      setRejectionReason("")
-    }
-  }
+  // Les modales sont gérées par le composant parent pour unification
 
   const getQuoteScore = (quote: Quote) => {
     let score = 0
@@ -300,7 +256,7 @@ export const QuotesComparison = ({
             <div className="flex gap-2 pt-2">
               <Button
                 size="sm"
-                onClick={() => handleApproveClick(quote)}
+                onClick={() => onApproveClick(quote)}
                 disabled={isLoading}
                 className="flex-1"
               >
@@ -310,7 +266,7 @@ export const QuotesComparison = ({
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => handleRejectClick(quote)}
+                onClick={() => onRejectClick(quote)}
                 disabled={isLoading}
                 className="flex-1"
               >
@@ -427,75 +383,6 @@ export const QuotesComparison = ({
         </div>
       )}
 
-      {/* Modal d'approbation */}
-      <Dialog open={showApprovalModal} onOpenChange={setShowApprovalModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Approuver l'estimation</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-slate-600">
-              Voulez-vous approuver l'estimation de <strong>{selectedQuote?.provider.name}</strong>
-              pour un montant de <strong>{selectedQuote?.total_amount.toFixed(2)} €</strong> ?
-            </p>
-            <div>
-              <Label htmlFor="approval-comments">Commentaires (optionnel)</Label>
-              <Textarea
-                id="approval-comments"
-                value={approvalComments}
-                onChange={(e) => setApprovalComments(e.target.value)}
-                placeholder="Commentaires sur l'approbation..."
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowApprovalModal(false)}>
-              Annuler
-            </Button>
-            <Button onClick={confirmApproval} disabled={isLoading}>
-              Approuver l'estimation
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Modal de rejet */}
-      <Dialog open={showRejectionModal} onOpenChange={setShowRejectionModal}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Rejeter l'estimation</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-slate-600">
-              Voulez-vous rejeter l'estimation de <strong>{selectedQuote?.provider.name}</strong> ?
-            </p>
-            <div>
-              <Label htmlFor="rejection-reason">Motif du rejet *</Label>
-              <Textarea
-                id="rejection-reason"
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Expliquez pourquoi cette estimation est rejetée..."
-                rows={3}
-                required
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowRejectionModal(false)}>
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmRejection}
-              disabled={isLoading || !rejectionReason.trim()}
-            >
-              Rejeter l'estimation
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

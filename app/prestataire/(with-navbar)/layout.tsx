@@ -1,9 +1,11 @@
 import type React from "react"
-import { requireRole } from "@/lib/auth-dal"
+import { getServerAuthContext } from "@/lib/server-context"
 import DashboardHeader from "@/components/dashboard-header"
 
 /**
  * 🧭 WITH-NAVBAR LAYOUT - Pages avec navigation globale (Prestataire)
+ *
+ * ✅ MULTI-ÉQUIPE (Jan 2026): Utilise getServerAuthContext pour accéder à sameRoleTeams
  */
 
 export default async function WithNavbarLayout({
@@ -11,7 +13,7 @@ export default async function WithNavbarLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { user, profile } = await requireRole(['prestataire'])
+  const { user, profile, team, sameRoleTeams } = await getServerAuthContext('prestataire')
 
   const userName = profile.name || user.email?.split('@')[0] || 'Utilisateur'
   const userInitial = userName.charAt(0).toUpperCase()
@@ -23,8 +25,10 @@ export default async function WithNavbarLayout({
         userName={userName}
         userInitial={userInitial}
         userEmail={user.email || ''}
+        teamId={team.id}
         userId={profile.id}
         avatarUrl={profile.avatar_url || undefined}
+        teams={sameRoleTeams}
       />
       <main className="flex-1 overflow-y-auto">
         {children}

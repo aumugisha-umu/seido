@@ -320,11 +320,9 @@ export function LotsWithContactsPreview({
   const getCategoryLabel = (category: string) => {
     switch (category) {
       case 'appartement': return 'Appartement'
-      case 'collocation': return 'Collocation'
       case 'maison': return 'Maison'
       case 'garage': return 'Garage'
       case 'local_commercial': return 'Local commercial'
-      case 'parking': return 'Parking'
       default: return category
     }
   }
@@ -442,7 +440,7 @@ export function LotsWithContactsPreview({
                         )}
                         {lot.door_number && (
                           <span className="text-xs text-gray-500">
-                            • Porte {lot.door_number}
+                            • Porte/Boîte {lot.door_number}
                           </span>
                         )}
                       </div>

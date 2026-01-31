@@ -27,7 +27,7 @@ import { TeamCheckModal } from "@/components/team-check-modal"
 import { createTeamService, createLotService, createContactInvitationService } from "@/lib/services"
 import type { Team, User as UserType, Contact } from "@/lib/services/core/service-types"
 import { useToast } from "@/hooks/use-toast"
-import { assignContactToLotAction, createLotAction, createContactWithOptionalInviteAction, getBuildingWithRelations } from "./actions"
+import { assignContactToLotAction, createLotAction, createContactWithOptionalInviteAction, getBuildingWithRelations, createAddressAction } from "./actions"
 
 
 import { StepProgressHeader } from "@/components/ui/step-progress-header"
@@ -37,6 +37,7 @@ import type { CreateContactData } from "@/app/gestionnaire/dashboard/actions"
 
 
 import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
+import { GoogleMapsProvider } from "@/components/google-maps"
 import { logger, logError } from '@/lib/logger'
 interface TeamManager {
   user: {
@@ -229,6 +230,19 @@ export default function NewLotPage() {
     lot: ReturnType<typeof createLotService> | null
     contactInvitation: ReturnType<typeof createContactInvitationService> | null
   } | null>(null)
+
+  // 🆕 State for BuildingContactsStepV3 (moved here to respect React's Rules of Hooks)
+  const [currentLotIdForModal, setCurrentLotIdForModal] = useState<string | null>(null)
+  const [buildingManagers, setBuildingManagers] = useState<UserType[]>([])
+  const [existingBuildingLots, setExistingBuildingLots] = useState<Array<{
+    id: string
+    reference: string
+    floor: string
+    door_number: string
+    description: string
+    category: LotCategory
+  }>>([])
+  const [isLoadingBuildingData, setIsLoadingBuildingData] = useState(false)
 
   // Step 1: Créer les services quand l'auth est prête
   useEffect(() => {
@@ -470,28 +484,8 @@ export default function NewLotPage() {
     }
   }, [lotData.category, categoryCountsByTeam, lotData.reference])
 
-
-  // Afficher la vérification d'équipe si nécessaire
-  // Only show TeamCheckModal after client-side hydration to prevent mismatch
-  if (isMounted && (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam))) {
-    return <TeamCheckModal onTeamResolved={() => {}} />
-  }
-
-  // Générer référence par défaut basée sur la catégorie du lot
-  const generateDefaultReference = () => {
-    if (!categoryCountsByTeam || Object.keys(categoryCountsByTeam).length === 0) {
-      // Fallback si les données de catégorie ne sont pas encore chargées
-      return "Appartement 1"
-    }
-    
-    const category = lotData.category || "appartement"
-    const categoryConfig = getLotCategoryConfig(category)
-    const currentCategoryCount = categoryCountsByTeam[category] || 0
-    const nextNumber = currentCategoryCount + 1
-    return `${categoryConfig.label} ${nextNumber}`
-  }
-
   // ✅ Initialisation automatique du premier lot (pour mode "existing building")
+  // NOTE: This hook MUST be called before any early returns to respect React's Rules of Hooks
   useEffect(() => {
     if (currentStep === 2 &&
         lotData.buildingAssociation === "existing" &&
@@ -522,6 +516,7 @@ export default function NewLotPage() {
   }, [currentStep, lotData.buildingAssociation, lots.length, categoryCountsByTeam])
 
   // ✅ Récupération des contacts de l'immeuble sélectionné
+  // NOTE: This hook MUST be called before any early returns to respect React's Rules of Hooks
   useEffect(() => {
     if (lotData.selectedBuilding && lotData.buildingAssociation === "existing" && services?.lot) {
       const fetchBuildingContacts = async () => {
@@ -547,6 +542,7 @@ export default function NewLotPage() {
   }, [lotData.selectedBuilding, lotData.buildingAssociation, services])
 
   // ✅ Ouvrir tous les lots à l'étape 3 (contacts)
+  // NOTE: This hook MUST be called before any early returns to respect React's Rules of Hooks
   useEffect(() => {
     if (currentStep === 3 && lotData.buildingAssociation === "existing" && lots.length > 0) {
       const allExpanded: {[key: string]: boolean} = {}
@@ -559,6 +555,7 @@ export default function NewLotPage() {
   }, [currentStep, lotData.buildingAssociation, lots])
 
   // ✅ Assigner automatiquement le gestionnaire au premier lot indépendant initial
+  // NOTE: This hook MUST be called before any early returns to respect React's Rules of Hooks
   useEffect(() => {
     if (!user || !selectedManagerId || teamManagers.length === 0) {
       return // Attendre que les données soient chargées
@@ -581,6 +578,226 @@ export default function NewLotPage() {
       }
     }
   }, [user, selectedManagerId, teamManagers, independentLots, assignedManagersByLot])
+
+  // ✅ Load building data when a building is selected (for existing building mode)
+  // NOTE: This hook MUST be called before any early returns to respect React's Rules of Hooks
+  useEffect(() => {
+    const loadBuildingData = async () => {
+      if (lotData.buildingAssociation !== "existing" || !lotData.selectedBuilding) {
+        // Reset if no building selected - format identique à l'initialisation
+        setBuildingManagers([])
+        setBuildingContacts({
+          tenant: [],
+          provider: [],
+          owner: [],
+          other: [],
+        })
+        setExistingBuildingLots([])
+        return
+      }
+
+      setIsLoadingBuildingData(true)
+      try {
+        const result = await getBuildingWithRelations(lotData.selectedBuilding)
+        if (!result.success || !result.building) {
+          throw new Error(result.error || "Building data not found")
+        }
+
+        const building = result.building
+
+        logger.info('🏢 [BUILDING-DATA] Building loaded:', {
+          buildingId: building.id,
+          buildingName: building.name,
+          buildingContactsType: typeof building.building_contacts,
+          buildingContactsIsArray: Array.isArray(building.building_contacts),
+          buildingContactsLength: (building.building_contacts as any)?.length,
+          buildingContactsRaw: building.building_contacts
+        })
+
+        // ✅ Extract building managers (type='gestionnaire' in building_contacts)
+        // S'assurer que building_contacts est un tableau
+        const buildingContactsArray = Array.isArray(building.building_contacts)
+          ? building.building_contacts
+          : []
+
+        logger.info('🏢 [BUILDING-DATA] Building contacts array:', {
+          length: buildingContactsArray.length,
+          contacts: buildingContactsArray
+        })
+
+        const rawManagers = buildingContactsArray.filter((bc: any) => {
+          if (!bc || typeof bc !== 'object') return false
+          if (!bc.user || typeof bc.user !== 'object') return false
+          const role = bc.user?.role
+          logger.info('🔍 [BUILDING-DATA] Checking contact role:', {
+            contactId: bc.user?.id,
+            role: role,
+            isManager: role === 'gestionnaire' || role === 'admin'
+          })
+          return role === 'gestionnaire' || role === 'admin'
+        })
+
+        logger.info('👥 [BUILDING-DATA] Raw managers filtered:', {
+          count: rawManagers.length,
+          managers: rawManagers
+        })
+
+        // ✅ Normalize managers to ensure all required properties exist
+        // S'assurer que rawManagers est un tableau avant d'appeler .map()
+        const safeRawManagers = Array.isArray(rawManagers) ? rawManagers : []
+        const managers: UserType[] = safeRawManagers
+          .map((bc: any) => {
+            // Vérifications défensives supplémentaires
+            if (!bc || typeof bc !== 'object') return null
+
+            const user = bc.user
+            if (!user || typeof user !== 'object') return null
+
+            // Valider que l'id existe et n'est pas vide (requis)
+            if (!user.id || typeof user.id !== 'string' || user.id.trim() === '') return null
+
+            // Ensure all required properties for User type (matching service-types.ts)
+            // Inclure tous les champs requis même avec des valeurs par défaut
+            const normalizedManager: UserType = {
+              id: user.id,
+              auth_user_id: user.auth_user_id || null,
+              email: user.email || '',
+              name: user.name || user.email || 'Sans nom',
+              role: (user.role as 'admin' | 'gestionnaire' | 'prestataire' | 'proprietaire' | 'locataire') || 'gestionnaire',
+              phone: user.phone || null,
+              provider_category: user.provider_category || null,
+              speciality: user.speciality || null,
+              is_active: user.is_active !== undefined ? user.is_active : true,
+              password_set: user.password_set !== undefined ? user.password_set : false,
+              // Ces champs ne sont pas disponibles depuis building_contacts mais requis par User
+              // On utilise des valeurs par défaut pour la compatibilité
+              created_at: user.created_at || new Date().toISOString(),
+              updated_at: user.updated_at || new Date().toISOString(),
+            }
+
+            return normalizedManager
+          })
+          .filter((m): m is UserType => m !== null && m.id && m.id.trim() !== '')
+
+        logger.info('✅ [BUILDING-DATA] Normalized managers ready to set:', {
+          count: managers.length,
+          managers: managers
+        })
+
+        setBuildingManagers(managers)
+
+        logger.info('✅ [BUILDING-DATA] Building managers state updated via setBuildingManagers')
+
+        // ✅ Extract building contacts grouped by type (tenant, provider, owner, other)
+        // Format identique à la création d'immeuble pour compatibilité
+        const contacts: { [type: string]: Contact[] } = {
+          tenant: [],
+          provider: [],
+          owner: [],
+          other: []
+        }
+
+        // Utiliser le tableau sécurisé buildingContactsArray
+        buildingContactsArray.forEach((bc: any) => {
+          // Vérifications défensives
+          if (!bc || typeof bc !== 'object') return
+          if (!bc.user || typeof bc.user !== 'object') return
+
+          // Valider que l'id existe et n'est pas vide (requis pour Contact)
+          if (!bc.user.id || typeof bc.user.id !== 'string' || bc.user.id.trim() === '') return
+
+          // Skip gestionnaires (they're in buildingManagers)
+          const role = bc.user.role
+          if (role === 'gestionnaire' || role === 'admin') return
+
+          // Créer le contact avec tous les champs requis
+          const contact: Contact = {
+            id: bc.user.id,
+            name: bc.user.name || bc.user.email || '',
+            email: bc.user.email || '',
+            type: role || 'other',
+            phone: bc.user.phone || undefined,
+            speciality: bc.user.speciality || bc.user.provider_category || undefined
+          }
+
+          // Map by role - format identique à la création d'immeuble
+          if (role === 'locataire') {
+            contacts.tenant.push(contact)
+          } else if (role === 'prestataire') {
+            contacts.provider.push(contact)
+          } else if (role === 'proprietaire') {
+            contacts.owner.push(contact)
+          } else {
+            contacts.other.push(contact)
+          }
+        })
+
+        setBuildingContacts(contacts)
+
+        // ✅ Extract existing lots from building
+        const existingLots = Array.isArray(building.lots) ? building.lots : []
+        const normalizedExistingLots = existingLots.map((lot: any) => ({
+          id: lot.id,
+          reference: lot.reference || '',
+          floor: lot.floor || '',
+          door_number: lot.door_number || '',
+          description: lot.description || '',
+          category: (lot.category as LotCategory) || 'appartement'
+        }))
+
+        logger.info('🏢 [BUILDING-DATA] Existing lots loaded:', {
+          count: normalizedExistingLots.length,
+          lots: normalizedExistingLots
+        })
+
+        setExistingBuildingLots(normalizedExistingLots)
+      } catch (error) {
+        logger.error("❌ [LOT-CREATION] Error loading building data:", error)
+        toast({
+          title: "Erreur de chargement",
+          description: "Impossible de charger les données de l'immeuble. Veuillez réessayer.",
+          variant: "destructive",
+        })
+        // Reset on error - format identique à l'initialisation
+        setBuildingManagers([])
+        setBuildingContacts({
+          tenant: [],
+          provider: [],
+          owner: [],
+          other: [],
+        })
+        setExistingBuildingLots([])
+      } finally {
+        setIsLoadingBuildingData(false)
+      }
+    }
+
+    loadBuildingData()
+  }, [lotData.buildingAssociation, lotData.selectedBuilding, toast])
+
+  // ========================================
+  // EARLY RETURNS (after ALL hooks)
+  // ========================================
+
+  // Afficher la vérification d'équipe si nécessaire
+  // Only show TeamCheckModal after client-side hydration to prevent mismatch
+  if (isMounted && (teamStatus === 'checking' || (teamStatus === 'error' && !hasTeam))) {
+    return <TeamCheckModal onTeamResolved={() => {}} />
+  }
+
+  // Générer référence par défaut basée sur la catégorie du lot
+  const generateDefaultReference = () => {
+    if (!categoryCountsByTeam || Object.keys(categoryCountsByTeam).length === 0) {
+      // Fallback si les données de catégorie ne sont pas encore chargées
+      return "Appartement 1"
+    }
+
+    const category = lotData.category || "appartement"
+    const categoryConfig = getLotCategoryConfig(category)
+    const currentCategoryCount = categoryCountsByTeam[category] || 0
+    const nextNumber = currentCategoryCount + 1
+    return `${categoryConfig.label} ${nextNumber}`
+  }
 
   // ========================================
   // Fonctions de gestion multi-lots
@@ -804,7 +1021,7 @@ export default function NewLotPage() {
       return
     }
 
-    setIndependentLots(independentLots.filter(lot => lot.id !== lotId))
+    setIndependentLots(prevLots => prevLots.filter(lot => lot.id !== lotId))
 
     // Nettoyer les états associés
     const newExpandedLots = {...expandedIndependentLots}
@@ -823,19 +1040,58 @@ export default function NewLotPage() {
   }
 
   const updateIndependentLot = (lotId: string, field: keyof IndependentLot, value: string) => {
-    setIndependentLots(independentLots.map(lot => {
-      if (lot.id === lotId) {
-        const updatedLot = { ...lot, [field]: value }
+    logger.info("📝 [PAGE] updateIndependentLot called:", { lotId, field, value })
 
-        // Si la catégorie change, on peut recalculer la référence
-        if (field === 'category') {
-          const categoryConfig = getLotCategoryConfig(value as LotCategory)
-          const existingLotsOfCategory = independentLots.filter(l => l.category === value && l.id !== lotId).length
-          const nextNumber = existingLotsOfCategory + 1
-          updatedLot.reference = `${categoryConfig.label} ${nextNumber}`
+    setIndependentLots(prevLots => {
+      logger.info("📝 [PAGE] setIndependentLots updating:", {
+        lotId,
+        field,
+        value,
+        prevLotsCount: prevLots.length
+      })
+
+      return prevLots.map(lot => {
+        if (lot.id === lotId) {
+          const updatedLot = { ...lot, [field]: value }
+
+          // Si la catégorie change, on peut recalculer la référence
+          if (field === 'category') {
+            const categoryConfig = getLotCategoryConfig(value as LotCategory)
+            const existingLotsOfCategory = prevLots.filter(l => l.category === value && l.id !== lotId).length
+            const nextNumber = existingLotsOfCategory + 1
+            updatedLot.reference = `${categoryConfig.label} ${nextNumber}`
+          }
+
+          logger.info("✅ [PAGE] Lot updated:", { lotId, field, newValue: updatedLot[field] })
+          return updatedLot
         }
+        return lot
+      })
+    })
+  }
 
-        return updatedLot
+  // Handle geocode result for independent lots (Google Maps integration)
+  // STALE CLOSURE FIX: Use functional update (prevLots =>) to ensure we have the latest state
+  // This is called AFTER onUpdate calls for address fields, so we must not overwrite those updates
+  const handleIndependentLotGeocodeResult = (lotId: string, result: { latitude: number; longitude: number; placeId: string; formattedAddress: string } | null) => {
+    logger.info(`📍 [INDEPENDENT-LOT] Geocode result for lot ${lotId}:`, result ? 'found' : 'not found')
+
+    setIndependentLots(prevLots => prevLots.map(lot => {
+      if (lot.id === lotId) {
+        if (result) {
+          // IMPORTANT: Spread lot FIRST to preserve address fields updated by onUpdate calls
+          return {
+            ...lot,
+            latitude: result.latitude,
+            longitude: result.longitude,
+            placeId: result.placeId,
+            formattedAddress: result.formattedAddress
+          }
+        } else {
+          // Clear geocode data if no result
+          const { latitude, longitude, placeId, formattedAddress, ...rest } = lot
+          return rest as IndependentLot
+        }
       }
       return lot
     }))
@@ -1113,16 +1369,52 @@ export default function NewLotPage() {
           "Allemagne": "allemagne"
         }
 
-        // Créer tous les lots en parallèle
+        // Créer tous les lots en parallèle (TOUJOURS créer adresse dans table centralisée)
         const lotCreationPromises = independentLots.map(async (lot) => {
           try {
+            let addressId: string | null = null
+
+            // Step 1: ALWAYS create address in centralized table (with or without geocode data)
+            // This ensures consistency - all addresses go through the addresses table
+            if (lot.street || lot.city) {
+              logger.info(`📍 [INDEPENDENT-LOT] Creating address for lot ${lot.reference}`, {
+                street: lot.street,
+                postalCode: lot.postalCode,
+                city: lot.city,
+                country: lot.country,
+                hasGeocode: !!(lot.latitude && lot.longitude),
+                latitude: lot.latitude,
+                longitude: lot.longitude,
+                placeId: lot.placeId,
+                formattedAddress: lot.formattedAddress
+              })
+              const addressResult = await createAddressAction({
+                street: lot.street,
+                postalCode: lot.postalCode,
+                city: lot.city,
+                country: lot.country,
+                // Include geocode data if available
+                latitude: lot.latitude,
+                longitude: lot.longitude,
+                placeId: lot.placeId,
+                formattedAddress: lot.formattedAddress
+              }, userTeam.id)
+
+              if (addressResult.success && addressResult.data) {
+                addressId = addressResult.data.id
+                logger.info(`✅ [INDEPENDENT-LOT] Address created: ${addressId}`)
+              } else {
+                logger.warn(`⚠️ [INDEPENDENT-LOT] Failed to create address: ${addressResult.error?.message}`)
+              }
+            }
+
+            // Step 2: Create lot with address_id link
+            // Note: After migration 20260129200002, lots table no longer has street/postal_code/city/country columns
+            // All address data is stored in centralized addresses table via address_id
             const lotDataToCreate = {
               reference: lot.reference,
-              building_id: null, // ✅ NULL = independent lot
-              street: lot.street || null,
-              postal_code: lot.postalCode || null,
-              city: lot.city || null,
-              country: countryToDBEnum[lot.country] || lot.country,
+              building_id: null, // NULL = independent lot
+              address_id: addressId, // Link to centralized address table
               floor: lot.floor ? parseInt(lot.floor) : null,
               apartment_number: lot.doorNumber || null,
               category: lot.category,
@@ -1581,7 +1873,8 @@ export default function NewLotPage() {
   )
 
   const renderStep2 = () => {
-    // ✅ Mode "independent" - Utiliser IndependentLotsStepV2 pour multi-lots avec adresses
+    // Mode "independent" - Utiliser IndependentLotsStepV2 avec Google Maps pour multi-lots avec adresses
+    // Note: GoogleMapsProvider is now at page level to prevent hook count changes
     if (lotData.buildingAssociation === "independent") {
       return (
         <IndependentLotsStepV2
@@ -1589,6 +1882,7 @@ export default function NewLotPage() {
           expandedLots={expandedIndependentLots}
           onAddLot={addIndependentLot}
           onUpdateLot={updateIndependentLot}
+          onGeocodeResult={handleIndependentLotGeocodeResult}
           onDuplicateLot={duplicateIndependentLot}
           onRemoveLot={removeIndependentLot}
           onToggleLotExpansion={toggleIndependentLotExpansion}
@@ -1607,7 +1901,7 @@ export default function NewLotPage() {
           lots={lots}
           expandedLots={expandedLots}
           buildingReference={selectedBuilding?.name || "Immeuble sélectionné"}
-          buildingAddress={selectedBuilding?.address || ""}
+          buildingAddress={selectedBuilding?.address_record?.street || ""}
           onAddLot={addLot}
           onUpdateLot={updateLot}
           onDuplicateLot={duplicateLot}
@@ -1713,214 +2007,6 @@ export default function NewLotPage() {
   }
 
   // 🆕 Helper functions for BuildingContactsStepV3
-  const [currentLotIdForModal, setCurrentLotIdForModal] = useState<string | null>(null)
-  const [buildingManagers, setBuildingManagers] = useState<UserType[]>([])
-  const [existingBuildingLots, setExistingBuildingLots] = useState<Array<{
-    id: string
-    reference: string
-    floor: string
-    door_number: string
-    description: string
-    category: LotCategory
-  }>>([])
-  const [isLoadingBuildingData, setIsLoadingBuildingData] = useState(false)
-  // buildingContacts est déjà déclaré plus haut, on l'utilise directement
-
-  // ✅ Load building data when a building is selected (for existing building mode)
-  useEffect(() => {
-    const loadBuildingData = async () => {
-      if (lotData.buildingAssociation !== "existing" || !lotData.selectedBuilding) {
-        // Reset if no building selected - format identique à l'initialisation
-        setBuildingManagers([])
-        setBuildingContacts({
-          tenant: [],
-          provider: [],
-          owner: [],
-          other: [],
-        })
-        setExistingBuildingLots([])
-        return
-      }
-
-      setIsLoadingBuildingData(true)
-      try {
-        const result = await getBuildingWithRelations(lotData.selectedBuilding)
-        if (!result.success || !result.building) {
-          throw new Error(result.error || "Building data not found")
-        }
-
-        const building = result.building
-
-        logger.info('🏢 [BUILDING-DATA] Building loaded:', {
-          buildingId: building.id,
-          buildingName: building.name,
-          buildingContactsType: typeof building.building_contacts,
-          buildingContactsIsArray: Array.isArray(building.building_contacts),
-          buildingContactsLength: (building.building_contacts as any)?.length,
-          buildingContactsRaw: building.building_contacts
-        })
-
-        // ✅ Extract building managers (type='gestionnaire' in building_contacts)
-        // S'assurer que building_contacts est un tableau
-        const buildingContactsArray = Array.isArray(building.building_contacts)
-          ? building.building_contacts
-          : []
-
-        logger.info('🏢 [BUILDING-DATA] Building contacts array:', {
-          length: buildingContactsArray.length,
-          contacts: buildingContactsArray
-        })
-        
-        const rawManagers = buildingContactsArray.filter((bc: any) => {
-          if (!bc || typeof bc !== 'object') return false
-          if (!bc.user || typeof bc.user !== 'object') return false
-          const role = bc.user?.role
-          logger.info('🔍 [BUILDING-DATA] Checking contact role:', {
-            contactId: bc.user?.id,
-            role: role,
-            isManager: role === 'gestionnaire' || role === 'admin'
-          })
-          return role === 'gestionnaire' || role === 'admin'
-        })
-
-        logger.info('👥 [BUILDING-DATA] Raw managers filtered:', {
-          count: rawManagers.length,
-          managers: rawManagers
-        })
-        
-        // ✅ Normalize managers to ensure all required properties exist
-        // S'assurer que rawManagers est un tableau avant d'appeler .map()
-        const safeRawManagers = Array.isArray(rawManagers) ? rawManagers : []
-        const managers: UserType[] = safeRawManagers
-          .map((bc: any) => {
-            // Vérifications défensives supplémentaires
-            if (!bc || typeof bc !== 'object') return null
-            
-            const user = bc.user
-            if (!user || typeof user !== 'object') return null
-            
-            // Valider que l'id existe et n'est pas vide (requis)
-            if (!user.id || typeof user.id !== 'string' || user.id.trim() === '') return null
-            
-            // Ensure all required properties for User type (matching service-types.ts)
-            // Inclure tous les champs requis même avec des valeurs par défaut
-            const normalizedManager: UserType = {
-              id: user.id,
-              auth_user_id: user.auth_user_id || null,
-              email: user.email || '',
-              name: user.name || user.email || 'Sans nom',
-              role: (user.role as 'admin' | 'gestionnaire' | 'prestataire' | 'proprietaire' | 'locataire') || 'gestionnaire',
-              phone: user.phone || null,
-              provider_category: user.provider_category || null,
-              speciality: user.speciality || null,
-              is_active: user.is_active !== undefined ? user.is_active : true,
-              password_set: user.password_set !== undefined ? user.password_set : false,
-              // Ces champs ne sont pas disponibles depuis building_contacts mais requis par User
-              // On utilise des valeurs par défaut pour la compatibilité
-              created_at: user.created_at || new Date().toISOString(),
-              updated_at: user.updated_at || new Date().toISOString(),
-            }
-            
-            return normalizedManager
-          })
-          .filter((m): m is UserType => m !== null && m.id && m.id.trim() !== '')
-
-        logger.info('✅ [BUILDING-DATA] Normalized managers ready to set:', {
-          count: managers.length,
-          managers: managers
-        })
-
-        setBuildingManagers(managers)
-
-        logger.info('✅ [BUILDING-DATA] Building managers state updated via setBuildingManagers')
-
-        // ✅ Extract building contacts grouped by type (tenant, provider, owner, other)
-        // Format identique à la création d'immeuble pour compatibilité
-        const contacts: { [type: string]: Contact[] } = {
-          tenant: [],
-          provider: [],
-          owner: [],
-          other: []
-        }
-
-        // Utiliser le tableau sécurisé buildingContactsArray
-        buildingContactsArray.forEach((bc: any) => {
-          // Vérifications défensives
-          if (!bc || typeof bc !== 'object') return
-          if (!bc.user || typeof bc.user !== 'object') return
-          
-          // Valider que l'id existe et n'est pas vide (requis pour Contact)
-          if (!bc.user.id || typeof bc.user.id !== 'string' || bc.user.id.trim() === '') return
-          
-          // Skip gestionnaires (they're in buildingManagers)
-          const role = bc.user.role
-          if (role === 'gestionnaire' || role === 'admin') return
-
-          // Créer le contact avec tous les champs requis
-          const contact: Contact = {
-            id: bc.user.id,
-            name: bc.user.name || bc.user.email || '',
-            email: bc.user.email || '',
-            type: role || 'other',
-            phone: bc.user.phone || undefined,
-            speciality: bc.user.speciality || bc.user.provider_category || undefined
-          }
-
-          // Map by role - format identique à la création d'immeuble
-          if (role === 'locataire') {
-            contacts.tenant.push(contact)
-          } else if (role === 'prestataire') {
-            contacts.provider.push(contact)
-          } else if (role === 'proprietaire') {
-            contacts.owner.push(contact)
-          } else {
-            contacts.other.push(contact)
-          }
-        })
-
-        setBuildingContacts(contacts)
-
-        // ✅ Extract existing lots from building
-        const existingLots = Array.isArray(building.lots) ? building.lots : []
-        const normalizedExistingLots = existingLots.map((lot: any) => ({
-          id: lot.id,
-          reference: lot.reference || '',
-          floor: lot.floor || '',
-          door_number: lot.door_number || '',
-          description: lot.description || '',
-          category: (lot.category as LotCategory) || 'appartement'
-        }))
-
-        logger.info('🏢 [BUILDING-DATA] Existing lots loaded:', {
-          count: normalizedExistingLots.length,
-          lots: normalizedExistingLots
-        })
-
-        setExistingBuildingLots(normalizedExistingLots)
-      } catch (error) {
-        logger.error("❌ [LOT-CREATION] Error loading building data:", error)
-        toast({
-          title: "Erreur de chargement",
-          description: "Impossible de charger les données de l'immeuble. Veuillez réessayer.",
-          variant: "destructive",
-        })
-        // Reset on error - format identique à l'initialisation
-        setBuildingManagers([])
-        setBuildingContacts({
-          tenant: [],
-          provider: [],
-          owner: [],
-          other: [],
-        })
-        setExistingBuildingLots([])
-      } finally {
-        setIsLoadingBuildingData(false)
-      }
-    }
-
-    loadBuildingData()
-  }, [lotData.buildingAssociation, lotData.selectedBuilding, toast])
-
   const getLotContactsByType = (lotId: string, contactType: string): Contact[] => {
     return lotContactAssignments[lotId]?.[contactType] || []
   }
@@ -2068,10 +2154,10 @@ export default function NewLotPage() {
           <BuildingContactsStepV3
             buildingInfo={{
               name: selectedBuilding?.name || "Immeuble",
-              address: selectedBuilding?.address || "",
-              postalCode: selectedBuilding?.postal_code || "",
-              city: selectedBuilding?.city || "",
-              country: selectedBuilding?.country || "",
+              address: selectedBuilding?.address_record?.street || "",
+              postalCode: selectedBuilding?.address_record?.postal_code || "",
+              city: selectedBuilding?.address_record?.city || "",
+              country: selectedBuilding?.address_record?.country || "",
               description: selectedBuilding?.description || ""
             }}
             teamManagers={teamManagers.map(tm => tm.user)} // Convert to UserType[]
@@ -2230,14 +2316,14 @@ export default function NewLotPage() {
         )
       }
 
-      // Préparer buildingInfo
+      // Préparer buildingInfo avec address_record (nouvelle structure centralisée)
       const buildingInfo = {
         name: selectedBuilding.name || "",
-        address: selectedBuilding.address || "",
-        postalCode: "", // Not available in building data
-        city: "", // Not available in building data
-        country: "", // Not available in building data
-        description: "" // Not available in building data
+        address: selectedBuilding.address_record?.street || "",
+        postalCode: selectedBuilding.address_record?.postal_code || "",
+        city: selectedBuilding.address_record?.city || "",
+        country: selectedBuilding.address_record?.country || "",
+        description: selectedBuilding.description || ""
       }
 
       // ✅ Use the same buildingManagers state that was populated at step 3
@@ -2370,7 +2456,10 @@ export default function NewLotPage() {
       />
 
       {/* Main Content with uniform padding (responsive) and bottom space for footer */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pt-6 pb-20">
+      {/* GoogleMapsProvider wraps all steps to prevent "Rendered fewer hooks" error */}
+      {/* (Moving it inside renderStep2 causes hook count changes when switching modes) */}
+      <GoogleMapsProvider>
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-5 sm:px-6 lg:px-10 pt-6 pb-20">
           <main className="content-max-width pb-8">
             {currentStep === 1 && renderStep1()}
             {currentStep === 2 && renderStep2()}
@@ -2378,6 +2467,7 @@ export default function NewLotPage() {
             {currentStep === 4 && renderStep4()}
           </main>
         </div>
+      </GoogleMapsProvider>
 
       {/* Footer Navigation */}
       <div className="sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm border-t border-border px-5 sm:px-6 lg:px-10 py-4">

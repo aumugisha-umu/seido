@@ -242,6 +242,14 @@ export {
 } from './domain/conversation-service'
 
 // Phase 3 New Repositories
+// Intervention Comment Repository
+export {
+  InterventionCommentRepository,
+  createInterventionCommentRepository,
+  createServerInterventionCommentRepository,
+  createServerActionInterventionCommentRepository
+} from './repositories/intervention-comment.repository'
+
 // Conversation Repository
 export {
   ConversationRepository,
@@ -273,6 +281,30 @@ export {
   createServerNotificationService,
   createServerActionNotificationService
 } from './domain/notification.service'
+
+// Address Repository & Service
+export {
+  AddressRepository,
+  createAddressRepository,
+  type Address,
+  type AddressInsert,
+  type AddressUpdate,
+  type AddressWithGeocode
+} from './repositories/address.repository'
+
+export {
+  AddressService,
+  createAddressService,
+  type GooglePlaceAddress
+} from './domain/address.service'
+
+// Server Action factory for Address Service
+export async function createServerActionAddressService() {
+  const { createServerActionSupabaseClient } = await import('./core/supabase-client')
+  const { createAddressService } = await import('./domain/address.service')
+  const supabase = await createServerActionSupabaseClient()
+  return createAddressService(supabase)
+}
 
 // Team Service
 export {
@@ -500,7 +532,8 @@ export const SERVICE_CONFIG = {
     composite: true, // ✅ Phase 4.2 completed
     contactInvitation: true, // ✅ Phase 5.1 completed
     tenant: true, // ✅ Phase 5.1 completed
-    contract: true // ✅ Phase 4 Contracts completed
+    contract: true, // ✅ Phase 4 Contracts completed
+    address: true // ✅ Google Maps integration
   },
   services: {
     user: true,
@@ -514,7 +547,8 @@ export const SERVICE_CONFIG = {
     composite: true,
     contactInvitation: true,
     tenant: true,
-    contract: true // ✅ Phase 4 Contracts service
+    contract: true, // ✅ Phase 4 Contracts service
+    address: true // ✅ Google Maps integration
   }
 } as const
 

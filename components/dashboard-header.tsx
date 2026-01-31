@@ -3,7 +3,7 @@
 import type React from "react"
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { Home, Building2, Users, Bell, Wrench, MessageSquare, Menu, X, User, Settings, LogOut, Loader2, FileText, Mail, ListTree } from "lucide-react"
 import Image from "next/image"
 import UserMenu from "./user-menu"
@@ -17,6 +17,9 @@ import NotificationPopover from "@/components/notification-popover"
 import { usePWABannerOptional, PWA_BANNER_HEIGHT } from "@/contexts/pwa-banner-context"
 import { cn } from "@/lib/utils"
 import { logger, logError } from '@/lib/logger'
+import { TeamSelector, TeamSelectorCompact } from "@/components/team-selector"
+import { useCurrentTeam, ALL_TEAMS_VALUE } from "@/hooks/use-current-team"
+import type { Team } from "@/lib/services/core/service-types"
 interface NavigationItem {
   href: string
   label: string
@@ -38,6 +41,10 @@ interface DashboardHeaderProps {
   teamId?: string // Team ID passed from server
   userId?: string // ✅ PERF: User ID passed from server to bypass client auth delay
   avatarUrl?: string // Avatar URL from user profile
+  /** ✅ MULTI-ÉQUIPE: Équipes de l'utilisateur (même rôle) pour le sélecteur */
+  teams?: Team[]
+  /** ✅ MULTI-ÉQUIPE: Callback quand l'équipe change */
+  onTeamChange?: (teamId: string | 'all') => void
 }
 
 const roleConfigs: Record<string, HeaderConfig> = {
@@ -86,7 +93,9 @@ export default function DashboardHeader({
   userEmail: serverUserEmail,
   teamId: serverTeamId,
   userId: serverUserId,
-  avatarUrl: serverAvatarUrl
+  avatarUrl: serverAvatarUrl,
+  teams: serverTeams = [],
+  onTeamChange
 }: DashboardHeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isNotificationPopoverOpen, setIsNotificationPopoverOpen] = useState(false)
@@ -96,7 +105,23 @@ export default function DashboardHeader({
   const { user, signOut } = useAuth()
   const { isBannerVisible } = usePWABannerOptional()
   const pathname = usePathname()
+  const router = useRouter()
   const { teamStatus, hasTeam } = useTeamStatus()
+
+  // ✅ MULTI-ÉQUIPE: Hook pour gérer l'équipe courante
+  const {
+    currentTeamId,
+    changeTeam,
+    hasMultipleTeams
+  } = useCurrentTeam({
+    teams: serverTeams,
+    currentRole: role,
+    onTeamChange: (teamId) => {
+      onTeamChange?.(teamId)
+      // Rafraîchir la page pour récupérer les nouvelles données
+      router.refresh()
+    }
+  })
   // ✅ PERF: Pass server userId to avoid waiting for client auth
   const { unreadCount: globalUnreadCount, refetch: refetchGlobalNotifications } = useGlobalNotifications({
     teamId: serverTeamId,
@@ -218,7 +243,7 @@ export default function DashboardHeader({
       >
         <div className="header__container">
           <nav className="header__nav">
-            {/* Logo à gauche */}
+            {/* Logo à gauche + Sélecteur d'équipe */}
             <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
               <div className="flex items-center">
                 {/* Logo SEIDO - Cliquable vers dashboard */}
@@ -235,6 +260,19 @@ export default function DashboardHeader({
                   </Link>
                 </div>
               </div>
+
+              {/* ✅ MULTI-ÉQUIPE: Sélecteur d'équipe (desktop/tablet) */}
+              {hasMultipleTeams && (
+                <div className="hidden sm:block">
+                  <TeamSelector
+                    teams={serverTeams}
+                    currentTeamId={currentTeamId}
+                    onTeamChange={changeTeam}
+                    currentRole={role}
+                    size="compact"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Navigation desktop - cachée sur mobile et tablet - affichée seulement si navigation existe */}
@@ -376,6 +414,24 @@ export default function DashboardHeader({
                   </nav>
 
                   {/* Séparation */}
+                  <div className="border-t border-border mb-4"></div>
+                </>
+              )}
+
+              {/* ✅ MULTI-ÉQUIPE: Sélecteur d'équipe (mobile) */}
+              {hasMultipleTeams && (
+                <>
+                  <div className="px-2 mb-4">
+                    <TeamSelectorCompact
+                      teams={serverTeams}
+                      currentTeamId={currentTeamId}
+                      onTeamChange={(teamId) => {
+                        changeTeam(teamId)
+                        setIsMobileMenuOpen(false)
+                      }}
+                      currentRole={role}
+                    />
+                  </div>
                   <div className="border-t border-border mb-4"></div>
                 </>
               )}

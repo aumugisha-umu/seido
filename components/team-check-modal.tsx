@@ -3,7 +3,12 @@
 import { useEffect } from 'react'
 import { useTeamStatus } from '@/hooks/use-team-status'
 import { useAuth } from '@/hooks/use-auth'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from '@/components/ui/unified-modal'
 import { Button } from '@/components/ui/button'
 import { AlertTriangle, Mail } from 'lucide-react'
 
@@ -36,7 +41,7 @@ Merci de m'ajouter à une équipe appropriée.
 
 Cordialement,
 ${user?.name}`)
-    
+
     window.open(`mailto:support@seido.com?subject=${subject}&body=${body}`)
   }
 
@@ -57,54 +62,61 @@ ${user?.name}`)
     return null
   }
 
-  // Modale d'erreur
+  // Modale d'erreur - empêche la fermeture car c'est une erreur bloquante
   return (
-    <Dialog open={teamStatus === 'error'} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-red-600">
-            <AlertTriangle className="h-5 w-5" />
-            Accès restreint
-          </DialogTitle>
-          <DialogDescription className="text-left space-y-4 pt-4">
-            <p>{error}</p>
-            
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <h4 className="font-medium text-blue-900 mb-2">Que faire ?</h4>
-              <p className="text-blue-800 text-sm">
-                Contactez votre gestionnaire ou le support technique pour être ajouté à une équipe. 
-                Vous recevrez un email de confirmation une fois l'ajout effectué.
-              </p>
-            </div>
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="flex flex-col gap-3 mt-6">
-          <Button 
-            onClick={handleContactSupport}
-            className="w-full"
-          >
-            <Mail className="h-4 w-4 mr-2" />
-            Contacter le support
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            onClick={recheckTeamStatus}
-            className="w-full"
-          >
-            Réessayer la vérification
-          </Button>
-          
-          <Button 
-            variant="ghost" 
-            onClick={() => window.location.href = '/auth/login'}
-            className="w-full text-sm"
-          >
-            Retour à la connexion
-          </Button>
+    <UnifiedModal
+      open={teamStatus === 'error'}
+      onOpenChange={() => {}}
+      size="sm"
+      preventCloseOnOutsideClick
+      preventCloseOnEscape
+      showCloseButton={false}
+    >
+      <UnifiedModalHeader
+        title="Accès restreint"
+        icon={<AlertTriangle className="h-5 w-5" />}
+        variant="danger"
+      />
+
+      <UnifiedModalBody>
+        <div className="space-y-4">
+          <p className="text-muted-foreground">{error}</p>
+
+          <div className="bg-blue-50 p-4 rounded-lg">
+            <h4 className="font-medium text-blue-900 mb-2">Que faire ?</h4>
+            <p className="text-blue-800 text-sm">
+              Contactez votre gestionnaire ou le support technique pour être ajouté à une équipe.
+              Vous recevrez un email de confirmation une fois l&apos;ajout effectué.
+            </p>
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </UnifiedModalBody>
+
+      <UnifiedModalFooter className="flex-col">
+        <Button
+          onClick={handleContactSupport}
+          className="w-full"
+        >
+          <Mail className="h-4 w-4 mr-2" />
+          Contacter le support
+        </Button>
+
+        <Button
+          variant="outline"
+          onClick={recheckTeamStatus}
+          className="w-full"
+        >
+          Réessayer la vérification
+        </Button>
+
+        <Button
+          variant="ghost"
+          onClick={() => window.location.href = '/auth/login'}
+          className="w-full text-sm"
+        >
+          Retour à la connexion
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

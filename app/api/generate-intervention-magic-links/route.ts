@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       .from('interventions')
       .select(`
         *,
-        lot:lot_id(id, reference, building:building_id(name, address, team_id)),
+        lot:lot_id(id, reference, building:building_id(name, team_id, address_record:address_id(*))),
         team:team_id(id, name)
       `)
       .eq('id', interventionId)

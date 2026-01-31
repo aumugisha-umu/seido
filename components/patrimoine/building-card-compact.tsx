@@ -10,11 +10,17 @@ import { cn } from '@/lib/utils'
 interface BuildingData {
     id: string
     name: string
-    address: string
-    city?: string
     lots?: Array<{ id: string; status?: string }>
     building_contacts?: Array<{ user?: { id: string; name: string; role: string } }>
     interventions_count?: number
+    // Address record from centralized addresses table
+    address_record?: {
+        id: string
+        street?: string | null
+        postal_code?: string | null
+        city?: string | null
+        formatted_address?: string | null
+    } | null
 }
 
 export function BuildingCardCompact({ item, actions }: CardComponentProps<BuildingData>) {
@@ -25,6 +31,19 @@ export function BuildingCardCompact({ item, actions }: CardComponentProps<Buildi
     const occupiedLots = building.lots?.filter(lot => lot.status === 'occupied').length || 0
     const contactsCount = building.building_contacts?.length || 0
     const interventionsCount = building.interventions_count || 0
+
+    // Get address text from address_record
+    const getAddressText = (): string => {
+        if (building.address_record?.formatted_address) {
+            return building.address_record.formatted_address
+        }
+        if (building.address_record?.street || building.address_record?.city) {
+            const parts = [building.address_record.street, building.address_record.postal_code, building.address_record.city].filter(Boolean)
+            return parts.join(', ')
+        }
+        return ''
+    }
+    const addressText = getAddressText()
 
     // BEM Classes
     const blockClass = "building-card"
@@ -64,10 +83,12 @@ export function BuildingCardCompact({ item, actions }: CardComponentProps<Buildi
                                 <h3 className={cn(`${blockClass}__title`, "font-semibold text-sm text-slate-900 truncate")}>
                                     {building.name}
                                 </h3>
-                                <div className={cn(`${blockClass}__subtitle`, "flex items-center text-xs text-slate-600 mt-0.5")}>
-                                    <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
-                                    <span className="truncate">{building.address}</span>
-                                </div>
+                                {addressText && (
+                                    <div className={cn(`${blockClass}__subtitle`, "flex items-center text-xs text-slate-600 mt-0.5")}>
+                                        <MapPin className="h-3 w-3 mr-1 flex-shrink-0" />
+                                        <span className="truncate">{addressText}</span>
+                                    </div>
+                                )}
                             </div>
                         </div>
 

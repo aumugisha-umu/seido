@@ -169,6 +169,27 @@ Accessibility     → WCAG 2.1 AA obligatoire
 - Keyboard: ✅ Full support
 ```
 
+## Skills Integration
+
+| Situation | Skill |
+|-----------|-------|
+| Nouvelle interface/feature | `sp-brainstorming` |
+| Redesign existant | `sp-brainstorming` + recherche persona |
+| Bug UX | `sp-systematic-debugging` |
+| Avant livraison | `sp-verification-before-completion` |
+
+### Workflow UI Designer
+
+```
+[Brief design] → sp-brainstorming (persona, frustrations, anti-patterns)
+    ↓
+[Conception] → Consulter ux-ui-decision-guide.md
+    ↓
+sp-verification-before-completion → Tests persona (30s/3taps/2min)
+```
+
+---
+
 ## Integration Agents
 
 - **frontend-developer**: Specs composants, patterns interaction

@@ -11,21 +11,27 @@
 /**
  * Minimal intervention data needed for location formatting
  */
+/** Address record structure from centralized addresses table */
+interface AddressRecord {
+  street?: string | null
+  postal_code?: string | null
+  city?: string | null
+  formatted_address?: string | null
+}
+
 export interface InterventionLocationData {
   lot?: {
     reference?: string
+    /** Lot's own address_record (for independent lots) */
+    address_record?: AddressRecord | null
     building?: {
       name?: string
-      address?: string
-      city?: string
-      postal_code?: string
+      address_record?: AddressRecord | null
     }
   }
   building?: {
     name?: string
-    address?: string
-    city?: string
-    postal_code?: string
+    address_record?: AddressRecord | null
   }
   location?: string
 }
@@ -66,20 +72,19 @@ export function formatInterventionLocation(
   const buildingName = building?.name || null
   const lotReference = intervention.lot?.reference || null
 
-  // Build address string
-  const addressParts: string[] = []
-  if (building?.address) {
-    addressParts.push(building.address)
+  // Build address string from address_record
+  // Priority: lot's own address_record (independent lots), then building's address_record
+  let address: string | null = null
+  const lotAddressRecord = intervention.lot?.address_record
+  const buildingAddressRecord = building?.address_record
+  const addressRecord = lotAddressRecord || buildingAddressRecord
+
+  if (addressRecord?.formatted_address) {
+    address = addressRecord.formatted_address
+  } else if (addressRecord?.street || addressRecord?.city) {
+    const parts = [addressRecord.street, addressRecord.postal_code, addressRecord.city].filter(Boolean)
+    address = parts.length > 0 ? parts.join(', ') : null
   }
-  if (building?.postal_code || building?.city) {
-    const cityPart = [building?.postal_code, building?.city]
-      .filter(Boolean)
-      .join(' ')
-    if (cityPart) {
-      addressParts.push(cityPart)
-    }
-  }
-  const address = addressParts.length > 0 ? addressParts.join(', ') : null
 
   // Build primary text
   let primary: string

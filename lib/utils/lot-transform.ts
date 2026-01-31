@@ -41,8 +41,12 @@ export interface Contact {
 export interface BuildingInfo {
   id: string
   name: string
-  address?: string
-  city?: string
+  address_record?: {
+    street?: string | null
+    postal_code?: string | null
+    city?: string | null
+    formatted_address?: string | null
+  } | null
 }
 
 /**
@@ -64,11 +68,13 @@ export function transformLotForEdit(lot: any): {
   }
 
   // Add address fields for independent lots (no building association)
-  if (!lot.building_id && !lot.building) {
-    lotInfo.street = lot.street || ""
-    lotInfo.postalCode = lot.postal_code || ""
-    lotInfo.city = lot.city || ""
-    lotInfo.country = lot.country || "Belgique"
+  // Now using centralized address_record
+  if (!lot.building_id && !lot.building && lot.address_record) {
+    const addressRecord = lot.address_record
+    lotInfo.street = addressRecord.street || ""
+    lotInfo.postalCode = addressRecord.postal_code || ""
+    lotInfo.city = addressRecord.city || ""
+    lotInfo.country = addressRecord.country || "Belgique"
   }
 
   return {
@@ -78,8 +84,7 @@ export function transformLotForEdit(lot: any): {
     building: lot.building ? {
       id: lot.building_id,
       name: lot.building.name,
-      address: lot.building.address,
-      city: lot.building.city
+      address_record: lot.building.address_record || null
     } : null
   }
 }

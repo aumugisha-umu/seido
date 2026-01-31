@@ -290,6 +290,7 @@ export interface ImportOptions {
 // ============================================================================
 
 export type ImportPhase =
+  | 'geocoding'    // Phase 0: Geocoding all addresses (buildings, independent lots, companies)
   | 'companies'
   | 'contacts'
   | 'buildings'
@@ -299,8 +300,8 @@ export type ImportPhase =
 
 export interface ImportProgressEvent {
   phase: ImportPhase;
-  phaseIndex: number;        // 0-4 for the 5 phases, 5 for completed
-  totalPhases: number;       // Always 5
+  phaseIndex: number;        // 0-5 for the 6 phases, 6 for completed
+  totalPhases: number;       // Always 6 (including geocoding)
   phaseName: string;         // French label for display
   phaseCount: number;        // Items in current phase
   phaseCreated: number;      // Created in current phase

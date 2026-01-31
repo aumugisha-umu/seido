@@ -2,7 +2,12 @@
 
 import { CheckCircle, FileText, User, Clock } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import {
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from "@/components/ui/unified-modal"
 
 interface QuoteRequestSuccessModalProps {
   isOpen: boolean
@@ -18,51 +23,50 @@ export const QuoteRequestSuccessModal = ({
   interventionTitle
 }: QuoteRequestSuccessModalProps) => {
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-md">
-        <DialogHeader className="text-center space-y-4">
-          <div className="flex justify-center">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </div>
-          </div>
-          <DialogTitle className="text-xl font-semibold text-slate-900">
-            Demande d'estimation envoyée !
-          </DialogTitle>
-        </DialogHeader>
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={(open) => !open && onClose()}
+      size="sm"
+    >
+      <UnifiedModalHeader
+        title="Demande d'estimation envoyée !"
+        icon={<CheckCircle className="h-5 w-5" />}
+        variant="success"
+      />
 
+      <UnifiedModalBody>
         <div className="space-y-4 text-center">
           <p className="text-slate-600">
-            Votre demande d'estimation a été envoyée avec succès à <strong>{providerName}</strong>
-            pour l'intervention <strong>"{interventionTitle}"</strong>.
+            Votre demande d&apos;estimation a été envoyée avec succès à <strong>{providerName}</strong>
+            {" "}pour l&apos;intervention <strong>&ldquo;{interventionTitle}&rdquo;</strong>.
           </p>
 
-          <div className="bg-slate-50 rounded-lg p-4 space-y-3 text-sm">
+          <div className="bg-slate-50 rounded-lg p-4 space-y-3 text-sm text-left">
             <div className="flex items-center gap-3">
               <User className="h-4 w-4 text-slate-500" />
               <span>Le prestataire a été notifié par email</span>
             </div>
             <div className="flex items-center gap-3">
               <FileText className="h-4 w-4 text-slate-500" />
-              <span>L'intervention passe au statut "Demande d'estimation"</span>
+              <span>L&apos;intervention passe au statut &ldquo;Demande d&apos;estimation&rdquo;</span>
             </div>
             <div className="flex items-center gap-3">
               <Clock className="h-4 w-4 text-slate-500" />
-              <span>Vous serez notifié lors de la réception de l'estimation</span>
+              <span>Vous serez notifié lors de la réception de l&apos;estimation</span>
             </div>
           </div>
 
           <p className="text-xs text-slate-500">
-            L'intervention sera automatiquement mise à jour dans votre dashboard.
+            L&apos;intervention sera automatiquement mise à jour dans votre dashboard.
           </p>
         </div>
+      </UnifiedModalBody>
 
-        <DialogFooter>
-          <Button onClick={onClose} className="w-full">
-            Compris
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button onClick={onClose} className="w-full">
+          Compris
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

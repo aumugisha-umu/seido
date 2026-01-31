@@ -13,11 +13,11 @@
 |                    Domain Services (31)                      |
 |  intervention, notification, email, gmail-oauth, etc.       |
 +-------------------------------------------------------------+
-|                    Repositories (21)                         |
-|  intervention, notification, user, building, email-link...  |
+|                    Repositories (22)                         |
+|  intervention, notification, user, building, address, etc.  |
 +-------------------------------------------------------------+
 |                    Supabase (PostgreSQL + RLS)               |
-|  38 tables | 77 fonctions | 209 indexes | 47 triggers       |
+|  44 tables | 79 fonctions | 209 indexes | 47 triggers       |
 +-------------------------------------------------------------+
 ```
 
@@ -309,6 +309,397 @@ Les devis sont geres separement du workflow intervention principal :
 
 **Avantage :** Separation des concerns - le statut devis n'impacte pas le workflow intervention.
 
+### 13. Client-Side Pagination Pattern (NOUVEAU 2026-01-26)
+
+Pattern pour paginer des listes deja chargees en memoire :
+
+```typescript
+// hooks/use-pagination.ts
+import { usePagination } from '@/hooks/use-pagination'
+
+const {
+  paginatedItems,    // Items de la page courante
+  currentPage,       // Page actuelle (1-indexed)
+  totalPages,        // Nombre total de pages
+  goToPage,          // Navigation vers page specifique
+  resetToFirstPage,  // Reset (memoize pour useEffect)
+  hasNextPage,       // Boolean navigation
+  hasPreviousPage,   // Boolean navigation
+  startIndex,        // Index debut (pour "1-10 sur 89")
+  endIndex           // Index fin
+} = usePagination({
+  items: filteredData,  // Donnees source (post-filtrage)
+  pageSize: 10          // Elements par page
+})
+
+// IMPORTANT: Reset sur changement de filtres
+useEffect(() => {
+  resetToFirstPage()
+}, [searchQuery, filters, sortBy, resetToFirstPage])
+```
+
+**Quand utiliser :**
+- Donnees deja chargees (Server Component → props)
+- Dataset < 1000 items
+- Navigation instantanee attendue
+- Filtrage/tri cote client
+
+**Fichiers de reference :**
+- `hooks/use-pagination.ts` - Hook reutilisable
+- `components/interventions/intervention-pagination.tsx` - UI francais
+
+### 14. Interventions Display Cascade Architecture (NOUVEAU 2026-01-27)
+
+Architecture unifiee pour afficher les interventions de maniere coherente dans toute l'application :
+
+```
++-------------------------------------------------------------+
+| PAGES DE DETAILS (Immeubles, Lots, Contrats, Contacts)      |
+|                                                             |
+| import { InterventionsNavigator }                            |
+| from '@/components/interventions/interventions-navigator'    |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| InterventionsNavigator (interventions-navigator.tsx)         |
+| - Gere tabs (Toutes, En cours, Terminees, etc.)             |
+| - Filtrage/tri/recherche                                     |
+| - ViewModeSwitcher (cards, list, calendar)                   |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| InterventionsViewContainer (interventions-view-container.tsx)|
+| - Orchestrateur de vues (cards, list, calendar)              |
+| - Gere pagination pour vue list                              |
+| - State management view mode                                  |
++-------------------------------------------------------------+
+                           |
+                           v (viewMode === 'cards')
++-------------------------------------------------------------+
+| InterventionsList (interventions-list.tsx)                   |
+| - Rendu grid/horizontal des cards                             |
+| - Empty state handling                                        |
+| - Loading skeletons                                           |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| InterventionCard (intervention-card.tsx)                     |
+| - Card intervention UNIFIEE pour tous les roles              |
+| - Badges statut + urgence                                     |
+| - Boutons d'action contextuels (via getRoleBasedActions)     |
+| - Message "En attente de X reponse(s)"                       |
+| - Hauteur auto (pas de h-full) - CSS Grid align par rangée   |
++-------------------------------------------------------------+
+```
+
+**Avantage principal:** La modification d'un composant (ex: `InterventionsList` ou `InterventionCard`) cascade automatiquement vers TOUTES les pages de details.
+
+**Pages utilisant cette architecture:**
+| Page | Fichier |
+|------|---------|
+| Immeubles | `app/gestionnaire/(no-navbar)/biens/immeubles/[id]/building-details-client.tsx` |
+| Lots | `app/gestionnaire/(no-navbar)/biens/lots/[id]/lot-details-client.tsx` |
+| Contrats | `app/gestionnaire/(no-navbar)/contrats/[id]/contract-details-client.tsx` |
+| Contacts | `components/contact-details/contact-interventions-tab.tsx` |
+
+**Regle:** Toujours utiliser `InterventionsNavigator` pour afficher des interventions - NE JAMAIS creer de composant custom par page.
+
+> Verifie 2026-01-27: Toutes les pages de details utilisent correctement cette architecture.
+
+### 14b. Intervention Preview Tab Structure (NOUVEAU 2026-01-29)
+
+Structure des onglets dans la vue de detail/preview d'une intervention :
+
+```
++-------------------------------------------------------------+
+| InterventionTabs (intervention-tabs.tsx)                     |
+| - Configuration par role via getTabsConfig(role)             |
+| - Grid responsive (grid-cols-3 a grid-cols-6 selon tabs)     |
++-------------------------------------------------------------+
+                           |
+    +----------------------+----------------------+
+    v                      v                      v
++----------+    +---------------+    +------------------+
+| Gestionnaire |  | Prestataire |    | Locataire        |
+| 6 onglets    |  | 4 onglets   |    | 4 onglets        |
++----------+    +---------------+    +------------------+
+```
+
+**Onglets par role:**
+
+| Role | Onglets |
+|------|---------|
+| **Gestionnaire** | General \| Localisation \| Conversations \| Planning et Estimations \| Contacts \| Emails |
+| **Prestataire** | General \| Localisation \| Conversations \| Planification |
+| **Locataire** | General \| Localisation \| Conversations \| Rendez-vous |
+
+**Composants partagés:**
+
+| Composant | Chemin | Description |
+|-----------|--------|-------------|
+| `InterventionTabs` | `shared/layout/intervention-tabs.tsx` | Config tabs + navigation |
+| `LocalisationTab` | `shared/tabs/localisation-tab.tsx` | Carte Google Maps 400px |
+| `InterventionDetailsCard` | `shared/cards/intervention-details-card.tsx` | Description + localisation texte |
+| `PlanningCard` | `shared/cards/planning-card.tsx` | Time slots |
+| `QuotesCard` | `shared/cards/quotes-card.tsx` | Devis/estimations |
+
+**Regle:** L'onglet "Localisation" contient la carte Google Maps en grand format. L'onglet "General" conserve uniquement le texte compact "Immeuble > Lot • Adresse".
+
+### 14c. Entity Preview Layout Architecture (NOUVEAU 2026-01-30)
+
+Architecture unifiee pour les pages de preview d'entites (Building, Lot, Contract, Contact) :
+
+```
++-------------------------------------------------------------+
+| COMPOSANTS PARTAGES (@/components/shared/entity-preview)     |
++-------------------------------------------------------------+
+                           |
+    +----------------------+----------------------+
+    |                      |                      |
+    v                      v                      v
++----------------+  +-------------+  +------------------+
+| EntityPreview  |  | EntityTabs  |  | EntityActivityLog|
+| Layout         |  | (MD3 style) |  | (timeline)       |
++----------------+  +-------------+  +------------------+
+        |                  |
+        |                  v
+        |         +------------------+
+        |         | TabContentWrapper|
+        |         +------------------+
+        v
++-------------------------------------------------------------+
+| PAGES DE DETAIL UTILISANT L'ARCHITECTURE                     |
++-------------------------------------------------------------+
+| Building  | building-details-client.tsx                      |
+| Lot       | lot-details-client.tsx                           |
+| Contract  | contract-details-client.tsx                      |
+| Contact   | contact-details-client.tsx                       |
++-------------------------------------------------------------+
+```
+
+**Fichiers du module :**
+
+| Fichier | Description |
+|---------|-------------|
+| `index.ts` | Barrel exports |
+| `types.ts` | TabConfig, EntityType, ActivityLogEntry |
+| `entity-tabs.tsx` | Tabs responsifs MD3 (dropdown mobile, horizontal desktop) |
+| `entity-preview-layout.tsx` | Layout wrapper + TabPanelWrapper |
+| `entity-activity-log.tsx` | Timeline des activity logs hierarchiques |
+
+**Import standardise :**
+```typescript
+import {
+  EntityPreviewLayout,
+  EntityTabs,
+  TabContentWrapper,
+  EntityActivityLog
+} from '@/components/shared/entity-preview'
+import type { TabConfig } from '@/components/shared/entity-preview'
+```
+
+**Configuration des tabs :**
+```typescript
+const tabs: TabConfig[] = [
+  { value: 'overview', label: 'Aperçu' },
+  { value: 'contracts', label: 'Contrats', count: contractsCount },
+  { value: 'interventions', label: 'Interventions', count: interventionsCount },
+  { value: 'activity', label: 'Activité' }
+]
+
+<EntityTabs activeTab={activeTab} onTabChange={setActiveTab} tabs={tabs}>
+  <TabContentWrapper value="overview">
+    {/* Contenu aperçu */}
+  </TabContentWrapper>
+  <TabContentWrapper value="activity">
+    <EntityActivityLog
+      teamId={teamId}
+      entityType="building"
+      entityId={buildingId}
+      includeRelated={true}
+    />
+  </TabContentWrapper>
+</EntityTabs>
+```
+
+**Hierarchical Activity Logs (RPC Function) :**
+```sql
+-- Fonction get_entity_activity_logs dans Supabase
+-- Retourne les logs de l'entite ET de ses entites liees :
+-- Building: logs building + lots + contracts + interventions
+-- Lot: logs lot + contracts + interventions
+-- Contract: logs contract uniquement
+-- Contact: logs contact + interventions assignees
+```
+
+**Classes CSS BEM :**
+```css
+.entity-preview          /* Container principal */
+.entity-preview__tabs    /* Zone des onglets */
+.entity-preview__content /* Zone du contenu */
+.entity-preview__tab-panel /* Panel d'onglet individuel */
+```
+
+**UnifiedModal z-index Pattern (FIX 2026-01-30) :**
+
+Les modales Radix avec CSS custom DOIVENT avoir des z-index explicites sur overlay ET content :
+```css
+/* globals.css - OBLIGATOIRE */
+.unified-modal__overlay { @apply fixed inset-0 z-[9998] ... }
+.unified-modal__content { @apply fixed z-[9999] ... }
+```
+
+**Pourquoi :** Sans z-index explicite, le content peut se rendre DERRIÈRE l'overlay (bug invisible car le DOM est correct mais l'affichage est caché).
+
+**UNIFICATION (2026-01-30) :**
+`InterventionTabs` a ete supprime et unifie avec `EntityTabs`.
+
+Pour les interventions, utiliser `getInterventionTabsConfig(role)` :
+```typescript
+import { EntityTabs, getInterventionTabsConfig } from '@/components/shared/entity-preview'
+
+const interventionTabs = useMemo(() => getInterventionTabsConfig('manager'), [])
+// ou 'provider', 'tenant'
+
+<EntityTabs tabs={interventionTabs} activeTab={activeTab} onTabChange={setActiveTab}>
+  {/* TabsContent */}
+</EntityTabs>
+```
+
+**Regle :** Utiliser `EntityTabs` + `getInterventionTabsConfig()` pour TOUTES les entites (Building, Lot, Contract, Contact, Intervention).
+
+### 15. Conversation Thread Creation Pattern (NOUVEAU 2026-01-29)
+
+Pattern critique pour creer les threads de conversation lors de la creation d'intervention :
+
+```
++-------------------------------------------------------------+
+| ORDRE CRITIQUE DE CREATION                                   |
+| (L'ordre est important car les triggers dependent des donnees)|
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| STEP 1: Create Intervention                                  |
+| INSERT INTO interventions (...)                              |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| STEP 2: Create Conversation Threads (Service Role)           |
+| ✅ AVANT les assignments!                                     |
+|                                                             |
+| → INSERT conversation_threads (thread_type = 'group')        |
+|   → TRIGGER thread_add_managers FIRES                        |
+|   → All team managers added to participants                  |
+|                                                             |
+| → INSERT conversation_threads (thread_type = 'tenant_to_...')|
+|   → TRIGGER fires, managers added                            |
+|                                                             |
+| → INSERT conversation_threads (thread_type = 'provider_to...')|
+|   → TRIGGER fires, managers added                            |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| STEP 3: Create Assignments                                   |
+| INSERT INTO intervention_assignments (role = 'locataire')    |
+|   → TRIGGER add_assignment_to_conversation_participants      |
+|   → Tenant added to 'group' + 'tenant_to_managers' threads   |
+|                                                             |
+| INSERT INTO intervention_assignments (role = 'prestataire')  |
+|   → TRIGGER fires, provider added to threads                 |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| STEP 4: Create Time Slots (Service Role)                     |
+| INSERT INTO intervention_time_slots (...)                    |
++-------------------------------------------------------------+
+```
+
+**Fichiers cles :**
+- `app/api/create-manager-intervention/route.ts` - Implementation de l'ordre
+- `lib/services/repositories/conversation-repository.ts` - Upsert avec ignoreDuplicates
+- `supabase/migrations/20260129200005_add_managers_to_conversation_participants.sql` - Triggers
+
+**Regle critique :** Les threads DOIVENT etre crees AVANT les assignments, sinon le trigger `add_assignment_to_conversation_participants` ne trouve pas les threads et ne peut pas ajouter les participants.
+
+**Pattern upsert pour eviter CONFLICT :**
+```typescript
+// Dans conversation-repository.ts
+const { error } = await this.supabase
+  .from('conversation_participants')
+  .upsert({
+    thread_id: thread.id,
+    user_id: input.created_by
+  }, {
+    onConflict: 'thread_id,user_id',
+    ignoreDuplicates: true
+  })
+```
+
+> Fix 2026-01-29 - Corrige le bug ou les participants n'etaient pas ajoutes aux threads
+
+---
+
+### 16. Skills Auto-Invocation Pattern (NOUVEAU 2026-01-27)
+
+Pattern d'orchestration des skills `superpowers:sp-*` base sur des "Red Flags" (pensees declencheuses) :
+
+```
++-------------------------------------------------------------+
+| RED FLAG DETECTION                                          |
+| "Je vais creer...", "Bug...", "Je vais implementer..."     |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| SKILL AUTO-INVOCATION                                       |
+| sp-brainstorming, sp-systematic-debugging, sp-tdd, etc.    |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| IMPLEMENTATION                                              |
+| Code ecrit selon les recommandations du skill              |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| VERIFICATION OBLIGATOIRE                                    |
+| sp-verification-before-completion AVANT commit             |
++-------------------------------------------------------------+
+```
+
+**Matrice de declenchement :**
+
+| Red Flag | Skill a Invoquer | Priorite |
+|----------|------------------|----------|
+| "Je vais creer/ajouter/modifier..." | `sp-brainstorming` | CRITIQUE |
+| "Bug/Erreur/Test echoue..." | `sp-systematic-debugging` | CRITIQUE |
+| "Je vais implementer/coder..." | `sp-test-driven-development` | HAUTE |
+| "C'est fait/Pret a commiter..." | `sp-verification-before-completion` | CRITIQUE |
+| "Tache complexe/> 3 fichiers..." | `sp-writing-plans` | HAUTE |
+
+**Chains d'orchestration :**
+
+1. **Creative Work**: brainstorming → writing-plans → TDD → impl → verification → code-review
+2. **Bug Fix**: systematic-debugging → TDD (failing test) → fix → verification
+3. **Multi-Domain**: brainstorming → writing-plans → dispatching-parallel-agents → verification
+
+**Fichiers de reference :**
+- `.claude/CLAUDE.md` - Section "Skills Auto-Invocation"
+- `.claude/agents/_base-template.md` - Red Flags universels (herite par tous)
+- `.claude/agents/ultrathink-orchestrator.md` - Section H
+
+**Regle critique :** Process Skills (brainstorming/debugging) AVANT Implementation Skills (TDD/coding).
+
+---
+
 ## Anti-Patterns (NE JAMAIS FAIRE)
 
 | Anti-Pattern | Alternative |
@@ -320,6 +711,18 @@ Les devis sont geres separement du workflow intervention principal :
 | `npm run build` automatique | Demander a l'utilisateur |
 | Singleton notification legacy | Server Actions |
 | Utiliser statut demande_de_devis | requires_quote + intervention_quotes |
+| Creer composant card intervention custom | Utiliser InterventionsNavigator |
+| Coder sans invoquer skill brainstorming | Invoquer sp-brainstorming AVANT |
+| Fixer bug sans diagnostic systematique | Invoquer sp-systematic-debugging |
+| Commiter sans verification | Invoquer sp-verification-before-completion |
+| Creer threads apres assignments | Creer threads AVANT assignments |
+| Insert participant sans ON CONFLICT | Upsert avec ignoreDuplicates |
+| Relations PostgREST nested avec RLS | Requetes separees + helpers prives |
+| Utiliser InterventionTabs (supprime) | EntityTabs + getInterventionTabsConfig() |
+| Server Action avec `getAuthenticatedUser()` local | `getServerActionAuthContextOrNull()` |
+| Hook client avec session check defensif | `useAuth()` + `createBrowserSupabaseClient()` |
+| `.single()` sur profiles multi-equipes | `.limit(1)` + `data?.[0]` |
+| Hook sans `authLoading` dans dépendances | Extraire `loading` de `useAuth()` + ajouter aux deps |
 
 ## Conventions de Nommage
 
@@ -336,12 +739,15 @@ Les devis sont geres separement du workflow intervention principal :
 
 ```
 app/[role]/          # Routes par role (admin, gestionnaire, prestataire, locataire)
-components/          # 369 composants
-hooks/               # 58 custom hooks
+  - 87 pages (5+ route groups)
+  - 113 API routes (10 domaines)
+components/          # 230+ composants (22 directories)
+hooks/               # 64 custom hooks
 lib/services/        # Architecture Repository Pattern
-  core/              # Clients Supabase, base repository, error handler
-  repositories/      # 21 repositories (acces donnees)
-  domain/            # 31 services (logique metier)
+  core/              # Clients Supabase (4 types), base repository, error handler
+  repositories/      # 22 repositories (acces donnees)
+  domain/            # 32 services (logique metier)
+app/actions/         # 17 server action files
 contexts/            # 3 React contexts (auth, team, realtime)
 tests/               # Infrastructure E2E
 ```
@@ -355,6 +761,333 @@ tests/               # Infrastructure E2E
 - `email-to-conversation.service.ts` - Sync emails -> conversations
 - `email-link.repository.ts` - Tracking liens emails
 
+### 17. Centralized Address Pattern (NOUVEAU 2026-01-29)
+
+Pattern pour la gestion centralisee des adresses avec support Google Maps :
+
+```
++-------------------------------------------------------------+
+| TABLE addresses (centralisee)                                |
+| - street, postal_code, city, country                         |
+| - latitude, longitude, place_id, formatted_address (Google)  |
+| - team_id (multi-tenant)                                     |
++-------------------------------------------------------------+
+              ^                ^                ^
+              |                |                |
++-------------+    +-----------+    +-----------+
+| buildings   |    | lots      |    | companies |
+| address_id ─┘    | address_id┘    | address_id┘
++-------------+    +-----------+    +-----------+
+```
+
+**Migration des donnees :**
+1. `20260129200000_create_addresses_table.sql` - Creation table + RLS
+2. `20260129200001_migrate_addresses_to_centralized_table.sql` - Migration donnees existantes
+3. `20260129200002_drop_legacy_address_columns.sql` - Suppression anciennes colonnes
+
+**Services :**
+- `lib/services/domain/address.service.ts` - Service domain
+- `lib/services/repositories/address.repository.ts` - Repository CRUD
+
+**Avantages :**
+- Single source of truth pour les adresses
+- Support Google Maps natif (geocoding, place_id)
+- Evite duplication des champs adresse dans chaque table
+- RLS par team_id
+
+### 19. Server Action Auth Pattern (NOUVEAU 2026-01-31)
+
+Pattern centralisé pour l'authentification dans les Server Actions :
+
+```
++-------------------------------------------------------------+
+| ARCHITECTURE AUTH CENTRALISÉE                                |
++-------------------------------------------------------------+
+|                                                             |
+| MIDDLEWARE (1x)     LAYOUTS (1x/role)    CLIENT (1x)        |
+| ┌─────────────┐     ┌─────────────┐      ┌─────────────┐    |
+| │ Token       │     │getServer    │      │ AuthProvider│    |
+| │ Refresh     │     │AuthContext()│      │ (useAuth)   │    |
+| └──────┬──────┘     └──────┬──────┘      └──────┬──────┘    |
+|        │                   │                    │           |
+|        ▼                   ▼                    ▼           |
+| ┌─────────────────────────────────────────────────────────┐ |
+| │         DONNÉES AUTH PASSÉES EN PARAMÈTRES              │ |
+| │  • Services reçoivent userId/teamId en paramètre        │ |
+| │  • Server Actions: getServerActionAuthContextOrNull()   │ |
+| │  • Hooks client: useAuth() depuis AuthProvider          │ |
+| └─────────────────────────────────────────────────────────┘ |
++-------------------------------------------------------------+
+```
+
+**Helpers d'authentification par contexte :**
+
+| Contexte | Helper | Comportement |
+|----------|--------|--------------|
+| Server Components | `getServerAuthContext(role)` | Redirect si non auth |
+| Server Actions | `getServerActionAuthContextOrNull()` | Return null si non auth |
+| Client Components | `useAuth()` hook | State depuis AuthProvider |
+| API Routes | `getApiAuthContext()` | Return null/throw |
+
+**Pattern Server Action (obligatoire) :**
+
+```typescript
+// ✅ CORRECT - Pattern centralisé
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
+
+export async function myAction(input: unknown): Promise<ActionResult<Data>> {
+  const authContext = await getServerActionAuthContextOrNull()
+  if (!authContext) {
+    return { success: false, error: 'Authentication required' }
+  }
+  const { profile, team, supabase } = authContext
+  // ... logique métier
+}
+
+// ❌ INTERDIT - Pattern local dupliqué
+async function getAuthenticatedUser() {
+  const supabase = await createServerActionSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  // ... 20 lignes de code dupliqué
+}
+```
+
+**Pattern Client Hook (obligatoire) :**
+
+```typescript
+// ✅ CORRECT - Session gérée par AuthProvider
+const { user, profile, team } = useAuth()
+
+// Si besoin de Supabase client dans le hook:
+const supabase = createBrowserSupabaseClient()
+const { data } = await supabase.from('table')...
+
+// ❌ INTERDIT - Vérification défensive redondante
+const { data: { session } } = await supabase.auth.getSession()
+if (!session) return // AuthProvider gère déjà ça!
+```
+
+**Bug `.single()` avec multi-profil :**
+
+```typescript
+// ❌ CASSE pour utilisateurs multi-équipes (erreur PGRST116)
+const { data } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('user_id', userId)
+  .single()
+
+// ✅ CORRECT - Supporte multi-profil
+const { data } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('user_id', userId)
+  .limit(1)
+  .then(res => res.data?.[0])
+```
+
+**Fichiers de référence :**
+- `lib/server-context.ts` - Helpers centralisés
+- `lib/api-auth-helper.ts` - Helper pour API Routes
+- `docs/plans/2026-01-31-auth-refactoring-design.md` - Design complet
+
+**Fichiers refactorés (2026-01-31) - Phase 1:**
+- 4 hooks: `use-tenant-data.ts`, `use-contacts-data.ts`, `use-interventions.ts`, `use-prestataire-data.ts`
+- 7 Server Actions: `intervention-actions.ts`, `intervention-comment-actions.ts`, `email-conversation-actions.ts`, `conversation-actions.ts`, `contract-actions.ts`, `building-actions.ts`, `lot-actions.ts`
+- 3 Services: `intervention-service.ts`, `team.repository.ts`, `supabase-client.ts`
+
+**Fichiers refactorés (2026-01-31) - Phase 2 (Migration complète):**
+- 3 hooks race condition: `use-notifications.ts`, `use-notification-popover.ts`, `use-activity-logs.ts` → Pattern #20
+- 1 hook realtime: `use-realtime-chat-v2.ts` → `useAuth()` au lieu de `supabase.auth.getSession()`
+- 2 documents tabs: `documents-tab.tsx` (gestionnaire + prestataire) → `useAuth()`
+- 5 API routes: `companies/[id]`, `emails/[id]`, `emails/send`, `emails/connections/[id]`, `emails/oauth/callback` → `getApiAuthContext()`
+
+**Fichiers NON migrés (infrastructure auth - volontairement):**
+- `hooks/use-auth.tsx` - AuthProvider centralisé
+- `lib/auth-dal.ts` - DAL centralisé
+- `lib/api-auth-helper.ts` - Helper API centralisé
+- `middleware.ts`, `utils/supabase/middleware.ts` - Middleware auth
+- `app/auth/*` - Pages flux d'authentification
+- `lib/session-cleanup.ts`, `hooks/use-session-*.ts` - Gestion session bas niveau
+- `lib/services/domain/intervention-service.ts` - Contient fallback DEPRECATED (documenté dans le code)
+
 ---
-*Derniere mise a jour: 2026-01-26*
-*References: lib/services/README.md, lib/server-context.ts*
+
+### 18. Separate Queries Pattern for RLS Compatibility (NOUVEAU 2026-01-29)
+
+Pattern pour eviter les echecs silencieux des relations PostgREST avec RLS :
+
+```
++-------------------------------------------------------------+
+| PROBLEME: Relations PostgREST + RLS                          |
+|                                                             |
+| .select(`*, company:company_id(id, name, address:address_id(*))`)|
+|                                                             |
+| → Si RLS sur 'companies' ou 'addresses' bloque l'acces,      |
+| → La requete echoue SILENCIEUSEMENT (pas d'erreur visible)   |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| SOLUTION: Requetes Separees avec Helpers                     |
+|                                                             |
+| // Helpers prives dans le repository                         |
+| private async fetchCompanyWithAddress(companyId: string) {   |
+|   const company = await supabase.from('companies')...        |
+|   if (company.address_id) {                                  |
+|     const address = await supabase.from('addresses')...      |
+|     return { ...company, address_record: address }           |
+|   }                                                         |
+|   return { ...company, address_record: null }               |
+| }                                                           |
+|                                                             |
+| private async fetchTeam(teamId: string) {                    |
+|   return await supabase.from('teams')...                     |
+| }                                                           |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| UTILISATION: Promise.all pour parallelisme                   |
+|                                                             |
+| const [company, team] = await Promise.all([                  |
+|   data.company_id ? this.fetchCompanyWithAddress(...) : null,|
+|   data.team_id ? this.fetchTeam(...) : null                  |
+| ])                                                          |
+| return { ...data, company, team }                            |
++-------------------------------------------------------------+
+```
+
+**Optimisation pour les listes (Batch Queries) :**
+```typescript
+// Au lieu de N requetes (1 par user), faire 3 requetes max:
+// 1. Fetch all users
+const users = await supabase.from('users').select('*').in('team_id', teamId)
+
+// 2. Batch fetch companies
+const companyIds = [...new Set(users.filter(u => u.company_id).map(u => u.company_id))]
+const companies = await supabase.from('companies').select('*').in('id', companyIds)
+
+// 3. Batch fetch addresses
+const addressIds = [...new Set(companies.filter(c => c.address_id).map(c => c.address_id))]
+const addresses = await supabase.from('addresses').select('*').in('id', addressIds)
+
+// 4. Map results
+const companiesMap = Object.fromEntries(companies.map(c => [c.id, { ...c, address_record: ... }]))
+const enrichedUsers = users.map(u => ({ ...u, company: companiesMap[u.company_id] }))
+```
+
+**Fichier de reference :** `lib/services/repositories/contact.repository.ts`
+
+**Quand utiliser :**
+- Queries avec relations nested (ex: `company:company_id(address:address_id(*))`)
+- Tables avec RLS strictes
+- Erreurs Supabase silencieuses/vides
+
+**Avantages :**
+- Erreurs explicites pour chaque requete
+- Compatible avec toute configuration RLS
+- Performance optimisee avec batch pour les listes
+
+### 20. Client Hook Auth Loading Pattern (NOUVEAU 2026-01-31)
+
+Pattern pour éviter les race conditions dans les hooks client qui dépendent de `useAuth()` :
+
+```
++-------------------------------------------------------------+
+| PROBLÈME: Race Condition Auth Loading                        |
+|                                                             |
+| 1. Component monte → useEffect déclenché immédiatement      |
+| 2. useAuth() retourne { user: null, loading: true }         |
+| 3. Hook fait early return + setLoading(false) ← ERREUR!     |
+| 4. Auth finit → user disponible MAIS hook a déjà terminé    |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| SOLUTION: Vérifier authLoading + ajouter aux dépendances    |
+|                                                             |
+| const { user, loading: authLoading } = useAuth()            |
+|                                                             |
+| const fetchData = async () => {                             |
+|   if (authLoading) return  // ← Sans setLoading(false)!     |
+|   if (!user?.id) { setLoading(false); return }              |
+|   // ... fetch data                                         |
+| }                                                           |
+|                                                             |
+| useEffect(() => {                                           |
+|   fetchData()                                               |
+| }, [user?.id, authLoading, ...otherDeps])  // ← authLoading!|
++-------------------------------------------------------------+
+```
+
+**Pattern correct (obligatoire pour hooks avec data fetch) :**
+
+```typescript
+// ✅ CORRECT - Attend que l'auth soit prête
+export const useMyData = (options) => {
+  const { user, loading: authLoading } = useAuth()
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchData = async () => {
+    // Ne pas faire d'early return avec setLoading(false) si auth charge encore
+    if (authLoading) return
+
+    if (!user?.id) {
+      setLoading(false)
+      return
+    }
+
+    // ... fetch data
+    setLoading(false)
+  }
+
+  // authLoading dans les dépendances = re-fetch quand auth termine
+  useEffect(() => {
+    fetchData()
+  }, [user?.id, authLoading])
+
+  return { data, loading }
+}
+
+// ❌ INTERDIT - Race condition
+const { user } = useAuth()  // Manque loading!
+
+const fetchData = async () => {
+  if (!user?.id) {
+    setLoading(false)  // Termine prématurément!
+    return
+  }
+}
+
+useEffect(() => {
+  fetchData()
+}, [user?.id])  // Pas authLoading = pas de re-fetch!
+```
+
+**Hooks corrigés (2026-01-31) :**
+- `hooks/use-notifications.ts`
+- `hooks/use-notification-popover.ts`
+- `hooks/use-activity-logs.ts`
+
+**Alternative: Props du serveur (bypass auth client)**
+
+Pour éviter le délai d'auth côté client, passer userId/teamId depuis le serveur :
+
+```typescript
+// Layout serveur (pré-fetch auth)
+const { user, team } = await getServerAuthContext('gestionnaire')
+return <MyClientComponent userId={user.id} teamId={team.id} />
+
+// Hook client (utilise props en priorité)
+const effectiveUserId = propUserId || user?.id
+const effectiveTeamId = propTeamId || team?.id
+```
+
+> Voir `use-global-notifications.ts` pour exemple de ce pattern.
+
+---
+*Derniere mise a jour: 2026-01-31 14:00*
+*Analyse approfondie: Migration Auth COMPLETE - tous fichiers documentes*
+*References: lib/services/README.md, lib/server-context.ts, lib/api-auth-helper.ts, .claude/CLAUDE.md*

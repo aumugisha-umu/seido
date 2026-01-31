@@ -202,7 +202,7 @@ export function InterventionFileAttachment({
                 <p className="text-xs font-medium text-slate-600">
                   Documents existants ({activeExistingDocs.length})
                 </p>
-                <div className="flex gap-3 overflow-x-auto max-w-[300px]">
+                <div className="flex gap-3 overflow-x-auto pb-2">
                   {activeExistingDocs.map((doc) => {
                     const isImage = doc.mime_type?.startsWith('image/')
                     const isPdf = doc.mime_type === 'application/pdf'
@@ -211,7 +211,7 @@ export function InterventionFileAttachment({
                     return (
                       <div
                         key={doc.id}
-                        className="relative group border rounded-lg p-3 hover:border-blue-500 transition-colors w-[280px] flex-shrink-0 bg-white"
+                        className="relative group border rounded-lg p-3 hover:border-blue-500 transition-colors w-[240px] flex-shrink-0 bg-white"
                       >
                         {/* Remove button */}
                         {onRemoveExistingDocument && (
@@ -296,14 +296,14 @@ export function InterventionFileAttachment({
             </p>
           )}
           <div
-            className={`flex gap-3 max-w-[300px] ${files.length > 1 ? 'overflow-x-auto' : ''}`}
+            className="flex gap-3 overflow-x-auto pb-2"
             onDrop={handleDrop}
             onDragOver={handleDragOver}
           >
             {files.map((file, index) => (
               <div
                 key={file.id}
-                className="relative group border rounded-lg p-3 hover:border-blue-500 transition-colors w-[280px] flex-shrink-0 bg-white"
+                className="relative group border rounded-lg p-3 hover:border-blue-500 transition-colors w-[240px] flex-shrink-0 bg-white"
               >
                 {/* Remove button */}
                 <button

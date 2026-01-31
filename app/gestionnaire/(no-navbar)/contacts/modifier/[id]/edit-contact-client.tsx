@@ -14,6 +14,7 @@ import { Step2Company } from "../../nouveau/steps/step-2-company"
 import { Step3Contact } from "../../nouveau/steps/step-3-contact"
 import { Step4Confirmation } from "../../nouveau/steps/step-4-confirmation"
 import { isValidEmail } from "@/lib/validation/patterns"
+import { GoogleMapsProvider } from "@/components/google-maps"
 
 // Types
 interface Company {
@@ -388,20 +389,22 @@ export function EditContactClient({
                         )}
 
                         {currentStep === 2 && (
-                            <Step2Company
-                                teamId={teamId}
-                                companies={initialCompanies}
-                                companyMode={formData.companyMode}
-                                companyId={formData.companyId}
-                                companyName={formData.companyName}
-                                vatNumber={formData.vatNumber}
-                                street={formData.street}
-                                streetNumber={formData.streetNumber}
-                                postalCode={formData.postalCode}
-                                city={formData.city}
-                                country={formData.country}
-                                onFieldChange={handleInputChange}
-                            />
+                            <GoogleMapsProvider>
+                                <Step2Company
+                                    teamId={teamId}
+                                    companies={initialCompanies}
+                                    companyMode={formData.companyMode}
+                                    companyId={formData.companyId}
+                                    companyName={formData.companyName}
+                                    vatNumber={formData.vatNumber}
+                                    street={formData.street}
+                                    streetNumber={formData.streetNumber}
+                                    postalCode={formData.postalCode}
+                                    city={formData.city}
+                                    country={formData.country}
+                                    onFieldChange={handleInputChange}
+                                />
+                            </GoogleMapsProvider>
                         )}
 
                         {currentStep === 3 && (

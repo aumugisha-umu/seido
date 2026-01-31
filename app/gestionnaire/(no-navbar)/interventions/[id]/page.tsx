@@ -71,14 +71,14 @@ export default async function InterventionDetailPage({ params }: PageProps) {
       { data: comments },
       { data: linkedInterventions }
     ] = await Promise.all([
-      // Building
+      // Building (avec address_record pour la localisation)
       intervention.building_id
-        ? supabase.from('buildings').select('*').eq('id', intervention.building_id).single()
+        ? supabase.from('buildings').select('*, address_record:address_id(*)').eq('id', intervention.building_id).single()
         : Promise.resolve({ data: null }),
 
-      // Lot (avec building pour la localisation complète)
+      // Lot (avec building et address_record pour la localisation complète)
       intervention.lot_id
-        ? supabase.from('lots').select('*, building:building_id(*)').eq('id', intervention.lot_id).single()
+        ? supabase.from('lots').select('*, address_record:address_id(*), building:building_id(*, address_record:address_id(*))').eq('id', intervention.lot_id).single()
         : Promise.resolve({ data: null }),
 
       // Assignments (with company data for contacts navigator)
@@ -168,11 +168,67 @@ export default async function InterventionDetailPage({ params }: PageProps) {
           }
         }
 
-        // Enrich threads with last_message
+        // Calculate unread_count for each thread
+        const unreadCounts = await Promise.all(
+          threads.map(async (thread) => {
+            try {
+              // Get participant's last read message
+              const { data: participant } = await supabase
+                .from('conversation_participants')
+                .select('last_read_message_id')
+                .eq('thread_id', thread.id)
+                .eq('user_id', profile.id)
+                .single()
+
+              if (!participant || !participant.last_read_message_id) {
+                // User hasn't read any messages, return total count
+                const { count } = await supabase
+                  .from('conversation_messages')
+                  .select('*', { count: 'exact', head: true })
+                  .eq('thread_id', thread.id)
+                  .is('deleted_at', null)
+
+                return { threadId: thread.id, count: count || 0 }
+              }
+
+              // Count messages after last read
+              const { data: lastRead } = await supabase
+                .from('conversation_messages')
+                .select('created_at')
+                .eq('id', participant.last_read_message_id)
+                .single()
+
+              if (!lastRead) {
+                return { threadId: thread.id, count: 0 }
+              }
+
+              const { count } = await supabase
+                .from('conversation_messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('thread_id', thread.id)
+                .is('deleted_at', null)
+                .gt('created_at', lastRead.created_at)
+
+              return { threadId: thread.id, count: count || 0 }
+            } catch (error) {
+              logger.error('Error getting thread unread count', { threadId: thread.id, error })
+              return { threadId: thread.id, count: 0 }
+            }
+          })
+        )
+
+        // Create a map for quick lookup
+        const unreadCountByThread: Record<string, number> = {}
+        unreadCounts.forEach(({ threadId, count }) => {
+          unreadCountByThread[threadId] = count
+        })
+
+        // Enrich threads with last_message and unread_count
         return {
           data: threads.map(t => ({
             ...t,
-            last_message: lastMessageByThread[t.id] ? [lastMessageByThread[t.id]] : []
+            last_message: lastMessageByThread[t.id] ? [lastMessageByThread[t.id]] : [],
+            unread_count: unreadCountByThread[t.id] || 0
           })),
           allMessages: allMsgsData.data || [],
           allParticipants: participantsData.data || []
@@ -260,6 +316,74 @@ export default async function InterventionDetailPage({ params }: PageProps) {
     const providerAssignments = assignments?.filter(a => a.role === 'prestataire') || []
     const providerCount = providerAssignments.length
 
+    // Step 3: Load address for map (from lot or building)
+    let interventionAddress: { latitude: number; longitude: number; formatted_address: string | null } | null = null
+
+    // First try lot's address
+    if (lot && (lot as any).address_id) {
+      const { data: addressData } = await supabase
+        .from('addresses')
+        .select('latitude, longitude, formatted_address')
+        .eq('id', (lot as any).address_id)
+        .single()
+
+      if (addressData?.latitude && addressData?.longitude) {
+        interventionAddress = {
+          latitude: addressData.latitude,
+          longitude: addressData.longitude,
+          formatted_address: addressData.formatted_address
+        }
+      }
+    }
+
+    // If no lot address, try lot's building address
+    if (!interventionAddress && lot?.building_id) {
+      const { data: buildingData } = await supabase
+        .from('buildings')
+        .select('address_id')
+        .eq('id', lot.building_id)
+        .single()
+
+      if (buildingData?.address_id) {
+        const { data: addressData } = await supabase
+          .from('addresses')
+          .select('latitude, longitude, formatted_address')
+          .eq('id', buildingData.address_id)
+          .single()
+
+        if (addressData?.latitude && addressData?.longitude) {
+          interventionAddress = {
+            latitude: addressData.latitude,
+            longitude: addressData.longitude,
+            formatted_address: addressData.formatted_address
+          }
+        }
+      }
+    }
+
+    // If no lot, try building's address directly
+    if (!interventionAddress && building && (building as any).address_id) {
+      const { data: addressData } = await supabase
+        .from('addresses')
+        .select('latitude, longitude, formatted_address')
+        .eq('id', (building as any).address_id)
+        .single()
+
+      if (addressData?.latitude && addressData?.longitude) {
+        interventionAddress = {
+          latitude: addressData.latitude,
+          longitude: addressData.longitude,
+          formatted_address: addressData.formatted_address
+        }
+      }
+    }
+
+    logger.info('📍 [INTERVENTION-PAGE] Address loaded', {
+      hasAddress: !!interventionAddress,
+      fromLot: !!lot,
+      fromBuilding: !!building
+    })
+
     // ✅ Pass to Client Component
     return (
       <InterventionDetailClient
@@ -284,6 +408,7 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         isParentIntervention={isParentIntervention}
         isChildIntervention={isChildIntervention}
         providerCount={providerCount}
+        interventionAddress={interventionAddress}
       />
     )
   } catch (error) {

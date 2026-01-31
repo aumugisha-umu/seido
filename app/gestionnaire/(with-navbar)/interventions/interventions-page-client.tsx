@@ -19,9 +19,6 @@ import { useInterventionFinalization } from "@/hooks/use-intervention-finalizati
 // ⚡ Dynamic imports for modals (Phase 3.2 Optimization)
 // Modals are only loaded when they are actually opened, reducing initial bundle by ~50KB
 const ApprovalModal = dynamic(() => import("@/components/intervention/modals/approval-modal").then(mod => ({ default: mod.ApprovalModal })), { ssr: false })
-const ApproveConfirmationModal = dynamic(() => import("@/components/intervention/modals/approve-confirmation-modal").then(mod => ({ default: mod.ApproveConfirmationModal })), { ssr: false })
-const RejectConfirmationModal = dynamic(() => import("@/components/intervention/modals/reject-confirmation-modal").then(mod => ({ default: mod.RejectConfirmationModal })), { ssr: false })
-const SuccessModal = dynamic(() => import("@/components/intervention/modals/success-modal").then(mod => ({ default: mod.SuccessModal })), { ssr: false })
 const QuoteRequestModal = dynamic(() => import("@/components/intervention/modals/quote-request-modal").then(mod => ({ default: mod.QuoteRequestModal })), { ssr: false })
 const QuoteRequestSuccessModal = dynamic(() => import("@/components/intervention/modals/quote-request-success-modal").then(mod => ({ default: mod.QuoteRequestSuccessModal })), { ssr: false })
 // ProgrammingModal removed - redirects to /gestionnaire/interventions/modifier/[id] now
@@ -166,47 +163,39 @@ export function InterventionsPageClient({
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
-                  className="flex items-center space-x-2"
+                  className="flex items-center gap-2"
                   onClick={() => navigate("/gestionnaire/interventions/nouvelle-intervention")}
                   isLoading={isNavigating}
+                  loadingText="Nouvelle intervention"
                 >
                   <Plus className="h-4 w-4" />
-                  <span>Nouvelle intervention</span>
+                  Nouvelle intervention
                 </Button>
               </div>
             </div>
           </div>
 
-          {/* Interventions Card - Structure exacte du dashboard */}
-          <div className="flex-1 flex flex-col min-h-0">
-            <div className="bg-card rounded-lg border border-border shadow-sm flex-1 flex flex-col min-h-0 overflow-hidden">
-              {/* Content wrapper avec padding */}
-              <div className="flex-1 flex flex-col min-h-0 p-4">
-                <InterventionsNavigator
-                  interventions={interventions}
-                  loading={loading}
-                  emptyStateConfig={{
-                    title: "Aucune intervention",
-                    description: "Créez votre première intervention pour commencer",
-                    showCreateButton: true,
-                    createButtonText: "Créer une intervention",
-                    createButtonAction: () => navigate("/gestionnaire/interventions/nouvelle-intervention")
-                  }}
-                  showStatusActions={true}
-                  searchPlaceholder="Rechercher par titre, description, ou lot..."
-                  showFilters={true}
-                  actionHooks={{
-                    approvalHook,
-                    quotingHook,
-                    planningHook,
-                    executionHook,
-                    finalizationHook
-                  }}
-                  className="bg-transparent border-0 shadow-none flex-1 flex flex-col min-h-0"
-                />
-              </div>
-            </div>
-          </div>
+          {/* Interventions Navigator - Full height, ContentNavigator handles card styling */}
+          <InterventionsNavigator
+            interventions={interventions}
+            loading={loading}
+            emptyStateConfig={{
+              title: "Aucune intervention",
+              description: "Créez votre première intervention pour commencer",
+              showCreateButton: true,
+              createButtonText: "Créer une intervention",
+              createButtonAction: () => navigate("/gestionnaire/interventions/nouvelle-intervention")
+            }}
+            showStatusActions={true}
+            actionHooks={{
+              approvalHook,
+              quotingHook,
+              planningHook,
+              executionHook,
+              finalizationHook
+            }}
+            className="flex-1 min-h-0"
+          />
         </div>
 
         {/* ⚡ Modals - Conditional Rendering (Phase 3.1 Optimization)
@@ -223,43 +212,10 @@ export function InterventionsPageClient({
             onInternalCommentChange={approvalHook.setInternalComment}
             onActionChange={approvalHook.handleActionChange}
             onConfirm={approvalHook.handleConfirmAction}
-          />
-        )}
-
-        {approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "approve" && (
-          <ApproveConfirmationModal
-            isOpen={true}
-            onClose={approvalHook.closeConfirmationModal}
-            onConfirm={approvalHook.handleFinalConfirmation}
-            intervention={approvalHook.confirmationModal.intervention}
-            internalComment={approvalHook.internalComment}
-            onInternalCommentChange={approvalHook.setInternalComment}
             isLoading={approvalHook.isLoading}
           />
         )}
 
-        {approvalHook.confirmationModal.isOpen && approvalHook.confirmationModal.action === "reject" && (
-          <RejectConfirmationModal
-            isOpen={true}
-            onClose={approvalHook.closeConfirmationModal}
-            onConfirm={approvalHook.handleFinalConfirmation}
-            intervention={approvalHook.confirmationModal.intervention}
-            rejectionReason={approvalHook.rejectionReason}
-            onRejectionReasonChange={approvalHook.setRejectionReason}
-            internalComment={approvalHook.internalComment}
-            onInternalCommentChange={approvalHook.setInternalComment}
-            isLoading={approvalHook.isLoading}
-          />
-        )}
-
-        {approvalHook.successModal.isOpen && (
-          <SuccessModal
-            isOpen={true}
-            onClose={approvalHook.closeSuccessModal}
-            action={approvalHook.successModal.action}
-            interventionTitle={approvalHook.successModal.interventionTitle}
-          />
-        )}
 
         {quotingHook.quoteRequestModal.isOpen && (
           <QuoteRequestModal

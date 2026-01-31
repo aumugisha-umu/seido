@@ -38,7 +38,13 @@ export const EMAIL_CONFIG = {
    * URL de base de l'application
    * ⚠️ IMPORTANT: Doit être définie dans les variables d'environnement (Vercel, etc.)
    */
-  appUrl: process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000',
+  appUrl: (() => {
+    const url = process.env.NEXT_PUBLIC_SITE_URL
+    if (!url && process.env.NODE_ENV === 'production') {
+      console.error('⚠️ [EMAIL-CONFIG] NEXT_PUBLIC_SITE_URL not set in production!')
+    }
+    return url || 'http://localhost:3000'
+  })(),
 
   /**
    * Nom de l'application

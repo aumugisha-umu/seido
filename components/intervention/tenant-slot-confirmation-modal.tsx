@@ -1,16 +1,22 @@
 "use client"
 
 import { useState } from "react"
-import { Calendar, Clock, CheckCircle, User } from "lucide-react"
+import { Calendar, Clock, CheckCircle, User, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
+import {
+  UnifiedModal,
+  UnifiedModalHeader,
+  UnifiedModalBody,
+  UnifiedModalFooter,
+} from "@/components/ui/unified-modal"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { logger, logError } from '@/lib/logger'
+import { logger } from '@/lib/logger'
+
 interface ProviderAvailability {
   person: string
   role: string
@@ -61,9 +67,11 @@ export function TenantSlotConfirmationModal({
   }
 
   const handleClose = () => {
-    setSelectedSlot('')
-    setComment('')
-    onClose()
+    if (!loading) {
+      setSelectedSlot('')
+      setComment('')
+      onClose()
+    }
   }
 
   // Group availabilities by date for better display
@@ -76,7 +84,7 @@ export function TenantSlotConfirmationModal({
     return acc
   }, {} as Record<string, ProviderAvailability[]>)
 
-  const formatDate = (_dateString: string) => {
+  const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('fr-FR', {
       weekday: 'long',
       year: 'numeric',
@@ -85,23 +93,26 @@ export function TenantSlotConfirmationModal({
     })
   }
 
-  const formatTime = (_time: string) => {
+  const formatTime = (time: string) => {
     return time.substring(0, 5) // Remove seconds if present
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CheckCircle className="h-5 w-5 text-green-600" />
-            Confirmer un créneau
-          </DialogTitle>
-          <DialogDescription>
-            Sélectionnez un créneau disponible pour l'intervention "{interventionTitle}"
-          </DialogDescription>
-        </DialogHeader>
+    <UnifiedModal
+      open={isOpen}
+      onOpenChange={handleClose}
+      size="lg"
+      preventCloseOnOutsideClick={loading}
+      preventCloseOnEscape={loading}
+    >
+      <UnifiedModalHeader
+        title="Confirmer un créneau"
+        subtitle={`Sélectionnez un créneau disponible pour l'intervention "${interventionTitle}"`}
+        icon={<CheckCircle className="h-5 w-5" />}
+        variant="success"
+      />
 
+      <UnifiedModalBody className="max-h-[60vh] overflow-y-auto">
         <div className="space-y-4">
           {Object.keys(groupedAvailabilities).length === 0 ? (
             <Alert>
@@ -167,37 +178,38 @@ export function TenantSlotConfirmationModal({
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               className="min-h-[80px]"
+              disabled={loading}
             />
           </div>
         </div>
+      </UnifiedModalBody>
 
-        <DialogFooter className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={loading}
-          >
-            Annuler
-          </Button>
-          <Button
-            onClick={handleConfirm}
-            disabled={!selectedSlot || loading}
-            className="flex items-center gap-2"
-          >
-            {loading ? (
-              <>
-                <div className="h-4 w-4 animate-spin rounded-full border-2 border-background border-t-foreground" />
-                Confirmation...
-              </>
-            ) : (
-              <>
-                <CheckCircle className="h-4 w-4" />
-                Confirmer le créneau
-              </>
-            )}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <UnifiedModalFooter>
+        <Button
+          variant="outline"
+          onClick={handleClose}
+          disabled={loading}
+        >
+          Annuler
+        </Button>
+        <Button
+          onClick={handleConfirm}
+          disabled={!selectedSlot || loading}
+          className="bg-emerald-600 hover:bg-emerald-700"
+        >
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Confirmation...
+            </>
+          ) : (
+            <>
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Confirmer le créneau
+            </>
+          )}
+        </Button>
+      </UnifiedModalFooter>
+    </UnifiedModal>
   )
 }

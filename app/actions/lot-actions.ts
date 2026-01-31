@@ -3,9 +3,13 @@
 /**
  * Lot Server Actions
  * Server-side operations for lot management with proper auth context
+ *
+ * ✅ REFACTORED (Jan 2026): Uses centralized getServerActionAuthContextOrNull()
+ *    instead of inline auth with getSession() + .single() bugs
  */
 
-import { createServerActionSupabaseClient, createServerActionLotService } from '@/lib/services'
+import { createServerActionLotService } from '@/lib/services'
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import type { Lot } from '@/lib/services/core/service-types'
 import { logger } from '@/lib/logger'
@@ -37,20 +41,9 @@ export async function updateCompleteLot(data: {
       contactsCount: data.contacts.length
     })
 
-    // 🔍 DEBUG: Vérifier la session d'authentification
-    const debugSupabase = await createServerActionSupabaseClient()
-    const { data: { session }, error: sessionError } = await debugSupabase.auth.getSession()
-
-    logger.info('🔍 [DEBUG] Server Action Auth Check:', {
-      hasSession: !!session,
-      sessionError: sessionError?.message,
-      userId: session?.user?.id,
-      userEmail: session?.user?.email,
-      lotId: data.lotId,
-      timestamp: new Date().toISOString()
-    })
-
-    if (!session) {
+    // ✅ REFACTORED: Use centralized auth context (fixes .single() bug for multi-profile users)
+    const authContext = await getServerActionAuthContextOrNull()
+    if (!authContext) {
       logger.error('❌ [AUTH-ERROR] No auth session found in Server Action!')
       return {
         success: false,
@@ -58,28 +51,17 @@ export async function updateCompleteLot(data: {
       }
     }
 
-    // 🔍 DEBUG: Récupérer le database user ID depuis auth_user_id
-    const { data: userData, error: userError } = await debugSupabase
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', session.user.id)
-      .single()
+    const { profile: userData, supabase: debugSupabase, user: authUser } = authContext
 
-    logger.info('🔍 [DEBUG] User ID Resolution:', {
-      authUserId: session.user.id,
-      databaseUserId: userData?.id,
-      userError: userError?.message
+    logger.info('🔍 [DEBUG] Server Action Auth Check:', {
+      hasSession: true,
+      userId: authUser.id,
+      databaseUserId: userData.id,
+      lotId: data.lotId,
+      timestamp: new Date().toISOString()
     })
 
-    if (!userData) {
-      logger.error('❌ [AUTH-ERROR] User profile not found in database!')
-      return {
-        success: false,
-        error: 'User profile not found in database'
-      }
-    }
-
-    // 🔍 DEBUG: Vérifier que l'utilisateur a accès au lot
+    // Vérifier que l'utilisateur a accès au lot
     const { data: lotData, error: lotError } = await debugSupabase
       .from('lots')
       .select('id, team_id, reference')
@@ -101,7 +83,7 @@ export async function updateCompleteLot(data: {
       }
     }
 
-    // 🔍 DEBUG: Vérifier si l'utilisateur est membre de l'équipe du lot
+    // Vérifier si l'utilisateur est membre de l'équipe du lot
     const { data: teamMembersCheck, error: teamCheckError } = await debugSupabase
       .from('team_members')
       .select('id, team_id, role, left_at')
@@ -111,7 +93,7 @@ export async function updateCompleteLot(data: {
       .maybeSingle()
 
     logger.info('🔍 [DEBUG] Team Membership Check:', {
-      authUserId: session.user.id,
+      authUserId: authUser.id,
       databaseUserId: userData.id,
       teamId: lotData.team_id,
       hasTeamMembership: !!teamMembersCheck,
@@ -123,7 +105,7 @@ export async function updateCompleteLot(data: {
       logger.error('❌ [AUTH-ERROR] User is not a member of this team!')
       return {
         success: false,
-        error: `User ${session.user.email} is not a member of team ${lotData.team_id}`
+        error: `User ${authUser.email} is not a member of team ${lotData.team_id}`
       }
     }
 

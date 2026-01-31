@@ -138,14 +138,17 @@ export async function getApiAuthContext(
     let userProfile: ApiAuthContext['userProfile'] = undefined
 
     if (fetchProfile) {
-      const { data: profile, error: profileError } = await supabase
+      // ✅ MULTI-ÉQUIPE FIX: Récupérer TOUS les profils au lieu de .single()
+      // Ceci évite l'erreur PGRST116 quand l'utilisateur a 2+ profils
+      const { data: profiles, error: profilesError } = await supabase
         .from('users')
         .select('id, role, team_id, name, email, phone, avatar_url')
         .eq('auth_user_id', authUser.id)
-        .single()
+        .is('deleted_at', null)
+        .order('updated_at', { ascending: false })
 
-      if (profileError || !profile) {
-        logger.error({ profileError, authUserId: authUser.id }, '❌ [API-AUTH] User profile not found')
+      if (profilesError || !profiles || profiles.length === 0) {
+        logger.error({ profilesError, authUserId: authUser.id }, '❌ [API-AUTH] User profile not found')
 
         return {
           success: false,
@@ -156,7 +159,25 @@ export async function getApiAuthContext(
         }
       }
 
-      userProfile = profile
+      // Sélectionner le profil selon cookie seido_current_team
+      const preferredTeamId = cookieStore.get('seido_current_team')?.value
+      let selectedProfile = profiles[0]  // Défaut: plus récent (updated_at DESC)
+
+      if (preferredTeamId && preferredTeamId !== 'all') {
+        const preferred = profiles.find(p => p.team_id === preferredTeamId)
+        if (preferred) {
+          selectedProfile = preferred
+        }
+      }
+
+      logger.debug({
+        authUserId: authUser.id,
+        totalProfiles: profiles.length,
+        selectedTeamId: selectedProfile.team_id,
+        preferredTeamId
+      }, '✅ [API-AUTH] Multi-profile selection completed')
+
+      userProfile = selectedProfile
     }
 
     // ✅ Step 4: Optionally validate role

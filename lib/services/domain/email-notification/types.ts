@@ -101,6 +101,8 @@ export interface InterventionEmailOptions {
     oldStatus: string
     newStatus: string
     reason?: string
+    /** Name of the person who made the status change (e.g., manager name) */
+    actorName?: string
   }
 
   /** Context for proposed time slots (time_slots_proposed) */

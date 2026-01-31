@@ -22,29 +22,32 @@ import {
   // Types
   Quote as SharedQuote,
   TimeSlot as SharedTimeSlot,
-  Message,
-  Comment as SharedComment,
   InterventionDocument,
   TimelineEventData,
   // Layout
   PreviewHybridLayout,
   ContentWrapper,
-  InterventionTabs,
   // Sidebar
   InterventionSidebar,
   // Cards
   InterventionDetailsCard,
-  CommentsCard,
   DocumentsCard,
   QuotesCard,
-  PlanningCard,
-  ConversationCard
+  PlanningCard
 } from '@/components/interventions/shared'
 
-// Tab components (gardés pour compatibilité)
-import { ChatTab } from './chat-tab'
-import { QuotesTab } from './quotes-tab'
-import { DocumentsTab } from './documents-tab'
+// Unified tabs component (replaces InterventionTabs)
+import {
+  EntityTabs,
+  TabContentWrapper,
+  getInterventionTabsConfig
+} from '@/components/shared/entity-preview'
+
+// Tab Localisation dédié
+import { LocalisationTab } from '@/components/interventions/shared/tabs/localisation-tab'
+
+// Chat component (functional, not mock)
+import { InterventionChatTab } from '@/components/interventions/intervention-chat-tab'
 
 // Intervention components
 import { DetailPageHeader } from '@/components/ui/detail-page-header'
@@ -56,6 +59,7 @@ import { Building2, MapPin, User as UserIcon, Calendar } from 'lucide-react'
 import { QuoteSubmissionModal } from '@/components/intervention/modals/quote-submission-modal'
 import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
 import { ModifyChoiceModal } from '@/components/intervention/modals/modify-choice-modal'
+import { TimeSlotResponseModal } from '@/components/intervention/modals/time-slot-response-modal'
 
 // Multi-provider components
 import { LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
@@ -81,9 +85,18 @@ import {
 // Types
 import type { Database } from '@/lib/database.types'
 
+type AddressRecord = Database['public']['Tables']['addresses']['Row'] | null
+
 type Intervention = Database['public']['Tables']['interventions']['Row'] & {
-  building?: Database['public']['Tables']['buildings']['Row']
-  lot?: Database['public']['Tables']['lots']['Row']
+  building?: Database['public']['Tables']['buildings']['Row'] & {
+    address_record?: AddressRecord
+  }
+  lot?: Database['public']['Tables']['lots']['Row'] & {
+    address_record?: AddressRecord
+    building?: Database['public']['Tables']['buildings']['Row'] & {
+      address_record?: AddressRecord
+    }
+  }
 }
 
 type Document = Database['public']['Tables']['intervention_documents']['Row']
@@ -127,6 +140,9 @@ interface PrestataireInterventionDetailClientProps {
   assignmentMode?: AssignmentMode
   providerInstructions?: string
   parentLink?: ParentLink
+  // Chat data
+  initialMessagesByThread?: Record<string, any[]>
+  initialParticipantsByThread?: Record<string, any[]>
 }
 
 // Status labels
@@ -154,7 +170,9 @@ export function PrestataireInterventionDetailClient({
   currentUser,
   assignmentMode = 'single',
   providerInstructions,
-  parentLink
+  parentLink,
+  initialMessagesByThread,
+  initialParticipantsByThread
 }: PrestataireInterventionDetailClientProps) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState('general')
@@ -176,8 +194,19 @@ export function PrestataireInterventionDetailClient({
   const [slotToModify, setSlotToModify] = useState<TimeSlot | null>(null)
   const [currentChoice, setCurrentChoice] = useState<'accepted' | 'rejected'>('accepted')
 
+  // Response modal state (for accept/reject with confirmation)
+  const [responseModalSlotId, setResponseModalSlotId] = useState<string | null>(null)
+  const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
+
   // États pour le nouveau design PreviewHybrid
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
+  // Thread type à utiliser pour InterventionChatTab
+  const [defaultThreadType, setDefaultThreadType] = useState<string | undefined>(undefined)
+
+  // ============================================================================
+  // Tabs Configuration (unified with EntityTabs)
+  // ============================================================================
+  const interventionTabs = useMemo(() => getInterventionTabsConfig('provider'), [])
 
   // ============================================================================
   // Auto-Execute Actions from Email Magic Links
@@ -408,6 +437,16 @@ export function PrestataireInterventionDetailClient({
     }))
   , [timeSlots])
 
+  // Slot sélectionné pour la modale de réponse
+  const selectedSlotForResponse = responseModalSlotId
+    ? timeSlots.find(s => s.id === responseModalSlotId)
+    : null
+
+  // Réponse actuelle de l'utilisateur pour ce slot
+  const currentUserResponseForSlot = selectedSlotForResponse
+    ? (selectedSlotForResponse as any).responses?.find((r: any) => r.user_id === currentUser.id)?.response
+    : null
+
   // Documents transformés pour DocumentsCard
   const transformedDocuments: InterventionDocument[] = useMemo(() =>
     documents.map(d => ({
@@ -464,17 +503,26 @@ export function PrestataireInterventionDetailClient({
   const scheduledDate = confirmedSlot?.slot_date || null
   const scheduledStartTime = confirmedSlot?.start_time || null
 
-  // Messages mock (à remplacer par de vraies données si disponibles)
-  const mockMessages: Message[] = useMemo(() => [], [])
-
   // Callbacks pour les conversations
   const handleConversationClick = (participantId: string) => {
     setActiveConversation(participantId)
+    // Pour un prestataire, une conversation individuelle est provider_to_managers
+    setDefaultThreadType('provider_to_managers')
     setActiveTab('conversations')
   }
 
   const handleGroupConversationClick = () => {
     setActiveConversation('group')
+    setDefaultThreadType('group')
+    setActiveTab('conversations')
+  }
+
+  // Handler pour ouvrir le chat depuis un participant (icône message dans ParticipantsRow)
+  const handleOpenChatFromParticipant = (
+    _participantId: string,
+    threadType: 'group' | 'tenant_to_managers' | 'provider_to_managers'
+  ) => {
+    setDefaultThreadType(threadType)
     setActiveTab('conversations')
   }
 
@@ -490,19 +538,25 @@ export function PrestataireInterventionDetailClient({
     setRejectSlotModalOpen(true)
   }
 
-  // Handle accept slot - calls the server action directly
-  const handleAcceptSlot = async (slot: TimeSlot) => {
-    try {
-      const result = await acceptTimeSlotAction(slot.id, intervention.id)
-      if (result.success) {
-        toast.success('Créneau accepté avec succès')
-        handleRefresh()
-      } else {
-        toast.error(formatErrorMessage(result.error, 'Erreur lors de l\'acceptation du créneau'))
-      }
-    } catch (error) {
-      console.error('Error accepting slot:', error)
-      toast.error('Erreur lors de l\'acceptation du créneau')
+  // Handle accept slot - opens the response modal for confirmation
+  const handleAcceptSlot = (slot: TimeSlot) => {
+    console.log('🔵 [DEBUG] handleAcceptSlot called:', { slotId: slot?.id, interventionId: intervention.id })
+    if (!slot) {
+      console.error('🔴 [DEBUG] handleAcceptSlot: slot is undefined!')
+      toast.error('Erreur: créneau non trouvé')
+      return
+    }
+    // Open the response modal instead of calling action directly
+    setResponseModalSlotId(slot.id)
+    setIsResponseModalOpen(true)
+  }
+
+  // Handle opening response modal (for modify choice button)
+  const handleOpenResponseModal = (slotId: string) => {
+    const slotExists = timeSlots.some(s => s.id === slotId)
+    if (slotExists) {
+      setResponseModalSlotId(slotId)
+      setIsResponseModalOpen(true)
     }
   }
 
@@ -786,10 +840,10 @@ export function PrestataireInterventionDetailClient({
             />
           }
           content={
-            <InterventionTabs
+            <EntityTabs
               activeTab={activeTab}
               onTabChange={setActiveTab}
-              userRole="provider"
+              tabs={interventionTabs}
             >
               {/* TAB: GENERAL */}
               <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
@@ -821,6 +875,11 @@ export function PrestataireInterventionDetailClient({
                       title={intervention.title}
                       description={intervention.description || undefined}
                       instructions={intervention.instructions || undefined}
+                      interventionStatus={intervention.status}
+                      participants={participants}
+                      currentUserId={currentUser.id}
+                      currentUserRole="prestataire"
+                      onOpenChat={handleOpenChatFromParticipant}
                       planning={{
                         scheduledDate,
                         status: scheduledDate ? 'scheduled' : 'pending',
@@ -849,21 +908,46 @@ export function PrestataireInterventionDetailClient({
                 </ContentWrapper>
               </TabsContent>
 
+              {/* TAB: LOCALISATION */}
+              <TabsContent value="localisation" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+                  <LocalisationTab
+                    latitude={(() => {
+                      const lotRecord = intervention.lot?.address_record
+                      const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
+                      const record = lotRecord || buildingRecord
+                      return record?.lat || undefined
+                    })()}
+                    longitude={(() => {
+                      const lotRecord = intervention.lot?.address_record
+                      const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
+                      const record = lotRecord || buildingRecord
+                      return record?.lng || undefined
+                    })()}
+                    address={(() => {
+                      const lotRecord = intervention.lot?.address_record
+                      const buildingRecord = intervention.lot?.building?.address_record || intervention.building?.address_record
+                      const record = lotRecord || buildingRecord
+                      if (!record) return undefined
+                      if (record.formatted_address) return record.formatted_address
+                      return [record.street, record.postal_code, record.city].filter(Boolean).join(', ') || undefined
+                    })()}
+                    buildingName={intervention.lot?.building?.name || intervention.building?.name || undefined}
+                    lotReference={intervention.lot?.reference || undefined}
+                  />
+                </div>
+              </TabsContent>
+
               {/* TAB: CONVERSATIONS */}
-              <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-hidden h-full">
-                <ConversationCard
-                  messages={mockMessages}
+              <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-y-auto h-full">
+                <InterventionChatTab
+                  interventionId={intervention.id}
+                  threads={threads}
+                  initialMessagesByThread={initialMessagesByThread}
+                  initialParticipantsByThread={initialParticipantsByThread}
                   currentUserId={currentUser.id}
-                  currentUserRole="provider"
-                  conversationType={activeConversation === 'group' ? 'group' : 'individual'}
-                  participantName={
-                    activeConversation !== 'group'
-                      ? [...participants.managers, ...participants.providers, ...participants.tenants]
-                          .find(p => p.id === activeConversation)?.name
-                      : undefined
-                  }
-                  onSendMessage={(content) => console.log('Send message:', content)}
-                  className="flex-1 mx-4"
+                  userRole="prestataire"
+                  defaultThreadType={defaultThreadType}
                 />
               </TabsContent>
 
@@ -888,18 +972,22 @@ export function PrestataireInterventionDetailClient({
                     currentUserId={currentUser.id}
                     onAddSlot={handleOpenAvailabilityModal}
                     onApproveSlot={(slotId) => {
+                      console.log('🔵 [DEBUG] PlanningCard onApproveSlot called:', { slotId, timeSlotsCount: timeSlots.length })
                       const slot = timeSlots.find(s => s.id === slotId)
+                      console.log('🔵 [DEBUG] Slot found:', slot ? { id: slot.id, date: slot.slot_date } : 'NOT FOUND')
                       if (slot) handleAcceptSlot(slot)
+                      else console.error('🔴 [DEBUG] Slot not found in timeSlots array!')
                     }}
                     onRejectSlot={(slotId) => {
                       const slot = timeSlots.find(s => s.id === slotId)
                       if (slot) handleRejectSlot(slot)
                     }}
+                    onOpenResponseModal={handleOpenResponseModal}
                     className="flex-1 min-h-0"
                   />
                 </div>
               </TabsContent>
-            </InterventionTabs>
+            </EntityTabs>
           }
         />
       </div>
@@ -997,6 +1085,31 @@ export function PrestataireInterventionDetailClient({
           handleRefresh()
         }}
       />
+
+      {/* Time Slot Response Modal (for accept/reject with confirmation) */}
+      {selectedSlotForResponse && (
+        <TimeSlotResponseModal
+          isOpen={isResponseModalOpen}
+          onClose={() => {
+            setIsResponseModalOpen(false)
+            setResponseModalSlotId(null)
+          }}
+          slot={{
+            id: selectedSlotForResponse.id,
+            slot_date: selectedSlotForResponse.slot_date || '',
+            start_time: selectedSlotForResponse.start_time || '',
+            end_time: selectedSlotForResponse.end_time || '',
+            notes: (selectedSlotForResponse as any).notes
+          }}
+          interventionId={intervention.id}
+          currentResponse={currentUserResponseForSlot}
+          onSuccess={() => {
+            setIsResponseModalOpen(false)
+            setResponseModalSlotId(null)
+            handleRefresh()
+          }}
+        />
+      )}
 
       {/* Modify Choice Modal */}
       <ModifyChoiceModal

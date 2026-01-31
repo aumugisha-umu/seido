@@ -165,20 +165,11 @@ export function InterventionActionButtons({
         if (userRole === 'gestionnaire') {
           actions.push(
             {
-              key: 'approve',
-              label: 'Approuver',
-              icon: CheckCircle,
-              description: 'Approuver cette demande d\'intervention',
-              requiresComment: false,
-              confirmationMessage: 'Êtes-vous sûr de vouloir approuver cette intervention ?'
-            },
-            {
-              key: 'reject',
-              label: 'Rejeter',
-              icon: XCircle,
-              description: 'Rejeter cette demande avec un motif',
-              requiresComment: true,
-              confirmationMessage: 'Cette intervention sera rejetée. Veuillez indiquer le motif.'
+              key: 'process_request',
+              label: 'Traiter la demande',
+              icon: FileText,
+              variant: 'default',
+              description: 'Examiner et traiter cette demande d\'intervention'
             }
           )
         }

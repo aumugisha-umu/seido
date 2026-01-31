@@ -51,7 +51,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       .from('interventions')
       .select(`
         *,
-        lot:lot_id(id, tenant_id, building:building_id(name, address))
+        lot:lot_id(id, tenant_id, building:building_id(name, address_record:address_id(*)))
       `)
       .eq('id', resolvedParams.id)
       .single()

@@ -5,7 +5,7 @@
 
 import { notFound, redirect } from 'next/navigation'
 import { getServerAuthContext } from '@/lib/server-context'
-import { createServerInterventionRepository } from '@/lib/services'
+import { createServerInterventionRepository, createServiceRoleSupabaseClient } from '@/lib/services'
 import { PrestataireInterventionDetailClient } from './components/intervention-detail-client'
 import { logger } from '@/lib/logger'
 
@@ -78,7 +78,9 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
     { data: quotes },
     { data: threads },
     { data: timeSlots },
-    { data: assignments }
+    { data: assignments },
+    { data: messagesByThread },
+    { data: participantsByThread }
   ] = await Promise.all([
 
     // Documents (provider can see)
@@ -111,8 +113,11 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
       .order('created_at', { ascending: false }),
 
     // Conversation threads with last message (provider can see group and provider_to_managers)
+    // Use service role to bypass RLS - user already verified as assigned above
     (async () => {
-      const { data: threads } = await supabase
+      const adminClient = createServiceRoleSupabaseClient()
+
+      const { data: threads } = await adminClient
         .from('conversation_threads')
         .select('*')
         .eq('intervention_id', id)
@@ -123,7 +128,7 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
 
       // Fetch last messages for all threads in one query
       const threadIds = threads.map(t => t.id)
-      const { data: allMessages } = await supabase
+      const { data: allMessages } = await adminClient
         .from('conversation_messages')
         .select('id, thread_id, content, created_at, user:user_id(name)')
         .in('thread_id', threadIds)
@@ -139,11 +144,67 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
         }
       }
 
-      // Enrich threads with last_message
+      // Calculate unread_count for each thread
+      const unreadCounts = await Promise.all(
+        threads.map(async (thread) => {
+          try {
+            // Get participant's last read message
+            const { data: participant } = await adminClient
+              .from('conversation_participants')
+              .select('last_read_message_id')
+              .eq('thread_id', thread.id)
+              .eq('user_id', userData.id)
+              .single()
+
+            if (!participant || !participant.last_read_message_id) {
+              // User hasn't read any messages, return total count
+              const { count } = await adminClient
+                .from('conversation_messages')
+                .select('*', { count: 'exact', head: true })
+                .eq('thread_id', thread.id)
+                .is('deleted_at', null)
+
+              return { threadId: thread.id, count: count || 0 }
+            }
+
+            // Count messages after last read
+            const { data: lastRead } = await adminClient
+              .from('conversation_messages')
+              .select('created_at')
+              .eq('id', participant.last_read_message_id)
+              .single()
+
+            if (!lastRead) {
+              return { threadId: thread.id, count: 0 }
+            }
+
+            const { count } = await adminClient
+              .from('conversation_messages')
+              .select('*', { count: 'exact', head: true })
+              .eq('thread_id', thread.id)
+              .is('deleted_at', null)
+              .gt('created_at', lastRead.created_at)
+
+            return { threadId: thread.id, count: count || 0 }
+          } catch (error) {
+            logger.error('Error getting thread unread count', { threadId: thread.id, error })
+            return { threadId: thread.id, count: 0 }
+          }
+        })
+      )
+
+      // Create a map for quick lookup
+      const unreadCountByThread: Record<string, number> = {}
+      unreadCounts.forEach(({ threadId, count }) => {
+        unreadCountByThread[threadId] = count
+      })
+
+      // Enrich threads with last_message and unread_count
       return {
         data: threads.map(t => ({
           ...t,
-          last_message: lastMessageByThread[t.id] ? [lastMessageByThread[t.id]] : []
+          last_message: lastMessageByThread[t.id] ? [lastMessageByThread[t.id]] : [],
+          unread_count: unreadCountByThread[t.id] || 0
         }))
       }
     })(),
@@ -177,7 +238,65 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
       .from('intervention_assignments')
       .select('*, user:users!user_id(*)')
       .eq('intervention_id', id)
-      .order('assigned_at', { ascending: true })
+      .order('assigned_at', { ascending: true }),
+
+    // Messages for all threads (for InterventionChatTab)
+    // Use service role to bypass RLS - user already verified as assigned above
+    (async () => {
+      const adminClient = createServiceRoleSupabaseClient()
+
+      const { data: threadsList } = await adminClient
+        .from('conversation_threads')
+        .select('id')
+        .eq('intervention_id', id)
+        .in('thread_type', ['group', 'provider_to_managers'])
+
+      if (!threadsList || threadsList.length === 0) return { data: {} }
+
+      const threadIds = threadsList.map(t => t.id)
+      const { data: messages } = await adminClient
+        .from('conversation_messages')
+        .select('*, user:user_id(id, name, email, role)')
+        .in('thread_id', threadIds)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true })
+
+      // Group by thread_id
+      const byThread: Record<string, any[]> = {}
+      messages?.forEach(m => {
+        if (!byThread[m.thread_id]) byThread[m.thread_id] = []
+        byThread[m.thread_id].push(m)
+      })
+      return { data: byThread }
+    })(),
+
+    // Participants for all threads (for InterventionChatTab)
+    // Use service role to bypass RLS - user already verified as assigned above
+    (async () => {
+      const adminClient = createServiceRoleSupabaseClient()
+
+      const { data: threadsList } = await adminClient
+        .from('conversation_threads')
+        .select('id')
+        .eq('intervention_id', id)
+        .in('thread_type', ['group', 'provider_to_managers'])
+
+      if (!threadsList || threadsList.length === 0) return { data: {} }
+
+      const threadIds = threadsList.map(t => t.id)
+      const { data: participants } = await adminClient
+        .from('conversation_participants')
+        .select('*, user:user_id(id, name, email, role)')
+        .in('thread_id', threadIds)
+
+      // Group by thread_id
+      const byThread: Record<string, any[]> = {}
+      participants?.forEach(p => {
+        if (!byThread[p.thread_id]) byThread[p.thread_id] = []
+        byThread[p.thread_id].push(p)
+      })
+      return { data: byThread }
+    })()
   ])
 
   // Debug logging for location data
@@ -204,6 +323,9 @@ export default async function PrestataireInterventionDetailPage({ params }: Page
       assignmentMode={assignmentMode}
       providerInstructions={assignment.provider_instructions || undefined}
       parentLink={parentLink || undefined}
+      // Chat data
+      initialMessagesByThread={messagesByThread || {}}
+      initialParticipantsByThread={participantsByThread || {}}
     />
   )
 }

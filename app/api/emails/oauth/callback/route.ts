@@ -9,10 +9,8 @@
  */
 
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-import { createServerSupabaseClient } from '@/lib/services'
-import { GmailOAuthService, GMAIL_SCOPES } from '@/lib/services/domain/gmail-oauth.service'
-import { EncryptionService } from '@/lib/services/domain/encryption.service'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
+import { GmailOAuthService } from '@/lib/services/domain/gmail-oauth.service'
 import { EMAIL_PROVIDERS } from '@/lib/constants/email-providers'
 
 export async function GET(request: Request) {
@@ -48,24 +46,17 @@ export async function GET(request: Request) {
 
     const { teamId, userId } = stateData
 
-    // 4. Créer le client Supabase serveur
-    const supabase = await createServerSupabaseClient()
-
-    // 5. Vérifier que l'utilisateur est toujours connecté et appartient à la team
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    // 4. Vérifier l'authentification via helper centralisé
+    const authContext = await getApiAuthContext()
+    if (!authContext) {
       console.error('User not authenticated during OAuth callback')
       return NextResponse.redirect(`${errorUrl}&message=not_authenticated`)
     }
 
-    // 6. Vérifier le profil utilisateur
-    const { data: profile, error: profileError } = await supabase
-      .from('users')
-      .select('id, team_id')
-      .eq('auth_user_id', user.id)
-      .single()
+    const { supabase, profile } = authContext
 
-    if (profileError || !profile || profile.team_id !== teamId) {
+    // 5. Vérifier que le profil correspond au state OAuth (anti-CSRF)
+    if (profile.team_id !== teamId) {
       console.error('User profile mismatch or not found')
       return NextResponse.redirect(`${errorUrl}&message=team_mismatch`)
     }

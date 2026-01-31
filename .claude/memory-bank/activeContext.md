@@ -1,10 +1,184 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Unified Entity Preview Layout + Memory Bank Sync
+**Objectif:** UX Formulaires Intervention + Cohérence Locataire/Gestionnaire
 **Branch:** `preview`
 **Sprint:** Multi-Team Support + Google Maps Integration (Jan 2026)
-**Dernière analyse:** Finalization Modal z-index fix - 2026-01-30
+**Dernière analyse:** Formulaire Intervention Locataire + Confirmation Gestionnaire - 2026-01-31
+
+---
+
+## ✅ COMPLETE: Formulaire Intervention Locataire + Confirmation Gestionnaire (2026-01-31 - Session 4)
+
+### 1. Extension Types d'Intervention Locataire
+
+**Problème:** Le formulaire locataire n'affichait que 20 types (catégorie "Bien"), alors que 7 types pertinents étaient masqués (catégorie "Locataire").
+
+**Solution:** Adapter le composant pour accepter un tableau de catégories.
+
+| Fichier | Modification |
+|---------|--------------|
+| `intervention-type-combobox.tsx` | Type `categoryFilter` étendu : `string \| string[]` + logique filtrage |
+| `nouvelle-demande-client.tsx` | Filtre changé : `"bien"` → `["bien", "locataire"]` |
+
+**Résultat:** Le locataire voit maintenant **27 types** (20 Bien + 7 Locataire) au lieu de 20.
+
+### 2. Fix Confirmation Gestionnaire (Header Prématuré)
+
+**Problème:** L'étape 4 du gestionnaire affichait "Intervention créée !" **avant** la création réelle.
+
+**Root Cause:** `showSuccessHeader={true}` dans le composant `InterventionConfirmationSummary`.
+
+| Fichier | Modification |
+|---------|--------------|
+| `nouvelle-intervention-client.tsx` | `showSuccessHeader={true}` → `showSuccessHeader={false}` |
+
+**Pattern aligné avec locataire:**
+```tsx
+// Les deux formulaires utilisent maintenant le même pattern
+<InterventionConfirmationSummary
+  showFooter={false}
+  showSuccessHeader={false}  // ← Cohérent
+/>
+```
+
+---
+
+## ✅ COMPLETE: SWR Server Component Fix + Tenant Dashboard UX (2026-01-31 - Session 3)
+
+### Problème 1: `ReferenceError: window is not defined`
+
+**Root Cause:** SWR accède à `window` au moment de l'import du module. Le hook `use-intervention-types.ts` était importé dans un Server Component via `getInterventionTypesServer()`.
+
+**Solution:** Séparation client/serveur avec fichier dédié.
+
+| Fichier | Action |
+|---------|--------|
+| `lib/services/domain/intervention-types.server.ts` | **CRÉÉ** - Fonction serveur isolée |
+| `app/gestionnaire/.../nouvelle-intervention/page.tsx` | Import mis à jour |
+| `hooks/use-intervention-types.ts` | Fonction supprimée, commentaire de redirection |
+
+### Problème 2: Affichage étage/porte mal aligné sur dashboard locataire
+
+**Root Cause:**
+1. Bullet `•` affiché même en premier élément
+2. Ligne non alignée avec l'adresse au-dessus
+3. Champs `rooms`/`surface_area` utilisés mais inexistants en DB
+
+**Solution:**
+
+| Fichier | Modification |
+|---------|--------------|
+| `tenant.service.ts` | Ajout `description` dans la requête SQL |
+| `tenant-transform.ts` | Ajout `description` au type + transformation |
+| `use-tenant-data.ts` | Ajout `description` à l'interface `TenantData` |
+| `locataire-dashboard-hybrid.tsx` | Affichage: étage → porte → description + `pl-7` alignement |
+
+**Pattern appliqué: Séparateurs conditionnels**
+```tsx
+{[floor, door, description].filter(Boolean).map((detail, index) => (
+  <span key={index}>
+    {index > 0 && <span>•</span>}  {/* Seulement après le 1er */}
+    <span>{detail}</span>
+  </span>
+))}
+```
+
+---
+
+## ✅ COMPLETE: Auth Refactoring (2026-01-31) - MAJEUR
+
+### Objectif
+Centraliser l'authentification pour éviter les appels redondants et corriger le bug multi-profil.
+
+### Résumé des Changements (14 fichiers)
+
+| Catégorie | Fichiers | Changement |
+|-----------|----------|------------|
+| **Hooks (4)** | `use-tenant-data.ts`, `use-contacts-data.ts`, `use-interventions.ts`, `use-prestataire-data.ts` | Suppression session check défensif |
+| **Server Actions (7)** | `intervention-actions.ts`, `intervention-comment-actions.ts`, `email-conversation-actions.ts`, `conversation-actions.ts`, `contract-actions.ts`, `building-actions.ts`, `lot-actions.ts` | `getAuthenticatedUser()` → `getServerActionAuthContextOrNull()` |
+| **Services (3)** | `intervention-service.ts`, `team.repository.ts`, `supabase-client.ts` | Params explicites + deprecation |
+
+### Nouveau Helper Créé
+
+```typescript
+// lib/server-context.ts
+export const getServerActionAuthContextOrNull = async (requiredRole?: string)
+  : Promise<ServerActionAuthContext | null>
+```
+
+### Bug Critique Corrigé (Post-Review)
+
+3 hooks utilisaient `supabase` sans l'avoir déclaré :
+
+| Fichier | Ligne | Fix |
+|---------|-------|-----|
+| `use-contacts-data.ts` | 112 | `const supabase = createBrowserSupabaseClient()` |
+| `use-prestataire-data.ts` | 203 | `const supabase = createBrowserSupabaseClient()` |
+| `use-tenant-data.ts` | 212 | `const supabase = createBrowserSupabaseClient()` |
+
+### Bug `.single()` Corrigé (Multi-Profil)
+
+| Fichier | Fix |
+|---------|-----|
+| `contract-actions.ts` | `.single()` → `.limit(1)` |
+| `building-actions.ts` | `.single()` → `.limit(1)` |
+| `lot-actions.ts` | `.single()` → `.limit(1)` |
+
+### Migration Complète Auth (2026-01-31 - Session 2)
+
+**Hooks migrés vers `useAuth()` (centralisé):**
+| Fichier | Avant | Après |
+|---------|-------|-------|
+| `use-notifications.ts` | N/A | + `authLoading` Pattern #20 |
+| `use-notification-popover.ts` | N/A | + `authLoading` Pattern #20 |
+| `use-activity-logs.ts` | N/A | + `authLoading` Pattern #20 |
+| `use-realtime-chat-v2.ts` | `supabase.auth.getSession()` | `useAuth()` hook |
+| `documents-tab.tsx` (gestionnaire) | `supabase.auth.getUser()` | `useAuth()` hook |
+| `documents-tab.tsx` (prestataire) | `supabase.auth.getUser()` | `useAuth()` hook |
+
+**API Routes migrés vers `getApiAuthContext()`:**
+| Fichier | Avant | Après |
+|---------|-------|-------|
+| `app/api/companies/[id]/route.ts` | `createServerSupabaseClient()` + auth manuelle | `getApiAuthContext()` |
+| `app/api/emails/[id]/route.ts` | auth manuelle | `getApiAuthContext()` |
+| `app/api/emails/send/route.ts` | auth manuelle | `getApiAuthContext()` |
+| `app/api/emails/connections/[id]/route.ts` | auth manuelle | `getApiAuthContext()` |
+| `app/api/emails/oauth/callback/route.ts` | `createServerSupabaseClient()` | `getApiAuthContext()` |
+
+**Fichiers NON migrés (volontairement):**
+| Fichier | Raison |
+|---------|--------|
+| `hooks/use-auth.tsx` | C'est le provider centralisé lui-même |
+| `lib/auth-dal.ts` | C'est le DAL centralisé lui-même |
+| `lib/api-auth-helper.ts` | C'est le helper API lui-même |
+| `middleware.ts` | Doit valider auth au niveau middleware |
+| `app/auth/*` | Pages de flux d'authentification |
+| `lib/services/domain/intervention-service.ts` | Code DEPRECATED (fallback) - marqué dans le code |
+| `use-session-*.ts` | Gestion session bas niveau |
+
+### Tests Manuels à Effectuer ⏳
+
+- [x] Page Notifications (✅ fix race condition auth - 2026-01-31)
+- [x] Realtime Chat (✅ migré vers useAuth - 2026-01-31)
+- [ ] Login/logout flow
+- [ ] Multi-profile user switching teams
+- [ ] Session timeout (wait 60s+ idle)
+- [ ] Tab focus refresh
+- [ ] Each Server Action with multi-profile user
+- [ ] OAuth callback (app/api/emails/oauth/callback)
+
+### Si Bug Trouvé - Checklist Debugging
+
+1. **"Authentication required"** → `getServerActionAuthContextOrNull()` dans `lib/server-context.ts`
+2. **PGRST116 (multiple rows)** → `.single()` non migré vers `.limit(1)`
+3. **`supabase is not defined`** → Hook manquant `createBrowserSupabaseClient()`
+4. **Session perdue** → `use-session-keepalive.ts`, `use-session-focus-refresh.ts`
+5. **Notifications/données ne chargent pas** → Vérifier `authLoading` dans hooks (Pattern #20)
+
+### Design Document
+
+📄 `docs/plans/2026-01-31-auth-refactoring-design.md`
 
 ---
 
@@ -330,9 +504,29 @@ useEffect(() => { ... }, [])
 ### CSP pour Service Worker
 **Important:** Le SW intercepte tous les fetch, donc TOUS les domaines doivent être dans `connect-src`, pas seulement dans leur directive spécifique (img-src, font-src, etc.)
 
+### Pattern: Séparation Client/Serveur pour Hooks SWR
+
+**Anti-pattern:** Exporter une fonction serveur depuis un fichier qui importe SWR
+```typescript
+// ❌ MAUVAIS - use-intervention-types.ts
+import useSWR from 'swr/immutable'  // Accède à window!
+export function useInterventionTypes() { ... }
+export async function getInterventionTypesServer() { ... }  // Exporté mais SWR déjà importé
+```
+
+**Pattern correct:** Fichiers séparés
+```typescript
+// ✅ hooks/use-intervention-types.ts (Client)
+import useSWR from 'swr/immutable'
+export function useInterventionTypes() { ... }
+
+// ✅ lib/services/domain/intervention-types.server.ts (Server)
+export async function getInterventionTypesServer() { ... }
+```
+
 ---
-*Derniere mise a jour: 2026-01-30 20:00*
-*Focus: Accessibility WCAG AA + Card refactoring*
+*Derniere mise a jour: 2026-01-31 21:30*
+*Focus: Formulaire Intervention Locataire + Confirmation Gestionnaire*
 
 ## Commits Recents (preview branch)
 
@@ -344,9 +538,7 @@ useEffect(() => { ... }, [])
 | `b70f373` | feat(interventions): add dedicated Localisation tab + fix tenant dashboard |
 
 ## Files Recently Modified
-### 2026-01-30 22:28:43 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/hooks/use-intervention-types.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/lib/services/domain/company-lookup.service.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/lib/server-context.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/hooks/use-team-contacts.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/app/api/company/lookup/route.ts`
+### 2026-01-31 21:15:49 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/auto-memory/last-sync`

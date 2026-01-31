@@ -52,7 +52,7 @@ interface UseActivityLogsReturn {
 }
 
 export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivityLogsReturn => {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [activities, setActivities] = useState<ActivityLog[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -74,6 +74,9 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
   } = options
 
   const fetchActivityLogs = async () => {
+    // Attendre que l'auth soit prête avant de fetch
+    if (authLoading) return
+
     if (!user?.id || !teamId) {
       setLoading(false)
       return
@@ -139,17 +142,17 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
     }
   }
 
-  // Fetch initial data
+  // Fetch initial data (authLoading dependency ensures re-fetch when auth completes)
   useEffect(() => {
     fetchActivityLogs()
     if (teamId) {
       fetchStats()
     }
-  }, [user?.id, teamId, userId, entityType, entityId, actionType, status, startDate, endDate, limit])
+  }, [user?.id, teamId, userId, entityType, entityId, actionType, status, startDate, endDate, limit, authLoading])
 
   // Auto-refresh
   useEffect(() => {
-    if (!autoRefresh) return
+    if (!autoRefresh || authLoading) return
 
     const interval = setInterval(() => {
       fetchActivityLogs()
@@ -157,9 +160,9 @@ export const useActivityLogs = (options: UseActivityLogsOptions = {}): UseActivi
         fetchStats()
       }
     }, refreshInterval)
-    
+
     return () => clearInterval(interval)
-  }, [autoRefresh, refreshInterval, user?.id, teamId, userId, entityType, entityId, actionType, status, startDate, endDate, limit])
+  }, [autoRefresh, refreshInterval, user?.id, teamId, userId, entityType, entityId, actionType, status, startDate, endDate, limit, authLoading])
 
   return {
     activities,

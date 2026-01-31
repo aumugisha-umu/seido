@@ -40,6 +40,8 @@ const CATEGORY_TEXT_COLORS: Record<string, string> = {
 // Types
 // ============================================================================
 
+type CategoryCode = 'bien' | 'bail' | 'locataire'
+
 interface InterventionTypeComboboxProps {
   value?: string
   onValueChange: (value: string) => void
@@ -48,9 +50,14 @@ interface InterventionTypeComboboxProps {
   className?: string
   /**
    * Filter by category code ('bien', 'bail', 'locataire')
-   * If null/undefined, shows all categories
+   * Accepts a single category or an array of categories.
+   * If null/undefined, shows all categories.
+   *
+   * @example
+   * categoryFilter="bien" // Single category
+   * categoryFilter={["bien", "locataire"]} // Multiple categories
    */
-  categoryFilter?: 'bien' | 'bail' | 'locataire' | null
+  categoryFilter?: CategoryCode | CategoryCode[] | null
   /**
    * Error state from form validation
    */
@@ -121,9 +128,12 @@ export function InterventionTypeCombobox({
   // Normalize legacy value if needed
   const normalizedValue = value ? normalizeLegacyCode(value) : value
 
-  // Filter types by category if specified
+  // Filter types by category if specified (supports single value or array)
   const filteredTypes = React.useMemo(() => {
     if (!categoryFilter) return types
+    if (Array.isArray(categoryFilter)) {
+      return types.filter(t => categoryFilter.includes(t.category_code as CategoryCode))
+    }
     return types.filter(t => t.category_code === categoryFilter)
   }, [types, categoryFilter])
 
@@ -131,9 +141,11 @@ export function InterventionTypeCombobox({
   const groupedTypes = React.useMemo(() => {
     const groups: Map<string, { label: string; types: InterventionType[] }> = new Map()
 
-    // Initialize groups in category order
+    // Initialize groups in category order (supports single value or array)
     const relevantCategories = categoryFilter
-      ? categories.filter(c => c.code === categoryFilter)
+      ? Array.isArray(categoryFilter)
+        ? categories.filter(c => categoryFilter.includes(c.code as CategoryCode))
+        : categories.filter(c => c.code === categoryFilter)
       : categories
 
     for (const cat of relevantCategories) {

@@ -2,7 +2,6 @@
 
 export const LOT_CATEGORIES = [
   'appartement',
-  'collocation',
   'maison',
   'garage',
   'local_commercial',
@@ -20,14 +19,6 @@ export const LOT_CATEGORY_CONFIG = {
     color: 'text-blue-600',
     bgColor: 'bg-blue-50',
     borderColor: 'border-blue-200'
-  },
-  collocation: {
-    label: 'Colocation', 
-    description: 'Logement partagé entre plusieurs locataires',
-    icon: 'Users',
-    color: 'text-purple-600',
-    bgColor: 'bg-purple-50',
-    borderColor: 'border-purple-200'
   },
   maison: {
     label: 'Maison',

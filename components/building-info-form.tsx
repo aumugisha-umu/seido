@@ -13,6 +13,9 @@ import {
   Store,
   MoreHorizontal,
   Users as UsersIcon,
+  Tag,
+  Layers,
+  DoorOpen,
 } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
@@ -143,10 +146,8 @@ export const BuildingInfoForm = ({
         <div className="flex flex-col lg:flex-row gap-4 sm:gap-6">
           {/* Référence du lot - PREMIER (prend l'espace fixe) */}
           <div className="lg:w-80 lg:flex-shrink-0">
-            <Label htmlFor="name" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-              <Home className="w-4 h-4" />
+            <Label htmlFor="name" icon={Home} required>
               Référence du lot
-              <span className="text-red-500">*</span>
             </Label>
             <Input
               id="name"
@@ -177,9 +178,8 @@ export const BuildingInfoForm = ({
 
           {/* Catégorie du lot - SECOND (plus large sur desktop) */}
           <div className="lg:flex-1 lg:max-w-2xl min-w-0">
-            <Label className="text-sm font-medium text-gray-700 mb-2 block">
+            <Label icon={Tag} required className="mb-2">
               Catégorie du lot
-              <span className="text-red-500 ml-1">*</span>
             </Label>
 
             {/* Chips wrap (responsive sur toutes tailles d'écran) */}
@@ -274,10 +274,8 @@ export const BuildingInfoForm = ({
       ) : (
         // Référence de l'immeuble - Pleine largeur
         <div>
-          <Label htmlFor="name" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-            <Building className="w-4 h-4" />
+          <Label htmlFor="name" icon={Building} required>
             Référence de l'immeuble
-            <span className="text-red-500">*</span>
           </Label>
           <Input
             id="name"
@@ -383,9 +381,8 @@ export const BuildingInfoForm = ({
         // Champs spécifiques aux lots (étage et numéro de porte)
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 min-w-0">
             <div className="min-w-0">
-              <Label htmlFor="floor" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <Building className="w-4 h-4" />
-                Étage <span className="text-sm text-gray-500">(optionnel)</span>
+              <Label htmlFor="floor" icon={Layers}>
+                Étage <span className="text-muted-foreground font-normal">(optionnel)</span>
               </Label>
               <Input
                 id="floor"
@@ -396,9 +393,8 @@ export const BuildingInfoForm = ({
               />
             </div>
             <div className="min-w-0">
-              <Label htmlFor="doorNumber" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                <Hash className="w-4 h-4" />
-                Numéro de porte/boîte <span className="text-sm text-gray-500">(optionnel)</span>
+              <Label htmlFor="doorNumber" icon={DoorOpen}>
+                Porte/Boîte <span className="text-muted-foreground font-normal">(optionnel)</span>
               </Label>
               <Input
                 id="doorNumber"
@@ -412,9 +408,8 @@ export const BuildingInfoForm = ({
       )}
 
       <div>
-        <Label htmlFor="description" className="flex items-center gap-2 text-sm font-medium text-gray-700">
-          <FileText className="w-4 h-4" />
-          Description <span className="text-sm text-gray-500">(optionnel)</span>
+        <Label htmlFor="description" icon={FileText}>
+          Description <span className="text-muted-foreground font-normal">(optionnel)</span>
         </Label>
         <Textarea
           id="description"

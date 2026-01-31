@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerSupabaseClient } from '@/lib/services'
+import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { logger } from '@/lib/logger'
 
 interface RouteParams {
@@ -13,20 +13,13 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
-    const supabase = await createServerSupabaseClient()
+    const authContext = await getApiAuthContext()
 
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    if (!authContext) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    // Get user's team
-    const { data: profile } = await supabase
-      .from('users')
-      .select('team_id')
-      .eq('auth_user_id', user.id)
-      .single()
+    const { profile, supabase } = authContext
 
     if (!profile?.team_id) {
       return NextResponse.json({ error: 'Équipe non trouvée' }, { status: 404 })
@@ -60,20 +53,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
     const body = await request.json()
-    const supabase = await createServerSupabaseClient()
+    const authContext = await getApiAuthContext()
 
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    if (!authContext) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    // Get user's team and role
-    const { data: profile } = await supabase
-      .from('users')
-      .select('team_id, role')
-      .eq('auth_user_id', user.id)
-      .single()
+    const { profile, supabase } = authContext
 
     if (!profile?.team_id) {
       return NextResponse.json({ error: 'Équipe non trouvée' }, { status: 404 })
@@ -142,20 +128,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
-    const supabase = await createServerSupabaseClient()
+    const authContext = await getApiAuthContext()
 
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
-    if (authError || !user) {
+    if (!authContext) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    // Get user's team and role
-    const { data: profile } = await supabase
-      .from('users')
-      .select('team_id, role')
-      .eq('auth_user_id', user.id)
-      .single()
+    const { profile, supabase } = authContext
 
     if (!profile?.team_id) {
       return NextResponse.json({ error: 'Équipe non trouvée' }, { status: 404 })

@@ -95,52 +95,123 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
 
   /**
    * Get intervention with all relations (lot, building, users, contacts, documents)
+   *
+   * ✅ OPTIMIZED (2026-01-30): Refactored from single 7+ JOIN query to parallel queries
+   * - Before: 1470ms average (single query with nested LEFT JOIN LATERAL)
+   * - After: ~350ms expected (3 parallel queries with max 2 JOINs each)
+   *
+   * Pattern: Fetch base data first, then related data in parallel
    */
   async findByIdWithRelations(_id: string) {
-    const { data, error } = await this.supabase
-      .from(this.tableName)
-      .select(`
-        *,
-        creator:created_by(id, name, email, role),
-        lot:lot_id(
-          id, reference, building_id,
-          address_record:address_id(*),
-          building:building_id(id, name, team_id, address_record:address_id(*)),
-          lot_contacts(
-            is_primary,
-            user:user_id(id, name, email, phone, role, provider_category)
-          )
-        ),
-        building:building_id(id, name, team_id, address_record:address_id(*)),
-        intervention_assignments(
-          role,
-          is_primary,
-          notes,
-          user:user_id(id, name, email, phone, role, provider_category)
-        ),
-        documents:intervention_documents(
-          id,
-          filename,
-          original_filename,
-          file_size,
-          mime_type,
-          document_type,
-          uploaded_at,
-          uploaded_by
-        )
-      `)
-      .eq('id', _id)
-      .single()
+    // Step 1: Parallel fetch of intervention base + assignments + documents
+    const [interventionResult, assignmentsResult, documentsResult] = await Promise.all([
+      // Base intervention with simple relations (max 2 JOINs)
+      this.supabase
+        .from(this.tableName)
+        .select(`
+          *,
+          creator:created_by(id, name, email, role),
+          lot:lot_id(id, reference, building_id, address_id),
+          building:building_id(id, name, team_id, address_id)
+        `)
+        .eq('id', _id)
+        .single(),
 
-    if (error) {
-      if (error.code === 'PGRST116') {
+      // Assignments separately (1 JOIN)
+      this.supabase
+        .from('intervention_assignments')
+        .select(`
+          role, is_primary, notes,
+          user:user_id(id, name, email, phone, role, provider_category)
+        `)
+        .eq('intervention_id', _id),
+
+      // Documents separately (0 JOINs)
+      this.supabase
+        .from('intervention_documents')
+        .select('id, filename, original_filename, file_size, mime_type, document_type, uploaded_at, uploaded_by')
+        .eq('intervention_id', _id)
+        .is('deleted_at', null)
+    ])
+
+    // Handle intervention fetch error
+    if (interventionResult.error) {
+      if (interventionResult.error.code === 'PGRST116') {
         throw new NotFoundException(this.tableName, _id)
       }
-      return createErrorResponse(handleError(error, 'intervention:findByIdWithRelations'))
+      return createErrorResponse(handleError(interventionResult.error, 'intervention:findByIdWithRelations'))
+    }
+
+    const intervention = interventionResult.data
+
+    // Step 2: Fetch nested relations if lot/building exists (parallel)
+    const addressIds = [
+      intervention.lot?.address_id,
+      intervention.building?.address_id
+    ].filter(Boolean) as string[]
+
+    const [addressesResult, lotContactsResult, buildingForLotResult] = await Promise.all([
+      // Addresses for lot and building
+      addressIds.length > 0
+        ? this.supabase.from('addresses').select('*').in('id', addressIds)
+        : Promise.resolve({ data: [], error: null }),
+
+      // Lot contacts (if lot exists)
+      intervention.lot?.id
+        ? this.supabase
+            .from('lot_contacts')
+            .select('is_primary, user:user_id(id, name, email, phone, role, provider_category)')
+            .eq('lot_id', intervention.lot.id)
+        : Promise.resolve({ data: [], error: null }),
+
+      // Building details for lot (if lot has building_id)
+      intervention.lot?.building_id
+        ? this.supabase
+            .from('buildings')
+            .select('id, name, team_id, address_id')
+            .eq('id', intervention.lot.building_id)
+            .single()
+        : Promise.resolve({ data: null, error: null })
+    ])
+
+    // Build address lookup map
+    const addressMap: Record<string, any> = {}
+    addressesResult.data?.forEach((addr: any) => { addressMap[addr.id] = addr })
+
+    // Fetch building's address if needed
+    if (buildingForLotResult.data?.address_id && !addressMap[buildingForLotResult.data.address_id]) {
+      const { data: buildingAddr } = await this.supabase
+        .from('addresses')
+        .select('*')
+        .eq('id', buildingForLotResult.data.address_id)
+        .single()
+      if (buildingAddr) addressMap[buildingAddr.id] = buildingAddr
+    }
+
+    // Step 3: Assemble the complete result (matching original structure)
+    const assembledData = {
+      ...intervention,
+      lot: intervention.lot ? {
+        id: intervention.lot.id,
+        reference: intervention.lot.reference,
+        building_id: intervention.lot.building_id,
+        address_record: addressMap[intervention.lot.address_id] || null,
+        building: buildingForLotResult.data ? {
+          ...buildingForLotResult.data,
+          address_record: addressMap[buildingForLotResult.data.address_id] || null
+        } : null,
+        lot_contacts: lotContactsResult.data || []
+      } : null,
+      building: intervention.building ? {
+        ...intervention.building,
+        address_record: addressMap[intervention.building.address_id] || null
+      } : null,
+      intervention_assignments: assignmentsResult.data || [],
+      documents: documentsResult.data || []
     }
 
     // Post-process to enrich with computed fields
-    const enrichedData = this.enrichInterventionData(data)
+    const enrichedData = this.enrichInterventionData(assembledData as EnrichedIntervention)
     return { success: true as const, data: enrichedData }
   }
 
@@ -149,6 +220,10 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
 
   /**
    * Get all interventions with basic relations
+   *
+   * ✅ OPTIMIZED (2026-01-30): Simplified SELECT to reduce JOIN depth
+   * - Removed nested address_record fetches (can be loaded separately if needed)
+   * - Reduced from 4+ JOINs to 2 JOINs per intervention
    */
   async findAllWithRelations(options?: { page?: number; limit?: number; status?: Intervention['status'] }) {
     let queryBuilder = this.supabase
@@ -156,12 +231,8 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
       .select(`
         *,
         creator:created_by(id, name, email, role),
-        lot:lot_id(
-          id, reference,
-          address_record:address_id(*),
-          building:building_id(id, name, team_id, address_record:address_id(*))
-        ),
-        building:building_id(id, name, team_id, address_record:address_id(*)),
+        lot:lot_id(id, reference, building_id),
+        building:building_id(id, name, team_id),
         intervention_assignments(
           id,
           role,
@@ -404,18 +475,19 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
 
   /**
    * Get interventions by team
+   *
+   * ✅ OPTIMIZED (2026-01-30): Simplified SELECT to reduce JOIN depth
+   * - Removed nested address_record fetches (addresses loaded separately if needed)
+   * - Reduced from 5+ JOINs to 3 JOINs per intervention
+   * - Kept quotes and time_slots as they're needed for dashboard display
    */
   async findByTeam(teamId: string, filters?: any) {
     let queryBuilder = this.supabase
       .from(this.tableName)
       .select(`
         *,
-        lot:lot_id(
-          id, reference,
-          address_record:address_id(*),
-          building:building_id(id, name, team_id, address_record:address_id(*))
-        ),
-        building:building_id(id, name, team_id, address_record:address_id(*)),
+        lot:lot_id(id, reference, building_id),
+        building:building_id(id, name, team_id),
         intervention_assignments(
           role,
           is_primary,

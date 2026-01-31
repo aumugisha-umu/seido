@@ -5,10 +5,14 @@
  *
  * Server-side operations for contract/lease management with proper auth context.
  * Architecture: Server Actions → ContractService → ContractRepository → Supabase
+ *
+ * ✅ REFACTORED (Jan 2026): Uses centralized getServerActionAuthContextOrNull()
+ *    instead of local getAuthContext() - fixes .single() bug for multi-profile users
  */
 
 import { createServerActionContractService } from '@/lib/services/domain/contract.service'
 import { createServerActionSupabaseClient } from '@/lib/services'
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { logger } from '@/lib/logger'
 import type {
@@ -92,34 +96,24 @@ export interface BuildingTenantsResult {
 // ============================================================================
 
 /**
- * Get authenticated user context for server actions
+ * ✅ REFACTORED: Uses centralized getServerActionAuthContextOrNull()
+ *    instead of local implementation with getSession() + .single() bug
+ *
+ * Wrapper to maintain backward compatibility with existing code
  */
 async function getAuthContext() {
-  const supabase = await createServerActionSupabaseClient()
-  const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+  const authContext = await getServerActionAuthContextOrNull()
 
-  if (!session || sessionError) {
+  if (!authContext) {
     logger.error('❌ [CONTRACT-ACTION] No auth session found')
-    return { success: false, error: 'Authentication required' }
-  }
-
-  // Get database user
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('id, role, team_id')
-    .eq('auth_user_id', session.user.id)
-    .single()
-
-  if (!userData || userError) {
-    logger.error('❌ [CONTRACT-ACTION] User profile not found')
-    return { success: false, error: 'User profile not found' }
+    return { success: false as const, error: 'Authentication required' }
   }
 
   return {
-    success: true,
-    user: userData,
-    authUserId: session.user.id,
-    supabase
+    success: true as const,
+    user: authContext.profile,
+    authUserId: authContext.user.id,
+    supabase: authContext.supabase
   }
 }
 
@@ -1078,31 +1072,33 @@ function calculateNextAvailableDate(
 }
 
 // ============================================================================
-// OVERLAP VALIDATION WITH TENANT DETECTION (COLOCATION / DOUBLON)
+// OVERLAP VALIDATION WITH TENANT DETECTION
 // ============================================================================
 
 /**
  * Résultat détaillé de la vérification de chevauchement avec détection de doublons
+ *
+ * Note (2026-01): La logique "collocation" a été retirée car c'est un mode d'occupation
+ * géré au niveau du bail, pas une catégorie de lot. Les chevauchements génèrent maintenant
+ * un WARNING (pas un blocage), sauf pour les doublons de locataire (toujours bloquant).
  */
 export interface OverlapCheckDetailedResult {
   hasOverlap: boolean
   overlappingContracts: OverlappingContractInfo[]
   nextAvailableDate: string | null
-  // Logique colocation/doublon
-  lotCategory: string | null        // Catégorie du lot
-  isColocationLot: boolean          // true si lot.category === 'collocation'
-  isColocationAllowed: boolean      // true si colocation permise (lot colocation + pas de doublon)
-  hasDuplicateTenant: boolean       // true si même locataire déjà sur ce lot
+  // Détection doublon locataire
+  hasDuplicateTenant: boolean       // true si même locataire déjà sur ce lot → BLOQUANT
   duplicateTenantContracts: OverlappingContractInfo[]  // Contrats du locataire en doublon
 }
 
 /**
- * Vérifie les chevauchements avec détection de doublons et logique colocation.
+ * Vérifie les chevauchements avec détection de doublons.
  *
- * Règles métier:
- * - Si lot.category !== 'collocation' et chevauchement → ERREUR BLOQUANTE
- * - Si lot.category === 'collocation' et locataire différent → WARNING (colocation permise)
- * - Si même locataire déjà sur ce lot (toute catégorie) → ERREUR BLOQUANTE (doublon)
+ * Règles métier (2026-01):
+ * - Chevauchement avec autre locataire → WARNING (création autorisée, colocation/cohabitation)
+ * - Même locataire déjà sur ce lot → ERREUR BLOQUANTE (doublon)
+ *
+ * Le gestionnaire voit toujours la prochaine date disponible pour ajuster si besoin.
  *
  * @param lotId - ID du lot
  * @param startDate - Date de début (format YYYY-MM-DD)
@@ -1125,15 +1121,7 @@ export async function checkContractOverlapWithDetails(
       '🔍 [CONTRACT-ACTION] checkContractOverlapWithDetails'
     )
 
-    // 1. Récupérer la catégorie du lot
-    const { createServerActionLotRepository } = await import('@/lib/services/repositories/lot.repository')
-    const lotRepository = await createServerActionLotRepository()
-    const lotResult = await lotRepository.findById(lotId)
-
-    const lotCategory = lotResult?.data?.category || null
-    const isColocationLot = lotCategory === 'collocation'
-
-    // 2. Vérifier les contrats en chevauchement sur ce lot
+    // 1. Vérifier les contrats en chevauchement sur ce lot
     const { createServerActionContractRepository } = await import('@/lib/services/repositories/contract.repository')
     const repository = await createServerActionContractRepository()
 
@@ -1151,8 +1139,8 @@ export async function checkContractOverlapWithDetails(
     const overlappingContracts = overlapResult.data as OverlappingContractInfo[]
     const hasOverlap = overlappingContracts.length > 0
 
-    // Calculer la prochaine date disponible si chevauchement
-    // ✅ FIX: Utiliser TOUS les contrats actifs/à venir sur le lot, pas seulement ceux qui chevauchent
+    // 2. Calculer la prochaine date disponible si chevauchement
+    // Utiliser TOUS les contrats actifs/à venir sur le lot, pas seulement ceux qui chevauchent
     let nextAvailableDate: string | null = null
     if (hasOverlap) {
       const allContractsResult = await repository.findAllActiveOrUpcomingContractsOnLot(
@@ -1166,6 +1154,7 @@ export async function checkContractOverlapWithDetails(
     }
 
     // 3. Vérifier si un des locataires sélectionnés a déjà un bail actif sur ce lot
+    // C'est le SEUL cas bloquant - on ne peut pas avoir 2 baux pour le même locataire sur le même lot
     let hasDuplicateTenant = false
     const duplicateTenantContracts: OverlappingContractInfo[] = []
 
@@ -1197,17 +1186,10 @@ export async function checkContractOverlapWithDetails(
       }
     }
 
-    // 4. Déterminer si la colocation est permise
-    // Colocation permise SI: lot est collocation ET pas de doublon locataire
-    const isColocationAllowed = isColocationLot && hasOverlap && !hasDuplicateTenant
-
     logger.debug(
       {
         hasOverlap,
         overlappingCount: overlappingContracts.length,
-        lotCategory,
-        isColocationLot,
-        isColocationAllowed,
         hasDuplicateTenant,
         duplicateCount: duplicateTenantContracts.length,
         nextAvailableDate
@@ -1221,9 +1203,6 @@ export async function checkContractOverlapWithDetails(
         hasOverlap,
         overlappingContracts,
         nextAvailableDate,
-        lotCategory,
-        isColocationLot,
-        isColocationAllowed,
         hasDuplicateTenant,
         duplicateTenantContracts
       }

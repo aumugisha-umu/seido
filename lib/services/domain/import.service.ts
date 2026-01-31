@@ -1295,7 +1295,7 @@ export class ImportService {
         const lotData: LotInsert = {
           reference: lot.reference,
           building_id: buildingId,
-          category: (lot.category || 'autre') as 'appartement' | 'collocation' | 'maison' | 'garage' | 'local_commercial' | 'autre',
+          category: (lot.category || 'autre') as 'appartement' | 'maison' | 'garage' | 'local_commercial' | 'autre',
           floor: lot.floor || null,
           description: lot.description || null,
           team_id: teamId,

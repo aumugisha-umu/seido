@@ -32,11 +32,9 @@ import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
 function getCategoryLabel(category: string): string {
   const categoryLabels: Record<string, string> = {
     'appartement': 'Appartement',
-    'collocation': 'Collocation',
     'maison': 'Maison',
     'garage': 'Garage',
     'local_commercial': 'Local commercial',
-    'parking': 'Parking',
     'autre': 'Autre'
   }
   return categoryLabels[category] || category

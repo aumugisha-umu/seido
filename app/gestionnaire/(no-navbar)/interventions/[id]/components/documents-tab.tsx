@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react'
+import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -79,6 +80,7 @@ export function DocumentsTab({
   documents,
   canManage = false
 }: DocumentsTabProps) {
+  const { user } = useAuth()
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [validatingId, setValidatingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -93,7 +95,7 @@ export function DocumentsTab({
         .update({
           is_validated: isValidated,
           validated_at: isValidated ? new Date().toISOString() : null,
-          validated_by: isValidated ? (await supabase.auth.getUser()).data.user?.id : null
+          validated_by: isValidated ? user?.id : null
         })
         .eq('id', documentId)
 
@@ -120,7 +122,7 @@ export function DocumentsTab({
         .from('intervention_documents')
         .update({
           deleted_at: new Date().toISOString(),
-          deleted_by: (await supabase.auth.getUser()).data.user?.id
+          deleted_by: user?.id
         })
         .eq('id', documentId)
 

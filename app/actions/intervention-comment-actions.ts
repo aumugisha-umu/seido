@@ -3,12 +3,14 @@
 /**
  * Intervention Comment Server Actions
  * Server-side operations for managing intervention comments
+ *
+ * ✅ REFACTORED (Jan 2026): Uses centralized getServerActionAuthContextOrNull()
+ *    instead of duplicated local auth helper
  */
 
 import { createServerActionInterventionCommentRepository } from '@/lib/services/repositories/intervention-comment.repository'
-import { createServerActionSupabaseClient } from '@/lib/services'
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 
@@ -25,48 +27,6 @@ const AddCommentSchema = z.object({
 const DeleteCommentSchema = z.object({
   commentId: z.string().uuid()
 })
-
-/**
- * Helper to get authenticated user ID
- *
- * MULTI-PROFILE SUPPORT:
- * - Uses getUser() instead of getSession()
- * - Fetches ALL profiles (not .single())
- * - Selects based on seido_current_team cookie
- */
-async function getAuthenticatedUserId(): Promise<string | null> {
-  const supabase = await createServerActionSupabaseClient()
-
-  // Use getUser() for server-side validation
-  const { data: { user: authUser }, error } = await supabase.auth.getUser()
-  if (!authUser || error) return null
-
-  // ✅ MULTI-PROFIL FIX: Récupérer TOUS les profils
-  const { data: profiles, error: profilesError } = await supabase
-    .from('users')
-    .select('id, team_id')
-    .eq('auth_user_id', authUser.id)
-    .is('deleted_at', null)
-    .order('updated_at', { ascending: false })
-
-  if (profilesError || !profiles || profiles.length === 0) {
-    return null
-  }
-
-  // Sélectionner le profil selon cookie seido_current_team
-  const cookieStore = await cookies()
-  const preferredTeamId = cookieStore.get('seido_current_team')?.value
-  let selectedProfile = profiles[0]
-
-  if (preferredTeamId && preferredTeamId !== 'all') {
-    const preferred = profiles.find(p => p.team_id === preferredTeamId)
-    if (preferred) {
-      selectedProfile = preferred
-    }
-  }
-
-  return selectedProfile?.id || null
-}
 
 /**
  * Add a comment to an intervention
@@ -87,11 +47,12 @@ export async function addInterventionComment(
 
     const { interventionId, content } = validated.data
 
-    // Get authenticated user
-    const userId = await getAuthenticatedUserId()
-    if (!userId) {
+    // ✅ REFACTORED: Use centralized auth context
+    const authContext = await getServerActionAuthContextOrNull()
+    if (!authContext) {
       return { success: false, error: 'Non authentifié' }
     }
+    const userId = authContext.profile.id
 
     // Create comment
     const repository = await createServerActionInterventionCommentRepository()
@@ -140,11 +101,12 @@ export async function deleteInterventionComment(
 
     const { commentId } = validated.data
 
-    // Get authenticated user
-    const userId = await getAuthenticatedUserId()
-    if (!userId) {
+    // ✅ REFACTORED: Use centralized auth context
+    const authContext = await getServerActionAuthContextOrNull()
+    if (!authContext) {
       return { success: false, error: 'Non authentifié' }
     }
+    const userId = authContext.profile.id
 
     // Delete comment
     const repository = await createServerActionInterventionCommentRepository()

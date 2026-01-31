@@ -272,7 +272,7 @@ export function IndependentLotInputCardV2({
             <div>
               <Label
                 htmlFor={`reference-${lot.id}`}
-                className="text-xs font-medium text-slate-700 flex items-center gap-1 mb-2"
+                className="text-sm font-medium text-slate-700 flex items-center gap-1 mb-2"
               >
                 <Hash className="w-3 h-3" />
                 Référence
@@ -291,7 +291,7 @@ export function IndependentLotInputCardV2({
 
             {/* Category - Right Column */}
             <div>
-              <Label className="text-xs font-medium text-slate-700 mb-2 block">
+              <Label className="text-sm font-medium text-slate-700 flex items-center gap-1 mb-1">
                 Catégorie
                 <span className="text-red-500 ml-1">*</span>
               </Label>
@@ -349,10 +349,6 @@ export function IndependentLotInputCardV2({
 
           {/* ADDRESS SECTION - With Google Maps Integration */}
           <div className="space-y-2">
-            <div className="flex items-center gap-2 mb-2">
-              <MapPin className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-medium text-slate-700">Adresse du lot</span>
-            </div>
             <AddressFieldsWithMap
               street={lot.street || ""}
               postalCode={lot.postalCode || ""}
@@ -376,7 +372,7 @@ export function IndependentLotInputCardV2({
             <div>
               <Label
                 htmlFor={`floor-${lot.id}`}
-                className="text-xs font-medium text-slate-700 flex items-center gap-1 mb-1"
+                className="text-sm font-medium text-slate-700 flex items-center gap-1 mb-1"
               >
                 <Building className="w-3 h-3" />
                 Étage
@@ -395,10 +391,10 @@ export function IndependentLotInputCardV2({
             <div>
               <Label
                 htmlFor={`door-${lot.id}`}
-                className="text-xs font-medium text-slate-700 flex items-center gap-1 mb-1"
+                className="text-sm font-medium text-slate-700 flex items-center gap-1 mb-1"
               >
                 <Hash className="w-3 h-3" />
-                Porte
+                Porte/Boîte
               </Label>
               <Input
                 id={`door-${lot.id}`}
@@ -415,7 +411,7 @@ export function IndependentLotInputCardV2({
           <div>
             <Label
               htmlFor={`description-${lot.id}`}
-              className="text-xs font-medium text-slate-700 mb-1 block"
+              className="text-sm font-medium text-slate-700 mb-1 block"
             >
               Description
             </Label>

@@ -5,8 +5,9 @@ import { useDashboardSessionTimeout } from "@/hooks/use-dashboard-session-timeou
 import LocataireDashboardHybrid from "@/components/dashboards/locataire-dashboard-hybrid"
 import { logger } from '@/lib/logger'
 import { Clock, FileText } from "lucide-react"
-import type { TenantData, TenantIntervention } from "@/hooks/use-tenant-data"
+import type { TenantIntervention } from "@/hooks/use-tenant-data"
 import type { TenantData as ServerTenantData } from "@/lib/services/domain/tenant.service"
+import { transformTenantDataForClient, transformInterventionForClient } from "@/lib/utils/tenant-transform"
 
 interface LocataireDashboardProps {
   userName?: string
@@ -47,6 +48,7 @@ export default function LocataireDashboard({
   useDashboardSessionTimeout()
 
   // ✅ Transform server data to component format (memoized)
+  // Utilise la fonction utilitaire centralisée pour éviter les divergences SSR/CSR
   const { tenantData, tenantProperties, tenantInterventions, contractStatus } = useMemo(() => {
     if (!serverTenantData) {
       return {
@@ -57,45 +59,25 @@ export default function LocataireDashboard({
       }
     }
 
-    // Transform lots to TenantData format
-    const transformedProperties: TenantData[] = serverTenantData.lots.map((item) => ({
-      id: item.lot.id,
-      reference: item.lot.reference,
-      floor: item.lot.floor,
-      apartment_number: item.lot.apartment_number,
-      surface_area: item.lot.surface_area,
-      rooms: item.lot.rooms,
-      charges_amount: item.lot.charges_amount,
-      category: item.lot.category,
-      building: item.lot.building || null,
-      is_primary: item.is_primary
-    }))
-
-    const primaryData = transformedProperties.find(p => p.is_primary) || transformedProperties[0] || null
+    // ✅ Utiliser la fonction utilitaire centralisée
+    const { tenantData, tenantProperties, contractStatus } = transformTenantDataForClient(serverTenantData)
 
     // Transform interventions to TenantIntervention format
+    // Note: Les interventions peuvent avoir des champs enrichis (quotes, timeSlots, assignments)
+    // qui ne sont pas présents dans les données serveur brutes
     const transformedInterventions: TenantIntervention[] = (serverTenantData.interventions || []).map((i: any) => ({
-      id: i.id,
-      title: i.title,
-      description: i.description || '',
-      status: i.status,
-      created_at: i.created_at,
-      completed_date: i.completed_date,
-      urgency: i.urgency || 'normale',
-      type: i.intervention_type || i.type || 'autre',
-      lot: i.lot,
-      building: i.building || null,
-      assigned_contact: i.assigned_contact,
+      ...transformInterventionForClient(i),
+      // Champs enrichis (peuvent être vides côté SSR, remplis côté client)
       quotes: i.quotes || [],
       timeSlots: i.timeSlots || [],
       assignments: i.assignments || []
     }))
 
     return {
-      tenantData: primaryData,
-      tenantProperties: transformedProperties,
+      tenantData,
+      tenantProperties,
       tenantInterventions: transformedInterventions,
-      contractStatus: serverTenantData.contractStatus
+      contractStatus
     }
   }, [serverTenantData])
 

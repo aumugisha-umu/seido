@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useMapsLibrary } from '@vis.gl/react-google-maps'
-import { MapPin, Hash, Loader2 } from 'lucide-react'
+import { MapPin, Hash, Loader2, Building2, Globe, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -338,7 +338,7 @@ export function AddressFieldsWithMap({
       {/* Google Autocomplete Search */}
       {showAutocomplete && (
         <div className="space-y-2">
-          <Label className="text-sm font-medium">
+          <Label icon={Search}>
             Recherche d&apos;adresse
           </Label>
           <AddressAutocompleteInput
@@ -353,46 +353,38 @@ export function AddressFieldsWithMap({
       <div className="grid gap-4">
         {/* Street */}
         <div className="space-y-2">
-          <Label htmlFor="address-street" className="text-sm font-medium">
-            Rue {required && <span className="text-destructive">*</span>}
+          <Label htmlFor="address-street" icon={MapPin} required={required}>
+            Rue
           </Label>
-          <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              id="address-street"
-              value={street}
-              onChange={(e) => handleFieldChange('street', e.target.value)}
-              placeholder="Rue et numéro"
-              disabled={disabled}
-              required={required}
-              className="pl-10"
-            />
-          </div>
+          <Input
+            id="address-street"
+            value={street}
+            onChange={(e) => handleFieldChange('street', e.target.value)}
+            placeholder="Rue de la Paix 42"
+            disabled={disabled}
+            required={required}
+          />
         </div>
 
         {/* Postal Code and City */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label htmlFor="address-postalCode" className="text-sm font-medium">
-              Code postal {required && <span className="text-destructive">*</span>}
+            <Label htmlFor="address-postalCode" icon={Hash} required={required}>
+              Code postal
             </Label>
-            <div className="relative">
-              <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="address-postalCode"
-                value={postalCode}
-                onChange={(e) => handleFieldChange('postalCode', e.target.value)}
-                placeholder="1000"
-                disabled={disabled}
-                required={required}
-                className="pl-10"
-              />
-            </div>
+            <Input
+              id="address-postalCode"
+              value={postalCode}
+              onChange={(e) => handleFieldChange('postalCode', e.target.value)}
+              placeholder="1000"
+              disabled={disabled}
+              required={required}
+            />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="address-city" className="text-sm font-medium">
-              Ville {required && <span className="text-destructive">*</span>}
+            <Label htmlFor="address-city" icon={Building2} required={required}>
+              Ville
             </Label>
             <Input
               id="address-city"
@@ -407,8 +399,8 @@ export function AddressFieldsWithMap({
 
         {/* Country */}
         <div className="space-y-2">
-          <Label htmlFor="address-country" className="text-sm font-medium">
-            Pays {required && <span className="text-destructive">*</span>}
+          <Label htmlFor="address-country" icon={Globe} required={required}>
+            Pays
           </Label>
           <Select
             value={country}

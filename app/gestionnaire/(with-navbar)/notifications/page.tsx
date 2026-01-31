@@ -322,7 +322,9 @@ export default function NotificationsPage() {
   }
 
   // ✅ Afficher un état de chargement pendant l'hydratation OU si teamStatus est 'checking'
-  if (!isMounted || teamStatus === 'checking') {
+  // ✅ FIX (2026-01-31): Attendre aussi que user soit disponible via useAuth()
+  // Sinon les hooks useNotifications reçoivent userId: undefined et skip le fetch
+  if (!isMounted || teamStatus === 'checking' || !user) {
     return (
       <div className="layout-padding">
         <div className="content-max-width">

@@ -2,7 +2,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { User, Building2 } from "lucide-react"
+import { User, Building2, Tag, Wrench, Users } from "lucide-react"
 import { InterventionTypeCombobox } from "@/components/intervention/intervention-type-combobox"
 
 interface Step1TypeProps {
@@ -40,8 +40,8 @@ export function Step1Type({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Catégorie de contact */}
         <div className="space-y-3">
-          <Label htmlFor="contact-type" className="text-base font-medium">
-            Catégorie <span className="text-red-500">*</span>
+          <Label htmlFor="contact-type" icon={Tag} required>
+            Catégorie
           </Label>
           <Select value={contactType} onValueChange={onContactTypeChange}>
             <SelectTrigger id="contact-type" className="w-full">
@@ -60,8 +60,8 @@ export function Step1Type({
         {/* Spécialité (si Prestataire) */}
         {contactType === 'prestataire' && (
           <div className="space-y-3">
-            <Label htmlFor="specialty" className="text-base font-medium">
-              Spécialité <span className="text-red-500">*</span>
+            <Label htmlFor="specialty" icon={Wrench} required>
+              Spécialité
             </Label>
             <InterventionTypeCombobox
               value={specialty || ''}
@@ -75,8 +75,8 @@ export function Step1Type({
         {/* Description personnalisée (si Autre) */}
         {contactType === 'autre' && (
           <div className="space-y-3">
-            <Label htmlFor="customRoleDescription" className="text-base font-medium">
-              Précisez le type de contact <span className="text-red-500">*</span>
+            <Label htmlFor="customRoleDescription" icon={Tag} required>
+              Précisez le type de contact
             </Label>
             <Input
               id="customRoleDescription"
@@ -93,8 +93,8 @@ export function Step1Type({
 
       {/* Personne ou Société */}
       <div className="space-y-3">
-        <Label className="text-base font-medium">
-          Personne ou Entreprise <span className="text-red-500">*</span>
+        <Label icon={Users} required>
+          Personne ou Entreprise
         </Label>
         <RadioGroup
           value={personOrCompany}

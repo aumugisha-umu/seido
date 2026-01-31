@@ -450,3 +450,45 @@ export const getServerUser = cache(async (requiredRole?: string) => {
 
   return { user, profile }
 })
+
+/**
+ * ✅ VARIANTE NON-REDIRECTING POUR SERVER ACTIONS
+ *
+ * Comme getServerActionAuthContext mais retourne null au lieu de rediriger en cas d'échec.
+ * Utilisez cette fonction dans les Server Actions qui doivent retourner des erreurs
+ * au lieu de rediriger l'utilisateur.
+ *
+ * @param requiredRole - Rôle requis (optionnel)
+ * @returns ServerActionAuthContext ou null si auth échoue
+ *
+ * @example
+ * 'use server'
+ * export async function createSomething(data: Data): Promise<ActionResult<Something>> {
+ *   const authContext = await getServerActionAuthContextOrNull('gestionnaire')
+ *   if (!authContext) {
+ *     return { success: false, error: 'Authentication required' }
+ *   }
+ *   const { profile, team, supabase } = authContext
+ *   // ... rest of action
+ * }
+ */
+export const getServerActionAuthContextOrNull = async (requiredRole?: string): Promise<ServerActionAuthContext | null> => {
+  try {
+    return await getServerActionAuthContext(requiredRole)
+  } catch (error) {
+    // redirect() throws a special Next.js error - check for it
+    const isRedirectError = error instanceof Error && (
+      error.message.includes('NEXT_REDIRECT') ||
+      (error as any).digest?.startsWith('NEXT_REDIRECT')
+    )
+
+    if (isRedirectError) {
+      // Auth failed, return null instead of redirecting
+      return null
+    }
+
+    // Log unexpected errors but still return null for auth failures
+    logger.warn('Unexpected error in getServerActionAuthContextOrNull:', error)
+    return null
+  }
+}

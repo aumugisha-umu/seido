@@ -3,9 +3,13 @@
 /**
  * Building Server Actions
  * Server-side operations for building management with proper auth context
+ *
+ * ✅ REFACTORED (Jan 2026): Uses centralized getServerActionAuthContextOrNull()
+ *    instead of inline auth with getSession() + .single() bugs
  */
 
-import { createServerActionCompositeService, createServerActionSupabaseClient, createServerActionBuildingService } from '@/lib/services'
+import { createServerActionCompositeService, createServerActionBuildingService } from '@/lib/services'
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
 import type { CreateCompletePropertyData, CompositeOperationResult } from '@/lib/services/domain/composite.service'
@@ -124,20 +128,9 @@ export async function updateCompleteProperty(data: {
       buildingContactsCount: data.buildingContacts?.length || 0
     })
 
-    // Verify auth session
-    const debugSupabase = await createServerActionSupabaseClient()
-    const { data: { session }, error: sessionError } = await debugSupabase.auth.getSession()
-
-    logger.info('🔍 [DEBUG] Server Action Auth Check (Update):', {
-      hasSession: !!session,
-      sessionError: sessionError?.message,
-      userId: session?.user?.id,
-      userEmail: session?.user?.email,
-      buildingId: data.buildingId,
-      timestamp: new Date().toISOString()
-    })
-
-    if (!session) {
+    // ✅ REFACTORED: Use centralized auth context (fixes .single() bug for multi-profile users)
+    const authContext = await getServerActionAuthContextOrNull()
+    if (!authContext) {
       logger.error('❌ [AUTH-ERROR] No auth session found in Server Action!')
       return {
         success: false,
@@ -150,31 +143,15 @@ export async function updateCompleteProperty(data: {
       }
     }
 
-    // Get database user ID
-    const { data: userData, error: userError } = await debugSupabase
-      .from('users')
-      .select('id')
-      .eq('auth_user_id', session.user.id)
-      .single()
+    const { profile: userData, supabase: debugSupabase, user: authUser } = authContext
 
-    logger.info('🔍 [DEBUG] User ID Resolution (Update):', {
-      authUserId: session.user.id,
-      databaseUserId: userData?.id,
-      userError: userError?.message
+    logger.info('🔍 [DEBUG] Server Action Auth Check (Update):', {
+      hasSession: true,
+      userId: authUser.id,
+      databaseUserId: userData.id,
+      buildingId: data.buildingId,
+      timestamp: new Date().toISOString()
     })
-
-    if (!userData) {
-      logger.error('❌ [AUTH-ERROR] User profile not found in database!')
-      return {
-        success: false,
-        data: {
-          building: {} as Building,
-          lots: []
-        },
-        error: 'User profile not found in database',
-        operations: []
-      }
-    }
 
     // Verify building exists and get its team_id
     const { data: existingBuilding, error: buildingError } = await debugSupabase
@@ -206,7 +183,7 @@ export async function updateCompleteProperty(data: {
       .maybeSingle()
 
     logger.info('🔍 [DEBUG] Team Membership Check (Update):', {
-      authUserId: session.user.id,
+      authUserId: authUser.id,
       databaseUserId: userData.id,
       teamId: existingBuilding.team_id,
       hasTeamMembership: !!teamMembersCheck,
@@ -222,7 +199,7 @@ export async function updateCompleteProperty(data: {
           building: {} as Building,
           lots: []
         },
-        error: `User ${session.user.email} is not a member of team ${existingBuilding.team_id}`,
+        error: `User ${authUser.email} is not a member of team ${existingBuilding.team_id}`,
         operations: []
       }
     }

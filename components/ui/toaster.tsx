@@ -17,7 +17,13 @@ export function Toaster() {
   const getIcon = (variant?: string) => {
     switch (variant) {
       case "success":
-        return <CheckCircle className="h-5 w-5 text-emerald-600 shrink-0" />
+        // Enhanced success icon with bounce animation for better feedback
+        return (
+          <div className="relative shrink-0">
+            <div className="absolute inset-0 bg-emerald-200 rounded-full animate-success-ring" />
+            <CheckCircle className="h-5 w-5 text-emerald-600 relative animate-success-bounce" />
+          </div>
+        )
       case "warning":
         return <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
       case "destructive":

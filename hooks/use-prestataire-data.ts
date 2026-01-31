@@ -153,18 +153,8 @@ export const usePrestataireData = (userId: string) => {
       loadingRef.current = true
       setData(prev => ({ ...prev, loading: true, error: null }))
 
-      // ✅ Initialiser le client Supabase et s'assurer que la session est prête
-      const supabase = createBrowserSupabaseClient()
-      try {
-        const { data: sessionRes, error: sessionErr } = await supabase.auth.getSession()
-        if (sessionErr || !sessionRes?.session) {
-          logger.warn('⚠️ [PRESTATAIRE-DATA] Session issue, attempting refresh...')
-          await supabase.auth.refreshSession()
-        }
-      } catch (sessionError) {
-        logger.warn('⚠️ [PRESTATAIRE-DATA] Session check failed:', sessionError)
-        // Continue anyway - let the service handle it
-      }
+      // ✅ Session gérée par AuthProvider + use-session-keepalive.ts
+      // Pas besoin de vérification défensive ici
 
       // ✅ CORRECTION: Nettoyer l'ID utilisateur si c'est un JWT-only ID
       const cleanUserId = userId.startsWith('jwt_') ? userId.replace('jwt_', '') : userId
@@ -208,6 +198,9 @@ export const usePrestataireData = (userId: string) => {
       logger.info('🔄 [PRESTATAIRE-DATA] Enriching interventions with quotes, slots and assignments (BATCH)...')
 
       const interventionIds = (interventions || []).map((i: Intervention) => i.id)
+
+      // ✅ Créer le client Supabase pour les requêtes batch
+      const supabase = createBrowserSupabaseClient()
 
       // 3 requêtes batch au lieu de 3*N requêtes
       const [

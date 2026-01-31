@@ -4,6 +4,12 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Reset portal positioning (Next.js/Radix Portal container) */
+nextjs-portal {
+  left: unset;
+  top: unset;
+}
+
 /* ========================================
    CONTENTSQUARE/CLARITY PRIVACY MASKING
    RGPD Compliance - Mask sensitive data
@@ -1233,4 +1239,54 @@ input:-webkit-autofill:active {
 
 .unified-modal__header--warning .unified-modal__header-icon {
   @apply bg-amber-100 text-amber-600;
+}
+
+/* ============================================
+   SUCCESS TOAST ANIMATIONS
+   B2B Professional - Subtle engagement feedback
+   ============================================ */
+
+/* Success bounce animation for toast checkmark icon */
+@keyframes success-bounce {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-success-bounce {
+  animation: success-bounce 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Subtle ring pulse behind success icon */
+@keyframes success-ring {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.animate-success-ring {
+  animation: success-ring 0.6s ease-out forwards;
+}
+
+/* Respect reduced motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  .animate-success-bounce,
+  .animate-success-ring {
+    animation: none;
+    opacity: 1;
+    transform: scale(1);
+  }
 }

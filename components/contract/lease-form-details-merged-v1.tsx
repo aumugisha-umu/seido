@@ -32,7 +32,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { DatePicker } from '@/components/ui/date-picker'
 import { ContactSection } from '@/components/ui/contact-section'
 import ContactSelector from '@/components/contact-selector'
-import { Info, Calendar, Euro, AlertTriangle, Loader2, Users, Shield } from 'lucide-react'
+import { Info, Calendar, Euro, AlertTriangle, Loader2, Users, Shield, Clock, FileText } from 'lucide-react'
 import {
   Tooltip,
   TooltipContent,
@@ -103,7 +103,6 @@ interface LeaseFormDetailsMergedV1Props {
   // Callback pour remonter le résultat de l'overlap check (pour validation step)
   onOverlapCheckChange?: (result: {
     hasOverlap: boolean
-    isColocationAllowed: boolean
     hasDuplicateTenant: boolean
   } | null) => void
 
@@ -112,17 +111,18 @@ interface LeaseFormDetailsMergedV1Props {
 }
 
 /**
- * État de la vérification de chevauchement avec logique colocation/doublon
+ * État de la vérification de chevauchement avec détection doublon
+ *
+ * Note (2026-01): La logique "collocation" a été retirée car c'est un mode d'occupation
+ * géré au niveau du bail, pas une catégorie de lot.
+ * - hasOverlap = WARNING (création autorisée, le gestionnaire décide si c'est une colocation)
+ * - hasDuplicateTenant = ERREUR BLOQUANTE (même locataire ne peut pas avoir 2 baux sur le même lot)
  */
 interface OverlapCheckState {
   isChecking: boolean
   hasOverlap: boolean
   overlappingContracts: OverlappingContractInfo[]
   nextAvailableDate: string | null
-  // Logique colocation/doublon
-  lotCategory: string | null
-  isColocationLot: boolean
-  isColocationAllowed: boolean
   hasDuplicateTenant: boolean
   duplicateTenantContracts: OverlappingContractInfo[]
 }
@@ -161,9 +161,6 @@ export default function LeaseFormDetailsMergedV1({
     hasOverlap: false,
     overlappingContracts: [],
     nextAvailableDate: null,
-    lotCategory: null,
-    isColocationLot: false,
-    isColocationAllowed: false,
     hasDuplicateTenant: false,
     duplicateTenantContracts: []
   })
@@ -180,9 +177,6 @@ export default function LeaseFormDetailsMergedV1({
         hasOverlap: false,
         overlappingContracts: [],
         nextAvailableDate: null,
-        lotCategory: null,
-        isColocationLot: false,
-        isColocationAllowed: false,
         hasDuplicateTenant: false,
         duplicateTenantContracts: []
       })
@@ -222,9 +216,6 @@ export default function LeaseFormDetailsMergedV1({
             hasOverlap: result.data.hasOverlap,
             overlappingContracts: result.data.overlappingContracts,
             nextAvailableDate: result.data.nextAvailableDate,
-            lotCategory: result.data.lotCategory,
-            isColocationLot: result.data.isColocationLot,
-            isColocationAllowed: result.data.isColocationAllowed,
             hasDuplicateTenant: result.data.hasDuplicateTenant,
             duplicateTenantContracts: result.data.duplicateTenantContracts
           })
@@ -253,7 +244,6 @@ export default function LeaseFormDetailsMergedV1({
         // Vérification terminée, remonter le résultat
         onOverlapCheckChange({
           hasOverlap: overlapCheck.hasOverlap,
-          isColocationAllowed: overlapCheck.isColocationAllowed,
           hasDuplicateTenant: overlapCheck.hasDuplicateTenant
         })
       }
@@ -413,8 +403,8 @@ export default function LeaseFormDetailsMergedV1({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Start date */}
             <div className="space-y-1.5">
-              <Label htmlFor="startDate" className="flex items-center gap-1.5">
-                Date de début <span className="text-destructive">*</span>
+              <Label htmlFor="startDate" icon={Calendar} required size="sm">
+                Date de début
               </Label>
               <DatePicker
                 value={startDate}
@@ -438,9 +428,9 @@ export default function LeaseFormDetailsMergedV1({
             </div>
 
             {/* Duration */}
-            <div>
-              <Label htmlFor="duration" className="flex items-center gap-1.5">
-                Durée du bail <span className="text-destructive">*</span>
+            <div className="space-y-1.5">
+              <Label htmlFor="duration" icon={Clock} required size="sm">
+                Durée du bail
               </Label>
               <Select
                 value={String(durationMonths)}
@@ -500,25 +490,26 @@ export default function LeaseFormDetailsMergedV1({
             </Alert>
           )}
 
-          {/* ALERTE 2: Erreur bloquante - Chevauchement sur lot NON-colocation */}
-          {!overlapCheck.isChecking && overlapCheck.hasOverlap && !overlapCheck.isColocationLot && !overlapCheck.hasDuplicateTenant && (
-            <Alert variant="destructive" className="animate-in fade-in-50 duration-300">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertTitle className="font-semibold">
-                Conflit de période
+          {/* ALERTE 2: Warning - Chevauchement détecté (création autorisée) */}
+          {!overlapCheck.isChecking && overlapCheck.hasOverlap && !overlapCheck.hasDuplicateTenant && (
+            <Alert className="border-amber-200 bg-amber-50 animate-in fade-in-50 duration-300">
+              <Info className="h-4 w-4 text-amber-600" />
+              <AlertTitle className="text-amber-800 font-semibold">
+                Bail existant sur cette période
               </AlertTitle>
-              <AlertDescription>
+              <AlertDescription className="text-amber-700">
                 <p className="mb-2">
-                  Un bail existe déjà sur cette période pour ce lot :
+                  Un bail existe déjà sur cette période. Si ce n&apos;est pas une colocation ou cohabitation,
+                  utilisez la date suggérée ci-dessous.
                 </p>
                 <ul className="space-y-1">
                   {overlapCheck.overlappingContracts.map((contract) => (
                     <li key={contract.id} className="flex flex-wrap items-center gap-x-2 text-sm">
                       <span className="font-medium">{contract.title}</span>
-                      <span>
+                      <span className="text-amber-600">
                         ({formatDateDisplay(contract.start_date)} → {formatDateDisplay(contract.end_date)})
                       </span>
-                      <Badge variant="outline" className="text-xs">
+                      <Badge variant="outline" className="text-xs border-amber-300 text-amber-700">
                         {contract.status === 'actif' ? 'Actif' : contract.status === 'a_venir' ? 'À venir' : contract.status}
                       </Badge>
                     </li>
@@ -530,42 +521,13 @@ export default function LeaseFormDetailsMergedV1({
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="mt-3"
+                    className="mt-3 border-amber-300 text-amber-700 hover:bg-amber-100"
                     onClick={() => onFieldChange('startDate', overlapCheck.nextAvailableDate)}
                   >
                     <Calendar className="h-4 w-4 mr-2" />
-                    Utiliser le {formatDateDisplay(overlapCheck.nextAvailableDate)}
+                    Première date disponible : {formatDateDisplay(overlapCheck.nextAvailableDate)}
                   </Button>
                 )}
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {/* ALERTE 3: Warning - Colocation permise (lot catégorie = colocation) */}
-          {!overlapCheck.isChecking && overlapCheck.isColocationAllowed && (
-            <Alert className="border-blue-200 bg-blue-50 animate-in fade-in-50 duration-300">
-              <Info className="h-4 w-4 text-blue-600" />
-              <AlertTitle className="text-blue-800 font-semibold">
-                Colocation
-              </AlertTitle>
-              <AlertDescription className="text-blue-700">
-                <p className="mb-2">
-                  Ce lot est configuré en colocation. Un bail existe déjà mais vous pouvez
-                  ajouter un nouveau colocataire.
-                </p>
-                <ul className="space-y-1">
-                  {overlapCheck.overlappingContracts.map((contract) => (
-                    <li key={contract.id} className="flex flex-wrap items-center gap-x-2 text-sm">
-                      <span className="font-medium">{contract.title}</span>
-                      <span className="text-blue-600">
-                        ({formatDateDisplay(contract.start_date)} → {formatDateDisplay(contract.end_date)})
-                      </span>
-                      <Badge variant="outline" className="text-xs border-blue-300 text-blue-700">
-                        {contract.status === 'actif' ? 'Actif' : contract.status === 'a_venir' ? 'À venir' : contract.status}
-                      </Badge>
-                    </li>
-                  ))}
-                </ul>
               </AlertDescription>
             </Alert>
           )}
@@ -584,8 +546,8 @@ export default function LeaseFormDetailsMergedV1({
           <div className="flex flex-wrap items-end gap-3">
             {/* Rent amount - fixed width */}
             <div className="space-y-1.5 w-32">
-              <Label htmlFor="rentAmount" className="text-sm flex items-center gap-1">
-                Loyer <span className="text-destructive">*</span>
+              <Label htmlFor="rentAmount" icon={Euro} required size="sm">
+                Loyer
               </Label>
               <div className="relative">
                 <Input
@@ -603,7 +565,7 @@ export default function LeaseFormDetailsMergedV1({
 
             {/* Charges amount + type grouped together */}
             <div className="space-y-1.5">
-              <Label htmlFor="chargesAmount" className="text-sm flex items-center gap-1">
+              <Label htmlFor="chargesAmount" icon={Euro} size="sm">
                 Charges
                 <TooltipProvider>
                   <Tooltip>
@@ -670,7 +632,7 @@ export default function LeaseFormDetailsMergedV1({
 
             {/* Payment frequency - compact */}
             <div className="space-y-1.5 w-28">
-              <Label htmlFor="paymentFrequency" className="text-sm">Fréquence</Label>
+              <Label htmlFor="paymentFrequency" icon={Clock} size="sm">Fréquence</Label>
               <Select
                 value={paymentFrequency}
                 onValueChange={(value) => onFieldChange('paymentFrequency', value as PaymentFrequency)}
@@ -711,7 +673,7 @@ export default function LeaseFormDetailsMergedV1({
           <div className="flex flex-wrap items-end gap-3">
             {/* Guarantee type - wider to accommodate labels */}
             <div className="space-y-1.5 w-56">
-              <Label htmlFor="guaranteeType" className="text-sm">Type de garantie</Label>
+              <Label htmlFor="guaranteeType" icon={Shield} size="sm">Type de garantie</Label>
               <Select
                 value={guaranteeType}
                 onValueChange={(value) => onFieldChange('guaranteeType', value as GuaranteeType)}
@@ -730,7 +692,7 @@ export default function LeaseFormDetailsMergedV1({
             {/* Guarantee amount - same style as rent/charges */}
             {guaranteeType !== 'pas_de_garantie' && (
               <div className="space-y-1.5 w-40">
-                <Label htmlFor="guaranteeAmount" className="text-sm">
+                <Label htmlFor="guaranteeAmount" icon={Euro} size="sm">
                   Montant de la garantie
                 </Label>
                 <div className="relative">
@@ -755,7 +717,7 @@ export default function LeaseFormDetailsMergedV1({
           {/* Notes on guarantee - full width when present */}
           {guaranteeType !== 'pas_de_garantie' && (
             <div className="space-y-1.5">
-              <Label htmlFor="guaranteeNotes" className="text-sm">Notes sur la garantie</Label>
+              <Label htmlFor="guaranteeNotes" icon={FileText} size="sm">Notes sur la garantie</Label>
               <Textarea
                 id="guaranteeNotes"
                 value={guaranteeNotes}
@@ -772,7 +734,7 @@ export default function LeaseFormDetailsMergedV1({
 
         {/* Section 5: Additional Notes */}
         <div className="space-y-4">
-          <Label htmlFor="comments">Commentaires</Label>
+          <Label htmlFor="comments" icon={FileText}>Commentaires</Label>
           <Textarea
             id="comments"
             value={comments}

@@ -4258,7 +4258,6 @@ export type Database = {
       invitation_status: "pending" | "accepted" | "expired" | "cancelled"
       lot_category:
         | "appartement"
-        | "collocation"
         | "maison"
         | "garage"
         | "local_commercial"
@@ -4576,7 +4575,6 @@ export const Constants = {
       invitation_status: ["pending", "accepted", "expired", "cancelled"],
       lot_category: [
         "appartement",
-        "collocation",
         "maison",
         "garage",
         "local_commercial",

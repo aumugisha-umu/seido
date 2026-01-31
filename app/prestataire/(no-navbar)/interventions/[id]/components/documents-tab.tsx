@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react'
+import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -90,6 +91,7 @@ export function DocumentsTab({
   canUpload = false,
   onRefresh
 }: DocumentsTabProps) {
+  const { user } = useAuth()
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
@@ -100,7 +102,6 @@ export function DocumentsTab({
     setDeletingId(documentId)
     try {
       const supabase = createBrowserSupabaseClient()
-      const { data: { user } } = await supabase.auth.getUser()
 
       const { error } = await supabase
         .from('intervention_documents')

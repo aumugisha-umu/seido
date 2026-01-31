@@ -45,8 +45,141 @@
 - [x] **Accessibility WCAG AA ApprovalModal** (2026-01-30)
 - [x] **Card Refactoring: PendingActionsCard → InterventionCard** (2026-01-30)
 - [x] **Fix Finalization Modal z-index** (2026-01-30) - Modale invisible corrigée
+- [x] **Auth Refactoring Complet** (2026-01-31) - Centralisation auth, suppression appels redondants
+- [x] **SWR Server Component Fix** (2026-01-31) - Séparation client/serveur pour hooks SWR
+- [x] **Tenant Dashboard UX** (2026-01-31) - Affichage étage/porte/description avec alignement corrigé
+- [x] **Extension Types Locataire** (2026-01-31) - Dropdown locataire: 20 → 27 types (ajout catégorie "Locataire")
+- [x] **Fix Confirmation Gestionnaire** (2026-01-31) - Header "Intervention créée" affiché après création, pas avant
 
 ## Sprint Actuel (Jan 2026)
+
+### 2026-01-31 - Formulaire Intervention Locataire + Confirmation Gestionnaire (Session 4)
+
+**Ce qui a été fait:**
+
+**1. Extension Types d'Intervention Locataire**
+- Le dropdown locataire n'affichait que 20 types (catégorie "Bien")
+- 7 types pertinents étaient masqués (catégorie "Locataire" : Réclamation, Nuisances, Demande d'info...)
+- Solution: Composant accepte maintenant un tableau de catégories
+
+**Fichiers modifiés:**
+- `components/intervention/intervention-type-combobox.tsx` (type `categoryFilter` étendu)
+- `app/locataire/.../nouvelle-demande-client.tsx` (filtre `["bien", "locataire"]`)
+
+**2. Fix Confirmation Gestionnaire (Header Prématuré)**
+- L'étape 4 du gestionnaire affichait "Intervention créée !" AVANT la création réelle
+- Root cause: `showSuccessHeader={true}` alors qu'on est encore à l'étape de confirmation
+
+**Fichier modifié:**
+- `app/gestionnaire/.../nouvelle-intervention-client.tsx` (`showSuccessHeader={false}`)
+
+**Pattern documenté:** Cohérence locataire/gestionnaire pour `InterventionConfirmationSummary`
+
+---
+
+### 2026-01-31 - SWR Server Component Fix + Tenant Dashboard UX (Session 3)
+
+**Ce qui a été fait:**
+
+**1. Fix `ReferenceError: window is not defined`**
+- Root cause: SWR accède à `window` au moment de l'import du module
+- Le hook `use-intervention-types.ts` était importé dans Server Component
+- Solution: Créé `lib/services/domain/intervention-types.server.ts` séparé
+
+**Fichiers modifiés:**
+- `lib/services/domain/intervention-types.server.ts` (CRÉÉ)
+- `app/gestionnaire/.../nouvelle-intervention/page.tsx` (import mis à jour)
+- `hooks/use-intervention-types.ts` (fonction supprimée)
+
+**2. Fix Affichage Étage/Porte Dashboard Locataire**
+- Problème: Bullet `•` affiché en premier, mauvais alignement, champs inexistants
+- Solution: Pattern séparateurs conditionnels + `pl-7` alignement + description ajoutée
+
+**Fichiers modifiés:**
+- `lib/services/domain/tenant.service.ts` (ajout `description` dans requête)
+- `lib/utils/tenant-transform.ts` (ajout `description` au type)
+- `hooks/use-tenant-data.ts` (ajout `description` à l'interface)
+- `components/dashboards/locataire-dashboard-hybrid.tsx` (nouveau affichage)
+
+**Pattern documenté:** Séparation client/serveur pour hooks SWR dans activeContext.md
+
+---
+
+### 2026-01-31 - Authentication Refactoring (MAJEUR)
+
+**Problème résolu:** L'authentification dans SEIDO faisait des appels redondants à plusieurs endroits au lieu de passer l'information depuis les points d'entrée.
+
+**3 phases complétées:**
+
+| Phase | Description | Fichiers modifiés |
+|-------|-------------|-------------------|
+| **Phase 1: Hooks** | Suppression vérifications défensives session | 4 hooks |
+| **Phase 2: Server Actions** | Remplacement `getAuthenticatedUser()` par helper centralisé | 7 fichiers |
+| **Phase 3: Services** | Paramètres explicites + deprecation helpers legacy | 3 fichiers |
+
+#### Phase 1: Hooks Client (4 fichiers)
+
+| Fichier | Modification | Bug fix post-review |
+|---------|--------------|---------------------|
+| `hooks/use-tenant-data.ts` | Supprimé defensive session check | ✅ Ajouté `const supabase = createBrowserSupabaseClient()` ligne 212 |
+| `hooks/use-contacts-data.ts` | Supprimé defensive session check | ✅ Ajouté `const supabase = createBrowserSupabaseClient()` ligne 112 |
+| `hooks/use-interventions.ts` | Supprimé defensive session check | - |
+| `hooks/use-prestataire-data.ts` | Supprimé defensive session check | ✅ Ajouté `const supabase = createBrowserSupabaseClient()` ligne 203 |
+
+**Bug critique corrigé (post-review):** Les 3 hooks `use-contacts-data.ts`, `use-prestataire-data.ts`, `use-tenant-data.ts` utilisaient `supabase` sans l'avoir déclaré après la suppression des vérifications défensives.
+
+#### Phase 2: Server Actions (7 fichiers)
+
+**Nouveau helper créé:** `getServerActionAuthContextOrNull()` dans `lib/server-context.ts`
+
+| Fichier | Ancienne méthode | Nouvelle méthode | Bugs fixés |
+|---------|------------------|------------------|------------|
+| `app/actions/intervention-actions.ts` | `getAuthenticatedUser()` local | `getServerActionAuthContextOrNull()` | - |
+| `app/actions/intervention-comment-actions.ts` | `getAuthenticatedUser()` local | `getServerActionAuthContextOrNull()` | - |
+| `app/actions/email-conversation-actions.ts` | `getAuthenticatedUser()` local | `getServerActionAuthContextOrNull()` | - |
+| `app/actions/conversation-actions.ts` | `getAuthenticatedUser()` local | `getServerActionAuthContextOrNull()` | - |
+| `app/actions/contract-actions.ts` | `getSession()` + `.single()` | `getServerActionAuthContextOrNull()` | `.single()` → `.limit(1)` |
+| `app/actions/building-actions.ts` | `getSession()` + `.single()` | `getServerActionAuthContextOrNull()` | `.single()` → `.limit(1)` |
+| `app/actions/lot-actions.ts` | `getSession()` + `.single()` | `getServerActionAuthContextOrNull()` | `.single()` → `.limit(1)` |
+
+**Bug `.single()` fixé:** Pour les utilisateurs multi-profil (plusieurs équipes), `.single()` causait une erreur PGRST116 car plusieurs rows étaient retournées.
+
+#### Phase 3: Services/Repositories (3 fichiers)
+
+| Fichier | Modification |
+|---------|--------------|
+| `lib/services/domain/intervention-service.ts` | `getAll()` accepte maintenant `teamId` en paramètre optionnel |
+| `lib/services/repositories/team.repository.ts` | Supprimé debug auth call inutile |
+| `lib/services/core/supabase-client.ts` | Ajouté `@deprecated` sur `getCurrentUserId()`, `isAuthenticated()`, `getServerSession()` |
+
+#### Nouveau pattern Server Action
+
+```typescript
+// lib/server-context.ts - NOUVEAU HELPER
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
+
+export async function myAction(input: unknown): Promise<ActionResult<Data>> {
+  const authContext = await getServerActionAuthContextOrNull()
+  if (!authContext) {
+    return { success: false, error: 'Authentication required' }
+  }
+  const { profile, team, supabase } = authContext
+  // ...
+}
+```
+
+#### Points de vigilance pour debugging
+
+Si un bug d'authentification est trouvé, vérifier:
+
+1. **Hooks client** - Les 4 hooks modifiés (`use-tenant-data.ts`, `use-contacts-data.ts`, `use-prestataire-data.ts`, `use-interventions.ts`)
+2. **Server Actions** - Les 7 fichiers utilisant `getServerActionAuthContextOrNull()`
+3. **Bug `.single()`** - Tester avec un utilisateur multi-profil (plusieurs équipes)
+4. **Variable `supabase`** - Vérifier que `createBrowserSupabaseClient()` est appelé avant toute utilisation de `supabase`
+
+**Design document:** `docs/plans/2026-01-31-auth-refactoring-design.md`
+
+---
 
 ### 2026-01-30 - Finalization Modal z-index Fix
 
@@ -537,7 +670,8 @@ Nouvelle architecture adresses avec support Google Maps:
 | **2026-01-29** | **Trigger thread_add_managers** | **Managers pas explicitement participants** | **Auto-ajout managers a tous les threads intervention** |
 | **2026-01-30** | **SW disabled in dev** | **Timeouts CSP bloquaient l'app** | **Dev fluide, SW actif en prod uniquement** |
 | **2026-01-30** | **CSP connect-src exhaustif** | **SW intercepte tous fetch** | **Tous domaines dans connect-src, pas juste img-src/font-src** |
+| **2026-01-31** | **Auth Refactoring Complet** | **Appels auth redondants, bug multi-profil** | **14 fichiers refactorisés, ~250 lignes supprimées, nouveau helper centralisé** |
 
 ---
-*Derniere mise a jour: 2026-01-30 12:00*
-*Performance optimization: 4 agents paralleles, SW disabled en dev*
+*Derniere mise a jour: 2026-01-31 21:30*
+*Session 4: Extension types locataire + Fix confirmation gestionnaire*

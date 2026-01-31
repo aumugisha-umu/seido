@@ -4,14 +4,17 @@
  * Conversation Server Actions
  * Server-side operations for intervention conversations with real-time messaging
  * Handles team transparency, thread management, and notifications
+ *
+ * ✅ REFACTORED (Jan 2026): Uses centralized getServerActionAuthContextOrNull()
+ *    instead of duplicated local auth helper
  */
 
 import {
   createServerActionConversationService,
   createServerActionSupabaseClient
 } from '@/lib/services'
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
@@ -64,67 +67,8 @@ const PaginationSchema = z.object({
   limit: z.number().positive().max(100).optional().default(50)
 })
 
-/**
- * Helper to get auth session and user ID
- */
-/**
- * Helper to get auth session and user ID
- *
- * MULTI-PROFILE SUPPORT:
- * - Uses getUser() instead of getSession() for reliable server-side auth
- * - Fetches ALL profiles for the auth user (not .single())
- * - Selects profile based on seido_current_team cookie
- * - Prevents PGRST116 error when user has multiple profiles
- */
-async function getAuthenticatedUser() {
-  const supabase = await createServerActionSupabaseClient()
-
-  // Use getUser() for server-side validation (recommended by Supabase)
-  const { data: { user: authUser }, error } = await supabase.auth.getUser()
-
-  if (!authUser || error) {
-    logger.debug({ error: error?.message }, '[AUTH-CONVERSATION] getUser returned no user')
-    return null
-  }
-
-  // ✅ MULTI-PROFIL FIX: Récupérer TOUS les profils au lieu de .single()
-  const { data: profiles, error: profilesError } = await supabase
-    .from('users')
-    .select('id, role, team_id')
-    .eq('auth_user_id', authUser.id)
-    .is('deleted_at', null)
-    .order('updated_at', { ascending: false })
-
-  if (profilesError || !profiles || profiles.length === 0) {
-    logger.warn({
-      authUserId: authUser.id,
-      error: profilesError?.message,
-      profilesCount: profiles?.length
-    }, '[AUTH-CONVERSATION] User profiles not found')
-    return null
-  }
-
-  // Sélectionner le profil selon cookie seido_current_team
-  const cookieStore = await cookies()
-  const preferredTeamId = cookieStore.get('seido_current_team')?.value
-  let selectedProfile = profiles[0]  // Défaut: plus récent
-
-  if (preferredTeamId && preferredTeamId !== 'all') {
-    const preferred = profiles.find(p => p.team_id === preferredTeamId)
-    if (preferred) {
-      selectedProfile = preferred
-    }
-  }
-
-  logger.debug({
-    authUserId: authUser.id,
-    totalProfiles: profiles.length,
-    selectedTeamId: selectedProfile.team_id,
-    selectedRole: selectedProfile.role
-  }, '✅ [AUTH-CONVERSATION] Multi-profile selection completed')
-
-  return selectedProfile
-}
+// ✅ REFACTORED: Auth helper removed - now using centralized getServerActionAuthContextOrNull()
+// from lib/server-context.ts
 
 /**
  * THREAD MANAGEMENT
@@ -138,7 +82,8 @@ export async function getThreadsByInterventionAction(
 ): Promise<ActionResult<ThreadWithDetails[]>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -177,7 +122,8 @@ export async function createThreadAction(
 ): Promise<ActionResult<ConversationThread>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -230,7 +176,8 @@ export async function getThreadAction(
 ): Promise<ActionResult<ThreadWithDetails>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -287,7 +234,8 @@ export async function getThreadParticipantsAction(
 ): Promise<ActionResult<ParticipantWithUser[]>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -362,7 +310,8 @@ export async function getMessagesAction(
 ): Promise<ActionResult<MessageWithUser[]>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -427,7 +376,8 @@ export async function sendMessageAction(
 
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -525,7 +475,8 @@ export async function sendMessageAction(
 export async function deleteMessageAction(messageId: string): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -592,7 +543,8 @@ export async function addParticipantAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const currentUser = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const currentUser = authContext?.profile
     if (!currentUser) {
       return { success: false, error: 'Authentication required' }
     }
@@ -750,7 +702,8 @@ export async function removeParticipantAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -809,7 +762,8 @@ export async function removeParticipantAction(
 export async function markThreadAsReadAction(threadId: string): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -860,7 +814,8 @@ export async function markThreadAsReadAction(threadId: string): Promise<ActionRe
 export async function getUnreadCountAction(): Promise<ActionResult<number>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -885,7 +840,8 @@ export async function addProviderToGroupThreadAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1005,7 +961,8 @@ export async function getManagerAccessibleThreadsAction(
 ): Promise<ActionResult<ThreadWithDetails[]>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }

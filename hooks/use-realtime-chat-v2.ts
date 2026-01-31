@@ -18,6 +18,7 @@
 
 import { useState, useEffect, useCallback, useRef, useOptimistic, startTransition } from 'react'
 import { useRealtimeOptional } from '@/contexts/realtime-context'
+import { useAuth } from '@/hooks/use-auth'
 import { createBrowserSupabaseClient } from '@/lib/services'
 import { toast } from 'sonner'
 import type { Tables } from '@/lib/database.types'
@@ -91,6 +92,9 @@ const MESSAGES_PER_PAGE = 50
  * ```
  */
 export function useRealtimeChatV2(threadId: string): UseRealtimeChatReturn {
+  // Auth - Centralized via AuthProvider
+  const { user: authUser, profile } = useAuth()
+
   // State
   const [messages, setMessages] = useState<MessageWithUser[]>([])
   const [loading, setLoading] = useState(true)
@@ -102,7 +106,6 @@ export function useRealtimeChatV2(threadId: string): UseRealtimeChatReturn {
   // Refs
   const supabaseRef = useRef(createBrowserSupabaseClient())
   const threadIdRef = useRef(threadId)
-  const currentUserRef = useRef<User | null>(null)
 
   // Realtime context
   const realtimeContext = useRealtimeOptional()
@@ -166,27 +169,7 @@ export function useRealtimeChatV2(threadId: string): UseRealtimeChatReturn {
     fetchMessages(1)
   }, [threadId, fetchMessages])
 
-  // ────────────────────────────────────────────────────────────────────────
-  // Get current user once
-  // ────────────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const fetchCurrentUser = async () => {
-      const supabase = supabaseRef.current
-      const { data: { session } } = await supabase.auth.getSession()
-
-      if (session?.user) {
-        const { data } = await supabase
-          .from('users')
-          .select('*')
-          .eq('auth_user_id', session.user.id)
-          .single()
-
-        currentUserRef.current = data
-      }
-    }
-
-    fetchCurrentUser()
-  }, [])
+  // Current user is now provided by useAuth() hook - profile contains full user data
 
   // ────────────────────────────────────────────────────────────────────────
   // Subscribe to realtime events via centralized Provider
@@ -239,7 +222,7 @@ export function useRealtimeChatV2(threadId: string): UseRealtimeChatReturn {
             setMessages(prev => [...prev, messageWithUser])
 
             // Toast if message from another user
-            if (currentUserRef.current && newMessage.user_id !== currentUserRef.current.id) {
+            if (profile && newMessage.user_id !== profile.id) {
               toast.info('Nouveau message reçu')
             }
             break
@@ -286,8 +269,7 @@ export function useRealtimeChatV2(threadId: string): UseRealtimeChatReturn {
       return
     }
 
-    const currentUser = currentUserRef.current
-    if (!currentUser) {
+    if (!profile) {
       toast.error('Non authentifié')
       return
     }
@@ -301,13 +283,13 @@ export function useRealtimeChatV2(threadId: string): UseRealtimeChatReturn {
       const optimisticMsg: MessageWithUser = {
         id: tempId,
         thread_id: threadId,
-        user_id: currentUser.id,
+        user_id: profile.id,
         content,
         created_at: new Date().toISOString(),
         deleted_at: null,
         deleted_by: null,
         metadata: attachments ? { attachments } : null,
-        user: currentUser,
+        user: profile as User,
         is_optimistic: true,
         temp_id: tempId
       }
@@ -323,7 +305,7 @@ export function useRealtimeChatV2(threadId: string): UseRealtimeChatReturn {
         // Replace optimistic with real
         setMessages(prev => {
           const filtered = prev.filter(msg => msg.temp_id !== tempId)
-          return [...filtered, { ...result.data, user: currentUser } as MessageWithUser]
+          return [...filtered, { ...result.data, user: profile as User } as MessageWithUser]
         })
         toast.success('Message envoyé')
       } else {
@@ -338,7 +320,7 @@ export function useRealtimeChatV2(threadId: string): UseRealtimeChatReturn {
     } finally {
       setSending(false)
     }
-  }, [threadId, sending, addOptimisticMessage])
+  }, [threadId, sending, addOptimisticMessage, profile])
 
   const deleteMessage = useCallback(async (messageId: string) => {
     if (!messageId) return

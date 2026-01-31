@@ -792,8 +792,8 @@ export class LotService {
     }
 
     // Validate category if provided (must match PostgreSQL enum lot_category)
-    if (data.category && !['appartement', 'collocation', 'maison', 'garage', 'local_commercial', 'parking', 'autre'].includes(data.category)) {
-      throw new ValidationException(`Invalid lot category: "${data.category}". Must be one of: appartement, collocation, maison, garage, local_commercial, parking, autre`, 'lots', 'category')
+    if (data.category && !['appartement', 'maison', 'garage', 'local_commercial', 'autre'].includes(data.category)) {
+      throw new ValidationException(`Invalid lot category: "${data.category}". Must be one of: appartement, maison, garage, local_commercial, autre`, 'lots', 'category')
     }
   }
 

@@ -68,7 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     }, AUTH_RETRY_CONFIG.TIMEOUT_MS)
 
-    // ✅ OPTIMISATION: Check immédiat de session au mount (BLOQUANT pour peupler localStorage)
+    // Check immédiat de session au mount (BLOQUANT pour peupler localStorage)
     const checkInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
@@ -82,7 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return true
         }
       } catch (error) {
-        logger.error('❌ [AUTH-PROVIDER] Initial session check failed:', error)
+        logger.error('[AUTH-PROVIDER] Initial session check failed:', error)
       }
       return false
     }

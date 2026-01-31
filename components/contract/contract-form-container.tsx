@@ -260,9 +260,9 @@ export default function ContractFormContainer({
   const [scheduledInterventions, setScheduledInterventions] = useState<ScheduledInterventionData[]>([])
 
   // État de l'overlap check (remonté depuis LeaseFormDetailsMerged pour validation step)
+  // Note (2026-01): hasOverlap n'est plus bloquant (warning seulement), seul hasDuplicateTenant bloque
   const [overlapCheckResult, setOverlapCheckResult] = useState<{
     hasOverlap: boolean
-    isColocationAllowed: boolean
     hasDuplicateTenant: boolean
   } | null>(null)
 
@@ -489,10 +489,9 @@ export default function ContractFormContainer({
         const hasDuration = !!formData.durationMonths
         const hasRent = !!(formData.rentAmount && formData.rentAmount > 0)
         const hasLocataire = (formData.contacts || []).some(c => c.role === 'locataire')
-        // ✅ Bloquer si doublon OU si chevauchement sur lot non-colocation
+        // ✅ Seul le doublon locataire est bloquant - les chevauchements sont en warning (colocation/cohabitation permise)
         const noDuplicateTenant = !overlapCheckResult?.hasDuplicateTenant
-        const noBlockingOverlap = !overlapCheckResult?.hasOverlap || overlapCheckResult?.isColocationAllowed
-        return hasStartDate && hasDuration && hasRent && hasLocataire && noDuplicateTenant && noBlockingOverlap
+        return hasStartDate && hasDuration && hasRent && hasLocataire && noDuplicateTenant
       case 2: // Documents (optionnel - toujours valide)
         return true
       case 3: // Interventions (optionnel - toujours valide)

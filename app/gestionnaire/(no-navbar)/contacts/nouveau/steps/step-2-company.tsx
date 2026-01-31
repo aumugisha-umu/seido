@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CompanySelector } from "@/components/ui/company-selector"
 import { CompanySearch } from "@/components/ui/company-search"
 import { GoogleMapPreview } from "@/components/google-maps/google-map-preview"
-import { Building2, Plus, Loader2 } from "lucide-react"
+import { Building2, Plus, Loader2, MapPin, Hash, Globe, FileDigit } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import type { CompanyLookupResult } from '@/lib/types/cbeapi.types'
 import { getVatCodeForCountry } from "@/lib/constants/vat"
@@ -367,8 +367,8 @@ export function Step2Company({
             <h3 className="font-semibold text-foreground">Sélection de la société</h3>
           </div>
           <div className="space-y-3">
-            <Label>
-              Société <span className="text-red-500">*</span>
+            <Label icon={Building2} required>
+              Société
             </Label>
             <CompanySelector
               companies={companies}
@@ -415,8 +415,8 @@ export function Step2Company({
           {/* Nom de la société + Numéro de TVA */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="company-name">
-                Nom de la société <span className="text-red-500">*</span>
+              <Label htmlFor="company-name" icon={Building2} required>
+                Nom de la société
               </Label>
               <Input
                 id="company-name"
@@ -427,8 +427,8 @@ export function Step2Company({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="vat-number">
-                Numéro de TVA <span className="text-red-500">*</span>
+              <Label htmlFor="vat-number" icon={FileDigit} required>
+                Numéro de TVA
               </Label>
               <Input
                 id="vat-number"
@@ -454,8 +454,8 @@ export function Step2Company({
           {/* Adresse - Grid 6 colonnes */}
           <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
             <div className="space-y-2 sm:col-span-4">
-              <Label htmlFor="street">
-                Rue <span className="text-red-500">*</span>
+              <Label htmlFor="street" icon={MapPin} required>
+                Rue
               </Label>
               <Input
                 id="street"
@@ -465,8 +465,8 @@ export function Step2Company({
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="street-number">
-                N° <span className="text-red-500">*</span>
+              <Label htmlFor="street-number" icon={Hash} required>
+                N°
               </Label>
               <Input
                 id="street-number"
@@ -479,8 +479,8 @@ export function Step2Company({
 
           <div className="grid grid-cols-1 sm:grid-cols-6 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="postal-code">
-                Code postal <span className="text-red-500">*</span>
+              <Label htmlFor="postal-code" icon={Hash} required>
+                Code postal
               </Label>
               <Input
                 id="postal-code"
@@ -490,8 +490,8 @@ export function Step2Company({
               />
             </div>
             <div className="space-y-2 sm:col-span-3">
-              <Label htmlFor="city">
-                Ville <span className="text-red-500">*</span>
+              <Label htmlFor="city" icon={Building2} required>
+                Ville
               </Label>
               <Input
                 id="city"
@@ -501,8 +501,8 @@ export function Step2Company({
               />
             </div>
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="country">
-                Pays <span className="text-red-500">*</span>
+              <Label htmlFor="country" icon={Globe} required>
+                Pays
               </Label>
               <Select value={country || 'BE'} onValueChange={(value) => handleAddressFieldChange('country', value)}>
                 <SelectTrigger id="country" className="w-full">
@@ -531,8 +531,8 @@ export function Step2Company({
           {/* Map Preview */}
           {hasValidCoords && (
             <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Apercu sur la carte
+              <Label icon={MapPin}>
+                Aperçu sur la carte
               </Label>
               <GoogleMapPreview
                 latitude={coords.lat}

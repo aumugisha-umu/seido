@@ -2215,10 +2215,12 @@ export default function NouvelleInterventionClient({
                   id: fileWithPreview.id,
                   name: fileWithPreview.file.name,
                   size: (fileWithPreview.file.size / (1024 * 1024)).toFixed(1) + ' MB',
-                  type: documentTypeLabel,
+                  type: fileWithPreview.file.type || documentTypeLabel,
+                  previewUrl: fileWithPreview.preview, // Image preview URL
                 }
               }),
               expectsQuote,
+              variant: 'manager' as const, // Manager-specific display
               // Multi-provider mode data
               assignmentMode: selectedProviderIds.length > 1 ? assignmentMode : 'single',
               providerInstructions: assignmentMode === 'separate' ? providerInstructions : undefined,
@@ -2238,6 +2240,8 @@ export default function NouvelleInterventionClient({
                 totalSteps={4}
                 isLoading={isCreating}
                 showFooter={false}
+                showSuccessHeader={false}
+                onGoToDashboard={() => router.push('/gestionnaire/dashboard')}
               />
             )
           })()}

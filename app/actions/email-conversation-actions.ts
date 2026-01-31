@@ -4,11 +4,14 @@
  * Email Conversation Server Actions
  * Server-side operations for email-linked internal team conversations
  * Allows gestionnaires to start private discussions about specific emails
+ *
+ * ✅ REFACTORED (Jan 2026): Uses centralized getServerActionAuthContextOrNull()
+ *    instead of duplicated local auth helper
  */
 
 import { createServerActionSupabaseClient, createServiceRoleSupabaseClient } from '@/lib/services'
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { revalidatePath } from 'next/cache'
-import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
@@ -47,56 +50,6 @@ interface TeamGestionnaire {
 }
 
 /**
- * Helper to get authenticated user with DB ID
- *
- * MULTI-PROFILE SUPPORT:
- * - Uses getUser() instead of getSession() for reliable server-side auth
- * - Fetches ALL profiles for the auth user (not .single())
- * - Selects profile based on seido_current_team cookie
- */
-async function getAuthenticatedUser() {
-  const supabase = await createServerActionSupabaseClient()
-
-  // Use getUser() for server-side validation
-  const { data: { user: authUser }, error } = await supabase.auth.getUser()
-
-  if (!authUser || error) {
-    logger.debug({ error: error?.message }, '[AUTH-EMAIL] getUser returned no user')
-    return null
-  }
-
-  // ✅ MULTI-PROFIL FIX: Récupérer TOUS les profils
-  const { data: profiles, error: profilesError } = await supabase
-    .from('users')
-    .select('id, role, team_id, name, email')
-    .eq('auth_user_id', authUser.id)
-    .is('deleted_at', null)
-    .order('updated_at', { ascending: false })
-
-  if (profilesError || !profiles || profiles.length === 0) {
-    logger.warn({
-      authUserId: authUser.id,
-      error: profilesError?.message
-    }, '[AUTH-EMAIL] User profiles not found')
-    return null
-  }
-
-  // Sélectionner le profil selon cookie seido_current_team
-  const cookieStore = await cookies()
-  const preferredTeamId = cookieStore.get('seido_current_team')?.value
-  let selectedProfile = profiles[0]
-
-  if (preferredTeamId && preferredTeamId !== 'all') {
-    const preferred = profiles.find(p => p.team_id === preferredTeamId)
-    if (preferred) {
-      selectedProfile = preferred
-    }
-  }
-
-  return selectedProfile
-}
-
-/**
  * Get email conversation thread if it exists
  * Returns the thread with participants if found, null otherwise
  */
@@ -105,7 +58,8 @@ export async function getEmailConversationAction(
 ): Promise<ActionResult<ThreadWithParticipants | null>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -170,7 +124,8 @@ export async function createEmailConversationAction(
 ): Promise<ActionResult<ThreadWithParticipants>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -324,7 +279,8 @@ export async function addEmailConversationParticipantsAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -420,7 +376,8 @@ export async function getTeamGestionnairesAction(
 ): Promise<ActionResult<TeamGestionnaire[]>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -478,7 +435,8 @@ export async function getEmailConversationParticipantsAction(
 ): Promise<ActionResult<ParticipantInfo[]>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }

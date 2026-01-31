@@ -418,11 +418,9 @@ export function BuildingContactsTab({
   const getCategoryBadge = (category: string) => {
     const configs: Record<string, { label: string; className: string }> = {
       appartement: { label: 'Appartement', className: 'bg-blue-100 text-blue-700 border-blue-200' },
-      collocation: { label: 'Collocation', className: 'bg-purple-100 text-purple-700 border-purple-200' },
       maison: { label: 'Maison', className: 'bg-green-100 text-green-700 border-green-200' },
       garage: { label: 'Garage', className: 'bg-gray-100 text-gray-700 border-gray-200' },
       local_commercial: { label: 'Local commercial', className: 'bg-orange-100 text-orange-700 border-orange-200' },
-      parking: { label: 'Parking', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
       autre: { label: 'Autre', className: 'bg-slate-100 text-slate-700 border-slate-200' }
     }
     return configs[category] || configs.autre
@@ -664,7 +662,7 @@ export function BuildingContactsTab({
                           <h4 className="font-semibold text-sm truncate">{lot.reference}</h4>
                           <p className="text-xs text-gray-600">
                             Étage {lot.floor}
-                            {lot.apartment_number && ` • Porte ${lot.apartment_number}`}
+                            {lot.apartment_number && ` • Porte/Boîte ${lot.apartment_number}`}
                           </p>
                         </div>
                         <Button

@@ -719,6 +719,10 @@ Pattern d'orchestration des skills `superpowers:sp-*` base sur des "Red Flags" (
 | Insert participant sans ON CONFLICT | Upsert avec ignoreDuplicates |
 | Relations PostgREST nested avec RLS | Requetes separees + helpers prives |
 | Utiliser InterventionTabs (supprime) | EntityTabs + getInterventionTabsConfig() |
+| Server Action avec `getAuthenticatedUser()` local | `getServerActionAuthContextOrNull()` |
+| Hook client avec session check defensif | `useAuth()` + `createBrowserSupabaseClient()` |
+| `.single()` sur profiles multi-equipes | `.limit(1)` + `data?.[0]` |
+| Hook sans `authLoading` dans dépendances | Extraire `loading` de `useAuth()` + ajouter aux deps |
 
 ## Conventions de Nommage
 
@@ -790,6 +794,124 @@ Pattern pour la gestion centralisee des adresses avec support Google Maps :
 - Support Google Maps natif (geocoding, place_id)
 - Evite duplication des champs adresse dans chaque table
 - RLS par team_id
+
+### 19. Server Action Auth Pattern (NOUVEAU 2026-01-31)
+
+Pattern centralisé pour l'authentification dans les Server Actions :
+
+```
++-------------------------------------------------------------+
+| ARCHITECTURE AUTH CENTRALISÉE                                |
++-------------------------------------------------------------+
+|                                                             |
+| MIDDLEWARE (1x)     LAYOUTS (1x/role)    CLIENT (1x)        |
+| ┌─────────────┐     ┌─────────────┐      ┌─────────────┐    |
+| │ Token       │     │getServer    │      │ AuthProvider│    |
+| │ Refresh     │     │AuthContext()│      │ (useAuth)   │    |
+| └──────┬──────┘     └──────┬──────┘      └──────┬──────┘    |
+|        │                   │                    │           |
+|        ▼                   ▼                    ▼           |
+| ┌─────────────────────────────────────────────────────────┐ |
+| │         DONNÉES AUTH PASSÉES EN PARAMÈTRES              │ |
+| │  • Services reçoivent userId/teamId en paramètre        │ |
+| │  • Server Actions: getServerActionAuthContextOrNull()   │ |
+| │  • Hooks client: useAuth() depuis AuthProvider          │ |
+| └─────────────────────────────────────────────────────────┘ |
++-------------------------------------------------------------+
+```
+
+**Helpers d'authentification par contexte :**
+
+| Contexte | Helper | Comportement |
+|----------|--------|--------------|
+| Server Components | `getServerAuthContext(role)` | Redirect si non auth |
+| Server Actions | `getServerActionAuthContextOrNull()` | Return null si non auth |
+| Client Components | `useAuth()` hook | State depuis AuthProvider |
+| API Routes | `getApiAuthContext()` | Return null/throw |
+
+**Pattern Server Action (obligatoire) :**
+
+```typescript
+// ✅ CORRECT - Pattern centralisé
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
+
+export async function myAction(input: unknown): Promise<ActionResult<Data>> {
+  const authContext = await getServerActionAuthContextOrNull()
+  if (!authContext) {
+    return { success: false, error: 'Authentication required' }
+  }
+  const { profile, team, supabase } = authContext
+  // ... logique métier
+}
+
+// ❌ INTERDIT - Pattern local dupliqué
+async function getAuthenticatedUser() {
+  const supabase = await createServerActionSupabaseClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  // ... 20 lignes de code dupliqué
+}
+```
+
+**Pattern Client Hook (obligatoire) :**
+
+```typescript
+// ✅ CORRECT - Session gérée par AuthProvider
+const { user, profile, team } = useAuth()
+
+// Si besoin de Supabase client dans le hook:
+const supabase = createBrowserSupabaseClient()
+const { data } = await supabase.from('table')...
+
+// ❌ INTERDIT - Vérification défensive redondante
+const { data: { session } } = await supabase.auth.getSession()
+if (!session) return // AuthProvider gère déjà ça!
+```
+
+**Bug `.single()` avec multi-profil :**
+
+```typescript
+// ❌ CASSE pour utilisateurs multi-équipes (erreur PGRST116)
+const { data } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('user_id', userId)
+  .single()
+
+// ✅ CORRECT - Supporte multi-profil
+const { data } = await supabase
+  .from('profiles')
+  .select('*')
+  .eq('user_id', userId)
+  .limit(1)
+  .then(res => res.data?.[0])
+```
+
+**Fichiers de référence :**
+- `lib/server-context.ts` - Helpers centralisés
+- `lib/api-auth-helper.ts` - Helper pour API Routes
+- `docs/plans/2026-01-31-auth-refactoring-design.md` - Design complet
+
+**Fichiers refactorés (2026-01-31) - Phase 1:**
+- 4 hooks: `use-tenant-data.ts`, `use-contacts-data.ts`, `use-interventions.ts`, `use-prestataire-data.ts`
+- 7 Server Actions: `intervention-actions.ts`, `intervention-comment-actions.ts`, `email-conversation-actions.ts`, `conversation-actions.ts`, `contract-actions.ts`, `building-actions.ts`, `lot-actions.ts`
+- 3 Services: `intervention-service.ts`, `team.repository.ts`, `supabase-client.ts`
+
+**Fichiers refactorés (2026-01-31) - Phase 2 (Migration complète):**
+- 3 hooks race condition: `use-notifications.ts`, `use-notification-popover.ts`, `use-activity-logs.ts` → Pattern #20
+- 1 hook realtime: `use-realtime-chat-v2.ts` → `useAuth()` au lieu de `supabase.auth.getSession()`
+- 2 documents tabs: `documents-tab.tsx` (gestionnaire + prestataire) → `useAuth()`
+- 5 API routes: `companies/[id]`, `emails/[id]`, `emails/send`, `emails/connections/[id]`, `emails/oauth/callback` → `getApiAuthContext()`
+
+**Fichiers NON migrés (infrastructure auth - volontairement):**
+- `hooks/use-auth.tsx` - AuthProvider centralisé
+- `lib/auth-dal.ts` - DAL centralisé
+- `lib/api-auth-helper.ts` - Helper API centralisé
+- `middleware.ts`, `utils/supabase/middleware.ts` - Middleware auth
+- `app/auth/*` - Pages flux d'authentification
+- `lib/session-cleanup.ts`, `hooks/use-session-*.ts` - Gestion session bas niveau
+- `lib/services/domain/intervention-service.ts` - Contient fallback DEPRECATED (documenté dans le code)
+
+---
 
 ### 18. Separate Queries Pattern for RLS Compatibility (NOUVEAU 2026-01-29)
 
@@ -867,7 +989,105 @@ const enrichedUsers = users.map(u => ({ ...u, company: companiesMap[u.company_id
 - Compatible avec toute configuration RLS
 - Performance optimisee avec batch pour les listes
 
+### 20. Client Hook Auth Loading Pattern (NOUVEAU 2026-01-31)
+
+Pattern pour éviter les race conditions dans les hooks client qui dépendent de `useAuth()` :
+
+```
++-------------------------------------------------------------+
+| PROBLÈME: Race Condition Auth Loading                        |
+|                                                             |
+| 1. Component monte → useEffect déclenché immédiatement      |
+| 2. useAuth() retourne { user: null, loading: true }         |
+| 3. Hook fait early return + setLoading(false) ← ERREUR!     |
+| 4. Auth finit → user disponible MAIS hook a déjà terminé    |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| SOLUTION: Vérifier authLoading + ajouter aux dépendances    |
+|                                                             |
+| const { user, loading: authLoading } = useAuth()            |
+|                                                             |
+| const fetchData = async () => {                             |
+|   if (authLoading) return  // ← Sans setLoading(false)!     |
+|   if (!user?.id) { setLoading(false); return }              |
+|   // ... fetch data                                         |
+| }                                                           |
+|                                                             |
+| useEffect(() => {                                           |
+|   fetchData()                                               |
+| }, [user?.id, authLoading, ...otherDeps])  // ← authLoading!|
++-------------------------------------------------------------+
+```
+
+**Pattern correct (obligatoire pour hooks avec data fetch) :**
+
+```typescript
+// ✅ CORRECT - Attend que l'auth soit prête
+export const useMyData = (options) => {
+  const { user, loading: authLoading } = useAuth()
+  const [data, setData] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  const fetchData = async () => {
+    // Ne pas faire d'early return avec setLoading(false) si auth charge encore
+    if (authLoading) return
+
+    if (!user?.id) {
+      setLoading(false)
+      return
+    }
+
+    // ... fetch data
+    setLoading(false)
+  }
+
+  // authLoading dans les dépendances = re-fetch quand auth termine
+  useEffect(() => {
+    fetchData()
+  }, [user?.id, authLoading])
+
+  return { data, loading }
+}
+
+// ❌ INTERDIT - Race condition
+const { user } = useAuth()  // Manque loading!
+
+const fetchData = async () => {
+  if (!user?.id) {
+    setLoading(false)  // Termine prématurément!
+    return
+  }
+}
+
+useEffect(() => {
+  fetchData()
+}, [user?.id])  // Pas authLoading = pas de re-fetch!
+```
+
+**Hooks corrigés (2026-01-31) :**
+- `hooks/use-notifications.ts`
+- `hooks/use-notification-popover.ts`
+- `hooks/use-activity-logs.ts`
+
+**Alternative: Props du serveur (bypass auth client)**
+
+Pour éviter le délai d'auth côté client, passer userId/teamId depuis le serveur :
+
+```typescript
+// Layout serveur (pré-fetch auth)
+const { user, team } = await getServerAuthContext('gestionnaire')
+return <MyClientComponent userId={user.id} teamId={team.id} />
+
+// Hook client (utilise props en priorité)
+const effectiveUserId = propUserId || user?.id
+const effectiveTeamId = propTeamId || team?.id
+```
+
+> Voir `use-global-notifications.ts` pour exemple de ce pattern.
+
 ---
-*Derniere mise a jour: 2026-01-29 18:00*
-*Analyse approfondie: Architecture verifiee, metriques synchronisees*
-*References: lib/services/README.md, lib/server-context.ts, .claude/CLAUDE.md*
+*Derniere mise a jour: 2026-01-31 14:00*
+*Analyse approfondie: Migration Auth COMPLETE - tous fichiers documentes*
+*References: lib/services/README.md, lib/server-context.ts, lib/api-auth-helper.ts, .claude/CLAUDE.md*

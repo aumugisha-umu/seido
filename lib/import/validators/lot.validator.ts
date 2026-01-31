@@ -214,12 +214,13 @@ function normalizeCategory(value: unknown): string {
   const str = String(value).toLowerCase().trim();
 
   // Handle common variations
+  // Note: 'collocation'/'coloc' now maps to 'appartement' (collocation is a mode of occupation, not a property type)
   const mappings: Record<string, string> = {
     'appartement': 'appartement',
     'appart': 'appartement',
     'apt': 'appartement',
-    'collocation': 'collocation',
-    'coloc': 'collocation',
+    'collocation': 'appartement',
+    'coloc': 'appartement',
     'maison': 'maison',
     'house': 'maison',
     'garage': 'garage',

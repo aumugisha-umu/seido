@@ -261,7 +261,7 @@ export function LotCardBadges({
 
           {lot.door_number && (
             <span className="text-xs text-slate-500">
-              • Porte {lot.door_number}
+              • Porte/Boîte {lot.door_number}
             </span>
           )}
 

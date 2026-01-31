@@ -30,6 +30,8 @@ export interface TenantData {
     is_primary: boolean
     start_date?: string
     end_date?: string
+    rent_amount?: number
+    charges_amount?: number
     contractStatus?: TenantContractStatus  // Status of the contract for this lot
   }>
   interventions: unknown[]
@@ -167,11 +169,15 @@ export class TenantService {
     is_primary: boolean
     start_date?: string
     end_date?: string
+    rent_amount?: number
+    charges_amount?: number
+    contractStatus?: TenantContractStatus
   }>> {
     try {
       const supabase = this.getSupabaseClient()
 
       // Query contract_contacts to find tenant's active contracts with lot data
+      // NOTE: lots table does NOT have surface_area/rooms - those would need to be in metadata
       const { data, error } = await supabase
         .from('contract_contacts')
         .select(`
@@ -184,11 +190,16 @@ export class TenantService {
             status,
             start_date,
             end_date,
+            rent_amount,
+            charges_amount,
             lot:lot_id(
               id,
               reference,
               floor,
+              apartment_number,
+              description,
               category,
+              metadata,
               address_record:address_id(*),
               building:building_id(
                 id,
@@ -245,6 +256,8 @@ export class TenantService {
           is_primary: item.is_primary || false,
           start_date: item.contract.start_date || undefined,
           end_date: item.contract.end_date || undefined,
+          rent_amount: item.contract.rent_amount || undefined,
+          charges_amount: item.contract.charges_amount || undefined,
           contractStatus: status === 'actif' ? 'actif' : 'a_venir' as TenantContractStatus
         }
       })

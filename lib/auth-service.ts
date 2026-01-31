@@ -360,10 +360,9 @@ class AuthService {
     return { authUser, error: null }
   }
 
-  // ✅ REFACTORISÉ: getCurrentUser simplifié
+  // getCurrentUser: Récupère l'utilisateur authentifié avec son profil
   async getCurrentUser(): Promise<{ user: AuthUser | null; error: AuthError | null }> {
     try {
-      // ✅ Récupération simple de l'utilisateur auth
       const { data: { user: authUser }, error } = await this.getSupabaseClient().auth.getUser()
 
       if (error) {
@@ -374,7 +373,7 @@ class AuthService {
         return { user: null, error: null }
       }
 
-      // ✅ MULTI-ÉQUIPE: Récupérer tous les profils, prendre le plus récent
+      // Multi-équipe: Récupérer tous les profils, prendre le plus récent
       const { data: profiles, error: profileError } = await this.getSupabaseClient()
         .from('users')
         .select('*')

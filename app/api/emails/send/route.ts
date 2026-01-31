@@ -1,18 +1,15 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { getApiAuthContext } from '@/lib/api-auth-helper';
 import { SMTPService } from '@/lib/services/domain/smtp.service';
-import { EmailConnectionRepository } from '@/lib/services/repositories/email-connection.repository';
-import { EmailRepository } from '@/lib/services/repositories/email.repository';
 
 export async function POST(request: Request) {
     try {
-        const supabase = await createSupabaseServerClient();
-
-        // Check authentication
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
+        const authContext = await getApiAuthContext();
+        if (!authContext) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        const { supabase } = authContext;
 
         const { emailConnectionId, to, subject, body, inReplyToEmailId } = await request.json();
 

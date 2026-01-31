@@ -236,11 +236,9 @@ export const inviteUserSchema = z.object({
  */
 const lotCategoryEnum = z.enum([
   'appartement',
-  'collocation',
   'maison',
   'garage',
   'local_commercial',
-  'parking',
   'autre'
 ], { errorMap: () => ({ message: 'Invalid lot category' }) })
 

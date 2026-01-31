@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { getApiAuthContext } from '@/lib/api-auth-helper';
 import { EmailRepository } from '@/lib/services/repositories/email.repository';
 
 /**
@@ -11,14 +11,12 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const supabase = await createSupabaseServerClient();
-
-        // Check authentication
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
+        const authContext = await getApiAuthContext();
+        if (!authContext) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const { supabase } = authContext;
         const { id: emailId } = await params;
         const emailRepo = new EmailRepository(supabase);
 
@@ -51,21 +49,16 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const supabase = await createSupabaseServerClient();
-
-        // Check authentication
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) {
+        const authContext = await getApiAuthContext();
+        if (!authContext) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const { supabase } = authContext;
         const { id: emailId } = await params;
         const updates = await request.json();
 
         const emailRepo = new EmailRepository(supabase);
-
-        // Verify email belongs to user's team (implicitly handled by RLS, but good to check existence)
-        // RLS will prevent update if not allowed.
 
         // Handle specific actions if passed, or just raw updates
         // If 'deleted' is true, we might want to set deleted_at

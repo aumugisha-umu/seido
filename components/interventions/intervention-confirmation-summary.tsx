@@ -37,6 +37,11 @@ import { fr } from 'date-fns/locale'
 import { getTypeIcon } from '@/components/interventions/intervention-type-icon'
 import { cn } from '@/lib/utils'
 
+// New confirmation sub-components
+import { SuccessHeader } from './confirmation/success-header'
+import { FilePreviewGallery, type PreviewFile } from './confirmation/file-preview-gallery'
+import { NextStepsTimeline } from './confirmation/next-steps-timeline'
+
 // ============================================================================
 // Helper Functions & Constants
 // ============================================================================
@@ -154,8 +159,12 @@ export interface InterventionConfirmationData {
     name: string
     size: string
     type?: string
+    previewUrl?: string // Base64 or blob URL for image preview
+    category?: string // Document category (e.g., "Photo avant travaux")
   }>
   expectsQuote?: boolean
+  /** Variant for conditional display - tenant has simplified view with timeline */
+  variant?: 'tenant' | 'manager'
   // Multi-provider mode
   assignmentMode?: 'single' | 'group' | 'separate'
   providerInstructions?: Record<string, string>
@@ -172,6 +181,12 @@ interface InterventionConfirmationSummaryProps {
   totalSteps?: number
   isLoading?: boolean
   showFooter?: boolean
+  /** Hide the Planning section - useful for tenant creation flow where scheduling is not relevant */
+  showPlanning?: boolean
+  /** Show animated success header instead of static header */
+  showSuccessHeader?: boolean
+  /** Callback for quick action: go to dashboard */
+  onGoToDashboard?: () => void
 }
 
 // Helper to format slot date
@@ -216,9 +231,23 @@ export function InterventionConfirmationSummary({
   onConfirm,
   isLoading = false,
   showFooter = true,
+  showPlanning = true,
+  showSuccessHeader = false,
+  onGoToDashboard,
 }: InterventionConfirmationSummaryProps) {
+  const variant = data.variant || 'manager'
   const isUrgent = ['urgente', 'haute', 'critique'].includes(data.intervention.urgency.toLowerCase())
   const urgencyBadgeClass = getUrgencyBadgeClass(data.intervention.urgency)
+
+  // Convert files to PreviewFile format for FilePreviewGallery
+  const previewFiles: PreviewFile[] = (data.files || []).map(f => ({
+    id: f.id,
+    name: f.name,
+    size: f.size,
+    type: f.type,
+    previewUrl: f.previewUrl,
+    category: f.category,
+  }))
 
   // Contacts Filtering
   const gestionnaires = data.contacts.filter(c => c.role.toLowerCase().includes('gestionnaire'))
@@ -272,80 +301,93 @@ export function InterventionConfirmationSummary({
       {/* Main Card - Compact View */}
       <Card className="overflow-hidden border-slate-200 shadow-sm flex flex-col h-full max-h-[85vh]">
 
-        {/* COMPACT HEADER */}
-        <CardHeader className="border-b bg-slate-50/50 py-3 px-5 flex-shrink-0">
-          <div className="flex items-center justify-between gap-4">
-            {/* Left: Title & Meta */}
-            <div className="flex items-center gap-4 overflow-hidden">
-              <div className="flex flex-col min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <CardTitle className="text-lg font-bold leading-none tracking-tight text-slate-900 truncate">
-                    {data.intervention.title}
-                  </CardTitle>
-                  <Badge
-                    variant="outline"
-                    className={cn("uppercase text-[9px] h-4 px-1.5 tracking-wider font-semibold", urgencyBadgeClass)}
-                  >
-                    {data.intervention.urgency}
-                  </Badge>
-                  <Badge
-                    variant="outline"
-                    className={cn("flex items-center gap-1 font-normal bg-white h-4 px-1.5 text-[10px]", CATEGORY_BADGE_STYLES[categoryCode])}
-                  >
-                    <TypeIcon className="h-2.5 w-2.5" />
-                    {data.intervention.category}
-                  </Badge>
+        {/* SUCCESS HEADER (animated) or COMPACT HEADER (static) */}
+        {showSuccessHeader ? (
+          <SuccessHeader
+            variant={variant}
+            interventionTitle={data.intervention.title}
+          />
+        ) : (
+          <CardHeader className="border-b bg-slate-50/50 py-3 px-5 flex-shrink-0">
+            <div className="flex items-center justify-between gap-4">
+              {/* Left: Title & Meta */}
+              <div className="flex items-center gap-4 overflow-hidden">
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CardTitle className="text-lg font-bold leading-none tracking-tight text-slate-900 truncate">
+                      {data.intervention.title}
+                    </CardTitle>
+                    <Badge
+                      variant="outline"
+                      className={cn("uppercase text-[9px] h-4 px-1.5 tracking-wider font-semibold", urgencyBadgeClass)}
+                    >
+                      {data.intervention.urgency}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={cn("flex items-center gap-1 font-normal bg-white h-4 px-1.5 text-[10px]", CATEGORY_BADGE_STYLES[categoryCode])}
+                    >
+                      <TypeIcon className="h-2.5 w-2.5" />
+                      {data.intervention.category}
+                    </Badge>
+                  </div>
+                  <CardDescription className="flex items-center gap-1.5 text-xs truncate">
+                    <MapPin className="h-3 w-3" />
+                    <span className="font-medium">{data.logement.name}</span>
+                    {data.logement.building && <span className="text-muted-foreground">• {data.logement.building}</span>}
+                    {data.logement.address && <span className="text-muted-foreground">• {data.logement.address}</span>}
+                  </CardDescription>
                 </div>
-                <CardDescription className="flex items-center gap-1.5 text-xs truncate">
-                  <MapPin className="h-3 w-3" />
-                  <span className="font-medium">{data.logement.name}</span>
-                  {data.logement.building && <span className="text-muted-foreground">• {data.logement.building}</span>}
-                  {data.logement.address && <span className="text-muted-foreground">• {data.logement.address}</span>}
-                </CardDescription>
+              </div>
+
+              {/* Right: Status Indicator - Compact */}
+              <div className="flex-shrink-0">
+                {data.expectsQuote ? (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-full">
+                    <FileText className="h-3 w-3 text-amber-600" />
+                    <span className="text-[10px] font-semibold text-amber-700">Estimation demandée</span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 border border-green-200 rounded-full">
+                    <CheckCircle2 className="h-3 w-3 text-green-600" />
+                    <span className="text-[10px] font-semibold text-green-700">Direct</span>
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* Right: Status Indicator - Compact */}
-            <div className="flex-shrink-0">
-              {data.expectsQuote ? (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-full">
-                  <FileText className="h-3 w-3 text-amber-600" />
-                  <span className="text-[10px] font-semibold text-amber-700">Estimation demandée</span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 border border-green-200 rounded-full">
-                  <CheckCircle2 className="h-3 w-3 text-green-600" />
-                  <span className="text-[10px] font-semibold text-green-700">Direct</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </CardHeader>
+          </CardHeader>
+        )}
 
         {/* SCROLLABLE CONTENT AREA */}
         <div className="flex-1 overflow-y-auto min-h-0">
-          <div className="grid grid-cols-1 lg:grid-cols-12 divide-y lg:divide-y-0 lg:divide-x divide-slate-100 min-h-full">
+          <div className={cn(
+            "grid grid-cols-1 divide-y lg:divide-y-0 min-h-full",
+            variant !== 'tenant' && "lg:grid-cols-12 lg:divide-x divide-slate-100"
+          )}>
 
-            {/* COLUMN 1: Details (Larger) - 8/12 */}
-            <div className="p-4 lg:p-5 lg:col-span-8 space-y-5">
+            {/* COLUMN 1: Details - Full width for tenant, 8/12 for manager */}
+            <div className={cn(
+              "p-4 lg:p-5 space-y-5",
+              variant === 'tenant' ? "lg:col-span-12" : "lg:col-span-8"
+            )}>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {/* Description Block */}
-                <section className="space-y-2 col-span-1 md:col-span-2">
-                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                    <FileText className="h-3.5 w-3.5" /> Détails
-                  </h4>
-                  <div className="bg-slate-50 rounded-md p-3 text-sm text-slate-700 leading-snug border border-slate-100">
-                    {data.intervention.description || <span className="text-muted-foreground italic">Aucune description.</span>}
+              {/* Description Block */}
+              <section className="space-y-2">
+                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                  <FileText className="h-3.5 w-3.5" /> Détails
+                </h4>
+                <div className="bg-slate-50 rounded-md p-3 text-sm text-slate-700 leading-snug border border-slate-100">
+                  {data.intervention.description || <span className="text-muted-foreground italic">Aucune description.</span>}
+                </div>
+                {data.intervention.room && (
+                  <div className="text-xs text-slate-600 pl-1">
+                    Lieu : <span className="font-medium text-slate-900">{data.intervention.room}</span>
                   </div>
-                  {data.intervention.room && (
-                    <div className="text-xs text-slate-600 pl-1">
-                      Lieu : <span className="font-medium text-slate-900">{data.intervention.room}</span>
-                    </div>
-                  )}
-                </section>
+                )}
+              </section>
 
-                {/* Planning Block */}
+              {/* Planning Block - Hidden for tenant flow */}
+              {showPlanning && (
                 <section className="space-y-2">
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
@@ -389,24 +431,17 @@ export function InterventionConfirmationSummary({
                     </div>
                   )}
                 </section>
+              )}
 
-                {/* Files Block - Compact Grid */}
-                {data.files && data.files.length > 0 && (
-                  <section className="space-y-2">
-                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                      <Paperclip className="h-3.5 w-3.5" /> Fichiers ({data.files.length})
-                    </h4>
-                    <div className="flex flex-col gap-1.5">
-                      {data.files.map(file => (
-                        <div key={file.id} className="flex items-center gap-2 p-1.5 bg-slate-50 border border-slate-100 rounded-md text-xs truncate">
-                          <FileText className="h-3 w-3 text-slate-400 flex-shrink-0" />
-                          <span className="truncate text-slate-700">{file.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
-              </div>
+              {/* Files Block - FULL WIDTH Visual Preview Gallery */}
+              {previewFiles.length > 0 && (
+                <section className="space-y-3">
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                    <Paperclip className="h-3.5 w-3.5" /> Fichiers joints ({previewFiles.length})
+                  </h4>
+                  <FilePreviewGallery files={previewFiles} />
+                </section>
+              )}
 
               {/* Instructions - Full Width if present */}
               {(data.instructions?.globalMessage || (data.providerInstructions && Object.keys(data.providerInstructions).length > 0)) && (
@@ -445,9 +480,18 @@ export function InterventionConfirmationSummary({
                 </>
               )}
 
+              {/* TIMELINE: Prochaines étapes (tenant variant only) */}
+              {variant === 'tenant' && (
+                <>
+                  <Separator className="bg-slate-100" />
+                  <NextStepsTimeline variant="tenant" />
+                </>
+              )}
+
             </div>
 
-            {/* COLUMN 2: Participants & Confirmation (Smaller) - 4/12 */}
+            {/* COLUMN 2: Participants & Confirmation (Smaller) - 4/12 - Only for manager variant */}
+            {variant !== 'tenant' && (
             <div className="bg-slate-50/40 p-4 lg:p-5 lg:col-span-4 flex flex-col gap-5 overflow-y-auto max-h-full">
 
               {/* Participants Group - Tighter */}
@@ -507,6 +551,7 @@ export function InterventionConfirmationSummary({
               )}
 
             </div>
+            )}
           </div>
         </div>
 

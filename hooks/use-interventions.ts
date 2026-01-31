@@ -55,18 +55,8 @@ export function useInterventions(): UseInterventionsReturn {
       setError(null)
       logger.info(`🔄 [useInterventions] Loading interventions... ${bypassCache ? '(bypassing cache)' : ''}`)
 
-      // ✅ Initialiser le client Supabase et s'assurer que la session est prête
-      const supabase = createBrowserSupabaseClient()
-      try {
-        const { data: sessionRes, error: sessionErr } = await supabase.auth.getSession()
-        if (sessionErr || !sessionRes?.session) {
-          logger.warn('⚠️ [useInterventions] Session issue, attempting refresh...')
-          await supabase.auth.refreshSession()
-        }
-      } catch (sessionError) {
-        logger.warn(`⚠️ [useInterventions] Session check failed: ${sessionError}`)
-        // Continue anyway - let the service handle it
-      }
+      // ✅ Session gérée par AuthProvider + use-session-keepalive.ts
+      // Pas besoin de vérification défensive ici
 
       // Create browser-side intervention service
       const interventionService = createInterventionService()

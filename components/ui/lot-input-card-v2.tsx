@@ -19,7 +19,11 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  Hash
+  Hash,
+  Tag,
+  Layers,
+  DoorOpen,
+  FileText
 } from "lucide-react"
 import { LotCategory, getAllLotCategories, getLotCategoryConfig } from "@/lib/lot-types"
 
@@ -187,9 +191,8 @@ export function LotInputCardV2({
           {/* Segmented Control - Horizontal Scrollable Chips */}
           {/* Material Design: Chips with snap scroll for mobile UX */}
           <div>
-            <Label className="text-xs font-medium text-slate-700 mb-2 block">
+            <Label icon={Tag} required size="sm" className="mb-2">
               Catégorie
-              <span className="text-red-500 ml-1">*</span>
             </Label>
             <RadioGroup
               value={lot.category}
@@ -247,13 +250,8 @@ export function LotInputCardV2({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {/* Reference */}
             <div>
-              <Label
-                htmlFor={`reference-${lot.id}`}
-                className="text-xs font-medium text-slate-700 flex items-center gap-1 mb-1"
-              >
-                <Hash className="w-3 h-3" />
+              <Label htmlFor={`reference-${lot.id}`} icon={Hash} required size="sm" className="mb-1">
                 Référence
-                <span className="text-red-500">*</span>
               </Label>
               <Input
                 id={`reference-${lot.id}`}
@@ -268,12 +266,8 @@ export function LotInputCardV2({
 
             {/* Floor */}
             <div>
-              <Label
-                htmlFor={`floor-${lot.id}`}
-                className="text-xs font-medium text-slate-700 flex items-center gap-1 mb-1"
-              >
-                <Building className="w-3 h-3" />
-                Étage <span className="text-xs text-gray-500">(optionnel)</span>
+              <Label htmlFor={`floor-${lot.id}`} icon={Layers} size="sm" className="mb-1">
+                Étage <span className="text-muted-foreground font-normal">(optionnel)</span>
               </Label>
               <Input
                 id={`floor-${lot.id}`}
@@ -287,12 +281,8 @@ export function LotInputCardV2({
 
             {/* Door */}
             <div>
-              <Label
-                htmlFor={`door-${lot.id}`}
-                className="text-xs font-medium text-slate-700 flex items-center gap-1 mb-1"
-              >
-                <Hash className="w-3 h-3" />
-                Porte <span className="text-xs text-gray-500">(optionnel)</span>
+              <Label htmlFor={`door-${lot.id}`} icon={DoorOpen} size="sm" className="mb-1">
+                Porte/Boîte <span className="text-muted-foreground font-normal">(optionnel)</span>
               </Label>
               <Input
                 id={`door-${lot.id}`}
@@ -307,11 +297,8 @@ export function LotInputCardV2({
 
           {/* Description - Full Width */}
           <div>
-            <Label
-              htmlFor={`description-${lot.id}`}
-              className="text-xs font-medium text-slate-700 mb-1 block"
-            >
-              Description <span className="text-xs text-gray-500">(optionnel)</span>
+            <Label htmlFor={`description-${lot.id}`} icon={FileText} size="sm" className="mb-1">
+              Description <span className="text-muted-foreground font-normal">(optionnel)</span>
             </Label>
             <Textarea
               id={`description-${lot.id}`}

@@ -4,6 +4,9 @@
  * Intervention Server Actions
  * Server-side operations for intervention management with proper auth context
  * Handles the complete 11-status workflow
+ *
+ * ✅ REFACTORED (Jan 2026): Uses centralized getServerActionAuthContextOrNull()
+ *    instead of duplicated local auth helper
  */
 
 import {
@@ -11,9 +14,9 @@ import {
   createServerActionSupabaseClient,
   createServiceRoleSupabaseClient
 } from '@/lib/services'
+import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { cookies } from 'next/headers'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
@@ -192,69 +195,8 @@ interface DashboardStats {
   completed_this_month: number
 }
 
-/**
- * Helper to get auth session and user ID
- *
- * Uses getUser() instead of getSession() for reliable server-side auth:
- * - getSession() only reads cookies locally without server validation
- * - getUser() validates the JWT with Supabase server (more reliable after magic links)
- *
- * MULTI-PROFILE SUPPORT:
- * - Fetches ALL profiles for the auth user (not .single())
- * - Selects profile based on seido_current_team cookie
- * - Prevents PGRST116 error when user has multiple profiles
- */
-async function getAuthenticatedUser() {
-  const supabase = await createServerActionSupabaseClient()
-
-  // Use getUser() for server-side validation (recommended by Supabase)
-  const { data: { user: authUser }, error } = await supabase.auth.getUser()
-
-  if (!authUser || error) {
-    logger.debug({ error: error?.message }, '[AUTH] getUser returned no user')
-    return null
-  }
-
-  // ✅ MULTI-PROFIL FIX: Récupérer TOUS les profils au lieu de .single()
-  // Ceci évite l'erreur PGRST116 quand l'utilisateur a 2+ profils
-  const { data: profiles, error: profilesError } = await supabase
-    .from('users')
-    .select('id, role, team_id')
-    .eq('auth_user_id', authUser.id)
-    .is('deleted_at', null)
-    .order('updated_at', { ascending: false })
-
-  if (profilesError || !profiles || profiles.length === 0) {
-    logger.warn({
-      authUserId: authUser.id,
-      error: profilesError?.message,
-      profilesCount: profiles?.length
-    }, '[AUTH] User profiles not found in users table')
-    return null
-  }
-
-  // Sélectionner le profil selon cookie seido_current_team
-  const cookieStore = await cookies()
-  const preferredTeamId = cookieStore.get('seido_current_team')?.value
-  let selectedProfile = profiles[0]  // Défaut: plus récent (updated_at DESC)
-
-  if (preferredTeamId && preferredTeamId !== 'all') {
-    const preferred = profiles.find(p => p.team_id === preferredTeamId)
-    if (preferred) {
-      selectedProfile = preferred
-    }
-  }
-
-  logger.debug({
-    authUserId: authUser.id,
-    totalProfiles: profiles.length,
-    selectedTeamId: selectedProfile.team_id,
-    selectedRole: selectedProfile.role,
-    preferredTeamId
-  }, '✅ [AUTH] Multi-profile selection completed for server action')
-
-  return selectedProfile
-}
+// ✅ REFACTORED: Auth helper removed - now using centralized getServerActionAuthContextOrNull()
+// from lib/server-context.ts
 
 /**
  * Create a new intervention (for tenant requests)
@@ -282,7 +224,8 @@ export async function createInterventionAction(
 ): Promise<ActionResult<Intervention>> {
   try {
     // Auth check - TOUJOURS vérifié, même avec useServiceRole
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -410,7 +353,8 @@ export async function getInterventionAction(
 ): Promise<ActionResult<Intervention>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -482,7 +426,8 @@ export async function updateInterventionAction(
 ): Promise<ActionResult<Intervention>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -883,7 +828,8 @@ export async function getInterventionsAction(
 ): Promise<ActionResult<Intervention[]>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -927,7 +873,8 @@ export async function assignUserAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -981,7 +928,8 @@ export async function unassignUserAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1030,7 +978,8 @@ export async function approveInterventionAction(
 ): Promise<ActionResult<Intervention>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1072,7 +1021,8 @@ export async function rejectInterventionAction(
 ): Promise<ActionResult<Intervention>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1118,7 +1068,8 @@ export async function requestQuoteAction(
 ): Promise<ActionResult<Intervention>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1165,7 +1116,8 @@ export async function cancelQuoteAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1232,7 +1184,8 @@ export async function cancelQuoteAction(
 export async function startPlanningAction(id: string): Promise<ActionResult<Intervention>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1272,7 +1225,8 @@ export async function confirmScheduleAction(
 ): Promise<ActionResult<Intervention>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1329,7 +1283,8 @@ export async function completeByProviderAction(
 ): Promise<ActionResult<Intervention>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1376,7 +1331,8 @@ export async function validateByTenantAction(
 ): Promise<ActionResult<Intervention>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1427,7 +1383,8 @@ export async function finalizeByManagerAction(
 ): Promise<ActionResult<Intervention>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1480,7 +1437,8 @@ export async function cancelInterventionAction(
 ): Promise<ActionResult<Intervention>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1530,7 +1488,8 @@ export async function proposeTimeSlotsAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1584,7 +1543,8 @@ export async function selectTimeSlotAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1652,7 +1612,8 @@ export async function cancelTimeSlotAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -1902,7 +1863,8 @@ export async function acceptTimeSlotAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -2233,7 +2195,8 @@ export async function rejectTimeSlotAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -2347,7 +2310,8 @@ export async function withdrawResponseAction(
 ): Promise<ActionResult<void>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -2432,7 +2396,8 @@ export async function withdrawResponseAction(
 export async function getDashboardStatsAction(): Promise<ActionResult<DashboardStats>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -2458,7 +2423,8 @@ export async function getDashboardStatsAction(): Promise<ActionResult<DashboardS
 export async function getMyInterventionsAction(): Promise<ActionResult<Intervention[]>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -2504,7 +2470,8 @@ export async function programInterventionAction(
 ): Promise<ActionResult<Intervention>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }
@@ -2879,7 +2846,8 @@ export async function chooseTimeSlotAsManagerAction(
 ): Promise<ActionResult<{ hasActiveQuotes: boolean }>> {
   try {
     // Auth check
-    const user = await getAuthenticatedUser()
+    const authContext = await getServerActionAuthContextOrNull()
+    const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
     }

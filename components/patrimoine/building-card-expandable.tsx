@@ -27,11 +27,9 @@ interface BuildingCardExpandableProps {
 const getLotCategoryLabel = (category?: string): string => {
     const labels: Record<string, string> = {
         'appartement': 'Appartement',
-        'collocation': 'Collocation',
         'maison': 'Maison',
         'garage': 'Garage',
         'local_commercial': 'Local commercial',
-        'parking': 'Parking',
         'autre': 'Autre'
     }
     return labels[category || 'autre'] || category || 'Autre'

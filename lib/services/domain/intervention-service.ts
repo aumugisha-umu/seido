@@ -211,45 +211,61 @@ export class InterventionService {
   // La page utilisera getById() + queries Supabase directes (pattern Lots/Immeubles)
 
   /**
-   * Get all interventions for the authenticated user's team
+   * Get all interventions for a team
    * This is the primary method used by the interventions page
+   *
+   * ✅ REFACTORED (Jan 2026): Now accepts optional teamId parameter
+   *    - If teamId is provided, use it directly (recommended pattern)
+   *    - If not provided, falls back to fetching from auth (backward compatibility)
+   *
+   * @param options.teamId - Team ID to fetch interventions for (recommended)
+   * @param options.limit - Maximum number of results
+   * @param options.filters - Additional filters
    */
-  async getAll(options?: { limit?: number; filters?: InterventionFilters }) {
+  async getAll(options?: { teamId?: string; limit?: number; filters?: InterventionFilters }) {
     try {
-      // Get the current user's team from the service context
-      if (!this.userService) {
-        throw new ValidationException(
-          'User service not available',
-          'interventions',
-          'service'
-        )
+      let teamId = options?.teamId
+
+      // If teamId not provided, fall back to auth-based team detection
+      // ⚠️ DEPRECATED: Callers should pass teamId explicitly from auth context
+      if (!teamId) {
+        // Get the current user's team from the service context
+        if (!this.userService) {
+          throw new ValidationException(
+            'User service not available',
+            'interventions',
+            'service'
+          )
+        }
+
+        // Get the authenticated user from Supabase auth
+        const { data: { user: authUser }, error: authError } = await this.interventionRepo.supabase.auth.getUser()
+
+        if (authError || !authUser) {
+          throw new PermissionException(
+            'User not authenticated',
+            'interventions',
+            'read',
+            'unknown'
+          )
+        }
+
+        // Get the user from our database using auth_user_id
+        const { data: dbUser, error: userError } = await this.interventionRepo.supabase
+          .from('users')
+          .select('id, team_id, role')
+          .eq('auth_user_id', authUser.id)
+          .single()
+
+        if (userError || !dbUser || !dbUser.team_id) {
+          throw new NotFoundException('User or team', authUser.id)
+        }
+
+        teamId = dbUser.team_id
       }
 
-      // Get the authenticated user from Supabase auth
-      const { data: { user: authUser }, error: authError } = await this.interventionRepo.supabase.auth.getUser()
-
-      if (authError || !authUser) {
-        throw new PermissionException(
-          'User not authenticated',
-          'interventions',
-          'read',
-          'unknown'
-        )
-      }
-
-      // Get the user from our database using auth_user_id
-      const { data: dbUser, error: userError } = await this.interventionRepo.supabase
-        .from('users')
-        .select('id, team_id, role')
-        .eq('auth_user_id', authUser.id)
-        .single()
-
-      if (userError || !dbUser || !dbUser.team_id) {
-        throw new NotFoundException('User or team', authUser.id)
-      }
-
-      // Use the existing getByTeam method with the user's team
-      return this.interventionRepo.findByTeam(dbUser.team_id, options?.filters)
+      // Use the existing getByTeam method with the team
+      return this.interventionRepo.findByTeam(teamId, options?.filters)
     } catch (error) {
       return createErrorResponse(handleError(error, 'interventions:getAll'))
     }

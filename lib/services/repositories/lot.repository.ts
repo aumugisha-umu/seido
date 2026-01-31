@@ -47,7 +47,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       // Must match database enum `lot_category` - see database.types.ts
       validateEnum(
         data.category,
-        ['appartement', 'collocation', 'maison', 'garage', 'local_commercial', 'autre'] as const,
+        ['appartement', 'maison', 'garage', 'local_commercial', 'autre'] as const,
         'category'
       )
     }
@@ -89,14 +89,14 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
   /**
    * Get all lots with relations
+   * ✅ Optimized: removed nested address_record fetches (2026-01-30)
    */
   async findAllWithRelations(options?: { page?: number; limit?: number }) {
     const query = this.supabase
       .from(this.tableName)
       .select(`
         *,
-        address_record:address_id(*),
-        building:building_id(*, address_record:address_id(*)),
+        building:building_id(id, name, team_id),
         lot_contacts(
           id,
           is_primary,
@@ -152,14 +152,14 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
   /**
    * Get lots by building
+   * ✅ Optimized: removed nested address_record fetches (2026-01-30)
    */
   async findByBuilding(buildingId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
         *,
-        address_record:address_id(*),
-        building:building_id(*, address_record:address_id(*)),
+        building:building_id(id, name, team_id),
         lot_contacts(
           id,
           is_primary,
@@ -196,14 +196,14 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
   /**
    * Get all lots for a team (includes lots with and without building)
+   * ✅ Optimized: removed nested address_record and contract_contacts fetches (2026-01-30)
    */
   async findByTeam(teamId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
         *,
-        address_record:address_id(*),
-        building:building_id(*, address_record:address_id(*)),
+        building:building_id(id, name, team_id),
         lot_contacts(
           id,
           is_primary,
@@ -214,13 +214,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
           title,
           status,
           start_date,
-          end_date,
-          contacts:contract_contacts(
-            id,
-            role,
-            is_primary,
-            user:user_id(id, name, email, phone, role)
-          )
+          end_date
         )
       `)
       .eq('team_id', teamId)
@@ -260,46 +254,81 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
   /**
    * Get lot by ID with full relations
+   * ✅ Optimized: uses parallel queries instead of nested JOINs (2026-01-30)
    */
   async findByIdWithRelations(_id: string) {
-    const { data, error } = await this.supabase
-      .from(this.tableName)
-      .select(`
-        *,
-        address_record:address_id(*),
-        building:building_id(*, address_record:address_id(*)),
-        lot_contacts(
+    // Step 1: Parallel fetch of lot base + contacts
+    const [lotResult, contactsResult] = await Promise.all([
+      // Base lot with building (1 JOIN)
+      this.supabase
+        .from(this.tableName)
+        .select(`
+          *,
+          building:building_id(id, name, team_id, address_id)
+        `)
+        .eq('id', _id)
+        .single(),
+
+      // Lot contacts separately (1 JOIN)
+      this.supabase
+        .from('lot_contacts')
+        .select(`
           id,
           is_primary,
           user:user_id(id, name, email, phone, role, provider_category)
-        )
-      `)
-      .eq('id', _id)
-      .single()
+        `)
+        .eq('lot_id', _id)
+    ])
 
-    if (error) {
-      if (error.code === 'PGRST116') {
+    if (lotResult.error) {
+      if (lotResult.error.code === 'PGRST116') {
         throw new NotFoundException(this.tableName, _id)
       }
-      return createErrorResponse(handleError(error, `${this.tableName}:query`))
+      return createErrorResponse(handleError(lotResult.error, `${this.tableName}:query`))
     }
 
-    // Post-process to extract tenants
-    if (data) {
-      const tenants = data.lot_contacts?.filter((contact: LotContact) =>
-        contact.user?.role === 'locataire'
-      ) || []
+    const data = lotResult.data
+    const lotContacts = contactsResult.data || []
 
-      const isOccupied = tenants.length > 0
+    // Step 2: Fetch addresses if needed (parallel)
+    const addressIds = [
+      data.address_id,
+      data.building?.address_id
+    ].filter(Boolean)
 
-      data.tenant = tenants.find((contact: LotContact) => contact.is_primary)?.user ||
-        tenants[0]?.user || null
-      data.is_occupied = isOccupied
-      data.status = isOccupied ? 'occupied' : 'vacant' // Add status field for compatibility
-      data.tenants = tenants.map((contact: LotContact) => contact.user).filter((user): user is User => !!user)
+    let addresses: Record<string, any> = {}
+    if (addressIds.length > 0) {
+      const { data: addressData } = await this.supabase
+        .from('addresses')
+        .select('*')
+        .in('id', addressIds)
+
+      addressData?.forEach(addr => { addresses[addr.id] = addr })
     }
 
-    return { success: true as const, data }
+    // Step 3: Assemble result with computed fields
+    const tenants = lotContacts.filter((contact: LotContact) =>
+      contact.user?.role === 'locataire'
+    ) || []
+
+    const isOccupied = tenants.length > 0
+
+    const result = {
+      ...data,
+      address_record: data.address_id ? addresses[data.address_id] : null,
+      building: data.building ? {
+        ...data.building,
+        address_record: data.building.address_id ? addresses[data.building.address_id] : null
+      } : null,
+      lot_contacts: lotContacts,
+      tenant: tenants.find((contact: LotContact) => contact.is_primary)?.user ||
+        tenants[0]?.user || null,
+      is_occupied: isOccupied,
+      status: isOccupied ? 'occupied' : 'vacant',
+      tenants: tenants.map((contact: LotContact) => contact.user).filter((user): user is User => !!user)
+    }
+
+    return { success: true as const, data: result }
   }
 
   /**
@@ -374,14 +403,14 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
   /**
    * Find lot by reference and team (for import upsert)
    * Case-insensitive match
+   * ✅ Optimized: removed nested address_record fetches (2026-01-30)
    */
   async findByReferenceAndTeam(reference: string, teamId: string) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
         *,
-        address_record:address_id(*),
-        building:building_id(*, address_record:address_id(*))
+        building:building_id(id, name, team_id)
       `)
       .eq('team_id', teamId)
       .ilike('reference', reference.trim())
@@ -459,14 +488,14 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
   /**
    * Get lots by category
+   * ✅ Optimized: removed nested address_record fetches (2026-01-30)
    */
   async findByCategory(category: Lot['category'], options?: { buildingId?: string; teamId?: string }) {
     let queryBuilder = this.supabase
       .from(this.tableName)
       .select(`
         *,
-        address_record:address_id(*),
-        building:building_id(*, address_record:address_id(*))
+        building:building_id(id, name, team_id)
       `)
       .eq('category', category)
 
@@ -489,14 +518,14 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
   /**
    * Get occupied lots
+   * ✅ Optimized: removed nested address_record fetches (2026-01-30)
    */
   async findOccupied(buildingId?: string) {
     let queryBuilder = this.supabase
       .from(this.tableName)
       .select(`
         *,
-        address_record:address_id(*),
-        building:building_id(*, address_record:address_id(*)),
+        building:building_id(id, name, team_id),
         lot_contacts!inner(
           user:user_id!inner(role)
         )
@@ -518,6 +547,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
   /**
    * Get vacant lots
+   * ✅ Optimized: removed nested address_record fetches (2026-01-30)
    */
   async findVacant(buildingId?: string) {
     // First get all lots
@@ -525,8 +555,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select(`
         *,
-        address_record:address_id(*),
-        building:building_id(*, address_record:address_id(*)),
+        building:building_id(id, name, team_id),
         lot_contacts(
           id,
           user:user_id(role)
@@ -562,14 +591,14 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
   /**
    * Get lots by floor
+   * ✅ Optimized: removed nested address_record fetches (2026-01-30)
    */
   async findByFloor(buildingId: string, floor: number) {
     const { data, error } = await this.supabase
       .from(this.tableName)
       .select(`
         *,
-        address_record:address_id(*),
-        building:building_id(*, address_record:address_id(*))
+        building:building_id(id, name, team_id)
       `)
       .eq('building_id', buildingId)
       .eq('floor', floor)
@@ -584,6 +613,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
 
   /**
    * Search lots
+   * ✅ Optimized: removed nested address_record fetches (2026-01-30)
    */
   async search(query: string, options?: { buildingId?: string; category?: Lot['category'] }) {
     validateLength(query, 1, 100, 'search query')
@@ -592,8 +622,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select(`
         *,
-        address_record:address_id(*),
-        building:building_id(*, address_record:address_id(*))
+        building:building_id(id, name, team_id)
       `)
       .or(`reference.ilike.%${query}%`)
 
@@ -673,6 +702,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
   /**
    * Find multiple lots by IDs in a single query (batch operation)
    * ✅ PERFORMANCE FIX (Oct 23, 2025 - Issue #1): Prevents N+1 query pattern
+   * ✅ Optimized: removed nested address_record fetches (2026-01-30)
    *
    * @param lotIds Array of lot IDs to fetch
    * @returns Array of lots (may be less than input if some IDs don't exist)
@@ -686,8 +716,7 @@ export class LotRepository extends BaseRepository<Lot, LotInsert, LotUpdate> {
       .from(this.tableName)
       .select(`
         *,
-        address_record:address_id(*),
-        building:building_id(*, address_record:address_id(*))
+        building:building_id(id, name, team_id)
       `)
       .in('id', lotIds)
 

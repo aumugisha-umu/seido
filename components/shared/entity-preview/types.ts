@@ -17,6 +17,8 @@ export interface TabConfig {
   label: string
   /** Optional badge count */
   count?: number
+  /** Whether there are unread items (shows a red dot indicator) */
+  hasUnread?: boolean
 }
 
 /**
@@ -91,13 +93,13 @@ export function getInterventionTabsConfig(role: InterventionUserRole): TabConfig
       return [
         ...baseTabs,
         { value: 'planning', label: 'Planning' },
-        { value: 'documents', label: 'Documents' }
+        { value: 'activity', label: 'Activité' }
       ]
     case 'tenant':
       return [
         ...baseTabs,
         { value: 'planning', label: 'Rendez-vous' },
-        { value: 'documents', label: 'Documents' }
+        { value: 'activity', label: 'Activité' }
       ]
   }
 }

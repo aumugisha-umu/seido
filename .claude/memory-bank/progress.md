@@ -51,8 +51,49 @@
 - [x] **Extension Types Locataire** (2026-01-31) - Dropdown locataire: 20 → 27 types (ajout catégorie "Locataire")
 - [x] **Fix Confirmation Gestionnaire** (2026-01-31) - Header "Intervention créée" affiché après création, pas avant
 - [x] **Auth API Optimization** (2026-01-31) - Réduction de 250+ appels à 1 par navigation
+- [x] **Filtrage auth_id Conversations/Notifications** (2026-02-01) - Seuls les contacts invités (avec compte) reçoivent conversations et notifications
 
-## Sprint Actuel (Jan 2026)
+## Sprint Actuel (Jan-Feb 2026)
+
+### 2026-02-01 - Filtrage auth_id Conversations/Notifications pour Contacts Invités
+
+**Problème résolu:** Les utilisateurs ajoutés à une intervention mais non invités (sans compte `auth_id`) recevaient des conversations individuelles et des notifications alors qu'ils ne peuvent pas se connecter à l'application.
+
+**Règle métier implémentée:**
+- Utilisateurs avec `auth_id` (invités) → Conversations créées + Notifications envoyées
+- Contacts sans `auth_id` (informatifs) → Visibles dans listes mais exclus des conversations/notifications
+
+**Solution - Filtrage à tous les points d'entrée:**
+
+| Point d'Entrée | Fichier | Correction |
+|----------------|---------|------------|
+| API création intervention | `create-manager-intervention/route.ts` | `.not('auth_id', 'is', null)` sur tenants/providers |
+| Service assignUser() | `intervention-service.ts` | Check `hasAuthAccount` avant création thread |
+| Service assignMultipleProviders() | `intervention-service.ts` | Check `hasAuthAccount` |
+| Service createConversationThreads() | `intervention-service.ts` | Filtre managers avec `auth_id` |
+| Service addInitialParticipants() | `conversation-service.ts` | **FIX REVIEW** - Filtre tous les users |
+| Service getInterventionTenants() | `conversation-service.ts` | **FIX REVIEW** - JOIN avec filtre `auth_id` |
+| Actions lazy creation | `conversation-actions.ts` | Check `auth_id` avant création |
+| Actions notifications | `conversation-notification-actions.ts` | Filtre managers avec `auth_id` |
+
+**Data flow `has_account` pour UI:**
+- `contract.repository.ts` → Ajout `auth_id` aux selects
+- `contract.service.ts` → Conversion en `has_account: boolean`
+- `contract-actions.ts` → Propagation aux types
+- `assignment-section-v2.tsx` → Badge "Non invité" affiché
+
+**Fichiers modifiés (13):**
+- Backend: 4 fichiers (intervention-service, conversation-service, 2 routes)
+- Actions: 3 fichiers (conversation, notification, contract)
+- Repository/Service: 2 fichiers (contract)
+- UI: 3 fichiers (assignment-section, nouvelle-intervention, intervention-edit)
+- Docs: 1 fichier (design document)
+
+**Code review effectuée:** 4 issues IMPORTANT corrigées pendant la review
+
+**Design document:** `docs/plans/2026-02-01-invited-users-only-conversations-design.md`
+
+---
 
 ### 2026-01-31 - Auth API Optimization (Session 5) - CRITIQUE PERFORMANCE
 
@@ -708,7 +749,8 @@ Nouvelle architecture adresses avec support Google Maps:
 | **2026-01-30** | **CSP connect-src exhaustif** | **SW intercepte tous fetch** | **Tous domaines dans connect-src, pas juste img-src/font-src** |
 | **2026-01-31** | **Auth Refactoring Complet** | **Appels auth redondants, bug multi-profil** | **14 fichiers refactorisés, ~250 lignes supprimées, nouveau helper centralisé** |
 | **2026-01-31** | **Auth API Optimization** | **250+ appels API en 10 min** | **getSession() local au lieu de getUser() réseau, cache() sur supabase client** |
+| **2026-02-01** | **Filtrage auth_id Invités** | **Contacts sans compte recevaient conversations/notifs** | **Filtre .not('auth_id', 'is', null) à tous les points d'entrée** |
 
 ---
-*Derniere mise a jour: 2026-01-31 22:45*
-*Session 5: Auth API Optimization - 250+ → 1 appel par navigation*
+*Derniere mise a jour: 2026-02-01 16:30*
+*Session: Filtrage auth_id conversations/notifications pour contacts invités*

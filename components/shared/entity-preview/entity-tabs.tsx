@@ -66,6 +66,10 @@ export function EntityTabs({
                 >
                   <span className="flex items-center gap-2">
                     {tab.label}
+                    {/* Red dot indicator for unread items */}
+                    {tab.hasUnread && (
+                      <span className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0" aria-label="Messages non lus" />
+                    )}
                     {tab.count !== undefined && tab.count > 0 && (
                       <Badge variant="secondary" className="text-xs">
                         {tab.count}
@@ -114,6 +118,13 @@ export function EntityTabs({
               >
                 <span className="flex items-center gap-2">
                   {tab.label}
+                  {/* Red dot indicator for unread items */}
+                  {tab.hasUnread && (
+                    <span
+                      className="w-2 h-2 rounded-full bg-red-500 flex-shrink-0 animate-pulse"
+                      aria-label="Messages non lus"
+                    />
+                  )}
                   {tab.count !== undefined && tab.count > 0 && (
                     <Badge
                       variant="secondary"

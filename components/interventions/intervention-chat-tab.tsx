@@ -10,9 +10,9 @@
  * - Prestataire: Can see group + provider_to_managers
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
-import { MessageSquare, Users, UserCheck, Shield, Briefcase } from 'lucide-react'
+import { MessageSquare, Users, UserCheck, Shield, Briefcase, UsersRound } from 'lucide-react'
 import { ChatInterface } from '@/components/chat/chat-interface'
 import { ConversationSelector } from '@/components/interventions/shared/layout/conversation-selector'
 import { sendMessageAction } from '@/app/actions/conversation-actions'
@@ -29,7 +29,7 @@ type Thread = Database['public']['Tables']['conversation_threads']['Row'] & {
   }>
 }
 type UserRole = Database['public']['Enums']['user_role']
-type ThreadType = 'group' | 'tenant_to_managers' | 'provider_to_managers'
+type ThreadType = 'group' | 'tenants_group' | 'providers_group' | 'tenant_to_managers' | 'provider_to_managers'
 
 export interface InterventionChatTabProps {
   interventionId: string
@@ -44,6 +44,10 @@ export interface InterventionChatTabProps {
   initialMessage?: string
   /** Callback appelé quand un message est envoyé (pour réinitialiser le message initial) */
   onMessageSent?: () => void
+  /** Callback appelé quand l'utilisateur sélectionne un thread via le selector (pour sync avec parent) */
+  onThreadTypeChange?: (threadType: string) => void
+  /** Callback appelé quand un thread est marqué comme lu (pour mise à jour optimiste des badges) */
+  onThreadRead?: (threadId: string) => void
 }
 
 // ============================================================================
@@ -66,7 +70,7 @@ interface RoleConfig {
 
 const roleBasedConfig: Record<UserRole, RoleConfig> = {
   gestionnaire: {
-    visibleThreads: ['group', 'tenant_to_managers', 'provider_to_managers'],
+    visibleThreads: ['group', 'tenants_group', 'providers_group', 'tenant_to_managers', 'provider_to_managers'],
     emptyMessage: 'Les conversations seront créées automatiquement lorsque des participants seront assignés à l\'intervention.',
     threadConfigs: {
       group: {
@@ -75,22 +79,34 @@ const roleBasedConfig: Record<UserRole, RoleConfig> = {
         icon: Users,
         color: 'bg-blue-100 text-blue-800'
       },
+      tenants_group: {
+        label: 'Groupe locataires',
+        description: 'Conversation entre tous les locataires et les gestionnaires',
+        icon: UsersRound,
+        color: 'bg-emerald-100 text-emerald-800'
+      },
+      providers_group: {
+        label: 'Groupe prestataires',
+        description: 'Conversation entre tous les prestataires et les gestionnaires',
+        icon: UsersRound,
+        color: 'bg-violet-100 text-violet-800'
+      },
       tenant_to_managers: {
-        label: 'Locataire ↔ Gestionnaires',
-        description: 'Conversation entre le locataire et les gestionnaires',
+        label: 'Locataire',  // Will be replaced by participant name in title
+        description: 'Conversation privée avec ce locataire',
         icon: UserCheck,
         color: 'bg-green-100 text-green-800'
       },
       provider_to_managers: {
-        label: 'Prestataire ↔ Gestionnaires',
-        description: 'Conversation entre le prestataire et les gestionnaires',
+        label: 'Prestataire',  // Will be replaced by participant name in title
+        description: 'Conversation privée avec ce prestataire',
         icon: Briefcase,
         color: 'bg-purple-100 text-purple-800'
       }
     }
   },
   locataire: {
-    visibleThreads: ['group', 'tenant_to_managers'],
+    visibleThreads: ['group', 'tenants_group', 'tenant_to_managers'],
     emptyMessage: 'Aucune conversation disponible pour le moment.',
     threadConfigs: {
       group: {
@@ -99,9 +115,21 @@ const roleBasedConfig: Record<UserRole, RoleConfig> = {
         icon: Users,
         color: 'bg-blue-100 text-blue-800'
       },
+      tenants_group: {
+        label: 'Groupe locataires',
+        description: 'Conversation entre tous les locataires',
+        icon: UsersRound,
+        color: 'bg-emerald-100 text-emerald-800'
+      },
+      providers_group: {
+        label: '', // Not visible to tenants
+        description: '',
+        icon: MessageSquare,
+        color: ''
+      },
       tenant_to_managers: {
         label: 'Discussion avec les gestionnaires',
-        description: 'Conversation privée avec les gestionnaires',
+        description: 'Votre conversation privée avec les gestionnaires',
         icon: Shield,
         color: 'bg-green-100 text-green-800'
       },
@@ -114,7 +142,7 @@ const roleBasedConfig: Record<UserRole, RoleConfig> = {
     }
   },
   prestataire: {
-    visibleThreads: ['group', 'provider_to_managers'],
+    visibleThreads: ['group', 'providers_group', 'provider_to_managers'],
     emptyMessage: 'Aucune conversation disponible pour le moment.',
     threadConfigs: {
       group: {
@@ -122,6 +150,18 @@ const roleBasedConfig: Record<UserRole, RoleConfig> = {
         description: 'Conversation visible par tous les participants',
         icon: Users,
         color: 'bg-blue-100 text-blue-800'
+      },
+      tenants_group: {
+        label: '', // Not visible to providers
+        description: '',
+        icon: MessageSquare,
+        color: ''
+      },
+      providers_group: {
+        label: 'Groupe prestataires',
+        description: 'Conversation entre tous les prestataires',
+        icon: UsersRound,
+        color: 'bg-violet-100 text-violet-800'
       },
       tenant_to_managers: {
         label: '', // Not visible to providers
@@ -131,7 +171,7 @@ const roleBasedConfig: Record<UserRole, RoleConfig> = {
       },
       provider_to_managers: {
         label: 'Discussion avec les gestionnaires',
-        description: 'Conversation privée avec les gestionnaires',
+        description: 'Votre conversation privée avec les gestionnaires',
         icon: Briefcase,
         color: 'bg-purple-100 text-purple-800'
       }
@@ -139,7 +179,7 @@ const roleBasedConfig: Record<UserRole, RoleConfig> = {
   },
   admin: {
     // Admin role included for completeness (though unlikely to view interventions)
-    visibleThreads: ['group', 'tenant_to_managers', 'provider_to_managers'],
+    visibleThreads: ['group', 'tenants_group', 'providers_group', 'tenant_to_managers', 'provider_to_managers'],
     emptyMessage: 'Aucune conversation disponible.',
     threadConfigs: {
       group: {
@@ -148,15 +188,27 @@ const roleBasedConfig: Record<UserRole, RoleConfig> = {
         icon: Users,
         color: 'bg-blue-100 text-blue-800'
       },
+      tenants_group: {
+        label: 'Groupe locataires',
+        description: 'Conversation entre tous les locataires et les gestionnaires',
+        icon: UsersRound,
+        color: 'bg-emerald-100 text-emerald-800'
+      },
+      providers_group: {
+        label: 'Groupe prestataires',
+        description: 'Conversation entre tous les prestataires et les gestionnaires',
+        icon: UsersRound,
+        color: 'bg-violet-100 text-violet-800'
+      },
       tenant_to_managers: {
-        label: 'Locataire ↔ Gestionnaires',
-        description: 'Conversation entre le locataire et les gestionnaires',
+        label: 'Locataire',
+        description: 'Conversation privée avec ce locataire',
         icon: Shield,
         color: 'bg-green-100 text-green-800'
       },
       provider_to_managers: {
-        label: 'Prestataire ↔ Gestionnaires',
-        description: 'Conversation entre le prestataire et les gestionnaires',
+        label: 'Prestataire',
+        description: 'Conversation privée avec ce prestataire',
         icon: Briefcase,
         color: 'bg-purple-100 text-purple-800'
       }
@@ -177,34 +229,52 @@ export function InterventionChatTab({
   userRole,
   defaultThreadType,
   initialMessage,
-  onMessageSent
+  onMessageSent,
+  onThreadTypeChange,
+  onThreadRead
 }: InterventionChatTabProps) {
   // Get role-specific configuration
   const config = roleBasedConfig[userRole]
 
-  // Filter threads based on user role
-  const visibleThreads = threads.filter((thread) =>
-    config.visibleThreads.includes(thread.thread_type as ThreadType)
+  // ✅ FIX: Memoize visibleThreads to prevent unstable dependency in useEffect
+  // This prevents re-renders from causing the useEffect to fire incorrectly
+  const visibleThreads = useMemo(() =>
+    threads.filter((thread) =>
+      config.visibleThreads.includes(thread.thread_type as ThreadType)
+    ),
+    [threads, config.visibleThreads]
   )
+
+  // Track the last processed defaultThreadType to avoid re-processing on every render
+  const lastProcessedDefaultRef = useRef<string | undefined>(defaultThreadType)
 
   // Active thread state - pré-sélectionne le thread demandé ou le premier
   const [activeThread, setActiveThread] = useState<Thread | null>(() => {
     if (defaultThreadType) {
-      const targetThread = visibleThreads.find(t => t.thread_type === defaultThreadType)
+      const targetThread = threads.filter((thread) =>
+        config.visibleThreads.includes(thread.thread_type as ThreadType)
+      ).find(t => t.thread_type === defaultThreadType)
       if (targetThread) return targetThread
     }
-    return visibleThreads.length > 0 ? visibleThreads[0] : null
+    const initialVisibleThreads = threads.filter((thread) =>
+      config.visibleThreads.includes(thread.thread_type as ThreadType)
+    )
+    return initialVisibleThreads.length > 0 ? initialVisibleThreads[0] : null
   })
 
-  // Réagir aux changements de defaultThreadType (quand on clique sur une icône message)
+  // ✅ FIX: Only react to defaultThreadType changes when it actually changes from parent
+  // This prevents the issue where clicking ConversationSelector triggers a re-render
+  // that causes the useEffect to reset activeThread
   useEffect(() => {
-    if (defaultThreadType) {
+    // Only process if defaultThreadType actually changed from parent
+    if (defaultThreadType && defaultThreadType !== lastProcessedDefaultRef.current) {
       const targetThread = visibleThreads.find(t => t.thread_type === defaultThreadType)
-      if (targetThread && targetThread.id !== activeThread?.id) {
+      if (targetThread) {
         setActiveThread(targetThread)
       }
+      lastProcessedDefaultRef.current = defaultThreadType
     }
-  }, [defaultThreadType, visibleThreads, activeThread?.id])
+  }, [defaultThreadType, visibleThreads])
 
   // Handle sending message
   const handleSendMessage = async (content: string, attachments?: string[]) => {
@@ -260,6 +330,12 @@ export function InterventionChatTab({
   // Handle thread selection from ConversationSelector
   const handleThreadSelect = (thread: Thread) => {
     setActiveThread(thread)
+    // Update the ref to prevent useEffect from overwriting this user selection
+    lastProcessedDefaultRef.current = thread.thread_type
+    // Notify parent about the thread type change for sync
+    if (onThreadTypeChange) {
+      onThreadTypeChange(thread.thread_type)
+    }
   }
 
   // Main layout: Conversation selector + Chat interface
@@ -289,6 +365,7 @@ export function InterventionChatTab({
             initialParticipants={initialParticipantsByThread}
             onSendMessage={handleSendMessage}
             initialMessage={initialMessage}
+            onThreadRead={onThreadRead}
           />
         ) : (
           <Card className="h-full">

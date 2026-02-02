@@ -502,6 +502,7 @@ export class ContractService {
         contract_start_date: string
         contract_end_date: string
         is_primary: boolean
+        has_account: boolean  // ✅ FIX 2026-02-01: Indicates if user is invited (has auth_id)
       }>
       hasActiveTenants: boolean
     }
@@ -536,6 +537,7 @@ export class ContractService {
         contract_start_date: string
         contract_end_date: string
         is_primary: boolean
+        has_account: boolean  // ✅ FIX 2026-02-01: Indicates if user is invited (has auth_id)
       }> = []
 
       // Track user_ids to avoid duplicates (same tenant on multiple contracts)
@@ -562,7 +564,8 @@ export class ContractService {
                     contract_title: contract.title,
                     contract_start_date: contract.start_date,
                     contract_end_date: contract.end_date,
-                    is_primary: contact.is_primary
+                    is_primary: contact.is_primary,
+                    has_account: !!(contact.user as any)?.auth_user_id  // ✅ FIX 2026-02-01
                   }
                 }
                 continue
@@ -580,7 +583,8 @@ export class ContractService {
                 contract_title: contract.title,
                 contract_start_date: contract.start_date,
                 contract_end_date: contract.end_date,
-                is_primary: contact.is_primary
+                is_primary: contact.is_primary,
+                has_account: !!(contact.user as any)?.auth_user_id  // ✅ FIX 2026-02-01
               })
             }
           }
@@ -634,6 +638,7 @@ export class ContractService {
         phone: string | null
         role: ContractContactRole
         is_primary: boolean
+        has_account: boolean  // ✅ FIX 2026-02-01
         lot_id: string
         lot_reference: string
       }>
@@ -648,6 +653,7 @@ export class ContractService {
           phone: string | null
           role: ContractContactRole
           is_primary: boolean
+          has_account: boolean  // ✅ FIX 2026-02-01
         }>
       }>
       totalCount: number
@@ -678,6 +684,7 @@ export class ContractService {
           phone: string | null
           role: ContractContactRole
           is_primary: boolean
+          has_account: boolean  // ✅ FIX 2026-02-01
         }>
       }>()
 
@@ -690,6 +697,7 @@ export class ContractService {
         phone: string | null
         role: ContractContactRole
         is_primary: boolean
+        has_account: boolean  // ✅ FIX 2026-02-01
         lot_id: string
         lot_reference: string
       }> = []
@@ -732,7 +740,8 @@ export class ContractService {
                 email: contact.user?.email || null,
                 phone: (contact.user as any)?.phone || null,
                 role: contact.role,
-                is_primary: contact.is_primary
+                is_primary: contact.is_primary,
+                has_account: !!(contact.user as any)?.auth_user_id  // ✅ FIX 2026-02-01
               }
 
               lotGroup.tenants.push(tenantData)

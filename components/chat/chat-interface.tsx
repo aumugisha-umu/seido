@@ -108,6 +108,8 @@ interface ChatInterfaceProps {
   className?: string
   /** Message initial à préremplir dans le champ de saisie */
   initialMessage?: string
+  /** Callback appelé quand le thread est marqué comme lu (pour mise à jour optimiste de l'UI) */
+  onThreadRead?: (threadId: string) => void
 }
 
 // System message component (centered, different style)
@@ -471,7 +473,8 @@ export function ChatInterface({
   teamMembers = [],
   currentParticipantIds = [],
   className = '',
-  initialMessage
+  initialMessage,
+  onThreadRead
 }: ChatInterfaceProps) {
   // Initialize with server-fetched data (Phase 2 optimization)
   const [messages, setMessages] = useState<Message[]>(initialMessages?.[threadId] || [])
@@ -570,6 +573,27 @@ export function ChatInterface({
 
     loadData()
   }, [threadId, initialMessages, initialParticipants])
+
+  // ✅ Mark thread as read when displayed (not on click, but on mount/view)
+  // This updates the server-side read status and notifies the parent for optimistic UI updates
+  useEffect(() => {
+    const markAsRead = async () => {
+      try {
+        const { markThreadAsReadAction } = await import('@/app/actions/conversation-actions')
+        const result = await markThreadAsReadAction(threadId)
+        if (result.success) {
+          // Notify parent to update UI optimistically (remove unread badge)
+          onThreadRead?.(threadId)
+        }
+      } catch (error) {
+        console.error('Error marking thread as read:', error)
+      }
+    }
+
+    // Small delay to ensure the component is fully mounted and visible
+    const timeoutId = setTimeout(markAsRead, 300)
+    return () => clearTimeout(timeoutId)
+  }, [threadId, onThreadRead])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

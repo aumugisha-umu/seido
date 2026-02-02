@@ -241,23 +241,6 @@ export interface InterventionPreviewProps {
 // ============================================================================
 
 /**
- * Props pour ParticipantsList
- */
-export interface ParticipantsListProps {
-  participants: ParticipantsGroup
-  currentUserRole: UserRole
-  /** ID de l'utilisateur connecté (pour masquer son icône de conversation) */
-  currentUserId?: string
-  /** Callback pour conversation individuelle avec un participant */
-  onConversationClick?: (participantId: string) => void
-  /** Callback pour conversation de groupe */
-  onGroupConversationClick?: () => void
-  activeConversation?: string | 'group'
-  showConversationButtons?: boolean
-  className?: string
-}
-
-/**
  * Props pour QuotesCard
  */
 export interface QuotesCardProps {
@@ -445,30 +428,3 @@ export interface TimelineEventData {
  * Mode d'assignation des prestataires
  */
 export type AssignmentMode = 'single' | 'group' | 'separate'
-
-/**
- * Props pour InterventionSidebar
- */
-export interface InterventionSidebarProps {
-  participants: ParticipantsGroup
-  currentUserRole: UserRole
-  /** ID de l'utilisateur connecté (pour masquer son icône de conversation) */
-  currentUserId?: string
-  currentStatus: string
-  /** Historique des événements de la timeline (date, heure, auteur) */
-  timelineEvents?: TimelineEventData[]
-  activeConversation?: string | 'group'
-  /** Callback pour conversation individuelle */
-  onConversationClick?: (participantId: string) => void
-  /** Callback pour conversation de groupe */
-  onGroupConversationClick?: () => void
-  /** Callback quand on clique sur un participant (navigation vers tab Contacts) */
-  onParticipantClick?: () => void
-  /** Afficher les boutons de conversation */
-  showConversationButtons?: boolean
-  /** Mode d'assignation (single/group/separate) */
-  assignmentMode?: AssignmentMode
-  /** Compteurs de messages non lus par type de thread */
-  unreadCounts?: Record<string, number>
-  className?: string
-}

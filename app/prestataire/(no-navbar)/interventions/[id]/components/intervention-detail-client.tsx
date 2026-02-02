@@ -23,12 +23,8 @@ import {
   Quote as SharedQuote,
   TimeSlot as SharedTimeSlot,
   InterventionDocument,
-  TimelineEventData,
   // Layout
-  PreviewHybridLayout,
   ContentWrapper,
-  // Sidebar
-  InterventionSidebar,
   // Cards
   InterventionDetailsCard,
   DocumentsCard,
@@ -69,6 +65,10 @@ import { acceptTimeSlotAction, rejectTimeSlotAction } from '@/app/actions/interv
 
 // Auto-execute actions from email magic links
 import { useAutoExecuteAction } from '@/hooks/use-auto-execute-action'
+import { useActivityLogs } from '@/hooks/use-activity-logs'
+
+// Activity tab (shared)
+import { ActivityTab } from '@/components/interventions/activity-tab'
 
 // Confirmation banners
 import {
@@ -198,15 +198,51 @@ export function PrestataireInterventionDetailClient({
   const [responseModalSlotId, setResponseModalSlotId] = useState<string | null>(null)
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
 
-  // États pour le nouveau design PreviewHybrid
-  const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
   // Thread type à utiliser pour InterventionChatTab
   const [defaultThreadType, setDefaultThreadType] = useState<string | undefined>(undefined)
+
+  // Local state for threads with unread counts (for optimistic updates)
+  const [localThreads, setLocalThreads] = useState(threads)
 
   // ============================================================================
   // Tabs Configuration (unified with EntityTabs)
   // ============================================================================
-  const interventionTabs = useMemo(() => getInterventionTabsConfig('provider'), [])
+
+  // Calculate total unread messages across all threads (uses local state for optimistic updates)
+  const totalUnreadMessages = useMemo(() => {
+    return localThreads.reduce((total, t) => {
+      const unread = (t as any).unread_count || 0
+      return total + unread
+    }, 0)
+  }, [localThreads])
+
+  // Handler for marking a thread as read (optimistic update)
+  const handleThreadRead = (threadId: string) => {
+    setLocalThreads(prevThreads =>
+      prevThreads.map(t =>
+        t.id === threadId ? { ...t, unread_count: 0 } : t
+      )
+    )
+  }
+
+  // Activity logs for Activity tab
+  const { activities: activityLogs } = useActivityLogs({
+    teamId: intervention.team_id ?? undefined,
+    entityType: 'intervention',
+    entityId: intervention.id,
+    limit: 100
+  })
+
+  // Build tabs with hasUnread indicator for conversations
+  const interventionTabs = useMemo(() => {
+    const baseTabs = getInterventionTabsConfig('provider')
+    return baseTabs.map(tab => {
+      if (tab.value === 'conversations') {
+        return { ...tab, hasUnread: totalUnreadMessages > 0 }
+      }
+      return tab
+    })
+  }, [totalUnreadMessages])
 
   // ============================================================================
   // Auto-Execute Actions from Email Magic Links
@@ -372,7 +408,7 @@ export function PrestataireInterventionDetailClient({
   // Transformations pour les composants shared (nouveau design PreviewHybrid)
   // ============================================================================
 
-  // Participants pour InterventionSidebar (format Participant)
+  // Participants pour InterventionDetailsCard (ligne Participants dans l'onglet Général)
   const participants = useMemo(() => ({
     managers: assignments
       .filter(a => a.role === 'gestionnaire' && a.user)
@@ -459,63 +495,10 @@ export function PrestataireInterventionDetailClient({
     }))
   , [documents])
 
-  // Timeline events pour la progression
-  const timelineEvents: TimelineEventData[] = useMemo(() => {
-    const events: TimelineEventData[] = []
-
-    events.push({
-      status: 'demande',
-      date: intervention.created_at || new Date().toISOString(),
-      author: 'Système',
-      authorRole: 'tenant'
-    })
-
-    // Note: 'en_cours' and 'demande_de_devis' removed from workflow
-    const statusOrder = [
-      'demande', 'approuvee', 'planification',
-      'planifiee', 'cloturee_par_prestataire',
-      'cloturee_par_locataire', 'cloturee_par_gestionnaire'
-    ]
-
-    const currentIndex = statusOrder.indexOf(intervention.status)
-
-    if (currentIndex > 0) {
-      events.push({
-        status: 'approuvee',
-        date: intervention.updated_at || new Date().toISOString(),
-        authorRole: 'manager'
-      })
-    }
-
-    if (currentIndex >= statusOrder.indexOf('planifiee')) {
-      events.push({
-        status: 'planifiee',
-        date: intervention.updated_at || new Date().toISOString(),
-        authorRole: 'provider'
-      })
-    }
-
-    return events
-  }, [intervention])
-
   // Date planifiée (si un créneau est sélectionné)
   const confirmedSlot = timeSlots.find(s => s.status === 'selected')
   const scheduledDate = confirmedSlot?.slot_date || null
   const scheduledStartTime = confirmedSlot?.start_time || null
-
-  // Callbacks pour les conversations
-  const handleConversationClick = (participantId: string) => {
-    setActiveConversation(participantId)
-    // Pour un prestataire, une conversation individuelle est provider_to_managers
-    setDefaultThreadType('provider_to_managers')
-    setActiveTab('conversations')
-  }
-
-  const handleGroupConversationClick = () => {
-    setActiveConversation('group')
-    setDefaultThreadType('group')
-    setActiveTab('conversations')
-  }
 
   // Handler pour ouvrir le chat depuis un participant (icône message dans ParticipantsRow)
   const handleOpenChatFromParticipant = (
@@ -824,27 +807,14 @@ export function PrestataireInterventionDetailClient({
         </div>
       )}
 
-      {/* Nouveau design PreviewHybrid */}
+      {/* Layout pleine largeur sans sidebar */}
       <div className="layout-padding h-full bg-slate-50 flex flex-col overflow-hidden">
-        <PreviewHybridLayout
-          sidebar={
-            <InterventionSidebar
-              participants={participants}
-              currentUserRole="provider"
-              currentStatus={intervention.status}
-              timelineEvents={timelineEvents}
-              activeConversation={activeConversation}
-              showConversationButtons={true}
-              onConversationClick={handleConversationClick}
-              onGroupConversationClick={handleGroupConversationClick}
-            />
-          }
-          content={
-            <EntityTabs
-              activeTab={activeTab}
-              onTabChange={setActiveTab}
-              tabs={interventionTabs}
-            >
+        <div className="flex-1 flex flex-col rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+          <EntityTabs
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+            tabs={interventionTabs}
+          >
               {/* TAB: GENERAL */}
               <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
                 <ContentWrapper>
@@ -942,13 +912,33 @@ export function PrestataireInterventionDetailClient({
               <TabsContent value="conversations" className="mt-0 flex-1 flex flex-col overflow-y-auto h-full">
                 <InterventionChatTab
                   interventionId={intervention.id}
-                  threads={threads}
+                  threads={localThreads}
                   initialMessagesByThread={initialMessagesByThread}
                   initialParticipantsByThread={initialParticipantsByThread}
                   currentUserId={currentUser.id}
                   userRole="prestataire"
                   defaultThreadType={defaultThreadType}
+                  onThreadTypeChange={(threadType) => setDefaultThreadType(threadType)}
+                  onThreadRead={handleThreadRead}
                 />
+              </TabsContent>
+
+              {/* TAB: ACTIVITÉ */}
+              <TabsContent value="activity" className="mt-0 flex-1 flex flex-col overflow-hidden">
+                <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
+                  <ActivityTab
+                    intervention={intervention}
+                    activityLogs={activityLogs.map(log => ({
+                      ...log,
+                      user: (log as any).user_name ? {
+                        id: (log as any).user_id,
+                        name: (log as any).user_name,
+                        email: (log as any).user_email || '',
+                        avatar_url: (log as any).user_avatar_url || null
+                      } : undefined
+                    }))}
+                  />
+                </div>
               </TabsContent>
 
               {/* TAB: PLANNING */}
@@ -988,8 +978,7 @@ export function PrestataireInterventionDetailClient({
                 </div>
               </TabsContent>
             </EntityTabs>
-          }
-        />
+        </div>
       </div>
 
 

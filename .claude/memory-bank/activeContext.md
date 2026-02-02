@@ -1,88 +1,183 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** UX Formulaires Intervention + Cohérence Locataire/Gestionnaire
+**Objectif:** PWA Notification Prompt - Modale de rappel à chaque ouverture
 **Branch:** `preview`
-**Sprint:** Multi-Team Support + Google Maps Integration (Jan 2026)
-**Dernière analyse:** Formulaire Intervention Locataire + Confirmation Gestionnaire - 2026-01-31
+**Sprint:** Multi-Team Support + Google Maps Integration (Jan-Feb 2026)
+**Dernière analyse:** PWA Notification Prompt Implementation - 2026-02-02
 
 ---
 
-## ✅ COMPLETE: Formulaire Intervention Locataire + Confirmation Gestionnaire (2026-01-31 - Session 4)
+## ✅ COMPLETE: Quote Notifications Multi-Canal (2026-02-02)
 
-### 1. Extension Types d'Intervention Locataire
+### Contexte
 
-**Problème:** Le formulaire locataire n'affichait que 20 types (catégorie "Bien"), alors que 7 types pertinents étaient masqués (catégorie "Locataire").
+Audit complet du système de notifications pour les devis (quotes). Identification et correction de gaps critiques où les notifications push et in-app étaient manquantes.
 
-**Solution:** Adapter le composant pour accepter un tableau de catégories.
+### État Avant/Après
+
+| Route | Avant | Après |
+|-------|-------|-------|
+| `intervention-quote-request` | ❌❌❌ | ✅✅✅ (Email + In-App + Push) |
+| `intervention-quote-submit` | ✅✅❌ | ✅✅✅ (Push ajouté) |
+| `quotes/[id]/approve` | ✅❌❌ | ✅✅✅ (In-App + Push ajoutés) |
+| `quotes/[id]/reject` | ✅❌❌ | ✅✅✅ (In-App + Push ajoutés) |
+
+### Nouvelles Actions Créées
+
+| Action | Description |
+|--------|-------------|
+| `notifyQuoteRequested` | In-app + Push pour prestataire quand demande de devis |
+| `notifyQuoteApproved` | In-app + Push pour prestataire quand devis approuvé |
+| `notifyQuoteRejected` | In-app + Push pour prestataire quand devis refusé |
+| `notifyQuoteSubmittedWithPush` | In-app + Push pour gestionnaires quand devis soumis |
+
+### Helpers Créés
+
+| Helper | Description |
+|--------|-------------|
+| `getInterventionUrlForRole()` | Retourne l'URL d'intervention selon le rôle (locataire/prestataire/gestionnaire) |
+| `sendRoleAwarePushNotifications()` | Envoie push avec URLs adaptées par rôle des destinataires |
+
+### Bug Fix: URLs Push Notifications
+
+**Problème:** Les push notifications pointaient toujours vers `/gestionnaire/interventions/...` même pour locataires et prestataires.
+
+**Solution:** Nouvelle fonction `sendRoleAwarePushNotifications()` qui :
+1. Groupe les notifications par rôle (`metadata.assigned_role`)
+2. Envoie les push avec l'URL appropriée pour chaque rôle
+
+| Rôle | URL |
+|------|-----|
+| locataire | `/locataire/interventions/{id}` |
+| prestataire | `/prestataire/interventions/{id}` |
+| gestionnaire | `/gestionnaire/interventions/{id}` |
+
+### Fichiers Modifiés
 
 | Fichier | Modification |
-|---------|--------------|
-| `intervention-type-combobox.tsx` | Type `categoryFilter` étendu : `string \| string[]` + logique filtrage |
-| `nouvelle-demande-client.tsx` | Filtre changé : `"bien"` → `["bien", "locataire"]` |
-
-**Résultat:** Le locataire voit maintenant **27 types** (20 Bien + 7 Locataire) au lieu de 20.
-
-### 2. Fix Confirmation Gestionnaire (Header Prématuré)
-
-**Problème:** L'étape 4 du gestionnaire affichait "Intervention créée !" **avant** la création réelle.
-
-**Root Cause:** `showSuccessHeader={true}` dans le composant `InterventionConfirmationSummary`.
-
-| Fichier | Modification |
-|---------|--------------|
-| `nouvelle-intervention-client.tsx` | `showSuccessHeader={true}` → `showSuccessHeader={false}` |
-
-**Pattern aligné avec locataire:**
-```tsx
-// Les deux formulaires utilisent maintenant le même pattern
-<InterventionConfirmationSummary
-  showFooter={false}
-  showSuccessHeader={false}  // ← Cohérent
-/>
-```
+|---------|-------------|
+| `app/actions/notification-actions.ts` | +4 nouvelles actions (280 lignes) |
+| `app/api/intervention-quote-request/route.ts` | Ajout bloc notifications complet |
+| `app/api/intervention-quote-submit/route.ts` | Migration vers `notifyQuoteSubmittedWithPush` |
+| `app/api/quotes/[id]/approve/route.ts` | Ajout `notifyQuoteApproved` |
+| `app/api/quotes/[id]/reject/route.ts` | Ajout `notifyQuoteRejected` |
 
 ---
 
-## ✅ COMPLETE: SWR Server Component Fix + Tenant Dashboard UX (2026-01-31 - Session 3)
+## ✅ COMPLETE: PWA Notification Prompt (2026-02-02)
 
-### Problème 1: `ReferenceError: window is not defined`
+### Contexte
 
-**Root Cause:** SWR accède à `window` au moment de l'import du module. Le hook `use-intervention-types.ts` était importé dans un Server Component via `getInterventionTypesServer()`.
+L'application PWA doit maximiser le taux d'activation des notifications. Quand l'utilisateur ouvre l'app PWA (mode standalone) et que les notifications ne sont pas activées, une modale l'invite à les activer.
 
-**Solution:** Séparation client/serveur avec fichier dédié.
+### Comportement Implémenté
 
-| Fichier | Action |
-|---------|--------|
-| `lib/services/domain/intervention-types.server.ts` | **CRÉÉ** - Fonction serveur isolée |
-| `app/gestionnaire/.../nouvelle-intervention/page.tsx` | Import mis à jour |
-| `hooks/use-intervention-types.ts` | Fonction supprimée, commentaire de redirection |
+| Événement | Action |
+|-----------|--------|
+| **Installation PWA** | Auto-demande permission (existant, conservé) |
+| **Ouverture PWA + notif désactivées** | Modale de rappel à chaque ouverture |
+| **Permission "denied"** | Guide vers paramètres système (iOS, Chrome, etc.) |
+| **Changement dans paramètres** | Auto-détection au focus + subscription automatique |
 
-### Problème 2: Affichage étage/porte mal aligné sur dashboard locataire
+### Fichiers Créés
 
-**Root Cause:**
-1. Bullet `•` affiché même en premier élément
-2. Ligne non alignée avec l'adresse au-dessus
-3. Champs `rooms`/`surface_area` utilisés mais inexistants en DB
+| Fichier | Description |
+|---------|-------------|
+| `hooks/use-notification-prompt.tsx` | Hook de détection (isPWA, permission, user) |
+| `components/pwa/notification-permission-modal.tsx` | Modal UI avec bénéfices par rôle |
+| `components/pwa/notification-settings-guide.tsx` | Instructions paramètres par plateforme |
+| `contexts/notification-prompt-context.tsx` | Provider global |
 
-**Solution:**
+### Fichiers Modifiés
 
 | Fichier | Modification |
 |---------|--------------|
-| `tenant.service.ts` | Ajout `description` dans la requête SQL |
-| `tenant-transform.ts` | Ajout `description` au type + transformation |
-| `use-tenant-data.ts` | Ajout `description` à l'interface `TenantData` |
-| `locataire-dashboard-hybrid.tsx` | Affichage: étage → porte → description + `pl-7` alignement |
+| `app/layout.tsx` | Intégration NotificationPromptProvider |
+| `hooks/use-pwa-install-with-notifications.ts` | Amélioration logging (info au lieu d'error si notif skipped) |
+| `.claude/memory-bank/systemPatterns.md` | Nouveau pattern #23 documenté |
 
-**Pattern appliqué: Séparateurs conditionnels**
-```tsx
-{[floor, door, description].filter(Boolean).map((detail, index) => (
-  <span key={index}>
-    {index > 0 && <span>•</span>}  {/* Seulement après le 1er */}
-    <span>{detail}</span>
-  </span>
-))}
+### Design Document
+
+📄 `docs/plans/2026-02-02-pwa-notification-prompt-design.md`
+
+---
+
+## ✅ COMPLETE: Conversations/Notifications pour Contacts Invités (2026-02-01)
+
+### Contexte
+
+Le système SEIDO permet d'ajouter des contacts à une intervention même sans compte (`auth_id = null`). Ces contacts "informatifs" sont utiles pour la traçabilité mais ne doivent PAS :
+- Avoir de conversation individuelle créée
+- Être ajoutés aux participants des conversations
+- Recevoir de notifications (in-app, push, email)
+
+### Règle Métier Implémentée
+
+| Action | Utilisateur Invité (`auth_id` ✓) | Contact Informatif (`auth_id` ✗) |
+|--------|----------------------------------|----------------------------------|
+| Affiché dans liste sélection | ✅ | ✅ (avec badge "Non invité") |
+| Assigné à intervention | ✅ | ✅ (traçabilité) |
+| Thread conversation individuel | ✅ Créé | ❌ Ignoré |
+| Ajouté comme participant | ✅ | ❌ |
+| Notifications in-app | ✅ | ❌ |
+| Notifications push | ✅ | ❌ |
+| Notifications email | ✅ | ❌ |
+
+### Points de Filtrage Implémentés
+
 ```
+Création intervention → .not('auth_user_id', 'is', null) ✓
+     ↓
+Assignation utilisateur → hasAuthAccount check ✓
+     ↓
+Lazy thread creation → auth_user_id check ✓
+     ↓
+addInitialParticipants() → auth_user_id filter ✓ (FIXED during review)
+     ↓
+getInterventionTenants() → auth_user_id filter ✓ (FIXED during review)
+     ↓
+Envoi notifications push/email → auth_user_id filter ✓
+```
+
+### ⚠️ Bug Fix Session (2026-02-01 17:30)
+
+**Bug:** Conversations non créées après implémentation filtrage
+**Root Cause:** Utilisation de `auth_id` au lieu de `auth_user_id` (nom réel de la colonne DB)
+**Fix:** Remplacement global `auth_id` → `auth_user_id` dans tous les fichiers
+
+**Bug:** Badge locataire affichait son propre nom au lieu de "Gestionnaires"
+**Root Cause:** `conversation-selector.tsx` utilisait `thread.title` pour tous les rôles
+**Fix:** Détection `isOwnThread` pour afficher "Gestionnaires" côté locataire/prestataire
+
+### Fichiers Modifiés (13 fichiers)
+
+| Couche | Fichier | Modification |
+|--------|---------|--------------|
+| **API** | `app/api/create-manager-intervention/route.ts` | Filtre `auth_id` sur tenants/providers |
+| **Service** | `lib/services/domain/intervention-service.ts` | Vérification `auth_id` avant création thread + fix `createConversationThreads()` |
+| **Service** | `lib/services/domain/conversation-service.ts` | 5 filtres `auth_id` sur managers + fix `addInitialParticipants()` + fix `getInterventionTenants()` |
+| **Service** | `lib/services/domain/contract.service.ts` | Ajout `has_account` aux retours |
+| **Repository** | `lib/services/repositories/contract.repository.ts` | Ajout `auth_id` aux selects utilisateurs |
+| **Actions** | `app/actions/conversation-actions.ts` | Vérification `auth_id` dans lazy creation |
+| **Actions** | `app/actions/conversation-notification-actions.ts` | Filtre `auth_id` sur managers |
+| **Actions** | `app/actions/contract-actions.ts` | Propagation `has_account` |
+| **UI** | `components/intervention/assignment-section-v2.tsx` | Badge "Non invité" + messages info |
+| **UI** | `nouvelle-intervention-client.tsx` | Passage `has_account` |
+| **UI** | `intervention-edit-client.tsx` | Passage `has_account` (mode édition) |
+
+### Issues Trouvées et Corrigées pendant Code Review
+
+| Issue | Fichier | Correction |
+|-------|---------|------------|
+| **IMPORTANT #1** | `conversation-service.ts` | `getInterventionTenants()` - Ajout filtre `auth_id` via JOIN |
+| **IMPORTANT #2** | `conversation-service.ts` | `addInitialParticipants()` case 'group' - Filtre users avec `auth_id` |
+| **IMPORTANT #3** | `conversation-service.ts` | `addInitialParticipants()` case 'provider_to_managers' - Filtre providers |
+| **Trouvé pendant vérif** | `intervention-service.ts` | `createConversationThreads()` ligne 2107 - Ajout filtre managers |
+
+### Design Document
+
+📄 `docs/plans/2026-02-01-invited-users-only-conversations-design.md`
 
 ---
 
@@ -91,363 +186,16 @@
 ### Problème
 **250+ appels API `/auth/v1/user` en 10 minutes** pour un seul utilisateur connecté.
 
-### Root Causes Identifiées
-| Cause | Impact |
-|-------|--------|
-| `getUser()` avec retry loop | Jusqu'à 4 appels réseau par invocation |
-| `getSession()` avec double validation | Appelait `getSession()` + `getUser()` |
-| `createServerSupabaseClient()` non cached | Nouveau client créé à chaque appel |
-| Middleware + Pages = double validation | 2 appels `getUser()` par navigation |
-
-### Solution Appliquée
-
+### Solution
 **Principe clé :** Le middleware fait l'unique appel réseau `getUser()`. Les pages utilisent `getSession()` qui lit le JWT localement.
 
 | Fichier | Changement |
 |---------|------------|
 | `lib/auth-dal.ts` | `getUser()` utilise `getSession()` au lieu de `supabase.auth.getUser()` |
-| `lib/auth-dal.ts` | Suppression du retry loop dans `getUser()` |
-| `lib/auth-dal.ts` | `getSession()` n'appelle plus `getUser()` en double |
 | `lib/services/core/supabase-client.ts` | Ajout `cache()` wrapper sur `createServerSupabaseClient` |
 | `hooks/use-auth.tsx` | Flag `initialSessionHandled` pour éviter appels dupliqués |
 
-### Résultat
-- **Avant**: 250+ appels en 10 minutes
-- **Après**: 1 appel par navigation (comportement attendu)
-
-### Pattern Appliqué
-```typescript
-// ✅ CORRECT - Pages/Layouts (lecture JWT locale)
-const { data: { session } } = await supabase.auth.getSession()
-return session?.user ?? null
-
-// ✅ CORRECT - Middleware seulement (validation réseau)
-const { data: { user } } = await supabase.auth.getUser()
-```
-
----
-
-## ✅ COMPLETE: Auth Refactoring (2026-01-31) - MAJEUR
-
-### Objectif
-Centraliser l'authentification pour éviter les appels redondants et corriger le bug multi-profil.
-
-### Résumé des Changements (14 fichiers)
-
-| Catégorie | Fichiers | Changement |
-|-----------|----------|------------|
-| **Hooks (4)** | `use-tenant-data.ts`, `use-contacts-data.ts`, `use-interventions.ts`, `use-prestataire-data.ts` | Suppression session check défensif |
-| **Server Actions (7)** | `intervention-actions.ts`, `intervention-comment-actions.ts`, `email-conversation-actions.ts`, `conversation-actions.ts`, `contract-actions.ts`, `building-actions.ts`, `lot-actions.ts` | `getAuthenticatedUser()` → `getServerActionAuthContextOrNull()` |
-| **Services (3)** | `intervention-service.ts`, `team.repository.ts`, `supabase-client.ts` | Params explicites + deprecation |
-
-### Nouveau Helper Créé
-
-```typescript
-// lib/server-context.ts
-export const getServerActionAuthContextOrNull = async (requiredRole?: string)
-  : Promise<ServerActionAuthContext | null>
-```
-
-### Bug Critique Corrigé (Post-Review)
-
-3 hooks utilisaient `supabase` sans l'avoir déclaré :
-
-| Fichier | Ligne | Fix |
-|---------|-------|-----|
-| `use-contacts-data.ts` | 112 | `const supabase = createBrowserSupabaseClient()` |
-| `use-prestataire-data.ts` | 203 | `const supabase = createBrowserSupabaseClient()` |
-| `use-tenant-data.ts` | 212 | `const supabase = createBrowserSupabaseClient()` |
-
-### Bug `.single()` Corrigé (Multi-Profil)
-
-| Fichier | Fix |
-|---------|-----|
-| `contract-actions.ts` | `.single()` → `.limit(1)` |
-| `building-actions.ts` | `.single()` → `.limit(1)` |
-| `lot-actions.ts` | `.single()` → `.limit(1)` |
-
-### Migration Complète Auth (2026-01-31 - Session 2)
-
-**Hooks migrés vers `useAuth()` (centralisé):**
-| Fichier | Avant | Après |
-|---------|-------|-------|
-| `use-notifications.ts` | N/A | + `authLoading` Pattern #20 |
-| `use-notification-popover.ts` | N/A | + `authLoading` Pattern #20 |
-| `use-activity-logs.ts` | N/A | + `authLoading` Pattern #20 |
-| `use-realtime-chat-v2.ts` | `supabase.auth.getSession()` | `useAuth()` hook |
-| `documents-tab.tsx` (gestionnaire) | `supabase.auth.getUser()` | `useAuth()` hook |
-| `documents-tab.tsx` (prestataire) | `supabase.auth.getUser()` | `useAuth()` hook |
-
-**API Routes migrés vers `getApiAuthContext()`:**
-| Fichier | Avant | Après |
-|---------|-------|-------|
-| `app/api/companies/[id]/route.ts` | `createServerSupabaseClient()` + auth manuelle | `getApiAuthContext()` |
-| `app/api/emails/[id]/route.ts` | auth manuelle | `getApiAuthContext()` |
-| `app/api/emails/send/route.ts` | auth manuelle | `getApiAuthContext()` |
-| `app/api/emails/connections/[id]/route.ts` | auth manuelle | `getApiAuthContext()` |
-| `app/api/emails/oauth/callback/route.ts` | `createServerSupabaseClient()` | `getApiAuthContext()` |
-
-**Fichiers NON migrés (volontairement):**
-| Fichier | Raison |
-|---------|--------|
-| `hooks/use-auth.tsx` | C'est le provider centralisé lui-même |
-| `lib/auth-dal.ts` | C'est le DAL centralisé lui-même |
-| `lib/api-auth-helper.ts` | C'est le helper API lui-même |
-| `middleware.ts` | Doit valider auth au niveau middleware |
-| `app/auth/*` | Pages de flux d'authentification |
-| `lib/services/domain/intervention-service.ts` | Code DEPRECATED (fallback) - marqué dans le code |
-| `use-session-*.ts` | Gestion session bas niveau |
-
-### Tests Manuels à Effectuer ⏳
-
-- [x] Page Notifications (✅ fix race condition auth - 2026-01-31)
-- [x] Realtime Chat (✅ migré vers useAuth - 2026-01-31)
-- [ ] Login/logout flow
-- [ ] Multi-profile user switching teams
-- [ ] Session timeout (wait 60s+ idle)
-- [ ] Tab focus refresh
-- [ ] Each Server Action with multi-profile user
-- [ ] OAuth callback (app/api/emails/oauth/callback)
-
-### Si Bug Trouvé - Checklist Debugging
-
-1. **"Authentication required"** → `getServerActionAuthContextOrNull()` dans `lib/server-context.ts`
-2. **PGRST116 (multiple rows)** → `.single()` non migré vers `.limit(1)`
-3. **`supabase is not defined`** → Hook manquant `createBrowserSupabaseClient()`
-4. **Session perdue** → `use-session-keepalive.ts`, `use-session-focus-refresh.ts`
-5. **Notifications/données ne chargent pas** → Vérifier `authLoading` dans hooks (Pattern #20)
-
-### Design Document
-
-📄 `docs/plans/2026-01-31-auth-refactoring-design.md`
-
----
-
-## ✅ COMPLETE: Finalization Modal z-index Fix (2026-01-30)
-
-### Problème
-La modale de finalisation d'intervention ne s'affichait pas visuellement malgré :
-- State React correct (`showFinalizationModal: true`)
-- Composant Radix rendant (`open: true`)
-- Portal Radix fonctionnel
-
-### Root Cause
-**CSS z-index manquant** sur `.unified-modal__content`. L'overlay avait `z-50` mais le contenu n'avait pas de z-index défini, causant un rendu **derrière** l'overlay.
-
-### Solution Appliquée
-
-**1. CSS z-index (globals.css)**
-```css
-/* AVANT */
-.unified-modal__overlay { @apply fixed inset-0 bg-black/50 ... }
-.unified-modal__content { @apply fixed bg-background ... }
-
-/* APRÈS */
-.unified-modal__overlay { @apply fixed inset-0 z-[9998] bg-black/50 ... }
-.unified-modal__content { @apply fixed z-[9999] bg-background ... }
-```
-
-**2. useEffect URL action stabilisé (intervention-detail-client.tsx)**
-- Ajout `processedUrlActionRef` pour éviter re-triggering
-- Lecture URL directe au lieu de `useSearchParams()` instable
-- Dépendances minimales avec commentaire explicatif
-
-### Fichiers Modifiés
-
-| Fichier | Modification |
-|---------|--------------|
-| `app/globals.css` | z-index overlay/content |
-| `intervention-detail-client.tsx` | useEffect stabilisé + ref |
-| `finalization-modal-live.tsx` | Imports Lucide fusionnés |
-| `unified-modal.tsx` | Cleanup debug logs |
-
-### Pattern à Retenir
-
-**Pour les modales Radix avec CSS custom :**
-```css
-/* L'overlay ET le content doivent avoir des z-index explicites */
-.modal__overlay { z-index: 9998; }
-.modal__content { z-index: 9999; }
-```
-
----
-
-## ✅ COMPLETE: Accessibility + Card Refactoring (2026-01-30)
-
-### ApprovalModal Accessibility (WCAG AA)
-- Touch targets: Back buttons `p-1.5` → `p-2.5` (24px → 40px)
-- `aria-hidden="true"` sur 12 icônes décoratives
-- Contraste: `text-slate-400` → `text-slate-500/600`
-- Focus states: `focus-visible:ring-2` sur tous les boutons
-- Loading state: `role="status" aria-live="polite"`
-
-### InterventionCard Refactoring
-**Renommage:** `PendingActionsCard` → `InterventionCard`
-
-| Fichier | Changement |
-|---------|------------|
-| `intervention-card.tsx` | Nouveau fichier, fix sizing (retrait `h-full`) |
-| `pending-actions-card.tsx` | **SUPPRIMÉ** |
-| `intervention-overview-card.tsx` | **SUPPRIMÉ** (legacy wrapper) |
-
-**Fix sizing grid:**
-```typescript
-// AVANT - Cards stretched to full height
-<div className="grid ... h-full">
-
-// APRÈS - Cards auto-height, aligned per row
-<div className="grid ...">
-```
-
-**Inline overview content:**
-- `overview-tab.tsx` (gestionnaire + prestataire) utilise maintenant directement:
-  - `InterventionProviderGuidelines`
-  - `InterventionSchedulingPreview`
-  - Description inline
-
----
-
-## ✅ COMPLETE: EntityPreviewLayout + Tabs Unification (2026-01-30)
-
-### Objectif
-Unifier les composants de tabs pour toutes les pages preview (Building, Lot, Contract, Contact, Intervention).
-
-### Architecture Unifiée
-
-```
-@/components/shared/entity-preview/
-├── index.ts                 # Exports centralisés
-├── types.ts                 # TabConfig, getInterventionTabsConfig()
-├── entity-tabs.tsx          # Composant unifié MD3
-├── entity-preview-layout.tsx # Layout wrapper
-└── entity-activity-log.tsx  # Timeline d'activité
-```
-
-### Migrations Effectuées
-
-| Page | Ancien | Nouveau |
-|------|--------|---------|
-| Building | Custom tabs | `EntityTabs` |
-| Lot | Custom buttons | `EntityTabs` |
-| Contract | `Tabs/TabsList` | `EntityTabs` |
-| Contact | `ContactTabsNavigation` | `EntityTabs` |
-| **Intervention** | `InterventionTabs` | `EntityTabs + getInterventionTabsConfig()` |
-
-### Fichiers Supprimés (code mort)
-
-| Fichier | Raison |
-|---------|--------|
-| `contact-tabs-navigation.tsx` | Remplacé par EntityTabs |
-| `intervention-tabs.tsx` | Unifié avec EntityTabs |
-| `intervention-tabs.stories.tsx` | Storybook obsolète |
-| `intervention-detail-tabs.tsx` | Legacy non utilisé |
-| `preview-designs/*` | Prototypes obsolètes |
-
-### Utilisation
-
-```typescript
-// Pour toutes les entités
-import { EntityTabs, TabContentWrapper } from '@/components/shared/entity-preview'
-
-// Pour interventions (avec config par rôle)
-import { EntityTabs, getInterventionTabsConfig } from '@/components/shared/entity-preview'
-const tabs = useMemo(() => getInterventionTabsConfig('manager'), []) // ou 'provider', 'tenant'
-```
-
----
-
-## ✅ COMPLETE: Performance Optimization + UX Interventions (2026-01-30)
-
-### Problemes Identifies
-L'application souffrait de lenteurs importantes:
-- Chargement infini des pages
-- Inputs désactivés pendant le chargement
-- Erreurs CSP bloquant les ressources
-- Service Worker timeouts causant des échecs réseau
-
-### Root Causes (Analyse 4 Agents)
-
-| Issue | Root Cause | Impact |
-|-------|------------|--------|
-| **Re-renders infinis** | `useEffect` sans dépendances dans `content-navigator.tsx:137` | 7374ms+ délais |
-| **CSP violations** | Domaines manquants dans `connect-src` (vercel-scripts, lh3.googleusercontent, frill-prod) | Requêtes bloquées |
-| **SW timeouts** | Timeout 10s trop agressif pour API complexes | Échecs réseau |
-| **Double query** | `activity-logs/route.ts` faisait 2 requêtes COUNT séparées | Temps x2 |
-
-### Solutions Appliquées
-
-**1. ContentNavigator useEffect (CRITIQUE)**
-```typescript
-// AVANT - S'exécutait à CHAQUE render!
-useEffect(() => { ... })
-
-// APRÈS - Une seule fois au mount + dev-only
-useEffect(() => {
-  if (process.env.NODE_ENV !== 'development') return
-  // ...
-}, [])
-```
-
-**2. CSP connect-src étendu**
-```javascript
-// next.config.js - Ajout domaines manquants
-"connect-src 'self' ... https://*.vercel-scripts.com https://frill-prod-app.b-cdn.net https://lh3.googleusercontent.com ..."
-```
-
-**3. Service Worker désactivé en dev**
-```javascript
-// next.config.js
-disable: process.env.NODE_ENV === 'development'
-```
-
-**4. Activity-logs API optimisé**
-```typescript
-// Une seule requête avec count intégré
-.select('*', { count: 'exact' })
-```
-
-### Fichiers Modifiés
-
-| Fichier | Modification |
-|---------|--------------|
-| `components/content-navigator.tsx` | useEffect avec `[]` + garde NODE_ENV |
-| `next.config.js` | SW désactivé en dev + CSP étendu |
-| `app/sw.ts` | Timeout API: 10s → 30s |
-| `app/api/activity-logs/route.ts` | Query unique avec count intégré |
-
-### UX Intervention Tabs (Material Design)
-
-**Améliorations UI:**
-- Tabs: Icônes retirées (texte seul)
-- Responsive: Dropdown < 768px, Tabs ≥ 768px
-- ParticipantsRow: Nouveau composant chips horizontal
-- ConversationSelector: Intégré dans Chat tab
-
-**Fichiers créés:**
-- `components/interventions/shared/layout/participants-row.tsx`
-- `components/interventions/shared/layout/conversation-selector.tsx`
-
----
-
-## ✅ COMPLETE: Add Dedicated Localisation Tab in Intervention Preview (2026-01-29)
-
-### Objectif
-Créer un onglet "Localisation" dédié dans la prévisualisation d'intervention pour les 3 rôles, avec la carte Google Maps en grand format.
-
-### Solution Implementee
-
-**Nouveau composant partagé :**
-```
-components/interventions/shared/tabs/localisation-tab.tsx
-```
-
-### Nouvelle Structure des Onglets
-
-| Rôle | Onglets |
-|------|---------|
-| **Gestionnaire** | Général \| **Localisation** \| Conversations \| Planning et Estimations \| Contacts \| Emails |
-| **Prestataire** | Général \| **Localisation** \| Conversations \| Planification |
-| **Locataire** | Général \| **Localisation** \| Conversations \| Rendez-vous |
+**Résultat:** 250+ appels → 1 appel par navigation
 
 ---
 
@@ -488,15 +236,17 @@ demande -> rejetee (terminal)
 | Phase 7 | RLS: `get_my_profile_ids()` | ✅ |
 | Phase 8 | Conversations: `can_view_conversation()` multi-profil | ✅ |
 | Phase 9 | Participants: Trigger `thread_add_managers` | ✅ |
+| **Phase 10** | **Filtrage auth_id contacts invités** | ✅ NEW |
 
 ---
 
 ## Prochaines Etapes
 
-### Performance - A Surveiller
-- [ ] Vérifier que SW disabled résout les timeouts en dev
-- [ ] Monitorer les erreurs CSP en production
-- [ ] Optimiser d'autres API routes si nécessaire
+### Conversations - À Surveiller
+- [ ] Tester création intervention avec contact invité vs non-invité
+- [ ] Vérifier badge "Non invité" dans wizard création
+- [ ] Vérifier comportement mode édition intervention
+- [ ] Tester notifications email/push pour contacts filtrés
 
 ### Google Maps Integration
 - [x] Phase 1: Table addresses centralisée ✅
@@ -506,15 +256,15 @@ demande -> rejetee (terminal)
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-01-30)
+## Metriques Systeme (Mise a jour 2026-02-01)
 
 | Composant | Valeur |
 |-----------|--------|
 | **Tables DB** | **44** (+1 addresses, +3 quotes) |
-| **Migrations** | **145+** |
+| **Migrations** | **146+** (+1 individual_conversation_threads) |
 | **API Routes** | **113** (10 domaines) |
 | **Pages** | **87** (5+ route groups) |
-| **Composants** | **232+** (+2 participants-row, conversation-selector) |
+| **Composants** | **232+** |
 | **Hooks** | **64** custom hooks |
 | **Services domain** | **32** |
 | **Repositories** | **22** |
@@ -523,63 +273,48 @@ demande -> rejetee (terminal)
 
 ---
 
-## Points de Vigilance Performance
+## Points de Vigilance - Filtrage auth_id
 
-### Service Worker en Développement
-**Pattern recommandé:** Désactiver le SW en dev pour éviter les problèmes de cache/CSP
-```javascript
-// next.config.js
-disable: process.env.NODE_ENV === 'development'
-```
+### Pattern à Utiliser
 
-### useEffect Dependencies
-**Anti-pattern:** useEffect sans tableau de dépendances
 ```typescript
-// ❌ MAUVAIS - s'exécute à CHAQUE render
-useEffect(() => { ... })
+// ✅ CORRECT - Filtrer utilisateurs avec compte
+const { data: users } = await supabase
+  .from('users')
+  .select('id')
+  .not('auth_id', 'is', null)  // Seulement les utilisateurs invités
 
-// ✅ CORRECT - s'exécute une fois au mount
-useEffect(() => { ... }, [])
+// ✅ CORRECT - Vérifier avant création thread
+const hasAuthAccount = !!userData?.auth_id
+if (!hasAuthAccount) {
+  logger.info('Skipping thread creation for non-invited user')
+  return
+}
 ```
 
-### CSP pour Service Worker
-**Important:** Le SW intercepte tous les fetch, donc TOUS les domaines doivent être dans `connect-src`, pas seulement dans leur directive spécifique (img-src, font-src, etc.)
+### Points d'Entrée à Vérifier
 
-### Pattern: Séparation Client/Serveur pour Hooks SWR
-
-**Anti-pattern:** Exporter une fonction serveur depuis un fichier qui importe SWR
-```typescript
-// ❌ MAUVAIS - use-intervention-types.ts
-import useSWR from 'swr/immutable'  // Accède à window!
-export function useInterventionTypes() { ... }
-export async function getInterventionTypesServer() { ... }  // Exporté mais SWR déjà importé
-```
-
-**Pattern correct:** Fichiers séparés
-```typescript
-// ✅ hooks/use-intervention-types.ts (Client)
-import useSWR from 'swr/immutable'
-export function useInterventionTypes() { ... }
-
-// ✅ lib/services/domain/intervention-types.server.ts (Server)
-export async function getInterventionTypesServer() { ... }
-```
+Si nouveau code ajoute des participants ou crée des threads :
+1. Vérifier que `.not('auth_user_id', 'is', null)` est appliqué (**ATTENTION: c'est `auth_user_id`, PAS `auth_id`**)
+2. Ou que `hasAuthAccount` est vérifié avant création (basé sur `auth_user_id`)
+3. Propager `has_account` depuis repository → service → action → UI
 
 ---
-*Derniere mise a jour: 2026-01-31 22:45*
-*Focus: Auth API Optimization - 250+ → 1 appel par navigation*
+
+*Derniere mise a jour: 2026-02-01 17:45*
+*Focus: Filtrage auth_user_id conversations/notifications + Fix badge locataire*
 
 ## Commits Recents (preview branch)
 
 | Hash | Description |
 |------|-------------|
+| `18e7c6a` | docs: update memory bank after auth API optimization session |
 | `2431cc3` | perf(auth): reduce auth API calls from 250+ to 1 per navigation |
 | `a719010` | refactor(auth): centralize authentication + fix intervention forms UX |
-| `e4429f4` | fix(beta-gate): improve form layout and UX |
-| `c51b6f4` | feat(landing): optimize B2B copywriting + update pricing free tier to 1-2 biens |
 
 ## Files Recently Modified
-### 2026-01-31 22:45:00 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/lib/auth-dal.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/lib/services/core/supabase-client.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/hooks/use-auth.tsx`
+### 2026-02-02 18:32:51 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/lib/push-notification-manager.ts`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/push-notification-toggle.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/hooks/use-notification-prompt.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/actions/push-subscription-actions.ts`

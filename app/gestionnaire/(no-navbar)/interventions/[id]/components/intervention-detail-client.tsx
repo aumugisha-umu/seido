@@ -99,8 +99,8 @@ import { useToast } from '@/hooks/use-toast'
 import { useInterventionApproval } from '@/hooks/use-intervention-approval'
 import { useActivityLogs } from '@/hooks/use-activity-logs'
 
-// Activity tab
-import { ActivityTab } from './activity-tab'
+// Activity tab (shared)
+import { ActivityTab } from '@/components/interventions/activity-tab'
 
 // Contact selector
 import { ContactSelector, type ContactSelectorRef } from '@/components/contact-selector'
@@ -143,7 +143,7 @@ import { LinkedInterventionsSection, LinkedInterventionBanner } from '@/componen
 
 // Google Maps
 import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
-// AssignmentModeBadge moved to sidebar - see ParticipantsList
+// AssignmentModeBadge: see InterventionDetailsCard participants row
 import { FinalizeMultiProviderButton } from '@/components/intervention/finalize-multi-provider-button'
 
 import type { Database } from '@/lib/database.types'
@@ -290,6 +290,9 @@ export function InterventionDetailClient({
   const { currentUserTeam } = useTeamStatus()
   const { toast } = useToast()
   const [activeTab, setActiveTab] = useState('general')
+
+  // Local state for threads with unread counts (for optimistic updates)
+  const [localThreads, setLocalThreads] = useState(threads)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [cancelQuoteModal, setCancelQuoteModal] = useState<{
     isOpen: boolean
@@ -397,7 +400,34 @@ export function InterventionDetailClient({
   // ============================================================================
   // Tabs Configuration (unified with EntityTabs)
   // ============================================================================
-  const interventionTabs = useMemo(() => getInterventionTabsConfig('manager'), [])
+
+  // Calculate total unread messages across all threads (uses local state for optimistic updates)
+  const totalUnreadMessages = useMemo(() => {
+    return localThreads.reduce((total, t) => {
+      const unread = (t as any).unread_count || 0
+      return total + unread
+    }, 0)
+  }, [localThreads])
+
+  // Handler for marking a thread as read (optimistic update)
+  const handleThreadRead = (threadId: string) => {
+    setLocalThreads(prevThreads =>
+      prevThreads.map(t =>
+        t.id === threadId ? { ...t, unread_count: 0 } : t
+      )
+    )
+  }
+
+  // Build tabs with hasUnread indicator for conversations
+  const interventionTabs = useMemo(() => {
+    const baseTabs = getInterventionTabsConfig('manager')
+    return baseTabs.map(tab => {
+      if (tab.value === 'conversations') {
+        return { ...tab, hasUnread: totalUnreadMessages > 0 }
+      }
+      return tab
+    })
+  }, [totalUnreadMessages])
 
   // ============================================================================
   // Participant Confirmation Logic
@@ -490,7 +520,7 @@ export function InterventionDetailClient({
   // Transformations pour les composants shared (nouveau design PreviewHybrid)
   // ============================================================================
 
-  // Participants pour InterventionSidebar (format Participant)
+  // Participants pour InterventionDetailsCard (ligne Participants dans l'onglet Général)
   const participants = useMemo(() => ({
     managers: assignments
       .filter(a => a.role === 'gestionnaire' && a.user)
@@ -2086,7 +2116,7 @@ export function InterventionDetailClient({
                 <div className="flex-1 flex flex-col min-h-0 p-4 sm:p-6">
                   <InterventionChatTab
                     interventionId={intervention.id}
-                    threads={threads}
+                    threads={localThreads}
                     initialMessagesByThread={initialMessagesByThread}
                     initialParticipantsByThread={initialParticipantsByThread}
                     currentUserId={serverUserId}
@@ -2094,6 +2124,8 @@ export function InterventionDetailClient({
                     defaultThreadType={selectedThreadType}
                     initialMessage={initialChatMessage || undefined}
                     onMessageSent={() => setInitialChatMessage(null)}
+                    onThreadTypeChange={(threadType) => setSelectedThreadType(threadType)}
+                    onThreadRead={handleThreadRead}
                   />
                 </div>
               </TabsContent>

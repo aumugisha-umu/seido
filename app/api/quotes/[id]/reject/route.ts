@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server'
+import { notifyQuoteRejected } from '@/app/actions/notification-actions'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { quoteRejectSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
@@ -70,7 +71,9 @@ export async function POST(
       }, { status: 500 })
     }
 
-    // Send email to provider (via after())
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NOTIFICATIONS: Send in-app + push + email to provider
+    // ═══════════════════════════════════════════════════════════════════════════
     {
       // Capture variables for after() closure
       const emailQuote = { ...quote }
@@ -115,6 +118,21 @@ export async function POST(
           }
 
           if (provider && intervention) {
+            // 1. In-app + Push notification
+            await notifyQuoteRejected({
+              quoteId: emailQuote.id,
+              interventionId: emailInterventionId,
+              interventionTitle: intervention.title || 'Intervention',
+              providerId: provider.id,
+              providerName: provider.first_name || provider.company_name || 'Prestataire',
+              teamId: intervention.team_id,
+              rejectedBy: emailManager.id,
+              rejectedByName: emailManager.name || 'Gestionnaire',
+              reason: emailReason,
+              canResubmit: false
+            })
+
+            // 2. Email notification
             // Get property address
             let propertyAddress = 'Adresse non spécifiée'
             if (intervention.lot_id && intervention.lots) {
@@ -136,13 +154,13 @@ export async function POST(
               rejectionReason: emailReason,
               canResubmit: false,
             })
-            logger.info({ quoteId: emailQuote.id }, '📧 [API] Quote rejected email sent (via after())')
+            logger.info({ quoteId: emailQuote.id }, '📧 [API] Quote rejected notifications sent (in-app + push + email)')
           }
         } catch (emailError) {
           logger.error({
             quoteId: emailQuote.id,
             error: emailError instanceof Error ? emailError.message : String(emailError)
-          }, '⚠️ [API] Email notifications failed (via after())')
+          }, '⚠️ [API] Quote rejection notifications failed (via after())')
         }
       })
     }

@@ -53,6 +53,8 @@ interface ThreadCreateInput {
   title?: string
   created_by: string
   team_id: string
+  /** For individual threads (tenant_to_managers, provider_to_managers): the specific user_id */
+  participant_id?: string
 }
 
 interface MessageCreateInput {
@@ -167,6 +169,13 @@ export class ConversationRepository {
 
   /**
    * Create a new conversation thread
+   *
+   * Thread types:
+   * - group: General discussion (all participants)
+   * - tenants_group: All tenants + managers (participant_id = null)
+   * - providers_group: All providers + managers (participant_id = null)
+   * - tenant_to_managers: Individual tenant conversation (participant_id required)
+   * - provider_to_managers: Individual provider conversation (participant_id required)
    */
   async createThread(input: ThreadCreateInput) {
     try {
@@ -176,13 +185,27 @@ export class ConversationRepository {
       validateUUID(input.team_id)
 
       // Validate thread type
-      const validTypes: ThreadType[] = ['group', 'tenant_to_managers', 'provider_to_managers']
+      const validTypes: ThreadType[] = ['group', 'tenants_group', 'providers_group', 'tenant_to_managers', 'provider_to_managers']
       if (!validTypes.includes(input.thread_type)) {
         throw new ValidationException(
           `Invalid thread type. Must be one of: ${validTypes.join(', ')}`,
           'conversation_threads',
           'thread_type'
         )
+      }
+
+      // Validate participant_id for individual threads
+      const individualThreadTypes: ThreadType[] = ['tenant_to_managers', 'provider_to_managers']
+      if (individualThreadTypes.includes(input.thread_type) && !input.participant_id) {
+        throw new ValidationException(
+          `participant_id is required for individual thread type: ${input.thread_type}`,
+          'conversation_threads',
+          'participant_id'
+        )
+      }
+
+      if (input.participant_id) {
+        validateUUID(input.participant_id)
       }
 
       // Create the thread
@@ -193,7 +216,8 @@ export class ConversationRepository {
           thread_type: input.thread_type,
           title: input.title || null,
           created_by: input.created_by,
-          team_id: input.team_id
+          team_id: input.team_id,
+          participant_id: input.participant_id || null
         })
         .select()
         .single()

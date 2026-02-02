@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { notifyInterventionStatusChange } from '@/app/actions/notification-actions'
+import { NextRequest, NextResponse, after } from 'next/server'
+import { notifyQuoteRequested } from '@/app/actions/notification-actions'
 import { Database } from '@/lib/database.types'
 import { logger } from '@/lib/logger'
 import { createServerInterventionService } from '@/lib/services'
@@ -230,8 +230,96 @@ export async function POST(request: NextRequest) {
 
     logger.info({}, "✅ Quote request created successfully (status unchanged, quote tracked via intervention_quotes)")
 
-    // Note: Status change notifications removed since status no longer changes
-    // Quote request notifications to providers are handled directly via the quote creation process
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NOTIFICATIONS: Send in-app + push + email to providers
+    // ═══════════════════════════════════════════════════════════════════════════
+    {
+      const emailIntervention = intervention
+      const emailUser = user
+      const emailProviders = eligibleProviders
+      const emailDeadline = deadline
+      const createdQuotes = quoteResult.results.filter(r => r.success)
+
+      after(async () => {
+        try {
+          // 1. In-app + Push notifications for each provider
+          for (const createdQuote of createdQuotes) {
+            const provider = emailProviders.find(p => p.id === createdQuote.providerId)
+            if (provider && createdQuote.quoteId) {
+              await notifyQuoteRequested({
+                quoteId: createdQuote.quoteId,
+                interventionId: emailIntervention.id,
+                interventionTitle: emailIntervention.title || 'Intervention',
+                providerId: provider.id,
+                providerName: provider.name || 'Prestataire',
+                teamId: emailIntervention.team_id,
+                requestedBy: emailUser.id,
+                requestedByName: emailUser.name || 'Gestionnaire',
+                deadline: emailDeadline
+              })
+            }
+          }
+
+          // 2. Email notifications for each provider
+          const { createEmailNotificationService } = await import('@/lib/services/domain/email-notification.factory')
+          const { createServerSupabaseClient } = await import('@/lib/services')
+          const emailService = await createEmailNotificationService()
+          const supabaseClient = await createServerSupabaseClient()
+
+          // Get property address
+          const formatAddr = (rec: any) => {
+            if (!rec) return null
+            if (rec.formatted_address) return rec.formatted_address
+            const parts = [rec.street, rec.postal_code, rec.city].filter(Boolean)
+            return parts.length > 0 ? parts.join(', ') : null
+          }
+
+          let propertyAddress = 'Adresse non spécifiée'
+          const lot = emailIntervention.lot as any
+          if (lot?.address_record) {
+            propertyAddress = formatAddr(lot.address_record) || propertyAddress
+          } else if (lot?.building?.address_record) {
+            propertyAddress = formatAddr(lot.building.address_record) || propertyAddress
+          }
+
+          // Get manager info
+          const { data: manager } = await supabaseClient
+            .from('users')
+            .select('id, email, first_name, last_name')
+            .eq('id', emailUser.id)
+            .single()
+
+          // Send email to each provider
+          for (const createdQuote of createdQuotes) {
+            const provider = emailProviders.find(p => p.id === createdQuote.providerId)
+            if (provider && createdQuote.quoteId && manager) {
+              // Get provider details with email
+              const { data: providerDetails } = await supabaseClient
+                .from('users')
+                .select('id, email, first_name, last_name, company_name')
+                .eq('id', provider.id)
+                .single()
+
+              if (providerDetails?.email) {
+                await emailService.sendQuoteRequest({
+                  quote: { id: createdQuote.quoteId, reference: null },
+                  intervention: emailIntervention as any,
+                  property: { address: propertyAddress },
+                  manager,
+                  provider: providerDetails
+                })
+                logger.info({ quoteId: createdQuote.quoteId, providerId: provider.id }, '📧 [API] Quote request email sent')
+              }
+            }
+          }
+        } catch (error) {
+          logger.error({
+            error: error instanceof Error ? error.message : String(error),
+            interventionId: emailIntervention.id
+          }, '⚠️ [API] Quote request notifications failed (via after())')
+        }
+      })
+    }
 
     return NextResponse.json({
       success: true,

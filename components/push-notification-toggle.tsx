@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from "react"
 import { Bell, BellOff, Loader2, AlertCircle, CheckCircle } from "lucide-react"
-import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { pushManager } from "@/lib/push-notification-manager"
 import { cn } from "@/lib/utils"
+import { checkUserPushSubscription, deleteUserPushSubscriptions } from "@/app/actions/push-subscription-actions"
 
 interface PushNotificationToggleProps {
   userId: string
@@ -21,6 +21,8 @@ export function PushNotificationToggle({ userId, className }: PushNotificationTo
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [permission, setPermission] = useState<NotificationPermission>('default')
+
+  const [swReady, setSwReady] = useState(true)
 
   // Check support and subscription status on mount
   useEffect(() => {
@@ -36,13 +38,39 @@ export function PushNotificationToggle({ userId, className }: PushNotificationTo
         return
       }
 
+      // Check if service worker is registered (may be disabled in dev mode)
+      try {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        if (registrations.length === 0) {
+          console.warn('⚠️ [PushToggle] No service worker registered. Push notifications require production build.')
+          setSwReady(false)
+          setIsLoading(false)
+          return
+        }
+      } catch {
+        setSwReady(false)
+        setIsLoading(false)
+        return
+      }
+
       // Check permission status
       const currentPermission = pushManager.getPermissionStatus()
       setPermission(currentPermission)
 
-      // Check if user is subscribed
-      const subscribed = await pushManager.isSubscribed()
-      setIsEnabled(subscribed)
+      // Check if user is subscribed - DOUBLE CHECK: browser + database
+      const browserSubscribed = await pushManager.isSubscribed()
+      const { hasSubscription: dbSubscribed } = await checkUserPushSubscription()
+
+      // Source de vérité = base de données
+      // Si browser=true mais DB=false, c'est une incohérence (subscription locale sans serveur)
+      const isActuallySubscribed = dbSubscribed
+      setIsEnabled(isActuallySubscribed)
+
+      console.log('🔔 [PushToggle] Subscription status:', {
+        browserSubscribed,
+        dbSubscribed,
+        isActuallySubscribed
+      })
 
       setIsLoading(false)
     }
@@ -59,19 +87,27 @@ export function PushNotificationToggle({ userId, className }: PushNotificationTo
       if (enabled) {
         // Enable push notifications
         await pushManager.subscribe(userId)
-        setIsEnabled(true)
-        setPermission('granted')
-        setSuccess('✅ Notifications push activées avec succès !')
 
-        // Clear success message after 3 seconds
-        setTimeout(() => setSuccess(null), 3000)
+        // Vérifier que la subscription a bien été créée en DB
+        const { hasSubscription: dbSubscribed } = await checkUserPushSubscription()
+
+        if (!dbSubscribed) {
+          console.error('❌ [PushToggle] Subscription created locally but not saved to database')
+          setError('La subscription n\'a pas été enregistrée. Veuillez réessayer.')
+          setIsEnabled(false)
+        } else {
+          setIsEnabled(true)
+          setPermission('granted')
+          setSuccess('✅ Notifications push activées avec succès !')
+          setTimeout(() => setSuccess(null), 3000)
+        }
       } else {
-        // Disable push notifications
+        // Disable push notifications - supprimer côté navigateur ET serveur
         await pushManager.unsubscribe(userId)
+        await deleteUserPushSubscriptions()
+
         setIsEnabled(false)
         setSuccess('🔕 Notifications push désactivées')
-
-        // Clear success message after 3 seconds
         setTimeout(() => setSuccess(null), 3000)
       }
     } catch (err: any) {
@@ -102,6 +138,31 @@ export function PushNotificationToggle({ userId, className }: PushNotificationTo
           <AlertCircle className="h-4 w-4" />
           <AlertDescription>
             Les notifications push ne sont pas supportées par votre navigateur ou appareil.
+          </AlertDescription>
+        </Alert>
+      </div>
+    )
+  }
+
+  // If service worker is not ready (disabled in dev mode)
+  if (!swReady) {
+    return (
+      <div className={cn("space-y-4", className)}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <BellOff className="h-5 w-5 text-amber-500" />
+            <div>
+              <Label className="text-base">Notifications push</Label>
+              <p className="text-sm text-muted-foreground">
+                Recevoir des notifications sur cet appareil
+              </p>
+            </div>
+          </div>
+        </div>
+        <Alert className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
+          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          <AlertDescription className="text-amber-800 dark:text-amber-200">
+            <strong>Mode développement :</strong> Le Service Worker est désactivé. Pour tester les notifications push, lancez l'application en mode production avec <code className="bg-amber-100 dark:bg-amber-900 px-1 rounded">npm run build && npm run start</code>
           </AlertDescription>
         </Alert>
       </div>

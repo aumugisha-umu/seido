@@ -130,7 +130,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
           .from('contract_contacts')
           .select(`
             id, user_id, role, is_primary, notes,
-            user:user_id(id, name, email, phone, first_name, last_name)
+            user:user_id(id, name, email, phone, first_name, last_name, auth_user_id)
           `)
           .eq('contract_id', id),
 
@@ -196,7 +196,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
           lot:lot_id(id, reference, category, building:building_id(id, name)),
           contacts:contract_contacts(
             id, user_id, role, is_primary,
-            user:user_id(id, name, email, phone)
+            user:user_id(id, name, email, phone, auth_user_id)
           )
         `)
         .eq('team_id', teamId)
@@ -236,7 +236,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
           *,
           contacts:contract_contacts(
             id, user_id, role, is_primary,
-            user:user_id(id, name, email, phone)
+            user:user_id(id, name, email, phone, auth_user_id)
           )
         `)
         .eq('lot_id', lotId)
@@ -265,7 +265,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
           *,
           contacts:contract_contacts(
             id, user_id, role, is_primary,
-            user:user_id(id, name, email, phone)
+            user:user_id(id, name, email, phone, auth_user_id)
           )
         `)
         .eq('lot_id', lotId)
@@ -297,7 +297,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
           lot:lot_id(id, reference, category, building_id),
           contacts:contract_contacts(
             id, user_id, role, is_primary,
-            user:user_id(id, name, email, phone)
+            user:user_id(id, name, email, phone, auth_user_id)
           )
         `)
         .eq('lot.building_id', buildingId)
@@ -337,7 +337,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
           lot:lot_id(id, reference, category, building:building_id(id, name)),
           contacts:contract_contacts(
             id, user_id, role, is_primary,
-            user:user_id(id, name, email)
+            user:user_id(id, name, email, auth_user_id)
           )
         `)
         .eq('team_id', teamId)
@@ -368,7 +368,7 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
         .select(`
           *,
           lot:lot_id(id, reference, category, building:building_id(id, name)),
-          contacts:contract_contacts(id, user_id, role, is_primary, user:user_id(id, name))
+          contacts:contract_contacts(id, user_id, role, is_primary, user:user_id(id, name, auth_user_id))
         `)
         .eq('team_id', teamId)
         .eq('status', status)
@@ -752,7 +752,7 @@ export class ContractContactRepository extends BaseRepository<ContractContact, C
         .from(this.tableName)
         .select(`
           *,
-          user:user_id(id, name, email, phone, first_name, last_name)
+          user:user_id(id, name, email, phone, first_name, last_name, auth_user_id)
         `)
         .eq('contract_id', contractId)
         .order('is_primary', { ascending: false })

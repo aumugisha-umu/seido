@@ -19,6 +19,7 @@ import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
 import { sendConversationNotifications } from './conversation-notification-actions'
+import { getThreadWelcomeMessage } from '@/lib/utils/thread-welcome-messages'
 
 // Type aliases
 type ConversationThread = Database['public']['Tables']['conversation_threads']['Row']
@@ -69,6 +70,64 @@ const PaginationSchema = z.object({
 
 // ✅ REFACTORED: Auth helper removed - now using centralized getServerActionAuthContextOrNull()
 // from lib/server-context.ts
+
+/**
+ * SYSTEM MESSAGES
+ * Note: Welcome messages are now centralized in lib/utils/thread-welcome-messages.ts
+ */
+
+/**
+ * Send a welcome system message when a thread is created
+ * This helps users understand the purpose of each conversation thread
+ *
+ * @param threadId - The ID of the newly created thread
+ * @param threadType - The type of thread (group, tenant_to_managers, provider_to_managers)
+ * @param createdByUserId - The ID of the user who created the thread (used as message author)
+ * @param participantName - Optional name of the tenant/provider for personalized message
+ */
+export async function sendThreadWelcomeMessage(
+  threadId: string,
+  threadType: ConversationThreadType,
+  createdByUserId: string,
+  participantName?: string
+): Promise<void> {
+  try {
+    const supabase = await createServerActionSupabaseClient()
+
+    const welcomeMessage = getThreadWelcomeMessage(threadType, participantName)
+    if (!welcomeMessage) {
+      logger.warn('⚠️ [SYSTEM-MESSAGE] No welcome message configured for thread type:', threadType)
+      return
+    }
+
+    const { error } = await supabase
+      .from('conversation_messages')
+      .insert({
+        thread_id: threadId,
+        user_id: createdByUserId,
+        content: welcomeMessage,
+        metadata: {
+          source: 'system',
+          action: 'thread_created',
+          thread_type: threadType
+        }
+      })
+
+    if (error) {
+      logger.error('❌ [SYSTEM-MESSAGE] Failed to insert welcome message:', error)
+      return
+    }
+
+    logger.info('✅ [SYSTEM-MESSAGE] Welcome message sent for thread:', {
+      threadId,
+      threadType,
+      participantName
+    })
+  } catch (error) {
+    logger.error('❌ [SYSTEM-MESSAGE] Error sending welcome message:', error)
+    // Don't throw - this is non-critical
+  }
+}
 
 /**
  * THREAD MANAGEMENT
@@ -597,9 +656,10 @@ export async function addParticipantAction(
     }
 
     // Get user to add and verify they're in the same team
+    // ✅ FIX 2026-02-01: Include auth_id to check if user is invited (has account)
     const { data: userToAdd, error: userError } = await supabase
       .from('users')
-      .select('id, role')
+      .select('id, role, name, auth_user_id')
       .eq('id', userId)
       .single()
 
@@ -635,47 +695,78 @@ export async function addParticipantAction(
       return { success: false, error: result.error || 'Failed to add participant' }
     }
 
-    // If adding a prestataire to 'group' thread, create/ensure provider_to_managers thread exists
-    if (userToAdd.role === 'prestataire' && thread.thread_type === 'group') {
-      logger.info('🔧 [SERVER-ACTION] Creating provider_to_managers thread for prestataire')
+    // If adding a prestataire or locataire to 'group' thread, create/ensure individual thread exists
+    // ✅ FIX 2026-02-01: Only create individual threads for invited users (with auth_id)
+    // Users without auth_id are informational contacts - they can't log in or use conversations
+    if ((userToAdd.role === 'prestataire' || userToAdd.role === 'locataire') && thread.thread_type === 'group') {
+      // Check if user is invited (has auth account)
+      if (!userToAdd.auth_user_id) {
+        logger.info('ℹ️ [SERVER-ACTION] Skipping individual thread creation for non-invited user', {
+          userId,
+          role: userToAdd.role,
+          reason: 'no auth_user_id - informational contact only'
+        })
+      } else {
+        const threadType = userToAdd.role === 'prestataire' ? 'provider_to_managers' : 'tenant_to_managers'
+        logger.info('🔧 [SERVER-ACTION] Creating individual thread for invited user', { role: userToAdd.role, threadType })
 
-      // Check if provider_to_managers thread already exists for this provider
-      const { data: existingProviderThread } = await supabase
-        .from('conversation_threads')
-        .select('id')
-        .eq('intervention_id', thread.intervention_id)
-        .eq('thread_type', 'provider_to_managers')
-        .single()
+        // Check if individual thread already exists for this specific user (with participant_id)
+        const { data: existingIndividualThread } = await supabase
+          .from('conversation_threads')
+          .select('id')
+          .eq('intervention_id', thread.intervention_id)
+          .eq('thread_type', threadType)
+          .eq('participant_id', userId)
+          .single()
 
-      if (!existingProviderThread) {
-        // Create the provider_to_managers thread
-        const createThreadResult = await conversationService.createThread(
-          thread.intervention_id,
-          'provider_to_managers',
-          currentUser.id
-        )
+        if (!existingIndividualThread) {
+          // Create individual thread for this user
+          const { data: newThread, error: createError } = await supabase
+            .from('conversation_threads')
+            .insert({
+              intervention_id: thread.intervention_id,
+              thread_type: threadType,
+              title: `Conversation avec ${userToAdd.name || (userToAdd.role === 'prestataire' ? 'le prestataire' : 'le locataire')}`,
+              created_by: currentUser.id,
+              team_id: thread.team_id,
+              participant_id: userId  // Individual thread for this specific user
+            })
+            .select()
+            .single()
 
-        if (createThreadResult.success && createThreadResult.data) {
-          // Add the provider as participant to the new thread
+          if (!createError && newThread) {
+            // Send welcome message with user's name
+            await sendThreadWelcomeMessage(
+              newThread.id,
+              threadType,
+              currentUser.id,
+              userToAdd.name || undefined
+            )
+
+            // Add the user as participant to the new thread
+            await conversationService.addParticipant(
+              newThread.id,
+              userId,
+              currentUser.id
+            )
+
+            logger.info('✅ [SERVER-ACTION] Created individual thread', {
+              threadId: newThread.id,
+              participantId: userId,
+              threadType
+            })
+          } else {
+            logger.error('❌ [SERVER-ACTION] Failed to create individual thread', { error: createError })
+          }
+        } else {
+          // Individual thread exists, ensure user is participant
           await conversationService.addParticipant(
-            createThreadResult.data.id,
+            existingIndividualThread.id,
             userId,
             currentUser.id
           )
-
-          logger.info('✅ [SERVER-ACTION] Created provider_to_managers thread', {
-            threadId: createThreadResult.data.id,
-            providerId: userId
-          })
+          logger.info('✅ [SERVER-ACTION] User already has individual thread', { threadId: existingIndividualThread.id })
         }
-      } else {
-        // Thread exists, just ensure provider is participant
-        await conversationService.addParticipant(
-          existingProviderThread.id,
-          userId,
-          currentUser.id
-        )
-        logger.info('✅ [SERVER-ACTION] Added provider to existing provider_to_managers thread')
       }
     }
 

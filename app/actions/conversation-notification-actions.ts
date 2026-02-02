@@ -87,12 +87,14 @@ export async function sendConversationNotifications(
 
     // ════════════════════════════════════════════════════════════
     // 2. Add team managers (transparency)
+    // ✅ FIX 2026-02-01: Only include managers with auth accounts
     // ════════════════════════════════════════════════════════════
     const { data: managers } = await supabase
       .from('users')
       .select('id')
       .eq('team_id', teamId)
       .in('role', ['gestionnaire', 'admin'])
+      .not('auth_user_id', 'is', null)  // Only invited managers with accounts
 
     const managerIds = (managers || []).map(m => m.id)
     const recipientIds = [...new Set([...participantIds, ...managerIds])]

@@ -69,7 +69,7 @@ Server Action -> Domain Service -> Repository -> Supabase
              Push Notifications   Email (Resend)
 ```
 
-**16 Server Actions disponibles** (`app/actions/notification-actions.ts`) :
+**20 Server Actions disponibles** (`app/actions/notification-actions.ts`) :
 - `createInterventionNotification`, `notifyInterventionStatusChange`
 - `createBuildingNotification`, `notifyBuildingUpdated`, `notifyBuildingDeleted`
 - `createLotNotification`, `notifyLotUpdated`, `notifyLotDeleted`
@@ -77,6 +77,7 @@ Server Action -> Domain Service -> Repository -> Supabase
 - `markNotificationAsRead`, `markAllNotificationsAsRead`
 - `createCustomNotification`, `notifyDocumentUploaded`
 - `notifyContractExpiring`, `checkExpiringContracts`, `createContractNotification`
+- **NEW (2026-02-02)** `notifyQuoteRequested`, `notifyQuoteApproved`, `notifyQuoteRejected`, `notifyQuoteSubmittedWithPush`
 
 ```typescript
 // Exemple d'utilisation
@@ -1148,7 +1149,129 @@ export async function createServerSupabaseClient() {
 - **Avant**: 250+ appels `/auth/v1/user` en 10 minutes
 - **Après**: 1 appel par navigation
 
+### 22. Invited Users Only Pattern (NOUVEAU 2026-02-01)
+
+Pattern pour filtrer les conversations et notifications aux seuls utilisateurs invités (avec compte).
+
+**⚠️ ATTENTION: La colonne s'appelle `auth_user_id` dans la DB, PAS `auth_id` !**
+
+```
++-------------------------------------------------------------+
+| PROBLEME: Contacts Informatifs vs Utilisateurs Invités       |
+|                                                             |
+| Un contact peut être ajouté à une intervention SANS compte   |
+| (auth_user_id = null). Ces contacts sont informatifs.        |
+| Ils NE DOIVENT PAS:                                         |
+| - Avoir de conversation individuelle créée                   |
+| - Être ajoutés aux participants                              |
+| - Recevoir de notifications (in-app, push, email)           |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| SOLUTION: Filtre auth_user_id à CHAQUE point d'entrée        |
+|                                                             |
+| // Pattern 1: Requête Supabase avec filtre                   |
+| const { data: users } = await supabase                       |
+|   .from('users')                                             |
+|   .select('id')                                              |
+|   .not('auth_user_id', 'is', null)  // ⚠️ auth_USER_id !    |
+|                                                             |
+| // Pattern 2: Vérification avant création thread             |
+| const hasAuthAccount = !!userData?.auth_user_id              |
+| if (!hasAuthAccount) {                                       |
+|   logger.info('Skipping for non-invited user')              |
+|   return                                                     |
+| }                                                            |
+|                                                             |
+| // Pattern 3: Propagation has_account pour UI               |
+| Repository: .select('id, name, auth_user_id')                |
+| Service: has_account: !!user.auth_user_id                    |
+| UI: {!has_account && <Badge>Non invité</Badge>}             |
++-------------------------------------------------------------+
+```
+
+**Points d'entrée à filtrer (Defense in Depth) :**
+
+| Couche | Fichier | Filtre |
+|--------|---------|--------|
+| API Routes | `create-manager-intervention/route.ts` | `.not('auth_user_id', 'is', null)` |
+| Services | `intervention-service.ts` (assignUser) | `hasAuthAccount` check |
+| Services | `conversation-service.ts` (addInitialParticipants) | `.not('auth_user_id', 'is', null)` |
+| Services | `conversation-service.ts` (getInterventionTenants) | JOIN avec users + filtre |
+| Actions | `conversation-actions.ts` | Check `auth_user_id` avant lazy creation |
+| Actions | `conversation-notification-actions.ts` | Filtre managers |
+
+**Data flow `has_account` :**
+
+```
+DB (auth_user_id) → Repository (auth_user_id) → Service (has_account) → Action (has_account) → UI (badge)
+```
+
+**Fichiers clés :**
+- `lib/services/domain/conversation-service.ts` - Filtrage participants
+- `lib/services/domain/intervention-service.ts` - Filtrage création threads
+- `lib/services/repositories/contract.repository.ts` - Ajout auth_user_id aux selects
+- `components/intervention/assignment-section-v2.tsx` - Badge "Non invité"
+- `components/interventions/shared/layout/conversation-selector.tsx` - Badge "Gestionnaires" pour locataire
+
+**Design document:** `docs/plans/2026-02-01-invited-users-only-conversations-design.md`
+
+### 23. PWA Notification Prompt Pattern (NOUVEAU 2026-02-02)
+
+Pattern pour maximiser le taux d'activation des notifications PWA :
+
+```
++-------------------------------------------------------------+
+| COMPORTEMENT                                                 |
+|                                                             |
+| 1. Installation PWA → Auto-demande permission                |
+| 2. Si refusé/fermé → Modale de rappel à CHAQUE ouverture    |
+| 3. Si permission='denied' → Guide vers paramètres système   |
+| 4. Détection automatique du changement de permission        |
++-------------------------------------------------------------+
+```
+
+**Fichiers clés :**
+
+| Fichier | Responsabilité |
+|---------|----------------|
+| `hooks/use-notification-prompt.tsx` | Logique de détection (isPWA, permission, user) |
+| `components/pwa/notification-permission-modal.tsx` | Modal UI avec bénéfices par rôle |
+| `components/pwa/notification-settings-guide.tsx` | Instructions paramètres système |
+| `contexts/notification-prompt-context.tsx` | Provider global |
+| `app/layout.tsx` | Intégration du provider |
+
+**Détection mode PWA :**
+```typescript
+const isPWAMode = window.matchMedia('(display-mode: standalone)').matches
+  || (window.navigator as any).standalone === true // iOS
+```
+
+**Conditions d'affichage modale :**
+```typescript
+const shouldShowModal =
+  isPWAMode &&                          // Mode standalone
+  isSupported &&                        // Navigateur supporte push
+  !authLoading && !!user &&             // User authentifié
+  permission !== 'granted' &&           // Pas encore accordé
+  !isSubscribed                         // Pas d'abonnement actif
+```
+
+**Auto-détection changement permission (focus event) :**
+```typescript
+// Quand user revient des paramètres système
+window.addEventListener('focus', async () => {
+  const newPermission = pushManager.getPermissionStatus()
+  if (newPermission === 'granted') {
+    await pushManager.subscribe(user.id) // Auto-subscribe
+  }
+})
+```
+
+**Design document:** `docs/plans/2026-02-02-pwa-notification-prompt-design.md`
+
 ---
-*Derniere mise a jour: 2026-01-31 22:45*
-*Analyse approfondie: Migration Auth COMPLETE + Optimization API calls*
+*Derniere mise a jour: 2026-02-02 15:00*
+*Analyse approfondie: Migration Auth COMPLETE + Optimization API calls + Invited Users Only + PWA Notification Prompt*
 *References: lib/services/README.md, lib/server-context.ts, lib/api-auth-helper.ts, .claude/CLAUDE.md*

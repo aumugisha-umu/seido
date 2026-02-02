@@ -14,6 +14,7 @@ import { EmailNotificationService } from '@/lib/services/domain/email-notificati
 import { EmailService } from '@/lib/services/domain/email.service'
 // ✅ Static import for EmailLinkRepository (was dynamic import before)
 import { EmailLinkRepository } from '@/lib/services/repositories/email-link.repository'
+import { sendThreadWelcomeMessage } from '@/lib/utils/thread-welcome-messages'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "🔧 create-manager-intervention API route called")
@@ -408,6 +409,13 @@ export async function POST(request: NextRequest) {
     // ✅ CREATE CONVERSATION THREADS (BEFORE assignments)
     // Threads must be created BEFORE assignments so that the trigger
     // add_assignment_to_conversation_participants can find and populate them
+    //
+    // Thread structure:
+    // - group: All participants (always created)
+    // - tenants_group: All tenants + managers (if >1 tenant)
+    // - providers_group: All providers + managers (if grouped mode AND >1 provider)
+    // - tenant_to_managers (×N): One per tenant with participant_id
+    // - provider_to_managers (×N): One per provider with participant_id
     try {
       logger.info({ interventionId: intervention.id }, "💬 Creating conversation threads...")
 
@@ -415,7 +423,52 @@ export async function POST(request: NextRequest) {
       const serviceClientForThreads = createServiceRoleSupabaseClient()
       const conversationRepo = new ConversationRepository(serviceClientForThreads)
 
-      // Create GROUP thread (all participants - general discussion)
+      // Fetch tenant info for personalized messages
+      // ✅ FIX 2026-02-01: Only include users with auth_id (invited users with accounts)
+      // Users without auth_id are informational contacts - they can't log in or receive notifications
+      let tenants: Array<{ id: string; name: string }> = []
+      if (selectedTenantIds && selectedTenantIds.length > 0) {
+        const { data: tenantUsers } = await supabase
+          .from('users')
+          .select('id, name')
+          .in('id', selectedTenantIds)
+          .not('auth_user_id', 'is', null)  // Only invited users with accounts
+        tenants = tenantUsers || []
+
+        // Log for debugging if some tenants were filtered out
+        if (tenants.length < selectedTenantIds.length) {
+          logger.info({
+            selectedCount: selectedTenantIds.length,
+            invitedCount: tenants.length,
+            filteredOut: selectedTenantIds.length - tenants.length
+          }, "ℹ️ Some tenants filtered out (no auth account - informational contacts)")
+        }
+      }
+
+      // Fetch provider info for personalized messages
+      // ✅ FIX 2026-02-01: Only include users with auth_id (invited users with accounts)
+      let providers: Array<{ id: string; name: string }> = []
+      if (selectedProviderIds && selectedProviderIds.length > 0) {
+        const { data: providerUsers } = await supabase
+          .from('users')
+          .select('id, name')
+          .in('id', selectedProviderIds)
+          .not('auth_user_id', 'is', null)  // Only invited users with accounts
+        providers = providerUsers || []
+
+        // Log for debugging if some providers were filtered out
+        if (providers.length < selectedProviderIds.length) {
+          logger.info({
+            selectedCount: selectedProviderIds.length,
+            invitedCount: providers.length,
+            filteredOut: selectedProviderIds.length - providers.length
+          }, "ℹ️ Some providers filtered out (no auth account - informational contacts)")
+        }
+      }
+
+      logger.info({ tenantCount: tenants.length, providerCount: providers.length }, "📋 Participants to create threads for")
+
+      // ========== 1. GROUP THREAD (always) ==========
       const groupThreadResult = await conversationRepo.createThread({
         intervention_id: intervention.id,
         thread_type: 'group',
@@ -424,48 +477,102 @@ export async function POST(request: NextRequest) {
         team_id: intervention.team_id
       })
 
-      if (groupThreadResult.success) {
-        logger.info({ threadId: groupThreadResult.data?.id, type: 'group' }, "✅ Group thread created")
+      if (groupThreadResult.success && groupThreadResult.data?.id) {
+        logger.info({ threadId: groupThreadResult.data.id, type: 'group' }, "✅ Group thread created")
+        await sendThreadWelcomeMessage(serviceClientForThreads, groupThreadResult.data.id, 'group', user.id)
       } else {
         logger.error({ error: groupThreadResult.error }, "⚠️ Failed to create group thread")
       }
 
-      // Create TENANT_TO_MANAGERS thread (for tenant-manager communication)
-      const tenantThreadResult = await conversationRepo.createThread({
-        intervention_id: intervention.id,
-        thread_type: 'tenant_to_managers',
-        title: 'Communication avec les gestionnaires',
-        created_by: user.id,
-        team_id: intervention.team_id
-      })
-
-      if (tenantThreadResult.success) {
-        logger.info({ threadId: tenantThreadResult.data?.id, type: 'tenant_to_managers' }, "✅ Tenant thread created")
-      } else {
-        logger.error({ error: tenantThreadResult.error }, "⚠️ Failed to create tenant thread")
-      }
-
-      // Create PROVIDER_TO_MANAGERS thread ONLY if providers are selected
-      // Thread will be created later when a provider is assigned if not created now
-      if (selectedProviderIds && selectedProviderIds.length > 0) {
-        const providerThreadResult = await conversationRepo.createThread({
+      // ========== 2. TENANTS_GROUP THREAD (if >1 tenant) ==========
+      if (tenants.length > 1) {
+        const tenantsGroupResult = await conversationRepo.createThread({
           intervention_id: intervention.id,
-          thread_type: 'provider_to_managers',
-          title: 'Communication avec les prestataires',
+          thread_type: 'tenants_group',
+          title: 'Groupe locataires',
           created_by: user.id,
           team_id: intervention.team_id
         })
 
-        if (providerThreadResult.success) {
-          logger.info({ threadId: providerThreadResult.data?.id, type: 'provider_to_managers' }, "✅ Provider thread created")
+        if (tenantsGroupResult.success && tenantsGroupResult.data?.id) {
+          logger.info({ threadId: tenantsGroupResult.data.id, type: 'tenants_group' }, "✅ Tenants group thread created")
+          await sendThreadWelcomeMessage(serviceClientForThreads, tenantsGroupResult.data.id, 'tenants_group', user.id)
         } else {
-          logger.error({ error: providerThreadResult.error }, "⚠️ Failed to create provider thread")
+          logger.error({ error: tenantsGroupResult.error }, "⚠️ Failed to create tenants_group thread")
         }
-      } else {
-        logger.info({}, "ℹ️ No providers selected, skipping provider_to_managers thread creation")
       }
 
-      logger.info({ interventionId: intervention.id }, "✅ Conversation threads creation completed")
+      // ========== 3. INDIVIDUAL TENANT THREADS ==========
+      for (const tenant of tenants) {
+        const tenantThreadResult = await conversationRepo.createThread({
+          intervention_id: intervention.id,
+          thread_type: 'tenant_to_managers',
+          title: `Conversation avec ${tenant.name}`,
+          created_by: user.id,
+          team_id: intervention.team_id,
+          participant_id: tenant.id  // Individual thread for this specific tenant
+        })
+
+        if (tenantThreadResult.success && tenantThreadResult.data?.id) {
+          logger.info({ threadId: tenantThreadResult.data.id, type: 'tenant_to_managers', participantId: tenant.id }, "✅ Individual tenant thread created")
+          await sendThreadWelcomeMessage(serviceClientForThreads, tenantThreadResult.data.id, 'tenant_to_managers', user.id, tenant.name)
+        } else {
+          logger.error({ error: tenantThreadResult.error, tenantId: tenant.id }, "⚠️ Failed to create individual tenant thread")
+        }
+      }
+
+      // ========== 4. PROVIDERS_GROUP THREAD (if grouped mode AND >1 provider) ==========
+      const isGroupedMode = assignmentMode === 'grouped'
+      if (isGroupedMode && providers.length > 1) {
+        const providersGroupResult = await conversationRepo.createThread({
+          intervention_id: intervention.id,
+          thread_type: 'providers_group',
+          title: 'Groupe prestataires',
+          created_by: user.id,
+          team_id: intervention.team_id
+        })
+
+        if (providersGroupResult.success && providersGroupResult.data?.id) {
+          logger.info({ threadId: providersGroupResult.data.id, type: 'providers_group' }, "✅ Providers group thread created")
+          await sendThreadWelcomeMessage(serviceClientForThreads, providersGroupResult.data.id, 'providers_group', user.id)
+        } else {
+          logger.error({ error: providersGroupResult.error }, "⚠️ Failed to create providers_group thread")
+        }
+      }
+
+      // ========== 5. INDIVIDUAL PROVIDER THREADS ==========
+      for (const provider of providers) {
+        const providerThreadResult = await conversationRepo.createThread({
+          intervention_id: intervention.id,
+          thread_type: 'provider_to_managers',
+          title: `Conversation avec ${provider.name}`,
+          created_by: user.id,
+          team_id: intervention.team_id,
+          participant_id: provider.id  // Individual thread for this specific provider
+        })
+
+        if (providerThreadResult.success && providerThreadResult.data?.id) {
+          logger.info({ threadId: providerThreadResult.data.id, type: 'provider_to_managers', participantId: provider.id }, "✅ Individual provider thread created")
+          await sendThreadWelcomeMessage(serviceClientForThreads, providerThreadResult.data.id, 'provider_to_managers', user.id, provider.name)
+        } else {
+          logger.error({ error: providerThreadResult.error, providerId: provider.id }, "⚠️ Failed to create individual provider thread")
+        }
+      }
+
+      if (providers.length === 0) {
+        logger.info({}, "ℹ️ No providers selected, provider threads will be created when providers are assigned")
+      }
+
+      logger.info({
+        interventionId: intervention.id,
+        threadsCreated: {
+          group: 1,
+          tenantsGroup: tenants.length > 1 ? 1 : 0,
+          providersGroup: (isGroupedMode && providers.length > 1) ? 1 : 0,
+          individualTenants: tenants.length,
+          individualProviders: providers.length
+        }
+      }, "✅ Conversation threads creation completed")
     } catch (threadError) {
       logger.error({ error: threadError }, "❌ Error creating conversation threads (non-blocking)")
       // Don't fail the entire operation for thread creation errors

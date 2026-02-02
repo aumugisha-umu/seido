@@ -14,13 +14,30 @@ export class PushNotificationManager {
   }
 
   async initialize(): Promise<void> {
-    if ('serviceWorker' in navigator) {
-      try {
-        this.registration = await navigator.serviceWorker.ready
-        console.log('✅ [PushManager] Service Worker ready')
-      } catch (error) {
-        console.error('❌ [PushManager] Service Worker not available:', error)
+    console.log('🔔 [PushManager] Initializing...')
+
+    if (!('serviceWorker' in navigator)) {
+      console.error('❌ [PushManager] Service Worker API not supported in this browser')
+      return
+    }
+
+    try {
+      // Check if any service worker is registered
+      const registrations = await navigator.serviceWorker.getRegistrations()
+      console.log('🔔 [PushManager] Found', registrations.length, 'service worker registration(s)')
+
+      if (registrations.length === 0) {
+        console.warn('⚠️ [PushManager] No service worker registered. In development mode, the SW is disabled by default.')
+        console.warn('⚠️ [PushManager] To test push notifications, run: npm run build && npm run start')
+        return
       }
+
+      // Wait for the service worker to be ready
+      console.log('🔔 [PushManager] Waiting for service worker to be ready...')
+      this.registration = await navigator.serviceWorker.ready
+      console.log('✅ [PushManager] Service Worker ready:', this.registration.scope)
+    } catch (error) {
+      console.error('❌ [PushManager] Service Worker initialization failed:', error)
     }
   }
 
@@ -35,45 +52,62 @@ export class PushNotificationManager {
   }
 
   async subscribe(userId: string): Promise<PushSubscription> {
+    console.log('🔔 [PushManager] Starting subscribe process for userId:', userId)
+
     if (!this.registration) {
+      console.log('🔔 [PushManager] No registration, initializing...')
       await this.initialize()
     }
 
     if (!this.registration) {
-      throw new Error('Service Worker non disponible')
+      console.error('❌ [PushManager] Service Worker not available after initialization')
+      console.error('❌ [PushManager] Tip: Service Worker is disabled in development mode. Run "npm run build && npm run start" to test push notifications.')
+      throw new Error('Service Worker non disponible (désactivé en mode développement)')
     }
 
+    console.log('🔔 [PushManager] Registration OK, requesting permission...')
     const permission = await this.requestPermission()
+    console.log('🔔 [PushManager] Permission result:', permission)
+
     if (permission !== 'granted') {
       throw new Error('Permission de notification refusée')
     }
 
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+    console.log('🔔 [PushManager] VAPID public key exists:', !!publicKey)
+
     if (!publicKey) {
+      console.error('❌ [PushManager] VAPID public key missing. Check NEXT_PUBLIC_VAPID_PUBLIC_KEY in .env.local')
       throw new Error('VAPID public key manquante')
     }
 
     try {
+      console.log('🔔 [PushManager] Creating push subscription with pushManager...')
       const subscription = await this.registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: this.urlBase64ToUint8Array(publicKey)
       })
 
-      console.log('✅ [PushManager] Push subscription created')
+      console.log('✅ [PushManager] Push subscription created:', subscription.endpoint.substring(0, 50) + '...')
 
       // Envoyer l'abonnement au serveur
+      console.log('🔔 [PushManager] Sending subscription to server...')
       const response = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, subscription })
       })
 
+      console.log('🔔 [PushManager] Server response status:', response.status)
+
       if (!response.ok) {
         const error = await response.json()
+        console.error('❌ [PushManager] Server rejected subscription:', error)
         throw new Error(error.error || 'Failed to save subscription')
       }
 
-      console.log('✅ [PushManager] Subscription saved to server')
+      const result = await response.json()
+      console.log('✅ [PushManager] Subscription saved to server successfully:', result)
       return subscription
     } catch (error) {
       console.error('❌ [PushManager] Subscribe error:', error)

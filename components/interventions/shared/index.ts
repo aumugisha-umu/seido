@@ -45,8 +45,6 @@
  *   RoleBadge, StatusBadge, ParticipantAvatar,
  *   // Layout
  *   PreviewHybridLayout,
- *   // Sidebar
- *   InterventionSidebar,
  *   // Cards
  *   InterventionDetailsCard, QuotesCard, PlanningCard
  * } from '@/components/interventions/shared'
@@ -56,17 +54,16 @@
  * ```
  *
  * @example
- * // Exemple complet pour une vue Manager
- * import { PreviewHybridLayout, InterventionSidebar } from '@/components/interventions/shared'
+ * // Exemple complet pour une vue intervention (layout pleine largeur)
+ * import { ContentWrapper, InterventionDetailsCard } from '@/components/interventions/shared'
  * import { EntityTabs, getInterventionTabsConfig } from '@/components/shared/entity-preview'
  *
- * function ManagerView({ intervention, participants }) {
+ * function InterventionView({ intervention, participants }) {
  *   const tabs = useMemo(() => getInterventionTabsConfig('manager'), [])
  *   return (
- *     <PreviewHybridLayout
- *       sidebar={<InterventionSidebar {...sidebarProps} />}
- *       content={<EntityTabs tabs={tabs}>...</EntityTabs>}
- *     />
+ *     <EntityTabs tabs={tabs}>
+ *       <TabsContent value="general">...</TabsContent>
+ *     </EntityTabs>
  *   )
  * }
  *
@@ -90,9 +87,8 @@ export * from './utils'
 export * from './atoms'
 
 // =============================================================================
-// Composants de sidebar - Barre latérale d'intervention
+// Composants de sidebar - Supprimés (layout pleine largeur pour locataire/prestataire)
 // =============================================================================
-export * from './sidebar'
 
 // =============================================================================
 // Composants de cartes - Cards d'information

@@ -116,8 +116,10 @@ export function usePWAInstallWithNotifications(): PWAInstallHookReturn {
           logger.info('✅ [PWA-HOOK] Notifications enabled successfully')
         } catch (notifError) {
           // Ne pas bloquer l'installation si les notifications échouent
-          logger.error('❌ [PWA-HOOK] Notification subscription failed:', notifError)
-          // On ne set pas l'erreur ici car l'installation a réussi
+          // La modale NotificationPermissionModal prendra le relais aux prochaines ouvertures
+          logger.info('🔔 [PWA-HOOK] Notification skipped at install - modal will prompt on next PWA open', {
+            reason: notifError instanceof Error ? notifError.message : 'Unknown error'
+          })
         }
 
         setIsLoading(false)

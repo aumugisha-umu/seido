@@ -701,6 +701,160 @@ Pattern d'orchestration des skills `superpowers:sp-*` base sur des "Red Flags" (
 
 ---
 
+### 24. RLS Silent Block Detection Pattern (NOUVEAU 2026-02-02)
+
+Pattern critique pour detecter les inserts bloques silencieusement par RLS avec Supabase anon key :
+
+```typescript
+// ⚠️ PROBLEME: Supabase avec anon key + cookies peut bloquer
+// silencieusement via RLS sans lever d'erreur
+
+// ❌ INCORRECT - Ne verifie que error
+const { data, error } = await supabase
+  .from('push_subscriptions')
+  .upsert({ user_id: userId, ... })
+  .select()
+  .single()
+
+if (error) {
+  return NextResponse.json({ error: 'Failed' }, { status: 500 })
+}
+// data peut etre null si RLS a bloque!
+
+// ✅ CORRECT - Verifie error ET data null
+const { data, error } = await supabase
+  .from('push_subscriptions')
+  .upsert({ user_id: userProfile.id, ... })  // ← Utiliser ID authentifie serveur
+  .select()
+  .single()
+
+if (error) {
+  logger.error({ error }, 'Database error')
+  return NextResponse.json({ error: 'Failed' }, { status: 500 })
+}
+
+// ✅ Verifier RLS silent block
+if (!data) {
+  logger.error('Insert blocked by RLS or constraint')
+  return NextResponse.json({ error: 'Permission denied' }, { status: 500 })
+}
+```
+
+**Pourquoi ca arrive :**
+1. Le client Supabase utilise anon key + cookies (pas service role)
+2. Les RLS policies verifient `user_id IN (SELECT get_my_profile_ids())`
+3. Si la condition echoue, l'insert est silencieusement ignore
+4. `.single()` retourne `null` sans erreur
+
+**Regle critique :** Toujours utiliser `userProfile.id` du contexte auth serveur, jamais `userId` fourni par le client (meme si valide).
+
+> Fix 2026-02-02 - app/api/push/subscribe/route.ts
+
+---
+
+### 25. Push Notification Multi-Canal Pattern (NOUVEAU 2026-02-02)
+
+Architecture des notifications push avec URLs adaptees par role :
+
+```typescript
+// Pattern pour envoyer push avec URLs role-aware
+async function sendRoleAwarePushNotifications(
+  interventionId: string,
+  recipientIds: string[],
+  notification: { title: string; body: string }
+) {
+  // 1. Recuperer les profiles avec leur role
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, metadata->>assigned_role')
+    .in('id', recipientIds)
+
+  // 2. Grouper par role
+  const byRole = groupBy(profiles, p => p.metadata?.assigned_role || 'gestionnaire')
+
+  // 3. Envoyer avec URL adaptee
+  for (const [role, roleProfiles] of Object.entries(byRole)) {
+    const url = getInterventionUrlForRole(interventionId, role)
+    await sendPushToUsers(
+      roleProfiles.map(p => p.id),
+      { ...notification, data: { url } }
+    )
+  }
+}
+
+// Helper URL par role
+function getInterventionUrlForRole(id: string, role: string): string {
+  const routes = {
+    locataire: `/locataire/interventions/${id}`,
+    prestataire: `/prestataire/interventions/${id}`,
+    gestionnaire: `/gestionnaire/interventions/${id}`
+  }
+  return routes[role] || routes.gestionnaire
+}
+```
+
+**Actions notification devis (4 nouvelles) :**
+
+| Action | Destinataire | Canaux |
+|--------|--------------|--------|
+| `notifyQuoteRequested` | Prestataire | In-app + Push |
+| `notifyQuoteSubmitted` | Gestionnaires | In-app + Push |
+| `notifyQuoteApproved` | Prestataire | In-app + Push |
+| `notifyQuoteRejected` | Prestataire | In-app + Push |
+
+> Source: app/actions/notification-actions.ts (20 actions total)
+
+---
+
+### 26. PWA Notification Prompt Pattern (NOUVEAU 2026-02-02)
+
+Pattern pour maximiser l'activation des notifications PWA :
+
+```
++-------------------------------------------------------------+
+| NotificationPromptProvider (app/layout.tsx)                  |
+| → Context global pour etat notification                      |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| useNotificationPrompt Hook                                   |
+| → isPWA: detecte mode standalone                             |
+| → permission: 'default' | 'granted' | 'denied'               |
+| → hasDBSubscription: check push_subscriptions table          |
+| → shouldShowPrompt: isPWA && permission !== 'granted'        |
++-------------------------------------------------------------+
+                           |
+           +---------------+---------------+
+           |                               |
+           v                               v
++------------------+           +---------------------------+
+| Permission Modal |           | Settings Guide            |
+| (permission=default)         | (permission=denied)       |
+| → Bénéfices par role         | → Instructions par plateforme |
+| → Bouton "Activer"           | → iOS, Chrome, Safari     |
++------------------+           +---------------------------+
+```
+
+**Fichiers cles :**
+
+| Fichier | Description |
+|---------|-------------|
+| `hooks/use-notification-prompt.tsx` | Hook detection isPWA + permission |
+| `components/pwa/notification-permission-modal.tsx` | Modal UI benefices |
+| `components/pwa/notification-settings-guide.tsx` | Guide parametres systeme |
+| `contexts/notification-prompt-context.tsx` | Provider global |
+
+**Comportement :**
+- Installation PWA → Auto-demande permission
+- Ouverture PWA + notif desactivees → Modale rappel
+- Permission "denied" → Guide vers parametres systeme
+- Changement permission → Auto-detection au focus
+
+> Source: docs/plans/2026-02-02-pwa-notification-prompt-design.md
+
+---
+
 ## Anti-Patterns (NE JAMAIS FAIRE)
 
 | Anti-Pattern | Alternative |
@@ -724,6 +878,9 @@ Pattern d'orchestration des skills `superpowers:sp-*` base sur des "Red Flags" (
 | Hook client avec session check defensif | `useAuth()` + `createBrowserSupabaseClient()` |
 | `.single()` sur profiles multi-equipes | `.limit(1)` + `data?.[0]` |
 | Hook sans `authLoading` dans dépendances | Extraire `loading` de `useAuth()` + ajouter aux deps |
+| Upsert sans check `data` null | Verifier `!data` pour RLS silent blocks |
+| Utiliser `userId` du client dans upsert | Utiliser `userProfile.id` du contexte auth serveur |
+| Push notification avec URL fixe gestionnaire | `sendRoleAwarePushNotifications()` avec URL par role |
 
 ## Conventions de Nommage
 

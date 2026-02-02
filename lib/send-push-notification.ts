@@ -1,5 +1,5 @@
 import webpush from 'web-push'
-import { createServerSupabaseClient } from '@/lib/services'
+import { createServiceRoleSupabaseClient } from '@/lib/services'
 import { logger } from '@/lib/logger'
 
 // Configuration VAPID
@@ -34,7 +34,9 @@ export async function sendPushNotification(
     return { success: 0, failed: 0 }
   }
 
-  const supabase = await createServerSupabaseClient()
+  // ✅ Service role client to bypass RLS - we need to read subscriptions for ANY user
+  const supabase = createServiceRoleSupabaseClient()
+  logger.info('🔑 [PUSH] Using service role client (RLS BYPASS)')
 
   // Récupérer les abonnements de l'utilisateur
   const { data: subscriptions, error } = await supabase

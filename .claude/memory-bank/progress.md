@@ -52,8 +52,95 @@
 - [x] **Fix Confirmation Gestionnaire** (2026-01-31) - Header "Intervention créée" affiché après création, pas avant
 - [x] **Auth API Optimization** (2026-01-31) - Réduction de 250+ appels à 1 par navigation
 - [x] **Filtrage auth_id Conversations/Notifications** (2026-02-01) - Seuls les contacts invités (avec compte) reçoivent conversations et notifications
+- [x] **PWA Notification Prompt Modal** (2026-02-02) - Modale rappel notifications à chaque ouverture PWA
+- [x] **Web/PWA Notification Unification** (2026-02-02) - PushNotificationToggle unifié pour web et PWA
+- [x] **Quote Notifications Multi-Canal** (2026-02-02) - 4 nouvelles actions: quote request/submit/approve/reject
+- [x] **Push Subscription Security Fix** (2026-02-02) - userProfile.id + null data check pour RLS silent blocks
 
 ## Sprint Actuel (Jan-Feb 2026)
+
+### 2026-02-02 - Push Subscription Security Fix + PWA Notifications
+
+**Session 1: Quote Notifications Multi-Canal**
+
+Audit complet du système de notifications pour les devis. Identification et correction de gaps critiques.
+
+| Route | Avant | Après |
+|-------|-------|-------|
+| `intervention-quote-request` | ❌❌❌ | ✅✅✅ (Email + In-App + Push) |
+| `intervention-quote-submit` | ✅✅❌ | ✅✅✅ (Push ajouté) |
+| `quotes/[id]/approve` | ✅❌❌ | ✅✅✅ (In-App + Push ajoutés) |
+| `quotes/[id]/reject` | ✅❌❌ | ✅✅✅ (In-App + Push ajoutés) |
+
+**Nouvelles actions créées:**
+- `notifyQuoteRequested` - In-app + Push pour prestataire
+- `notifyQuoteApproved` - In-app + Push pour prestataire
+- `notifyQuoteRejected` - In-app + Push pour prestataire
+- `notifyQuoteSubmittedWithPush` - In-app + Push pour gestionnaires
+
+**Bug fix URLs Push:** Nouvelle fonction `sendRoleAwarePushNotifications()` qui groupe par rôle et envoie l'URL appropriée.
+
+---
+
+**Session 2: PWA Notification Prompt**
+
+Maximisation du taux d'activation des notifications PWA via modale de rappel.
+
+| Fichier Créé | Description |
+|--------------|-------------|
+| `hooks/use-notification-prompt.tsx` | Hook de détection (isPWA, permission, user) |
+| `components/pwa/notification-permission-modal.tsx` | Modal UI avec bénéfices par rôle |
+| `components/pwa/notification-settings-guide.tsx` | Instructions paramètres par plateforme |
+| `contexts/notification-prompt-context.tsx` | Provider global |
+
+**Comportement:** Modale affichée à chaque ouverture PWA si notifications non activées.
+
+---
+
+**Session 3: Web/PWA Notification Unification**
+
+Refactoring pour unifier l'expérience notifications entre web et PWA.
+
+| Composant | Changement |
+|-----------|------------|
+| `push-notification-toggle.tsx` | Unifié web + PWA |
+| `notification-permission-modal.tsx` | Guide contextuel selon permission state |
+| `notification-settings-guide.tsx` | Instructions iOS, Chrome, Safari |
+
+---
+
+**Session 4: Push Subscription Security Fix**
+
+**Problème:** Les push subscriptions n'étaient pas sauvegardées malgré API 200.
+
+**Root causes:**
+1. **RLS Silent Block** - Supabase anon key peut bloquer sans erreur
+2. **No Null Check** - `.single()` retourne null si RLS bloque
+3. **Client userId** - Utilisait userId du client au lieu de userProfile.id
+
+**Fix appliqué:** `app/api/push/subscribe/route.ts`
+- `user_id: userProfile.id` (au lieu de userId)
+- Ajout check `if (!data)` pour détecter RLS silent blocks
+- Logs cohérents avec `userProfileId`
+
+**Commit:** `4d8a8e8` fix(push-subscribe): enhance security by using userProfile.id
+
+---
+
+**Session 5: Debug Page Paramètres (EN COURS)**
+
+**Symptôme:** Page `/gestionnaire/parametres` bloquée sur "Chargement..."
+
+**Analyse:** Le composant `settings-page.tsx` attend `user` de `useAuth()`. Logs montrent initialisation partielle (`NotificationPrompt Initialized`).
+
+**À vérifier:**
+- Déploiement Vercel réussi
+- Refresh forcé (Ctrl+Shift+R)
+- Logs serveur Vercel
+
+**Note:** Le fix push-subscribe ne devrait PAS affecter le chargement car c'est une API POST non appelée au mount.
+
+---
 
 ### 2026-02-01 - Filtrage auth_id Conversations/Notifications pour Contacts Invités
 
@@ -697,21 +784,22 @@ Nouvelle architecture adresses avec support Google Maps:
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-01-30)
+## Metriques Projet (2026-02-02)
 
 | Metrique | Valeur |
 |----------|--------|
-| Repositories | **22** (+1 address) |
-| Domain Services | **32** (+1 address) |
+| Repositories | **22** |
+| Domain Services | **32** |
 | API Routes | **113** (10 domaines) |
-| Hooks | **64** |
-| Components | **232+** (+2 participants-row, conversation-selector) |
+| Hooks | **65** (+1 use-notification-prompt) |
+| Components | **235+** (+3 PWA notification) |
 | Pages | **87** (5+ route groups) |
-| DB Tables | **44** (+1 addresses, +3 quotes) |
+| DB Tables | **44** |
 | DB Enums | 39 |
-| DB Functions | **79** (+2 conversation triggers) |
-| Migrations | **145+** |
+| DB Functions | **79** |
+| Migrations | **147+** |
 | Server Actions | **17** files |
+| Notification Actions | **20** (+4 quote notifications) |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
 
 ### Metriques Ecosysteme .claude/ (2026-01-23)
@@ -750,7 +838,10 @@ Nouvelle architecture adresses avec support Google Maps:
 | **2026-01-31** | **Auth Refactoring Complet** | **Appels auth redondants, bug multi-profil** | **14 fichiers refactorisés, ~250 lignes supprimées, nouveau helper centralisé** |
 | **2026-01-31** | **Auth API Optimization** | **250+ appels API en 10 min** | **getSession() local au lieu de getUser() réseau, cache() sur supabase client** |
 | **2026-02-01** | **Filtrage auth_id Invités** | **Contacts sans compte recevaient conversations/notifs** | **Filtre .not('auth_id', 'is', null) à tous les points d'entrée** |
+| **2026-02-02** | **PWA Notification Prompt** | **Maximiser activation notifications PWA** | **Modale rappel + guide paramètres par plateforme** |
+| **2026-02-02** | **Quote Notifications Multi-Canal** | **Gaps notifications devis** | **4 nouvelles actions, sendRoleAwarePushNotifications()** |
+| **2026-02-02** | **Push Subscription Security** | **RLS silent block + client userId** | **userProfile.id + null data check** |
 
 ---
-*Derniere mise a jour: 2026-02-01 16:30*
-*Session: Filtrage auth_id conversations/notifications pour contacts invités*
+*Derniere mise a jour: 2026-02-02 23:30*
+*Session: Push subscription security fix + PWA notification prompt + Quote notifications*

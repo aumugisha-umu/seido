@@ -7,15 +7,46 @@
 > **L'application actuelle** est basée sur **Next.js 15 + Supabase** (voir `.claude/CLAUDE.md`).
 >
 > Ce document sert de spécification pour une future migration vers Rails si décidée.
+>
+> ---
+>
+> 🔄 **POSTGRESQL PARTAGÉ** - Les deux applications utilisent PostgreSQL :
+> - **Application actuelle** : Next.js 15 + Supabase (PostgreSQL 15 avec RLS)
+> - **Application Rails future** : Rails 7.2+ / 8.0 + PostgreSQL 15+
+>
+> **Implication majeure** : Le schéma DB, fonctions, triggers et enums sont **directement réutilisables**.
+>
+> | Élément | Quantité | Migration Rails |
+> |---------|----------|-----------------|
+> | Tables | 38 (+6 vues) | Structure directement réutilisable |
+> | Fonctions PostgreSQL | 79 | Conserver helpers, adapter RLS → Pundit |
+> | Triggers | 47 | Reviewer pour conversion vers callbacks |
+> | Enums | 39 | Directement réutilisables |
+> | Indexes | 209 | Reviewer pour optimisation Rails |
+> | Vues | 6 | Convertir en scopes ActiveRecord |
+> | Politiques RLS | 50+ | **Convertir en Pundit policies** |
+> | Migrations | 155+ | Supabase SQL migrations |
 
 ---
 
-> **Document Version**: 1.0.0
-> **Last Updated**: 2025-12-30
-> **Target Framework**: Ruby on Rails 7.1.3 + PostgreSQL 15
+> **Document Version**: 2.0.0
+> **Last Updated**: 2026-02-02
+> **Target Framework**: Ruby on Rails 7.2+ / 8.0 + PostgreSQL 15+
 > **Language**: English
+>
+> **2.0.0 Updates (2026-02-02)**:
+> - Intervention statuses: 11 → **9** (removed `demande_de_devis`, `en_cours`)
+> - Conversation threads: 3 → **6** types (added email_internal, tenants_group, providers_group)
+> - Tables: 33+ → **44** tables
+> - PostgreSQL functions: ~30 → **79** (32 RLS + 47 utilities)
+> - Multi-team model: team_members → **multi-profile** (users with auth_user_id)
+> - Quote management: Separated from intervention status workflow
+> - Auth patterns: Centralized helpers documentation added
+> - PWA patterns: Notification prompt pattern added
 
 This document provides a complete architectural specification for building SEIDO from scratch using Ruby on Rails. It is designed for developers who have no prior knowledge of the existing application and need to implement the entire system following best practices.
+
+**IMPORTANT**: Both the current Next.js application and the target Rails application use **PostgreSQL**. This means the database schema, functions, triggers, and enums can be **directly migrated or reused** with minimal adaptation.
 
 ---
 
@@ -452,6 +483,29 @@ Real estate property management involves complex coordination between multiple s
 | Users per team | 10-50 |
 | Concurrent users | 5,000+ |
 
+### Current Application Metrics (2026-02-02)
+
+> These metrics reflect the current Next.js/Supabase implementation state.
+
+| Component | Count | Notes |
+|-----------|-------|-------|
+| **Database Tables** | 44 | PostgreSQL (directly reusable) |
+| **PostgreSQL Functions** | 79 | 32 RLS + 47 utilities |
+| **Triggers** | 47 | Auto-sync team_id, auto-add participants |
+| **Enums** | 39 | Directly reusable in Rails |
+| **Indexes** | 209 | Performance optimization |
+| **API Routes** | 113 | 10 domains |
+| **Pages** | 87 | 5+ route groups by role |
+| **Components** | 232+ | 22 directories |
+| **Custom Hooks** | 64 | React hooks |
+| **Domain Services** | 32 | Business logic |
+| **Repositories** | 22 | Data access layer |
+| **Server Actions** | 17 files | Server-side mutations |
+| **Intervention Statuses** | 9 | Reduced from 11 (2026-01-26) |
+| **Conversation Thread Types** | 6 | group, tenant_to_managers, provider_to_managers, email_internal, tenants_group, providers_group |
+| **Email Templates** | 18 | React Email (Resend) |
+| **Migrations** | 146+ | Supabase SQL migrations |
+
 ---
 
 ## 1.2 User Personas
@@ -712,32 +766,48 @@ The **Intervention** is the central entity in SEIDO. It represents a maintenance
 
 ### 1.3.1 Status Overview
 
-SEIDO uses **11 intervention statuses** in French (matching the existing database):
+> ⚠️ **UPDATED 2026-01-26**: The intervention status enum was simplified from 11 to **9 statuses**.
+> The statuses `demande_de_devis` and `en_cours` have been **REMOVED**.
+> Quotes are now managed independently via the `requires_quote` flag and `intervention_quotes` table.
+
+SEIDO uses **9 intervention statuses** in French (matching the existing database):
 
 | Status | English Translation | Stage |
 |--------|-------------------|-------|
 | `demande` | Request | Initial |
 | `rejetee` | Rejected | Terminal |
 | `approuvee` | Approved | Processing |
-| `demande_de_devis` | Quote Requested | Processing |
 | `planification` | Scheduling | Processing |
 | `planifiee` | Scheduled | Processing |
-| `en_cours` | In Progress | Processing (deprecated) |
 | `cloturee_par_prestataire` | Closed by Provider | Closing |
 | `cloturee_par_locataire` | Closed by Tenant | Closing |
 | `cloturee_par_gestionnaire` | Closed by Manager | Terminal |
 | `annulee` | Cancelled | Terminal |
 
+**Quote Management (Separate from Status):**
+
+Instead of a `demande_de_devis` status, quotes are now tracked separately:
+
+| Field/Table | Purpose |
+|-------------|---------|
+| `interventions.requires_quote` | Boolean flag indicating if quote is needed |
+| `intervention_quotes` | Dedicated table with its own lifecycle |
+| Quote statuses | `pending`, `sent`, `accepted`, `rejected` |
+
+This separation allows the intervention workflow to continue while quotes are being processed.
+
 ### 1.3.2 Visual State Machine
+
+> ⚠️ **UPDATED 2026-01-26**: `demande_de_devis` removed. Quotes managed via `intervention_quotes` table.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                      INTERVENTION LIFECYCLE                                  │
+│                      INTERVENTION LIFECYCLE (9 STATUSES)                     │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │                              ┌──────────────┐                               │
 │                              │              │                               │
-│                              │   demande    │  ← TENANT CREATES             │
+│                              │   demande    │  ← TENANT/MANAGER CREATES     │
 │                              │   (request)  │                               │
 │                              │              │                               │
 │                              └──────┬───────┘                               │
@@ -753,19 +823,17 @@ SEIDO uses **11 intervention statuses** in French (matching the existing databas
 │               │    [END]     │          └──────┬───────┘                    │
 │               └──────────────┘                 │                            │
 │                                                │                            │
-│                              ┌─────────────────┴─────────────────┐          │
-│                              │                                   │          │
-│                              ▼                                   ▼          │
-│                   ┌──────────────────┐              ┌──────────────────┐    │
-│                   │                  │              │                  │    │
-│                   │ demande_de_devis │              │  planification   │    │
-│                   │ (quote request)  │              │   (scheduling)   │    │
-│                   │                  │              │                  │    │
-│                   └────────┬─────────┘              └────────┬─────────┘    │
-│                            │                                 │              │
-│                            └─────────────┬───────────────────┘              │
-│                                          │                                  │
-│                                          ▼                                  │
+│                                                ▼                            │
+│                                   ┌──────────────────┐                      │
+│                                   │                  │                      │
+│                                   │  planification   │                      │
+│                                   │   (scheduling)   │ ← QUOTE PROCESS HERE │
+│                                   │                  │   (via requires_quote │
+│                                   │                  │    + intervention_    │
+│                                   │                  │    quotes table)      │
+│                                   └────────┬─────────┘                      │
+│                                            │                                │
+│                                            ▼                                │
 │                               ┌──────────────────┐                          │
 │                               │                  │                          │
 │                               │    planifiee     │                          │
@@ -809,20 +877,127 @@ SEIDO uses **11 intervention statuses** in French (matching the existing databas
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+### 1.3.2b Quote Management (Parallel Process)
+
+Quotes are managed **independently** from the intervention status workflow:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     QUOTE LIFECYCLE (SEPARATE FROM STATUS)                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  INTERVENTION                              QUOTE (intervention_quotes)      │
+│  ────────────                              ────────────────────────         │
+│                                                                             │
+│  ┌─────────────────┐                       ┌─────────────────┐              │
+│  │ planification   │───requires_quote───▶  │    pending      │              │
+│  │                 │      = true           │ (awaiting quote)│              │
+│  └─────────────────┘                       └────────┬────────┘              │
+│         │                                           │                       │
+│         │                                           ▼                       │
+│         │                                  ┌─────────────────┐              │
+│         │                                  │      sent       │              │
+│         │                                  │ (quote submitted│              │
+│         │                                  │  by provider)   │              │
+│         │                                  └────────┬────────┘              │
+│         │                                           │                       │
+│         │                           ┌───────────────┴───────────────┐       │
+│         │                           │                               │       │
+│         │                           ▼                               ▼       │
+│         │                  ┌─────────────────┐             ┌──────────────┐ │
+│         │                  │    accepted     │             │   rejected   │ │
+│         │                  │ (quote approved │             │ (quote       │ │
+│         │                  │  by manager)    │             │  declined)   │ │
+│         │                  └────────┬────────┘             └──────────────┘ │
+│         │                           │                                       │
+│         ▼                           │ (triggers transition                  │
+│  ┌─────────────────┐                │  when all participants                │
+│  │   planifiee     │◀───────────────┘  confirmed + quote accepted)         │
+│  │                 │                                                        │
+│  └─────────────────┘                                                        │
+│                                                                             │
+│  KEY: The intervention can stay in 'planification' while quotes are         │
+│       being processed. Status advances to 'planifiee' when scheduling       │
+│       is complete (time slot confirmed + all confirmations received).       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
 ### 1.3.3 Status Transitions Table
+
+> ⚠️ **UPDATED 2026-01-26**: `demande_de_devis` transition removed. Quotes handled via separate table.
 
 | Current Status | Next Status | Who Can Trigger | Conditions | Actions |
 |----------------|-------------|-----------------|------------|---------|
 | `demande` | `approuvee` | Gestionnaire | Valid request | Notify tenant, log activity |
 | `demande` | `rejetee` | Gestionnaire | Invalid/duplicate | Notify tenant with reason |
-| `approuvee` | `demande_de_devis` | Gestionnaire | Needs external quote | Notify assigned providers |
-| `approuvee` | `planification` | Gestionnaire | No quote needed | Create time slots |
-| `demande_de_devis` | `planification` | System/Gestionnaire | Quote approved | Create time slots |
-| `planification` | `planifiee` | System | Time slot confirmed | Notify all parties |
+| `approuvee` | `planification` | Gestionnaire | Request approved | Create threads, notify providers |
+| `planification` | `planifiee` | System | Time slot confirmed + all participants confirmed | Notify all parties |
 | `planifiee` | `cloturee_par_prestataire` | Prestataire | Work completed | Request photos, notify tenant |
+| `planifiee` | `cloturee_par_gestionnaire` | Gestionnaire | Direct closure (skip tenant) | Archive, update costs |
 | `cloturee_par_prestataire` | `cloturee_par_locataire` | Locataire | Validates quality | Notify manager |
+| `cloturee_par_prestataire` | `cloturee_par_gestionnaire` | Gestionnaire | Skip tenant validation | Archive, update costs |
 | `cloturee_par_locataire` | `cloturee_par_gestionnaire` | Gestionnaire | Final review | Archive, update costs |
 | ANY (non-terminal) | `annulee` | Gestionnaire | Cancel decision | Notify all, log reason |
+
+**Allowed Transitions (TypeScript reference):**
+
+```typescript
+const ALLOWED_TRANSITIONS = {
+  'demande': ['approuvee', 'rejetee'],
+  'rejetee': [],
+  'approuvee': ['planification', 'annulee'],
+  'planification': ['planifiee', 'annulee'],
+  'planifiee': ['cloturee_par_prestataire', 'cloturee_par_gestionnaire', 'annulee'],
+  'cloturee_par_prestataire': ['cloturee_par_locataire', 'cloturee_par_gestionnaire'],
+  'cloturee_par_locataire': ['cloturee_par_gestionnaire'],
+  'cloturee_par_gestionnaire': [],
+  'annulee': []
+}
+```
+
+### 1.3.3b Participant Confirmation Flow
+
+> **NEW 2026-01-25**: Interventions can require participant confirmation before reaching `planifiee` status.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     PARTICIPANT CONFIRMATION FLOW                            │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  CREATION (with confirmation required):                                     │
+│  ─────────────────────────────────────                                      │
+│  • intervention.status = 'planification' (NOT 'planifiee')                  │
+│  • intervention.requires_participant_confirmation = true                    │
+│  • time_slot.status = 'pending' (NOT 'selected')                           │
+│  • For each participant assignment:                                         │
+│    - assignment.requires_confirmation = true                               │
+│    - assignment.confirmation_status = 'pending'                            │
+│                                                                             │
+│  CONFIRMATION PROCESS:                                                      │
+│  ────────────────────                                                       │
+│  API: POST /api/intervention-confirm-participation                          │
+│  When participant confirms:                                                 │
+│    1. assignment.confirmation_status = 'confirmed'                         │
+│    2. Check: Are ALL required participants confirmed?                       │
+│       - If YES:                                                            │
+│         • intervention.status → 'planifiee'                                │
+│         • time_slot.status → 'selected'                                    │
+│         • time_slot.selected_by_manager = true                             │
+│       - If NO:                                                             │
+│         • Stay in 'planification', wait for others                         │
+│                                                                             │
+│  KEY FIELDS:                                                                │
+│  ──────────                                                                 │
+│  • interventions.requires_participant_confirmation: boolean                 │
+│  • intervention_assignments.requires_confirmation: boolean                  │
+│  • intervention_assignments.confirmation_status: 'pending' | 'confirmed'   │
+│                                                                             │
+│  RULE: Status 'planifiee' is reached ONLY when ALL required participants   │
+│        have confirmed. This prevents premature scheduling.                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ### 1.3.4 Detailed Workflow by Phase
 
@@ -1135,14 +1310,57 @@ SEIDO is built as a **multi-tenant SaaS platform** where each tenant (called a "
 
 ### 1.4.2 Team Membership Model
 
-Users belong to teams through the `team_members` junction table, which allows:
-- A user to belong to **multiple teams** (e.g., a provider working with several agencies)
-- Different **roles per team** (e.g., manager in Team A, viewer in Team B)
-- **Soft delete** for membership history (using `discarded_at`)
+> ⚠️ **UPDATED 2026-01-28**: The current Next.js/Supabase application uses a **multi-profile model**
+> instead of a `team_members` junction table. This is a critical architectural difference for Rails migration.
+
+**Current Model (Next.js/Supabase):**
+- Users have **multiple profiles** in the `users` table
+- Each profile is linked to ONE team via `team_id`
+- All profiles for the same person share the same `auth_user_id` (Supabase Auth UID)
+- RLS uses `get_my_profile_ids()` function to query across all profiles
+
+**Rails Migration Options:**
+1. **Option A (Recommended)**: Convert to `team_members` junction table (cleaner Rails pattern)
+2. **Option B**: Keep multi-profile model with custom scopes
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                          TEAM MEMBERSHIP MODEL                               │
+│                  CURRENT MODEL (Next.js/Supabase) - MULTI-PROFILE           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│                        ┌─────────────────┐                                  │
+│                        │  Supabase Auth  │                                  │
+│                        │  (auth.users)   │                                  │
+│                        │  auth_user_id   │                                  │
+│                        └────────┬────────┘                                  │
+│                                 │                                           │
+│              ┌──────────────────┼──────────────────┐                        │
+│              │                  │                  │                        │
+│              ▼                  ▼                  ▼                        │
+│       ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                │
+│       │   Profile   │    │   Profile   │    │   Profile   │                │
+│       │ (users row) │    │ (users row) │    │ (users row) │                │
+│       ├─────────────┤    ├─────────────┤    ├─────────────┤                │
+│       │ id: uuid-1  │    │ id: uuid-2  │    │ id: uuid-3  │                │
+│       │ team_id: A  │    │ team_id: B  │    │ team_id: C  │                │
+│       │ role: gesti │    │ role: presta│    │ role: presta│                │
+│       │ auth_user_id│    │ auth_user_id│    │ auth_user_id│                │
+│       │   = abc123  │    │   = abc123  │    │   = abc123  │                │
+│       └─────────────┘    └─────────────┘    └─────────────┘                │
+│                                                                             │
+│  SAME auth_user_id = SAME PERSON, different profiles per team              │
+│                                                                             │
+│  PostgreSQL RLS Function:                                                   │
+│  ────────────────────────                                                   │
+│  get_my_profile_ids() → Returns array of ALL profile IDs for current user  │
+│                                                                             │
+│  Example usage in RLS policy:                                               │
+│  WHERE user_id = ANY(get_my_profile_ids())                                  │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                  TARGET MODEL (Rails) - TEAM_MEMBERS JUNCTION               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │                              ┌─────────┐                                    │
@@ -1157,7 +1375,7 @@ Users belong to teams through the `team_members` junction table, which allows:
 │       │ TeamMember  │      │ TeamMember  │      │ TeamMember  │            │
 │       ├─────────────┤      ├─────────────┤      ├─────────────┤            │
 │       │ team: A     │      │ team: B     │      │ team: C     │            │
-│       │ role: presta│      │ role: presta│      │ role: presta│            │
+│       │ role: gesti │      │ role: presta│      │ role: presta│            │
 │       │ joined: 2023│      │ joined: 2024│      │ left: 2024  │            │
 │       └─────────────┘      └─────────────┘      └─────────────┘            │
 │                                                  (soft deleted)             │
@@ -1167,7 +1385,61 @@ Users belong to teams through the `team_members` junction table, which allows:
 │  • NOT see anything in Team C (membership ended)                           │
 │  • Have different notification preferences per team                        │
 │                                                                             │
+│  Pundit Policy:                                                             │
+│  ──────────────                                                             │
+│  current_user.team_ids.include?(record.team_id)                            │
+│                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Critical Pattern: Team Selection**
+
+The current application uses a **cookie-based team selection** mechanism:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          TEAM SELECTION PATTERN                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  1. Cookie: seido_current_team = team_uuid                                  │
+│  2. On each request:                                                        │
+│     - Read cookie value                                                     │
+│     - Verify user has access to that team                                   │
+│     - Set as current_team for session                                       │
+│                                                                             │
+│  3. Team switcher UI:                                                       │
+│     - Dropdown showing all user's teams                                     │
+│     - Selection updates cookie                                              │
+│     - Page refresh with new team context                                    │
+│                                                                             │
+│  Rails equivalent (session-based):                                          │
+│  ──────────────────────────────────                                         │
+│  session[:current_team_id] = params[:team_id]                              │
+│  ActsAsTenant.current_tenant = current_user.teams.find(session[:current_team_id])│
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**CRITICAL: Avoid `.single()` Pattern**
+
+In the current Supabase implementation, **NEVER** use `.single()` when querying users/profiles:
+
+```typescript
+// ❌ WRONG - Fails for multi-team users (PGRST116 error)
+const { data } = await supabase
+  .from('users')
+  .select('*')
+  .eq('auth_user_id', authUserId)
+  .single()  // FAILS if user has multiple profiles!
+
+// ✅ CORRECT - Use .limit(1) and array access
+const { data } = await supabase
+  .from('users')
+  .select('*')
+  .eq('auth_user_id', authUserId)
+  .limit(1)
+
+const profile = data?.[0]  // Safe access
 ```
 
 ### 1.4.3 Data Scoping Pattern
@@ -1325,6 +1597,9 @@ Manages lease agreements with automatic status calculation.
 
 ### 1.5.3 Communication Module
 
+> ⚠️ **UPDATED 2026-01-29**: Each intervention now has **3 conversation threads** (not 1).
+> This enables private channels between different stakeholder groups.
+
 Real-time chat and notifications.
 
 ```
@@ -1332,36 +1607,116 @@ Real-time chat and notifications.
 │                          COMMUNICATION MODULE                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  CONVERSATION THREADS:                                                      │
-│  ─────────────────────                                                      │
-│  Each intervention has ONE conversation thread linking all participants:    │
-│  • Gestionnaire(s)                                                         │
-│  • Prestataire(s)                                                          │
-│  • Locataire                                                               │
+│  CONVERSATION THREAD TYPES (6 total, 3 primary per intervention):           │
+│  ──────────────────────────────────────────────                             │
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │                     INTERVENTION #1234                               │   │
-│  │                     "Fuite dans la salle de bain"                   │   │
-│  ├─────────────────────────────────────────────────────────────────────┤   │
-│  │                                                                     │   │
-│  │  [Emma - Tenant]                              14:32                 │   │
-│  │  La fuite continue, j'ai mis une bassine     │                     │   │
-│  │  📎 photo_fuite.jpg                                                │   │
-│  │                                                                     │   │
-│  │                              [Thomas - Manager]   14:45             │   │
-│  │                              │ Marc va passer demain matin          │   │
-│  │                                                                     │   │
-│  │  [Marc - Provider]                            15:02                 │   │
-│  │  Je serai là entre 9h et 12h                  │                     │   │
-│  │                                                                     │   │
-│  │  [System]                                     15:02                 │   │
-│  │  ✓ Time slot confirmed: Tomorrow 09:00-12:00                       │   │
-│  │                                                                     │   │
+│  │  1. GROUP THREAD (thread_type = 'group')                             │   │
+│  │  ─────────────────────────────────────────                           │   │
+│  │  Visible to: ALL participants (managers, providers, tenants)         │   │
+│  │  Use case: General updates, coordination messages                    │   │
+│  │                                                                       │   │
+│  │  [Emma - Tenant]          [Thomas - Manager]          [Marc - Presta] │   │
+│  │       ↓                         ↓                          ↓          │   │
+│  │  ┌─────────────────────────────────────────────────────────────────┐ │   │
+│  │  │                    GROUP CONVERSATION                            │ │   │
+│  │  │  "La fuite continue" → "Marc passe demain" → "OK je confirme"   │ │   │
+│  │  └─────────────────────────────────────────────────────────────────┘ │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
-│  NOTIFICATIONS:                                                             │
-│  ─────────────                                                              │
-│  Types:                                                                     │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  2. TENANT ↔ MANAGERS (thread_type = 'tenant_to_managers')           │   │
+│  │  ─────────────────────────────────────────────────────────           │   │
+│  │  Visible to: Tenant + Managers ONLY (providers excluded)             │   │
+│  │  Use case: Private tenant concerns, billing questions                │   │
+│  │                                                                       │   │
+│  │  [Emma - Tenant]          [Thomas - Manager]                          │   │
+│  │       ↓                         ↓                                     │   │
+│  │  ┌─────────────────────────────────────────────────────────────────┐ │   │
+│  │  │              PRIVATE: TENANT ↔ MANAGERS                          │ │   │
+│  │  │  "Je suis inquiète du coût" → "Ne vous en faites pas, c'est     │ │   │
+│  │  │                                couvert par la copropriété"       │ │   │
+│  │  └─────────────────────────────────────────────────────────────────┘ │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  3. PROVIDER ↔ MANAGERS (thread_type = 'provider_to_managers')       │   │
+│  │  ─────────────────────────────────────────────────────────           │   │
+│  │  Visible to: Provider + Managers ONLY (tenant excluded)              │   │
+│  │  Use case: Technical details, pricing discussions                    │   │
+│  │                                                                       │   │
+│  │  [Thomas - Manager]          [Marc - Provider]                        │   │
+│  │       ↓                            ↓                                  │   │
+│  │  ┌─────────────────────────────────────────────────────────────────┐ │   │
+│  │  │              PRIVATE: PROVIDER ↔ MANAGERS                        │ │   │
+│  │  │  "Le problème est plus grave" → "On va devoir changer tout le   │ │   │
+│  │  │                                   tuyau, voici le devis"         │ │   │
+│  │  └─────────────────────────────────────────────────────────────────┘ │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  THREAD CREATION ORDER (CRITICAL):                                          │
+│  ─────────────────────────────────                                          │
+│  The order of database operations is critical due to triggers:              │
+│                                                                             │
+│  1. INSERT intervention                                                     │
+│  2. INSERT conversation_threads (3 threads)                                 │
+│     → Trigger 'thread_add_managers' auto-adds all team managers            │
+│  3. INSERT intervention_assignments                                         │
+│     → Trigger 'add_assignment_to_conversation_participants'                │
+│       auto-adds tenant to 'group' + 'tenant_to_managers'                   │
+│       auto-adds provider to 'group' + 'provider_to_managers'               │
+│  4. INSERT intervention_time_slots                                          │
+│                                                                             │
+│  ⚠️ THREADS MUST BE CREATED BEFORE ASSIGNMENTS or triggers won't work!    │
+│                                                                             │
+│  LAZY THREAD CREATION:                                                      │
+│  ─────────────────────                                                      │
+│  Individual threads (tenant_to_managers, provider_to_managers) can be      │
+│  created lazily on first message if not pre-created.                       │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          NOTIFICATIONS (20+ Server Actions)                  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  SERVER ACTIONS (app/actions/notification-actions.ts):                      │
+│  ─────────────────────────────────────────────────────                      │
+│                                                                             │
+│  Intervention Notifications:                                                │
+│  • createInterventionNotification(interventionId)                          │
+│  • notifyInterventionStatusChange(interventionId, newStatus)               │
+│                                                                             │
+│  Property Notifications:                                                    │
+│  • createBuildingNotification, notifyBuildingUpdated, notifyBuildingDeleted│
+│  • createLotNotification, notifyLotUpdated, notifyLotDeleted               │
+│                                                                             │
+│  Contact & Contract Notifications:                                          │
+│  • createContactNotification                                               │
+│  • notifyContractExpiring, checkExpiringContracts, createContractNotification│
+│                                                                             │
+│  Quote Notifications (NEW 2026-02-02):                                      │
+│  • notifyQuoteRequested                                                    │
+│  • notifyQuoteApproved                                                     │
+│  • notifyQuoteRejected                                                     │
+│  • notifyQuoteSubmittedWithPush                                            │
+│                                                                             │
+│  General:                                                                   │
+│  • markNotificationAsRead, markAllNotificationsAsRead                      │
+│  • createCustomNotification, notifyDocumentUploaded                        │
+│                                                                             │
+│  DELIVERY CHANNELS:                                                         │
+│  ─────────────────                                                          │
+│  1. In-app (real-time via RealtimeProvider - single WebSocket channel)     │
+│  2. Push notifications (WebPush via service worker)                        │
+│     • Role-aware URLs (sendRoleAwarePushNotifications)                     │
+│     • Only sent to is_personal: true recipients                            │
+│  3. Email (Resend with React Email templates - 18 templates)               │
+│     • Batch sending with retry logic                                       │
+│     • Magic links for auto-login                                           │
+│                                                                             │
+│  NOTIFICATION TYPES:                                                        │
+│  ───────────────────                                                        │
 │  • intervention - New request, status change                               │
 │  • chat - New message in conversation                                      │
 │  • document - New document uploaded                                        │
@@ -1371,19 +1726,70 @@ Real-time chat and notifications.
 │  • status_change - Intervention status updated                             │
 │  • reminder - Upcoming deadlines                                           │
 │  • deadline - Contract expiration, etc.                                    │
+│  • quote_requested, quote_submitted, quote_accepted, quote_rejected        │
 │                                                                             │
-│  Delivery Channels:                                                         │
-│  • In-app (real-time via ActionCable)                                      │
-│  • Push notifications (WebPush)                                            │
-│  • Email (for important events)                                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          EMAIL SYSTEM (Resend Integration)                   │
+├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  ACTIVITY LOGS:                                                             │
-│  ──────────────                                                             │
+│  EMAIL MODULE ARCHITECTURE (lib/services/domain/email-notification/):       │
+│  ─────────────────────────────────────────────────────────────────────      │
+│  16 files, ~2,616 lines - modular architecture:                            │
+│                                                                             │
+│  email-notification.service.ts  ← Facade (re-export) 32 lines              │
+│  email-notification.factory.ts  ← Factory webpack-safe 54 lines            │
+│  └── email-notification/                                                    │
+│      ├── index.ts               ← Re-exports 41 lines                      │
+│      ├── types.ts               ← Interfaces 242 lines                     │
+│      ├── constants.ts           ← Config 41 lines                          │
+│      ├── helpers.ts             ← Utilities 157 lines                      │
+│      ├── action-link-generators.ts ← Magic links 148 lines                 │
+│      ├── data-enricher.ts       ← Data fetching 356 lines                  │
+│      ├── email-sender.ts        ← Batch sending 278 lines                  │
+│      ├── email-notification.service.ts ← Orchestrator 547 lines            │
+│      └── builders/              ← 7 builders (~774 lines)                  │
+│          ├── intervention-created.builder.ts                               │
+│          ├── intervention-scheduled.builder.ts                             │
+│          ├── time-slots-proposed.builder.ts                                │
+│          ├── intervention-completed.builder.ts                             │
+│          ├── intervention-status-changed.builder.ts                        │
+│          └── quote-emails.builder.ts (4 quote builders)                    │
+│                                                                             │
+│  MAGIC LINKS:                                                               │
+│  ────────────                                                               │
+│  • generateMagicLinkWithAction() - Create auto-login links in emails       │
+│  • Token: Supabase Auth OTP (cryptographically secure)                     │
+│  • Route: /auth/email-callback?token_hash=xxx&next=/path                   │
+│  • Security: validateNextParameter() prevents open redirect                │
+│                                                                             │
+│  EMAIL REPLY SYNC:                                                          │
+│  ─────────────────                                                          │
+│  Flow: Resend Webhook → /api/webhooks/resend-inbound →                     │
+│        email-reply.service.ts → email-to-conversation.service.ts →         │
+│        conversation_messages (source: 'email')                             │
+│                                                                             │
+│  Reply-To format: reply+int_{intervention_id}_{hmac_hash}@reply.seido-app.com│
+│  Security: HMAC validation (EMAIL_REPLY_SIGNING_SECRET)                    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          ACTIVITY LOGS                                       │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
 │  Immutable audit trail of ALL significant actions:                         │
 │  • Who did what, when, on which entity                                     │
 │  • IP address and user agent                                               │
 │  • Before/after values for updates                                         │
 │  • Cannot be modified or deleted                                           │
+│                                                                             │
+│  Hierarchical Activity Logs (RPC function):                                │
+│  • Building: logs building + lots + contracts + interventions              │
+│  • Lot: logs lot + contracts + interventions                               │
+│  • Contract: logs contract only                                            │
+│  • Contact: logs contact + interventions assigned                          │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -1522,18 +1928,372 @@ Subscription management for teams.
 
 ### 1.6.2 Complete Table Relationships
 
-The complete database schema includes **33+ tables** organized in phases:
+> ⚠️ **UPDATED 2026-02-02**: The database now includes **44 tables** (up from 33+).
+> All tables share the same PostgreSQL database - schema can be directly migrated to Rails.
+
+The complete database schema includes **44 tables** organized in phases:
 
 | Phase | Tables | Description |
 |-------|--------|-------------|
 | **Phase 1** | users, teams, team_members, companies, company_members, user_invitations | Authentication & multi-tenancy |
-| **Phase CRM** | addresses, contacts, documents | Centralized CRM |
-| **Phase 2** | buildings, lots, building_contacts, lot_contacts | Properties |
-| **Phase 3a** | interventions, intervention_assignments, intervention_time_slots, time_slot_responses, intervention_quotes, intervention_comments, intervention_reports, intervention_links | Interventions |
-| **Phase 3b** | conversation_threads, conversation_messages, conversation_participants | Chat |
-| **Phase 3c** | notifications, activity_logs, push_subscriptions | Notifications & Audit |
-| **Phase 4** | contracts, contract_contacts | Contracts |
+| **Phase 2** | buildings, lots, building_contacts, lot_contacts, property_documents, **addresses** | Properties + centralized addresses |
+| **Phase 3a** | interventions, intervention_assignments, intervention_time_slots, time_slot_responses, intervention_comments, intervention_reports, intervention_links | Interventions |
+| **Phase 3b** | conversation_threads, conversation_messages, conversation_participants | Chat (3 thread types) |
+| **Phase 3c** | notifications, activity_logs, push_subscriptions, **email_links** | Notifications & Audit |
+| **Phase 4** | contracts, contract_contacts, contract_documents | Contracts |
+| **Phase 5** | **intervention_types**, **intervention_type_categories** | Intervention categorization |
+| **Phase 6** | **intervention_quotes**, **quote_attachments**, **quote_documents** | Quotes (separate workflow) |
 | **Billing** | stripe_customers, subscriptions, stripe_invoices, stripe_prices | Stripe integration |
+| **Import** | **import_jobs** | Data import tracking |
+
+### 1.6.3 PostgreSQL Schema for Rails Migration
+
+> **IMPORTANT**: Both applications use PostgreSQL. The schema can be directly migrated.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     POSTGRESQL SCHEMA - MIGRATION STRATEGY                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  DIRECTLY REUSABLE (copy structure to Rails migrations):                    │
+│  ─────────────────────────────────────────────────────                      │
+│  • Tables (44)           → db/migrate/xxx_create_tables.rb                  │
+│  • Enums (39)            → PostgreSQL ENUM (keep as-is)                     │
+│  • Indexes (209)         → add_index in migrations                          │
+│  • Foreign Keys          → belongs_to/has_many with references              │
+│                                                                             │
+│  CONVERT TO RAILS PATTERNS:                                                 │
+│  ──────────────────────────                                                 │
+│  • RLS Policies (50+)    → Pundit policies                                  │
+│  • Triggers (47)         → ActiveRecord callbacks (before_save, after_create)│
+│  • Views (6)             → default_scope or .kept (discard gem)             │
+│                                                                             │
+│  KEEP AS POSTGRESQL FUNCTIONS (performance-critical):                       │
+│  ─────────────────────────────────────────────────────                      │
+│  • get_building_team_id(building_id) → Used in many queries                │
+│  • get_lot_team_id(lot_id)           → Used in many queries                │
+│  • sync_team_id_* triggers           → Denormalization (keep in DB)        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Table: addresses (NEW - centralized with Google Maps support)**
+
+```sql
+CREATE TABLE addresses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+
+  -- Address fields (normalized)
+  street TEXT NOT NULL,
+  postal_code TEXT NOT NULL,
+  city TEXT NOT NULL,
+  country country NOT NULL DEFAULT 'belgique',
+
+  -- Google Maps geocoding data
+  latitude DOUBLE PRECISION,
+  longitude DOUBLE PRECISION,
+  place_id TEXT,              -- Google Places API ID
+  formatted_address TEXT,      -- Google-formatted address
+
+  -- Multi-tenant isolation
+  team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+
+  -- Audit fields
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ,
+  deleted_by UUID REFERENCES users(id)
+);
+
+-- FK relationships:
+-- buildings.address_id → addresses.id
+-- lots.address_id → addresses.id
+-- companies.address_id → addresses.id
+```
+
+**PostgreSQL Functions (79 total - 32 RLS + 47 utilities)**
+
+| Category | Count | Examples | Rails Migration |
+|----------|-------|----------|-----------------|
+| **RLS Verification** | 32 | `is_admin()`, `is_team_manager(team_id)`, `can_view_conversation()` | → Pundit policies |
+| **Multi-profile** | 1 | `get_my_profile_ids()` | → `current_user.profiles.pluck(:id)` |
+| **Team Resolution** | 4 | `get_building_team_id()`, `get_lot_team_id()` | → Keep as stored function |
+| **Tenant Verification** | 2 | `is_tenant_of_lot()`, `is_assigned_to_intervention()` | → Pundit policies |
+| **Triggers** | 47 | `tr_sync_team_id_*`, `update_*_at`, `add_team_managers_to_thread()` | → Mix: keep critical, convert others |
+
+**Critical Triggers for Conversations (keep in PostgreSQL)**
+
+| Trigger | Table | Event | Purpose |
+|---------|-------|-------|---------|
+| `thread_add_managers` | conversation_threads | AFTER INSERT | Auto-add all team managers to thread |
+| `add_assignment_participants` | intervention_assignments | AFTER INSERT | Auto-add tenant/provider to threads |
+
+**Enums (39 total - directly reusable)**
+
+```ruby
+# Rails enum declaration (maps to PostgreSQL enum)
+class Intervention < ApplicationRecord
+  # intervention_status enum (9 values - updated 2026-01-26)
+  enum :status, {
+    demande: 'demande',
+    rejetee: 'rejetee',
+    approuvee: 'approuvee',
+    planification: 'planification',
+    planifiee: 'planifiee',
+    cloturee_par_prestataire: 'cloturee_par_prestataire',
+    cloturee_par_locataire: 'cloturee_par_locataire',
+    cloturee_par_gestionnaire: 'cloturee_par_gestionnaire',
+    annulee: 'annulee'
+  }
+end
+
+# quote_status enum (4 values)
+class InterventionQuote < ApplicationRecord
+  enum :status, {
+    pending: 'pending',
+    sent: 'sent',
+    accepted: 'accepted',
+    rejected: 'rejected'
+  }
+end
+
+# conversation_thread_type enum (6 values)
+class ConversationThread < ApplicationRecord
+  enum :thread_type, {
+    group: 'group',                           # All participants
+    tenant_to_managers: 'tenant_to_managers', # Private: tenant ↔ managers
+    provider_to_managers: 'provider_to_managers', # Private: provider ↔ managers
+    email_internal: 'email_internal',         # Email thread sync
+    tenants_group: 'tenants_group',           # Multiple tenants group
+    providers_group: 'providers_group'        # Multiple providers group
+  }
+end
+```
+
+### 1.6.4 RLS to Pundit Migration Table
+
+| RLS Policy | Tables Affected | Pundit Policy Equivalent |
+|------------|-----------------|-------------------------|
+| `is_admin()` | All tables | `AdminPolicy` base class |
+| `is_team_manager(team_id)` | interventions, buildings, lots | `record.team_id.in?(current_user.managed_team_ids)` |
+| `get_my_profile_ids()` | users, interventions | `current_user.profile_ids.include?(record.user_id)` |
+| `can_view_conversation(thread_id)` | conversation_* | `ConversationPolicy#show?` |
+| `is_tenant_of_lot(lot_id)` | lots, interventions | `record.lot.tenants.include?(current_user)` |
+| `is_assigned_to_intervention(intervention_id)` | intervention_* | `record.intervention.assigned_users.include?(current_user)` |
+
+### 1.6.5 Views to ActiveRecord Scopes
+
+| PostgreSQL View | Purpose | Rails Equivalent |
+|-----------------|---------|------------------|
+| `interventions_active` | Filter `deleted_at IS NULL` | `default_scope { kept }` (discard gem) |
+| `buildings_active` | Filter `deleted_at IS NULL` | `default_scope { kept }` |
+| `lots_active` | Filter `deleted_at IS NULL` | `default_scope { kept }` |
+| `contracts_active` | Filter `deleted_at IS NULL` | `default_scope { kept }` |
+| `activity_logs_with_user` | JOIN with users | `scope :with_user, -> { includes(:user) }` |
+
+---
+
+## 1.7 Authentication Architecture (Reference)
+
+> ⚠️ **NEW SECTION 2026-01-31**: Documents the centralized authentication patterns used in the
+> current Next.js/Supabase application. Essential reference for Rails migration.
+
+### 1.7.1 Centralized Auth Helpers
+
+The current application uses **4 specialized auth helpers** depending on context:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     AUTHENTICATION ARCHITECTURE                              │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  MIDDLEWARE (1x per request)    PAGES/LAYOUTS (cached)    CLIENT (1x)      │
+│  ┌─────────────────────────┐    ┌────────────────────┐    ┌─────────────┐  │
+│  │ Token Refresh           │    │ getServerAuth      │    │ AuthProvider│  │
+│  │ (getUser - network)     │    │ Context()          │    │ (useAuth)   │  │
+│  └──────────┬──────────────┘    │ (getSession-local) │    └──────┬──────┘  │
+│             │                   └─────────┬──────────┘           │         │
+│             │                             │                      │         │
+│             ▼                             ▼                      ▼         │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │         AUTH DATA PASSED AS PARAMETERS (not re-fetched)             │   │
+│  │  • Services receive userId/teamId in parameters                     │   │
+│  │  • Server Actions use getServerActionAuthContextOrNull()            │   │
+│  │  • Hooks client use useAuth() from AuthProvider                     │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+| Context | Helper | Behavior | Rails Equivalent |
+|---------|--------|----------|------------------|
+| **Server Components** | `getServerAuthContext(role)` | Redirect if not authenticated | `before_action :authenticate_user!` |
+| **Server Actions** | `getServerActionAuthContextOrNull()` | Return null if not authenticated | `current_user` (no redirect) |
+| **API Routes** | `getApiAuthContext()` | Return 401 if not authenticated | `authenticate_or_request_with_http_token` |
+| **Client Components** | `useAuth()` hook | State from AuthProvider | `current_user` via Devise helper |
+
+### 1.7.2 API Call Optimization
+
+> **CRITICAL OPTIMIZATION**: Reduced auth API calls from **250+** to **1** per navigation.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     AUTH API OPTIMIZATION                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  BEFORE (250+ calls per 10 minutes):                                        │
+│  ─────────────────────────────────                                          │
+│  • Every page called supabase.auth.getUser() (network call)                │
+│  • Every Server Action called getUser() independently                      │
+│  • Every API route validated token separately                              │
+│                                                                             │
+│  AFTER (1 call per navigation):                                             │
+│  ──────────────────────────────                                             │
+│  • Middleware: supabase.auth.getUser() - validates token (1 network call)  │
+│  • Pages: supabase.auth.getSession() - reads JWT from cookie (0 calls)     │
+│  • cache() function ensures single Supabase client per request             │
+│                                                                             │
+│  KEY RULES:                                                                 │
+│  ──────────                                                                 │
+│  • getUser() = network call to Supabase Auth API (use only in middleware)  │
+│  • getSession() = local JWT read from cookies (use in pages/layouts)       │
+│  • cache() on createServerSupabaseClient() = single client per request     │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 1.7.3 Rails Migration: Devise Patterns
+
+For Rails, use Devise with the following patterns:
+
+```ruby
+# config/routes.rb
+devise_for :users, controllers: {
+  sessions: 'users/sessions',
+  registrations: 'users/registrations'
+}
+
+# app/controllers/application_controller.rb
+class ApplicationController < ActionController::Base
+  before_action :authenticate_user!  # Like getServerAuthContext()
+  before_action :set_current_team
+
+  private
+
+  def set_current_team
+    return unless user_signed_in?
+
+    team_id = session[:current_team_id] || current_user.teams.first&.id
+    @current_team = current_user.teams.find_by(id: team_id)
+
+    # Redirect if no valid team (like getServerAuthContext behavior)
+    redirect_to root_path, alert: 'No team access' unless @current_team
+  end
+end
+
+# API controllers (like getServerActionAuthContextOrNull - no redirect)
+class Api::V1::BaseController < ApplicationController
+  skip_before_action :verify_authenticity_token
+  before_action :authenticate_api_user!
+
+  private
+
+  def authenticate_api_user!
+    @current_user = authenticate_with_http_token do |token, options|
+      User.find_by_jwt(token)  # devise-jwt integration
+    end
+
+    render json: { error: 'Unauthorized' }, status: :unauthorized unless @current_user
+  end
+end
+```
+
+### 1.7.4 Invited Users vs Informational Contacts
+
+> **NEW PATTERN 2026-02-01**: Distinguish between users with accounts and informational contacts.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     INVITED USERS ONLY PATTERN                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  PROBLEM:                                                                   │
+│  ─────────                                                                  │
+│  A contact can be added to an intervention WITHOUT an account               │
+│  (auth_user_id = null). These contacts are "informational".                │
+│                                                                             │
+│  They should NOT:                                                           │
+│  • Have conversation threads created for them                              │
+│  • Be added to conversation participants                                   │
+│  • Receive notifications (in-app, push, email)                             │
+│                                                                             │
+│  SOLUTION:                                                                  │
+│  ─────────                                                                  │
+│  Filter by auth_user_id at EVERY entry point (Defense in Depth):           │
+│                                                                             │
+│  PostgreSQL:  .not('auth_user_id', 'is', null)                             │
+│  Service:     hasAuthAccount = !!userData?.auth_user_id                    │
+│  UI:          {!has_account && <Badge>Non invité</Badge>}                  │
+│                                                                             │
+│  DATA FLOW:                                                                 │
+│  ──────────                                                                 │
+│  DB (auth_user_id) → Repository → Service (has_account) → UI (badge)       │
+│                                                                             │
+│  RAILS EQUIVALENT:                                                          │
+│  ─────────────────                                                          │
+│  scope :with_account, -> { where.not(user_id: nil) }                       │
+│  scope :informational, -> { where(user_id: nil) }                          │
+│                                                                             │
+│  Policy check:                                                              │
+│  def can_receive_notifications?                                            │
+│    user.present? && user.confirmed?                                        │
+│  end                                                                        │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### 1.7.5 PWA Notification Prompt Pattern
+
+> **NEW PATTERN 2026-02-02**: Maximize PWA notification opt-in rate.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     PWA NOTIFICATION PROMPT PATTERN                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  BEHAVIOR:                                                                  │
+│  ─────────                                                                  │
+│  1. PWA Installation → Auto-prompt for notification permission              │
+│  2. If declined/closed → Reminder modal at EVERY app open                  │
+│  3. If permission='denied' → Guide to system settings                      │
+│  4. Auto-detect permission change on window focus                          │
+│                                                                             │
+│  DETECTION:                                                                 │
+│  ──────────                                                                 │
+│  const isPWAMode = window.matchMedia('(display-mode: standalone)').matches │
+│    || (window.navigator as any).standalone === true  // iOS                │
+│                                                                             │
+│  SHOW MODAL CONDITIONS:                                                     │
+│  ──────────────────────                                                     │
+│  isPWAMode &&                // Standalone mode                             │
+│  isSupported &&              // Browser supports push                       │
+│  !authLoading && !!user &&   // User authenticated                         │
+│  permission !== 'granted' && // Not already granted                        │
+│  !isSubscribed               // No active subscription                     │
+│                                                                             │
+│  AUTO-SUBSCRIBE ON FOCUS:                                                   │
+│  ────────────────────────                                                   │
+│  When user returns from system settings and permission is now 'granted',   │
+│  automatically subscribe them (no extra action needed).                    │
+│                                                                             │
+│  RAILS/HOTWIRE EQUIVALENT:                                                  │
+│  ─────────────────────────                                                  │
+│  • Stimulus controller for notification prompt                             │
+│  • Turbo Stream for real-time subscription status                          │
+│  • Service worker managed via importmap or webpack                         │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -2430,10 +3190,8 @@ fr:
         demande: "Nouvelle demande"
         rejetee: "Rejetée"
         approuvee: "Approuvée"
-        demande_de_devis: "Devis demandé"
         planification: "En planification"
         planifiee: "Planifiée"
-        en_cours: "En cours"
         cloturee_par_prestataire: "Terminée (prestataire)"
         cloturee_par_locataire: "Validée (locataire)"
         cloturee_par_gestionnaire: "Clôturée"
@@ -2467,10 +3225,8 @@ nl:
         demande: "Nieuwe aanvraag"
         rejetee: "Afgewezen"
         approuvee: "Goedgekeurd"
-        demande_de_devis: "Offerte aangevraagd"
         planification: "In planning"
         planifiee: "Gepland"
-        en_cours: "In uitvoering"
         cloturee_par_prestataire: "Afgerond (dienstverlener)"
         cloturee_par_locataire: "Gevalideerd (huurder)"
         cloturee_par_gestionnaire: "Afgesloten"
@@ -2504,10 +3260,8 @@ en:
         demande: "New request"
         rejetee: "Rejected"
         approuvee: "Approved"
-        demande_de_devis: "Quote requested"
         planification: "Scheduling"
         planifiee: "Scheduled"
-        en_cours: "In progress"
         cloturee_par_prestataire: "Completed (provider)"
         cloturee_par_locataire: "Validated (tenant)"
         cloturee_par_gestionnaire: "Closed"
@@ -4442,7 +5196,7 @@ SEIDO's database architecture consists of **37 tables** organized into logical p
 │  ║                          ┌──────────────────────────────┐                                   ║   │
 │  ║                          │        interventions         │                                   ║   │
 │  ║                          │                              │                                   ║   │
-│  ║                          │ • status (11 states - AASM)  │                                   ║   │
+│  ║                          │ • status (9 states - AASM)   │                                   ║   │
 │  ║                          │ • building_id / lot_id       │                                   ║   │
 │  ║                          │ • type / urgency             │                                   ║   │
 │  ║                          └──────────────┬───────────────┘                                   ║   │
@@ -5451,16 +6205,15 @@ class Intervention < ApplicationRecord
   }
 
   # ═══════════════════════════════════════════════════════════════════════════
-  # AASM STATE MACHINE (11 states)
+  # AASM STATE MACHINE (9 states)
+  # NOTE: Quotes managed via intervention_quotes table (requires_quote flag)
   # ═══════════════════════════════════════════════════════════════════════════
   aasm column: :status, enum: true, whiny_persistence: true do
     state :demande, initial: true
     state :rejetee
     state :approuvee
-    state :demande_de_devis
     state :planification
     state :planifiee
-    state :en_cours
     state :cloturee_par_prestataire
     state :cloturee_par_locataire
     state :cloturee_par_gestionnaire
@@ -5479,15 +6232,9 @@ class Intervention < ApplicationRecord
       transitions from: :demande, to: :rejetee
     end
 
-    # Request quotes from providers
-    event :request_quote do
-      transitions from: :approuvee, to: :demande_de_devis
-      after { notify_providers(:quote_requested) }
-    end
-
-    # Move to scheduling phase
+    # Move to scheduling phase (quote handling is done separately)
     event :start_scheduling do
-      transitions from: [:approuvee, :demande_de_devis], to: :planification
+      transitions from: :approuvee, to: :planification
     end
 
     # Time slot selected, intervention scheduled
@@ -5499,14 +6246,9 @@ class Intervention < ApplicationRecord
       end
     end
 
-    # Provider starts work
-    event :start_work do
-      transitions from: :planifiee, to: :en_cours
-    end
-
-    # Provider marks complete
+    # Provider marks complete (direct from planifiee)
     event :complete_by_provider do
-      transitions from: [:planifiee, :en_cours], to: :cloturee_par_prestataire
+      transitions from: :planifiee, to: :cloturee_par_prestataire
       after { notify_tenant(:provider_completed) }
     end
 
@@ -5516,20 +6258,29 @@ class Intervention < ApplicationRecord
       after { notify_managers(:tenant_validated) }
     end
 
-    # Manager finalizes
+    # Manager finalizes (can skip tenant validation)
     event :finalize do
-      transitions from: :cloturee_par_locataire, to: :cloturee_par_gestionnaire
+      transitions from: [:cloturee_par_prestataire, :cloturee_par_locataire], to: :cloturee_par_gestionnaire
       after do
         update!(completed_date: Time.current)
         notify_all(:completed)
       end
     end
 
-    # Cancel (from any state)
+    # Manager can also close directly from planifiee
+    event :close_by_manager do
+      transitions from: :planifiee, to: :cloturee_par_gestionnaire
+      after do
+        update!(completed_date: Time.current)
+        notify_all(:completed)
+      end
+    end
+
+    # Cancel (from any active state)
     event :cancel do
       transitions from: [
-        :demande, :approuvee, :demande_de_devis, :planification,
-        :planifiee, :en_cours, :cloturee_par_prestataire, :cloturee_par_locataire
+        :demande, :approuvee, :planification,
+        :planifiee, :cloturee_par_prestataire, :cloturee_par_locataire
       ], to: :annulee
       after { notify_all(:cancelled) }
     end
@@ -5840,10 +6591,14 @@ class ConversationThread < ApplicationRecord
 
   validates :intervention_id, uniqueness: { scope: :thread_type }
 
+  # 6 thread types (updated 2026-02-02)
   enum :thread_type, {
-    group: 'group',
-    tenant_to_managers: 'tenant_to_managers',
-    provider_to_managers: 'provider_to_managers'
+    group: 'group',                           # All participants
+    tenant_to_managers: 'tenant_to_managers', # Private: tenant ↔ managers
+    provider_to_managers: 'provider_to_managers', # Private: provider ↔ managers
+    email_internal: 'email_internal',         # Email thread sync
+    tenants_group: 'tenants_group',           # Multiple tenants group
+    providers_group: 'providers_group'        # Multiple providers group
   }
 
   # Counter cache for messages
@@ -6733,6 +7488,26 @@ end
 
 # Section 4: PostgreSQL Migrations (Raw SQL)
 
+> ⚠️ **SCHEMA UPDATE NOTICE (2026-02-02)**
+>
+> The current SEIDO application (Next.js/Supabase) has **146+ migrations** and **44 tables**.
+> Key changes since this section was written:
+>
+> | Change | Old | Current |
+> |--------|-----|---------|
+> | Tables | 33+ | **44** |
+> | Indexes | 150+ | **209** |
+> | Enums | 37 | **39** |
+> | `intervention_status` | 11 values | **9 values** (removed `demande_de_devis`, `en_cours`) |
+>
+> **New tables to add:**
+> - `addresses` (centralized with Google Maps support)
+> - `intervention_types`, `intervention_type_categories`
+> - `quote_attachments`, `quote_documents`
+> - `email_links`, `push_subscriptions`, `import_jobs`
+>
+> **For the most accurate schema**, use `npm run supabase:types` to generate from the live database.
+
 ## 4.1 Overview
 
 This section contains **raw PostgreSQL SQL** for creating the complete SEIDO database schema. While Rails provides a DSL for migrations, raw SQL offers:
@@ -6746,7 +7521,7 @@ This section contains **raw PostgreSQL SQL** for creating the complete SEIDO dat
 
 ```
 1. Enable extensions (uuid-ossp, pgcrypto)
-2. Create ENUM types (37 types)
+2. Create ENUM types (39 types - updated)
 3. Phase 1 tables (users, teams, permissions)
 4. Phase CRM tables (addresses, contacts, documents)
 5. Phase 2 tables (buildings, lots)
@@ -6941,15 +7716,14 @@ CREATE TYPE intervention_status AS ENUM (
   'demande',                       -- Initial request by tenant
   'rejetee',                       -- Rejected by manager
   'approuvee',                     -- Approved by manager
-  'demande_de_devis',              -- Quote requested
-  'planification',                 -- Finding time slot
+  'planification',                 -- Finding time slot (quotes via intervention_quotes table)
   'planifiee',                     -- Time slot confirmed
-  'en_cours',                      -- Work in progress
   'cloturee_par_prestataire',      -- Provider marked complete
   'cloturee_par_locataire',        -- Tenant validated
   'cloturee_par_gestionnaire',     -- Manager finalized
   'annulee'                        -- Cancelled
 );
+-- NOTE: 9 statuses. Quotes managed via intervention_quotes table (requires_quote flag)
 
 CREATE TYPE assignment_role AS ENUM ('gestionnaire', 'prestataire');
 
@@ -6966,10 +7740,14 @@ CREATE TYPE quote_status AS ENUM ('draft', 'sent', 'accepted', 'rejected', 'canc
 -- ============================================================================
 
 CREATE TYPE conversation_thread_type AS ENUM (
-  'group',
-  'tenant_to_managers',
-  'provider_to_managers'
+  'group',                   -- All participants
+  'tenant_to_managers',      -- Private: tenant ↔ managers
+  'provider_to_managers',    -- Private: provider ↔ managers
+  'email_internal',          -- Email thread sync
+  'tenants_group',           -- Multiple tenants group
+  'providers_group'          -- Multiple providers group
 );
+-- NOTE: 6 types (updated 2026-02-02)
 
 CREATE TYPE notification_type AS ENUM (
   'intervention',
@@ -8214,17 +8992,14 @@ CREATE INDEX idx_interventions_open ON interventions(team_id, status, created_at
   WHERE discarded_at IS NULL
   AND status NOT IN ('cloturee_par_gestionnaire', 'annulee', 'rejetee');
 
--- Interventions awaiting quote
-CREATE INDEX idx_interventions_awaiting_quote ON interventions(team_id, created_at)
-  WHERE discarded_at IS NULL AND status = 'demande_de_devis';
+-- Interventions requiring quotes (via requires_quote flag)
+CREATE INDEX idx_interventions_requiring_quote ON interventions(team_id, created_at)
+  WHERE discarded_at IS NULL AND requires_quote = true
+  AND status IN ('approuvee', 'planification');
 
--- Interventions in planning
+-- Interventions in planning or scheduled
 CREATE INDEX idx_interventions_planning ON interventions(team_id, created_at)
   WHERE discarded_at IS NULL AND status IN ('planification', 'planifiee');
-
--- Interventions in progress
-CREATE INDEX idx_interventions_in_progress ON interventions(team_id, created_at)
-  WHERE discarded_at IS NULL AND status = 'en_cours';
 
 -- Urgent interventions
 CREATE INDEX idx_interventions_urgent ON interventions(team_id, created_at)
@@ -8847,17 +9622,16 @@ AS $$
 DECLARE
   valid_transitions JSONB := '{
     "demande": ["approuvee", "rejetee", "annulee"],
-    "approuvee": ["demande_de_devis", "planification", "annulee"],
+    "approuvee": ["planification", "annulee"],
     "rejetee": [],
-    "demande_de_devis": ["planification", "annulee"],
     "planification": ["planifiee", "annulee"],
-    "planifiee": ["en_cours", "annulee"],
-    "en_cours": ["cloturee_par_prestataire", "annulee"],
-    "cloturee_par_prestataire": ["cloturee_par_locataire", "annulee"],
-    "cloturee_par_locataire": ["cloturee_par_gestionnaire", "annulee"],
+    "planifiee": ["cloturee_par_prestataire", "cloturee_par_gestionnaire", "annulee"],
+    "cloturee_par_prestataire": ["cloturee_par_locataire", "cloturee_par_gestionnaire"],
+    "cloturee_par_locataire": ["cloturee_par_gestionnaire"],
     "cloturee_par_gestionnaire": [],
     "annulee": []
   }';
+  -- NOTE: 9 statuses (removed demande_de_devis, en_cours)
   allowed_statuses JSONB;
 BEGIN
   -- Skip if status hasn't changed
@@ -11705,6 +12479,9 @@ en:
 
 SEIDO uses AASM (Acts As State Machine) to manage the complex intervention workflow and other status-based entities. This section details all state machines in the system.
 
+> **NOTE (2026-02-02):** This section has been updated to reflect the **9-status workflow**.
+> Quotes are managed via the `intervention_quotes` table (not a separate status).
+
 ---
 
 ## 6.1 Overview
@@ -11741,11 +12518,11 @@ AASM::Configuration.hide_warnings = Rails.env.production?
 
 The intervention state machine is the heart of SEIDO, managing the complete lifecycle from tenant request to final closure.
 
-### 6.2.1 State Diagram
+### 6.2.1 State Diagram (9 Statuses)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                           INTERVENTION STATE MACHINE                                     │
+│                           INTERVENTION STATE MACHINE (9 STATES)                          │
 ├─────────────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                          │
 │                              ┌──────────┐                                               │
@@ -11753,56 +12530,48 @@ The intervention state machine is the heart of SEIDO, managing the complete life
 │                              │ 📝       │                                               │
 │                              └────┬─────┘                                               │
 │                                   │                                                     │
-│               ┌───────────────────┼───────────────────┐                                 │
-│               │                   │                   │                                 │
-│               ▼                   ▼                   ▼                                 │
-│        ┌──────────┐        ┌──────────┐        ┌─────────────────┐                      │
-│        │ rejetee  │        │ approuvee│        │ demande_de_devis│                      │
-│        │ ❌ (End) │        │ ✅       │        │ 💰              │                      │
-│        └──────────┘        └────┬─────┘        └────────┬────────┘                      │
-│                                 │                       │                               │
-│                                 │     ┌─────────────────┘                               │
-│                                 │     │                                                 │
-│                                 ▼     ▼                                                 │
+│               ┌───────────────────┴───────────────────┐                                 │
+│               │ reject                        approve │                                 │
+│               ▼                                       ▼                                 │
+│        ┌──────────┐                           ┌──────────┐                              │
+│        │ rejetee  │                           │ approuvee│                              │
+│        │ ❌ (End) │                           │ ✅       │                              │
+│        └──────────┘                           └────┬─────┘                              │
+│                                                    │ start_scheduling                   │
+│                                                    ▼                                    │
 │                          ┌─────────────────┐                                            │
-│                          │  planification  │                                            │
-│                          │  📅             │                                            │
+│                          │  planification  │  ← Quote handling via intervention_quotes  │
+│                          │  📅             │    (requires_quote flag)                   │
 │                          └────────┬────────┘                                            │
-│                                   │                                                     │
+│                                   │ schedule                                            │
 │                                   ▼                                                     │
 │                          ┌─────────────────┐                                            │
 │                          │   planifiee     │                                            │
 │                          │   ✔️             │                                            │
 │                          └────────┬────────┘                                            │
 │                                   │                                                     │
-│                                   ▼                                                     │
-│                          ┌─────────────────┐                                            │
-│                          │    en_cours     │ (Optional)                                 │
-│                          │    🔧           │                                            │
-│                          └────────┬────────┘                                            │
-│                                   │                                                     │
-│                                   ▼                                                     │
-│                    ┌──────────────────────────────┐                                     │
-│                    │  cloturee_par_prestataire    │                                     │
-│                    │  🏁 Provider finished        │                                     │
-│                    └──────────────┬───────────────┘                                     │
-│                                   │                                                     │
-│                                   ▼                                                     │
-│                    ┌──────────────────────────────┐                                     │
-│                    │  cloturee_par_locataire      │                                     │
-│                    │  ✅ Tenant validated         │                                     │
-│                    └──────────────┬───────────────┘                                     │
-│                                   │                                                     │
-│                                   ▼                                                     │
-│                    ┌──────────────────────────────┐                                     │
-│                    │  cloturee_par_gestionnaire   │                                     │
-│                    │  ✅ Manager finalized (End)  │                                     │
-│                    └──────────────────────────────┘                                     │
+│               ┌───────────────────┼───────────────────┐                                 │
+│               │ close_by_provider │                   │ close_by_manager                │
+│               ▼                   │                   ▼                                 │
+│    ┌──────────────────────────────┴┐        ┌──────────────────────────────┐            │
+│    │  cloturee_par_prestataire    │        │  cloturee_par_gestionnaire   │            │
+│    │  🏁 Provider finished        │        │  ✅ Manager finalized (End)  │            │
+│    └──────────────┬───────────────┘        └──────────────────────────────┘            │
+│                   │                                   ▲                                 │
+│                   │ close_by_tenant                   │                                 │
+│                   ▼                                   │                                 │
+│    ┌──────────────────────────────┐                   │                                 │
+│    │  cloturee_par_locataire      │───────────────────┘                                 │
+│    │  ✅ Tenant validated         │  close_by_manager                                   │
+│    └──────────────────────────────┘                                                     │
 │                                                                                          │
 │        ┌──────────┐                                                                     │
-│        │ annulee  │  ◀──── Can be reached from ANY state (except End states)            │
-│        │ 🚫 (End) │                                                                     │
+│        │ annulee  │  ◀──── Can be reached from: demande, approuvee, planification,     │
+│        │ 🚫 (End) │        planifiee, cloturee_par_prestataire, cloturee_par_locataire │
 │        └──────────┘                                                                     │
+│                                                                                          │
+│  NOTE: Quotes are NOT a status. They are managed via intervention_quotes table.         │
+│        Set requires_quote=true on intervention to request quotes from providers.        │
 │                                                                                          │
 └─────────────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -11867,16 +12636,15 @@ class Intervention < ApplicationRecord
     cle: 'cle'
   }, prefix: true
 
-  # AASM State Machine
+  # AASM State Machine (9 states)
+  # NOTE: Quotes managed via intervention_quotes table (requires_quote flag)
   aasm column: :status, enum: true, whiny_persistence: true do
-    # ===== STATES =====
+    # ===== STATES (9 total) =====
     state :demande, initial: true
     state :rejetee
     state :approuvee
-    state :demande_de_devis
     state :planification
     state :planifiee
-    state :en_cours
     state :cloturee_par_prestataire
     state :cloturee_par_locataire
     state :cloturee_par_gestionnaire
@@ -11897,22 +12665,8 @@ class Intervention < ApplicationRecord
                   after: :log_status_change
     end
 
-    # Manager requests quotes from providers
-    event :request_quote, after: :after_request_quote do
-      transitions from: :approuvee, to: :demande_de_devis,
-                  guard: :has_assigned_providers?,
-                  after: :log_status_change
-    end
-
-    # Manager accepts a quote and moves to planning
-    event :accept_quote, after: :after_accept_quote do
-      transitions from: :demande_de_devis, to: :planification,
-                  guard: :has_approved_quote?,
-                  after: :log_status_change
-    end
-
-    # Skip quote phase (direct work or internal provider)
-    event :skip_quote, after: :after_skip_quote do
+    # Move to scheduling phase (quote handling via separate table)
+    event :start_scheduling, after: :after_start_scheduling do
       transitions from: :approuvee, to: :planification,
                   after: :log_status_change
     end
@@ -11924,15 +12678,9 @@ class Intervention < ApplicationRecord
                   after: :log_status_change
     end
 
-    # Provider starts working (optional state)
-    event :start_work, after: :after_start_work do
-      transitions from: :planifiee, to: :en_cours,
-                  after: :log_status_change
-    end
-
-    # Provider marks work as complete
+    # Provider marks work as complete (direct from planifiee)
     event :close_by_provider, after: :after_close_by_provider do
-      transitions from: [:planifiee, :en_cours], to: :cloturee_par_prestataire,
+      transitions from: :planifiee, to: :cloturee_par_prestataire,
                   guard: :has_completion_report?,
                   after: :log_status_change
     end
@@ -11943,16 +12691,16 @@ class Intervention < ApplicationRecord
                   after: :log_status_change
     end
 
-    # Manager finalizes the intervention (final closure)
+    # Manager finalizes the intervention (final closure, can skip tenant)
     event :close_by_manager, after: :after_close_by_manager do
-      transitions from: [:cloturee_par_prestataire, :cloturee_par_locataire], to: :cloturee_par_gestionnaire,
+      transitions from: [:planifiee, :cloturee_par_prestataire, :cloturee_par_locataire], to: :cloturee_par_gestionnaire,
                   guard: :can_be_finalized?,
                   after: :log_status_change
     end
 
     # Cancel intervention (from any non-terminal state)
     event :cancel, after: :after_cancel do
-      transitions from: [:demande, :approuvee, :demande_de_devis, :planification, :planifiee, :en_cours],
+      transitions from: [:demande, :approuvee, :planification, :planifiee, :cloturee_par_prestataire, :cloturee_par_locataire],
                   to: :annulee,
                   after: :log_status_change
     end
@@ -12083,7 +12831,8 @@ class Intervention < ApplicationRecord
   end
 
   def awaiting_quote_response?
-    demande_de_devis? && pending_quotes.any?
+    # Quotes are managed via requires_quote flag, not a separate status
+    requires_quote? && pending_quotes.any?
   end
 
   def time_slots_pending_response
@@ -12200,22 +12949,23 @@ class Intervention < ApplicationRecord
 end
 ```
 
-### 6.2.3 Status Transitions Summary
+### 6.2.3 Status Transitions Summary (9 Statuses)
 
 | From | Event | To | Who | Guard |
 |------|-------|-----|-----|-------|
 | `demande` | `approve` | `approuvee` | Manager | `can_be_approved?` |
 | `demande` | `reject` | `rejetee` | Manager | - |
-| `approuvee` | `request_quote` | `demande_de_devis` | Manager | `has_assigned_providers?` |
-| `approuvee` | `skip_quote` | `planification` | Manager | - |
-| `demande_de_devis` | `accept_quote` | `planification` | Manager | `has_approved_quote?` |
+| `approuvee` | `start_scheduling` | `planification` | Manager | - |
 | `planification` | `schedule` | `planifiee` | System/Tenant | `has_selected_time_slot?` |
-| `planifiee` | `start_work` | `en_cours` | Provider | - |
-| `planifiee`, `en_cours` | `close_by_provider` | `cloturee_par_prestataire` | Provider | `has_completion_report?` |
+| `planifiee` | `close_by_provider` | `cloturee_par_prestataire` | Provider | `has_completion_report?` |
+| `planifiee` | `close_by_manager` | `cloturee_par_gestionnaire` | Manager | `can_be_finalized?` |
 | `cloturee_par_prestataire` | `close_by_tenant` | `cloturee_par_locataire` | Tenant | - |
-| `cloturee_*` | `close_by_manager` | `cloturee_par_gestionnaire` | Manager | `can_be_finalized?` |
+| `cloturee_par_prestataire`, `cloturee_par_locataire` | `close_by_manager` | `cloturee_par_gestionnaire` | Manager | `can_be_finalized?` |
 | `!terminal` | `cancel` | `annulee` | Manager | - |
-| `cloturee_par_*` | `reopen` | `planifiee` | Manager | - |
+| `cloturee_par_prestataire`, `cloturee_par_locataire` | `reopen` | `planifiee` | Manager | - |
+
+> **NOTE**: Quote management is handled via `intervention_quotes` table, not status transitions.
+> Set `requires_quote=true` on intervention to request quotes from assigned providers.
 
 ---
 
@@ -13417,18 +14167,13 @@ RSpec.describe Intervention, type: :model do
     let!(:quote) { create(:intervention_quote, intervention: intervention, provider: provider) }
     let!(:time_slot) { create(:intervention_time_slot, intervention: intervention, proposed_by: provider) }
 
-    it 'can complete full lifecycle' do
+    it 'can complete full lifecycle (9 statuses)' do
       # Approve
       intervention.approve!
       expect(intervention).to be_approuvee
 
-      # Request quote
-      intervention.request_quote!
-      expect(intervention).to be_demande_de_devis
-
-      # Accept quote
-      quote.accept!
-      intervention.reload
+      # Start scheduling (quotes handled via requires_quote flag, not status)
+      intervention.start_scheduling!
       expect(intervention).to be_planification
 
       # Select time slot
@@ -13436,7 +14181,7 @@ RSpec.describe Intervention, type: :model do
       intervention.reload
       expect(intervention).to be_planifiee
 
-      # Provider closes
+      # Provider closes (direct from planifiee)
       intervention.close_by_provider!
       expect(intervention).to be_cloturee_par_prestataire
 
@@ -13455,7 +14200,8 @@ RSpec.describe Intervention, type: :model do
 
   describe 'cancel event' do
     context 'from various states' do
-      %i[demande approuvee demande_de_devis planification planifiee en_cours].each do |state|
+      # 9 statuses: removed demande_de_devis, en_cours
+      %i[demande approuvee planification planifiee cloturee_par_prestataire cloturee_par_locataire].each do |state|
         it "can cancel from #{state}" do
           intervention.update_column(:status, state.to_s)
           intervention.reload
@@ -17995,9 +18741,10 @@ components:
           type: string
         status:
           type: string
-          enum: [demande, rejetee, approuvee, demande_de_devis, planification,
-                 planifiee, en_cours, cloturee_par_prestataire,
-                 cloturee_par_locataire, cloturee_par_gestionnaire, annulee]
+          # 9 statuses (removed demande_de_devis, en_cours)
+          enum: [demande, rejetee, approuvee, planification, planifiee,
+                 cloturee_par_prestataire, cloturee_par_locataire,
+                 cloturee_par_gestionnaire, annulee]
         priority:
           type: string
           enum: [low, normal, high, urgent]
@@ -18810,14 +19557,13 @@ RSpec.describe Intervention, type: :model do
 
   describe 'enums' do
     it do
+      # 9 statuses (removed demande_de_devis, en_cours)
       is_expected.to define_enum_for(:status).with_values(
         demande: 'demande',
         rejetee: 'rejetee',
         approuvee: 'approuvee',
-        demande_de_devis: 'demande_de_devis',
         planification: 'planification',
         planifiee: 'planifiee',
-        en_cours: 'en_cours',
         cloturee_par_prestataire: 'cloturee_par_prestataire',
         cloturee_par_locataire: 'cloturee_par_locataire',
         cloturee_par_gestionnaire: 'cloturee_par_gestionnaire',
@@ -18894,19 +19640,21 @@ RSpec.describe Intervention, type: :model do
       end
     end
 
-    describe '#request_quote' do
-      it 'transitions from approuvee to demande_de_devis' do
+    describe '#start_scheduling' do
+      it 'transitions from approuvee to planification' do
         intervention.approve!
 
-        expect { intervention.request_quote! }
+        # Start scheduling (quotes handled via requires_quote flag, not status)
+        expect { intervention.start_scheduling! }
           .to change(intervention, :status)
-          .from('approuvee').to('demande_de_devis')
+          .from('approuvee').to('planification')
       end
     end
 
     describe '#cancel' do
       it 'can be cancelled from any state except terminal states' do
-        [:demande, :approuvee, :planifiee, :en_cours].each do |state|
+        # 9 statuses: removed demande_de_devis, en_cours
+        [:demande, :approuvee, :planification, :planifiee].each do |state|
           intervention = create(:intervention, status: state)
           expect { intervention.cancel! }.to change(intervention, :status).to('annulee')
         end
@@ -18918,7 +19666,7 @@ RSpec.describe Intervention, type: :model do
       end
     end
 
-    describe 'full workflow' do
+    describe 'full workflow (9 statuses)' do
       it 'completes the entire intervention lifecycle' do
         intervention = create(:intervention, status: :demande)
 
@@ -18926,32 +19674,24 @@ RSpec.describe Intervention, type: :model do
         intervention.approve!
         expect(intervention).to be_approuvee
 
-        # Request quote
-        intervention.request_quote!
-        expect(intervention).to be_demande_de_devis
-
-        # Enter planning
-        intervention.enter_planning!
+        # Enter planning (quotes handled via requires_quote flag, not status)
+        intervention.start_scheduling!
         expect(intervention).to be_planification
 
         # Schedule
         intervention.schedule!
         expect(intervention).to be_planifiee
 
-        # Start work
-        intervention.start!
-        expect(intervention).to be_en_cours
-
-        # Provider completes
-        intervention.complete_by_provider!
+        # Provider completes (direct from planifiee)
+        intervention.close_by_provider!
         expect(intervention).to be_cloturee_par_prestataire
 
         # Tenant validates
-        intervention.validate_by_tenant!
+        intervention.close_by_tenant!
         expect(intervention).to be_cloturee_par_locataire
 
         # Manager closes
-        intervention.close!
+        intervention.close_by_manager!
         expect(intervention).to be_cloturee_par_gestionnaire
       end
     end
@@ -19572,13 +20312,13 @@ RSpec.describe 'Intervention Workflow', type: :system do
     expect(page).to have_content('Intervention approuvée')
     expect(intervention.reload.status).to eq('approuvee')
 
-    # Step 3: Request quote
-    click_button 'Demander un devis'
+    # Step 3: Start scheduling (quotes handled via requires_quote flag)
+    click_button 'Planifier'
     check prestataire.full_name
-    click_button 'Envoyer'
-    expect(intervention.reload.status).to eq('demande_de_devis')
+    click_button 'Assigner'
+    expect(intervention.reload.status).to eq('planification')
 
-    # Step 4: Provider submits quote
+    # Step 4: Provider submits quote (via intervention_quotes table)
     sign_out gestionnaire
     sign_in prestataire
     visit prestataire_intervention_path(intervention)
@@ -19608,13 +20348,10 @@ RSpec.describe 'Intervention Workflow', type: :system do
 
     expect(intervention.reload.status).to eq('planifiee')
 
-    # Step 6: Provider completes work
+    # Step 6: Provider completes work (direct from planifiee - no en_cours status)
     sign_out gestionnaire
     sign_in prestataire
     visit prestataire_intervention_path(intervention)
-
-    click_button 'Démarrer l\'intervention'
-    expect(intervention.reload.status).to eq('en_cours')
 
     click_button 'Terminer l\'intervention'
     fill_in 'Rapport', with: 'Siphon remplacé avec succès'
@@ -20798,21 +21535,22 @@ end
 
 ---
 
-## 12.2 Intervention Status Reference
+## 12.2 Intervention Status Reference (9 Statuses)
 
 | Status | French Name | Description | Who Can Trigger | Next States |
 |--------|-------------|-------------|-----------------|-------------|
 | `demande` | Demande | Initial request from tenant or manager | Any user | `approuvee`, `rejetee` |
 | `rejetee` | Rejetée | Request rejected | Gestionnaire | *Terminal* |
-| `approuvee` | Approuvée | Request approved | Gestionnaire | `demande_de_devis`, `planification` |
-| `demande_de_devis` | Demande de devis | Waiting for provider quotes | Gestionnaire | `planification` |
-| `planification` | Planification | Finding suitable time slot | System | `planifiee` |
-| `planifiee` | Planifiée | Scheduled with confirmed date/time | Gestionnaire/Prestataire | `en_cours`, `annulee` |
-| `en_cours` | En cours | Work in progress | Prestataire | `cloturee_par_prestataire` |
-| `cloturee_par_prestataire` | Clôturée par prestataire | Provider marked complete | Prestataire | `cloturee_par_locataire` |
+| `approuvee` | Approuvée | Request approved | Gestionnaire | `planification` |
+| `planification` | Planification | Finding suitable time slot (quotes via `intervention_quotes`) | System | `planifiee` |
+| `planifiee` | Planifiée | Scheduled with confirmed date/time | Gestionnaire/Prestataire | `cloturee_par_prestataire`, `cloturee_par_gestionnaire`, `annulee` |
+| `cloturee_par_prestataire` | Clôturée par prestataire | Provider marked complete | Prestataire | `cloturee_par_locataire`, `cloturee_par_gestionnaire` |
 | `cloturee_par_locataire` | Clôturée par locataire | Tenant validated work | Locataire | `cloturee_par_gestionnaire` |
 | `cloturee_par_gestionnaire` | Clôturée par gestionnaire | Final closure by manager | Gestionnaire | *Terminal* |
 | `annulee` | Annulée | Cancelled | Gestionnaire | *Terminal* |
+
+> **NOTE**: Quote management is handled via `intervention_quotes` table with `requires_quote` flag on intervention.
+> The old `demande_de_devis` and `en_cours` statuses have been removed.
 
 ---
 
@@ -21174,14 +21912,14 @@ puts "   ✅ Created #{Lot.count} lots"
 
 puts "\n🔧 Creating interventions..."
 
+# 9 statuses (removed demande_de_devis, en_cours)
 INTERVENTION_STATUSES = %w[
   demande
   approuvee
-  demande_de_devis
   planification
   planifiee
-  en_cours
   cloturee_par_prestataire
+  cloturee_par_locataire
   cloturee_par_gestionnaire
 ]
 
@@ -21225,8 +21963,8 @@ locataires = created_users[:locataire]
     updated_at: created_at + rand(1..10).days
   )
 
-  # Add assignment for certain statuses
-  if %w[planifiee en_cours cloturee_par_prestataire cloturee_par_gestionnaire].include?(status)
+  # Add assignment for certain statuses (9 statuses - no en_cours)
+  if %w[planifiee cloturee_par_prestataire cloturee_par_locataire cloturee_par_gestionnaire].include?(status)
     InterventionAssignment.create!(
       intervention: intervention,
       user: prestataires.sample,
@@ -21235,8 +21973,9 @@ locataires = created_users[:locataire]
     )
   end
 
-  # Add quote for quote-related statuses
-  if %w[demande_de_devis planification planifiee].include?(status)
+  # Add quote for interventions requiring quotes (via requires_quote flag)
+  if %w[planification planifiee].include?(status) && rand < 0.5
+    intervention.update!(requires_quote: true)
     InterventionQuote.create!(
       intervention: intervention,
       provider: prestataires.sample,
@@ -21248,7 +21987,7 @@ locataires = created_users[:locataire]
   end
 
   # Add time slots for scheduled interventions
-  if %w[planification planifiee en_cours].include?(status)
+  if %w[planification planifiee].include?(status)
     3.times do |slot_index|
       InterventionTimeSlot.create!(
         intervention: intervention,
@@ -21305,7 +22044,7 @@ puts "   ✅ Created #{Notification.count} notifications"
 puts "\n💬 Creating conversations..."
 
 interventions_with_chat = Intervention.where(
-  status: %w[planifiee en_cours cloturee_par_prestataire]
+  status: %w[planifiee cloturee_par_prestataire cloturee_par_locataire]
 ).limit(20)
 
 interventions_with_chat.each do |intervention|
@@ -26111,7 +26850,8 @@ RSpec.describe 'SEIDO API Contract', pact: true do
                 title: Pact.like('Test Intervention'),
                 status: Pact.term(
                   generate: 'approuvee',
-                  matcher: /^(demande|approuvee|planifiee|en_cours|cloturee)$/
+                  # 9 statuses (removed demande_de_devis, en_cours)
+                  matcher: /^(demande|rejetee|approuvee|planification|planifiee|cloturee_par_prestataire|cloturee_par_locataire|cloturee_par_gestionnaire|annulee)$/
                 ),
                 priority: Pact.term(
                   generate: 'normale',
@@ -26321,8 +27061,8 @@ This document provides a complete architectural blueprint for rebuilding SEIDO a
 ### Core Architecture (Sections 1-12)
 1. **SEIDO Overview** - Application context, personas, and workflows
 2. **Tech Stack** - Rails gems and infrastructure choices
-3. **Data Models** - 33+ tables across 7 phases
-4. **PostgreSQL Migrations** - Raw SQL schema with 150+ indexes
+3. **Data Models** - 44 tables across 8 phases (updated 2026-02-02)
+4. **PostgreSQL Migrations** - Raw SQL schema with 209 indexes
 5. **Authorization** - Pundit policies replacing Supabase RLS
 6. **State Machines** - AASM for intervention workflow
 7. **Services & Jobs** - Business logic and background processing

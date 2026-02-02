@@ -313,8 +313,6 @@ Si nouveau code ajoute des participants ou crée des threads :
 | `a719010` | refactor(auth): centralize authentication + fix intervention forms UX |
 
 ## Files Recently Modified
-### 2026-02-02 18:32:51 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/lib/push-notification-manager.ts`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/push-notification-toggle.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/hooks/use-notification-prompt.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/app/actions/push-subscription-actions.ts`
+### 2026-02-02 22:24:29 (Auto-updated)
+- `C:/Users/arthu/.claude/plans/golden-whistling-key.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/architecture/seido-rails-architecture.md`

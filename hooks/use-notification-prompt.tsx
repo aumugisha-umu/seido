@@ -5,20 +5,28 @@ import { useAuth } from './use-auth'
 import { pushManager } from '@/lib/push-notification-manager'
 import { logger } from '@/lib/logger'
 import { checkUserPushSubscription } from '@/app/actions/push-subscription-actions'
+import { isDismissedRecently, setDismissed, clearDismissed } from '@/lib/constants/notifications'
+import { detectPlatform, type PlatformInfo } from '@/lib/utils/platform-detection'
 
 /**
  * Hook pour gérer l'affichage de la modale de permission notifications
  *
  * Affiche la modale si :
- * - L'app est en mode PWA (standalone)
  * - L'utilisateur est authentifié
- * - Les notifications ne sont pas encore accordées (permission !== 'granted')
+ * - Pas de subscription en DB
+ * - Pas de dismiss récent (24h)
+ * - Service Worker prêt (production)
  *
- * Détecte automatiquement les changements de permission (ex: utilisateur
- * modifie dans les paramètres système puis revient sur l'app)
+ * Fonctionne sur:
+ * - PWA installée → Active notifications directement
+ * - Web desktop/Android → Propose installation PWA puis notifications
+ * - iOS Safari non-PWA → Guide installation manuelle PWA
  */
 
-export type NotificationPromptState = 'idle' | 'showing' | 'subscribing' | 'success' | 'error'
+export type NotificationPromptState = 'idle' | 'showing' | 'subscribing' | 'installing' | 'success' | 'error'
+
+// Re-export PlatformInfo for consumers
+export type { PlatformInfo } from '@/lib/utils/platform-detection'
 
 export interface UseNotificationPromptReturn {
   /** Indique si la modale doit être affichée */
@@ -27,20 +35,22 @@ export interface UseNotificationPromptReturn {
   state: NotificationPromptState
   /** Permission actuelle du navigateur */
   permission: NotificationPermission
-  /** Indique si on est en mode PWA */
-  isPWAMode: boolean
+  /** Informations sur la plateforme */
+  platform: PlatformInfo
   /** Indique si les notifications sont supportées */
   isSupported: boolean
-  /** Indique si le Service Worker est prêt (false en mode dev) */
+  /** Indique si le Service Worker est prêt */
   isServiceWorkerReady: boolean
+  /** Indique si une subscription existe en DB */
+  hasDBSubscription: boolean
   /** Message d'erreur si state === 'error' */
   error: string | null
-  /** Fermer la modale (temporairement pour cette session) */
+  /** Fermer la modale (réapparaît dans 24h) */
   dismissModal: () => void
-  /** Tenter d'activer les notifications */
+  /** Tenter d'activer les notifications (pour PWA ou web push direct) */
   enableNotifications: () => Promise<boolean>
   /** Rafraîchir l'état (après retour des paramètres système) */
-  refreshPermissionState: () => void
+  refreshPermissionState: () => Promise<void>
 }
 
 export function useNotificationPrompt(): UseNotificationPromptReturn {
@@ -48,28 +58,25 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
 
   const [state, setState] = useState<NotificationPromptState>('idle')
   const [permission, setPermission] = useState<NotificationPermission>('default')
-  const [isPWAMode, setIsPWAMode] = useState(false)
+  const [platform, setPlatform] = useState<PlatformInfo>(() => detectPlatform())
   const [isSupported, setIsSupported] = useState(false)
-  const [isServiceWorkerReady, setIsServiceWorkerReady] = useState(true)
-  const [isSubscribed, setIsSubscribed] = useState(false)
+  const [isServiceWorkerReady, setIsServiceWorkerReady] = useState(false)
+  const [hasDBSubscription, setHasDBSubscription] = useState(false)
   const [isDismissed, setIsDismissed] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const previousPermissionRef = useRef<NotificationPermission>('default')
   const hasInitialized = useRef(false)
 
-  // Initialisation : vérifier support, mode PWA, permission
+  // Initialisation : vérifier support, plateforme, permission
   useEffect(() => {
     if (hasInitialized.current) return
     hasInitialized.current = true
 
     const initialize = async () => {
-      // Vérifier si on est en mode PWA (standalone)
-      const standalone = window.matchMedia('(display-mode: standalone)').matches
-      // Alternative iOS Safari
-      const iosStandalone = (window.navigator as any).standalone === true
-      const isPWA = standalone || iosStandalone
-      setIsPWAMode(isPWA)
+      // Détecter la plateforme
+      const detectedPlatform = detectPlatform()
+      setPlatform(detectedPlatform)
 
       // Vérifier support des notifications
       const supported = pushManager.isSupported()
@@ -80,17 +87,17 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
         return
       }
 
-      // Vérifier si le service worker est enregistré (peut être désactivé en dev)
+      // Vérifier si le service worker est enregistré
       try {
         const registrations = await navigator.serviceWorker.getRegistrations()
-        if (registrations.length === 0) {
-          logger.warn('🔔 [NotificationPrompt] No service worker registered. Push notifications require production build.')
-          setIsServiceWorkerReady(false)
-          return
+        const swReady = registrations.length > 0
+        setIsServiceWorkerReady(swReady)
+
+        if (!swReady) {
+          logger.warn('🔔 [NotificationPrompt] No service worker registered')
         }
       } catch {
         setIsServiceWorkerReady(false)
-        return
       }
 
       // Vérifier permission actuelle
@@ -98,25 +105,20 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
       setPermission(currentPermission)
       previousPermissionRef.current = currentPermission
 
-      // Vérifier si déjà abonné - DOUBLE CHECK: browser + database
-      // Le browser peut penser avoir une subscription qui n'est pas en DB
-      const browserSubscribed = await pushManager.isSubscribed()
+      // Vérifier si dismiss récent (24h)
+      const recentlyDismissed = isDismissedRecently()
+      setIsDismissed(recentlyDismissed)
 
-      // Vérifier aussi côté serveur (source de vérité)
-      const { hasSubscription: dbSubscribed } = await checkUserPushSubscription()
-
-      // On considère comme "subscribed" seulement si les deux sont vrais
-      // Si browser=true mais DB=false, c'est une incohérence à corriger
-      const isActuallySubscribed = browserSubscribed && dbSubscribed
-      setIsSubscribed(isActuallySubscribed)
+      // Vérifier subscription en DB
+      const { hasSubscription } = await checkUserPushSubscription()
+      setHasDBSubscription(hasSubscription)
 
       logger.info('🔔 [NotificationPrompt] Initialized', {
-        isPWA,
+        platform: detectedPlatform,
         supported,
         permission: currentPermission,
-        browserSubscribed,
-        dbSubscribed,
-        isActuallySubscribed
+        hasDBSubscription: hasSubscription,
+        recentlyDismissed
       })
     }
 
@@ -124,12 +126,15 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
   }, [])
 
   // Écouter les changements au focus de la fenêtre
-  // (quand l'utilisateur revient après avoir modifié les paramètres système)
   useEffect(() => {
     if (!isSupported) return
 
     const handleFocus = async () => {
       const currentPermission = pushManager.getPermissionStatus()
+
+      // Refresh dismiss state on focus
+      const recentlyDismissed = isDismissedRecently()
+      setIsDismissed(recentlyDismissed)
 
       if (currentPermission !== previousPermissionRef.current) {
         logger.info('🔔 [NotificationPrompt] Permission changed on focus', {
@@ -141,20 +146,19 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
 
         // Si permission accordée après avoir été autre chose, auto-subscribe
         if (currentPermission === 'granted' && user?.id) {
-          // D'abord vérifier si on a déjà une subscription en DB
-          const { hasSubscription: dbSubscribed } = await checkUserPushSubscription()
-          if (dbSubscribed) {
-            setIsSubscribed(true)
+          const { hasSubscription } = await checkUserPushSubscription()
+          if (hasSubscription) {
+            setHasDBSubscription(true)
             setState('success')
             logger.info('🔔 [NotificationPrompt] Already subscribed in database')
           } else {
-            // Pas encore de subscription, en créer une
             try {
               setState('subscribing')
               await pushManager.subscribe(user.id)
-              setIsSubscribed(true)
-              setState('success')
-              logger.info('🔔 [NotificationPrompt] Auto-subscribed after permission granted in settings')
+              const { hasSubscription: newSub } = await checkUserPushSubscription()
+              setHasDBSubscription(newSub)
+              setState(newSub ? 'success' : 'error')
+              logger.info('🔔 [NotificationPrompt] Auto-subscribed after permission granted')
             } catch (err) {
               logger.error('🔔 [NotificationPrompt] Auto-subscribe failed', err)
               setState('error')
@@ -167,10 +171,7 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
       }
     }
 
-    // Vérifier au focus
     window.addEventListener('focus', handleFocus)
-
-    // Vérifier aussi périodiquement (backup)
     const interval = setInterval(handleFocus, 10000)
 
     return () => {
@@ -180,27 +181,27 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
   }, [isSupported, user?.id])
 
   // Déterminer si la modale doit être affichée
-  // Ne pas afficher si le SW n'est pas prêt (mode dev)
+  // IMPORTANT: On affiche sur web ET PWA (plus de condition isPWAMode)
   const shouldShowModal =
-    isPWAMode &&
     isSupported &&
     isServiceWorkerReady &&
     !authLoading &&
     !!user &&
-    permission !== 'granted' &&
-    !isSubscribed &&
+    !hasDBSubscription &&
     !isDismissed &&
     state !== 'subscribing' &&
+    state !== 'installing' &&
     state !== 'success'
 
-  // Fermer la modale (temporairement)
+  // Fermer la modale (réapparaît dans 24h)
   const dismissModal = useCallback(() => {
-    logger.info('🔔 [NotificationPrompt] Modal dismissed by user')
+    logger.info('🔔 [NotificationPrompt] Modal dismissed by user (will reappear in 24h)')
+    setDismissed()
     setIsDismissed(true)
     setState('idle')
   }, [])
 
-  // Activer les notifications
+  // Activer les notifications (pour PWA ou web push direct)
   const enableNotifications = useCallback(async (): Promise<boolean> => {
     if (!user?.id) {
       setError('Utilisateur non connecté')
@@ -211,31 +212,31 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
     setState('subscribing')
 
     try {
-      // Tenter de s'abonner (va demander la permission si nécessaire)
       await pushManager.subscribe(user.id)
 
-      // Vérifier que la subscription a bien été créée en DB
-      const { hasSubscription: dbSubscribed } = await checkUserPushSubscription()
+      // Vérifier en DB
+      const { hasSubscription } = await checkUserPushSubscription()
 
-      // Mettre à jour l'état
       const newPermission = pushManager.getPermissionStatus()
       setPermission(newPermission)
       previousPermissionRef.current = newPermission
-      setIsSubscribed(dbSubscribed) // Utiliser la valeur DB comme source de vérité
-      setState(dbSubscribed ? 'success' : 'error')
+      setHasDBSubscription(hasSubscription)
+      setState(hasSubscription ? 'success' : 'error')
 
-      if (!dbSubscribed) {
+      if (!hasSubscription) {
         setError('La subscription n\'a pas été enregistrée. Veuillez réessayer.')
-        logger.error('🔔 [NotificationPrompt] Subscription created locally but not in DB')
+        logger.error('🔔 [NotificationPrompt] Subscription not saved to DB')
         return false
       }
 
-      logger.info('🔔 [NotificationPrompt] Notifications enabled successfully and verified in DB')
+      // Effacer le dismiss pour ne pas le réafficher
+      clearDismissed()
+
+      logger.info('🔔 [NotificationPrompt] Notifications enabled and verified in DB')
       return true
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue'
 
-      // Vérifier si c'est un refus de permission
       const newPermission = pushManager.getPermissionStatus()
       setPermission(newPermission)
       previousPermissionRef.current = newPermission
@@ -253,25 +254,30 @@ export function useNotificationPrompt(): UseNotificationPromptReturn {
     }
   }, [user?.id])
 
-  // Rafraîchir manuellement l'état de permission
-  const refreshPermissionState = useCallback(() => {
+  // Rafraîchir l'état
+  const refreshPermissionState = useCallback(async () => {
     const currentPermission = pushManager.getPermissionStatus()
     setPermission(currentPermission)
     previousPermissionRef.current = currentPermission
 
-    // Réinitialiser le dismiss si la permission a changé
-    if (currentPermission === 'granted') {
-      setIsDismissed(false)
-    }
+    const recentlyDismissed = isDismissedRecently()
+    setIsDismissed(recentlyDismissed)
+
+    const { hasSubscription } = await checkUserPushSubscription()
+    setHasDBSubscription(hasSubscription)
+
+    // Re-detect platform (in case PWA was just installed)
+    setPlatform(detectPlatform())
   }, [])
 
   return {
     shouldShowModal,
     state,
     permission,
-    isPWAMode,
+    platform,
     isSupported,
     isServiceWorkerReady,
+    hasDBSubscription,
     error,
     dismissModal,
     enableNotifications,

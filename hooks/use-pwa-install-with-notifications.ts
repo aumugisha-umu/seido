@@ -24,17 +24,26 @@ import { useAuth } from './use-auth'
  * ```
  */
 
-interface BeforeInstallPromptEvent extends Event {
+export interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
 interface PWAInstallHookReturn {
+  /** PWA can be installed (prompt available and not already installed) */
   canInstall: boolean
+  /** PWA is already installed (standalone mode) */
   isInstalled: boolean
+  /** Installation in progress */
   isLoading: boolean
+  /** Error message if installation failed */
   error: string | null
+  /** Trigger the install prompt and auto-subscribe to notifications */
   triggerInstall: () => Promise<{ success: boolean; notificationsEnabled: boolean }>
+  /** The deferred prompt event (for advanced usage) */
+  deferredPrompt: BeforeInstallPromptEvent | null
+  /** Check if PWA install prompt is available (browser supports it) */
+  hasInstallPrompt: boolean
 }
 
 export function usePWAInstallWithNotifications(): PWAInstallHookReturn {
@@ -143,6 +152,8 @@ export function usePWAInstallWithNotifications(): PWAInstallHookReturn {
     isInstalled,
     isLoading,
     error,
-    triggerInstall
+    triggerInstall,
+    deferredPrompt: installPrompt,
+    hasInstallPrompt: !!installPrompt
   }
 }

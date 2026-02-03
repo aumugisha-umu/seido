@@ -108,16 +108,63 @@ async function sendRoleAwarePushNotifications(
   payload: { title: string; message: string; type?: string },
   interventionId: string
 ) {
+  // 🔍 DEBUG: Log all incoming notifications
+  logger.info({
+    totalNotifications: notifications.length,
+    notificationsWithData: notifications.filter(n => n.data).length,
+    notificationsPersonal: notifications.filter(n => n.data?.is_personal).length,
+    rawNotifications: notifications.map(n => ({
+      hasData: !!n.data,
+      userId: n.data?.user_id,
+      isPersonal: n.data?.is_personal,
+      assignedRole: n.data?.metadata?.assigned_role
+    })),
+    payload,
+    interventionId
+  }, '📤 [PUSH] DEBUG - sendRoleAwarePushNotifications called')
+
   // Extract valid notifications with personal flag and role
+  // ✅ FIX: Handle both string and object metadata (RLS may return stringified metadata)
   const validNotifications = notifications
     .filter(n => n.data?.is_personal)
-    .map(n => ({
-      userId: n.data!.user_id,
-      role: n.data!.metadata?.assigned_role || null
-    }))
+    .map(n => {
+      // Parse metadata if it's a string (happens when RLS blocks SELECT after INSERT)
+      let metadata = n.data!.metadata as Record<string, any> | string | undefined
+      if (typeof metadata === 'string') {
+        try {
+          metadata = JSON.parse(metadata)
+          logger.debug({ userId: n.data!.user_id }, '📦 [PUSH] Parsed stringified metadata')
+        } catch (e) {
+          logger.warn({ userId: n.data!.user_id, metadata }, '⚠️ [PUSH] Failed to parse metadata string')
+          metadata = {}
+        }
+      }
+
+      const role = (metadata as Record<string, any>)?.assigned_role || null
+      logger.info({
+        userId: n.data!.user_id,
+        metadataType: typeof n.data!.metadata,
+        metadataWasString: typeof n.data!.metadata === 'string',
+        extractedRole: role
+      }, '📦 [PUSH] DEBUG - Extracted role from notification')
+
+      return {
+        userId: n.data!.user_id,
+        role
+      }
+    })
+
+  // 🔍 DEBUG: Log filtered notifications
+  logger.info({
+    validCount: validNotifications.length,
+    validNotifications
+  }, '📤 [PUSH] DEBUG - Valid personal notifications after filter')
 
   if (validNotifications.length === 0) {
-    logger.debug({ notificationCount: notifications.length }, '📭 [PUSH] No personal recipients for role-aware push')
+    logger.warn({
+      notificationCount: notifications.length,
+      reason: 'No notifications with is_personal=true'
+    }, '📭 [PUSH] No personal recipients for role-aware push - DEBUG')
     return { success: 0, failed: 0 }
   }
 
@@ -280,10 +327,32 @@ export async function notifyInterventionStatusChange({
       reason
     })
 
+    // 🔍 DEBUG: Log full notification structure to understand what's being returned
     logger.info({
       interventionId,
-      notificationCount: notifications.length
-    }, '✅ [NOTIFICATION-ACTION] Status change notifications created')
+      notificationCount: notifications.length,
+      notificationDetails: notifications.map((n, i) => {
+        let parsedMetadata = n.data?.metadata
+        if (typeof parsedMetadata === 'string') {
+          try {
+            parsedMetadata = JSON.parse(parsedMetadata)
+          } catch (e) {
+            parsedMetadata = { parseError: 'Failed to parse metadata string' }
+          }
+        }
+        return {
+          index: i,
+          hasData: !!n.data,
+          userId: n.data?.user_id,
+          isPersonal: n.data?.is_personal,
+          metadataType: typeof n.data?.metadata,
+          metadataRaw: n.data?.metadata,
+          metadataParsed: parsedMetadata,
+          assignedRoleFromRaw: n.data?.metadata?.assigned_role,
+          assignedRoleFromParsed: (parsedMetadata as Record<string, any>)?.assigned_role
+        }
+      })
+    }, '✅ [NOTIFICATION-ACTION] Status change notifications created - DEBUG full structure')
 
     // ═══════════════════════════════════════════════════════════════════════════
     // PUSH NOTIFICATIONS: Send to personal recipients

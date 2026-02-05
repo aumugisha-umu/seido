@@ -72,6 +72,24 @@ Report: "Keeping branch. Worktree preserved."
 For Options 1, 2, 4: `git worktree remove <path>`
 For Option 3: Keep worktree.
 
+### Step 6: Compound Learnings (Recommended)
+
+After merge/PR (Options 1-2), suggest invoking sp-compound:
+
+```
+Feature integrated successfully.
+
+📚 Run /compound to capture learnings from this work?
+This updates AGENTS.md + progress.txt for future sessions.
+```
+
+This is the natural trigger for knowledge compounding — the feature is complete,
+the branch is integrated, and the context is fresh for reflection.
+
+**Skip if:** The change was trivial (typo fix, config tweak, no learnings to capture).
+
+---
+
 ## Red Flags
 
 **Never:**

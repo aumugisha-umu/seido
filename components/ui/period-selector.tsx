@@ -118,23 +118,26 @@ export function PeriodSelector({
     const selectedOption = PERIOD_OPTIONS.find(o => o.value === value)
 
     if (compact) {
-        // Compact button group for mobile
+        // Compact button group for mobile with label
         return (
-            <div className={cn("flex bg-muted/50 rounded-lg p-1 gap-1", className)}>
-                {PERIOD_OPTIONS.slice(0, 4).map(option => (
-                    <Button
-                        key={option.value}
-                        variant={value === option.value ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => handleChange(option.value)}
-                        className={cn(
-                            "h-7 px-2 text-xs rounded-md",
-                            value === option.value && "shadow-sm"
-                        )}
-                    >
-                        {option.shortLabel}
-                    </Button>
-                ))}
+            <div className={cn("flex items-center gap-2", className)}>
+                <span className="text-xs text-muted-foreground font-medium whitespace-nowrap">Période :</span>
+                <div className="flex bg-muted/50 rounded-lg p-1 gap-1">
+                    {PERIOD_OPTIONS.slice(0, 4).map(option => (
+                        <Button
+                            key={option.value}
+                            variant={value === option.value ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => handleChange(option.value)}
+                            className={cn(
+                                "h-7 px-2 text-xs rounded-md",
+                                value === option.value && "shadow-sm"
+                            )}
+                        >
+                            {option.shortLabel}
+                        </Button>
+                    ))}
+                </div>
             </div>
         )
     }

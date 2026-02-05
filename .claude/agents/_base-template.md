@@ -14,6 +14,9 @@
 | `.claude/memory-bank/techContext.md` | Stack, DB, RLS, commandes | Avant DB |
 | `.claude/memory-bank/productContext.md` | Frustrations personas | Avant UX |
 | `.claude/PROJECT_INDEX.json` | Carte structurelle | Navigation |
+| `AGENTS.md` (racine) | Learnings codebase (pitfalls, patterns) | **TOUJOURS** |
+| `tasks/prd.json` | User stories feature en cours | Si feature active |
+| `tasks/progress.txt` | Log learnings feature en cours | Pendant implementation |
 
 **Apres modifications significatives :**
 - Les hooks mettent a jour automatiquement `activeContext.md`
@@ -83,11 +86,15 @@ useRealtimeNotificationsV2({ onInsert: (n) => {} })
 
 | Skill | Quand l'utiliser |
 |-------|------------------|
+| `sp-ralph` | **Orchestrateur complet** : PRD → stories → implementation → tests |
+| `sp-prd` | Generation PRD standalone (sans implementation) |
 | `sp-brainstorming` | **Avant** tout travail creatif |
 | `sp-systematic-debugging` | **Avant** proposer un fix |
 | `sp-test-driven-development` | **Avant** coder |
 | `sp-verification-before-completion` | **Avant** claim done/commit |
 | `sp-writing-plans` | Tache complexe multi-step |
+| `sp-quality-gate` | Revue pre-commit 4 lenses |
+| `sp-compound` | Capitaliser learnings apres feature |
 | `sp-requesting-code-review` | Avant merge/PR |
 
 ### Red Flags Universels
@@ -107,13 +114,45 @@ useRealtimeNotificationsV2({ onInsert: (n) => {} })
 
 ---
 
-## Intervention Status Flow
+## Compound Engineering + Ralph Awareness
+
+### Lecture Obligatoire AVANT Implementation
+
+1. `AGENTS.md` (racine) — Pitfalls et patterns specifiques SEIDO
+2. `tasks/progress.txt` — Learnings feature en cours (si existe)
+3. `tasks/prd.json` — User stories restantes (si applicable)
+
+### Participation Quality Gate
+
+Quand invoque par `sp-quality-gate`, appliquer votre expertise :
+- Citer file:line (specifique, pas vague)
+- Classifier : BLOCKER | WARNING | INFO
+- Expliquer le "pourquoi" (enseigner, pas policer)
+
+### Contribution Compound
+
+Quand invoque par `sp-compound` :
+- Proposer learnings dans votre domaine d'expertise
+- Pattern reusable ? → AGENTS.md
+- Pattern architectural ? → systemPatterns.md
+- Think "next agent" — ecrire pour quelqu'un qui n'etait pas la
+
+### Story Sizing (Ralph Rule)
+
+> "2-3 phrases max par story. Schema → Backend → UI → Dashboard."
+
+---
+
+## Intervention Status Flow (9 statuts)
 
 ```
-demande → approuvee/rejetee → demande_de_devis → planification →
-planifiee → en_cours → cloturee_par_prestataire →
-cloturee_par_locataire → cloturee_par_gestionnaire | annulee
+demande → approuvee/rejetee → planification → planifiee →
+cloturee_par_prestataire → cloturee_par_locataire →
+cloturee_par_gestionnaire | annulee
 ```
+
+> Note: `demande_de_devis` et `en_cours` ont ete SUPPRIMES.
+> Les devis sont geres via `requires_quote` + `intervention_quotes`.
 
 ## Conventions
 
@@ -137,4 +176,4 @@ cloturee_par_locataire → cloturee_par_gestionnaire | annulee
 
 ---
 
-*Derniere mise a jour: 2026-01-23*
+*Derniere mise a jour: 2026-02-04*

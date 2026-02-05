@@ -11,7 +11,9 @@
 
 import {
   createServerActionConversationService,
-  createServerActionSupabaseClient
+  createServerActionSupabaseClient,
+  createServiceRoleSupabaseClient,
+  ConversationRepository
 } from '@/lib/services'
 import { getServerActionAuthContextOrNull } from '@/lib/server-context'
 import { revalidatePath } from 'next/cache'
@@ -19,7 +21,7 @@ import { z } from 'zod'
 import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
 import { sendConversationNotifications } from './conversation-notification-actions'
-import { getThreadWelcomeMessage } from '@/lib/utils/thread-welcome-messages'
+import { getThreadWelcomeMessage, sendThreadWelcomeMessage as sendThreadWelcomeMessageWithClient } from '@/lib/utils/thread-welcome-messages'
 
 // Type aliases
 type ConversationThread = Database['public']['Tables']['conversation_threads']['Row']
@@ -780,6 +782,221 @@ export async function addParticipantAction(
     return { success: true, data: undefined }
   } catch (error) {
     logger.error('❌ [SERVER-ACTION] Error adding participant:', error)
+    return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' }
+  }
+}
+
+/**
+ * Ensure all required conversation threads exist for an intervention's assigned participants.
+ * Creates missing individual threads (provider_to_managers, tenant_to_managers) and group threads.
+ * Idempotent: safe to call multiple times — only creates threads that don't already exist.
+ *
+ * Called from updateInterventionAction after assignment inserts, so that newly added
+ * providers/tenants get their conversation threads without relying on DB triggers.
+ */
+export async function ensureInterventionConversationThreads(
+  interventionId: string
+): Promise<ActionResult<{ created: number }>> {
+  try {
+    // Auth check - gestionnaire/admin only
+    const authContext = await getServerActionAuthContextOrNull()
+    const currentUser = authContext?.profile
+    if (!currentUser) {
+      return { success: false, error: 'Authentication required' }
+    }
+    if (!['gestionnaire', 'admin'].includes(currentUser.role)) {
+      return { success: false, error: 'Only managers/admins can ensure conversation threads' }
+    }
+
+    // Validate intervention ID
+    if (!z.string().uuid().safeParse(interventionId).success) {
+      return { success: false, error: 'Invalid intervention ID' }
+    }
+
+    // Use service role client to bypass RLS (same pattern as create-manager-intervention)
+    const serviceClient = createServiceRoleSupabaseClient()
+    const conversationRepo = new ConversationRepository(serviceClient)
+
+    // Fetch intervention details
+    const { data: intervention, error: interventionError } = await serviceClient
+      .from('interventions')
+      .select('id, team_id, assignment_mode')
+      .eq('id', interventionId)
+      .single()
+
+    if (interventionError || !intervention) {
+      return { success: false, error: 'Intervention not found' }
+    }
+
+    // Fetch all assignments with user details (only invited users with auth accounts)
+    const { data: assignments } = await serviceClient
+      .from('intervention_assignments')
+      .select('user_id, role, user:users!intervention_assignments_user_id_fkey(id, name, auth_user_id, role)')
+      .eq('intervention_id', interventionId)
+
+    if (!assignments || assignments.length === 0) {
+      return { success: true, data: { created: 0 } }
+    }
+
+    // Fetch all existing threads for this intervention
+    const { data: existingThreads } = await serviceClient
+      .from('conversation_threads')
+      .select('id, thread_type, participant_id')
+      .eq('intervention_id', interventionId)
+
+    const threads = existingThreads || []
+
+    // Helper to check if a thread already exists
+    const threadExists = (type: string, participantId?: string) => {
+      return threads.some(t =>
+        t.thread_type === type &&
+        (participantId ? t.participant_id === participantId : !t.participant_id || t.participant_id === null)
+      )
+    }
+
+    let created = 0
+    let groupThreadId: string | null = null
+
+    // 1. Ensure GROUP thread exists
+    const existingGroup = threads.find(t => t.thread_type === 'group')
+    if (existingGroup) {
+      groupThreadId = existingGroup.id
+    } else {
+      const result = await conversationRepo.createThread({
+        intervention_id: interventionId,
+        thread_type: 'group',
+        title: 'Discussion générale',
+        created_by: currentUser.id,
+        team_id: intervention.team_id
+      })
+      if (result.success && result.data?.id) {
+        await sendThreadWelcomeMessageWithClient(serviceClient, result.data.id, 'group', currentUser.id)
+        groupThreadId = result.data.id
+        created++
+        logger.info({ threadId: result.data.id }, '✅ [ENSURE-THREADS] Created group thread')
+      }
+    }
+
+    // Separate participants by role (only users with auth_user_id)
+    type AssignmentUser = { id: string; name: string; auth_user_id: string | null; role: string }
+    const providers: AssignmentUser[] = []
+    const tenants: AssignmentUser[] = []
+
+    for (const assignment of assignments) {
+      const user = assignment.user as unknown as AssignmentUser | null
+      if (!user || !user.auth_user_id) continue
+
+      if (assignment.role === 'prestataire') {
+        providers.push(user)
+      } else if (assignment.role === 'locataire') {
+        tenants.push(user)
+      }
+    }
+
+    // 2. Per PROVIDER: ensure individual thread + group participation
+    for (const provider of providers) {
+      if (!threadExists('provider_to_managers', provider.id)) {
+        const result = await conversationRepo.createThread({
+          intervention_id: interventionId,
+          thread_type: 'provider_to_managers',
+          title: `Conversation avec ${provider.name || 'le prestataire'}`,
+          created_by: currentUser.id,
+          team_id: intervention.team_id,
+          participant_id: provider.id
+        })
+        if (result.success && result.data?.id) {
+          await sendThreadWelcomeMessageWithClient(serviceClient, result.data.id, 'provider_to_managers', currentUser.id, provider.name || undefined)
+          created++
+          logger.info({ threadId: result.data.id, participantId: provider.id }, '✅ [ENSURE-THREADS] Created provider_to_managers thread')
+        }
+      }
+      // Ensure provider is participant of group thread
+      if (groupThreadId) {
+        await conversationRepo.addParticipant(groupThreadId, provider.id)
+      }
+    }
+
+    // 3. Per TENANT: ensure individual thread + group participation
+    for (const tenant of tenants) {
+      if (!threadExists('tenant_to_managers', tenant.id)) {
+        const result = await conversationRepo.createThread({
+          intervention_id: interventionId,
+          thread_type: 'tenant_to_managers',
+          title: `${tenant.name || 'Locataire'}`,
+          created_by: currentUser.id,
+          team_id: intervention.team_id,
+          participant_id: tenant.id
+        })
+        if (result.success && result.data?.id) {
+          await sendThreadWelcomeMessageWithClient(serviceClient, result.data.id, 'tenant_to_managers', currentUser.id, tenant.name || undefined)
+          created++
+          logger.info({ threadId: result.data.id, participantId: tenant.id }, '✅ [ENSURE-THREADS] Created tenant_to_managers thread')
+        }
+      }
+      // Ensure tenant is participant of group thread
+      if (groupThreadId) {
+        await conversationRepo.addParticipant(groupThreadId, tenant.id)
+      }
+    }
+
+    // 4. TENANTS GROUP thread (if >1 tenant)
+    if (tenants.length > 1) {
+      const existingTenantsGroup = threads.find(t => t.thread_type === 'tenants_group')
+      if (!existingTenantsGroup) {
+        const result = await conversationRepo.createThread({
+          intervention_id: interventionId,
+          thread_type: 'tenants_group',
+          title: 'Groupe locataires',
+          created_by: currentUser.id,
+          team_id: intervention.team_id
+        })
+        if (result.success && result.data?.id) {
+          await sendThreadWelcomeMessageWithClient(serviceClient, result.data.id, 'tenants_group', currentUser.id)
+          for (const tenant of tenants) {
+            await conversationRepo.addParticipant(result.data.id, tenant.id)
+          }
+          created++
+          logger.info({ threadId: result.data.id }, '✅ [ENSURE-THREADS] Created tenants_group thread')
+        }
+      } else {
+        // Thread exists — ensure ALL current tenants are participants (addParticipant is idempotent)
+        for (const tenant of tenants) {
+          await conversationRepo.addParticipant(existingTenantsGroup.id, tenant.id)
+        }
+      }
+    }
+
+    // 5. PROVIDERS GROUP thread (if grouped mode AND >1 provider)
+    if (intervention.assignment_mode === 'grouped' && providers.length > 1) {
+      const existingProvidersGroup = threads.find(t => t.thread_type === 'providers_group')
+      if (!existingProvidersGroup) {
+        const result = await conversationRepo.createThread({
+          intervention_id: interventionId,
+          thread_type: 'providers_group',
+          title: 'Groupe prestataires',
+          created_by: currentUser.id,
+          team_id: intervention.team_id
+        })
+        if (result.success && result.data?.id) {
+          await sendThreadWelcomeMessageWithClient(serviceClient, result.data.id, 'providers_group', currentUser.id)
+          for (const provider of providers) {
+            await conversationRepo.addParticipant(result.data.id, provider.id)
+          }
+          created++
+          logger.info({ threadId: result.data.id }, '✅ [ENSURE-THREADS] Created providers_group thread')
+        }
+      } else {
+        // Thread exists — ensure ALL current providers are participants (addParticipant is idempotent)
+        for (const provider of providers) {
+          await conversationRepo.addParticipant(existingProvidersGroup.id, provider.id)
+        }
+      }
+    }
+
+    logger.info({ interventionId, created }, '✅ [ENSURE-THREADS] Conversation threads ensured')
+    return { success: true, data: { created } }
+  } catch (error) {
+    logger.error({ error, interventionId }, '❌ [ENSURE-THREADS] Error ensuring conversation threads')
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error occurred' }
   }
 }

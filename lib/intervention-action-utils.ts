@@ -118,14 +118,7 @@ const getGestionnaireActions = (
           icon: Calendar,
           variant: 'primary',
           actionType: 'start_planning',
-          href: `${baseUrl}?tab=planning`
-        },
-        {
-          label: 'Demander estimation',
-          icon: FileText,
-          variant: 'secondary',
-          actionType: 'request_quotes',
-          href: `${baseUrl}?tab=planning`
+          href: `${baseUrl}?action=start_planning`
         }
       ]
 

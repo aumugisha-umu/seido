@@ -437,7 +437,7 @@ export const getStatusActionMessage = (status: string, userContext?: 'gestionnai
     case "rejetee":
       return "Intervention rejetée"
     case "approuvee":
-      return "En attente d'assignation de prestataire"
+      return "En attente de planification"
 
     // Phase 2: Planification & Exécution
     // Note: demande_de_devis removed - quote status shown via QuoteStatusBadge

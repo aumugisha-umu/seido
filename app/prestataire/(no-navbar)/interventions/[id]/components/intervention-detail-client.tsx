@@ -53,9 +53,8 @@ import { Building2, MapPin, User as UserIcon, Calendar } from 'lucide-react'
 
 // Modals
 import { QuoteSubmissionModal } from '@/components/intervention/modals/quote-submission-modal'
-import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
 import { ModifyChoiceModal } from '@/components/intervention/modals/modify-choice-modal'
-import { TimeSlotResponseModal } from '@/components/intervention/modals/time-slot-response-modal'
+import { MultiSlotResponseModal } from '@/components/intervention/modals/multi-slot-response-modal'
 
 // Multi-provider components
 import { LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
@@ -185,10 +184,6 @@ export function PrestataireInterventionDetailClient({
   const [rejectionReason, setRejectionReason] = useState('')
   const [isRejecting, setIsRejecting] = useState(false)
 
-  // Reject slot modal state
-  const [rejectSlotModalOpen, setRejectSlotModalOpen] = useState(false)
-  const [slotToReject, setSlotToReject] = useState<TimeSlot | null>(null)
-
   // Modify choice modal state
   const [modifyChoiceModalOpen, setModifyChoiceModalOpen] = useState(false)
   const [slotToModify, setSlotToModify] = useState<TimeSlot | null>(null)
@@ -262,12 +257,9 @@ export function PrestataireInterventionDetailClient({
       },
       // Prestataire rejects a time slot
       reject_slot: async ({ slotId }) => {
-        // For rejection, open the modal since a reason is required
-        const slot = timeSlots.find(s => s.id === slotId)
-        if (slot) {
-          setSlotToReject(slot)
-          setRejectSlotModalOpen(true)
-        }
+        // Open MultiSlotResponseModal (handles both accept and reject)
+        setResponseModalSlotId(slotId)
+        setIsResponseModalOpen(true)
         throw new Error('Veuillez indiquer la raison du refus')
       },
       // Prestataire submits a quick estimate
@@ -1062,36 +1054,37 @@ export function PrestataireInterventionDetailClient({
         </DialogContent>
       </Dialog>
 
-      {/* Reject Slot Modal */}
-      <RejectSlotModal
-        isOpen={rejectSlotModalOpen}
-        onClose={() => setRejectSlotModalOpen(false)}
-        slot={slotToReject}
-        interventionId={intervention.id}
-        onSuccess={() => {
-          setRejectSlotModalOpen(false)
-          setSlotToReject(null)
-          handleRefresh()
-        }}
-      />
-
-      {/* Time Slot Response Modal (for accept/reject with confirmation) */}
+      {/* Multi Slot Response Modal (handles both accept and reject for multiple slots) */}
       {selectedSlotForResponse && (
-        <TimeSlotResponseModal
+        <MultiSlotResponseModal
           isOpen={isResponseModalOpen}
           onClose={() => {
             setIsResponseModalOpen(false)
             setResponseModalSlotId(null)
           }}
-          slot={{
+          slots={[{
             id: selectedSlotForResponse.id,
             slot_date: selectedSlotForResponse.slot_date || '',
             start_time: selectedSlotForResponse.start_time || '',
             end_time: selectedSlotForResponse.end_time || '',
-            notes: (selectedSlotForResponse as any).notes
-          }}
+            notes: (selectedSlotForResponse as any).notes,
+            proposer_name: selectedSlotForResponse.proposed_by_user?.first_name
+              ? `${selectedSlotForResponse.proposed_by_user.first_name} ${selectedSlotForResponse.proposed_by_user.last_name || ''}`
+              : selectedSlotForResponse.proposed_by_user?.company_name,
+            proposer_role: selectedSlotForResponse.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
+            responses: (selectedSlotForResponse as any).responses?.map((r: any) => ({
+              user_id: r.user_id,
+              response: r.response as 'accepted' | 'rejected' | 'pending',
+              user: {
+                name: r.user?.first_name
+                  ? `${r.user.first_name} ${r.user.last_name || ''}`
+                  : r.user?.company_name || 'Utilisateur',
+                role: r.user?.role
+              }
+            })) || []
+          }]}
           interventionId={intervention.id}
-          currentResponse={currentUserResponseForSlot}
+          existingResponses={currentUserResponseForSlot ? { [selectedSlotForResponse.id]: { response: currentUserResponseForSlot } } : undefined}
           onSuccess={() => {
             setIsResponseModalOpen(false)
             setResponseModalSlotId(null)

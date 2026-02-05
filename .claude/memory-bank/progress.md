@@ -59,6 +59,65 @@
 
 ## Sprint Actuel (Jan-Feb 2026)
 
+### 2026-02-04 - Fix Critique ensureInterventionConversationThreads
+
+**Session: Code Review Bugfix — Conversation Threads**
+
+Fix de 3 problèmes identifiés par code review dans `ensureInterventionConversationThreads`:
+
+| Fix | Sévérité | Description |
+|-----|----------|-------------|
+| **Fix 1** | CRITIQUE | `.is('deleted_at', null)` sur `intervention_assignments` → colonne inexistante, fonction entièrement cassée (zéro threads créés) |
+| **Fix 2** | Efficacité | Capture directe du `groupThreadId` créé au lieu de re-query DB (élimine 1 query redondante) |
+| **Fix 3** | Fonctionnel | Ajout `else` branches pour `tenants_group` / `providers_group` existants → nouveaux users ajoutés aux group threads existants |
+
+**Fichier modifié:** `app/actions/conversation-actions.ts`
+
+**Leçons documentées:**
+- Supabase PostgREST échoue silencieusement si on filtre sur colonne inexistante
+- `addParticipant` est idempotent (ON CONFLICT DO NOTHING) → safe pour "ensure exists"
+- Toujours vérifier `database.types.ts` avant de filtrer sur une colonne
+
+**Lint:** ✅ Aucun nouveau warning
+
+---
+
+### 2026-02-03 - Simplification Statut "Approuvée" + ProgrammingModal Réutilisable
+
+**Session: Workflow Simplification + UI Unification**
+
+Simplification de l'UX pour les interventions avec statut "approuvée" et intégration de vrais composants ContactSelector dans la ProgrammingModal.
+
+**Modifications:**
+
+| Fichier | Changement |
+|---------|------------|
+| `lib/intervention-action-utils.ts` | Un seul bouton "Planifier" (suppression "Demander estimation") |
+| `lib/intervention-utils.ts` | Message "En attente de planification" |
+| `programming-modal-FINAL.tsx` | ContactSelector réels au lieu de mockups inline |
+| `intervention-detail-client.tsx` | Réactivation ProgrammingModal + props managers/tenants |
+| `interventions-page-client.tsx` | Props minimales pour ProgrammingModal |
+| `intervention-card.tsx` | Callback `onOpenProgrammingModal` |
+| `pending-actions-section.tsx` | Propagation callback vers InterventionCard |
+
+**Pattern documenté:** ContactSelector avec `hideUI={true}` + `ref.openContactModal()` pour intégration dans modales.
+
+**Build:** ✅ Réussi sans erreurs
+
+---
+
+### 2026-02-03 (earlier) - Fix Infinite Refresh Loop
+
+**Problème:** Boucle infinie de refresh sur la page de détail d'intervention.
+
+**Root Cause:** ChatInterface appelait `markThreadAsReadAction()` à chaque render, ce qui déclenchait `revalidatePath()` → re-render → nouvel appel → boucle.
+
+**Fix:**
+- `useRef<Set<string>>` pour tracker les threads déjà marqués lus (déduplication)
+- `useInterventionApproval`: Un seul refresh au lieu de callback + setTimeout
+
+---
+
 ### 2026-02-02 - Push Subscription Security Fix + PWA Notifications
 
 **Session 1: Quote Notifications Multi-Canal**
@@ -841,7 +900,10 @@ Nouvelle architecture adresses avec support Google Maps:
 | **2026-02-02** | **PWA Notification Prompt** | **Maximiser activation notifications PWA** | **Modale rappel + guide paramètres par plateforme** |
 | **2026-02-02** | **Quote Notifications Multi-Canal** | **Gaps notifications devis** | **4 nouvelles actions, sendRoleAwarePushNotifications()** |
 | **2026-02-02** | **Push Subscription Security** | **RLS silent block + client userId** | **userProfile.id + null data check** |
+| **2026-02-03** | **Simplification "Approuvée"** | **UX plus claire, moins de boutons** | **Un seul bouton "Planifier", message simplifié** |
+| **2026-02-03** | **ContactSelector dans Modal** | **Mockups → vrais composants** | **Pattern `hideUI={true}` + `ref.openContactModal()`** |
+| **2026-02-04** | **Fix ensureInterventionConversationThreads** | **Bug deleted_at fantôme + gap participants group** | **Fonction débloquée, participants ajoutés aux group threads existants** |
 
 ---
-*Derniere mise a jour: 2026-02-02 23:30*
-*Session: Push subscription security fix + PWA notification prompt + Quote notifications*
+*Derniere mise a jour: 2026-02-04 18:10*
+*Session: Fix critique ensureInterventionConversationThreads (3 bugs)*

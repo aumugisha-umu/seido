@@ -49,7 +49,7 @@ import { InterventionActionPanelHeader } from '@/components/intervention/interve
 // ProgrammingModal removed - locataires don't need to program interventions
 // import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
 import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
-import { RejectSlotModal } from '@/components/intervention/modals/reject-slot-modal'
+import { MultiSlotResponseModal } from '@/components/intervention/modals/multi-slot-response-modal'
 
 // Hooks
 import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
@@ -151,7 +151,28 @@ export function LocataireInterventionDetailClient({
         // For rejection, we open the modal since a reason is usually required
         const slot = timeSlots.find(s => s.id === slotId)
         if (slot) {
-          planning.openRejectSlotModal(slot as any)
+          const formattedSlot = {
+            id: slot.id,
+            slot_date: slot.slot_date || '',
+            start_time: slot.start_time || '',
+            end_time: slot.end_time || '',
+            notes: (slot as any).notes || null,
+            proposer_name: slot.proposed_by_user?.first_name
+              ? `${slot.proposed_by_user.first_name} ${slot.proposed_by_user.last_name || ''}`
+              : slot.proposed_by_user?.company_name,
+            proposer_role: slot.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
+            responses: (slot as any).responses?.map((r: any) => ({
+              user_id: r.user_id,
+              response: r.response as 'accepted' | 'rejected' | 'pending',
+              user: {
+                name: r.user?.first_name
+                  ? `${r.user.first_name} ${r.user.last_name || ''}`
+                  : r.user?.company_name || 'Utilisateur',
+                role: r.user?.role
+              }
+            })) || []
+          }
+          planning.openSlotResponseModal([formattedSlot], intervention.id)
         }
         throw new Error('Veuillez indiquer la raison du refus')
       },
@@ -550,11 +571,11 @@ export function LocataireInterventionDetailClient({
           onSuccess={handleActionComplete}
         />
 
-        {/* Reject Slot Modal */}
-        <RejectSlotModal
-          isOpen={planning.rejectSlotModal.isOpen}
-          onClose={planning.closeRejectSlotModal}
-          slot={planning.rejectSlotModal.slot}
+        {/* Multi Slot Response Modal (handles both accept/reject for multiple slots) */}
+        <MultiSlotResponseModal
+          isOpen={planning.slotResponseModal.isOpen}
+          onClose={planning.closeSlotResponseModal}
+          slots={planning.slotResponseModal.slots}
           interventionId={intervention.id}
           onSuccess={handleActionComplete}
         />

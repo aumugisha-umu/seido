@@ -90,6 +90,17 @@ function getInterventionUrlForRole(role: string | null, interventionId: string):
 }
 
 /**
+ * Get a role-aware URL for a related entity (document context)
+ * Maps entity types to the correct role-prefixed route
+ */
+function getDocumentEntityUrl(role: string | null, entityType: string, entityId: string): string {
+  const prefix = role === 'locataire' ? 'locataire' : role === 'prestataire' ? 'prestataire' : 'gestionnaire'
+  if (entityType === 'intervention') return `/${prefix}/interventions/${entityId}`
+  // Other entity types default to gestionnaire
+  return `/gestionnaire/${entityType}s/${entityId}`
+}
+
+/**
  * Send push notifications with role-aware URLs
  * Groups notifications by role and sends appropriate URL for each group
  *
@@ -1029,13 +1040,86 @@ export async function notifyDocumentUploaded(params: {
     // ═══════════════════════════════════════════════════════════════════════════
     // PUSH NOTIFICATIONS: Send to assigned user (personal notification)
     // ═══════════════════════════════════════════════════════════════════════════
-    if (notifications.length > 0) {
+    if (notifications.length > 0 && params.assignedTo) {
+      // Fetch the assigned user's role for correct URL routing
+      const { data: assignedUserForPush } = await repository.supabase
+        .from('users')
+        .select('role')
+        .eq('id', params.assignedTo)
+        .single()
+
+      const pushUrl = getDocumentEntityUrl(
+        assignedUserForPush?.role || null,
+        params.relatedEntityType,
+        params.relatedEntityId
+      )
+
       sendPushToNotificationRecipients(notifications, {
         title: 'Nouveau document',
         message: `Document "${params.documentName}" disponible`,
-        url: `/${params.relatedEntityType}/${params.relatedEntityId}`,
+        url: pushUrl,
         type: 'document'
       }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyDocumentUploaded'))
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL NOTIFICATIONS: Send to assigned user only (not managers — too noisy)
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (params.assignedTo && params.assignedTo !== params.uploadedBy) {
+      try {
+        const emailService = new EmailService()
+        if (emailService.isConfigured()) {
+          const serviceRoleClient = createServiceRoleSupabaseClient()
+
+          // Fetch assigned user email + role + uploader name
+          const [assignedUserResult, uploaderResult] = await Promise.all([
+            serviceRoleClient
+              .from('users')
+              .select('email, first_name, last_name, role')
+              .eq('id', params.assignedTo)
+              .single(),
+            serviceRoleClient
+              .from('users')
+              .select('first_name, last_name')
+              .eq('id', params.uploadedBy)
+              .single()
+          ])
+
+          const assignedUser = assignedUserResult.data
+          const uploader = uploaderResult.data
+
+          if (assignedUser?.email) {
+            const { DocumentUploadedEmail } = await import('@/emails/templates/documents/document-uploaded')
+
+            const uploaderName = uploader
+              ? `${uploader.first_name || ''} ${uploader.last_name || ''}`.trim() || 'Un utilisateur'
+              : 'Un utilisateur'
+
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido.app'
+            const entityUrl = `${baseUrl}${getDocumentEntityUrl(assignedUser.role, params.relatedEntityType, params.relatedEntityId)}`
+
+            const result = await emailService.send({
+              to: assignedUser.email,
+              subject: `📄 Nouveau document - ${params.documentName}`,
+              react: DocumentUploadedEmail({
+                firstName: assignedUser.first_name || 'Utilisateur',
+                documentName: params.documentName,
+                uploadedByName: uploaderName,
+                entityUrl,
+              }),
+              tags: [{ name: 'type', value: 'document_uploaded' }]
+            })
+
+            logger.info({
+              documentId: params.documentId,
+              emailSent: result.success,
+              to: assignedUser.email
+            }, '📧 [NOTIFICATION-ACTION] Document upload email sent')
+          }
+        }
+      } catch (emailError) {
+        logger.warn({ emailError, documentId: params.documentId }, '⚠️ [NOTIFICATION-ACTION] Could not send document upload email')
+      }
     }
 
     return { success: true, data: notifications }
@@ -1100,10 +1184,10 @@ export async function notifyContractExpiring({
 
     const notifications = []
 
-    // Get team managers
+    // Get team managers (with email info for email notifications)
     const { data: teamManagers } = await repository.supabase
       .from('team_members')
-      .select('user_id')
+      .select('user_id, users(email, first_name, last_name)')
       .eq('team_id', team.id)
       .eq('role', 'gestionnaire')
 
@@ -1149,6 +1233,51 @@ export async function notifyContractExpiring({
         url: `/gestionnaire/contrats/${contractId}`,
         type: 'deadline'
       }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyContractExpiring'))
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL NOTIFICATIONS: Send to all gestionnaires
+    // ═══════════════════════════════════════════════════════════════════════════
+    try {
+      const emailService = new EmailService()
+      if (emailService.isConfigured() && teamManagers && teamManagers.length > 0) {
+        const { ContractExpiringEmail } = await import('@/emails/templates/contracts/contract-expiring')
+
+        const lotReference = (contract.lots as any)?.reference || 'N/A'
+        const endDateFormatted = contract.end_date
+          ? new Date(contract.end_date).toLocaleDateString('fr-FR')
+          : 'N/A'
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido.app'
+        const contractUrl = `${baseUrl}/gestionnaire/contrats/${contractId}`
+        const urgencyIcon = daysUntilExpiry <= 7 ? '🔴' : '🟠'
+
+        for (const manager of teamManagers) {
+          const managerUser = manager.users as any
+          if (!managerUser?.email) continue
+
+          const result = await emailService.send({
+            to: managerUser.email,
+            subject: `${urgencyIcon} Contrat expire dans ${daysUntilExpiry}j - ${contract.title}`,
+            react: ContractExpiringEmail({
+              firstName: managerUser.first_name || 'Gestionnaire',
+              contractTitle: contract.title || 'Contrat',
+              lotReference,
+              daysUntilExpiry,
+              endDate: endDateFormatted,
+              contractUrl,
+            }),
+            tags: [{ name: 'type', value: 'contract_expiring' }]
+          })
+
+          logger.info({
+            contractId,
+            emailSent: result.success,
+            to: managerUser.email
+          }, '📧 [NOTIFICATION-ACTION] Contract expiring email sent')
+        }
+      }
+    } catch (emailError) {
+      logger.warn({ emailError, contractId }, '⚠️ [NOTIFICATION-ACTION] Could not send contract expiring emails')
     }
 
     return { success: true, data: notifications }
@@ -1353,10 +1482,10 @@ export async function createContractNotification(contractId: string) {
       if (result.success && result.data) notifications.push(result.data)
     }
 
-    // Notify tenants linked to this contract
+    // Notify tenants linked to this contract (with email info for email notifications)
     const { data: contractContacts } = await repository.supabase
       .from('contract_contacts')
-      .select('user_id, role')
+      .select('user_id, role, users(email, first_name, last_name)')
       .eq('contract_id', contractId)
       .eq('role', 'locataire')
 
@@ -1396,6 +1525,59 @@ export async function createContractNotification(contractId: string) {
         url: `/locataire/contrats/${contractId}`,
         type: 'contract'
       }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in createContractNotification'))
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL NOTIFICATIONS: Send to tenant contacts (personal)
+    // ═══════════════════════════════════════════════════════════════════════════
+    try {
+      const emailService = new EmailService()
+      if (emailService.isConfigured() && contractContacts && contractContacts.length > 0) {
+        const { ContractCreatedEmail } = await import('@/emails/templates/contracts/contract-created')
+
+        const lot = contract.lots as any
+        const lotReference = lot?.reference || 'N/A'
+        const addressRecord = lot?.address_record
+        const propertyAddress = addressRecord
+          ? `${addressRecord.street || ''}, ${addressRecord.postal_code || ''} ${addressRecord.city || ''}`.trim().replace(/^,\s*/, '')
+          : 'Adresse non renseignée'
+        const startDateFormatted = contract.start_date
+          ? new Date(contract.start_date).toLocaleDateString('fr-FR')
+          : 'Non définie'
+        const endDateFormatted = contract.end_date
+          ? new Date(contract.end_date).toLocaleDateString('fr-FR')
+          : undefined
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido.app'
+        const contractUrl = `${baseUrl}/locataire/contrats/${contractId}`
+
+        for (const contact of contractContacts) {
+          const contactUser = contact.users as any
+          if (!contactUser?.email) continue
+
+          const result = await emailService.send({
+            to: contactUser.email,
+            subject: `📜 Nouveau contrat - ${contract.title}`,
+            react: ContractCreatedEmail({
+              firstName: contactUser.first_name || 'Locataire',
+              contractTitle: contract.title || 'Contrat',
+              lotReference,
+              propertyAddress,
+              startDate: startDateFormatted,
+              endDate: endDateFormatted,
+              contractUrl,
+            }),
+            tags: [{ name: 'type', value: 'contract_created' }]
+          })
+
+          logger.info({
+            contractId,
+            emailSent: result.success,
+            to: contactUser.email
+          }, '📧 [NOTIFICATION-ACTION] Contract created email sent')
+        }
+      }
+    } catch (emailError) {
+      logger.warn({ emailError, contractId }, '⚠️ [NOTIFICATION-ACTION] Could not send contract created emails')
     }
 
     return { success: true, data: notifications }

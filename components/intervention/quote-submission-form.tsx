@@ -33,7 +33,7 @@ import {
 } from "@/lib/intervention-utils"
 import { FileUploader } from "@/components/ui/file-uploader"
 import { TimeSlotCard } from "@/components/interventions/shared/atoms/time-slot-card"
-import { RejectSlotModal } from "./modals/reject-slot-modal"
+import { MultiSlotResponseModal } from "./modals/multi-slot-response-modal"
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import {
@@ -1152,21 +1152,43 @@ export function QuoteSubmissionForm({
         )}
       </form>
 
-      {/* Modal de rejet de créneau */}
-      <RejectSlotModal
-        isOpen={rejectModalOpen}
-        onClose={() => {
-          setRejectModalOpen(false)
-          setSlotToReject(null)
-        }}
-        slot={slotToReject}
-        interventionId={intervention.id}
-        onSuccess={() => {
-          setRejectModalOpen(false)
-          setSlotToReject(null)
-          router.refresh()
-        }}
-      />
+      {/* Modal de réponse aux créneaux (accept/reject) */}
+      {slotToReject && (
+        <MultiSlotResponseModal
+          isOpen={rejectModalOpen}
+          onClose={() => {
+            setRejectModalOpen(false)
+            setSlotToReject(null)
+          }}
+          slots={[{
+            id: slotToReject.id,
+            slot_date: slotToReject.slot_date || '',
+            start_time: slotToReject.start_time || '',
+            end_time: slotToReject.end_time || '',
+            notes: (slotToReject as any).notes || null,
+            proposer_name: slotToReject.proposed_by_user?.first_name
+              ? `${slotToReject.proposed_by_user.first_name} ${slotToReject.proposed_by_user.last_name || ''}`
+              : slotToReject.proposed_by_user?.company_name,
+            proposer_role: slotToReject.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
+            responses: slotToReject.responses?.map((r: any) => ({
+              user_id: r.user_id,
+              response: r.response as 'accepted' | 'rejected' | 'pending',
+              user: {
+                name: r.user?.first_name
+                  ? `${r.user.first_name} ${r.user.last_name || ''}`
+                  : r.user?.company_name || 'Utilisateur',
+                role: r.user?.role
+              }
+            })) || []
+          }]}
+          interventionId={intervention.id}
+          onSuccess={() => {
+            setRejectModalOpen(false)
+            setSlotToReject(null)
+            router.refresh()
+          }}
+        />
+      )}
     </div>
   )
 }

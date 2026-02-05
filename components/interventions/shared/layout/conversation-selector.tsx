@@ -186,11 +186,8 @@ export const ConversationSelector = ({
             // Short label: first name only or truncate
             const firstName = participantName.split(' ')[0]
             shortLabel = firstName.length > 10 ? firstName.substring(0, 10) + '…' : firstName
-          } else {
-            // Fallback to full title if pattern doesn't match
-            label = thread.title
-            shortLabel = thread.title.length > 12 ? thread.title.substring(0, 12) + '…' : thread.title
           }
+          // If regex doesn't match (legacy title format), keep config.label default ("Locataire" / "Prestataire")
         }
 
         return (

@@ -6,7 +6,7 @@ import {
   type InterventionAction,
   type PlanningData
 } from "@/lib/intervention-actions-service"
-import { programInterventionAction } from "@/app/actions/intervention-actions"
+import { programInterventionAction, updateInterventionAction } from "@/app/actions/intervention-actions"
 
 interface PlanningModal {
   isOpen: boolean
@@ -37,17 +37,23 @@ interface CancelSlotModal {
   } | null
 }
 
-interface RejectSlotModal {
+interface SlotResponseModal {
   isOpen: boolean
-  slotId: string | null
   interventionId: string | null
-  slot: {
+  slots: Array<{
     id: string
     slot_date: string
     start_time: string
     end_time: string
     notes?: string | null
-  } | null
+    proposer_name?: string
+    proposer_role?: 'gestionnaire' | 'prestataire' | 'locataire'
+    responses?: Array<{
+      user_id: string
+      response: 'accepted' | 'rejected' | 'pending'
+      user?: { name: string; role?: string }
+    }>
+  }>
 }
 
 interface TimeSlot {
@@ -59,7 +65,9 @@ interface TimeSlot {
 export const useInterventionPlanning = (
   requireQuote?: boolean,
   selectedProviders?: string[],
-  instructions?: string
+  instructions?: string,
+  selectedManagers?: string[],
+  selectedTenants?: string[],
 ) => {
   // État des modals
   const [planningModal, setPlanningModal] = useState<PlanningModal>({
@@ -85,11 +93,10 @@ export const useInterventionPlanning = (
     slot: null,
   })
 
-  const [rejectSlotModal, setRejectSlotModal] = useState<RejectSlotModal>({
+  const [slotResponseModal, setSlotResponseModal] = useState<SlotResponseModal>({
     isOpen: false,
-    slotId: null,
     interventionId: null,
-    slot: null,
+    slots: [],
   })
 
   // État des formulaires de planification
@@ -189,6 +196,27 @@ export const useInterventionPlanning = (
 
       if (!result.success) {
         throw new Error(result.error || 'Erreur lors de la planification')
+      }
+
+      // Sync participant assignments to the database
+      if (selectedManagers || selectedProviders || selectedTenants) {
+        logger.info("👥 Syncing participant assignments", {
+          managers: selectedManagers?.length,
+          providers: selectedProviders?.length,
+          tenants: selectedTenants?.length,
+        })
+        const assignmentResult = await updateInterventionAction(
+          programmingModal.intervention.id,
+          {
+            assignedManagerIds: selectedManagers,
+            assignedProviderIds: selectedProviders,
+            assignedTenantIds: selectedTenants,
+          }
+        )
+        if (!assignmentResult.success) {
+          logger.error("Failed to sync assignments:", assignmentResult.error)
+          toast.error('Les participants n\'ont pas pu être mis à jour')
+        }
       }
 
       // Fermer la modale
@@ -323,22 +351,23 @@ export const useInterventionPlanning = (
     })
   }
 
-  const openRejectSlotModal = (slot: RejectSlotModal['slot'], interventionId: string) => {
-    if (!slot) return
-    setRejectSlotModal({
+  const openSlotResponseModal = (
+    slots: SlotResponseModal['slots'],
+    interventionId: string
+  ) => {
+    if (!slots || slots.length === 0) return
+    setSlotResponseModal({
       isOpen: true,
-      slotId: slot.id,
       interventionId,
-      slot,
+      slots,
     })
   }
 
-  const closeRejectSlotModal = () => {
-    setRejectSlotModal({
+  const closeSlotResponseModal = () => {
+    setSlotResponseModal({
       isOpen: false,
-      slotId: null,
       interventionId: null,
-      slot: null,
+      slots: [],
     })
   }
 
@@ -383,7 +412,7 @@ export const useInterventionPlanning = (
     programmingModal,
     planningSuccessModal,
     cancelSlotModal,
-    rejectSlotModal,
+    slotResponseModal,
 
     // États des formulaires
     planningOption,
@@ -420,8 +449,8 @@ export const useInterventionPlanning = (
     closePlanningSuccessModal,
     openCancelSlotModal,
     closeCancelSlotModal,
-    openRejectSlotModal,
-    closeRejectSlotModal,
+    openSlotResponseModal,
+    closeSlotResponseModal,
 
     // Validation
     isPlanningFormValid,

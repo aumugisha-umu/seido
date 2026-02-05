@@ -13,7 +13,7 @@ interface ApprovalModal {
   action: "approve" | "reject" | null
 }
 
-export const useInterventionApproval = () => {
+export const useInterventionApproval = (onSuccess?: () => void) => {
   const router = useRouter()
   const { toast } = useToast()
 
@@ -112,10 +112,16 @@ export const useInterventionApproval = () => {
       setRejectionReason("")
       setInternalComment("")
 
-      // Rafraîchir la page après un court délai
-      setTimeout(() => {
-        router.refresh()
-      }, 500)
+      // Appeler le callback de succès OU faire un refresh (pas les deux)
+      if (onSuccess) {
+        // Le callback gère le refresh lui-même
+        onSuccess()
+      } else {
+        // Fallback: rafraîchir la page seulement si pas de callback
+        setTimeout(() => {
+          router.refresh()
+        }, 500)
+      }
 
     } catch (err) {
       logger.error("Error processing intervention:", err)
@@ -130,7 +136,7 @@ export const useInterventionApproval = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [approvalModal.action, approvalModal.intervention, rejectionReason, router, toast])
+  }, [approvalModal.action, approvalModal.intervention, rejectionReason, internalComment, onSuccess, router, toast])
 
   // Fermer la modale
   const closeApprovalModal = useCallback(() => {

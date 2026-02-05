@@ -6,8 +6,7 @@ import { createQuoteRequestsForProviders } from './create-quote-requests'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { createManagerInterventionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 import { mapInterventionType, mapUrgencyLevel } from '@/lib/utils/intervention-mappers'
-import { createServerNotificationRepository, createServerUserRepository, createServerBuildingRepository, createServerLotRepository, createServerInterventionRepository, ConversationRepository } from '@/lib/services'
-import { NotificationService } from '@/lib/services/domain/notification.service'
+import { createServerUserRepository, createServerBuildingRepository, createServerLotRepository, createServerInterventionRepository, ConversationRepository } from '@/lib/services'
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import { NotificationRepository } from '@/lib/services/repositories/notification-repository'
 import { EmailNotificationService } from '@/lib/services/domain/email-notification.service'
@@ -1229,40 +1228,29 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ✅ NOTIFICATIONS: Send notifications to team members
-    // ✅ FIXED 2026-01: Use after() to ensure execution in serverless environments (Vercel)
-    // The after() API runs code after the response is sent while keeping the function alive
+    // ✅ NOTIFICATIONS: Send in-app + push notifications to assigned users
+    // Uses the same Server Action as create-intervention for consistency
     {
-      logger.info({ interventionId: intervention.id }, "📬 [API] Scheduling in-app notifications via after()")
-
-      // Capture variables for closure before after()
       const notificationInterventionId = intervention.id
-      const notificationTeamId = intervention.team_id
-      const notificationCreatedBy = user.id
-      const notificationReference = intervention.reference
 
       after(async () => {
         try {
-          // ✅ Use Service Role to bypass RLS for notification context fetching
-          const serviceRoleClient = createServiceRoleSupabaseClient()
-          const notificationRepository = new NotificationRepository(serviceRoleClient)
-          const notificationService = new NotificationService(notificationRepository)
+          const { createInterventionNotification } = await import('@/app/actions/notification-actions')
 
-          await notificationService.notifyInterventionCreated({
-            interventionId: notificationInterventionId,
-            teamId: notificationTeamId,
-            createdBy: notificationCreatedBy
-          })
+          logger.info({ interventionId: notificationInterventionId }, '📬 [API] Creating notifications via Server Action (in-app + push)')
 
-          logger.info({
-            reference: notificationReference,
-            interventionId: notificationInterventionId
-          }, "✅ [API] In-app notifications created successfully (via after())")
+          const notifResult = await createInterventionNotification(notificationInterventionId)
+
+          if (notifResult.success) {
+            logger.info({ interventionId: notificationInterventionId, count: notifResult.count }, '✅ [API] Notifications created successfully (in-app + push)')
+          } else {
+            logger.warn({ interventionId: notificationInterventionId, error: notifResult.error }, '⚠️ [API] Notification creation returned error')
+          }
         } catch (error) {
           logger.error({
             interventionId: notificationInterventionId,
             error: error instanceof Error ? error.message : String(error)
-          }, "⚠️ [API] Failed to create in-app notifications (via after())")
+          }, '⚠️ [API] Failed to create notifications')
         }
       })
     }

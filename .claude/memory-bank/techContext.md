@@ -59,7 +59,7 @@ npm run supabase:migrate # Creer nouvelle migration (avec timestamp correct)
 app/[role]/          # Routes par role (admin, gestionnaire, prestataire, locataire)
   - 87 pages total (reparties en 5+ route groups)
 components/          # 230+ composants reutilisables (22 directories)
-hooks/               # 64 custom hooks
+hooks/               # 61 custom hooks
 lib/services/        # Architecture Repository Pattern
   core/              # Clients Supabase (4 types), base repository, error handler
   repositories/      # 22 repositories (acces donnees)
@@ -69,7 +69,7 @@ app/actions/         # 17 server action files
 app/api/             # 113 API routes (10 domaines)
 tests/               # Infrastructure E2E
 docs/                # 226 fichiers markdown
-supabase/migrations/ # 145+ migrations SQL (mis a jour 2026-01-29)
+supabase/migrations/ # 155 migrations SQL (mis a jour 2026-02-03)
 ```
 
 ### Module email-notification (Refactore 2026-01)
@@ -102,7 +102,7 @@ lib/services/domain/
 
 ## Base de Donnees
 
-### Tables Principales (44 total - mis a jour 2026-01-29)
+### Tables Principales (44 total - mis a jour 2026-02-03)
 
 | Phase | Tables |
 |-------|--------|
@@ -257,8 +257,13 @@ type UserRole = 'admin' | 'gestionnaire' | 'prestataire' | 'locataire'
 // Statuts des devis (table intervention_quotes)
 type QuoteStatus = 'pending' | 'sent' | 'accepted' | 'rejected'
 
-// Thread types (conversations)
-type ConversationThreadType = 'group' | 'tenant_to_managers' | 'provider_to_managers'
+// Thread types (conversations) - Mis a jour 2026-02-01
+type ConversationThreadType =
+  | 'group'                // Tous les participants
+  | 'tenants_group'        // Tous locataires + managers (NEW 2026-02-01)
+  | 'providers_group'      // Tous prestataires + managers (NEW 2026-02-01)
+  | 'tenant_to_managers'   // Un locataire specifique + managers
+  | 'provider_to_managers' // Un prestataire specifique + managers
 ```
 
 ### Migration 2026-01-26: Suppression demande_de_devis
@@ -275,17 +280,28 @@ Fichier: `supabase/migrations/20260126120000_remove_demande_de_devis_status.sql`
 - `intervention_quotes` table - gere le cycle de vie des devis
 - Le statut intervention reste `planification` pendant la gestion des devis
 
-### Migrations Recentes (2026-01-29)
+### Migrations Recentes (2026-02-01)
 
 | Migration | Description |
 |-----------|-------------|
-| `20260129200000_create_addresses_table.sql` | Table centralisee addresses + RLS |
-| `20260129200001_migrate_addresses_to_centralized_table.sql` | Migration donnees existantes |
-| `20260129200002_drop_legacy_address_columns.sql` | Suppression colonnes legacy |
-| `20260129200003_fix_multi_profile_conversation_access.sql` | `can_view_conversation()` multi-profil |
-| `20260129200004_fix_missing_conversation_participants.sql` | Fix participants manquants |
-| `20260129200005_add_managers_to_conversation_participants.sql` | Trigger `thread_add_managers` |
+| `20260131000000_remove_collocation_category.sql` | Suppression 'collocation' de lot_category enum |
+| `20260201153246_add_individual_conversation_threads.sql` | Threads individuels par participant (NEW) |
+| `20260130230000_add_performance_indexes.sql` | Index de performance |
+| `20260130155700_add_contract_to_activity_entity_type.sql` | Support contrats dans activity_logs |
+| `20260129220000_add_is_internal_to_comments.sql` | Commentaires internes |
+| `20260129210000_fix_recreate_interventions_active_view.sql` | Fix vue interventions_active |
 | `20260129200006_conversation_email_notifications.sql` | Notifications email conversations |
+
+### Thread Types (Mis a jour 2026-02-01)
+
+```typescript
+type ConversationThreadType =
+  | 'group'                // Tous les participants
+  | 'tenants_group'        // Tous locataires + managers (NEW)
+  | 'providers_group'      // Tous prestataires + managers (NEW)
+  | 'tenant_to_managers'   // Un locataire specifique + managers
+  | 'provider_to_managers' // Un prestataire specifique + managers
+```
 
 ## Variables d'Environnement Requises
 
@@ -303,6 +319,6 @@ Fichier: `supabase/migrations/20260126120000_remove_demande_de_devis_status.sql`
 | **NEXT_PUBLIC_GOOGLE_MAPS_API_KEY** | API Key Google Maps (a venir) |
 
 ---
-*Derniere mise a jour: 2026-01-29 18:00*
-*Analyse approfondie: 44 tables, 113 routes, 64 hooks, 87 pages*
+*Derniere mise a jour: 2026-02-03 18:30*
+*Analyse approfondie: 44 tables, 113 routes, 61 hooks, 87 pages, 155 migrations*
 *Regenerer types: npm run supabase:types*

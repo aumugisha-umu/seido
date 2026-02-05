@@ -872,6 +872,7 @@ Pattern pour maximiser l'activation des notifications PWA :
 | Commiter sans verification | Invoquer sp-verification-before-completion |
 | Creer threads apres assignments | Creer threads AVANT assignments |
 | Insert participant sans ON CONFLICT | Upsert avec ignoreDuplicates |
+| Filtrer `.is('deleted_at', null)` sans vérifier la table | Vérifier `database.types.ts` — certaines tables n'ont PAS deleted_at |
 | Relations PostgREST nested avec RLS | Requetes separees + helpers prives |
 | Utiliser InterventionTabs (supprime) | EntityTabs + getInterventionTabsConfig() |
 | Server Action avec `getAuthenticatedUser()` local | `getServerActionAuthContextOrNull()` |
@@ -1428,7 +1429,97 @@ window.addEventListener('focus', async () => {
 
 **Design document:** `docs/plans/2026-02-02-pwa-notification-prompt-design.md`
 
+### 27. ContactSelector in Modal Pattern (NOUVEAU 2026-02-03)
+
+Pattern pour intégrer le composant `ContactSelector` dans une modale sans afficher son UI par défaut :
+
+```typescript
+// Importer le type ref
+import type { ContactSelectorRef } from '@/components/contacts/contact-selector'
+
+// Créer une ref
+const contactSelectorRef = useRef<ContactSelectorRef>(null)
+
+// Dans le JSX - ContactSelector avec hideUI
+<ContactSelector
+  ref={contactSelectorRef}
+  mode="multiple"
+  contactType="provider"        // ou "tenant", "manager"
+  teamId={teamId}
+  selectedIds={selectedProviderIds}
+  onSelectionChange={handleProviderChange}
+  interventionId={intervention?.id}
+  hideUI={true}                 // ← Ne rend rien visuellement
+/>
+
+// Bouton pour ouvrir le sélecteur
+<Button
+  variant="outline"
+  size="sm"
+  onClick={() => contactSelectorRef.current?.openContactModal()}
+>
+  + Ajouter
+</Button>
+```
+
+**Props clés de ContactSelector :**
+
+| Prop | Description |
+|------|-------------|
+| `hideUI={true}` | N'affiche rien, utilise ref pour ouvrir |
+| `mode="multiple"` | Sélection multiple |
+| `contactType` | "provider", "tenant", "manager" |
+| `selectedIds` | IDs présélectionnés |
+| `onSelectionChange` | Callback avec nouveaux IDs |
+
+**Pattern Locataires par Lot (Intervention Bâtiment) :**
+
+Pour les interventions sur un bâtiment entier (`lot_id = null`), afficher les locataires groupés par lot avec switches individuels :
+
+```typescript
+// Type pour locataires groupés par lot
+interface BuildingTenantsResult {
+  lots: Array<{
+    lot_id: string
+    lot_number: string
+    floor: string | null
+    tenants: Array<{
+      id: string
+      name: string
+      has_account: boolean  // Pour badge "Non invité"
+    }>
+  }>
+  totalTenants: number
+}
+
+// Affichage dans la modale
+{buildingTenants?.lots.map((lot) => (
+  <div key={lot.lot_id}>
+    <Switch
+      checked={!excludedLotIds.includes(lot.lot_id)}
+      onCheckedChange={() => onLotToggle(lot.lot_id)}
+    />
+    <span>Lot {lot.lot_number}</span>
+    {lot.tenants.map(tenant => (
+      <div key={tenant.id}>
+        {tenant.name}
+        {!tenant.has_account && <Badge variant="outline">Non invité</Badge>}
+      </div>
+    ))}
+  </div>
+))}
+```
+
+**Fichiers de référence :**
+- `components/intervention/modals/programming-modal-FINAL.tsx` - Implémentation complète
+- `components/contacts/contact-selector.tsx` - Composant source
+- `components/intervention/assignment-section-v2.tsx` - Pattern locataires par lot
+
+**Fichiers utilisant ce pattern :**
+- `app/gestionnaire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx`
+- `app/gestionnaire/(with-navbar)/interventions/interventions-page-client.tsx`
+
 ---
-*Derniere mise a jour: 2026-02-02 15:00*
-*Analyse approfondie: Migration Auth COMPLETE + Optimization API calls + Invited Users Only + PWA Notification Prompt*
+*Derniere mise a jour: 2026-02-04 18:10*
+*Analyse approfondie: Migration Auth COMPLETE + Optimization API calls + Invited Users Only + PWA Notification Prompt + ContactSelector Modal Pattern + Fix ensureInterventionConversationThreads*
 *References: lib/services/README.md, lib/server-context.ts, lib/api-auth-helper.ts, .claude/CLAUDE.md*

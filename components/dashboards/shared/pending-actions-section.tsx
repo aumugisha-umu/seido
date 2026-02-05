@@ -55,6 +55,8 @@ interface PendingActionsSectionProps {
   customActionHandlers?: {
     [key: string]: (intervention: any) => Promise<boolean>
   }
+  /** Callback to open ProgrammingModal for start_planning action */
+  onOpenProgrammingModal?: (intervention: any) => void
 }
 
 // ============================================================================
@@ -136,7 +138,8 @@ export function PendingActionsSection({
   showEmptyState = false,
   emptyMessage,
   onAllComplete,
-  customActionHandlers
+  customActionHandlers,
+  onOpenProgrammingModal
 }: PendingActionsSectionProps) {
   const router = useRouter()
 
@@ -213,9 +216,9 @@ export function PendingActionsSection({
       "dark:bg-amber-500/10 dark:ring-amber-500/30",
       className
     )}>
-      {/* Background icon - decorative */}
-      <div className="absolute right-0 top-0 p-6 opacity-10">
-        <AlertTriangle className="h-32 w-32 text-amber-500" />
+      {/* Background icon - decorative (smaller on mobile) */}
+      <div className="absolute right-0 top-0 p-4 sm:p-6 opacity-10">
+        <AlertTriangle className="h-20 w-20 sm:h-32 sm:w-32 text-amber-500" />
       </div>
 
       <CardHeader className="pb-2 relative z-10">
@@ -250,12 +253,28 @@ export function PendingActionsSection({
       </CardHeader>
 
       <CardContent className="pt-2 pb-4 px-0 relative z-10">
-        {/* Horizontal scrollable container with snap scrolling */}
-        <div className="@container flex gap-4 overflow-x-auto pl-4 pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-transparent">
+        {/* Mobile: Stacked vertical layout with scroll */}
+        <div className="sm:hidden flex flex-col gap-3 px-4 max-h-[calc(3*220px)] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-transparent">
+          {pendingInterventions.map((intervention) => (
+            <div key={intervention.id}>
+              <InterventionCard
+                intervention={intervention}
+                userRole={userRole}
+                userId={userId}
+                onActionComplete={handleActionComplete}
+                customActionHandlers={customActionHandlers}
+                onOpenProgrammingModal={onOpenProgrammingModal}
+              />
+            </div>
+          ))}
+        </div>
+
+        {/* Tablet+: Horizontal scrollable container with snap scrolling */}
+        <div className="@container hidden sm:flex gap-4 overflow-x-auto pl-4 pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-transparent">
           {pendingInterventions.map((intervention) => (
             <div
               key={intervention.id}
-              className="flex-shrink-0 w-[85cqw] @sm:w-[45cqw] @lg:w-[31cqw] min-w-[320px] max-w-[450px] snap-start"
+              className="flex-shrink-0 w-[85cqw] @sm:w-[45cqw] @lg:w-[31cqw] min-w-[320px] max-w-[450px] snap-start h-full"
             >
               <InterventionCard
                 intervention={intervention}
@@ -263,6 +282,7 @@ export function PendingActionsSection({
                 userId={userId}
                 onActionComplete={handleActionComplete}
                 customActionHandlers={customActionHandlers}
+                onOpenProgrammingModal={onOpenProgrammingModal}
               />
             </div>
           ))}

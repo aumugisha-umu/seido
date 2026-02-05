@@ -637,7 +637,7 @@ async function processEmailAsync(
   const senderEmail = extractEmailAddress(emailData.from)
   const { data: sender } = await supabase
     .from('users')
-    .select('id, name, first_name, last_name, email')
+    .select('id, name, first_name, last_name, email, role')
     .eq('email', senderEmail.toLowerCase())
     .single()
 
@@ -934,20 +934,30 @@ function extractEmailAddress(from: string): string {
 }
 
 /**
+ * Determine the sender role from user data
+ */
+function determineSenderRole(sender: { role?: string } | null): 'locataire' | 'prestataire' | 'externe' {
+  if (sender?.role === 'locataire') return 'locataire'
+  if (sender?.role === 'prestataire') return 'prestataire'
+  return 'externe'
+}
+
+/**
  * Notifie les gestionnaires assignés à l'intervention
  *
- * @param _subject - Reserved for future email notification feature (not used yet)
- * @param _textSnippet - Reserved for future email notification feature (not used yet)
+ * Sends in-app notifications, push notifications, and email notifications
+ * to all managers assigned to the intervention.
+ *
+ * @param subject - Email subject from the reply
+ * @param textSnippet - Text body snippet from the reply
  * @returns Object with sent and failed counts for monitoring
  */
 async function notifyManagers(
   supabase: ReturnType<typeof createServiceRoleSupabaseClient>,
   intervention: { id: string; team_id: string; title: string; reference: string | null },
-  sender: { id: string; name: string | null; first_name: string | null; last_name: string | null; email: string } | null,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _subject: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _textSnippet: string
+  sender: { id: string; name: string | null; first_name: string | null; last_name: string | null; email: string; role: string | null } | null,
+  subject: string,
+  textSnippet: string
 ): Promise<NotificationResult> {
   try {
     // Récupérer les gestionnaires assignés à l'intervention
@@ -959,6 +969,8 @@ async function notifyManagers(
         users!intervention_assignments_user_id_fkey!inner (
           id,
           name,
+          first_name,
+          last_name,
           email,
           role
         )
@@ -1019,6 +1031,70 @@ async function notifyManagers(
       { count: sentCount, interventionId: intervention.id },
       '✅ [RESEND-INBOUND] Manager notifications created'
     )
+
+    // ═══════════════════════════════════════════════════════════
+    // PUSH NOTIFICATIONS: Alert managers about email reply
+    // ═══════════════════════════════════════════════════════════
+    const managerIds = assignments.map(a => a.user_id)
+    try {
+      const { sendPushNotificationToUsers } = await import('@/lib/send-push-notification')
+      sendPushNotificationToUsers(managerIds, {
+        title: '📧 Réponse par email',
+        message: `${senderName} a répondu`,
+        url: `/gestionnaire/interventions/${intervention.id}?tab=emails`,
+        type: 'email_reply'
+      }).catch(err => logger.warn({ err }, '⚠️ [PUSH] Failed in notifyManagers'))
+    } catch (pushError) {
+      logger.warn({ pushError }, '⚠️ [PUSH] Import failed in notifyManagers')
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // EMAIL NOTIFICATIONS: Send EmailReplyReceivedEmail to managers
+    // ═══════════════════════════════════════════════════════════
+    try {
+      const { EmailService } = await import('@/lib/services/domain/email.service')
+      const emailService = new EmailService()
+      if (emailService.isConfigured()) {
+        const { EmailReplyReceivedEmail } = await import('@/emails/templates/notifications/email-reply-received')
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido.app'
+
+        for (const assignment of assignments) {
+          const user = assignment.users as any
+          if (!user?.email) continue
+
+          try {
+            await emailService.send({
+              to: user.email,
+              subject: `📧 Re: ${intervention.reference || intervention.title}`,
+              react: EmailReplyReceivedEmail({
+                firstName: user.first_name || user.name || 'Gestionnaire',
+                intervention: {
+                  id: intervention.id,
+                  title: intervention.title,
+                  reference: intervention.reference,
+                },
+                sender: {
+                  name: senderName,
+                  email: sender?.email || 'inconnu',
+                  role: determineSenderRole(sender),
+                },
+                subject,
+                snippet: textSnippet.substring(0, 200),
+                viewUrl: `${baseUrl}/gestionnaire/interventions/${intervention.id}?tab=emails`,
+              }),
+              tags: [{ name: 'type', value: 'email_reply_received' }],
+            })
+          } catch (singleEmailError) {
+            logger.warn(
+              { error: singleEmailError, to: user.email },
+              '⚠️ [EMAIL] Failed to send reply notification to individual manager'
+            )
+          }
+        }
+      }
+    } catch (emailError) {
+      logger.warn({ emailError }, '⚠️ [EMAIL] Failed in notifyManagers')
+    }
 
     return { sent: sentCount, failed: 0 }
   } catch (error) {

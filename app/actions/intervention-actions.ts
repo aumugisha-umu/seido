@@ -22,6 +22,7 @@ import { logger } from '@/lib/logger'
 import type { Database } from '@/lib/database.types'
 import { createQuoteRequestsForProviders } from '@/app/api/create-manager-intervention/create-quote-requests'
 import { createInterventionNotification } from './notification-actions'
+import { ensureInterventionConversationThreads } from './conversation-actions'
 import { mapInterventionType } from '@/lib/utils/intervention-mappers'
 
 // Type aliases
@@ -586,6 +587,20 @@ export async function updateInterventionAction(
         added: tenantsToInsert.length,
         total: data.assignedTenantIds.length
       }, 'Tenant assignments updated')
+    }
+
+    // Ensure conversation threads exist for all assigned users (non-blocking)
+    if (data.assignedManagerIds !== undefined || data.assignedProviderIds !== undefined || data.assignedTenantIds !== undefined) {
+      try {
+        const threadResult = await ensureInterventionConversationThreads(interventionId)
+        if (threadResult.success) {
+          logger.info({ created: threadResult.data.created }, '✅ Conversation threads ensured')
+        } else {
+          logger.warn({ error: threadResult.error }, 'Failed to ensure conversation threads (non-blocking)')
+        }
+      } catch (error) {
+        logger.warn({ error }, 'Error ensuring conversation threads (non-blocking)')
+      }
     }
 
     // Update time slots if provided - Intelligent upsert with change tracking

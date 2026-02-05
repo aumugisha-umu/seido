@@ -65,5 +65,8 @@
       }
     ]
   },
-  "outputStyle": "Explanatory"
+  "outputStyle": "Explanatory",
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true
+  }
 }

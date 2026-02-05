@@ -24,6 +24,8 @@ interface DashboardStatsCardsProps {
     completedCount?: number
     buildingsCount?: number
     lotsCount?: number
+    buildingLotsCount?: number
+    independentLotsCount?: number
     occupancyRate?: number
     contractStats?: ContractStats
     /** Number of active tenants */
@@ -50,6 +52,8 @@ export function DashboardStatsCards({
     completedCount = 0,
     buildingsCount,
     lotsCount,
+    buildingLotsCount,
+    independentLotsCount,
     occupancyRate,
     contractStats,
     tenantCount = 0,
@@ -75,23 +79,34 @@ export function DashboardStatsCards({
                 href="/gestionnaire/interventions?filter=pending"
             />
 
-            {/* Card 2: Immeubles (Manager Only) - Renamed from Patrimoine */}
-            {isManager && (
-                <StatsCard
-                    id="buildings"
-                    label="Patrimoine"
-                    value={buildingsCount}
-                    sublabel={
-                        <span className="flex items-center gap-1">
-                            <Building2 className="h-3 w-3" /> {lotsCount} lots
-                        </span>
-                    }
-                    icon={Building2}
-                    iconColor="text-indigo-600"
-                    variant="default"
-                    href="/gestionnaire/biens"
-                />
-            )}
+            {/* Card 2: Patrimoine (Manager Only) - Buildings + lots breakdown */}
+            {isManager && (() => {
+                const totalLots = lotsCount || 0
+                const hasBoth = buildingLotsCount !== undefined
+                    && independentLotsCount !== undefined
+                    && buildingLotsCount > 0
+                    && independentLotsCount > 0
+
+                return (
+                    <StatsCard
+                        id="buildings"
+                        label="Patrimoine"
+                        value={`${buildingsCount} imm.`}
+                        sublabel={`${totalLots} lots`}
+                        secondaryValue={
+                            hasBoth ? (
+                                <span className="text-xs text-foreground/60 flex items-center gap-1">
+                                    {buildingLotsCount} lots liés · {independentLotsCount} lots indép.
+                                </span>
+                            ) : null
+                        }
+                        icon={Building2}
+                        iconColor="text-indigo-600"
+                        variant="default"
+                        href="/gestionnaire/biens"
+                    />
+                )
+            })()}
 
             {/* Card 3: Occupation (Manager Only) */}
             {isManager && occupancyRate !== undefined && (

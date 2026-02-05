@@ -1,47 +1,126 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Fix Push Subscription + Debug Page Paramètres
+**Objectif:** Fix ensureInterventionConversationThreads + Stabilisation Conversations
 **Branch:** `preview`
 **Sprint:** Multi-Team Support + Google Maps Integration (Jan-Feb 2026)
-**Dernière analyse:** Push Subscription Security Fix + Settings Page Debug - 2026-02-02
+**Dernière analyse:** Bugfix critique conversation threads - 2026-02-04
 
 ---
 
-## 🚧 EN COURS: Debug Page Paramètres (2026-02-02)
+## ✅ COMPLETE: Fix ensureInterventionConversationThreads (2026-02-04)
+
+### Contexte
+Code review de `ensureInterventionConversationThreads` dans `conversation-actions.ts` a révélé 3 problèmes : 1 bug critique, 1 inefficacité, 1 gap fonctionnel.
+
+### Modifications Effectuées
+
+| Fix | Fichier | Description |
+|-----|---------|-------------|
+| **Fix 1 (CRITIQUE)** | `conversation-actions.ts:836` | Supprimé `.is('deleted_at', null)` sur `intervention_assignments` — colonne inexistante, la requête échouait silencieusement = zéro threads créés |
+| **Fix 2 (Efficacité)** | `conversation-actions.ts:858-884` | Capture directe de `groupThreadId` au lieu de re-query DB après création |
+| **Fix 3 (Gap fonctionnel)** | `conversation-actions.ts:948-994` | Ajout `else` branches pour `tenants_group` et `providers_group` existants — nouveaux participants ajoutés aux threads group existants |
+
+### Pattern addParticipant Idempotent
+
+```typescript
+// addParticipant utilise ON CONFLICT DO NOTHING
+// → Appeler pour un user déjà participant = no-op inoffensif
+// → Pas besoin de vérifier l'existence avant ajout
+await conversationRepo.addParticipant(existingGroupThread.id, newUser.id)
+```
+
+### Leçon: Colonnes Fantômes Supabase
+
+```typescript
+// ⚠️ PIÈGE: Supabase PostgREST peut échouer silencieusement
+// si on filtre sur une colonne inexistante
+.from('intervention_assignments')
+.is('deleted_at', null)  // ← deleted_at N'EXISTE PAS sur cette table!
+// → Résultat: erreur ou empty array, JAMAIS de données
+```
+
+---
+
+## ✅ COMPLETE: Simplification Statut "Approuvée" (2026-02-03)
+
+### Modifications Effectuées
+
+| Fichier | Modification |
+|---------|--------------|
+| `lib/intervention-action-utils.ts` | Un seul bouton "Planifier" (suppression "Demander estimation") |
+| `lib/intervention-utils.ts` | Message "En attente de planification" (au lieu de "assignation prestataire") |
+| `components/intervention/modals/programming-modal-FINAL.tsx` | ContactSelector réels au lieu de mockups inline |
+| `intervention-detail-client.tsx` | Réactivation ProgrammingModal + props managers/tenants |
+| `interventions-page-client.tsx` | Props minimales pour ProgrammingModal depuis liste |
+| `intervention-card.tsx` | Callback `onOpenProgrammingModal` pour action start_planning |
+| `pending-actions-section.tsx` | Propagation callback vers InterventionCard |
+
+### Pattern ContactSelector dans Modal
+
+```typescript
+// Dans ProgrammingModal - Section Participants
+<ContactSelector
+  ref={contactSelectorRef}
+  mode="multiple"
+  hideUI={true}  // Pas d'affichage direct, utilise openContactModal()
+  {...}
+/>
+
+// Ouvrir le sélecteur depuis un bouton
+<Button onClick={() => contactSelectorRef.current?.openContactModal()}>
+  + Ajouter
+</Button>
+```
+
+### Logique Locataires par Lot
+
+Pour les interventions sur bâtiment entier (`lot_id = null`):
+- Affichage groupé par lot avec switch individuel
+- `excludedLotIds` pour exclure certains lots
+- Badge "Non invité" pour locataires sans `auth_id`
+
+### État des Handlers
+
+| Handler | État |
+|---------|------|
+| `onManagerToggle` | ⚠️ Fonction vide - affichage seulement |
+| `onTenantToggle` | ⚠️ Fonction vide - affichage seulement |
+| `onLotToggle` | ⚠️ Fonction vide - affichage seulement |
+
+**Note:** La modification interactive des participants nécessiterait une gestion d'état supplémentaire.
+
+---
+
+## ✅ COMPLETE: Fix Infinite Refresh Loop (2026-02-03)
 
 ### Symptôme
-La page `/gestionnaire/parametres` reste bloquée sur "Chargement..." malgré les logs console montrant une initialisation partielle.
+La page de détail d'intervention entrait en boucle infinie de refresh, rendant l'interface inutilisable.
 
-### Logs Observés
+### Root Cause Analysée
+
+**Flux de la boucle infinie:**
 ```
-✅ PWA Service Worker registered
-🔔 [NotificationPrompt] Initialized {platform: {...}, supported: true, permission: 'granted', hasDBSubscription: false}
-🔴 [SESSION-KEEPALIVE] User became inactive
-```
-
-### Analyse en Cours
-
-**Point de blocage potentiel:** `settings-page.tsx:26-28`
-```typescript
-if (!user) {
-  return <div>Chargement...</div>
-}
+1. ChatInterface monte → useEffect (300ms delay)
+2. markThreadAsReadAction() appelé
+3. Server action fait revalidatePath()
+4. Cache invalidé → page re-render
+5. ChatInterface remonte → useEffect se re-déclenche
+6. RETOUR À 1 → BOUCLE ∞
 ```
 
-Le composant attend `user` de `useAuth()`. Si le hook ne retourne jamais `user`, la page reste bloquée.
+**Problème aggravant:** Dans `useInterventionApproval`, double refresh:
+1. `onSuccess()` → `handleRefresh()` → `router.refresh()`
+2. 500ms plus tard → `router.refresh()` ENCORE
 
-### À Vérifier
-- [ ] Rafraîchir la page avec Ctrl+Shift+R
-- [ ] Vérifier si le déploiement Vercel a réussi
-- [ ] Regarder les logs Vercel pour erreurs serveur
-- [ ] Tester si le problème existait AVANT le fix push-subscribe
+### Fix Appliqué
 
-### Note Importante
-Le fix `push-subscribe` appliqué **ne devrait PAS** affecter le chargement de la page car :
-1. C'est une API POST côté serveur
-2. Elle n'est appelée que lors de l'activation des notifications
-3. Le chargement de `settings-page.tsx` ne fait aucun appel à cette API
+| Fichier | Modification |
+|---------|--------------|
+| `hooks/use-intervention-approval.ts` | Un seul refresh: soit callback, soit setTimeout (exclusif) |
+| `components/chat/chat-interface.tsx` | Ajout `markedAsReadThreadsRef` pour tracker les threads déjà lus |
+
+**Pattern utilisé:** `useRef<Set<string>>` pour déduplication des appels sans provoquer de re-render.
 
 ---
 
@@ -204,20 +283,20 @@ demande -> rejetee (terminal)
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-02-02)
+## Metriques Systeme (Mise a jour 2026-02-03)
 
 | Composant | Valeur |
 |-----------|--------|
 | **Tables DB** | **44** |
-| **Migrations** | **147+** |
+| **Migrations** | **155** |
 | **API Routes** | **113** (10 domaines) |
 | **Pages** | **87** (5+ route groups) |
-| **Composants** | **235+** (+3 PWA notification) |
-| **Hooks** | **65** (+1 use-notification-prompt) |
+| **Composants** | **358** |
+| **Hooks** | **61** |
 | **Services domain** | **32** |
 | **Repositories** | **22** |
 | Statuts intervention | 9 |
-| Notification actions | **20** (+4 quote notifications) |
+| Notification actions | **20** |
 
 ---
 
@@ -251,18 +330,20 @@ user_id: userId  // (même si validé, préférer l'ID serveur)
 
 ---
 
-*Derniere mise a jour: 2026-02-02 23:30*
-*Focus: Push subscription security fix + Debug page paramètres*
+*Derniere mise a jour: 2026-02-04 18:10*
+*Focus: Fix critique ensureInterventionConversationThreads (deleted_at fantôme + efficacité + gap participants)*
 
 ## Commits Recents (preview branch)
 
 | Hash | Description |
 |------|-------------|
+| `55e969a` | fix(notifications): fix push notification URL routing and add debug logs |
+| `514af5d` | feat(notifications): enhance PWA notification system and fix push subscription security |
 | `4d8a8e8` | fix(push-subscribe): enhance security by using userProfile.id for subscriptions |
 | `61fd200` | docs(rails-architecture): cleanup obsolete intervention statuses |
-| `66e95df` | feat(notifications): unify web and PWA push notification system |
-| `4f53914` | feat(notifications): complete push notification system + quote workflow notifications |
 
 ## Files Recently Modified
-### 2026-02-02 23:23:58 (Auto-updated)
-- `C:/Users/arthu/.claude/plans/golden-toasting-shell.md`
+### 2026-02-05 18:11:56 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/dashboards/manager/manager-dashboard-v2.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/globals.css`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/dashboards/shared/intervention-card.tsx`

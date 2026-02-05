@@ -1,5 +1,6 @@
 "use client"
 
+import { useRef, useState, useEffect, useMemo } from "react"
 import {
   Calendar,
   Clock,
@@ -25,7 +26,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { ContactSection } from "@/components/ui/contact-section"
+import { ContactSelector, type ContactSelectorRef } from "@/components/contact-selector"
 import { cn } from "@/lib/utils"
+import type { BuildingTenantsResult } from "@/app/actions/contract-actions"
 import { type InterventionAction } from "@/lib/intervention-actions-service"
 import {
   getInterventionLocationText,
@@ -63,6 +66,7 @@ interface Contact {
   phone?: string
   role?: string
   type?: "gestionnaire" | "prestataire" | "locataire"
+  has_account?: boolean  // Indicates if user is invited (has auth_id)
 }
 
 interface ProgrammingModalFinalProps {
@@ -98,6 +102,16 @@ interface ProgrammingModalFinalProps {
   quoteRequests?: Quote[]
   onViewProvider?: (providerId: string) => void
   onCancelQuoteRequest?: (requestId: string) => void
+  // Tenant section props
+  showTenantsSection?: boolean
+  includeTenants?: boolean
+  onIncludeTenantsChange?: (include: boolean) => void
+  // Building tenants (grouped by lot for building-wide interventions)
+  buildingTenants?: BuildingTenantsResult | null
+  loadingBuildingTenants?: boolean
+  // Lots selection (for granular control)
+  excludedLotIds?: string[]
+  onLotToggle?: (lotId: string) => void
 }
 
 export const ProgrammingModalFinal = ({
@@ -132,22 +146,51 @@ export const ProgrammingModalFinal = ({
   onOpenProviderModal,
   quoteRequests = [],
   onViewProvider,
-  onCancelQuoteRequest
+  onCancelQuoteRequest,
+  // Tenant section props
+  showTenantsSection = false,
+  includeTenants = true,
+  onIncludeTenantsChange,
+  buildingTenants = null,
+  loadingBuildingTenants = false,
+  excludedLotIds = [],
+  onLotToggle
 }: ProgrammingModalFinalProps) => {
+  // Ref for ContactSelector modal
+  const contactSelectorRef = useRef<ContactSelectorRef>(null)
+
+  // Track contacts added via ContactSelector that aren't in the initial props
+  const [addedProviders, setAddedProviders] = useState<Contact[]>([])
+  const [addedManagers, setAddedManagers] = useState<Contact[]>([])
+
+  // Reset when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setAddedProviders([])
+      setAddedManagers([])
+    }
+  }, [isOpen])
+
+  // Get selected contacts — merge props + newly added contacts, then filter by selection
+  // NOTE: useMemo hooks MUST be before the early return to respect Rules of Hooks
+  const selectedManagerContacts: Contact[] = useMemo(() => {
+    const fromProps = managers.map(m => ({ ...m, type: 'gestionnaire' as const }))
+    const all = [...fromProps, ...addedManagers.filter(a => !fromProps.some(p => p.id === a.id))]
+    return all.filter(m => selectedManagers.includes(m.id))
+  }, [managers, addedManagers, selectedManagers])
+
+  const selectedProviderContacts: Contact[] = useMemo(() => {
+    const fromProps = providers.map(p => ({ ...p, type: 'prestataire' as const, email: p.email || '' }))
+    const all = [...fromProps, ...addedProviders.filter(a => !fromProps.some(p => p.id === a.id))]
+    return all.filter(p => selectedProviders.includes(p.id))
+  }, [providers, addedProviders, selectedProviders])
+
   if (!intervention) return null
 
   // Get all quote requests for this intervention (show all statuses)
   const allQuoteRequests = quoteRequests || []
 
-  // Get selected contacts for ContactSection
-  const selectedManagerContacts: Contact[] = managers
-    .filter(m => selectedManagers.includes(m.id))
-    .map(m => ({ ...m, type: 'gestionnaire' as const }))
-
-  const selectedProviderContacts: Contact[] = providers
-    .filter(p => selectedProviders.includes(p.id))
-    .map(p => ({ ...p, type: 'prestataire' as const, email: p.email || '' }))
-
+  // Tenants unchanged (not added via ContactSelector)
   const selectedTenantContacts: Contact[] = tenants
     .filter(t => selectedTenants.includes(t.id))
     .map(t => ({ ...t, type: 'locataire' as const }))
@@ -301,12 +344,15 @@ export const ProgrammingModalFinal = ({
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className={cn(
+              "grid grid-cols-1 gap-4",
+              showTenantsSection ? "md:grid-cols-3" : "md:grid-cols-2"
+            )}>
               {/* Gestionnaires ContactSection */}
               <ContactSection
                 sectionType="managers"
                 contacts={selectedManagerContacts}
-                onAddContact={onOpenManagerModal}
+                onAddContact={onOpenManagerModal || (() => contactSelectorRef.current?.openContactModal('manager'))}
                 onRemoveContact={onManagerToggle}
                 minRequired={1}
                 customLabel="Gestionnaire(s) assigné(s)"
@@ -316,18 +362,210 @@ export const ProgrammingModalFinal = ({
               <ContactSection
                 sectionType="providers"
                 contacts={selectedProviderContacts}
-                onAddContact={onOpenProviderModal}
+                onAddContact={onOpenProviderModal || (() => contactSelectorRef.current?.openContactModal('provider'))}
                 onRemoveContact={onProviderToggle}
                 customLabel="Prestataire(s) à contacter"
               />
 
-              {/* Locataires ContactSection (Read-only - pas de bouton Ajouter) */}
-              <ContactSection
-                sectionType="tenants"
-                contacts={selectedTenantContacts}
-                onRemoveContact={onTenantToggle}
-                customLabel="Locataire(s) concerné(s)"
-              />
+              {/* Locataires Section - Only show if there are tenants */}
+              {showTenantsSection && (
+                <div className="border border-slate-200 rounded-lg overflow-hidden flex flex-col h-full">
+                  {/* Header with toggle */}
+                  <div className="w-full flex items-center justify-between gap-2 p-2.5 bg-blue-50">
+                    <div className="flex items-center gap-2">
+                      <Users className="w-4 h-4 text-blue-600" />
+                      <span className="font-semibold text-sm text-blue-900">Locataires</span>
+                      {/* Badge count */}
+                      {buildingTenants ? (
+                        (() => {
+                          const includedCount = buildingTenants.byLot
+                            .filter(lot => !excludedLotIds?.includes(lot.lotId))
+                            .reduce((sum, lot) => sum + lot.tenants.length, 0)
+                          const includedLotsCount = buildingTenants.byLot
+                            .filter(lot => !excludedLotIds?.includes(lot.lotId)).length
+                          return includedCount > 0 && (
+                            <>
+                              <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-600 text-white">
+                                {includedCount}
+                              </span>
+                              <span className="text-xs text-blue-600">
+                                ({includedLotsCount} lot{includedLotsCount > 1 ? 's' : ''})
+                              </span>
+                            </>
+                          )
+                        })()
+                      ) : tenants.length > 0 && (
+                        <span className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-600 text-white">
+                          {tenants.length}
+                        </span>
+                      )}
+                    </div>
+                    <Switch
+                      checked={includeTenants}
+                      onCheckedChange={onIncludeTenantsChange}
+                      className="data-[state=checked]:bg-blue-600"
+                      disabled={loadingBuildingTenants}
+                    />
+                  </div>
+
+                  {/* Content */}
+                  <div className="p-2 bg-white flex-1 max-h-60 overflow-y-auto">
+                    {loadingBuildingTenants ? (
+                      <div className="p-3 text-center text-xs text-gray-500">
+                        Chargement des locataires...
+                      </div>
+                    ) : buildingTenants ? (
+                      /* Building tenants - grouped by lot with individual switches */
+                      includeTenants && buildingTenants.byLot.length > 0 ? (
+                        <div className="space-y-3">
+                          {buildingTenants.byLot.map((lotGroup) => {
+                            const isLotIncluded = !excludedLotIds?.includes(lotGroup.lotId)
+
+                            return (
+                              <div key={lotGroup.lotId}>
+                                {/* Lot header with switch */}
+                                <div className="flex items-center justify-between mb-1.5 px-1">
+                                  <span className="text-xs font-medium text-slate-600">
+                                    {lotGroup.lotReference}
+                                    <span className="text-slate-400 ml-1">
+                                      ({lotGroup.tenants.length})
+                                    </span>
+                                  </span>
+                                  <Switch
+                                    checked={isLotIncluded}
+                                    onCheckedChange={() => onLotToggle?.(lotGroup.lotId)}
+                                    className="scale-75 data-[state=checked]:bg-blue-600"
+                                  />
+                                </div>
+
+                                {/* Tenants in this lot */}
+                                <div className={cn("space-y-1", !isLotIncluded && "opacity-40")}>
+                                  {lotGroup.tenants.map((tenant, index) => {
+                                    const isInvited = (tenant as any).has_account !== false
+
+                                    return (
+                                      <div
+                                        key={tenant.id || `tenant-${lotGroup.lotId}-${index}`}
+                                        className={cn(
+                                          "flex items-center gap-2 p-2 rounded border",
+                                          isInvited
+                                            ? "bg-blue-50/50 border-blue-100"
+                                            : "bg-slate-50 border-slate-200"
+                                        )}
+                                      >
+                                        <div className={cn(
+                                          "w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0",
+                                          isInvited ? "bg-blue-200" : "bg-slate-200"
+                                        )}>
+                                          <User className={cn(
+                                            "w-4 h-4",
+                                            isInvited ? "text-blue-700" : "text-slate-500"
+                                          )} />
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <span className={cn(
+                                              "font-medium text-sm truncate",
+                                              !isInvited && "text-slate-600"
+                                            )}>
+                                              {tenant.name}
+                                            </span>
+                                            {!isInvited && (
+                                              <Badge
+                                                variant="outline"
+                                                className="text-[10px] px-1.5 py-0 h-4 bg-slate-100 text-slate-500 border-slate-300"
+                                              >
+                                                Non invité
+                                              </Badge>
+                                            )}
+                                          </div>
+                                          {tenant.email && (
+                                            <div className="text-xs text-gray-500 truncate">{tenant.email}</div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <div className="p-3 text-center text-xs text-gray-500">
+                          {includeTenants ? 'Aucun locataire dans cet immeuble' : 'Les locataires ne seront pas notifiés'}
+                        </div>
+                      )
+                    ) : (
+                      /* Lot tenants - simple list */
+                      includeTenants && tenants.length > 0 ? (
+                        <div className="space-y-1.5">
+                          {tenants.map((tenant, index) => {
+                            const isInvited = tenant.has_account !== false
+
+                            return (
+                              <div
+                                key={tenant.id || `tenant-${index}`}
+                                className={cn(
+                                  "flex items-center gap-2 p-2 rounded border",
+                                  isInvited
+                                    ? "bg-blue-50/50 border-blue-100"
+                                    : "bg-slate-50 border-slate-200"
+                                )}
+                              >
+                                <div className={cn(
+                                  "w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0",
+                                  isInvited ? "bg-blue-200" : "bg-slate-200"
+                                )}>
+                                  <User className={cn(
+                                    "w-4 h-4",
+                                    isInvited ? "text-blue-700" : "text-slate-500"
+                                  )} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <span className={cn(
+                                      "font-medium text-sm truncate",
+                                      !isInvited && "text-slate-600"
+                                    )}>
+                                      {tenant.name}
+                                    </span>
+                                    {!isInvited && (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px] px-1.5 py-0 h-4 bg-slate-100 text-slate-500 border-slate-300"
+                                      >
+                                        Non invité
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {tenant.email && (
+                                    <div className="text-xs text-gray-500 truncate">{tenant.email}</div>
+                                  )}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      ) : (
+                        <div className="p-3 text-center text-xs text-gray-500">
+                          {includeTenants ? 'Aucun locataire' : 'Les locataires ne seront pas notifiés'}
+                        </div>
+                      )
+                    )}
+                  </div>
+
+                  {/* Info message */}
+                  {includeTenants && (tenants.length > 0 || (buildingTenants && buildingTenants.byLot.length > 0)) && (
+                    <div className="p-2 border-t border-slate-100 bg-slate-50">
+                      <p className="text-xs text-slate-600 flex items-start gap-1.5">
+                        <Info className="w-3.5 h-3.5 text-blue-500 mt-0.5 flex-shrink-0" />
+                        Les locataires invités seront notifiés et pourront suivre l'intervention.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -671,6 +909,38 @@ export const ProgrammingModalFinal = ({
             </Button>
           </div>
         </div>
+
+        {/* Contact Selector Modal (hidden, opened via ref) */}
+        <ContactSelector
+          ref={contactSelectorRef}
+          teamId={teamId}
+          displayMode="compact"
+          hideUI={true}
+          selectedContacts={{
+            manager: selectedManagerContacts,
+            provider: selectedProviderContacts
+          }}
+          onContactSelected={(contact, contactType) => {
+            if (contactType === 'manager') {
+              setAddedManagers(prev =>
+                prev.some(m => m.id === contact.id) ? prev : [...prev, { ...contact, type: 'gestionnaire' as const }]
+              )
+              onManagerToggle?.(contact.id)
+            } else if (contactType === 'provider') {
+              setAddedProviders(prev =>
+                prev.some(p => p.id === contact.id) ? prev : [...prev, { ...contact, type: 'prestataire' as const, email: contact.email || '' }]
+              )
+              onProviderToggle?.(contact.id)
+            }
+          }}
+          onContactRemoved={(contactId, contactType) => {
+            if (contactType === 'manager') {
+              onManagerToggle?.(contactId)
+            } else if (contactType === 'provider') {
+              onProviderToggle?.(contactId)
+            }
+          }}
+        />
       </DialogContent>
     </Dialog>
   )

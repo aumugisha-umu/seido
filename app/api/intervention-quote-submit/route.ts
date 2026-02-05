@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server'
-import { createCustomNotification } from '@/app/actions/notification-actions'
+import { notifyQuoteSubmittedWithPush } from '@/app/actions/notification-actions'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { submitQuoteSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
@@ -243,7 +243,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Send notification to gestionnaires
+    // ═══════════════════════════════════════════════════════════════════════════
+    // IN-APP + PUSH NOTIFICATIONS: Send to gestionnaires
+    // ═══════════════════════════════════════════════════════════════════════════
     try {
       const { data: managers } = await supabase
         .from('intervention_assignments')
@@ -252,30 +254,27 @@ export async function POST(request: NextRequest) {
         .eq('role', 'gestionnaire')
 
       if (managers && managers.length > 0) {
-        const notificationPromises = managers.map(async (manager) => {
-          if (!manager.user) return
-          return createCustomNotification({
-            userId: manager.user.id,
-            teamId: intervention.team_id,
-            type: 'intervention',
-            title: 'Nouvelle estimation reçue',
-            message: `${user.name} a soumis une estimation de ${totalAmount.toFixed(2)}€ pour l'intervention "${intervention.title}"`,
-            isPersonal: manager.is_primary ?? true,
-            metadata: {
-              interventionId,
-              interventionTitle: intervention.title,
-              quoteId: finalQuote.id,
-              quoteAmount: totalAmount,
-              providerName: user.name,
-              actionRequired: 'quote_review'
-            },
-            relatedEntityType: 'intervention',
-            relatedEntityId: interventionId
-          })
+        const managerIds = managers
+          .filter(m => m.user)
+          .map(m => (m.user as any).id)
+
+        const primaryManager = managers.find(m => m.is_primary)
+        const primaryManagerId = primaryManager?.user ? (primaryManager.user as any).id : undefined
+
+        // Use the new unified notification function with push support
+        await notifyQuoteSubmittedWithPush({
+          quoteId: finalQuote.id,
+          interventionId,
+          interventionTitle: intervention.title || 'Intervention',
+          teamId: intervention.team_id,
+          providerId: user.id,
+          providerName: user.name || 'Prestataire',
+          amount: totalAmount,
+          managerIds,
+          primaryManagerId
         })
 
-        await Promise.all(notificationPromises)
-        logger.info({ managersCount: managers.length }, "📧 Quote submission notifications sent")
+        logger.info({ managersCount: managers.length }, "📧 Quote submission notifications sent (in-app + push)")
       }
     } catch (notifError) {
       logger.warn({ notifError }, "⚠️ Could not send notifications")

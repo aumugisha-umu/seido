@@ -1,21 +1,5 @@
 /**
- * Composants de sidebar pour les prévisualisations d'intervention
+ * Sidebar components for intervention preview were removed.
+ * Layout is now full-width for locataire and prestataire; participants
+ * are shown in the General tab via InterventionDetailsCard.
  */
-
-export { ParticipantsList } from './participants-list'
-export {
-  ProgressionTimeline,
-  type ProgressionTimelineProps,
-  type TimelineEvent
-} from './progression-timeline'
-export {
-  ConversationButton,
-  ConversationButtonsGroup,
-  type ConversationButtonProps,
-  type ConversationButtonsGroupProps
-} from './conversation-button'
-export {
-  InterventionSidebar,
-  CompactSidebar,
-  type CompactSidebarProps
-} from './intervention-sidebar'

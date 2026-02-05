@@ -927,6 +927,7 @@ export type Database = {
           last_email_notification_at: string | null
           last_message_at: string | null
           message_count: number | null
+          participant_id: string | null
           team_id: string
           thread_type: Database["public"]["Enums"]["conversation_thread_type"]
           title: string | null
@@ -941,6 +942,7 @@ export type Database = {
           last_email_notification_at?: string | null
           last_message_at?: string | null
           message_count?: number | null
+          participant_id?: string | null
           team_id: string
           thread_type: Database["public"]["Enums"]["conversation_thread_type"]
           title?: string | null
@@ -955,6 +957,7 @@ export type Database = {
           last_email_notification_at?: string | null
           last_message_at?: string | null
           message_count?: number | null
+          participant_id?: string | null
           team_id?: string
           thread_type?: Database["public"]["Enums"]["conversation_thread_type"]
           title?: string | null
@@ -987,6 +990,13 @@ export type Database = {
             columns: ["intervention_id"]
             isOneToOne: false
             referencedRelation: "interventions_active"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_threads_participant_id_fkey"
+            columns: ["participant_id"]
+            isOneToOne: false
+            referencedRelation: "users"
             referencedColumns: ["id"]
           },
           {
@@ -3943,6 +3953,10 @@ export type Database = {
       can_view_building: { Args: { building_uuid: string }; Returns: boolean }
       can_view_contract: { Args: { contract_uuid: string }; Returns: boolean }
       can_view_conversation: { Args: { p_thread_id: string }; Returns: boolean }
+      can_view_conversation_thread: {
+        Args: { p_thread_id: string; p_user_id: string }
+        Returns: boolean
+      }
       can_view_intervention: {
         Args: { p_intervention_id: string }
         Returns: boolean
@@ -4190,6 +4204,8 @@ export type Database = {
         | "tenant_to_managers"
         | "provider_to_managers"
         | "email_internal"
+        | "tenants_group"
+        | "providers_group"
       country:
         | "belgique"
         | "france"
@@ -4499,6 +4515,8 @@ export const Constants = {
         "tenant_to_managers",
         "provider_to_managers",
         "email_internal",
+        "tenants_group",
+        "providers_group",
       ],
       country: [
         "belgique",

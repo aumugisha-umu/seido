@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import dynamic from "next/dynamic"
 import {
   Plus,
@@ -21,8 +21,7 @@ import { useInterventionFinalization } from "@/hooks/use-intervention-finalizati
 const ApprovalModal = dynamic(() => import("@/components/intervention/modals/approval-modal").then(mod => ({ default: mod.ApprovalModal })), { ssr: false })
 const QuoteRequestModal = dynamic(() => import("@/components/intervention/modals/quote-request-modal").then(mod => ({ default: mod.QuoteRequestModal })), { ssr: false })
 const QuoteRequestSuccessModal = dynamic(() => import("@/components/intervention/modals/quote-request-success-modal").then(mod => ({ default: mod.QuoteRequestSuccessModal })), { ssr: false })
-// ProgrammingModal removed - redirects to /gestionnaire/interventions/modifier/[id] now
-// const ProgrammingModal = dynamic(() => import("@/components/intervention/modals/programming-modal").then(mod => ({ default: mod.ProgrammingModal })), { ssr: false })
+const ProgrammingModal = dynamic(() => import("@/components/intervention/modals/programming-modal").then(mod => ({ default: mod.ProgrammingModal })), { ssr: false })
 const CancelQuoteRequestModal = dynamic(() => import("@/components/intervention/modals/cancel-quote-request-modal").then(mod => ({ default: mod.CancelQuoteRequestModal })), { ssr: false })
 
 import { InterventionCancellationManager } from "@/components/intervention/intervention-cancellation-manager"
@@ -67,8 +66,16 @@ export function InterventionsPageClient({
   })
   const [isCancellingQuote, setIsCancellingQuote] = useState(false)
 
+  // ✅ Refetch via router.refresh() - défini en premier pour être passé aux hooks
+  const refetch = useCallback(() => {
+    setLoading(true)
+    router.refresh()
+    // Le loading sera automatiquement reset par React quand les nouvelles props arrivent
+    setLoading(false)
+  }, [router])
+
   // ✅ Hooks avec Server Props Pattern - passer teamId depuis le serveur
-  const approvalHook = useInterventionApproval()
+  const approvalHook = useInterventionApproval(refetch)
   const quotingHook = useInterventionQuoting(teamId)
   const planningHook = useInterventionPlanning()
   const executionHook = useInterventionExecution()
@@ -96,15 +103,6 @@ export function InterventionsPageClient({
 
     fetchQuoteRequests()
   }, [planningHook.programmingModal.isOpen, planningHook.programmingModal.intervention?.id])
-
-  // ✅ Refetch via router.refresh() - OPTIMISÉ: suppression du délai artificiel
-  const refetch = () => {
-    setLoading(true)
-    router.refresh()
-    // Le loading sera automatiquement reset par React quand les nouvelles props arrivent
-    // Note: Si nécessaire, utiliser startTransition pour un meilleur feedback
-    setLoading(false)
-  }
 
   // Handle cancel quote request - open confirmation modal
   const handleCancelQuoteRequest = (requestId: string) => {
@@ -244,7 +242,39 @@ export function InterventionsPageClient({
           />
         )}
 
-        {/* ProgrammingModal removed - users edit via /gestionnaire/interventions/modifier/[id] */}
+        {planningHook.programmingModal.isOpen && (
+          <ProgrammingModal
+            isOpen={planningHook.programmingModal.isOpen}
+            onClose={planningHook.closeProgrammingModal}
+            intervention={planningHook.programmingModal.intervention}
+            programmingOption={planningHook.programmingOption}
+            onProgrammingOptionChange={planningHook.setProgrammingOption}
+            directSchedule={planningHook.programmingDirectSchedule}
+            onDirectScheduleChange={planningHook.setProgrammingDirectSchedule}
+            proposedSlots={planningHook.programmingProposedSlots}
+            onAddProposedSlot={planningHook.addProgrammingSlot}
+            onUpdateProposedSlot={planningHook.updateProgrammingSlot}
+            onRemoveProposedSlot={planningHook.removeProgrammingSlot}
+            selectedProviders={[]}
+            onProviderToggle={() => {}}
+            providers={quotingHook.providers.map(p => ({
+              id: p.id,
+              name: p.name || '',
+              email: p.email || ''
+            }))}
+            onConfirm={planningHook.handleProgrammingConfirm}
+            isFormValid={planningHook.isProgrammingFormValid()}
+            teamId={teamId || ''}
+            // Managers and tenants - data not available from list view
+            managers={[]}
+            selectedManagers={[]}
+            onManagerToggle={() => {}}
+            tenants={[]}
+            selectedTenants={[]}
+            onTenantToggle={() => {}}
+            showTenantsSection={false}
+          />
+        )}
 
         {cancelQuoteModal.isOpen && (
           <CancelQuoteRequestModal

@@ -24,17 +24,26 @@ import { useAuth } from './use-auth'
  * ```
  */
 
-interface BeforeInstallPromptEvent extends Event {
+export interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
 interface PWAInstallHookReturn {
+  /** PWA can be installed (prompt available and not already installed) */
   canInstall: boolean
+  /** PWA is already installed (standalone mode) */
   isInstalled: boolean
+  /** Installation in progress */
   isLoading: boolean
+  /** Error message if installation failed */
   error: string | null
+  /** Trigger the install prompt and auto-subscribe to notifications */
   triggerInstall: () => Promise<{ success: boolean; notificationsEnabled: boolean }>
+  /** The deferred prompt event (for advanced usage) */
+  deferredPrompt: BeforeInstallPromptEvent | null
+  /** Check if PWA install prompt is available (browser supports it) */
+  hasInstallPrompt: boolean
 }
 
 export function usePWAInstallWithNotifications(): PWAInstallHookReturn {
@@ -116,8 +125,10 @@ export function usePWAInstallWithNotifications(): PWAInstallHookReturn {
           logger.info('✅ [PWA-HOOK] Notifications enabled successfully')
         } catch (notifError) {
           // Ne pas bloquer l'installation si les notifications échouent
-          logger.error('❌ [PWA-HOOK] Notification subscription failed:', notifError)
-          // On ne set pas l'erreur ici car l'installation a réussi
+          // La modale NotificationPermissionModal prendra le relais aux prochaines ouvertures
+          logger.info('🔔 [PWA-HOOK] Notification skipped at install - modal will prompt on next PWA open', {
+            reason: notifError instanceof Error ? notifError.message : 'Unknown error'
+          })
         }
 
         setIsLoading(false)
@@ -141,6 +152,8 @@ export function usePWAInstallWithNotifications(): PWAInstallHookReturn {
     isInstalled,
     isLoading,
     error,
-    triggerInstall
+    triggerInstall,
+    deferredPrompt: installPrompt,
+    hasInstallPrompt: !!installPrompt
   }
 }

@@ -118,10 +118,24 @@ const serwist = new Serwist({
 
 // 🔔 PUSH NOTIFICATION HANDLER
 self.addEventListener('push', (event) => {
-  if (!event.data) return
+  // 🔍 DEBUG: Log all push events
+  console.log('📥 [SW-PUSH] Push event received', {
+    hasData: !!event.data,
+    timestamp: new Date().toISOString()
+  })
+
+  if (!event.data) {
+    console.warn('📥 [SW-PUSH] No data in push event, ignoring')
+    return
+  }
 
   try {
+    // 🔍 DEBUG: Log raw data before parsing
+    const rawText = event.data.text()
+    console.log('📥 [SW-PUSH] Raw payload text:', rawText)
+
     const data = event.data.json()
+    console.log('📥 [SW-PUSH] Parsed payload:', JSON.stringify(data, null, 2))
 
     const options: NotificationOptions = {
       body: data.message || data.body,
@@ -149,11 +163,32 @@ self.addEventListener('push', (event) => {
       silent: false
     } as any
 
+    // 🔍 DEBUG: Log notification options before showing
+    console.log('📥 [SW-PUSH] Notification options:', {
+      title: data.title || 'SEIDO',
+      body: options.body,
+      tag: options.tag,
+      requireInteraction: options.requireInteraction,
+      url: options.data?.url
+    })
+
     event.waitUntil(
       self.registration.showNotification(data.title || 'SEIDO', options)
+        .then(() => {
+          console.log('✅ [SW-PUSH] Notification shown successfully')
+        })
+        .catch((err) => {
+          console.error('❌ [SW-PUSH] Failed to show notification:', err)
+        })
     )
   } catch (error) {
-    console.error('Error handling push event:', error)
+    console.error('❌ [SW-PUSH] Error handling push event:', error)
+    // 🔍 DEBUG: Try to log raw text on error
+    try {
+      console.error('❌ [SW-PUSH] Raw data that failed to parse:', event.data?.text())
+    } catch (e) {
+      console.error('❌ [SW-PUSH] Could not read raw data:', e)
+    }
   }
 })
 

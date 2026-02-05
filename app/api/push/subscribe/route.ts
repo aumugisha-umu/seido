@@ -29,13 +29,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    logger.info({ userId, endpoint: subscription.endpoint }, '🔔 [PUSH-SUBSCRIBE] Creating push subscription')
+    logger.info({ userProfileId: userProfile.id, endpoint: subscription.endpoint }, '🔔 [PUSH-SUBSCRIBE] Creating push subscription')
 
     // Upsert l'abonnement (créer ou mettre à jour)
+    // ✅ Use userProfile.id (authenticated) instead of client-provided userId for security
     const { data, error } = await supabase
       .from('push_subscriptions')
       .upsert({
-        user_id: userId,
+        user_id: userProfile.id,
         endpoint: subscription.endpoint,
         keys: subscription.keys,
         user_agent: request.headers.get('user-agent')
@@ -47,14 +48,23 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (error) {
-      logger.error({ error }, '❌ [PUSH-SUBSCRIBE] Database error')
+      logger.error({ error, userProfileId: userProfile.id }, '❌ [PUSH-SUBSCRIBE] Database error')
       return NextResponse.json(
         { error: 'Failed to save subscription' },
         { status: 500 }
       )
     }
 
-    logger.info({ userId, subscriptionId: data.id }, '✅ [PUSH-SUBSCRIBE] Subscription saved')
+    // ✅ Check for null data - RLS may silently block inserts without throwing an error
+    if (!data) {
+      logger.error({ userProfileId: userProfile.id }, '❌ [PUSH-SUBSCRIBE] Insert blocked (RLS or constraint)')
+      return NextResponse.json(
+        { error: 'Subscription not created - permission denied' },
+        { status: 500 }
+      )
+    }
+
+    logger.info({ userProfileId: userProfile.id, subscriptionId: data.id }, '✅ [PUSH-SUBSCRIBE] Subscription saved')
 
     return NextResponse.json({ success: true, data })
   } catch (error) {

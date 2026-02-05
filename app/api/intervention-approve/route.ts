@@ -38,7 +38,14 @@ export async function POST(request: NextRequest) {
       notes: internalComment
     } = validation.data
 
-    logger.info({ interventionId }, "📝 Approving intervention:")
+    // 🔍 DEBUG: Log received data for troubleshooting
+    logger.info({
+      interventionId,
+      hasNotes: !!internalComment,
+      notesLength: internalComment?.length || 0,
+      notesPreview: internalComment ? internalComment.substring(0, 50) : '(empty)',
+      rawBody: JSON.stringify(body).substring(0, 200)
+    }, "📝 Approving intervention - DEBUG data received")
 
     // Get intervention details
     const { data: intervention, error: interventionError } = await supabase
@@ -87,14 +94,47 @@ export async function POST(request: NextRequest) {
     logger.info({}, "✅ Intervention approved successfully")
 
     // ✅ Save internal comment if provided (is_internal: true)
+    // 🔍 DEBUG: Always log comment handling for troubleshooting
+    logger.info({
+      interventionId,
+      userId: user.id,
+      hasInternalComment: !!internalComment,
+      trimmedHasContent: !!internalComment?.trim(),
+      internalCommentLength: internalComment?.length || 0,
+      trimmedLength: internalComment?.trim().length || 0
+    }, "💬 [DEBUG] Comment handling - checking conditions")
+
     if (internalComment?.trim()) {
       try {
+        logger.info({ interventionId, userId: user.id }, "💬 [DEBUG] About to create comment repository")
         const commentRepository = await createServerActionInterventionCommentRepository()
-        await commentRepository.createComment(interventionId, user.id, internalComment.trim(), true)
-        logger.info({ interventionId }, "💬 Internal comment saved for approval")
+
+        logger.info({
+          interventionId,
+          userId: user.id,
+          contentPreview: internalComment.trim().substring(0, 50),
+          isInternal: true
+        }, "💬 [DEBUG] About to call createComment")
+
+        const result = await commentRepository.createComment(interventionId, user.id, internalComment.trim(), true)
+
+        logger.info({
+          interventionId,
+          success: result?.success,
+          hasData: !!result?.data,
+          error: result?.error
+        }, "💬 Internal comment saved for approval - RESULT")
       } catch (commentError) {
-        logger.warn({ commentError }, "⚠️ Could not save internal comment (non-blocking)")
+        logger.error({
+          commentError,
+          errorMessage: commentError instanceof Error ? commentError.message : 'Unknown error',
+          errorStack: commentError instanceof Error ? commentError.stack : undefined,
+          interventionId,
+          userId: user.id
+        }, "❌ [DEBUG] Could not save internal comment - EXCEPTION")
       }
+    } else {
+      logger.info({ interventionId }, "💬 [DEBUG] No internal comment to save (empty or missing)")
     }
 
     // Send notifications with proper logic (personal/team)

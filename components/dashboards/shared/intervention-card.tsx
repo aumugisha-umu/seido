@@ -68,6 +68,8 @@ interface InterventionCardProps {
   customActionHandlers?: {
     [key: string]: (intervention: any) => Promise<boolean>
   }
+  /** Callback to open ProgrammingModal for start_planning action */
+  onOpenProgrammingModal?: (intervention: any) => void
 }
 
 // ============================================================================
@@ -98,7 +100,8 @@ export function InterventionCard({
   userId,
   onActionComplete,
   enableAnimations = true,
-  customActionHandlers
+  customActionHandlers,
+  onOpenProgrammingModal
 }: InterventionCardProps) {
   const router = useRouter()
   const { toast } = useToast()
@@ -223,6 +226,12 @@ export function InterventionCard({
 
   // Handle action button click
   const handleActionClick = useCallback((action: RoleBasedAction) => {
+    // Special handling for start_planning - open ProgrammingModal
+    if (action.actionType === 'start_planning' && onOpenProgrammingModal) {
+      onOpenProgrammingModal(intervention)
+      return
+    }
+
     if (action.apiRoute && !action.href) {
       // API action
       handleApiAction(action)
@@ -233,7 +242,7 @@ export function InterventionCard({
       // Fallback to detail page
       router.push(getInterventionUrl())
     }
-  }, [handleApiAction, router, getInterventionUrl])
+  }, [handleApiAction, router, getInterventionUrl, onOpenProgrammingModal, intervention])
 
   // Check if user prefers reduced motion
   const prefersReducedMotion = typeof window !== 'undefined' &&
@@ -242,9 +251,9 @@ export function InterventionCard({
   return (
     <div
       className={cn(
-        "group relative bg-card dark:bg-white/5 rounded-2xl p-5 shadow-sm dark:shadow-none",
+        "group relative bg-card dark:bg-white/5 rounded-2xl p-4 sm:p-5 shadow-sm dark:shadow-none",
         "transition-all duration-300 border border-border dark:border-white/10",
-        "hover:border-primary/30 flex flex-col dark:backdrop-blur-sm",
+        "hover:border-primary/30 flex flex-col h-full dark:backdrop-blur-sm",
         "will-change-transform",
         isRemoving && !prefersReducedMotion && "slide-out-right",
         isRemoving && prefersReducedMotion && "opacity-0"
@@ -404,7 +413,7 @@ export function InterventionCard({
               )}>
                 {primaryActions.map((action, idx) => {
                   // Green background for primary workflow actions
-                  const isGreenAction = ['approve', 'process_request', 'finalize', 'validate_work', 'mark_completed', 'propose_slots'].includes(action.actionType)
+                  const isGreenAction = ['approve', 'process_request', 'finalize', 'validate_work', 'mark_completed', 'propose_slots', 'start_planning'].includes(action.actionType)
                   return (
                   <Button
                     key={idx}

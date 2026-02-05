@@ -266,8 +266,8 @@ export default function NouvelleDemandePage({
         variant: "success",
       })
 
-      // Redirect immédiat vers le dashboard
-      router.push("/locataire/dashboard")
+      // Redirect vers la page de l'intervention pour que le locataire puisse suivre sa demande
+      router.push(`/locataire/interventions/${result.intervention.id}`)
 
     } catch (error) {
       logger.error("❌ Error creating intervention:", error)

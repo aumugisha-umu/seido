@@ -21,13 +21,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { interventionActionsService } from "@/lib/intervention-actions-service"
-import { getValidAvailabilities } from "@/lib/availability-filtering-utils"
 import { analyzeTimeSlots, getProviderActionForTimeSlots, getProviderActionLabel } from "@/lib/time-slot-utils"
 import { WorkCompletionReport } from "./work-completion-report"
 import { SimpleWorkCompletionModal } from "./simple-work-completion-modal"
 import { TenantValidationSimple } from "./tenant-validation-simple"
 import { FinalizationModalLive } from "./finalization-modal-live"
-import { TenantSlotConfirmationModal } from "./tenant-slot-confirmation-modal"
+import { MultiSlotResponseModal } from "./modals/multi-slot-response-modal"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { QuoteRequestSuccessModal } from "./modals/quote-request-success-modal"
 import type { Quote } from "@/lib/quote-state-utils"
@@ -141,20 +140,6 @@ export function InterventionActionButtons({
     return getActionStylingFromLib(actionKey, userRole as 'gestionnaire' | 'locataire' | 'prestataire')
   }
 
-  // Fonction helper pour filtrer les disponibilités selon les estimations approuvées
-  const getFilteredAvailabilitiesForModal = () => {
-    if (!intervention.availabilities) {
-      return []
-    }
-
-    const { filteredAvailabilities } = getValidAvailabilities(
-      intervention.availabilities,
-      intervention.quotes || [],
-      'locataire'
-    )
-
-    return filteredAvailabilities
-  }
 
   // Définir les actions disponibles selon le statut et le rôle
   const getAvailableActions = (): ActionConfig[] => {
@@ -734,26 +719,6 @@ export function InterventionActionButtons({
     }
   }
 
-  const handleSlotConfirmation = async (selectedSlot: { date: string; startTime: string; endTime: string; }, comment?: string): Promise<void> => {
-    try {
-      setIsProcessing(true)
-      setError(null)
-
-      const result = await interventionActionsService.confirmSlot(intervention.id, selectedSlot, comment)
-
-      if (result.success) {
-        setShowSlotConfirmationModal(false)
-        onActionComplete?.()
-      } else {
-        throw new Error(result.error || 'Erreur lors de la confirmation du créneau')
-      }
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Erreur lors de la confirmation du créneau')
-      throw error
-    } finally {
-      setIsProcessing(false)
-    }
-  }
 
   const availableActions = getAvailableActions()
 
@@ -916,13 +881,23 @@ export function InterventionActionButtons({
         onComplete={onActionComplete}
       />
 
-      <TenantSlotConfirmationModal
+      <MultiSlotResponseModal
         isOpen={showSlotConfirmationModal}
         onClose={() => setShowSlotConfirmationModal(false)}
-        availabilities={getFilteredAvailabilitiesForModal()}
-        interventionTitle={intervention.title}
-        onConfirm={handleSlotConfirmation}
-        loading={isProcessing}
+        slots={timeSlots
+          .filter(slot => slot.status === 'proposed' || slot.status === 'requested')
+          .map(slot => ({
+            id: slot.id,
+            slot_date: slot.slot_date,
+            start_time: slot.start_time,
+            end_time: slot.end_time,
+            notes: null,
+            proposer_name: undefined,
+            proposer_role: undefined,
+            responses: []
+          }))}
+        interventionId={intervention.id}
+        onSuccess={onActionComplete}
       />
 
       {/* Quote Request Modals */}

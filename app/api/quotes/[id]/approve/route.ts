@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse, after } from 'next/server'
+import { notifyQuoteApproved } from '@/app/actions/notification-actions'
 import { logger } from '@/lib/logger'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { quoteApproveSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
@@ -167,7 +168,9 @@ export async function POST(
 
     logger.info({}, '🎉 [API-APPROVE] Process completed successfully!')
 
-    // Send email to provider (via after())
+    // ═══════════════════════════════════════════════════════════════════════════
+    // NOTIFICATIONS: Send in-app + push + email to provider
+    // ═══════════════════════════════════════════════════════════════════════════
     {
       // Capture variables for after() closure
       const emailQuote = { ...quote }
@@ -192,19 +195,37 @@ export async function POST(
             .eq('id', emailProviderId)
             .single()
 
-          if (provider) {
-            // Get property address
-            const { data: interventionDetails } = await supabaseClient
-              .from('interventions')
-              .select(`
-                lot_id,
-                building_id,
-                lots(address_record:address_id(*), buildings(address_record:address_id(*))),
-                buildings(address_record:address_id(*))
-              `)
-              .eq('id', emailInterventionId)
-              .single()
+          // Get intervention details for team_id
+          const { data: interventionDetails } = await supabaseClient
+            .from('interventions')
+            .select(`
+              id,
+              title,
+              team_id,
+              lot_id,
+              building_id,
+              lots(address_record:address_id(*), buildings(address_record:address_id(*))),
+              buildings(address_record:address_id(*))
+            `)
+            .eq('id', emailInterventionId)
+            .single()
 
+          if (provider && interventionDetails) {
+            // 1. In-app + Push notification
+            await notifyQuoteApproved({
+              quoteId: emailQuote.id,
+              interventionId: emailInterventionId,
+              interventionTitle: interventionDetails.title || 'Intervention',
+              providerId: provider.id,
+              providerName: provider.first_name || provider.company_name || 'Prestataire',
+              teamId: interventionDetails.team_id,
+              approvedBy: emailManager.id,
+              approvedByName: emailManager.name || 'Gestionnaire',
+              amount: emailQuote.amount || 0,
+              notes: emailComments
+            })
+
+            // 2. Email notification
             // Helper to format address from address_record
             const formatAddr = (rec: any) => {
               if (!rec) return null
@@ -214,16 +235,14 @@ export async function POST(
             }
 
             let propertyAddress = 'Adresse non spécifiée'
-            if (interventionDetails) {
-              if (interventionDetails.lot_id && interventionDetails.lots) {
-                const lot = interventionDetails.lots as any
-                const lotAddr = lot.address_record
-                const buildingAddr = lot.buildings?.address_record
-                propertyAddress = formatAddr(lotAddr) || formatAddr(buildingAddr) || propertyAddress
-              } else if (interventionDetails.building_id && interventionDetails.buildings) {
-                const building = interventionDetails.buildings as any
-                propertyAddress = formatAddr(building.address_record) || propertyAddress
-              }
+            if (interventionDetails.lot_id && interventionDetails.lots) {
+              const lot = interventionDetails.lots as any
+              const lotAddr = lot.address_record
+              const buildingAddr = lot.buildings?.address_record
+              propertyAddress = formatAddr(lotAddr) || formatAddr(buildingAddr) || propertyAddress
+            } else if (interventionDetails.building_id && interventionDetails.buildings) {
+              const building = interventionDetails.buildings as any
+              propertyAddress = formatAddr(building.address_record) || propertyAddress
             }
 
             await emailService.sendQuoteApproved({
@@ -234,13 +253,13 @@ export async function POST(
               provider,
               approvalNotes: emailComments,
             })
-            logger.info({ quoteId: emailQuote.id }, '📧 [API] Quote approved email sent (via after())')
+            logger.info({ quoteId: emailQuote.id }, '📧 [API] Quote approved notifications sent (in-app + push + email)')
           }
         } catch (emailError) {
           logger.error({
             quoteId: emailQuote.id,
             error: emailError instanceof Error ? emailError.message : String(emailError)
-          }, '⚠️ [API] Email notifications failed (via after())')
+          }, '⚠️ [API] Quote approval notifications failed (via after())')
         }
       })
     }

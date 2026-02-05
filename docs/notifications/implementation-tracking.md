@@ -1,8 +1,8 @@
 # Suivi d'Implémentation - Système de Notifications SEIDO
 
 > **Document de référence** pour le suivi de l'implémentation du système de notifications multi-canal.
-> **Dernière mise à jour** : 2026-01-22
-> **Statut global** : ✅ 100% Opérationnel (Push PWA connecté)
+> **Dernière mise à jour** : 2026-02-04
+> **Statut global** : ✅ ~98% Opérationnel (Rappels RDV + Email Reply push/email + Document URLs fixes)
 
 ---
 
@@ -138,17 +138,18 @@
 #### Infrastructure
 - [x] Intégration Resend API (batch jusqu'à 100 emails)
 - [x] Rate limiting (500ms entre emails)
-- [x] 18 templates React Email
+- [x] 25 templates React Email
 - [x] Magic Links pour auto-login
 
-#### Templates Implémentés (18 total)
+#### Templates Implémentés (25 total)
 
-**Interventions (8)**
+**Interventions (9)**
 - [x] InterventionCreatedEmail
 - [x] InterventionApprovedEmail
 - [x] InterventionRejectedEmail
 - [x] InterventionScheduledEmail
 - [x] InterventionCompletedEmail
+- [x] InterventionReminderEmail ✨ NEW (24h + 1h)
 - [x] TimeSlotsProposedEmail
 - [x] InterventionAssignedPrestataireEmail
 - [x] InterventionAssignedLocataireEmail
@@ -159,15 +160,24 @@
 - [x] QuoteApprovedEmail
 - [x] QuoteRejectedEmail
 
-**Notifications (1)**
-- [x] EmailReplyReceivedEmail
+**Contrats (2)**
+- [x] ContractCreatedEmail
+- [x] ContractExpiringEmail
 
-**Authentification (5)**
+**Documents (1)**
+- [x] DocumentUploadedEmail
+
+**Notifications (2)**
+- [x] EmailReplyReceivedEmail
+- [x] NewMessageEmail
+
+**Authentification (6)**
 - [x] WelcomeEmail
 - [x] PasswordResetEmail
 - [x] PasswordChangedEmail
 - [x] SignupConfirmationEmail
 - [x] InvitationEmail
+- [x] TeamAdditionEmail
 
 #### Fonctions Batch
 - [x] `sendInterventionEmails()` - Unified dispatcher
@@ -273,10 +283,10 @@ Push notifications envoyées uniquement aux destinataires **personnels** (`is_pe
 
 | Événement | Route | In-App | Email | Push | Destinataires |
 |-----------|-------|--------|-------|------|---------------|
-| Demande devis | `POST /api/intervention-quote-request` | ✅ L264 | ✅ | ❌ | Prestataires |
-| Soumission devis | `POST /api/intervention-quote-submit` | ❌ | ✅ | ❌ | Gestionnaires |
-| Approbation devis | `POST /api/quotes/[id]/approve` | ❌ | ✅ | ❌ | Prestataire |
-| Rejet devis | `POST /api/quotes/[id]/reject` | ❌ | ✅ | ❌ | Prestataire |
+| Demande devis | `POST /api/intervention-quote-request` | ✅ | ✅ | ✅ | Prestataires |
+| Soumission devis | `POST /api/intervention-quote-submit` | ✅ | ✅ | ✅ | Gestionnaires |
+| Approbation devis | `POST /api/quotes/[id]/approve` | ✅ | ✅ | ✅ | Prestataire |
+| Rejet devis | `POST /api/quotes/[id]/reject` | ✅ | ✅ | ✅ | Prestataire |
 
 ### 4.4 Planification
 
@@ -298,6 +308,17 @@ Push notifications envoyées uniquement aux destinataires **personnels** (`is_pe
 | Événement | Route | In-App | Email | Push | Destinataires |
 |-----------|-------|--------|-------|------|---------------|
 | Annulation | `POST /api/intervention-cancel` | ✅ L150 | ✅ | ✅ | Tous participants |
+
+### 4.7 Contrats, Documents, Rappels, Réponses Email
+
+| Événement | Route / Mécanisme | In-App | Email | Push | Destinataires |
+|-----------|-------------------|--------|-------|------|---------------|
+| Contrat créé | `createContractNotification` SA | ✅ | ✅ | ✅ | Locataires + Gestionnaires |
+| Contrat expire | `notifyContractExpiring` SA | ✅ | ✅ | ✅ (≤7j) | Gestionnaires |
+| Document uploadé | `notifyDocumentUploaded` SA | ✅ | ✅ | ✅ | Assigné + Gestionnaires |
+| Rappel RDV 24h | Cron `/api/cron/intervention-reminders` | ✅ | ✅ | ✅ | Locataires + Prestataires + Gestionnaires |
+| Rappel RDV 1h | Cron `/api/cron/intervention-reminders` | ✅ | ✅ | ✅ | Locataires + Prestataires + Gestionnaires |
+| Réponse email reçue | Webhook `/api/webhooks/resend-inbound` | ✅ | ✅ | ✅ | Gestionnaires assignés |
 
 ---
 
@@ -580,19 +601,29 @@ CREATE POLICY "Users can manage own preferences"
 
 ---
 
-### 7.3 PRIORITÉ MOYENNE - Rappels RDV
+### 7.3 ~~PRIORITÉ MOYENNE - Rappels RDV~~ ✅ COMPLÉTÉ
 
-**Statut** : ❌ Non implémenté
-**Effort** : ~3h
+**Statut** : ✅ Implémenté (2026-02-04)
+**Effort réel** : ~2h
 
-#### Cron job à créer
-- Fichier : `app/api/cron/intervention-reminders/route.ts`
-- Fréquence : Toutes les heures
-- Logique : Chercher interventions `planifiee` avec RDV dans 24h ou 1h
+#### Fichiers créés/modifiés
+- ✅ `emails/utils/types.ts` — `InterventionReminderEmailProps` ajouté
+- ✅ `emails/templates/interventions/intervention-reminder.tsx` — Template dédié (3 rôles × 2 rappels)
+- ✅ `app/api/cron/intervention-reminders/route.ts` — Cron toutes les heures
+- ✅ `vercel.json` — Entrée cron ajoutée (`0 * * * *`)
+
+#### Routage des destinataires (3 groupes)
+- Groupe 1 (tous gestionnaires équipe) → in-app seulement
+- Groupe 2 (gestionnaires assignés, hors créateur) → push + email
+- Groupe 3 (locataires + prestataires assignés) → in-app + push + email
+
+#### Dédoublonnage
+- Vérifie `notifications` WHERE `type='reminder'` AND `metadata->>'reminderType'` = '24h'/'1h'
 
 #### Vérification
-- [ ] Route cron créée
-- [ ] Vercel cron configuré
+- [x] Route cron créée
+- [x] Vercel cron configuré
+- [x] Template email créé (3 rôles, 2 modes 24h/1h)
 - [ ] Tests manuels passent
 
 ---
@@ -677,6 +708,13 @@ Permettre aux utilisateurs d'agir directement depuis leurs emails :
 | | | ✅ Message corrigé: "envoyer un message dans la conversation" | |
 | | | ✅ Documentation templates corrigée (18 templates listés) | |
 | | | Statut global: 100% Opérationnel | |
+| 2026-02-04 | 3.0.0 | **AUDIT COMPLET + RAPPELS RDV** | Claude Code |
+| | | ✅ GAP A: Rappels RDV 24h + 1h (cron + template + 3 canaux) | |
+| | | ✅ GAP B: EmailReplyReceivedEmail connecté push + email | |
+| | | ✅ GAP C: URLs push/email document rendues role-aware | |
+| | | ✅ GAP D: Documentation tracking mise à jour (25 templates) | |
+| | | ✅ Devis: in-app + push corrigés dans le tracking | |
+| | | Statut global: ~98% Opérationnel | |
 
 ---
 

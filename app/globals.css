@@ -284,8 +284,8 @@ input[autocomplete="cc-number"],
   /* 1280px - equivalent to Tailwind's max-w-7xl */
 
   /* Dashboard Spacing System - Material Design 3 compliant */
-  --dashboard-padding-x-mobile: 1.25rem;
-  /* 20px - 5 en Tailwind */
+  --dashboard-padding-x-mobile: 1rem;
+  /* 16px - Material Design 3 minimum content margin */
   --dashboard-padding-x-tablet: 1.5rem;
   /* 24px - 6 en Tailwind */
   --dashboard-padding-x-desktop: 2.5rem;

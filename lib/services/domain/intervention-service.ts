@@ -48,6 +48,7 @@ import type {
 import type { Database } from '@/lib/database.types'
 import { logger, logError } from '@/lib/logger'
 import { generateActivityEntityName } from '@/lib/utils/activity-name-generator'
+import { sendThreadWelcomeMessage } from '@/lib/utils/thread-welcome-messages'
 import {
   ValidationException,
   ConflictException,
@@ -607,41 +608,88 @@ export class InterventionService {
         return createErrorResponse(handleError(error, 'interventions:assignUser'))
       }
 
-      // Create provider conversation thread if assigning provider
-      if (role === 'prestataire' && this.conversationRepo) {
-        const threadResult = await this.conversationRepo.createThread({
-          intervention_id: interventionId,
-          thread_type: 'provider_to_managers',
-          title: 'Communication avec le prestataire',
-          created_by: assignedBy,
-          team_id: intervention.data.team_id
-        })
+      // Create individual conversation thread when assigning a user
+      // ✅ FIX 2026-02-01: Only create thread for invited users (with auth_id)
+      if (this.conversationRepo) {
+        const teamId = intervention.data.team_id
 
-        // ✅ FIX: Add participants after thread creation
-        // The repository only adds the creator. We need to add:
-        // 1. The assigned provider
-        // 2. Other team managers (if any besides the creator)
-        if (threadResult.success && threadResult.data) {
-          const threadId = threadResult.data.id
-          const teamId = intervention.data.team_id
+        // Fetch user info for personalized welcome message + check if invited
+        const { data: assignedUser } = await this.interventionRepo.supabase
+          .from('users')
+          .select('name, auth_user_id')
+          .eq('id', userId)
+          .single()
+        const userName = assignedUser?.name || undefined
+        const hasAuthAccount = !!assignedUser?.auth_user_id
 
-          // Add the assigned provider as participant
-          await this.conversationRepo.addParticipant(threadId, userId)
+        // Only create conversation thread for invited users (with auth account)
+        // Users without auth_id are informational contacts - they can't log in or receive notifications
+        if (!hasAuthAccount) {
+          logger.info({
+            userId,
+            role,
+            interventionId
+          }, 'ℹ️ Skipping thread creation for non-invited user (no auth account)')
+        } else {
+          // Determine thread type based on role
+          const threadType = role === 'prestataire' ? 'provider_to_managers' : 'tenant_to_managers'
 
-          // Add all other team managers (besides the creator who is already added)
-          const { data: managers } = await this.interventionRepo.supabase
-            .from('users')
+          // Check if individual thread already exists for this user
+          const { data: existingThread } = await this.interventionRepo.supabase
+            .from('conversation_threads')
             .select('id')
-            .eq('team_id', teamId)
-            .in('role', ['gestionnaire', 'admin'])
-            .is('deleted_at', null)
+            .eq('intervention_id', interventionId)
+            .eq('thread_type', threadType)
+            .eq('participant_id', userId)
+            .single()
 
-          if (managers) {
-            for (const manager of managers) {
-              if (manager.id !== assignedBy) {
-                await this.conversationRepo.addParticipant(threadId, manager.id)
+          if (!existingThread) {
+            // Create individual conversation thread for this user
+            const threadResult = await this.conversationRepo.createThread({
+              intervention_id: interventionId,
+              thread_type: threadType,
+              title: `Conversation avec ${userName || (role === 'prestataire' ? 'le prestataire' : 'le locataire')}`,
+              created_by: assignedBy,
+              team_id: teamId,
+              participant_id: userId  // Individual thread for this specific user
+            })
+
+            if (threadResult.success && threadResult.data) {
+              const threadId = threadResult.data.id
+
+              // Send welcome message with user's name
+              await sendThreadWelcomeMessage(
+                this.interventionRepo.supabase,
+                threadId,
+                threadType,
+                assignedBy,
+                userName
+              )
+
+              // Add the assigned user as participant
+              await this.conversationRepo.addParticipant(threadId, userId)
+
+              // Add all team managers as participants (only those with auth accounts)
+              const { data: managers } = await this.interventionRepo.supabase
+                .from('users')
+                .select('id')
+                .eq('team_id', teamId)
+                .in('role', ['gestionnaire', 'admin'])
+                .is('deleted_at', null)
+                .not('auth_user_id', 'is', null)  // Only invited managers
+
+              if (managers) {
+                for (const manager of managers) {
+                  if (manager.id !== assignedBy) {
+                    await this.conversationRepo.addParticipant(threadId, manager.id)
+                  }
+                }
               }
+
+              logger.info({ threadId, threadType, participantId: userId }, '✅ Individual thread created for assigned user')
             }
+          } else {
+            logger.info({ existingThreadId: existingThread.id, participantId: userId }, 'ℹ️ Individual thread already exists for this user')
           }
         }
       }
@@ -836,39 +884,79 @@ export class InterventionService {
         }
       }
 
-      // Create provider conversation thread (one per provider in separate mode)
+      // Create individual conversation threads for each provider
+      // ✅ FIX 2026-02-01: Only create threads for invited providers (with auth_id)
       if (this.conversationRepo) {
-        // Check if thread already exists
-        const existingThread = await this.conversationRepo.findThreadsByIntervention(interventionId)
-        const hasProviderThread = existingThread.data?.some(t => t.thread_type === 'provider_to_managers')
+        const teamId = intervention.data.team_id
 
-        if (!hasProviderThread) {
+        // Fetch provider info for personalized welcome messages (only invited users)
+        const { data: providerUsers } = await this.interventionRepo.supabase
+          .from('users')
+          .select('id, name')
+          .in('id', providerIds)
+          .not('auth_user_id', 'is', null)  // Only invited providers with accounts
+        const providers = providerUsers || []
+
+        // Log if some providers were filtered out
+        if (providers.length < providerIds.length) {
+          logger.info({
+            selectedCount: providerIds.length,
+            invitedCount: providers.length,
+            filteredOut: providerIds.length - providers.length
+          }, "ℹ️ Some providers filtered out for thread creation (no auth account)")
+        }
+
+        // Get existing individual threads for these providers
+        const { data: existingThreads } = await this.interventionRepo.supabase
+          .from('conversation_threads')
+          .select('id, participant_id')
+          .eq('intervention_id', interventionId)
+          .eq('thread_type', 'provider_to_managers')
+          .in('participant_id', providerIds)
+
+        const existingParticipantIds = new Set(existingThreads?.map(t => t.participant_id) || [])
+
+        // Get managers for adding to threads (only invited managers)
+        const { data: managers } = await this.interventionRepo.supabase
+          .from('users')
+          .select('id')
+          .eq('team_id', teamId)
+          .in('role', ['gestionnaire', 'admin'])
+          .is('deleted_at', null)
+          .not('auth_user_id', 'is', null)  // Only invited managers
+
+        // Create individual thread for each provider that doesn't have one
+        for (const provider of providers) {
+          if (existingParticipantIds.has(provider.id)) {
+            logger.info({ providerId: provider.id }, 'ℹ️ Individual thread already exists for this provider')
+            continue
+          }
+
           const threadResult = await this.conversationRepo.createThread({
             intervention_id: interventionId,
             thread_type: 'provider_to_managers',
-            title: 'Communication avec le(s) prestataire(s)',
+            title: `Conversation avec ${provider.name}`,
             created_by: assignedBy,
-            team_id: intervention.data.team_id
+            team_id: teamId,
+            participant_id: provider.id  // Individual thread for this specific provider
           })
 
-          // ✅ FIX: Add participants after thread creation
           if (threadResult.success && threadResult.data) {
             const threadId = threadResult.data.id
-            const teamId = intervention.data.team_id
 
-            // Add all assigned providers as participants
-            for (const providerId of providerIds) {
-              await this.conversationRepo.addParticipant(threadId, providerId)
-            }
+            // Send welcome message with provider's name
+            await sendThreadWelcomeMessage(
+              this.interventionRepo.supabase,
+              threadId,
+              'provider_to_managers',
+              assignedBy,
+              provider.name
+            )
 
-            // Add all other team managers (besides the creator who is already added)
-            const { data: managers } = await this.interventionRepo.supabase
-              .from('users')
-              .select('id')
-              .eq('team_id', teamId)
-              .in('role', ['gestionnaire', 'admin'])
-              .is('deleted_at', null)
+            // Add the provider as participant
+            await this.conversationRepo.addParticipant(threadId, provider.id)
 
+            // Add all team managers as participants
             if (managers) {
               for (const manager of managers) {
                 if (manager.id !== assignedBy) {
@@ -876,6 +964,8 @@ export class InterventionService {
                 }
               }
             }
+
+            logger.info({ threadId, participantId: provider.id }, '✅ Individual provider thread created')
           }
         }
       }
@@ -2009,12 +2099,14 @@ export class InterventionService {
 
     try {
       // Get all team managers to add as participants
+      // ✅ FIX 2026-02-01: Only include managers with auth accounts (invited users)
       const { data: managers } = await this.interventionRepo.supabase
         .from('users')
         .select('id')
         .eq('team_id', teamId)
         .in('role', ['gestionnaire', 'admin'])
         .is('deleted_at', null)
+        .not('auth_user_id', 'is', null)  // Only invited managers
 
       // Create group thread (all participants)
       const groupThreadResult = await this.conversationRepo.createThread({

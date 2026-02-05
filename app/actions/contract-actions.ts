@@ -72,6 +72,7 @@ export interface BuildingTenant {
   email: string | null
   phone: string | null
   is_primary: boolean
+  has_account: boolean  // ✅ FIX 2026-02-01: Indicates if user is invited (has auth_id)
   lot_id: string
   lot_reference: string
 }
@@ -1377,6 +1378,7 @@ export interface ActiveTenant {
   contract_start_date: string
   contract_end_date: string
   is_primary: boolean
+  has_account: boolean  // ✅ FIX 2026-02-01: Indicates if user is invited (has auth_id)
 }
 
 /**
@@ -1485,6 +1487,7 @@ export async function getActiveTenantsByBuildingAction(
             email: t.email,
             phone: t.phone,
             is_primary: t.is_primary,
+            has_account: t.has_account,  // ✅ FIX 2026-02-01
             lot_id: t.lot_id,
             lot_reference: t.lot_reference
           })),
@@ -1497,7 +1500,8 @@ export async function getActiveTenantsByBuildingAction(
               name: t.name,
               email: t.email,
               phone: t.phone,
-              is_primary: t.is_primary
+              is_primary: t.is_primary,
+              has_account: t.has_account  // ✅ FIX 2026-02-01
             }))
           })),
           totalCount: result.data.totalCount,

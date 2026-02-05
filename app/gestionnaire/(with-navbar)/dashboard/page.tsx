@@ -271,6 +271,8 @@ export default async function DashboardGestionnaire() {
     stats = {
       buildingsCount: (buildings as any[])?.length || 0,
       lotsCount: allLots?.length || 0,
+      buildingLotsCount: buildingLots.length,
+      independentLotsCount: independentLots.length,
       occupiedLotsCount: occupiedLotsCount,
       occupancyRate: allLots.length > 0 ? Math.round((occupiedLotsCount / allLots.length) * 100) : 0,
       interventionsCount: interventions?.length || 0

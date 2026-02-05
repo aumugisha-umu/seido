@@ -108,6 +108,8 @@ interface ChatInterfaceProps {
   className?: string
   /** Message initial à préremplir dans le champ de saisie */
   initialMessage?: string
+  /** Callback appelé quand le thread est marqué comme lu (pour mise à jour optimiste de l'UI) */
+  onThreadRead?: (threadId: string) => void
 }
 
 // System message component (centered, different style)
@@ -471,7 +473,8 @@ export function ChatInterface({
   teamMembers = [],
   currentParticipantIds = [],
   className = '',
-  initialMessage
+  initialMessage,
+  onThreadRead
 }: ChatInterfaceProps) {
   // Initialize with server-fetched data (Phase 2 optimization)
   const [messages, setMessages] = useState<Message[]>(initialMessages?.[threadId] || [])
@@ -482,6 +485,9 @@ export function ChatInterface({
   const [thread, setThread] = useState<Thread | null>(null)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  // Track threads already marked as read to prevent infinite loop
+  // (revalidatePath in server action causes re-render, which would re-trigger useEffect)
+  const markedAsReadThreadsRef = useRef<Set<string>>(new Set())
   // Track which threadId has been initialized to prevent infinite loops
   // (initialMessages/initialParticipants are objects whose references may change on re-renders)
   const initializedThreadIdRef = useRef<string | null>(null)
@@ -570,6 +576,38 @@ export function ChatInterface({
 
     loadData()
   }, [threadId, initialMessages, initialParticipants])
+
+  // ✅ Mark thread as read when displayed (not on click, but on mount/view)
+  // This updates the server-side read status and notifies the parent for optimistic UI updates
+  // Uses a ref to track already-marked threads to prevent infinite loop from revalidatePath
+  useEffect(() => {
+    // Skip if this thread was already marked as read in this session
+    if (markedAsReadThreadsRef.current.has(threadId)) {
+      return
+    }
+
+    const markAsRead = async () => {
+      try {
+        // Mark before calling to prevent race conditions on re-render
+        markedAsReadThreadsRef.current.add(threadId)
+
+        const { markThreadAsReadAction } = await import('@/app/actions/conversation-actions')
+        const result = await markThreadAsReadAction(threadId)
+        if (result.success) {
+          // Notify parent to update UI optimistically (remove unread badge)
+          onThreadRead?.(threadId)
+        }
+      } catch (error) {
+        // Allow retry on error by removing from tracked set
+        markedAsReadThreadsRef.current.delete(threadId)
+        console.error('Error marking thread as read:', error)
+      }
+    }
+
+    // Small delay to ensure the component is fully mounted and visible
+    const timeoutId = setTimeout(markAsRead, 300)
+    return () => clearTimeout(timeoutId)
+  }, [threadId, onThreadRead])
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {

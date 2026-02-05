@@ -16,6 +16,7 @@ import EnvironmentLogger from "@/components/environment-logger"
 import LoggerInitializer from "@/components/logger-initializer"
 import { PWARegister } from "@/components/pwa-register"
 import { ImpersonationBanner } from "@/components/impersonation-banner"
+import { NotificationPromptProvider } from "@/contexts/notification-prompt-context"
 import "./globals.css"
 
 export const metadata: Metadata = {
@@ -64,17 +65,19 @@ export default function RootLayout({
         <LoggerInitializer />
         <EnvironmentLogger />
         <AuthProvider>
-          <TeamStatusProvider>
-            <ImpersonationBanner />
-            <CookieConsentProvider>
-              <AnalyticsProvider>
-                <Suspense fallback={null}>{children}</Suspense>
-              </AnalyticsProvider>
-              <ConnectionStatus />
-              <Toaster />
-              <CookieConsentBanner />
-            </CookieConsentProvider>
-          </TeamStatusProvider>
+          <NotificationPromptProvider>
+            <TeamStatusProvider>
+              <ImpersonationBanner />
+              <CookieConsentProvider>
+                <AnalyticsProvider>
+                  <Suspense fallback={null}>{children}</Suspense>
+                </AnalyticsProvider>
+                <ConnectionStatus />
+                <Toaster />
+                <CookieConsentBanner />
+              </CookieConsentProvider>
+            </TeamStatusProvider>
+          </NotificationPromptProvider>
         </AuthProvider>
         <Analytics />
         <Script

@@ -2053,7 +2053,8 @@ export default function NouvelleInterventionClient({
                   name: t.name || 'Locataire',
                   email: t.email || '',
                   phone: t.phone || '',
-                  type: 'locataire' as const
+                  type: 'locataire' as const,
+                  has_account: t.has_account  // ✅ FIX 2026-02-01: Pass through invitation status
                 }))}
                 selectedManagerIds={selectedManagerIds}
                 selectedProviderIds={selectedProviderIds}

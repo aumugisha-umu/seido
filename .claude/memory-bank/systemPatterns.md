@@ -69,7 +69,7 @@ Server Action -> Domain Service -> Repository -> Supabase
              Push Notifications   Email (Resend)
 ```
 
-**16 Server Actions disponibles** (`app/actions/notification-actions.ts`) :
+**20 Server Actions disponibles** (`app/actions/notification-actions.ts`) :
 - `createInterventionNotification`, `notifyInterventionStatusChange`
 - `createBuildingNotification`, `notifyBuildingUpdated`, `notifyBuildingDeleted`
 - `createLotNotification`, `notifyLotUpdated`, `notifyLotDeleted`
@@ -77,6 +77,7 @@ Server Action -> Domain Service -> Repository -> Supabase
 - `markNotificationAsRead`, `markAllNotificationsAsRead`
 - `createCustomNotification`, `notifyDocumentUploaded`
 - `notifyContractExpiring`, `checkExpiringContracts`, `createContractNotification`
+- **NEW (2026-02-02)** `notifyQuoteRequested`, `notifyQuoteApproved`, `notifyQuoteRejected`, `notifyQuoteSubmittedWithPush`
 
 ```typescript
 // Exemple d'utilisation
@@ -700,6 +701,160 @@ Pattern d'orchestration des skills `superpowers:sp-*` base sur des "Red Flags" (
 
 ---
 
+### 24. RLS Silent Block Detection Pattern (NOUVEAU 2026-02-02)
+
+Pattern critique pour detecter les inserts bloques silencieusement par RLS avec Supabase anon key :
+
+```typescript
+// ⚠️ PROBLEME: Supabase avec anon key + cookies peut bloquer
+// silencieusement via RLS sans lever d'erreur
+
+// ❌ INCORRECT - Ne verifie que error
+const { data, error } = await supabase
+  .from('push_subscriptions')
+  .upsert({ user_id: userId, ... })
+  .select()
+  .single()
+
+if (error) {
+  return NextResponse.json({ error: 'Failed' }, { status: 500 })
+}
+// data peut etre null si RLS a bloque!
+
+// ✅ CORRECT - Verifie error ET data null
+const { data, error } = await supabase
+  .from('push_subscriptions')
+  .upsert({ user_id: userProfile.id, ... })  // ← Utiliser ID authentifie serveur
+  .select()
+  .single()
+
+if (error) {
+  logger.error({ error }, 'Database error')
+  return NextResponse.json({ error: 'Failed' }, { status: 500 })
+}
+
+// ✅ Verifier RLS silent block
+if (!data) {
+  logger.error('Insert blocked by RLS or constraint')
+  return NextResponse.json({ error: 'Permission denied' }, { status: 500 })
+}
+```
+
+**Pourquoi ca arrive :**
+1. Le client Supabase utilise anon key + cookies (pas service role)
+2. Les RLS policies verifient `user_id IN (SELECT get_my_profile_ids())`
+3. Si la condition echoue, l'insert est silencieusement ignore
+4. `.single()` retourne `null` sans erreur
+
+**Regle critique :** Toujours utiliser `userProfile.id` du contexte auth serveur, jamais `userId` fourni par le client (meme si valide).
+
+> Fix 2026-02-02 - app/api/push/subscribe/route.ts
+
+---
+
+### 25. Push Notification Multi-Canal Pattern (NOUVEAU 2026-02-02)
+
+Architecture des notifications push avec URLs adaptees par role :
+
+```typescript
+// Pattern pour envoyer push avec URLs role-aware
+async function sendRoleAwarePushNotifications(
+  interventionId: string,
+  recipientIds: string[],
+  notification: { title: string; body: string }
+) {
+  // 1. Recuperer les profiles avec leur role
+  const { data: profiles } = await supabase
+    .from('profiles')
+    .select('id, metadata->>assigned_role')
+    .in('id', recipientIds)
+
+  // 2. Grouper par role
+  const byRole = groupBy(profiles, p => p.metadata?.assigned_role || 'gestionnaire')
+
+  // 3. Envoyer avec URL adaptee
+  for (const [role, roleProfiles] of Object.entries(byRole)) {
+    const url = getInterventionUrlForRole(interventionId, role)
+    await sendPushToUsers(
+      roleProfiles.map(p => p.id),
+      { ...notification, data: { url } }
+    )
+  }
+}
+
+// Helper URL par role
+function getInterventionUrlForRole(id: string, role: string): string {
+  const routes = {
+    locataire: `/locataire/interventions/${id}`,
+    prestataire: `/prestataire/interventions/${id}`,
+    gestionnaire: `/gestionnaire/interventions/${id}`
+  }
+  return routes[role] || routes.gestionnaire
+}
+```
+
+**Actions notification devis (4 nouvelles) :**
+
+| Action | Destinataire | Canaux |
+|--------|--------------|--------|
+| `notifyQuoteRequested` | Prestataire | In-app + Push |
+| `notifyQuoteSubmitted` | Gestionnaires | In-app + Push |
+| `notifyQuoteApproved` | Prestataire | In-app + Push |
+| `notifyQuoteRejected` | Prestataire | In-app + Push |
+
+> Source: app/actions/notification-actions.ts (20 actions total)
+
+---
+
+### 26. PWA Notification Prompt Pattern (NOUVEAU 2026-02-02)
+
+Pattern pour maximiser l'activation des notifications PWA :
+
+```
++-------------------------------------------------------------+
+| NotificationPromptProvider (app/layout.tsx)                  |
+| → Context global pour etat notification                      |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| useNotificationPrompt Hook                                   |
+| → isPWA: detecte mode standalone                             |
+| → permission: 'default' | 'granted' | 'denied'               |
+| → hasDBSubscription: check push_subscriptions table          |
+| → shouldShowPrompt: isPWA && permission !== 'granted'        |
++-------------------------------------------------------------+
+                           |
+           +---------------+---------------+
+           |                               |
+           v                               v
++------------------+           +---------------------------+
+| Permission Modal |           | Settings Guide            |
+| (permission=default)         | (permission=denied)       |
+| → Bénéfices par role         | → Instructions par plateforme |
+| → Bouton "Activer"           | → iOS, Chrome, Safari     |
++------------------+           +---------------------------+
+```
+
+**Fichiers cles :**
+
+| Fichier | Description |
+|---------|-------------|
+| `hooks/use-notification-prompt.tsx` | Hook detection isPWA + permission |
+| `components/pwa/notification-permission-modal.tsx` | Modal UI benefices |
+| `components/pwa/notification-settings-guide.tsx` | Guide parametres systeme |
+| `contexts/notification-prompt-context.tsx` | Provider global |
+
+**Comportement :**
+- Installation PWA → Auto-demande permission
+- Ouverture PWA + notif desactivees → Modale rappel
+- Permission "denied" → Guide vers parametres systeme
+- Changement permission → Auto-detection au focus
+
+> Source: docs/plans/2026-02-02-pwa-notification-prompt-design.md
+
+---
+
 ## Anti-Patterns (NE JAMAIS FAIRE)
 
 | Anti-Pattern | Alternative |
@@ -717,12 +872,16 @@ Pattern d'orchestration des skills `superpowers:sp-*` base sur des "Red Flags" (
 | Commiter sans verification | Invoquer sp-verification-before-completion |
 | Creer threads apres assignments | Creer threads AVANT assignments |
 | Insert participant sans ON CONFLICT | Upsert avec ignoreDuplicates |
+| Filtrer `.is('deleted_at', null)` sans vérifier la table | Vérifier `database.types.ts` — certaines tables n'ont PAS deleted_at |
 | Relations PostgREST nested avec RLS | Requetes separees + helpers prives |
 | Utiliser InterventionTabs (supprime) | EntityTabs + getInterventionTabsConfig() |
 | Server Action avec `getAuthenticatedUser()` local | `getServerActionAuthContextOrNull()` |
 | Hook client avec session check defensif | `useAuth()` + `createBrowserSupabaseClient()` |
 | `.single()` sur profiles multi-equipes | `.limit(1)` + `data?.[0]` |
 | Hook sans `authLoading` dans dépendances | Extraire `loading` de `useAuth()` + ajouter aux deps |
+| Upsert sans check `data` null | Verifier `!data` pour RLS silent blocks |
+| Utiliser `userId` du client dans upsert | Utiliser `userProfile.id` du contexte auth serveur |
+| Push notification avec URL fixe gestionnaire | `sendRoleAwarePushNotifications()` avec URL par role |
 
 ## Conventions de Nommage
 
@@ -1087,7 +1246,280 @@ const effectiveTeamId = propTeamId || team?.id
 
 > Voir `use-global-notifications.ts` pour exemple de ce pattern.
 
+### 21. Auth API Optimization Pattern (NOUVEAU 2026-01-31)
+
+Pattern critique pour éviter les appels API d'authentification excessifs :
+
+```
++-------------------------------------------------------------+
+| ARCHITECTURE AUTH OPTIMISÉE                                  |
++-------------------------------------------------------------+
+|                                                             |
+| MIDDLEWARE (1 appel réseau)    PAGES/LAYOUTS (0 appel)      |
+| ┌─────────────────────────┐    ┌────────────────────────┐   |
+| │ supabase.auth.getUser() │    │ supabase.auth.         │   |
+| │ → Valide token serveur  │    │ getSession()           │   |
+| │ → 1 appel réseau        │    │ → Lit JWT cookie       │   |
+| └─────────────────────────┘    │ → 0 appel réseau       │   |
+|                                └────────────────────────┘   |
++-------------------------------------------------------------+
+```
+
+**Règle critique :**
+- `getUser()` = appel réseau vers Supabase Auth API (à éviter dans les pages)
+- `getSession()` = lecture locale du JWT depuis les cookies (recommandé)
+
+**Pattern correct (lib/auth-dal.ts) :**
+
+```typescript
+// ✅ CORRECT - Pages/Layouts utilisent getSession() (local)
+export const getUser = cache(async () => {
+  const supabase = await createServerSupabaseClient()
+  const { data: { session } } = await supabase.auth.getSession()
+  return session?.user ?? null  // Pas d'appel réseau!
+})
+
+// ❌ INTERDIT dans les pages - Uniquement dans middleware
+const { data: { user } } = await supabase.auth.getUser()
+```
+
+**Pattern cache() sur client Supabase :**
+
+```typescript
+// ✅ CORRECT - Cache le client par requête
+export const createServerSupabaseClient = cache(async () => {
+  // ... création client
+})
+
+// ❌ INTERDIT - Crée un nouveau client à chaque appel
+export async function createServerSupabaseClient() {
+  // Chaque appel = nouvelle instance = potentiel double auth
+}
+```
+
+**Fichiers clés :**
+- `lib/auth-dal.ts` - DAL centralisé (getUser, getSession cachés)
+- `lib/services/core/supabase-client.ts` - Client avec cache()
+- `middleware.ts:230` - Seul endroit avec getUser() réseau
+- `hooks/use-auth.tsx` - AuthProvider client avec flag anti-duplicate
+
+**Résultat mesuré :**
+- **Avant**: 250+ appels `/auth/v1/user` en 10 minutes
+- **Après**: 1 appel par navigation
+
+### 22. Invited Users Only Pattern (NOUVEAU 2026-02-01)
+
+Pattern pour filtrer les conversations et notifications aux seuls utilisateurs invités (avec compte).
+
+**⚠️ ATTENTION: La colonne s'appelle `auth_user_id` dans la DB, PAS `auth_id` !**
+
+```
++-------------------------------------------------------------+
+| PROBLEME: Contacts Informatifs vs Utilisateurs Invités       |
+|                                                             |
+| Un contact peut être ajouté à une intervention SANS compte   |
+| (auth_user_id = null). Ces contacts sont informatifs.        |
+| Ils NE DOIVENT PAS:                                         |
+| - Avoir de conversation individuelle créée                   |
+| - Être ajoutés aux participants                              |
+| - Recevoir de notifications (in-app, push, email)           |
++-------------------------------------------------------------+
+                           |
+                           v
++-------------------------------------------------------------+
+| SOLUTION: Filtre auth_user_id à CHAQUE point d'entrée        |
+|                                                             |
+| // Pattern 1: Requête Supabase avec filtre                   |
+| const { data: users } = await supabase                       |
+|   .from('users')                                             |
+|   .select('id')                                              |
+|   .not('auth_user_id', 'is', null)  // ⚠️ auth_USER_id !    |
+|                                                             |
+| // Pattern 2: Vérification avant création thread             |
+| const hasAuthAccount = !!userData?.auth_user_id              |
+| if (!hasAuthAccount) {                                       |
+|   logger.info('Skipping for non-invited user')              |
+|   return                                                     |
+| }                                                            |
+|                                                             |
+| // Pattern 3: Propagation has_account pour UI               |
+| Repository: .select('id, name, auth_user_id')                |
+| Service: has_account: !!user.auth_user_id                    |
+| UI: {!has_account && <Badge>Non invité</Badge>}             |
++-------------------------------------------------------------+
+```
+
+**Points d'entrée à filtrer (Defense in Depth) :**
+
+| Couche | Fichier | Filtre |
+|--------|---------|--------|
+| API Routes | `create-manager-intervention/route.ts` | `.not('auth_user_id', 'is', null)` |
+| Services | `intervention-service.ts` (assignUser) | `hasAuthAccount` check |
+| Services | `conversation-service.ts` (addInitialParticipants) | `.not('auth_user_id', 'is', null)` |
+| Services | `conversation-service.ts` (getInterventionTenants) | JOIN avec users + filtre |
+| Actions | `conversation-actions.ts` | Check `auth_user_id` avant lazy creation |
+| Actions | `conversation-notification-actions.ts` | Filtre managers |
+
+**Data flow `has_account` :**
+
+```
+DB (auth_user_id) → Repository (auth_user_id) → Service (has_account) → Action (has_account) → UI (badge)
+```
+
+**Fichiers clés :**
+- `lib/services/domain/conversation-service.ts` - Filtrage participants
+- `lib/services/domain/intervention-service.ts` - Filtrage création threads
+- `lib/services/repositories/contract.repository.ts` - Ajout auth_user_id aux selects
+- `components/intervention/assignment-section-v2.tsx` - Badge "Non invité"
+- `components/interventions/shared/layout/conversation-selector.tsx` - Badge "Gestionnaires" pour locataire
+
+**Design document:** `docs/plans/2026-02-01-invited-users-only-conversations-design.md`
+
+### 23. PWA Notification Prompt Pattern (NOUVEAU 2026-02-02)
+
+Pattern pour maximiser le taux d'activation des notifications PWA :
+
+```
++-------------------------------------------------------------+
+| COMPORTEMENT                                                 |
+|                                                             |
+| 1. Installation PWA → Auto-demande permission                |
+| 2. Si refusé/fermé → Modale de rappel à CHAQUE ouverture    |
+| 3. Si permission='denied' → Guide vers paramètres système   |
+| 4. Détection automatique du changement de permission        |
++-------------------------------------------------------------+
+```
+
+**Fichiers clés :**
+
+| Fichier | Responsabilité |
+|---------|----------------|
+| `hooks/use-notification-prompt.tsx` | Logique de détection (isPWA, permission, user) |
+| `components/pwa/notification-permission-modal.tsx` | Modal UI avec bénéfices par rôle |
+| `components/pwa/notification-settings-guide.tsx` | Instructions paramètres système |
+| `contexts/notification-prompt-context.tsx` | Provider global |
+| `app/layout.tsx` | Intégration du provider |
+
+**Détection mode PWA :**
+```typescript
+const isPWAMode = window.matchMedia('(display-mode: standalone)').matches
+  || (window.navigator as any).standalone === true // iOS
+```
+
+**Conditions d'affichage modale :**
+```typescript
+const shouldShowModal =
+  isPWAMode &&                          // Mode standalone
+  isSupported &&                        // Navigateur supporte push
+  !authLoading && !!user &&             // User authentifié
+  permission !== 'granted' &&           // Pas encore accordé
+  !isSubscribed                         // Pas d'abonnement actif
+```
+
+**Auto-détection changement permission (focus event) :**
+```typescript
+// Quand user revient des paramètres système
+window.addEventListener('focus', async () => {
+  const newPermission = pushManager.getPermissionStatus()
+  if (newPermission === 'granted') {
+    await pushManager.subscribe(user.id) // Auto-subscribe
+  }
+})
+```
+
+**Design document:** `docs/plans/2026-02-02-pwa-notification-prompt-design.md`
+
+### 27. ContactSelector in Modal Pattern (NOUVEAU 2026-02-03)
+
+Pattern pour intégrer le composant `ContactSelector` dans une modale sans afficher son UI par défaut :
+
+```typescript
+// Importer le type ref
+import type { ContactSelectorRef } from '@/components/contacts/contact-selector'
+
+// Créer une ref
+const contactSelectorRef = useRef<ContactSelectorRef>(null)
+
+// Dans le JSX - ContactSelector avec hideUI
+<ContactSelector
+  ref={contactSelectorRef}
+  mode="multiple"
+  contactType="provider"        // ou "tenant", "manager"
+  teamId={teamId}
+  selectedIds={selectedProviderIds}
+  onSelectionChange={handleProviderChange}
+  interventionId={intervention?.id}
+  hideUI={true}                 // ← Ne rend rien visuellement
+/>
+
+// Bouton pour ouvrir le sélecteur
+<Button
+  variant="outline"
+  size="sm"
+  onClick={() => contactSelectorRef.current?.openContactModal()}
+>
+  + Ajouter
+</Button>
+```
+
+**Props clés de ContactSelector :**
+
+| Prop | Description |
+|------|-------------|
+| `hideUI={true}` | N'affiche rien, utilise ref pour ouvrir |
+| `mode="multiple"` | Sélection multiple |
+| `contactType` | "provider", "tenant", "manager" |
+| `selectedIds` | IDs présélectionnés |
+| `onSelectionChange` | Callback avec nouveaux IDs |
+
+**Pattern Locataires par Lot (Intervention Bâtiment) :**
+
+Pour les interventions sur un bâtiment entier (`lot_id = null`), afficher les locataires groupés par lot avec switches individuels :
+
+```typescript
+// Type pour locataires groupés par lot
+interface BuildingTenantsResult {
+  lots: Array<{
+    lot_id: string
+    lot_number: string
+    floor: string | null
+    tenants: Array<{
+      id: string
+      name: string
+      has_account: boolean  // Pour badge "Non invité"
+    }>
+  }>
+  totalTenants: number
+}
+
+// Affichage dans la modale
+{buildingTenants?.lots.map((lot) => (
+  <div key={lot.lot_id}>
+    <Switch
+      checked={!excludedLotIds.includes(lot.lot_id)}
+      onCheckedChange={() => onLotToggle(lot.lot_id)}
+    />
+    <span>Lot {lot.lot_number}</span>
+    {lot.tenants.map(tenant => (
+      <div key={tenant.id}>
+        {tenant.name}
+        {!tenant.has_account && <Badge variant="outline">Non invité</Badge>}
+      </div>
+    ))}
+  </div>
+))}
+```
+
+**Fichiers de référence :**
+- `components/intervention/modals/programming-modal-FINAL.tsx` - Implémentation complète
+- `components/contacts/contact-selector.tsx` - Composant source
+- `components/intervention/assignment-section-v2.tsx` - Pattern locataires par lot
+
+**Fichiers utilisant ce pattern :**
+- `app/gestionnaire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx`
+- `app/gestionnaire/(with-navbar)/interventions/interventions-page-client.tsx`
+
 ---
-*Derniere mise a jour: 2026-01-31 14:00*
-*Analyse approfondie: Migration Auth COMPLETE - tous fichiers documentes*
+*Derniere mise a jour: 2026-02-04 18:10*
+*Analyse approfondie: Migration Auth COMPLETE + Optimization API calls + Invited Users Only + PWA Notification Prompt + ContactSelector Modal Pattern + Fix ensureInterventionConversationThreads*
 *References: lib/services/README.md, lib/server-context.ts, lib/api-auth-helper.ts, .claude/CLAUDE.md*

@@ -50,8 +50,231 @@
 - [x] **Tenant Dashboard UX** (2026-01-31) - Affichage étage/porte/description avec alignement corrigé
 - [x] **Extension Types Locataire** (2026-01-31) - Dropdown locataire: 20 → 27 types (ajout catégorie "Locataire")
 - [x] **Fix Confirmation Gestionnaire** (2026-01-31) - Header "Intervention créée" affiché après création, pas avant
+- [x] **Auth API Optimization** (2026-01-31) - Réduction de 250+ appels à 1 par navigation
+- [x] **Filtrage auth_id Conversations/Notifications** (2026-02-01) - Seuls les contacts invités (avec compte) reçoivent conversations et notifications
+- [x] **PWA Notification Prompt Modal** (2026-02-02) - Modale rappel notifications à chaque ouverture PWA
+- [x] **Web/PWA Notification Unification** (2026-02-02) - PushNotificationToggle unifié pour web et PWA
+- [x] **Quote Notifications Multi-Canal** (2026-02-02) - 4 nouvelles actions: quote request/submit/approve/reject
+- [x] **Push Subscription Security Fix** (2026-02-02) - userProfile.id + null data check pour RLS silent blocks
 
-## Sprint Actuel (Jan 2026)
+## Sprint Actuel (Jan-Feb 2026)
+
+### 2026-02-04 - Fix Critique ensureInterventionConversationThreads
+
+**Session: Code Review Bugfix — Conversation Threads**
+
+Fix de 3 problèmes identifiés par code review dans `ensureInterventionConversationThreads`:
+
+| Fix | Sévérité | Description |
+|-----|----------|-------------|
+| **Fix 1** | CRITIQUE | `.is('deleted_at', null)` sur `intervention_assignments` → colonne inexistante, fonction entièrement cassée (zéro threads créés) |
+| **Fix 2** | Efficacité | Capture directe du `groupThreadId` créé au lieu de re-query DB (élimine 1 query redondante) |
+| **Fix 3** | Fonctionnel | Ajout `else` branches pour `tenants_group` / `providers_group` existants → nouveaux users ajoutés aux group threads existants |
+
+**Fichier modifié:** `app/actions/conversation-actions.ts`
+
+**Leçons documentées:**
+- Supabase PostgREST échoue silencieusement si on filtre sur colonne inexistante
+- `addParticipant` est idempotent (ON CONFLICT DO NOTHING) → safe pour "ensure exists"
+- Toujours vérifier `database.types.ts` avant de filtrer sur une colonne
+
+**Lint:** ✅ Aucun nouveau warning
+
+---
+
+### 2026-02-03 - Simplification Statut "Approuvée" + ProgrammingModal Réutilisable
+
+**Session: Workflow Simplification + UI Unification**
+
+Simplification de l'UX pour les interventions avec statut "approuvée" et intégration de vrais composants ContactSelector dans la ProgrammingModal.
+
+**Modifications:**
+
+| Fichier | Changement |
+|---------|------------|
+| `lib/intervention-action-utils.ts` | Un seul bouton "Planifier" (suppression "Demander estimation") |
+| `lib/intervention-utils.ts` | Message "En attente de planification" |
+| `programming-modal-FINAL.tsx` | ContactSelector réels au lieu de mockups inline |
+| `intervention-detail-client.tsx` | Réactivation ProgrammingModal + props managers/tenants |
+| `interventions-page-client.tsx` | Props minimales pour ProgrammingModal |
+| `intervention-card.tsx` | Callback `onOpenProgrammingModal` |
+| `pending-actions-section.tsx` | Propagation callback vers InterventionCard |
+
+**Pattern documenté:** ContactSelector avec `hideUI={true}` + `ref.openContactModal()` pour intégration dans modales.
+
+**Build:** ✅ Réussi sans erreurs
+
+---
+
+### 2026-02-03 (earlier) - Fix Infinite Refresh Loop
+
+**Problème:** Boucle infinie de refresh sur la page de détail d'intervention.
+
+**Root Cause:** ChatInterface appelait `markThreadAsReadAction()` à chaque render, ce qui déclenchait `revalidatePath()` → re-render → nouvel appel → boucle.
+
+**Fix:**
+- `useRef<Set<string>>` pour tracker les threads déjà marqués lus (déduplication)
+- `useInterventionApproval`: Un seul refresh au lieu de callback + setTimeout
+
+---
+
+### 2026-02-02 - Push Subscription Security Fix + PWA Notifications
+
+**Session 1: Quote Notifications Multi-Canal**
+
+Audit complet du système de notifications pour les devis. Identification et correction de gaps critiques.
+
+| Route | Avant | Après |
+|-------|-------|-------|
+| `intervention-quote-request` | ❌❌❌ | ✅✅✅ (Email + In-App + Push) |
+| `intervention-quote-submit` | ✅✅❌ | ✅✅✅ (Push ajouté) |
+| `quotes/[id]/approve` | ✅❌❌ | ✅✅✅ (In-App + Push ajoutés) |
+| `quotes/[id]/reject` | ✅❌❌ | ✅✅✅ (In-App + Push ajoutés) |
+
+**Nouvelles actions créées:**
+- `notifyQuoteRequested` - In-app + Push pour prestataire
+- `notifyQuoteApproved` - In-app + Push pour prestataire
+- `notifyQuoteRejected` - In-app + Push pour prestataire
+- `notifyQuoteSubmittedWithPush` - In-app + Push pour gestionnaires
+
+**Bug fix URLs Push:** Nouvelle fonction `sendRoleAwarePushNotifications()` qui groupe par rôle et envoie l'URL appropriée.
+
+---
+
+**Session 2: PWA Notification Prompt**
+
+Maximisation du taux d'activation des notifications PWA via modale de rappel.
+
+| Fichier Créé | Description |
+|--------------|-------------|
+| `hooks/use-notification-prompt.tsx` | Hook de détection (isPWA, permission, user) |
+| `components/pwa/notification-permission-modal.tsx` | Modal UI avec bénéfices par rôle |
+| `components/pwa/notification-settings-guide.tsx` | Instructions paramètres par plateforme |
+| `contexts/notification-prompt-context.tsx` | Provider global |
+
+**Comportement:** Modale affichée à chaque ouverture PWA si notifications non activées.
+
+---
+
+**Session 3: Web/PWA Notification Unification**
+
+Refactoring pour unifier l'expérience notifications entre web et PWA.
+
+| Composant | Changement |
+|-----------|------------|
+| `push-notification-toggle.tsx` | Unifié web + PWA |
+| `notification-permission-modal.tsx` | Guide contextuel selon permission state |
+| `notification-settings-guide.tsx` | Instructions iOS, Chrome, Safari |
+
+---
+
+**Session 4: Push Subscription Security Fix**
+
+**Problème:** Les push subscriptions n'étaient pas sauvegardées malgré API 200.
+
+**Root causes:**
+1. **RLS Silent Block** - Supabase anon key peut bloquer sans erreur
+2. **No Null Check** - `.single()` retourne null si RLS bloque
+3. **Client userId** - Utilisait userId du client au lieu de userProfile.id
+
+**Fix appliqué:** `app/api/push/subscribe/route.ts`
+- `user_id: userProfile.id` (au lieu de userId)
+- Ajout check `if (!data)` pour détecter RLS silent blocks
+- Logs cohérents avec `userProfileId`
+
+**Commit:** `4d8a8e8` fix(push-subscribe): enhance security by using userProfile.id
+
+---
+
+**Session 5: Debug Page Paramètres (EN COURS)**
+
+**Symptôme:** Page `/gestionnaire/parametres` bloquée sur "Chargement..."
+
+**Analyse:** Le composant `settings-page.tsx` attend `user` de `useAuth()`. Logs montrent initialisation partielle (`NotificationPrompt Initialized`).
+
+**À vérifier:**
+- Déploiement Vercel réussi
+- Refresh forcé (Ctrl+Shift+R)
+- Logs serveur Vercel
+
+**Note:** Le fix push-subscribe ne devrait PAS affecter le chargement car c'est une API POST non appelée au mount.
+
+---
+
+### 2026-02-01 - Filtrage auth_id Conversations/Notifications pour Contacts Invités
+
+**Problème résolu:** Les utilisateurs ajoutés à une intervention mais non invités (sans compte `auth_id`) recevaient des conversations individuelles et des notifications alors qu'ils ne peuvent pas se connecter à l'application.
+
+**Règle métier implémentée:**
+- Utilisateurs avec `auth_id` (invités) → Conversations créées + Notifications envoyées
+- Contacts sans `auth_id` (informatifs) → Visibles dans listes mais exclus des conversations/notifications
+
+**Solution - Filtrage à tous les points d'entrée:**
+
+| Point d'Entrée | Fichier | Correction |
+|----------------|---------|------------|
+| API création intervention | `create-manager-intervention/route.ts` | `.not('auth_id', 'is', null)` sur tenants/providers |
+| Service assignUser() | `intervention-service.ts` | Check `hasAuthAccount` avant création thread |
+| Service assignMultipleProviders() | `intervention-service.ts` | Check `hasAuthAccount` |
+| Service createConversationThreads() | `intervention-service.ts` | Filtre managers avec `auth_id` |
+| Service addInitialParticipants() | `conversation-service.ts` | **FIX REVIEW** - Filtre tous les users |
+| Service getInterventionTenants() | `conversation-service.ts` | **FIX REVIEW** - JOIN avec filtre `auth_id` |
+| Actions lazy creation | `conversation-actions.ts` | Check `auth_id` avant création |
+| Actions notifications | `conversation-notification-actions.ts` | Filtre managers avec `auth_id` |
+
+**Data flow `has_account` pour UI:**
+- `contract.repository.ts` → Ajout `auth_id` aux selects
+- `contract.service.ts` → Conversion en `has_account: boolean`
+- `contract-actions.ts` → Propagation aux types
+- `assignment-section-v2.tsx` → Badge "Non invité" affiché
+
+**Fichiers modifiés (13):**
+- Backend: 4 fichiers (intervention-service, conversation-service, 2 routes)
+- Actions: 3 fichiers (conversation, notification, contract)
+- Repository/Service: 2 fichiers (contract)
+- UI: 3 fichiers (assignment-section, nouvelle-intervention, intervention-edit)
+- Docs: 1 fichier (design document)
+
+**Code review effectuée:** 4 issues IMPORTANT corrigées pendant la review
+
+**Design document:** `docs/plans/2026-02-01-invited-users-only-conversations-design.md`
+
+---
+
+### 2026-01-31 - Auth API Optimization (Session 5) - CRITIQUE PERFORMANCE
+
+**Problème résolu:** 250+ appels API `/auth/v1/user` en 10 minutes pour un seul utilisateur connecté.
+
+**Root Causes Identifiées:**
+
+| Cause | Impact |
+|-------|--------|
+| `getUser()` avec retry loop | Jusqu'à 4 appels réseau par invocation |
+| `getSession()` avec double validation | Appelait `getSession()` + `getUser()` |
+| `createServerSupabaseClient()` non cached | Nouveau client créé à chaque appel |
+| Middleware + Pages = double validation | 2 appels `getUser()` par navigation |
+
+**Solution:**
+
+**Principe clé:** Le middleware fait l'unique appel réseau `getUser()`. Les pages utilisent `getSession()` qui lit le JWT localement (ZERO network call).
+
+**Fichiers modifiés:**
+
+| Fichier | Changement |
+|---------|------------|
+| `lib/auth-dal.ts` | `getUser()` utilise `getSession()` au lieu de `supabase.auth.getUser()` |
+| `lib/auth-dal.ts` | Suppression du retry loop dans `getUser()` |
+| `lib/auth-dal.ts` | `getSession()` n'appelle plus `getUser()` en double |
+| `lib/services/core/supabase-client.ts` | Ajout `cache()` wrapper sur `createServerSupabaseClient` |
+| `hooks/use-auth.tsx` | Flag `initialSessionHandled` pour éviter appels dupliqués |
+
+**Résultat:**
+- **Avant**: 250+ appels en 10 minutes
+- **Après**: 1 appel par navigation (comportement attendu)
+
+**Commit:** `2431cc3` perf(auth): reduce auth API calls from 250+ to 1 per navigation
+
+---
 
 ### 2026-01-31 - Formulaire Intervention Locataire + Confirmation Gestionnaire (Session 4)
 
@@ -620,21 +843,22 @@ Nouvelle architecture adresses avec support Google Maps:
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-01-30)
+## Metriques Projet (2026-02-02)
 
 | Metrique | Valeur |
 |----------|--------|
-| Repositories | **22** (+1 address) |
-| Domain Services | **32** (+1 address) |
+| Repositories | **22** |
+| Domain Services | **32** |
 | API Routes | **113** (10 domaines) |
-| Hooks | **64** |
-| Components | **232+** (+2 participants-row, conversation-selector) |
+| Hooks | **65** (+1 use-notification-prompt) |
+| Components | **235+** (+3 PWA notification) |
 | Pages | **87** (5+ route groups) |
-| DB Tables | **44** (+1 addresses, +3 quotes) |
+| DB Tables | **44** |
 | DB Enums | 39 |
-| DB Functions | **79** (+2 conversation triggers) |
-| Migrations | **145+** |
+| DB Functions | **79** |
+| Migrations | **147+** |
 | Server Actions | **17** files |
+| Notification Actions | **20** (+4 quote notifications) |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
 
 ### Metriques Ecosysteme .claude/ (2026-01-23)
@@ -671,7 +895,15 @@ Nouvelle architecture adresses avec support Google Maps:
 | **2026-01-30** | **SW disabled in dev** | **Timeouts CSP bloquaient l'app** | **Dev fluide, SW actif en prod uniquement** |
 | **2026-01-30** | **CSP connect-src exhaustif** | **SW intercepte tous fetch** | **Tous domaines dans connect-src, pas juste img-src/font-src** |
 | **2026-01-31** | **Auth Refactoring Complet** | **Appels auth redondants, bug multi-profil** | **14 fichiers refactorisés, ~250 lignes supprimées, nouveau helper centralisé** |
+| **2026-01-31** | **Auth API Optimization** | **250+ appels API en 10 min** | **getSession() local au lieu de getUser() réseau, cache() sur supabase client** |
+| **2026-02-01** | **Filtrage auth_id Invités** | **Contacts sans compte recevaient conversations/notifs** | **Filtre .not('auth_id', 'is', null) à tous les points d'entrée** |
+| **2026-02-02** | **PWA Notification Prompt** | **Maximiser activation notifications PWA** | **Modale rappel + guide paramètres par plateforme** |
+| **2026-02-02** | **Quote Notifications Multi-Canal** | **Gaps notifications devis** | **4 nouvelles actions, sendRoleAwarePushNotifications()** |
+| **2026-02-02** | **Push Subscription Security** | **RLS silent block + client userId** | **userProfile.id + null data check** |
+| **2026-02-03** | **Simplification "Approuvée"** | **UX plus claire, moins de boutons** | **Un seul bouton "Planifier", message simplifié** |
+| **2026-02-03** | **ContactSelector dans Modal** | **Mockups → vrais composants** | **Pattern `hideUI={true}` + `ref.openContactModal()`** |
+| **2026-02-04** | **Fix ensureInterventionConversationThreads** | **Bug deleted_at fantôme + gap participants group** | **Fonction débloquée, participants ajoutés aux group threads existants** |
 
 ---
-*Derniere mise a jour: 2026-01-31 21:30*
-*Session 4: Extension types locataire + Fix confirmation gestionnaire*
+*Derniere mise a jour: 2026-02-04 18:10*
+*Session: Fix critique ensureInterventionConversationThreads (3 bugs)*

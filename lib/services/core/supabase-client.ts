@@ -1,5 +1,6 @@
 import { createBrowserClient, createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
+import { cache } from 'react'
 import type { Database } from '../../database.types'
 import { ENV_CONFIG, calculateRetryDelay } from '../../environment'
 import { logger, logError } from '@/lib/logger'
@@ -62,8 +63,12 @@ export function createBrowserSupabaseClient() {
  * Server client for Server Components (READ-ONLY)
  * Use this in Server Components where you can't modify cookies
  * ⚠️ Cannot refresh session or modify auth state
+ *
+ * ✅ FIX (Jan 2026): Wrapped with cache() to deduplicate client creation per request
+ * This prevents creating multiple Supabase clients during the same render cycle,
+ * which was causing excessive auth API calls (250+ in 10 minutes).
  */
-export async function createServerSupabaseClient() {
+export const createServerSupabaseClient = cache(async () => {
   const { cookies } = await import('next/headers')
   const cookieStore = await cookies()
 
@@ -86,7 +91,7 @@ export async function createServerSupabaseClient() {
       }
     }
   })
-}
+})
 
 /**
  * Server client for Server Actions and Route Handlers (READ-WRITE)

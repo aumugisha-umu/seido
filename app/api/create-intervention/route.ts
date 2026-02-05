@@ -6,6 +6,7 @@ import { Database } from '@/lib/database.types'
 import { createInterventionSchema, validateRequest, formatZodErrors } from '@/lib/validation/schemas'
 import { mapInterventionType, mapUrgencyLevel } from '@/lib/utils/intervention-mappers'
 import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
+import { sendThreadWelcomeMessage } from '@/lib/utils/thread-welcome-messages'
 
 export async function POST(request: NextRequest) {
   logger.info({}, "🔧 create-intervention API route called")
@@ -231,41 +232,38 @@ export async function POST(request: NextRequest) {
         team_id: teamId
       })
 
-      if (groupThreadResult.success) {
-        logger.info({ threadId: groupThreadResult.data?.id, type: 'group' }, "✅ Group thread created")
+      if (groupThreadResult.success && groupThreadResult.data?.id) {
+        logger.info({ threadId: groupThreadResult.data.id, type: 'group' }, "✅ Group thread created")
+        // Send welcome message
+        await sendThreadWelcomeMessage(serviceClientForThreads, groupThreadResult.data.id, 'group', user.id)
       } else {
         logger.error({ error: groupThreadResult.error }, "⚠️ Failed to create group thread")
       }
 
-      // Create TENANT_TO_MANAGERS thread (for tenant-manager communication)
+      // Create individual TENANT_TO_MANAGERS thread for this tenant
+      // Each tenant gets their own private conversation with managers
       const tenantThreadResult = await conversationRepo.createThread({
         intervention_id: interventionId,
         thread_type: 'tenant_to_managers',
-        title: 'Communication avec les gestionnaires',
+        title: `Conversation avec ${user.name}`,
         created_by: user.id,
-        team_id: teamId
+        team_id: teamId,
+        participant_id: user.id  // Individual thread for this specific tenant
       })
 
-      if (tenantThreadResult.success) {
-        logger.info({ threadId: tenantThreadResult.data?.id, type: 'tenant_to_managers' }, "✅ Tenant thread created")
+      if (tenantThreadResult.success && tenantThreadResult.data?.id) {
+        logger.info({ threadId: tenantThreadResult.data.id, type: 'tenant_to_managers', participantId: user.id }, "✅ Individual tenant thread created")
+        // Send welcome message with tenant's name for personalized message
+        await sendThreadWelcomeMessage(serviceClientForThreads, tenantThreadResult.data.id, 'tenant_to_managers', user.id, user.name)
       } else {
         logger.error({ error: tenantThreadResult.error }, "⚠️ Failed to create tenant thread")
       }
 
-      // Create PROVIDER_TO_MANAGERS thread (for provider-manager communication)
-      const providerThreadResult = await conversationRepo.createThread({
-        intervention_id: interventionId,
-        thread_type: 'provider_to_managers',
-        title: 'Communication avec les prestataires',
-        created_by: user.id,
-        team_id: teamId
-      })
-
-      if (providerThreadResult.success) {
-        logger.info({ threadId: providerThreadResult.data?.id, type: 'provider_to_managers' }, "✅ Provider thread created")
-      } else {
-        logger.error({ error: providerThreadResult.error }, "⚠️ Failed to create provider thread")
-      }
+      // ✅ NOTE: PROVIDER_TO_MANAGERS thread is NOT created here
+      // It will be created lazily when a provider is assigned to the intervention
+      // This is handled in addParticipantAction (conversation-actions.ts)
+      // Reason: The thread shouldn't exist until there's actually a provider to communicate with
+      logger.info({}, "ℹ️ Provider thread will be created when a provider is assigned (lazy creation)")
 
       // ✅ Add tenant as explicit participant to relevant threads
       // Note: Tenant assignment was created BEFORE threads, so trigger didn't add them

@@ -75,6 +75,150 @@ async function sendPushToNotificationRecipients(
 }
 
 /**
+ * Get the correct intervention URL path based on user role
+ */
+function getInterventionUrlForRole(role: string | null, interventionId: string): string {
+  switch (role) {
+    case 'locataire':
+      return `/locataire/interventions/${interventionId}`
+    case 'prestataire':
+      return `/prestataire/interventions/${interventionId}`
+    case 'gestionnaire':
+    default:
+      return `/gestionnaire/interventions/${interventionId}`
+  }
+}
+
+/**
+ * Get a role-aware URL for a related entity (document context)
+ * Maps entity types to the correct role-prefixed route
+ */
+function getDocumentEntityUrl(role: string | null, entityType: string, entityId: string): string {
+  const prefix = role === 'locataire' ? 'locataire' : role === 'prestataire' ? 'prestataire' : 'gestionnaire'
+  if (entityType === 'intervention') return `/${prefix}/interventions/${entityId}`
+  // Other entity types default to gestionnaire
+  return `/gestionnaire/${entityType}s/${entityId}`
+}
+
+/**
+ * Send push notifications with role-aware URLs
+ * Groups notifications by role and sends appropriate URL for each group
+ *
+ * @param notifications - Array of created notifications with metadata.assigned_role
+ * @param payload - Base push notification payload (url will be overridden per role)
+ * @param interventionId - Intervention ID for URL construction
+ */
+async function sendRoleAwarePushNotifications(
+  notifications: Array<{
+    data?: {
+      user_id: string
+      is_personal: boolean
+      metadata?: { assigned_role?: string | null }
+    } | null
+  }>,
+  payload: { title: string; message: string; type?: string },
+  interventionId: string
+) {
+  // 🔍 DEBUG: Log all incoming notifications
+  logger.info({
+    totalNotifications: notifications.length,
+    notificationsWithData: notifications.filter(n => n.data).length,
+    notificationsPersonal: notifications.filter(n => n.data?.is_personal).length,
+    rawNotifications: notifications.map(n => ({
+      hasData: !!n.data,
+      userId: n.data?.user_id,
+      isPersonal: n.data?.is_personal,
+      assignedRole: n.data?.metadata?.assigned_role
+    })),
+    payload,
+    interventionId
+  }, '📤 [PUSH] DEBUG - sendRoleAwarePushNotifications called')
+
+  // Extract valid notifications with personal flag and role
+  // ✅ FIX: Handle both string and object metadata (RLS may return stringified metadata)
+  const validNotifications = notifications
+    .filter(n => n.data?.is_personal)
+    .map(n => {
+      // Parse metadata if it's a string (happens when RLS blocks SELECT after INSERT)
+      let metadata = n.data!.metadata as Record<string, any> | string | undefined
+      if (typeof metadata === 'string') {
+        try {
+          metadata = JSON.parse(metadata)
+          logger.debug({ userId: n.data!.user_id }, '📦 [PUSH] Parsed stringified metadata')
+        } catch (e) {
+          logger.warn({ userId: n.data!.user_id, metadata }, '⚠️ [PUSH] Failed to parse metadata string')
+          metadata = {}
+        }
+      }
+
+      const role = (metadata as Record<string, any>)?.assigned_role || null
+      logger.info({
+        userId: n.data!.user_id,
+        metadataType: typeof n.data!.metadata,
+        metadataWasString: typeof n.data!.metadata === 'string',
+        extractedRole: role
+      }, '📦 [PUSH] DEBUG - Extracted role from notification')
+
+      return {
+        userId: n.data!.user_id,
+        role
+      }
+    })
+
+  // 🔍 DEBUG: Log filtered notifications
+  logger.info({
+    validCount: validNotifications.length,
+    validNotifications
+  }, '📤 [PUSH] DEBUG - Valid personal notifications after filter')
+
+  if (validNotifications.length === 0) {
+    logger.warn({
+      notificationCount: notifications.length,
+      reason: 'No notifications with is_personal=true'
+    }, '📭 [PUSH] No personal recipients for role-aware push - DEBUG')
+    return { success: 0, failed: 0 }
+  }
+
+  // Group by role for sending with appropriate URLs
+  const byRole = new Map<string | null, string[]>()
+  for (const notif of validNotifications) {
+    const existing = byRole.get(notif.role) || []
+    existing.push(notif.userId)
+    byRole.set(notif.role, existing)
+  }
+
+  let totalSuccess = 0
+  let totalFailed = 0
+
+  // Send push notifications grouped by role
+  for (const [role, userIds] of byRole) {
+    const uniqueUserIds = Array.from(new Set(userIds))
+    const url = getInterventionUrlForRole(role, interventionId)
+
+    try {
+      const result = await sendPushNotificationToUsers(uniqueUserIds, {
+        ...payload,
+        url
+      })
+      totalSuccess += result.success
+      totalFailed += result.failed
+
+      logger.info({
+        role: role || 'unknown',
+        userCount: uniqueUserIds.length,
+        url,
+        success: result.success
+      }, '📱 [PUSH] Role-aware push notifications sent')
+    } catch (error) {
+      totalFailed += uniqueUserIds.length
+      logger.error({ error, role }, '⚠️ [PUSH] Failed to send role-aware push')
+    }
+  }
+
+  return { success: totalSuccess, failed: totalFailed }
+}
+
+/**
  * Create notification for new intervention
  *
  * Uses service role to work regardless of who creates the intervention
@@ -130,14 +274,13 @@ export async function createInterventionNotification(interventionId: string) {
     }, '✅ [NOTIFICATION-ACTION] Intervention notifications created')
 
     // ═══════════════════════════════════════════════════════════════════════════
-    // PUSH NOTIFICATIONS: Send to personal recipients
+    // PUSH NOTIFICATIONS: Send to personal recipients with role-aware URLs
     // ═══════════════════════════════════════════════════════════════════════════
-    sendPushToNotificationRecipients(notifications, {
+    sendRoleAwarePushNotifications(notifications, {
       title: 'Nouvelle intervention',
       message: intervention.title || 'Une nouvelle intervention a été créée',
-      url: `/gestionnaire/interventions/${interventionId}`,
       type: 'intervention'
-    }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in createInterventionNotification'))
+    }, interventionId).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in createInterventionNotification'))
 
     return { success: true, data: notifications }
   } catch (error) {
@@ -195,10 +338,32 @@ export async function notifyInterventionStatusChange({
       reason
     })
 
+    // 🔍 DEBUG: Log full notification structure to understand what's being returned
     logger.info({
       interventionId,
-      notificationCount: notifications.length
-    }, '✅ [NOTIFICATION-ACTION] Status change notifications created')
+      notificationCount: notifications.length,
+      notificationDetails: notifications.map((n, i) => {
+        let parsedMetadata = n.data?.metadata
+        if (typeof parsedMetadata === 'string') {
+          try {
+            parsedMetadata = JSON.parse(parsedMetadata)
+          } catch (e) {
+            parsedMetadata = { parseError: 'Failed to parse metadata string' }
+          }
+        }
+        return {
+          index: i,
+          hasData: !!n.data,
+          userId: n.data?.user_id,
+          isPersonal: n.data?.is_personal,
+          metadataType: typeof n.data?.metadata,
+          metadataRaw: n.data?.metadata,
+          metadataParsed: parsedMetadata,
+          assignedRoleFromRaw: n.data?.metadata?.assigned_role,
+          assignedRoleFromParsed: (parsedMetadata as Record<string, any>)?.assigned_role
+        }
+      })
+    }, '✅ [NOTIFICATION-ACTION] Status change notifications created - DEBUG full structure')
 
     // ═══════════════════════════════════════════════════════════════════════════
     // PUSH NOTIFICATIONS: Send to personal recipients
@@ -227,12 +392,11 @@ export async function notifyInterventionStatusChange({
       return reason || `Statut changé de ${oldStatus} vers ${newStatus}`
     }
 
-    sendPushToNotificationRecipients(notifications, {
+    sendRoleAwarePushNotifications(notifications, {
       title: statusMessages[newStatus] || 'Mise à jour intervention',
       message: getPushMessage(),
-      url: `/gestionnaire/interventions/${interventionId}`,
       type: 'status_change'
-    }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyInterventionStatusChange'))
+    }, interventionId).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyInterventionStatusChange'))
 
     // ═══════════════════════════════════════════════════════════════════════════
     // EMAIL NOTIFICATIONS: Status change emails
@@ -876,13 +1040,86 @@ export async function notifyDocumentUploaded(params: {
     // ═══════════════════════════════════════════════════════════════════════════
     // PUSH NOTIFICATIONS: Send to assigned user (personal notification)
     // ═══════════════════════════════════════════════════════════════════════════
-    if (notifications.length > 0) {
+    if (notifications.length > 0 && params.assignedTo) {
+      // Fetch the assigned user's role for correct URL routing
+      const { data: assignedUserForPush } = await repository.supabase
+        .from('users')
+        .select('role')
+        .eq('id', params.assignedTo)
+        .single()
+
+      const pushUrl = getDocumentEntityUrl(
+        assignedUserForPush?.role || null,
+        params.relatedEntityType,
+        params.relatedEntityId
+      )
+
       sendPushToNotificationRecipients(notifications, {
         title: 'Nouveau document',
         message: `Document "${params.documentName}" disponible`,
-        url: `/${params.relatedEntityType}/${params.relatedEntityId}`,
+        url: pushUrl,
         type: 'document'
       }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyDocumentUploaded'))
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL NOTIFICATIONS: Send to assigned user only (not managers — too noisy)
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (params.assignedTo && params.assignedTo !== params.uploadedBy) {
+      try {
+        const emailService = new EmailService()
+        if (emailService.isConfigured()) {
+          const serviceRoleClient = createServiceRoleSupabaseClient()
+
+          // Fetch assigned user email + role + uploader name
+          const [assignedUserResult, uploaderResult] = await Promise.all([
+            serviceRoleClient
+              .from('users')
+              .select('email, first_name, last_name, role')
+              .eq('id', params.assignedTo)
+              .single(),
+            serviceRoleClient
+              .from('users')
+              .select('first_name, last_name')
+              .eq('id', params.uploadedBy)
+              .single()
+          ])
+
+          const assignedUser = assignedUserResult.data
+          const uploader = uploaderResult.data
+
+          if (assignedUser?.email) {
+            const { DocumentUploadedEmail } = await import('@/emails/templates/documents/document-uploaded')
+
+            const uploaderName = uploader
+              ? `${uploader.first_name || ''} ${uploader.last_name || ''}`.trim() || 'Un utilisateur'
+              : 'Un utilisateur'
+
+            const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido.app'
+            const entityUrl = `${baseUrl}${getDocumentEntityUrl(assignedUser.role, params.relatedEntityType, params.relatedEntityId)}`
+
+            const result = await emailService.send({
+              to: assignedUser.email,
+              subject: `📄 Nouveau document - ${params.documentName}`,
+              react: DocumentUploadedEmail({
+                firstName: assignedUser.first_name || 'Utilisateur',
+                documentName: params.documentName,
+                uploadedByName: uploaderName,
+                entityUrl,
+              }),
+              tags: [{ name: 'type', value: 'document_uploaded' }]
+            })
+
+            logger.info({
+              documentId: params.documentId,
+              emailSent: result.success,
+              to: assignedUser.email
+            }, '📧 [NOTIFICATION-ACTION] Document upload email sent')
+          }
+        }
+      } catch (emailError) {
+        logger.warn({ emailError, documentId: params.documentId }, '⚠️ [NOTIFICATION-ACTION] Could not send document upload email')
+      }
     }
 
     return { success: true, data: notifications }
@@ -947,10 +1184,10 @@ export async function notifyContractExpiring({
 
     const notifications = []
 
-    // Get team managers
+    // Get team managers (with email info for email notifications)
     const { data: teamManagers } = await repository.supabase
       .from('team_members')
-      .select('user_id')
+      .select('user_id, users(email, first_name, last_name)')
       .eq('team_id', team.id)
       .eq('role', 'gestionnaire')
 
@@ -996,6 +1233,51 @@ export async function notifyContractExpiring({
         url: `/gestionnaire/contrats/${contractId}`,
         type: 'deadline'
       }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyContractExpiring'))
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL NOTIFICATIONS: Send to all gestionnaires
+    // ═══════════════════════════════════════════════════════════════════════════
+    try {
+      const emailService = new EmailService()
+      if (emailService.isConfigured() && teamManagers && teamManagers.length > 0) {
+        const { ContractExpiringEmail } = await import('@/emails/templates/contracts/contract-expiring')
+
+        const lotReference = (contract.lots as any)?.reference || 'N/A'
+        const endDateFormatted = contract.end_date
+          ? new Date(contract.end_date).toLocaleDateString('fr-FR')
+          : 'N/A'
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido.app'
+        const contractUrl = `${baseUrl}/gestionnaire/contrats/${contractId}`
+        const urgencyIcon = daysUntilExpiry <= 7 ? '🔴' : '🟠'
+
+        for (const manager of teamManagers) {
+          const managerUser = manager.users as any
+          if (!managerUser?.email) continue
+
+          const result = await emailService.send({
+            to: managerUser.email,
+            subject: `${urgencyIcon} Contrat expire dans ${daysUntilExpiry}j - ${contract.title}`,
+            react: ContractExpiringEmail({
+              firstName: managerUser.first_name || 'Gestionnaire',
+              contractTitle: contract.title || 'Contrat',
+              lotReference,
+              daysUntilExpiry,
+              endDate: endDateFormatted,
+              contractUrl,
+            }),
+            tags: [{ name: 'type', value: 'contract_expiring' }]
+          })
+
+          logger.info({
+            contractId,
+            emailSent: result.success,
+            to: managerUser.email
+          }, '📧 [NOTIFICATION-ACTION] Contract expiring email sent')
+        }
+      }
+    } catch (emailError) {
+      logger.warn({ emailError, contractId }, '⚠️ [NOTIFICATION-ACTION] Could not send contract expiring emails')
     }
 
     return { success: true, data: notifications }
@@ -1200,10 +1482,10 @@ export async function createContractNotification(contractId: string) {
       if (result.success && result.data) notifications.push(result.data)
     }
 
-    // Notify tenants linked to this contract
+    // Notify tenants linked to this contract (with email info for email notifications)
     const { data: contractContacts } = await repository.supabase
       .from('contract_contacts')
-      .select('user_id, role')
+      .select('user_id, role, users(email, first_name, last_name)')
       .eq('contract_id', contractId)
       .eq('role', 'locataire')
 
@@ -1245,12 +1527,409 @@ export async function createContractNotification(contractId: string) {
       }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in createContractNotification'))
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // EMAIL NOTIFICATIONS: Send to tenant contacts (personal)
+    // ═══════════════════════════════════════════════════════════════════════════
+    try {
+      const emailService = new EmailService()
+      if (emailService.isConfigured() && contractContacts && contractContacts.length > 0) {
+        const { ContractCreatedEmail } = await import('@/emails/templates/contracts/contract-created')
+
+        const lot = contract.lots as any
+        const lotReference = lot?.reference || 'N/A'
+        const addressRecord = lot?.address_record
+        const propertyAddress = addressRecord
+          ? `${addressRecord.street || ''}, ${addressRecord.postal_code || ''} ${addressRecord.city || ''}`.trim().replace(/^,\s*/, '')
+          : 'Adresse non renseignée'
+        const startDateFormatted = contract.start_date
+          ? new Date(contract.start_date).toLocaleDateString('fr-FR')
+          : 'Non définie'
+        const endDateFormatted = contract.end_date
+          ? new Date(contract.end_date).toLocaleDateString('fr-FR')
+          : undefined
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://seido.app'
+        const contractUrl = `${baseUrl}/locataire/contrats/${contractId}`
+
+        for (const contact of contractContacts) {
+          const contactUser = contact.users as any
+          if (!contactUser?.email) continue
+
+          const result = await emailService.send({
+            to: contactUser.email,
+            subject: `📜 Nouveau contrat - ${contract.title}`,
+            react: ContractCreatedEmail({
+              firstName: contactUser.first_name || 'Locataire',
+              contractTitle: contract.title || 'Contrat',
+              lotReference,
+              propertyAddress,
+              startDate: startDateFormatted,
+              endDate: endDateFormatted,
+              contractUrl,
+            }),
+            tags: [{ name: 'type', value: 'contract_created' }]
+          })
+
+          logger.info({
+            contractId,
+            emailSent: result.success,
+            to: contactUser.email
+          }, '📧 [NOTIFICATION-ACTION] Contract created email sent')
+        }
+      }
+    } catch (emailError) {
+      logger.warn({ emailError, contractId }, '⚠️ [NOTIFICATION-ACTION] Could not send contract created emails')
+    }
+
     return { success: true, data: notifications }
   } catch (error) {
     logger.error({
       error,
       contractId
     }, '❌ [NOTIFICATION-ACTION] Failed to create contract notification')
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+// ============================================================================
+// QUOTE NOTIFICATIONS
+// ============================================================================
+
+/**
+ * Notify provider about a new quote request
+ *
+ * @param params - Quote request notification parameters
+ */
+export async function notifyQuoteRequested(params: {
+  quoteId: string
+  interventionId: string
+  interventionTitle: string
+  providerId: string
+  providerName: string
+  teamId: string
+  requestedBy: string
+  requestedByName: string
+  deadline?: string | null
+}) {
+  try {
+    logger.info({
+      action: 'notifyQuoteRequested',
+      quoteId: params.quoteId,
+      providerId: params.providerId,
+      interventionId: params.interventionId
+    }, '📬 [NOTIFICATION-ACTION] Creating quote request notification')
+
+    const supabase = createServiceRoleSupabaseClient()
+    const repository = new NotificationRepository(supabase)
+    const notifications = []
+
+    // Create in-app notification for provider
+    const result = await repository.create({
+      user_id: params.providerId,
+      team_id: params.teamId,
+      created_by: params.requestedBy,
+      type: 'intervention',
+      title: '📋 Nouvelle demande d\'estimation',
+      message: `${params.requestedByName} vous demande une estimation pour "${params.interventionTitle}"${params.deadline ? ` (avant le ${new Date(params.deadline).toLocaleDateString('fr-FR')})` : ''}`,
+      is_personal: true, // Direct notification to provider
+      metadata: {
+        quote_id: params.quoteId,
+        intervention_id: params.interventionId,
+        intervention_title: params.interventionTitle,
+        deadline: params.deadline,
+        action_required: 'quote_submission'
+      },
+      related_entity_type: 'intervention',
+      related_entity_id: params.interventionId,
+      read: false
+    })
+
+    if (result.success && result.data) {
+      notifications.push(result.data)
+    }
+
+    logger.info({
+      quoteId: params.quoteId,
+      notificationCount: notifications.length
+    }, '✅ [NOTIFICATION-ACTION] Quote request notification created')
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PUSH NOTIFICATION: Alert provider immediately
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (notifications.length > 0) {
+      sendPushToNotificationRecipients(notifications, {
+        title: '📋 Demande d\'estimation',
+        message: `Nouvelle demande pour "${params.interventionTitle}"`,
+        url: `/prestataire/interventions/${params.interventionId}`,
+        type: 'quote_request'
+      }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyQuoteRequested'))
+    }
+
+    return { success: true, data: notifications }
+  } catch (error) {
+    logger.error({
+      error,
+      params
+    }, '❌ [NOTIFICATION-ACTION] Failed to notify quote request')
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+/**
+ * Notify provider about quote approval
+ *
+ * @param params - Quote approval notification parameters
+ */
+export async function notifyQuoteApproved(params: {
+  quoteId: string
+  interventionId: string
+  interventionTitle: string
+  providerId: string
+  providerName: string
+  teamId: string
+  approvedBy: string
+  approvedByName: string
+  amount: number
+  notes?: string
+}) {
+  try {
+    logger.info({
+      action: 'notifyQuoteApproved',
+      quoteId: params.quoteId,
+      providerId: params.providerId
+    }, '📬 [NOTIFICATION-ACTION] Creating quote approval notification')
+
+    const supabase = createServiceRoleSupabaseClient()
+    const repository = new NotificationRepository(supabase)
+    const notifications = []
+
+    // Create in-app notification for provider
+    const result = await repository.create({
+      user_id: params.providerId,
+      team_id: params.teamId,
+      created_by: params.approvedBy,
+      type: 'intervention',
+      title: '✅ Estimation approuvée !',
+      message: `Votre estimation de ${params.amount.toFixed(2)}€ pour "${params.interventionTitle}" a été approuvée${params.notes ? `. Note: ${params.notes}` : ''}`,
+      is_personal: true,
+      metadata: {
+        quote_id: params.quoteId,
+        intervention_id: params.interventionId,
+        intervention_title: params.interventionTitle,
+        amount: params.amount,
+        approved_by: params.approvedByName,
+        action_required: 'planning'
+      },
+      related_entity_type: 'intervention',
+      related_entity_id: params.interventionId,
+      read: false
+    })
+
+    if (result.success && result.data) {
+      notifications.push(result.data)
+    }
+
+    logger.info({
+      quoteId: params.quoteId,
+      notificationCount: notifications.length
+    }, '✅ [NOTIFICATION-ACTION] Quote approval notification created')
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PUSH NOTIFICATION: This is important news for the provider!
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (notifications.length > 0) {
+      sendPushToNotificationRecipients(notifications, {
+        title: '✅ Estimation approuvée',
+        message: `Votre estimation de ${params.amount.toFixed(2)}€ a été acceptée`,
+        url: `/prestataire/interventions/${params.interventionId}`,
+        type: 'quote_approved'
+      }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyQuoteApproved'))
+    }
+
+    return { success: true, data: notifications }
+  } catch (error) {
+    logger.error({
+      error,
+      params
+    }, '❌ [NOTIFICATION-ACTION] Failed to notify quote approval')
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+/**
+ * Notify provider about quote rejection
+ *
+ * @param params - Quote rejection notification parameters
+ */
+export async function notifyQuoteRejected(params: {
+  quoteId: string
+  interventionId: string
+  interventionTitle: string
+  providerId: string
+  providerName: string
+  teamId: string
+  rejectedBy: string
+  rejectedByName: string
+  reason: string
+  canResubmit?: boolean
+}) {
+  try {
+    logger.info({
+      action: 'notifyQuoteRejected',
+      quoteId: params.quoteId,
+      providerId: params.providerId
+    }, '📬 [NOTIFICATION-ACTION] Creating quote rejection notification')
+
+    const supabase = createServiceRoleSupabaseClient()
+    const repository = new NotificationRepository(supabase)
+    const notifications = []
+
+    // Create in-app notification for provider
+    const result = await repository.create({
+      user_id: params.providerId,
+      team_id: params.teamId,
+      created_by: params.rejectedBy,
+      type: 'intervention',
+      title: '❌ Estimation refusée',
+      message: `Votre estimation pour "${params.interventionTitle}" a été refusée. Motif: ${params.reason}`,
+      is_personal: true,
+      metadata: {
+        quote_id: params.quoteId,
+        intervention_id: params.interventionId,
+        intervention_title: params.interventionTitle,
+        rejection_reason: params.reason,
+        can_resubmit: params.canResubmit ?? false
+      },
+      related_entity_type: 'intervention',
+      related_entity_id: params.interventionId,
+      read: false
+    })
+
+    if (result.success && result.data) {
+      notifications.push(result.data)
+    }
+
+    logger.info({
+      quoteId: params.quoteId,
+      notificationCount: notifications.length
+    }, '✅ [NOTIFICATION-ACTION] Quote rejection notification created')
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PUSH NOTIFICATION: Provider should know about rejection
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (notifications.length > 0) {
+      sendPushToNotificationRecipients(notifications, {
+        title: '❌ Estimation refusée',
+        message: `Motif: ${params.reason.substring(0, 50)}${params.reason.length > 50 ? '...' : ''}`,
+        url: `/prestataire/interventions/${params.interventionId}`,
+        type: 'quote_rejected'
+      }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyQuoteRejected'))
+    }
+
+    return { success: true, data: notifications }
+  } catch (error) {
+    logger.error({
+      error,
+      params
+    }, '❌ [NOTIFICATION-ACTION] Failed to notify quote rejection')
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }
+  }
+}
+
+/**
+ * Notify managers about a quote submission (add push to existing in-app)
+ *
+ * @param params - Quote submission notification parameters
+ */
+export async function notifyQuoteSubmittedWithPush(params: {
+  quoteId: string
+  interventionId: string
+  interventionTitle: string
+  teamId: string
+  providerId: string
+  providerName: string
+  amount: number
+  managerIds: string[]
+  primaryManagerId?: string
+}) {
+  try {
+    logger.info({
+      action: 'notifyQuoteSubmittedWithPush',
+      quoteId: params.quoteId,
+      managerCount: params.managerIds.length
+    }, '📬 [NOTIFICATION-ACTION] Creating quote submission notifications with push')
+
+    const supabase = createServiceRoleSupabaseClient()
+    const repository = new NotificationRepository(supabase)
+    const notifications = []
+
+    // Create in-app notifications for all managers
+    for (const managerId of params.managerIds) {
+      const isPrimary = managerId === params.primaryManagerId
+      const result = await repository.create({
+        user_id: managerId,
+        team_id: params.teamId,
+        created_by: params.providerId,
+        type: 'intervention',
+        title: '📋 Nouvelle estimation reçue',
+        message: `${params.providerName} a soumis une estimation de ${params.amount.toFixed(2)}€ pour "${params.interventionTitle}"`,
+        is_personal: isPrimary, // Only primary manager gets push
+        metadata: {
+          quote_id: params.quoteId,
+          intervention_id: params.interventionId,
+          intervention_title: params.interventionTitle,
+          amount: params.amount,
+          provider_name: params.providerName,
+          action_required: 'quote_review'
+        },
+        related_entity_type: 'intervention',
+        related_entity_id: params.interventionId,
+        read: false
+      })
+
+      if (result.success && result.data) {
+        notifications.push(result.data)
+      }
+    }
+
+    logger.info({
+      quoteId: params.quoteId,
+      notificationCount: notifications.length
+    }, '✅ [NOTIFICATION-ACTION] Quote submission notifications created')
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // PUSH NOTIFICATION: Alert primary manager about new quote
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (notifications.length > 0) {
+      sendPushToNotificationRecipients(notifications, {
+        title: '📋 Nouvelle estimation',
+        message: `${params.providerName}: ${params.amount.toFixed(2)}€`,
+        url: `/gestionnaire/interventions/${params.interventionId}`,
+        type: 'quote_submitted'
+      }).catch(err => logger.error({ err }, '⚠️ [PUSH] Failed in notifyQuoteSubmittedWithPush'))
+    }
+
+    return { success: true, data: notifications }
+  } catch (error) {
+    logger.error({
+      error,
+      params
+    }, '❌ [NOTIFICATION-ACTION] Failed to notify quote submission')
 
     return {
       success: false,

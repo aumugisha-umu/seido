@@ -23,7 +23,7 @@ import {
 import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
 import { PendingActionsSection } from "@/components/dashboards/shared/pending-actions-section"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
-import { KPICarousel, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
+import { KPIMobileGrid, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
 import { useToast } from "@/hooks/use-toast"
 import { GestionnaireFAB } from "@/components/ui/fab"
 import { PeriodSelector, getDefaultPeriod, type Period } from "@/components/ui/period-selector"
@@ -160,36 +160,37 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
 
     return (
         <div className="dashboard">
-            <div className="dashboard__container">
+            <div className="dashboard__container pb-24 lg:pb-0 flex flex-col">
                 {/* Header Section */}
                 <div className="dashboard__header">
-                    <div className="flex flex-col md:flex-row justify-between items-end md:items-center gap-4">
-                        {/* Title + Period Selector + Guide together */}
-                        <div className="flex items-center gap-4 flex-1 min-w-0">
-                            <h1 className="text-3xl font-bold text-foreground">Tableau de bord</h1>
-                            {/* Period Selector - Dropdown only */}
-                            <PeriodSelector
-                                value={period.value}
-                                onChange={setPeriod}
-                            />
+                    {/* Line 1: Title + Guide + Desktop buttons */}
+                    <div className="flex items-center justify-between gap-3">
+                        <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">Tableau de bord</h1>
+
+                        <div className="flex items-center gap-2 flex-shrink-0">
                             {/* Onboarding Guide Button */}
                             <OnboardingButton />
-                        </div>
-                        <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
-                            {/* Bouton Importer */}
+
+                            {/* Desktop only: Period + Import + Add */}
+                            <div className="hidden sm:block">
+                                <PeriodSelector
+                                    value={period.value}
+                                    onChange={setPeriod}
+                                />
+                            </div>
+
                             <Button
                                 variant="outline"
                                 onClick={() => router.push("/gestionnaire/import")}
-                                className="bg-card border-border text-foreground rounded-xl"
+                                className="hidden sm:flex bg-card border-border text-foreground rounded-xl"
                             >
                                 <Upload className="h-4 w-4 mr-2" />
                                 <span>Importer</span>
                             </Button>
 
-                            {/* Bouton Ajouter avec dropdown */}
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
-                                    <Button className="rounded-xl px-4">
+                                    <Button className="hidden sm:flex rounded-xl px-4">
                                         <Plus className="h-4 w-4 mr-2" />
                                         <span>Ajouter</span>
                                         <ChevronDown className="h-4 w-4 ml-2" />
@@ -235,43 +236,19 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                             </DropdownMenu>
                         </div>
                     </div>
+
+                    {/* Line 2 (mobile only): Period selector compact */}
+                    <div className="sm:hidden mt-2">
+                        <PeriodSelector
+                            value={period.value}
+                            onChange={setPeriod}
+                            compact
+                        />
+                    </div>
                 </div>
 
-                {/* Stats Section - Mobile Carousel */}
-                <div className="dashboard__stats lg:hidden">
-                    <KPICarousel
-                        cards={statsToKPICards({
-                            pendingCount,
-                            activeCount: activeInterventionsCount,
-                            completedCount: completedInterventionsCount,
-                            buildingsCount: stats.buildingsCount,
-                            lotsCount: stats.lotsCount,
-                            occupancyRate: stats.occupancyRate,
-                            tenantCount,
-                            contractStats,
-                            onContractClick: () => router.push('/gestionnaire/biens/contrats'),
-                            progressData
-                        })}
-                    />
-                </div>
-
-                {/* Stats Section - Desktop Grid */}
-                <div className="dashboard__stats hidden lg:block">
-                    <DashboardStatsCards
-                        pendingCount={pendingCount}
-                        activeCount={activeInterventionsCount}
-                        completedCount={completedInterventionsCount}
-                        buildingsCount={stats.buildingsCount}
-                        lotsCount={stats.lotsCount}
-                        occupancyRate={stats.occupancyRate}
-                        tenantCount={tenantCount}
-                        contractStats={contractStats}
-                        progressData={progressData}
-                    />
-                </div>
-
-                {/* Pending Actions Section - Shared component with direct CTAs */}
-                <div className="dashboard__urgent mb-6">
+                {/* Pending Actions Section - FIRST on mobile, after stats on desktop */}
+                <div className="dashboard__urgent mb-6 lg:order-2">
                     <PendingActionsSection
                         interventions={filteredInterventions}
                         userRole="gestionnaire"
@@ -286,8 +263,46 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                     />
                 </div>
 
+                {/* Stats Section - Mobile Grid (2x2, no "Actions requises" hero) */}
+                <div className="dashboard__stats lg:hidden">
+                    <KPIMobileGrid
+                        cards={statsToKPICards({
+                            pendingCount,
+                            activeCount: activeInterventionsCount,
+                            completedCount: completedInterventionsCount,
+                            buildingsCount: stats.buildingsCount,
+                            lotsCount: stats.lotsCount,
+                            buildingLotsCount: stats.buildingLotsCount,
+                            independentLotsCount: stats.independentLotsCount,
+                            occupancyRate: stats.occupancyRate,
+                            tenantCount,
+                            contractStats,
+                            onContractClick: () => router.push('/gestionnaire/biens/contrats'),
+                            progressData
+                        })}
+                        hideHeroCard
+                    />
+                </div>
+
+                {/* Stats Section - Desktop Grid (full, first on desktop) */}
+                <div className="dashboard__stats hidden lg:block lg:order-1">
+                    <DashboardStatsCards
+                        pendingCount={pendingCount}
+                        activeCount={activeInterventionsCount}
+                        completedCount={completedInterventionsCount}
+                        buildingsCount={stats.buildingsCount}
+                        lotsCount={stats.lotsCount}
+                        buildingLotsCount={stats.buildingLotsCount}
+                        independentLotsCount={stats.independentLotsCount}
+                        occupancyRate={stats.occupancyRate}
+                        tenantCount={tenantCount}
+                        contractStats={contractStats}
+                        progressData={progressData}
+                    />
+                </div>
+
                 {/* Content Section - Unified InterventionsNavigator */}
-                <div className="dashboard__content">
+                <div className="dashboard__content lg:order-3">
                     <InterventionsNavigator
                         interventions={filteredInterventions}
                         userContext="gestionnaire"

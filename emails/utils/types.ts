@@ -466,3 +466,91 @@ export interface QuoteRejectedEmailProps extends BaseQuoteEmailProps {
   /** Si le prestataire peut soumettre un nouveau devis */
   canResubmit: boolean
 }
+
+/**
+ * ═══════════════════════════════════════════════════════════
+ * 📜 TEMPLATES CONTRATS
+ * ═══════════════════════════════════════════════════════════
+ */
+
+/**
+ * Props pour le template "Nouveau contrat créé"
+ * Envoyé aux locataires liés au contrat
+ */
+export interface ContractCreatedEmailProps extends BaseEmailProps {
+  /** Titre du contrat */
+  contractTitle: string
+  /** Référence du lot (ex: "Apt 3B") */
+  lotReference: string
+  /** Adresse du bien */
+  propertyAddress: string
+  /** Date de début du contrat */
+  startDate: string
+  /** Date de fin du contrat (optionnel si indéterminé) */
+  endDate?: string
+  /** URL pour voir le contrat */
+  contractUrl: string
+}
+
+/**
+ * Props pour le template "Contrat arrivant à expiration"
+ * Envoyé aux gestionnaires de l'équipe
+ */
+export interface ContractExpiringEmailProps extends BaseEmailProps {
+  /** Titre du contrat */
+  contractTitle: string
+  /** Référence du lot (ex: "Apt 3B") */
+  lotReference: string
+  /** Nombre de jours avant expiration */
+  daysUntilExpiry: number
+  /** Date de fin du contrat */
+  endDate: string
+  /** URL pour voir le contrat */
+  contractUrl: string
+}
+
+/**
+ * ═══════════════════════════════════════════════════════════
+ * 📄 TEMPLATES DOCUMENTS
+ * ═══════════════════════════════════════════════════════════
+ */
+
+/**
+ * Props pour le template "Rappel RDV intervention"
+ * Envoyé au locataire, prestataire et gestionnaire 24h et 1h avant le RDV
+ */
+export interface InterventionReminderEmailProps extends BaseInterventionEmailProps {
+  /** Nom du prestataire assigné */
+  providerName: string
+  /** Entreprise du prestataire */
+  providerCompany?: string
+  /** Téléphone du prestataire */
+  providerPhone?: string
+  /** Date et heure du rendez-vous */
+  scheduledDate: Date
+  /** Heure de début du créneau (format HH:MM) */
+  startTime?: string
+  /** Heure de fin du créneau (format HH:MM) */
+  endTime?: string
+  /** Durée estimée (en minutes) */
+  estimatedDuration?: number
+  /** Rôle du destinataire */
+  recipientRole: 'locataire' | 'prestataire' | 'gestionnaire'
+  /** Type de rappel */
+  reminderType: '24h' | '1h'
+  /** Nom du locataire (pour prestataire et gestionnaire) */
+  tenantName?: string
+}
+
+/**
+ * Props pour le template "Nouveau document uploadé"
+ * Envoyé à l'utilisateur assigné
+ */
+export interface DocumentUploadedEmailProps extends BaseEmailProps {
+  /** Nom du document */
+  documentName: string
+  /** Nom de la personne qui a uploadé */
+  uploadedByName: string
+  /** URL vers l'entité liée (bien, lot, contrat...) */
+  entityUrl: string
+}

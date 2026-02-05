@@ -54,9 +54,9 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - Documents de propriété
 
 ### Phase 3 ✅ Interventions & Communication
-- Workflow interventions (11 statuts)
-- Chat/Conversations temps réel
-- Notifications multi-canal
+- Workflow interventions (9 statuts - simplifié 2026-01)
+- Chat/Conversations temps réel (5 thread types - étendu 2026-02)
+- Notifications multi-canal (Email + In-App + Push)
 - Email (IMAP/SMTP sync)
 
 ### Phase 4 ✅ Contracts & Import
@@ -64,7 +64,7 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - Documents contractuels
 - Jobs d'import
 
-### Phase 5 🚧 UX Improvements (En cours)
+### Phase 5 ✅ UX Improvements (Complete 2026-02)
 - [x] Google OAuth integration
 - [x] Onboarding modal (5 slides)
 - [x] Avatar system
@@ -76,18 +76,28 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - [x] Chat message bubble layout enhancements
 - [x] **Confirmation participants** (multi-step validation flow)
 - [x] **Intervention types dynamiques** (37 types, admin UI)
+- [x] **Individual conversation threads** (NEW 2026-02)
+- [x] **Quote workflow notifications** (Email + In-App + Push)
 
-### Métriques Infrastructure (2026-01-22)
-- **369 composants** (UI + dashboards + workflow)
-- **58 hooks** custom
-- **21 repositories** + **31 domain services**
+### Phase 6 🚧 Performance & Polish (En cours)
+- [x] Auth API optimization (250+ calls → 1 per navigation)
+- [x] Infinite refresh loop fix (intervention detail page)
+- [ ] Google Maps integration (AddressInput + Geocoding)
+- [ ] Dashboard analytics avancé
+
+### Métriques Infrastructure (2026-02-03)
+- **358 composants** (UI + dashboards + workflow)
+- **61 hooks** custom
+- **22 repositories** + **32 domain services**
 - **113 API routes**
+- **155 migrations SQL**
 
 ## Fonctionnalités Prévues
-- [ ] Dashboard analytics avancé - Priorité: Haute
+- [ ] Google Maps integration - Priorité: Haute (Phase 2-3 restantes)
 - [ ] Export PDF rapports - Priorité: Moyenne
 - [ ] Integration calendrier - Priorité: Moyenne
+- [ ] Dashboard analytics avancé - Priorité: Haute
 
 ---
-*Dernière mise à jour: 2026-01-25*
+*Dernière mise à jour: 2026-02-03*
 *Références: docs/design/persona-gestionnaire-unifie.md, persona-prestataire.md, persona-locataire.md*

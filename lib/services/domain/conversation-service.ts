@@ -631,11 +631,13 @@ export class ConversationService {
       if (!intervention.success || !intervention.data) return
 
       // Get all team managers
+      // ✅ FIX 2026-02-01: Only include managers with auth accounts
       const { data: managers } = await this.conversationRepo.supabase
         .from('users')
         .select('id')
         .eq('team_id', intervention.data.team_id)
         .in('role', ['gestionnaire', 'admin'])
+        .not('auth_user_id', 'is', null)  // Only invited managers
 
       if (managers) {
         // Add managers who aren't already participants
@@ -763,11 +765,22 @@ export class ConversationService {
    * @param interventionId - The intervention ID
    * @returns Array of tenant user IDs (locataires assigned to this intervention)
    */
-  private async getInterventionTenants(interventionId: string): Promise<string[]> {
+  /**
+   * Get all tenant user IDs assigned to an intervention
+   * ✅ FIX 2026-02-01: Only returns tenants with auth accounts (invited users)
+   * @param interventionId - The intervention ID
+   * @param onlyInvited - If true (default), only returns users with auth_id
+   * @returns Array of tenant user IDs (locataires assigned to this intervention)
+   */
+  private async getInterventionTenants(interventionId: string, onlyInvited: boolean = true): Promise<string[]> {
     try {
+      // Join with users table to check auth_id
       const { data, error } = await this.conversationRepo.supabase
         .from('intervention_assignments')
-        .select('user_id')
+        .select(`
+          user_id,
+          user:users!inner(id, auth_user_id)
+        `)
         .eq('intervention_id', interventionId)
         .eq('role', 'locataire')
 
@@ -776,7 +789,13 @@ export class ConversationService {
         return []
       }
 
-      return data?.map(a => a.user_id) || []
+      // Filter by auth_id if onlyInvited is true
+      const tenants = data?.filter(a => {
+        if (!onlyInvited) return true
+        return !!(a.user as any)?.auth_user_id
+      }) || []
+
+      return tenants.map(a => a.user_id)
     } catch (error) {
       logger.error('Error in getInterventionTenants', error)
       return []
@@ -993,22 +1012,38 @@ export class ConversationService {
 
       switch (thread.thread_type) {
         case 'group':
-          // Add all assigned users (including tenants)
+          // ✅ FIX 2026-02-01: Only add assigned users WITH auth accounts (invited users)
           if (intervention.intervention_assignments) {
-            intervention.intervention_assignments.forEach((a: any) => {
-              if (!participantIds.includes(a.user_id)) {
-                participantIds.push(a.user_id)
+            // Get IDs of assigned users
+            const assignedUserIds = intervention.intervention_assignments.map((a: any) => a.user_id)
+
+            // Filter to only include users with auth_id (invited users)
+            if (assignedUserIds.length > 0) {
+              const { data: invitedAssignedUsers } = await this.conversationRepo.supabase
+                .from('users')
+                .select('id')
+                .in('id', assignedUserIds)
+                .not('auth_user_id', 'is', null)
+
+              if (invitedAssignedUsers) {
+                invitedAssignedUsers.forEach((u: { id: string }) => {
+                  if (!participantIds.includes(u.id)) {
+                    participantIds.push(u.id)
+                  }
+                })
               }
-            })
+            }
           }
           // ✅ FIX: Also add all team managers to group thread
           // (they should see the general discussion even if not explicitly assigned)
+          // ✅ FIX 2026-02-01: Only include managers with auth accounts
           const { data: groupManagers } = await this.conversationRepo.supabase
             .from('users')
             .select('id')
             .eq('team_id', intervention.team_id)
             .in('role', ['gestionnaire', 'admin'])
             .is('deleted_at', null)
+            .not('auth_user_id', 'is', null)  // Only invited managers
 
           if (groupManagers) {
             groupManagers.forEach((m: { id: string }) => {
@@ -1028,11 +1063,13 @@ export class ConversationService {
             }
           })
           // Add all managers in team
+          // ✅ FIX 2026-02-01: Only include managers with auth accounts
           const { data: managers } = await this.conversationRepo.supabase
             .from('users')
             .select('id')
             .eq('team_id', intervention.team_id)
             .in('role', ['gestionnaire', 'admin'])
+            .not('auth_user_id', 'is', null)  // Only invited managers
 
           if (managers) {
             managers.forEach(m => participantIds.push(m.id))
@@ -1040,18 +1077,32 @@ export class ConversationService {
           break
 
         case 'provider_to_managers':
-          // Add assigned providers
+          // ✅ FIX 2026-02-01: Only add assigned providers WITH auth accounts
           if (intervention.intervention_assignments) {
-            intervention.intervention_assignments
+            const providerUserIds = intervention.intervention_assignments
               .filter((a: any) => a.role === 'prestataire')
-              .forEach((a: any) => participantIds.push(a.user_id))
+              .map((a: any) => a.user_id)
+
+            if (providerUserIds.length > 0) {
+              const { data: invitedProviders } = await this.conversationRepo.supabase
+                .from('users')
+                .select('id')
+                .in('id', providerUserIds)
+                .not('auth_user_id', 'is', null)
+
+              if (invitedProviders) {
+                invitedProviders.forEach((u: { id: string }) => participantIds.push(u.id))
+              }
+            }
           }
           // Add managers
+          // ✅ FIX 2026-02-01: Only include managers with auth accounts
           const { data: mgrs } = await this.conversationRepo.supabase
             .from('users')
             .select('id')
             .eq('team_id', intervention.team_id)
             .in('role', ['gestionnaire', 'admin'])
+            .not('auth_user_id', 'is', null)  // Only invited managers
 
           if (mgrs) {
             mgrs.forEach(m => participantIds.push(m.id))
@@ -1217,11 +1268,13 @@ export class ConversationService {
 
     try {
       // Get team managers to notify
+      // ✅ FIX 2026-02-01: Only include managers with auth accounts
       const { data: managers } = await this.conversationRepo.supabase
         .from('users')
         .select('id')
         .eq('team_id', thread.team_id)
         .in('role', ['gestionnaire', 'admin'])
+        .not('auth_user_id', 'is', null)  // Only invited managers
 
       const recipientIds = (managers || []).map(m => m.id).filter(id => id !== createdBy)
 

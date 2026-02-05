@@ -68,17 +68,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     }, AUTH_RETRY_CONFIG.TIMEOUT_MS)
 
+    // ✅ Track if initial session was already handled to avoid duplicate auth calls
+    let initialSessionHandled = false
+
     // Check immédiat de session au mount (BLOQUANT pour peupler localStorage)
+    // ⚠️ FIX (Jan 2026): Only call getSession(), let onAuthStateChange handle the user fetch
     const checkInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession()
 
         if (session?.user) {
-          const { user } = await authService.getCurrentUser()
-          setUser(user)
-          setLoading(false)
-          updateCoordinationState('loaded')
-          clearTimeout(loadingTimeout)
+          // ✅ FIX: Don't fetch user here - onAuthStateChange INITIAL_SESSION will do it
+          // This prevents duplicate auth API calls
+          initialSessionHandled = true
           return true
         }
       } catch (error) {
@@ -97,14 +99,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           case 'INITIAL_SESSION':
             clearTimeout(loadingTimeout)
             if (session?.user) {
-              try {
-                const { user } = await authService.getCurrentUser()
-                setUser(user)
-                updateCoordinationState('loaded')
-              } catch (error) {
-                logger.error('❌ [AUTH-PROVIDER] Error loading initial user:', error)
-                setUser(null)
-                updateCoordinationState('error')
+              // ✅ FIX (Jan 2026): Only fetch user once per session init
+              // This prevents duplicate authService.getCurrentUser() calls
+              if (initialSessionHandled) {
+                // Session was already checked, just fetch the user profile
+                try {
+                  const { user } = await authService.getCurrentUser()
+                  setUser(user)
+                  updateCoordinationState('loaded')
+                } catch (error) {
+                  logger.error('❌ [AUTH-PROVIDER] Error loading initial user:', error)
+                  setUser(null)
+                  updateCoordinationState('error')
+                }
+              } else {
+                // First time handling - proceed normally
+                try {
+                  const { user } = await authService.getCurrentUser()
+                  setUser(user)
+                  updateCoordinationState('loaded')
+                } catch (error) {
+                  logger.error('❌ [AUTH-PROVIDER] Error loading initial user:', error)
+                  setUser(null)
+                  updateCoordinationState('error')
+                }
               }
             } else {
               setUser(null)

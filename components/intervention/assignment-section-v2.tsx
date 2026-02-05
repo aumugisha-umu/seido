@@ -56,6 +56,7 @@ interface Contact {
   speciality?: string
   isCurrentUser?: boolean
   type: "gestionnaire" | "prestataire" | "locataire"
+  has_account?: boolean  // ✅ FIX 2026-02-01: Indicates if user is invited (has auth_id)
 }
 
 interface TimeSlot {
@@ -525,36 +526,88 @@ export function AssignmentSectionV2({
                                     />
                                   </div>
                                   {/* Tenants in this lot (greyed out if excluded) */}
+                                  {/* ✅ FIX 2026-02-01: Show indicator for non-invited users */}
                                   <div className={cn("space-y-1", !isLotIncluded && "opacity-40")}>
-                                    {lotGroup.tenants.map((tenant, index) => (
-                                      <div
-                                        key={tenant.id || `tenant-${lotGroup.lotId}-${index}`}
-                                        className="flex items-center gap-2 p-2 bg-blue-50/50 rounded border border-blue-100"
-                                      >
-                                        <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
-                                          <User className="w-4 h-4 text-blue-700" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                          <div className="font-medium text-sm truncate">{tenant.name}</div>
-                                          {tenant.email && (
-                                            <div className="text-xs text-gray-500 truncate">{tenant.email}</div>
+                                    {lotGroup.tenants.map((tenant, index) => {
+                                      const isInvited = (tenant as any).has_account !== false
+
+                                      return (
+                                        <div
+                                          key={tenant.id || `tenant-${lotGroup.lotId}-${index}`}
+                                          className={cn(
+                                            "flex items-center gap-2 p-2 rounded border",
+                                            isInvited
+                                              ? "bg-blue-50/50 border-blue-100"
+                                              : "bg-slate-50 border-slate-200"
                                           )}
+                                        >
+                                          <div className={cn(
+                                            "w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0",
+                                            isInvited ? "bg-blue-200" : "bg-slate-200"
+                                          )}>
+                                            <User className={cn(
+                                              "w-4 h-4",
+                                              isInvited ? "text-blue-700" : "text-slate-500"
+                                            )} />
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                              <span className={cn(
+                                                "font-medium text-sm truncate",
+                                                !isInvited && "text-slate-600"
+                                              )}>
+                                                {tenant.name}
+                                              </span>
+                                              {!isInvited && (
+                                                <Badge
+                                                  variant="outline"
+                                                  className="text-[10px] px-1.5 py-0 h-4 bg-slate-100 text-slate-500 border-slate-300"
+                                                  title="Ce contact n'a pas de compte. Il ne recevra pas de notifications."
+                                                >
+                                                  Non invité
+                                                </Badge>
+                                              )}
+                                            </div>
+                                            {tenant.email && (
+                                              <div className="text-xs text-gray-500 truncate">{tenant.email}</div>
+                                            )}
+                                          </div>
                                         </div>
-                                      </div>
-                                    ))}
+                                      )
+                                    })}
                                   </div>
                                 </div>
                               )
                             })}
-                            {/* Info message for building */}
-                            <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200 mt-2">
-                              <Info className="h-3.5 w-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
-                              <p className="text-xs text-blue-700">
-                                {buildingTenants.byLot.filter(lot => !excludedLotIds?.includes(lot.lotId)).reduce((sum, lot) => sum + lot.tenants.length, 0) > 1
-                                  ? 'Ils pourront'
-                                  : 'Il pourra'} suivre l'intervention et interagir dans le chat
-                              </p>
-                            </div>
+                            {/* Info message for building - ✅ Updated to mention non-invited users */}
+                            {(() => {
+                              const includedLots = buildingTenants.byLot.filter(lot => !excludedLotIds?.includes(lot.lotId))
+                              const allIncludedTenants = includedLots.flatMap(lot => lot.tenants)
+                              const invitedCount = allIncludedTenants.filter(t => (t as any).has_account !== false).length
+                              const nonInvitedCount = allIncludedTenants.length - invitedCount
+
+                              return (
+                                <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200 mt-2">
+                                  <Info className="h-3.5 w-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
+                                  <p className="text-xs text-blue-700">
+                                    {invitedCount > 0 ? (
+                                      <>
+                                        {invitedCount > 1 ? 'Les locataires invités pourront' : 'Le locataire invité pourra'} suivre l'intervention et interagir dans le chat.
+                                        {nonInvitedCount > 0 && (
+                                          <span className="text-slate-500 block mt-1">
+                                            {nonInvitedCount > 1
+                                              ? `${nonInvitedCount} contacts ne sont pas invités et ne recevront pas de notifications.`
+                                              : '1 contact n\'est pas invité et ne recevra pas de notifications.'}
+                                          </span>
+                                        )}
+                                      </>
+                                    ) : (
+                                      'Les contacts listés ne sont pas invités dans l\'application. Ils ne recevront pas de notifications.'
+                                    )}
+                                  </p>
+                                </div>
+                              )
+                            })()}
                           </div>
                         ) : (
                           <div className="p-3 text-center text-xs text-gray-500">
@@ -565,29 +618,81 @@ export function AssignmentSectionV2({
                         /* Lot tenants - simple list */
                         includeTenants && tenants.length > 0 ? (
                           <div className="space-y-1.5">
-                            {tenants.map((tenant, index) => (
-                              <div
-                                key={tenant.id || `tenant-${index}`}
-                                className="flex items-center gap-2 p-2 bg-blue-50/50 rounded border border-blue-100"
-                              >
-                                <div className="w-7 h-7 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
-                                  <User className="w-4 h-4 text-blue-700" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-sm truncate">{tenant.name}</div>
-                                  {tenant.email && (
-                                    <div className="text-xs text-gray-500 truncate">{tenant.email}</div>
+                            {tenants.map((tenant, index) => {
+                              // ✅ FIX 2026-02-01: Show indicator for non-invited users
+                              const isInvited = tenant.has_account !== false
+
+                              return (
+                                <div
+                                  key={tenant.id || `tenant-${index}`}
+                                  className={cn(
+                                    "flex items-center gap-2 p-2 rounded border",
+                                    isInvited
+                                      ? "bg-blue-50/50 border-blue-100"
+                                      : "bg-slate-50 border-slate-200"
                                   )}
+                                >
+                                  <div className={cn(
+                                    "w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0",
+                                    isInvited ? "bg-blue-200" : "bg-slate-200"
+                                  )}>
+                                    <User className={cn(
+                                      "w-4 h-4",
+                                      isInvited ? "text-blue-700" : "text-slate-500"
+                                    )} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className={cn(
+                                        "font-medium text-sm truncate",
+                                        !isInvited && "text-slate-600"
+                                      )}>
+                                        {tenant.name}
+                                      </span>
+                                      {!isInvited && (
+                                        <Badge
+                                          variant="outline"
+                                          className="text-[10px] px-1.5 py-0 h-4 bg-slate-100 text-slate-500 border-slate-300"
+                                          title="Ce contact n'a pas de compte. Il ne recevra pas de notifications et ne pourra pas interagir avec l'application."
+                                        >
+                                          Non invité
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    {tenant.email && (
+                                      <div className="text-xs text-gray-500 truncate">{tenant.email}</div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
-                            {/* Info message for lot */}
-                            <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200 mt-2">
-                              <Info className="h-3.5 w-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
-                              <p className="text-xs text-blue-700">
-                                {tenants.length > 1 ? 'Ils pourront' : 'Il pourra'} suivre l'intervention et interagir dans le chat
-                              </p>
-                            </div>
+                              )
+                            })}
+                            {/* Info message for lot - ✅ Updated to mention non-invited users */}
+                            {(() => {
+                              const invitedCount = tenants.filter(t => t.has_account !== false).length
+                              const nonInvitedCount = tenants.length - invitedCount
+
+                              return (
+                                <div className="flex items-start gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200 mt-2">
+                                  <Info className="h-3.5 w-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
+                                  <p className="text-xs text-blue-700">
+                                    {invitedCount > 0 ? (
+                                      <>
+                                        {invitedCount > 1 ? 'Les locataires invités pourront' : 'Le locataire invité pourra'} suivre l'intervention et interagir dans le chat.
+                                        {nonInvitedCount > 0 && (
+                                          <span className="text-slate-500 block mt-1">
+                                            {nonInvitedCount > 1
+                                              ? `${nonInvitedCount} contacts ne sont pas invités et ne recevront pas de notifications.`
+                                              : '1 contact n\'est pas invité et ne recevra pas de notifications.'}
+                                          </span>
+                                        )}
+                                      </>
+                                    ) : (
+                                      'Les contacts listés ne sont pas invités dans l\'application. Ils ne recevront pas de notifications.'
+                                    )}
+                                  </p>
+                                </div>
+                              )
+                            })()}
                           </div>
                         ) : (
                           <div className="p-3 text-center text-xs text-gray-500">

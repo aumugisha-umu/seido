@@ -506,7 +506,8 @@ export default function InterventionEditClient({
     name: t.name,
     email: t.email || '',
     phone: t.phone || '',
-    type: 'locataire' as const
+    type: 'locataire' as const,
+    has_account: t.has_account  // ✅ FIX 2026-02-01: Pass through invitation status
   })) || []
 
   const isLotOccupied = initialData.lot?.is_occupied === true

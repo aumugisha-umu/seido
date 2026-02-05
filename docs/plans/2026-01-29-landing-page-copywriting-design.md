@@ -53,7 +53,7 @@ pour les gestionnaires immobiliers
 **APRÈS :**
 - ✓ **Setup en 10 minutes**
 - ✓ **Zéro formation requise**
-- ✓ **Locataires & prestataires inclus**
+- ✓ **Portails locataires & prestataires inclus**
 
 ### CTAs
 

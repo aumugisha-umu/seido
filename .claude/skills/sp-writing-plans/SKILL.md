@@ -27,6 +27,58 @@ Every plan MUST start with:
 ---
 ```
 
+## PRD-Enhanced Sections (Compound Engineering + Ralph)
+
+When a PRD exists in `tasks/prd-*.md`, incorporate these sections into the plan:
+
+### Acceptance Criteria (Verifiable, Not Vague!)
+
+Good criteria:
+- [ ] "Filter dropdown has options: All, Active, Completed" ✅
+- [ ] "RLS policy returns empty array for non-team members" ✅
+- [ ] Typecheck passes (npx tsc --noEmit) ✅
+
+Bad criteria:
+- [ ] "Works correctly" ❌ (too vague)
+- [ ] "Is fast" ❌ (not measurable)
+- [ ] "Looks good" ❌ (subjective)
+
+### Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| RLS blocks silent data | Medium | High | Test with 3 user archetypes |
+| N+1 queries on list view | High | Medium | Use Promise.all pattern |
+
+### Story Sizing (Ralph Rule)
+
+> **"2-3 sentences max. If you can't describe the change in 2-3 sentences, it's too big. Split it."**
+> **Order:** Schema → Backend → UI → Dashboard
+
+| Size | Scope | Example |
+|------|-------|---------|
+| XS | Single file, < 50 lines | Add column to migration |
+| S | 2-3 files, < 150 lines | Add repository method + test |
+| M | 4-6 files, < 300 lines | Add server action + UI component |
+| > M | MUST SPLIT | Too big for one story |
+
+### Dependencies
+
+- **Technical:** packages, migrations, environment variables
+- **Team:** reviews needed, design approval
+- **Ordering:** Schema → Backend → UI → Dashboard (Ralph dependency order)
+
+### Link to PRD
+
+If a PRD exists, reference it:
+```markdown
+**PRD:** `tasks/prd-[feature-name].md`
+**prd.json:** `tasks/prd.json` (if converted)
+**Current Progress:** `tasks/progress.txt`
+```
+
+---
+
 ## Bite-Sized Task Granularity
 
 Each step is one action (2-5 minutes):

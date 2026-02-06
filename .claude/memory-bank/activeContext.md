@@ -343,6 +343,6 @@ user_id: userId  // (même si validé, préférer l'ID serveur)
 | `61fd200` | docs(rails-architecture): cleanup obsolete intervention statuses |
 
 ## Files Recently Modified
-### 2026-02-06 19:47:55 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/AGENTS.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/learnings/2026-02-06-conversation-participants-retrospective.md`
+### 2026-02-06 20:33:47 (Auto-updated)
+- `C:/Users/arthu/.claude/plans/mutable-gathering-pancake.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/landing/landing-header.tsx`

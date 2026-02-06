@@ -278,6 +278,71 @@ export async function POST(request: NextRequest) {
       }
       logger.info({ threadCount: threadsToAddTenant.length }, "✅ Tenant added to conversation threads")
 
+      // ✅ FIX 2026-02-06: Add gestionnaires linked to lot/building as participants
+      // This ensures managers responsible for the property are in the conversation
+      if (lot_id) {
+        try {
+          // 1. Get lot with building_id
+          const { data: lotData } = await serviceClientForThreads
+            .from('lots')
+            .select('id, building_id')
+            .eq('id', lot_id)
+            .single()
+
+          // 2. Get gestionnaires from lot_contacts
+          const { data: lotContacts } = await serviceClientForThreads
+            .from('lot_contacts')
+            .select('user_id, user:users!lot_contacts_user_id_fkey(id, role, auth_user_id)')
+            .eq('lot_id', lot_id)
+
+          // 3. Get gestionnaires from building_contacts (if lot has parent building)
+          let buildingContacts: typeof lotContacts = []
+          if (lotData?.building_id) {
+            const { data: bContacts } = await serviceClientForThreads
+              .from('building_contacts')
+              .select('user_id, user:users!building_contacts_user_id_fkey(id, role, auth_user_id)')
+              .eq('building_id', lotData.building_id)
+            buildingContacts = bContacts || []
+          }
+
+          // 4. Combine, deduplicate, and filter for gestionnaires only
+          const allContacts = [...(lotContacts || []), ...buildingContacts]
+          const managerIds = new Set<string>()
+
+          for (const contact of allContacts) {
+            const contactUser = contact.user as { id: string; role: string; auth_user_id: string | null } | null
+            // Only add gestionnaires with auth accounts (can actually use the app)
+            if (contactUser?.role === 'gestionnaire' && contactUser.auth_user_id) {
+              managerIds.add(contact.user_id)
+            }
+          }
+
+          // 5. Add managers as participants to GROUP and TENANT_TO_MANAGERS threads
+          if (managerIds.size > 0) {
+            const threadsForManagers = [
+              groupThreadResult.data?.id,
+              tenantThreadResult.data?.id
+            ].filter(Boolean)
+
+            for (const managerId of managerIds) {
+              for (const threadId of threadsForManagers) {
+                await conversationRepo.addParticipant(threadId!, managerId)
+              }
+            }
+            logger.info({
+              managerCount: managerIds.size,
+              threadCount: threadsForManagers.length,
+              fromLot: (lotContacts || []).length,
+              fromBuilding: buildingContacts.length
+            }, "✅ Property managers added to conversation threads")
+          } else {
+            logger.info({ lot_id }, "ℹ️ No gestionnaires found in lot_contacts/building_contacts")
+          }
+        } catch (managerError) {
+          logger.error({ error: managerError }, "⚠️ Error adding property managers to threads (non-blocking)")
+        }
+      }
+
       logger.info({ interventionId }, "✅ Conversation threads creation completed")
     } catch (threadError) {
       logger.error({ error: threadError }, "❌ Error creating conversation threads (non-blocking)")

@@ -1,0 +1,73 @@
+{
+  "project": "SEIDO",
+  "featureName": "Fix Conversation Participants Management",
+  "branchName": "preview",
+  "description": "Corriger la gestion des participants aux conversations d'intervention. Les locataires ne doivent ajouter aucun gestionnaire, les gestionnaires n'ajoutent que les assignés, et les autres sont ajoutés à leur premier message.",
+  "createdAt": "2026-02-06",
+  "prdSource": "tasks/prd-conversation-participants-fix.md",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Modifier le trigger SQL add_team_managers_to_thread",
+      "description": "En tant que système, je veux que le trigger n'ajoute plus tous les gestionnaires afin que seuls les participants légitimes soient dans la conversation",
+      "acceptanceCriteria": [
+        "Le trigger est modifié pour ne plus ajouter automatiquement tous les gestionnaires",
+        "La migration s'applique sans erreur",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Migration 20260206100000 créée - supprime trigger thread_add_managers et fonction add_team_managers_to_thread"
+    },
+    {
+      "id": "US-002",
+      "title": "Création intervention locataire: gestionnaires liés au bien",
+      "description": "En tant que locataire, je veux que les gestionnaires liés à mon lot/immeuble soient ajoutés comme participants afin qu'ils puissent suivre la conversation",
+      "acceptanceCriteria": [
+        "Les gestionnaires de lot_contacts sont ajoutés comme participants",
+        "Les gestionnaires de building_contacts (immeuble parent) sont aussi ajoutés",
+        "Seuls les gestionnaires avec compte (auth_user_id) sont ajoutés",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Implémenté dans create-intervention/route.ts (lignes 281-343). Query lot_contacts + building_contacts, filtre role=gestionnaire, ajoute aux threads GROUP et TENANT_TO_MANAGERS."
+    },
+    {
+      "id": "US-003",
+      "title": "Création intervention gestionnaire: seulement les assignés",
+      "description": "En tant que gestionnaire, je veux que seuls les gestionnaires assignés soient ajoutés comme participants afin que la liste reflète les responsables réels",
+      "acceptanceCriteria": [
+        "Seuls les gestionnaires avec intervention_assignments sont ajoutés",
+        "Les autres gestionnaires ont accès via RLS mais ne sont pas participants",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Déjà fonctionnel via trigger add_assignment_to_conversation_participants (CASE 3). US-001 a supprimé l'ajout de TOUS les managers, ce trigger ajoute seulement les ASSIGNÉS."
+    },
+    {
+      "id": "US-004",
+      "title": "Ajout automatique au premier message",
+      "description": "En tant que gestionnaire non-participant, je veux être ajouté comme participant quand j'envoie mon premier message afin de suivre la conversation après ma première intervention",
+      "acceptanceCriteria": [
+        "Avant l'envoi, vérifier si l'utilisateur est déjà participant",
+        "Si non-participant avec accès RLS, l'ajouter automatiquement",
+        "Le message est envoyé normalement",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002", "US-003"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Modifié sendMessage() dans conversation-service.ts (lignes 319-332). Vérifie si l'utilisateur est participant avant d'envoyer, l'ajoute si nécessaire."
+    }
+  ]
+}

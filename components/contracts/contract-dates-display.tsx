@@ -39,6 +39,37 @@ export function ContractDatesDisplay({
     return Math.ceil(diff / (1000 * 60 * 60 * 24))
   }
 
+  // Format remaining time adaptively (months vs days)
+  const formatRemainingTime = (days: number): string => {
+    if (days < 0) {
+      return `Expiré il y a ${Math.abs(days)}j`
+    }
+    if (days === 0) {
+      return "Expire aujourd'hui"
+    }
+    if (days <= 30) {
+      return `${days}j restants`
+    }
+    const months = Math.floor(days / 30)
+    return `${months} mois restants`
+  }
+
+  // Format remaining time for full display (non-compact)
+  const formatRemainingTimeFull = (days: number): string => {
+    if (days < 0) {
+      const absDays = Math.abs(days)
+      return `Contrat expiré depuis ${absDays} jour${absDays > 1 ? 's' : ''}`
+    }
+    if (days === 0) {
+      return "Le contrat expire aujourd'hui"
+    }
+    if (days <= 30) {
+      return `${days} jour${days > 1 ? 's' : ''} restant${days > 1 ? 's' : ''}`
+    }
+    const months = Math.floor(days / 30)
+    return `${months} mois restant${months > 1 ? 's' : ''}`
+  }
+
   const daysRemaining = calculateDaysRemaining()
   const isExpired = daysRemaining <= 0
   const isExpiringSoon = daysRemaining > 0 && daysRemaining <= 30
@@ -87,9 +118,7 @@ export function ContractDatesDisplay({
                 !isExpired && !isExpiringSoon && 'text-green-600'
               )}
             >
-              {isExpired
-                ? `Expiré il y a ${Math.abs(daysRemaining)}j`
-                : `${daysRemaining}j restants`}
+              {formatRemainingTime(daysRemaining)}
             </span>
           )}
         </div>
@@ -140,9 +169,7 @@ export function ContractDatesDisplay({
             <Clock className="h-4 w-4" />
           )}
           <span className="font-medium">
-            {isExpired
-              ? `Contrat expiré depuis ${Math.abs(daysRemaining)} jour${Math.abs(daysRemaining) > 1 ? 's' : ''}`
-              : `${daysRemaining} jour${daysRemaining > 1 ? 's' : ''} restant${daysRemaining > 1 ? 's' : ''}`}
+            {formatRemainingTimeFull(daysRemaining)}
           </span>
         </div>
       )}

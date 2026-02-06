@@ -316,6 +316,21 @@ export class ConversationService {
         )
       }
 
+      // ✅ FIX 2026-02-06: Auto-add user as participant on first message
+      // Gestionnaires have access via RLS/team membership but may not be explicit participants
+      // When they send their first message, add them as a participant for proper tracking
+      const thread = await this.conversationRepo.findThreadById(threadId)
+      if (thread.success && thread.data) {
+        const participants = thread.data.participants || []
+        const isAlreadyParticipant = participants.some(p => p.user_id === userId)
+
+        if (!isAlreadyParticipant) {
+          // Add user as participant (idempotent - won't fail if already exists)
+          await this.conversationRepo.addParticipant(threadId, userId)
+          logger.info({ threadId, userId }, '✅ [CONVERSATION-SERVICE] User auto-added as participant on first message')
+        }
+      }
+
       // Validate content
       if (!content || content.trim().length === 0) {
         throw new ValidationException(

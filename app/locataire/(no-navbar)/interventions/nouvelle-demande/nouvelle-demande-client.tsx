@@ -318,71 +318,61 @@ export default function NouvelleDemandePage({
 
   // Render helpers pour chaque étape
   const renderStep1 = () => (
-    <Card>
-      <CardContent className="p-6 space-y-6">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Choisissez le logement concerné</h2>
-          <p className="text-gray-600">
-            Sélectionnez le logement pour lequel vous souhaitez faire une demande d'intervention.
-          </p>
-        </div>
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold text-gray-900 mb-1">Choisissez le logement concerné</h2>
+        <p className="text-sm text-gray-600">
+          Sélectionnez le logement pour lequel vous souhaitez faire une demande.
+        </p>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {logements.map((logement) => (
-            <Card key={logement.id} className="border hover:border-blue-300 transition-colors">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center space-x-2">
-                    <Home className="h-5 w-5 text-gray-600" />
-                    <h3 className="font-semibold">{logement.name}</h3>
-                  </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {logements.map((logement) => (
+          <Card key={logement.id} className="border hover:border-blue-300 transition-colors">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Home className="h-5 w-5 text-gray-600 shrink-0" />
+                <h3 className="font-semibold truncate">{logement.name}</h3>
+              </div>
+
+              {logement.address && (
+                <div className="flex items-start gap-2 text-sm text-gray-600 mb-2">
+                  <Building2 className="h-4 w-4 shrink-0 mt-0.5" />
+                  <span className="line-clamp-2">{logement.address}</span>
                 </div>
+              )}
 
-                <div className="h-6 mb-2">
-                  {logement.address && (
-                    <div className="flex items-center space-x-2 text-sm text-gray-600">
-                      <Building2 className="h-4 w-4" />
-                      <span>{logement.address}</span>
-                    </div>
-                  )}
-                </div>
+              <p className="text-sm text-gray-600 mb-1">{logement.surface}</p>
+              <p className="text-sm text-gray-500 mb-3">{logement.interventions}</p>
 
-                <p className="text-sm text-gray-600 mb-2">{logement.surface}</p>
-                <p className="text-sm text-gray-500 mb-4">{logement.interventions}</p>
-
-                <Button onClick={() => handleLogementSelect(logement.id)} className="w-full" variant="outline">
-                  Sélectionner
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+              <Button onClick={() => handleLogementSelect(logement.id)} className="w-full" variant="outline">
+                Sélectionner
+              </Button>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    </div>
   )
 
   const renderStep2 = () => (
-    <div className="space-y-6">
-      {/* Selected Property Info */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="p-4">
-          <div className="flex items-center space-x-2">
-            <Home className="h-4 w-4 text-blue-600" />
-            <span className="font-medium">{selectedLogementData?.name}</span>
-            {selectedLogementData?.address && (
-              <>
-                <span className="text-gray-400">•</span>
-                <span className="text-sm text-gray-600">{selectedLogementData.address}</span>
-              </>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-4">
+      {/* Selected Property Info - Simplified */}
+      <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+        <Home className="h-4 w-4 text-blue-600 shrink-0" />
+        <span className="font-medium truncate">{selectedLogementData?.name}</span>
+        {selectedLogementData?.address && (
+          <>
+            <span className="text-gray-400 hidden sm:inline">•</span>
+            <span className="text-gray-600 truncate hidden sm:inline">{selectedLogementData.address}</span>
+          </>
+        )}
+      </div>
 
       {/* Form */}
       <Card>
-        <CardContent className="p-6 space-y-6">
-          <div className="flex items-center space-x-2">
+        <CardContent className="p-4 space-y-4">
+          <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-orange-500" />
             <h2 className="text-lg font-semibold">Détails du sinistre</h2>
           </div>
@@ -390,11 +380,11 @@ export default function NouvelleDemandePage({
           <div className="space-y-4">
             {/* Type de problème + Urgence sur la même ligne */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="sm:col-span-1">
+              <div>
                 <Label htmlFor="type" icon={Tag} required>
                   Type de problème
                 </Label>
-                <div className="mt-2">
+                <div className="mt-1.5">
                   <InterventionTypeCombobox
                     value={formData.type}
                     onValueChange={(value) => handleInputChange("type", value)}
@@ -404,18 +394,18 @@ export default function NouvelleDemandePage({
                 </div>
               </div>
 
-              <div className="sm:col-span-1">
+              <div>
                 <Label htmlFor="urgence" icon={AlertTriangle}>
                   Urgence <span className="text-muted-foreground font-normal">(optionnel)</span>
                 </Label>
                 <Select value={formData.urgence} onValueChange={(value) => handleInputChange("urgence", value)}>
-                  <SelectTrigger className="mt-2 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
+                  <SelectTrigger className="mt-1.5 border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200">
                     <SelectValue placeholder="Sélectionnez l'urgence" />
                   </SelectTrigger>
                   <SelectContent>
                     {URGENCY_LEVELS.map((level) => (
                       <SelectItem key={level.value} value={level.value}>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center gap-2">
                           <span className={`px-2 py-1 rounded-full text-xs ${level.color}`}>{level.label}</span>
                         </div>
                       </SelectItem>
@@ -434,7 +424,7 @@ export default function NouvelleDemandePage({
                 placeholder="Décrivez le problème en détail : où, quand, comment..."
                 value={formData.description}
                 onChange={(e) => handleInputChange("description", e.target.value)}
-                className="mt-2 min-h-[100px] border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+                className="mt-1.5 min-h-[100px] border-2 border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
               />
             </div>
 
@@ -443,10 +433,9 @@ export default function NouvelleDemandePage({
                 Pièces jointes <span className="text-muted-foreground font-normal">(optionnel)</span>
               </Label>
               <p className="text-xs text-gray-500 mt-1">
-                Ajoutez des photos ou documents pour illustrer le problème (max 10MB par fichier)
+                Photos ou documents (max 10MB/fichier)
               </p>
-
-              <div className="mt-2">
+              <div className="mt-1.5">
                 <InterventionFileAttachment
                   files={fileUpload.files}
                   onAddFiles={fileUpload.addFiles}
@@ -537,8 +526,8 @@ export default function NouvelleDemandePage({
       />
 
       {/* Main Content with horizontal padding and bottom space for footer */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pb-10 bg-gray-50">
-        <main className="max-w-6xl mx-auto w-full pt-2">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pb-6 bg-gray-50">
+        <main className="max-w-6xl mx-auto w-full pt-4">
           {/* Step 1: Sélection du logement */}
           {currentStep === 1 && !shouldSkipStepOne && renderStep1()}
 
@@ -551,8 +540,8 @@ export default function NouvelleDemandePage({
       </div>
 
       {/* Footer Navigation - Always visible at bottom */}
-      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex justify-between w-full max-w-6xl mx-auto">
+      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-3 sm:px-6 lg:px-8 py-3">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-between items-stretch sm:items-center gap-2 sm:gap-3 w-full max-w-6xl mx-auto">
           {/* Bouton Retour */}
           {currentStep > 1 && (
             <Button
@@ -571,26 +560,33 @@ export default function NouvelleDemandePage({
             <Button
               onClick={handleNext}
               disabled={!canProceedToNextStep()}
-              className="w-full sm:w-auto ml-auto"
+              className="w-full sm:w-auto sm:ml-auto"
             >
-              {currentStep === 1 ? "Sélectionner ce logement" : "Continuer vers la confirmation"}
+              <span className="sm:hidden">
+                {currentStep === 1 ? "Sélectionner" : "Continuer"}
+              </span>
+              <span className="hidden sm:inline">
+                {currentStep === 1 ? "Sélectionner ce logement" : "Continuer"}
+              </span>
               <ArrowLeft className="h-4 w-4 ml-2 rotate-180" />
             </Button>
           ) : (
             <Button
               onClick={handleConfirmCreation}
               disabled={isCreating}
-              className="bg-green-600 hover:bg-green-700 w-full sm:w-auto ml-auto disabled:opacity-50"
+              className="bg-green-600 hover:bg-green-700 w-full sm:w-auto sm:ml-auto disabled:opacity-50"
             >
               {isCreating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Création en cours...
+                  <span className="sm:hidden">Création...</span>
+                  <span className="hidden sm:inline">Création en cours...</span>
                 </>
               ) : (
                 <>
                   <CheckCircle className="h-4 w-4 mr-2" />
-                  Confirmer la création
+                  <span className="sm:hidden">Confirmer</span>
+                  <span className="hidden sm:inline">Confirmer la création</span>
                 </>
               )}
             </Button>
@@ -605,22 +601,22 @@ function LoadingSkeleton() {
   return (
     <>
       {/* Header skeleton */}
-      <div className="sticky top-0 z-40 bg-gray-50/80 backdrop-blur-sm border-b border-gray-200 px-6 py-4">
-        <div className="max-w-7xl mx-auto">
-          <Skeleton className="h-8 w-64 mb-2" />
-          <Skeleton className="h-5 w-96" />
+      <div className="sticky top-0 z-40 bg-gray-50/80 backdrop-blur-sm border-b border-gray-200 px-4 sm:px-6 py-3">
+        <div className="max-w-6xl mx-auto">
+          <Skeleton className="h-7 w-48 mb-2" />
+          <Skeleton className="h-4 w-64" />
         </div>
       </div>
 
       {/* Content skeleton */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pb-10 bg-gray-50">
-        <main className="max-w-6xl mx-auto w-full pt-2">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 lg:px-8 pb-6 bg-gray-50">
+        <main className="max-w-6xl mx-auto w-full pt-4">
           <Card>
-            <CardContent className="p-6 space-y-6">
+            <CardContent className="p-4 space-y-4">
               <div className="space-y-4">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i}>
-                    <Skeleton className="h-4 w-32 mb-2" />
+                    <Skeleton className="h-4 w-28 mb-1.5" />
                     <Skeleton className="h-10 w-full" />
                   </div>
                 ))}
@@ -631,10 +627,10 @@ function LoadingSkeleton() {
       </div>
 
       {/* Navigation skeleton */}
-      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex justify-between w-full max-w-6xl mx-auto">
-          <Skeleton className="h-10 w-24" />
-          <Skeleton className="h-10 w-32" />
+      <div className="sticky bottom-0 z-30 bg-gray-50/95 backdrop-blur-sm border-t border-gray-200 px-3 sm:px-6 lg:px-8 py-3">
+        <div className="flex flex-col-reverse sm:flex-row sm:justify-between items-stretch sm:items-center gap-2 sm:gap-3 w-full max-w-6xl mx-auto">
+          <Skeleton className="h-9 w-full sm:w-24" />
+          <Skeleton className="h-9 w-full sm:w-32" />
         </div>
       </div>
     </>

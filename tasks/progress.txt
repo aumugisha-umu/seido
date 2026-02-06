@@ -1,0 +1,83 @@
+# Progress Log — Fix Conversation Participants Management
+# Started: 2026-02-06
+# Stories: 4 total
+---
+
+## 2026-02-06 — US-001 ✅
+
+**Story:** Modifier le trigger SQL add_team_managers_to_thread
+
+**Changes:**
+- Created migration: `supabase/migrations/20260206100000_remove_auto_add_all_managers_trigger.sql`
+- Dropped trigger `thread_add_managers` on `conversation_threads`
+- Dropped function `add_team_managers_to_thread()`
+
+**Learnings:**
+- Le trigger `add_assignment_to_conversation_participants` reste actif et gère correctement l'ajout via assignments
+- RLS (`can_view_conversation`) assure l'accès lecture même sans être participant explicite
+- Participants explicites = visibilité dans la liste + tracking des messages lus
+
+## 2026-02-06 — US-002 ✅ (UPDATED)
+
+**Story:** Création intervention locataire: gestionnaires liés au bien
+
+**Clarification reçue:** Les gestionnaires liés au lot/immeuble doivent être ajoutés (pas TOUS, mais ceux de lot_contacts + building_contacts)
+
+**Changes:**
+- Modifié `app/api/create-intervention/route.ts` (lignes 281-343)
+- Query `lot_contacts` pour gestionnaires du lot
+- Query `building_contacts` pour gestionnaires de l'immeuble parent (si applicable)
+- Dédoublonnage par user_id
+- Filtre: uniquement `role = 'gestionnaire'` avec `auth_user_id` (compte actif)
+- Ajout aux threads GROUP et TENANT_TO_MANAGERS
+
+**Learnings:**
+- Différence entre "TOUS les gestionnaires de l'équipe" (mauvais) vs "gestionnaires responsables du bien" (correct)
+- Les contacts sont définis via lot_contacts et building_contacts, pas via team membership
+
+## 2026-02-06 — US-003 ✅
+
+**Story:** Création intervention gestionnaire: seulement les assignés
+
+**Analysis:**
+- Vérifié `app/api/create-manager-intervention/route.ts`
+- Les gestionnaires sélectionnés sont insérés dans `intervention_assignments` (lignes 643-654)
+- Le trigger `add_assignment_to_conversation_participants` (CASE 3) s'active à chaque INSERT
+- Ce trigger ajoute SEULEMENT le gestionnaire assigné comme participant
+
+**Result:** Déjà fonctionnel grâce au trigger existant + US-001 qui a supprimé l'ajout automatique de TOUS les managers
+
+## 2026-02-06 — US-004 ✅
+
+**Story:** Ajout automatique au premier message
+
+**Changes:**
+- Modifié `lib/services/domain/conversation-service.ts` (lignes 319-332)
+- Ajout d'un bloc après la vérification d'accès dans `sendMessage()`
+- Récupère le thread et ses participants
+- Si l'utilisateur n'est pas déjà participant, l'ajoute automatiquement
+- Log informatif pour traçabilité
+
+**Learnings:**
+- Les gestionnaires ont accès via `checkThreadAccess` qui vérifie le team_id (pas besoin d'être participant)
+- L'ajout comme participant est nécessaire pour: affichage dans la liste, tracking des messages lus, compteurs non-lus
+- `addParticipant` est idempotent (ON CONFLICT DO NOTHING)
+
+---
+
+## ✅ FEATURE COMPLETE — Fix Conversation Participants Management
+
+**All 4 stories passed!**
+
+| Story | Status | Summary |
+|-------|--------|---------|
+| US-001 | ✅ | Migration: supprimé trigger `add_team_managers_to_thread` |
+| US-002 | ✅ | Ajout des gestionnaires liés au lot/immeuble (lot_contacts + building_contacts) |
+| US-003 | ✅ | Déjà fonctionnel via trigger `add_assignment_to_conversation_participants` |
+| US-004 | ✅ | Ajout auto comme participant au premier message dans `sendMessage()` |
+
+**Files changed:**
+- `supabase/migrations/20260206100000_remove_auto_add_all_managers_trigger.sql` (NEW)
+- `lib/services/domain/conversation-service.ts` (MODIFIED - US-004: auto-add on first message)
+- `app/api/create-intervention/route.ts` (MODIFIED - US-002: add property managers)
+

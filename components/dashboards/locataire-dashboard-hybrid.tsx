@@ -34,6 +34,34 @@ const formatCurrency = (amount?: number) => {
   return new Intl.NumberFormat('fr-FR').format(amount)
 }
 
+// Calculate remaining time with adaptive display (months vs days)
+const calculateRemainingTime = (endDate?: string) => {
+  if (!endDate) return null
+
+  const end = new Date(endDate)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  end.setHours(0, 0, 0, 0)
+
+  const diffMs = end.getTime() - today.getTime()
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffDays < 0) {
+    return { text: `Expiré il y a ${Math.abs(diffDays)}j`, isExpired: true, isExpiringSoon: false, days: diffDays }
+  }
+
+  if (diffDays === 0) {
+    return { text: "Expire aujourd'hui", isExpired: false, isExpiringSoon: true, days: diffDays }
+  }
+
+  if (diffDays <= 30) {
+    return { text: `${diffDays}j restants`, isExpired: false, isExpiringSoon: true, days: diffDays }
+  }
+
+  const months = Math.floor(diffDays / 30)
+  return { text: `${months} mois restants`, isExpired: false, isExpiringSoon: false, days: diffDays }
+}
+
 interface LocataireDashboardHybridProps {
   tenantData: TenantData | null
   tenantProperties: TenantData[]
@@ -155,14 +183,15 @@ export default function LocataireDashboardHybrid({
 
             {/* Right: Report Button + Notifications + User Menu */}
             <div className="header__actions">
-              {/* Report Problem Button (desktop only) */}
+              {/* Report Problem Button (visible on all screens) */}
               {canCreateIntervention && (
                 <Button
                   onClick={() => router.push('/locataire/interventions/nouvelle-demande')}
-                  className="hidden sm:flex bg-primary hover:bg-primary/90 text-white font-medium h-9 px-4 rounded-lg"
+                  className="flex bg-primary hover:bg-primary/90 text-white font-medium h-9 px-3 sm:px-4 rounded-lg"
                 >
                   <Plus className="h-4 w-4 mr-1.5" />
-                  Signaler un problème
+                  <span className="sm:hidden">Problème</span>
+                  <span className="hidden sm:inline">Signaler un problème</span>
                 </Button>
               )}
               {/* Notifications Popover */}
@@ -234,7 +263,7 @@ export default function LocataireDashboardHybrid({
                         </span>
                         <ChevronDown className="h-5 w-5 opacity-70 flex-shrink-0 group-hover:opacity-100 transition-opacity" />
                       </h2>
-                      <p className="text-white/80 text-sm mt-0.5 truncate">
+                      <p className="text-white/80 text-sm mt-0.5 line-clamp-2 sm:line-clamp-1">
                         {selectedPropertyId === 'all'
                           ? `${tenantProperties.length} logement${tenantProperties.length > 1 ? 's' : ''}`
                           : currentProperty.building?.address_record?.formatted_address
@@ -314,6 +343,44 @@ export default function LocataireDashboardHybrid({
                     {formatDate(currentProperty.contract?.start_date)} — {formatDate(currentProperty.contract?.end_date)}
                   </p>
                 )}
+
+                {/* Indicateur durée restante avec barre de progression */}
+                {currentProperty.contract?.end_date && (() => {
+                  const remaining = calculateRemainingTime(currentProperty.contract.end_date)
+                  if (!remaining) return null
+
+                  // Calcul du pourcentage de progression
+                  const start = new Date(currentProperty.contract.start_date || new Date())
+                  const end = new Date(currentProperty.contract.end_date)
+                  const today = new Date()
+                  const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+                  const elapsedDays = Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+                  const progressPercent = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100))
+
+                  return (
+                    <div className="mt-2">
+                      {/* Barre de progression */}
+                      <div className="h-1.5 bg-white/20 rounded-full overflow-hidden mb-1">
+                        <div
+                          className={cn(
+                            "h-full rounded-full transition-all",
+                            progressPercent >= 90 ? 'bg-red-400' :
+                            progressPercent >= 75 ? 'bg-amber-400' : 'bg-emerald-400'
+                          )}
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                      {/* Texte durée restante */}
+                      <p className={cn(
+                        "text-xs font-medium",
+                        remaining.isExpired ? 'text-red-300' :
+                        remaining.isExpiringSoon ? 'text-amber-300' : 'text-white/80'
+                      )}>
+                        {remaining.text}
+                      </p>
+                    </div>
+                  )
+                })()}
 
                 {/* Loyer - uniquement si disponible */}
                 {(currentProperty.contract?.rent_amount || currentProperty.contract?.charges_amount) && (

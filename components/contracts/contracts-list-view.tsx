@@ -213,6 +213,23 @@ export function ContractsListView({
   }
 
   /**
+   * 📅 Format remaining time adaptively (months vs days)
+   */
+  const formatRemainingTime = (days: number): string => {
+    if (days < 0) {
+      return `Expiré depuis ${Math.abs(days)}j`
+    }
+    if (days === 0) {
+      return "Expire aujourd'hui"
+    }
+    if (days <= 30) {
+      return `${days}j restants`
+    }
+    const months = Math.floor(days / 30)
+    return `${months} mois restants`
+  }
+
+  /**
    * 📐 Render sort icon
    */
   const renderSortIcon = (field: SortField) => {
@@ -409,10 +426,7 @@ export function ContractsListView({
                         <span>{formatDate(contract.start_date)} - {formatDate(contract.end_date)}</span>
                       </div>
                       <div className={`text-xs font-medium ${getDaysRemainingColor(daysRemaining)}`}>
-                        {daysRemaining < 0
-                          ? `Expiré depuis ${Math.abs(daysRemaining)}j`
-                          : `${daysRemaining}j restants`
-                        }
+                        {formatRemainingTime(daysRemaining)}
                       </div>
                     </div>
                   </TableCell>

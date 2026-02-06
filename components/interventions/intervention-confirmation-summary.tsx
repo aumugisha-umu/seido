@@ -299,7 +299,7 @@ export function InterventionConfirmationSummary({
     <div className="w-full max-w-5xl mx-auto animate-in fade-in-50 duration-500">
 
       {/* Main Card - Compact View */}
-      <Card className="overflow-hidden border-slate-200 shadow-sm flex flex-col h-full max-h-[85vh]">
+      <Card className="overflow-hidden border-slate-200 shadow-sm flex flex-col h-full max-h-[80vh] sm:max-h-[85vh]">
 
         {/* SUCCESS HEADER (animated) or COMPACT HEADER (static) */}
         {showSuccessHeader ? (
@@ -308,52 +308,55 @@ export function InterventionConfirmationSummary({
             interventionTitle={data.intervention.title}
           />
         ) : (
-          <CardHeader className="border-b bg-slate-50/50 py-3 px-5 flex-shrink-0">
-            <div className="flex items-center justify-between gap-4">
-              {/* Left: Title & Meta */}
-              <div className="flex items-center gap-4 overflow-hidden">
-                <div className="flex flex-col min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <CardTitle className="text-lg font-bold leading-none tracking-tight text-slate-900 truncate">
-                      {data.intervention.title}
-                    </CardTitle>
-                    <Badge
-                      variant="outline"
-                      className={cn("uppercase text-[9px] h-4 px-1.5 tracking-wider font-semibold", urgencyBadgeClass)}
-                    >
-                      {data.intervention.urgency}
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={cn("flex items-center gap-1 font-normal bg-white h-4 px-1.5 text-[10px]", CATEGORY_BADGE_STYLES[categoryCode])}
-                    >
-                      <TypeIcon className="h-2.5 w-2.5" />
-                      {data.intervention.category}
-                    </Badge>
-                  </div>
-                  <CardDescription className="flex items-center gap-1.5 text-xs truncate">
-                    <MapPin className="h-3 w-3" />
-                    <span className="font-medium">{data.logement.name}</span>
-                    {data.logement.building && <span className="text-muted-foreground">• {data.logement.building}</span>}
-                    {data.logement.address && <span className="text-muted-foreground">• {data.logement.address}</span>}
-                  </CardDescription>
+          <CardHeader className="border-b bg-slate-50/50 py-3 px-3 sm:px-5 flex-shrink-0">
+            <div className="flex flex-col gap-2">
+              {/* Row 1: Title + Status indicator (desktop only) */}
+              <div className="flex items-start justify-between gap-2">
+                <CardTitle className="text-base sm:text-lg font-bold leading-tight tracking-tight text-slate-900 line-clamp-2 sm:line-clamp-1">
+                  {data.intervention.title}
+                </CardTitle>
+                {/* Status Indicator - Hidden on mobile */}
+                <div className="hidden sm:flex flex-shrink-0">
+                  {data.expectsQuote ? (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-full">
+                      <FileText className="h-3 w-3 text-amber-600" />
+                      <span className="text-[10px] font-semibold text-amber-700">Estimation demandée</span>
+                    </div>
+                  ) : (
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 border border-green-200 rounded-full">
+                      <CheckCircle2 className="h-3 w-3 text-green-600" />
+                      <span className="text-[10px] font-semibold text-green-700">Direct</span>
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Right: Status Indicator - Compact */}
-              <div className="flex-shrink-0">
-                {data.expectsQuote ? (
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 border border-amber-200 rounded-full">
-                    <FileText className="h-3 w-3 text-amber-600" />
-                    <span className="text-[10px] font-semibold text-amber-700">Estimation demandée</span>
-                  </div>
-                ) : (
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-green-50 border border-green-200 rounded-full">
-                    <CheckCircle2 className="h-3 w-3 text-green-600" />
-                    <span className="text-[10px] font-semibold text-green-700">Direct</span>
-                  </div>
-                )}
+              {/* Row 2: Badges */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge
+                  variant="outline"
+                  className={cn("uppercase text-[9px] h-5 px-1.5 tracking-wider font-semibold", urgencyBadgeClass)}
+                >
+                  {data.intervention.urgency}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={cn("flex items-center gap-1 font-normal bg-white h-5 px-1.5 text-[10px]", CATEGORY_BADGE_STYLES[categoryCode])}
+                >
+                  <TypeIcon className="h-2.5 w-2.5" />
+                  {data.intervention.category}
+                </Badge>
               </div>
+
+              {/* Row 3: Location */}
+              <CardDescription className="flex items-start gap-1.5 text-xs">
+                <MapPin className="h-3 w-3 shrink-0 mt-0.5" />
+                <span className="line-clamp-2">
+                  <span className="font-medium">{data.logement.name}</span>
+                  {data.logement.building && <span className="text-muted-foreground"> • {data.logement.building}</span>}
+                  {data.logement.address && <span className="text-muted-foreground"> • {data.logement.address}</span>}
+                </span>
+              </CardDescription>
             </div>
           </CardHeader>
         )}

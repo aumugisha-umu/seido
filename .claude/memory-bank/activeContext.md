@@ -343,6 +343,6 @@ user_id: userId  // (même si validé, préférer l'ID serveur)
 | `61fd200` | docs(rails-architecture): cleanup obsolete intervention statuses |
 
 ## Files Recently Modified
-### 2026-02-06 17:20:50 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/dashboards/shared/intervention-card.tsx`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/interventions/quote-status-badge.tsx`
+### 2026-02-06 19:47:55 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/AGENTS.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/learnings/2026-02-06-conversation-participants-retrospective.md`

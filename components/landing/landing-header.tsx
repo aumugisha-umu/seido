@@ -11,7 +11,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { Sparkles } from 'lucide-react'
+import { Sparkles, LogIn } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -47,8 +47,8 @@ export function LandingHeader({
         className
       )}
     >
-      <div className="container mx-auto px-4 py-4">
-        <div className="flex items-center justify-between gap-4">
+      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+        <div className="flex items-center justify-between gap-2 sm:gap-4">
           {/* Logo */}
           <Link href="/" className="flex items-center hover:opacity-80 transition-opacity flex-shrink-0">
             <Image
@@ -57,7 +57,7 @@ export function LandingHeader({
               width={96}
               height={36}
               sizes="96px"
-              className="h-9 w-auto"
+              className="h-7 sm:h-9 w-auto"
               priority
             />
           </Link>
@@ -116,22 +116,25 @@ export function LandingHeader({
           )}
 
           {/* Auth Buttons */}
-          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0">
             <Link href="/auth/login" className="flex items-center">
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-white hover:bg-white/10 hover:text-white"
+                className="text-white hover:bg-white/10 hover:text-white px-2 sm:px-3"
               >
-                Se connecter
+                <LogIn className="h-4 w-4 sm:hidden" />
+                <span className="hidden sm:inline">Se connecter</span>
               </Button>
             </Link>
             <Link href="/auth/signup" className="flex items-center">
               <Button
                 size="sm"
-                className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border-0 shadow-lg shadow-blue-500/25"
+                className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border-0 shadow-lg shadow-blue-500/25 px-2.5 sm:px-3"
               >
-                Commencer <Sparkles className="w-3 h-3 ml-2" />
+                <span className="hidden sm:inline">Commencer</span>
+                <span className="sm:hidden text-xs">Essai</span>
+                <Sparkles className="w-3 h-3 ml-1 sm:ml-2" />
               </Button>
             </Link>
           </div>

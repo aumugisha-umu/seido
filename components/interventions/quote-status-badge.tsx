@@ -1,6 +1,11 @@
 'use client'
 
 import { Badge } from '@/components/ui/badge'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import { Euro } from 'lucide-react'
 import {
   getQuoteBadgeStatus,
@@ -27,6 +32,11 @@ interface QuoteStatusBadgeProps {
    * Optional additional CSS classes
    */
   className?: string
+  /**
+   * Compact mode: icon-only on mobile with tooltip, full on desktop
+   * @default false
+   */
+  compact?: boolean
 }
 
 // ============================================================================
@@ -57,7 +67,8 @@ interface QuoteStatusBadgeProps {
 export const QuoteStatusBadge = ({
   quotes,
   requiresQuote,
-  className = ''
+  className = '',
+  compact = false
 }: QuoteStatusBadgeProps) => {
   // Don't show if quotes are not required
   if (!requiresQuote) return null
@@ -71,6 +82,27 @@ export const QuoteStatusBadge = ({
   const label = getQuoteBadgeLabel(status)
   const colorClass = getQuoteBadgeColor(status)
 
+  // Compact mode: icon-only on mobile with tooltip
+  if (compact) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Badge
+            variant="outline"
+            className={`${colorClass} flex items-center gap-1 cursor-default ${className}`}
+          >
+            <Euro className="w-3 h-3" />
+            <span className="hidden sm:inline">{label}</span>
+          </Badge>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" className="sm:hidden">
+          {label}
+        </TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  // Default: always show full badge
   return (
     <Badge
       variant="outline"

@@ -5,6 +5,11 @@ import { useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -287,18 +292,34 @@ export function InterventionCard({
             {intervention.title}
           </h3>
           {/* Badges row - directly under title */}
-          <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-            <Badge className={cn(getPriorityColor(urgency), "text-xs border flex items-center gap-1")}>
-              <Flame className="h-3 w-3" aria-hidden="true" />
-              {getPriorityLabel(urgency)}
-            </Badge>
-            <Badge className={cn(getStatusColor(intervention.status), "text-xs border flex items-center gap-1")}>
-              <Calendar className="h-3 w-3" aria-hidden="true" />
-              {getStatusLabel(intervention.status)}
-            </Badge>
+          {/* Mobile: icon-only with tooltip | Desktop: icon + text */}
+          <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap mt-1.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge className={cn(getPriorityColor(urgency), "text-xs border flex items-center gap-1 cursor-default")}>
+                  <Flame className="h-3 w-3" aria-hidden="true" />
+                  <span className="hidden sm:inline">{getPriorityLabel(urgency)}</span>
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="sm:hidden">
+                {getPriorityLabel(urgency)}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge className={cn(getStatusColor(intervention.status), "text-xs border flex items-center gap-1 cursor-default")}>
+                  <Calendar className="h-3 w-3" aria-hidden="true" />
+                  <span className="hidden sm:inline">{getStatusLabel(intervention.status)}</span>
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="sm:hidden">
+                {getStatusLabel(intervention.status)}
+              </TooltipContent>
+            </Tooltip>
             <QuoteStatusBadge
               quotes={intervention.quotes}
               requiresQuote={intervention.requires_quote}
+              compact
             />
           </div>
         </div>

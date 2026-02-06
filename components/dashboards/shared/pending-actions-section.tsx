@@ -4,7 +4,7 @@ import { useMemo, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { AlertTriangle, ChevronRight, CheckCircle2 } from "lucide-react"
+import { AlertTriangle, ChevronRight, ChevronDown, CheckCircle2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { filterPendingActions } from "@/lib/intervention-alert-utils"
 import { InterventionCard } from "./intervention-card"
@@ -145,6 +145,8 @@ export function PendingActionsSection({
 
   // Track removed cards for animation
   const [removedIds, setRemovedIds] = useState<Set<string>>(new Set())
+  // 🎯 État pour collapse/expand la section
+  const [isCollapsed, setIsCollapsed] = useState(false)
 
   // Filter interventions that need action from this user
   const pendingInterventions = useMemo(() => {
@@ -240,21 +242,32 @@ export function PendingActionsSection({
               </p>
             </div>
           </div>
+          {/* 🎯 Chevron pour collapse/expand */}
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleViewAll}
-            className="text-amber-700 hover:text-amber-900 hover:bg-amber-100/50 dark:text-amber-300 dark:hover:bg-amber-900/30"
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="text-amber-700 hover:text-amber-900 hover:bg-amber-100/50 dark:text-amber-300 dark:hover:bg-amber-900/30 p-2"
+            aria-expanded={!isCollapsed}
+            aria-label={isCollapsed ? "Afficher les actions" : "Masquer les actions"}
           >
-            Voir tout
-            <ChevronRight className="h-4 w-4 ml-1" />
+            <ChevronDown className={cn(
+              "h-5 w-5 transition-transform duration-200",
+              isCollapsed && "-rotate-90"
+            )} />
           </Button>
         </div>
       </CardHeader>
 
-      <CardContent className="pt-2 pb-4 px-0 relative z-10">
+      {/* 🎯 Contenu collapsible avec animation */}
+      <CardContent className={cn(
+        "relative z-10 transition-all duration-200 ease-in-out overflow-hidden",
+        isCollapsed ? "max-h-0 py-0 opacity-0" : "max-h-[2000px] pt-2 pb-4 opacity-100"
+      )}
+      style={{ paddingLeft: 0, paddingRight: 0 }}
+      >
         {/* Mobile: Stacked vertical layout with scroll */}
-        <div className="sm:hidden flex flex-col gap-3 px-4 max-h-[calc(3*220px)] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-transparent">
+        <div className="sm:hidden flex flex-col gap-3 px-0 max-h-[calc(3*220px)] overflow-y-auto scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-transparent">
           {pendingInterventions.map((intervention) => (
             <div key={intervention.id}>
               <InterventionCard
@@ -269,12 +282,12 @@ export function PendingActionsSection({
           ))}
         </div>
 
-        {/* Tablet+: Horizontal scrollable container with snap scrolling */}
-        <div className="@container hidden sm:flex gap-4 overflow-x-auto pl-4 pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-transparent">
+        {/* Tablet+: Horizontal scrollable container with CSS Grid for equal heights */}
+        <div className="@container hidden sm:grid grid-flow-col auto-rows-[1fr] gap-4 overflow-x-auto pl-4 pb-2 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-amber-300 scrollbar-track-transparent">
           {pendingInterventions.map((intervention) => (
             <div
               key={intervention.id}
-              className="flex-shrink-0 w-[85cqw] @sm:w-[45cqw] @lg:w-[31cqw] min-w-[320px] max-w-[450px] snap-start h-full"
+              className="w-[85cqw] @sm:w-[45cqw] @lg:w-[31cqw] min-w-[320px] max-w-[450px] snap-start"
             >
               <InterventionCard
                 intervention={intervention}
@@ -289,7 +302,23 @@ export function PendingActionsSection({
           {/* Spacer to preserve right padding with overflow-x-auto */}
           <div className="flex-shrink-0 w-4" aria-hidden="true" />
         </div>
+
       </CardContent>
+
+      {/* 🎯 Bouton "Voir toutes les interventions" - TOUJOURS VISIBLE, gestionnaire only */}
+      {userRole === 'gestionnaire' && (
+        <div className="px-0 pb-0 pt-0 border-t border-amber-200/50 dark:border-amber-700/30 relative z-10">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleViewAll}
+            className="w-full text-amber-700 hover:text-amber-900 hover:bg-amber-100/50 dark:text-amber-300 dark:hover:bg-amber-900/30"
+          >
+            Voir toutes les interventions
+            <ChevronRight className="h-4 w-4 ml-1" />
+          </Button>
+        </div>
+      )}
     </Card>
   )
 }

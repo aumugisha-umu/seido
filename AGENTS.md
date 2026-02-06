@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-04
-**Total Learnings:** 9 (bootstrapped from activeContext.md + systemPatterns.md)
+**Last Updated:** 2026-02-06
+**Total Learnings:** 12
 
 ---
 
@@ -70,6 +70,27 @@
 **Example:** `app/api/create-manager-intervention/route.ts`
 **When to Use:** Any code that creates intervention assignments
 **Added:** 2026-02-04 | **Source:** Intervention creation flow debugging
+
+#### Learning #010: RLS Access ≠ Explicit Participation
+**Problem:** Managers could view conversations via RLS (`team_id` match) but weren't in `conversation_participants`, breaking read tracking and participant lists.
+**Solution:** Distinguish between RLS access (can read) and explicit participation (tracked in UI, unread counts work). Add users as participants when they interact.
+**Example:** `lib/services/domain/conversation-service.ts:319-332` — auto-add on first message
+**When to Use:** Any feature involving conversation visibility or participant lists
+**Added:** 2026-02-06 | **Source:** Conversation participants fix
+
+#### Learning #011: Property-linked vs Team-linked Managers
+**Problem:** Adding ALL team managers to conversations was wrong — only managers responsible for the specific property should be participants.
+**Solution:** Query `lot_contacts` + `building_contacts` (union) to find property-specific managers, not team membership.
+**Example:** `app/api/create-intervention/route.ts:281-343`
+**When to Use:** Any feature assigning managers to property-related entities (interventions, contracts, etc.)
+**Added:** 2026-02-06 | **Source:** Conversation participants fix
+
+#### Learning #012: Trigger Removal vs Application Code
+**Problem:** SQL trigger `add_team_managers_to_thread` added ALL managers globally — too coarse-grained for role-specific logic.
+**Solution:** Remove coarse triggers; implement fine-grained logic in application code where you have full context (user role, property links, etc.).
+**Example:** Migration `20260206100000_remove_auto_add_all_managers_trigger.sql` + app code in route.ts
+**When to Use:** When trigger behavior is too generic and needs role/context awareness
+**Added:** 2026-02-06 | **Source:** Conversation participants fix
 
 ### Performance
 

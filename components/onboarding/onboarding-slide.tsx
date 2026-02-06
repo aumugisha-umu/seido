@@ -33,13 +33,13 @@ export function OnboardingSlide({
     iconColorClass = "text-primary"
 }: OnboardingSlideProps) {
     return (
-        <div className="flex flex-col items-center text-center px-4 py-6 space-y-6">
-            {/* Icon Container */}
+        <div className="flex flex-col items-center text-center px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
+            {/* Icon Container - Smaller on mobile */}
             <div className={cn(
-                "w-20 h-20 rounded-2xl flex items-center justify-center",
+                "w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center",
                 iconBgClass
             )}>
-                <Icon className={cn("w-10 h-10", iconColorClass)} />
+                <Icon className={cn("w-8 h-8 sm:w-10 sm:h-10", iconColorClass)} />
             </div>
 
             {/* Text Content */}

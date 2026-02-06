@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { OnboardingSlide } from "./onboarding-slide"
+import { useNotificationPromptContext } from "@/contexts/notification-prompt-context"
 
 // ============================================================================
 // CONSTANTS
@@ -130,13 +131,22 @@ export function OnboardingModal({
     const [currentSlide, setCurrentSlide] = useState(0)
     const [direction, setDirection] = useState<"left" | "right">("right")
 
+    // 🎯 Coordination avec NotificationModal : attendre que le flow soit terminé
+    const notificationContext = useNotificationPromptContext()
+    // Fallback true si context non disponible (ex: hors du provider)
+    const hasCompletedNotificationFlow = notificationContext?.hasCompletedNotificationFlow ?? true
+
     // Use controlled or internal state
     const isControlled = controlledOpen !== undefined
     const open = isControlled ? controlledOpen : internalOpen
 
     // Check localStorage on mount for auto-open
+    // 🎯 Attend que le flow notification soit terminé avant de s'ouvrir
     useEffect(() => {
         if (forceShow) return // Don't auto-check if force showing
+
+        // 🎯 Attendre que le flow notification soit complet
+        if (!hasCompletedNotificationFlow) return
 
         const stored = localStorage.getItem(STORAGE_KEY)
         if (stored) {
@@ -151,11 +161,15 @@ export function OnboardingModal({
             }
         }
 
-        // First visit or new version - auto-open
+        // First visit or new version - auto-open with delay for smooth transition
         if (!isControlled) {
-            setInternalOpen(true)
+            // 🎯 Délai de 300ms pour transition fluide après fermeture modale notifications
+            const timer = setTimeout(() => {
+                setInternalOpen(true)
+            }, 300)
+            return () => clearTimeout(timer)
         }
-    }, [forceShow, isControlled])
+    }, [forceShow, isControlled, hasCompletedNotificationFlow])
 
     const handleOpenChange = useCallback((newOpen: boolean) => {
         if (isControlled) {
@@ -234,50 +248,52 @@ export function OnboardingModal({
             showCloseButton={false}
             aria-labelledby="onboarding-title"
         >
-            <UnifiedModalBody className="p-0">
+            <UnifiedModalBody className="p-0 flex flex-col">
                 {/* Accessible title for screen readers */}
                 <h2 id="onboarding-title" className="sr-only">
                     Guide de découverte SEIDO
                 </h2>
 
-                {/* Slide Content */}
-                <div
-                    className={cn(
-                        "transition-all duration-200 ease-out",
-                        direction === "right"
-                            ? "animate-in slide-in-from-right-4 fade-in-0"
-                            : "animate-in slide-in-from-left-4 fade-in-0"
-                    )}
-                    key={currentSlide}
-                >
-                    <OnboardingSlide
-                        icon={currentSlideData.icon}
-                        title={currentSlideData.title}
-                        subtitle={currentSlideData.subtitle}
-                        description={currentSlideData.description}
-                        bulletPoints={currentSlideData.bulletPoints}
-                        highlight={currentSlideData.highlight}
-                        iconBgClass={currentSlideData.iconBgClass}
-                        iconColorClass={currentSlideData.iconColorClass}
-                    />
+                {/* Scrollable slide content container */}
+                <div className="flex-1 overflow-y-auto min-h-0">
+                    <div
+                        className={cn(
+                            "transition-all duration-200 ease-out",
+                            direction === "right"
+                                ? "animate-in slide-in-from-right-4 fade-in-0"
+                                : "animate-in slide-in-from-left-4 fade-in-0"
+                        )}
+                        key={currentSlide}
+                    >
+                        <OnboardingSlide
+                            icon={currentSlideData.icon}
+                            title={currentSlideData.title}
+                            subtitle={currentSlideData.subtitle}
+                            description={currentSlideData.description}
+                            bulletPoints={currentSlideData.bulletPoints}
+                            highlight={currentSlideData.highlight}
+                            iconBgClass={currentSlideData.iconBgClass}
+                            iconColorClass={currentSlideData.iconColorClass}
+                        />
 
-                    {/* Special CTA for last slide */}
-                    {isLastSlide && (
-                        <div className="flex flex-col sm:flex-row gap-3 px-6 pb-2 justify-center">
-                            <Button
-                                variant="outline"
-                                onClick={handleGoToImport}
-                                className="gap-2"
-                            >
-                                <Upload className="h-4 w-4" />
-                                Importer mes données
-                            </Button>
-                        </div>
-                    )}
+                        {/* Special CTA for last slide */}
+                        {isLastSlide && (
+                            <div className="flex flex-col sm:flex-row gap-3 px-6 pb-2 justify-center">
+                                <Button
+                                    variant="outline"
+                                    onClick={handleGoToImport}
+                                    className="gap-2"
+                                >
+                                    <Upload className="h-4 w-4" />
+                                    Importer mes données
+                                </Button>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Footer Navigation */}
-                <div className="flex items-center justify-between px-6 py-4 border-t bg-muted/30">
+                {/* Footer Navigation - Always visible */}
+                <div className="flex-shrink-0 flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 border-t bg-muted/30">
                     {/* Skip Button - Hidden on last slide */}
                     {!isLastSlide ? (
                         <Button
@@ -289,23 +305,27 @@ export function OnboardingModal({
                             Passer
                         </Button>
                     ) : (
-                        <div className="w-[60px]" /> // Spacer pour maintenir l'alignement
+                        <div className="w-10 sm:w-[60px]" /> // Spacer réduit sur mobile
                     )}
 
-                    {/* Dots Navigation */}
-                    <div className="flex items-center gap-2">
+                    {/* Dots Navigation - Touch target wrapper + small visual dot */}
+                    <div className="flex items-center gap-1">
                         {SLIDES.map((_, index) => (
                             <button
                                 key={index}
                                 onClick={() => goToSlide(index)}
-                                className={cn(
-                                    "w-2 h-2 rounded-full transition-all duration-200",
-                                    index === currentSlide
-                                        ? "bg-primary w-4"
-                                        : "bg-muted-foreground/30 hover:bg-muted-foreground/50"
-                                )}
+                                className="p-1.5 -m-0.5"
                                 aria-label={`Aller au slide ${index + 1}`}
-                            />
+                            >
+                                <span
+                                    className={cn(
+                                        "block w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full transition-all duration-200",
+                                        index === currentSlide
+                                            ? "bg-primary w-2.5 sm:w-4"
+                                            : "bg-muted-foreground/30"
+                                    )}
+                                />
+                            </button>
                         ))}
                     </div>
 

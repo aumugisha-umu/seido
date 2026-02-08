@@ -33,6 +33,7 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
   useRef,
   type ReactNode
 } from 'react'
@@ -198,16 +199,20 @@ export function PWABannerProvider({ children }: PWABannerProviderProps) {
     }
   }, [installPrompt])
 
+  // ⚡ Memoize context value to prevent unnecessary re-renders of consumers
+  const contextValue = useMemo<PWABannerContextType>(
+    () => ({
+      isBannerVisible,
+      canInstall,
+      installPrompt,
+      dismissBanner,
+      triggerInstall
+    }),
+    [isBannerVisible, canInstall, installPrompt, dismissBanner, triggerInstall]
+  )
+
   return (
-    <PWABannerContext.Provider
-      value={{
-        isBannerVisible,
-        canInstall,
-        installPrompt,
-        dismissBanner,
-        triggerInstall
-      }}
-    >
+    <PWABannerContext.Provider value={contextValue}>
       {children}
     </PWABannerContext.Provider>
   )

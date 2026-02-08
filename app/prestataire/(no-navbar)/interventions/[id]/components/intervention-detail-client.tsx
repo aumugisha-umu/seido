@@ -8,11 +8,13 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { TabsContent } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogHeader, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from 'sonner'
 import { formatErrorMessage } from '@/lib/utils/error-formatter'
 import { createBrowserSupabaseClient } from '@/lib/services'
@@ -42,8 +44,30 @@ import {
 // Tab Localisation dédié
 import { LocalisationTab } from '@/components/interventions/shared/tabs/localisation-tab'
 
-// Chat component (functional, not mock)
-import { InterventionChatTab } from '@/components/interventions/intervention-chat-tab'
+// ✅ LAZY LOADED: Heavy chat component loaded on demand (US-304)
+const InterventionChatTab = dynamic(
+  () => import('@/components/interventions/intervention-chat-tab').then(mod => ({ default: mod.InterventionChatTab })),
+  {
+    loading: () => (
+      <div className="flex-1 flex flex-col p-4 space-y-4">
+        <div className="flex gap-2">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-8 w-24 rounded-full" />
+          ))}
+        </div>
+        <div className="flex-1 space-y-3">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className={`flex ${i % 2 === 0 ? 'justify-start' : 'justify-end'}`}>
+              <Skeleton className={`h-16 ${i % 2 === 0 ? 'w-2/3' : 'w-1/2'} rounded-lg`} />
+            </div>
+          ))}
+        </div>
+        <Skeleton className="h-12 w-full rounded-lg" />
+      </div>
+    ),
+    ssr: false
+  }
+)
 
 // Intervention components
 import { DetailPageHeader } from '@/components/ui/detail-page-header'

@@ -11,7 +11,8 @@
  * - Toggle pour programmer intervention de suivi
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   UnifiedModal,
   UnifiedModalHeader,
@@ -106,10 +107,16 @@ export function FinalizationModalLive({
   onClose,
   onComplete
 }: FinalizationModalLiveProps) {
+  const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [data, setData] = useState<FinalizationContextData | null>(null)
   const { toast } = useToast()
+
+  // ⚡ Optimized navigation helper
+  const navigateTo = useCallback((path: string) => {
+    router.push(path)
+  }, [router])
 
   // Manager report input
   const [managerReport, setManagerReport] = useState('')
@@ -189,7 +196,7 @@ export function FinalizationModalLive({
           title: `Suivi - ${data.intervention.title}`
         })
 
-        window.location.href = `/gestionnaire/interventions/nouvelle-intervention?${queryParams.toString()}`
+        navigateTo(`/gestionnaire/interventions/nouvelle-intervention?${queryParams.toString()}`)
       } else {
         onClose()
         onComplete?.()

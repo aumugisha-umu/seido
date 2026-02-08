@@ -202,6 +202,20 @@ export class ContractService {
   }
 
   /**
+   * Batch fetch contracts for multiple lots at once
+   * ✅ Optimized: 1 query instead of N queries for N lots
+   * Returns contracts grouped by lot_id for easy client-side processing
+   */
+  async getByLotIds(lotIds: string[], options?: { includeExpired?: boolean }) {
+    const result = await this.contractRepository.findByLotIds(lotIds, options)
+    if (isErrorResponse(result)) {
+      logger.error({ lotIds, error: result.error }, 'Failed to get contracts by lot IDs')
+      return { success: false as const, error: result.error }
+    }
+    return { success: true as const, data: result.data }
+  }
+
+  /**
    * Create a new contract with validation
    */
   async create(data: ContractInsert): Promise<{ success: true; data: Contract } | { success: false; error: { code: string; message: string } }> {

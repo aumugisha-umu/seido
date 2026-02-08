@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-06
-**Total Learnings:** 12
+**Last Updated:** 2026-02-08
+**Total Learnings:** 21
 
 ---
 
@@ -100,6 +100,69 @@
 **Example:** `lib/services/domain/intervention.service.ts` — list methods
 **When to Use:** Any list/table view fetching related data per row
 **Added:** 2026-02-04 | **Source:** Dashboard performance optimization
+
+#### Learning #013: N+1 batch with Map for O(1) lookup
+**Problem:** Even with `.in('id', ids)` batch query, looping through results to match is O(n²).
+**Solution:** Build a `Map<string, T[]>` from batch results, then use `.get(id)` for O(1) lookup when enriching.
+**Example:** `hooks/use-tenant-data.ts:220-270` — `quotesMap`, `timeSlotsMap`, `assignmentsMap`
+**When to Use:** When enriching a list of items with related data from batch queries
+**Added:** 2026-02-08 | **Source:** Performance Navigation Optimization
+
+#### Learning #014: unstable_cache with revalidation tags
+**Problem:** Static data (intervention types) fetched on every request wastes DB calls.
+**Solution:** Use `unstable_cache(fn, [key], { revalidate: 300, tags: ['tag'] })` for server-side caching with manual invalidation via `revalidateTag()`.
+**Example:** `lib/cache/cached-queries.ts` — `getCachedInterventionTypes`
+**When to Use:** Reference data that rarely changes (types, categories, settings)
+**Added:** 2026-02-08 | **Source:** Performance Navigation Optimization
+
+#### Learning #015: Lazy load heavy libraries with dynamic import
+**Problem:** Libraries like XLSX (~500KB) and BigCalendar (~100KB) are bundled even when not used on the page.
+**Solution:** Use `next/dynamic` with `ssr: false` for components, or `await import('lib')` for utilities.
+**Example:** `lib/import/template-generator.ts` — `getXLSX()` lazy loader
+**When to Use:** Any library > 50KB that's not needed on every page
+**Added:** 2026-02-08 | **Source:** Performance Navigation Optimization
+
+#### Learning #016: SSR/Client hybrid with initialData prop
+**Problem:** Client hooks fetch data on mount, causing loading states and waterfalls even when server could pre-fetch.
+**Solution:** Add `initialData` prop to hooks; Server Component fetches, passes to Client Component; hook skips fetch if initialData provided.
+**Example:** `hooks/use-notifications.ts` + `app/gestionnaire/(with-navbar)/notifications/page.tsx`
+**When to Use:** Any page with client data fetching that could be pre-rendered server-side
+**Added:** 2026-02-08 | **Source:** Performance Navigation Optimization
+
+#### Learning #017: React.memo + useCallback for list performance
+**Problem:** List items re-render on every parent update even when their props haven't changed.
+**Solution:** Wrap list item components with `React.memo()`, memoize parent callbacks with `useCallback` for stable references.
+**Example:** `components/dashboards/shared/intervention-card.tsx` + `manager-dashboard-v2.tsx`
+**When to Use:** Any list rendering 10+ items with onClick handlers or frequently updating parent
+**Added:** 2026-02-08 | **Source:** Performance Navigation Optimization
+
+#### Learning #018: react-window v2 API migration
+**Problem:** Upgrading react-window from v1 to v2 causes build failures — `FixedSizeList` no longer exported.
+**Solution:** Import `List` instead. Rename props: `itemCount` → `rowCount`, `itemSize` → `rowHeight`, `itemData` → `rowProps`, `height` → `defaultHeight`. Use `rowComponent` prop instead of children function.
+**Example:** `components/interventions/interventions-list-view-v1.tsx`
+**When to Use:** Any file using react-window FixedSizeList or VariableSizeList
+**Added:** 2026-02-08 | **Source:** Performance Navigation Optimization V2
+
+#### Learning #019: Virtualization threshold (50+ items)
+**Problem:** Virtual scrolling has overhead (measuring, callbacks) that slows down small lists.
+**Solution:** Only virtualize lists with 50+ items. Below threshold, use standard map rendering.
+**Example:** `components/interventions/interventions-list-view-v1.tsx:VIRTUALIZATION_THRESHOLD`
+**When to Use:** When implementing virtual scrolling — always add a threshold check
+**Added:** 2026-02-08 | **Source:** Performance Navigation Optimization V2
+
+#### Learning #020: Suspense streaming with async Server Components
+**Problem:** Pages wait for all data before rendering anything — slow perceived performance.
+**Solution:** Create async Server Component for data-heavy content, wrap in `<Suspense fallback={<Skeleton/>}>`. Shell renders instantly, content streams when ready.
+**Example:** `app/gestionnaire/(with-navbar)/dashboard/components/async-dashboard-content.tsx`
+**When to Use:** Any page with slow data fetching (>200ms) that has a meaningful shell to show
+**Added:** 2026-02-08 | **Source:** Performance Navigation Optimization V2
+
+#### Learning #021: Supabase relation alias syntax for joins
+**Problem:** Need to join related tables with custom property names (e.g., `address_record` instead of `address`).
+**Solution:** Use alias syntax: `address_record:address_id(formatted_address)` — format is `alias:foreign_key(columns)`.
+**Example:** `app/gestionnaire/(with-navbar)/mail/page.tsx:67`
+**When to Use:** When joining tables and needing a custom property name or selecting specific columns
+**Added:** 2026-02-08 | **Source:** Performance Navigation Optimization V2 (mail page fix)
 
 ### Testing
 

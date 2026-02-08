@@ -40,12 +40,21 @@ interface InterventionsPageClientProps {
   initialInterventions: any[]
   teamId: string | undefined
   userId: string | undefined
+  /** Total count of interventions (for pagination) */
+  initialTotal?: number
+  /** Whether more interventions are available to load */
+  initialHasMore?: boolean
+  /** Page size for loading more interventions */
+  pageSize?: number
 }
 
 export function InterventionsPageClient({
   initialInterventions,
   teamId,
-  userId
+  userId,
+  initialTotal = 0,
+  initialHasMore = false,
+  pageSize = 50
 }: InterventionsPageClientProps) {
   const router = useRouter()
   const { isPending: isNavigating, navigate } = useNavigationPending()
@@ -66,6 +75,11 @@ export function InterventionsPageClient({
   })
   const [isCancellingQuote, setIsCancellingQuote] = useState(false)
 
+  // ✅ Pagination state
+  const [total, setTotal] = useState(initialTotal)
+  const [hasMore, setHasMore] = useState(initialHasMore)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+
   // ✅ Refetch via router.refresh() - défini en premier pour être passé aux hooks
   const refetch = useCallback(() => {
     setLoading(true)
@@ -73,6 +87,37 @@ export function InterventionsPageClient({
     // Le loading sera automatiquement reset par React quand les nouvelles props arrivent
     setLoading(false)
   }, [router])
+
+  // ✅ Load more interventions (pagination)
+  const loadMore = useCallback(async () => {
+    if (!teamId || isLoadingMore || !hasMore) return
+
+    setIsLoadingMore(true)
+    try {
+      const { loadInterventionsPaginatedAction } = await import('@/app/actions/intervention-actions')
+      const result = await loadInterventionsPaginatedAction(teamId, {
+        limit: pageSize,
+        offset: interventions.length
+      })
+
+      if (result.success && result.data) {
+        setInterventions(prev => [...prev, ...result.data.data])
+        setTotal(result.data.total)
+        setHasMore(result.data.hasMore)
+      } else {
+        toast.error('Erreur', {
+          description: result.error || 'Impossible de charger plus d\'interventions'
+        })
+      }
+    } catch (err) {
+      console.error('Error loading more interventions:', err)
+      toast.error('Erreur', {
+        description: 'Une erreur est survenue lors du chargement'
+      })
+    } finally {
+      setIsLoadingMore(false)
+    }
+  }, [teamId, isLoadingMore, hasMore, interventions.length, pageSize])
 
   // ✅ Hooks avec Server Props Pattern - passer teamId depuis le serveur
   const approvalHook = useInterventionApproval(refetch)
@@ -193,6 +238,11 @@ export function InterventionsPageClient({
               finalizationHook
             }}
             className="flex-1 min-h-0"
+            // ✅ Pagination props
+            total={total}
+            hasMore={hasMore}
+            onLoadMore={loadMore}
+            isLoadingMore={isLoadingMore}
           />
         </div>
 

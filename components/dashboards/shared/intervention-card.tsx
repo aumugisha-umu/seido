@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, memo, useMemo } from "react"
 import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { usePrefetch } from "@/hooks/use-prefetch"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -99,7 +101,7 @@ interface InterventionCardProps {
  * />
  * ```
  */
-export function InterventionCard({
+export const InterventionCard = memo(function InterventionCard({
   intervention,
   userRole,
   userId,
@@ -134,7 +136,7 @@ export function InterventionCard({
   const dotMenuActions = getDotMenuActions(intervention.id, intervention.status, userRole)
 
   // Generate intervention URL based on role
-  const getInterventionUrl = useCallback(() => {
+  const interventionUrl = useMemo(() => {
     switch (userRole) {
       case 'prestataire':
         return `/prestataire/interventions/${intervention.id}`
@@ -144,6 +146,12 @@ export function InterventionCard({
         return `/gestionnaire/interventions/${intervention.id}`
     }
   }, [userRole, intervention.id])
+
+  // For backwards compatibility, keep getInterventionUrl as a function
+  const getInterventionUrl = useCallback(() => interventionUrl, [interventionUrl])
+
+  // ✅ Prefetch on hover - page loads instantly when user clicks
+  const { onMouseEnter: prefetchOnEnter, onMouseLeave: prefetchOnLeave } = usePrefetch(interventionUrl)
 
   // Animation sequence for success
   const triggerSuccessAnimation = useCallback((actionType: string) => {
@@ -263,6 +271,8 @@ export function InterventionCard({
         isRemoving && !prefersReducedMotion && "slide-out-right",
         isRemoving && prefersReducedMotion && "opacity-0"
       )}
+      onMouseEnter={prefetchOnEnter}
+      onMouseLeave={prefetchOnLeave}
     >
       {/* Checkmark Overlay (appears on success) */}
       {showCheckmark && (
@@ -285,12 +295,11 @@ export function InterventionCard({
 
         {/* Title + Badges container */}
         <div className="flex-1 min-w-0">
-          <h3
-            className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate cursor-pointer"
-            onClick={() => router.push(getInterventionUrl())}
-          >
-            {intervention.title}
-          </h3>
+          <Link href={getInterventionUrl()} className="block">
+            <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors truncate cursor-pointer">
+              {intervention.title}
+            </h3>
+          </Link>
           {/* Badges row - directly under title */}
           {/* Mobile: icon-only with tooltip | Desktop: icon + text */}
           <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap mt-1.5">
@@ -329,12 +338,14 @@ export function InterventionCard({
         <Button
           variant="outline"
           size="icon"
-          onClick={() => router.push(getInterventionUrl())}
+          asChild
           className="flex-shrink-0 h-9 w-9 border-border/60 bg-muted/50 text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:border-accent"
           title="Voir les détails"
         >
-          <Eye className="h-5 w-5" aria-hidden="true" />
-          <span className="sr-only">Voir les détails</span>
+          <Link href={getInterventionUrl()}>
+            <Eye className="h-5 w-5" aria-hidden="true" />
+            <span className="sr-only">Voir les détails</span>
+          </Link>
         </Button>
 
         {/* Dot menu for secondary actions (Modify/Cancel) - only for gestionnaire on intermediate statuses */}
@@ -493,7 +504,10 @@ export function InterventionCard({
       })()}
     </div>
   )
-}
+})
+
+// ⚡ React.memo prevents re-renders when props haven't changed
+// This is especially important for intervention lists with many cards
 
 // Backward compatibility alias
 export { InterventionCard as PendingActionsCard }

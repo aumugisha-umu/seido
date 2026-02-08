@@ -239,8 +239,8 @@ export default function ProfilePage({ role, dashboardPath, initialUser }: Profil
         variant: "default",
       })
 
-      // Actualiser la page pour récupérer la nouvelle photo
-      window.location.reload()
+      // ⚡ Optimized refresh instead of full page reload
+      router.refresh()
 
     } catch (error) {
       logger.error("Error uploading avatar:", error)

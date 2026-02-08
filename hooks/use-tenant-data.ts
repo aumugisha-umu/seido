@@ -214,34 +214,73 @@ export const useTenantData = () => {
       }
 
       // Enrichir les interventions avec quotes, slots et assignments
-      // ✅ Créer le client Supabase pour les requêtes d'enrichissement
+      // ✅ Batch queries au lieu de N+1 (3 queries totales au lieu de 3*N)
       const supabase = createBrowserSupabaseClient()
+      const interventionIds = rawInterventions.map((i: RawIntervention) => i.id)
 
-      const interventionsWithDetails: EnrichedIntervention[] = await Promise.all(
-        rawInterventions.map(async (i: RawIntervention) => {
-          const [{ data: quotes }, { data: timeSlots }, { data: assignments }] = await Promise.all([
-            supabase
-              .from('intervention_quotes')
-              .select('id, status, provider_id, created_by, amount')
-              .eq('intervention_id', i.id)
-              .is('deleted_at', null),
-            supabase
-              .from('intervention_time_slots')
-              .select('id, slot_date, start_time, status, proposed_by')
-              .eq('intervention_id', i.id),
-            supabase
-              .from('intervention_assignments')
-              .select('role, user_id, is_primary')
-              .eq('intervention_id', i.id)
-          ])
-          return {
-            ...i,
-            quotes: quotes || [],
-            timeSlots: timeSlots || [],
-            assignments: assignments || []
-          }
-        })
-      )
+      // Skip si aucune intervention
+      if (interventionIds.length === 0) {
+        const interventionsWithDetails: EnrichedIntervention[] = []
+        // Transform interventions (empty array)
+        const transformedInterventions: TenantIntervention[] = []
+
+        if (mountedRef.current) {
+          setTenantData(transformedTenantData)
+          setTenantProperties(transformedTenantProperties)
+          setTenantStats(transformedStats)
+          setTenantInterventions(transformedInterventions)
+          setContractStatus(data.contractStatus || 'none')
+          lastResolvedIdRef.current = resolvedUserId
+        }
+        return
+      }
+
+      // 3 batch queries au lieu de 3*N queries
+      const [
+        { data: allQuotes },
+        { data: allTimeSlots },
+        { data: allAssignments }
+      ] = await Promise.all([
+        supabase
+          .from('intervention_quotes')
+          .select('id, status, provider_id, created_by, amount, intervention_id')
+          .in('intervention_id', interventionIds)
+          .is('deleted_at', null),
+        supabase
+          .from('intervention_time_slots')
+          .select('id, slot_date, start_time, status, proposed_by, intervention_id')
+          .in('intervention_id', interventionIds),
+        supabase
+          .from('intervention_assignments')
+          .select('role, user_id, is_primary, intervention_id')
+          .in('intervention_id', interventionIds)
+      ])
+
+      // Mapper les résultats par intervention_id pour accès O(1)
+      const quotesMap = new Map<string, Array<{ id: string; status: string; provider_id?: string; created_by?: string; amount?: number }>>()
+      const slotsMap = new Map<string, Array<{ id: string; slot_date: string; start_time: string; status?: string; proposed_by?: string }>>()
+      const assignmentsMap = new Map<string, Array<{ role: string; user_id: string; is_primary: boolean }>>()
+
+      allQuotes?.forEach(q => {
+        const existing = quotesMap.get(q.intervention_id) || []
+        quotesMap.set(q.intervention_id, [...existing, { id: q.id, status: q.status, provider_id: q.provider_id ?? undefined, created_by: q.created_by ?? undefined, amount: q.amount ?? undefined }])
+      })
+      allTimeSlots?.forEach(s => {
+        const existing = slotsMap.get(s.intervention_id) || []
+        slotsMap.set(s.intervention_id, [...existing, { id: s.id, slot_date: s.slot_date, start_time: s.start_time, status: s.status ?? undefined, proposed_by: s.proposed_by ?? undefined }])
+      })
+      allAssignments?.forEach(a => {
+        const existing = assignmentsMap.get(a.intervention_id) || []
+        assignmentsMap.set(a.intervention_id, [...existing, { role: a.role, user_id: a.user_id, is_primary: a.is_primary }])
+      })
+
+      // Enrichir les interventions avec les données mappées (O(N) au lieu de O(N*M))
+      const interventionsWithDetails: EnrichedIntervention[] = rawInterventions.map((i: RawIntervention) => ({
+        ...i,
+        quotes: quotesMap.get(i.id) || [],
+        timeSlots: slotsMap.get(i.id) || [],
+        assignments: assignmentsMap.get(i.id) || []
+      }))
 
       // Transform interventions
       const transformedInterventions: TenantIntervention[] = interventionsWithDetails.map((i: EnrichedIntervention) => ({

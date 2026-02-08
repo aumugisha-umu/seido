@@ -285,6 +285,48 @@ export class ContractRepository extends BaseRepository<Contract, ContractInsert,
   }
 
   /**
+   * Batch fetch contracts for multiple lots at once
+   * ✅ Optimized: 1 query instead of N queries for N lots
+   * Used by building detail page to avoid N+1 problem
+   */
+  async findByLotIds(lotIds: string[], options?: { includeExpired?: boolean }) {
+    try {
+      if (lotIds.length === 0) {
+        return { success: true as const, data: [] as ContractWithRelations[] }
+      }
+
+      let query = this.supabase
+        .from(this.tableName)
+        .select(`
+          *,
+          lot:lot_id(id, reference, category, building_id),
+          contacts:contract_contacts(
+            id, user_id, role, is_primary,
+            user:user_id(id, name, email, phone, auth_user_id)
+          )
+        `)
+        .in('lot_id', lotIds)
+        .is('deleted_at', null)
+
+      // Exclude expired by default unless includeExpired is true
+      if (!options?.includeExpired) {
+        query = query.neq('status', 'expire')
+      }
+
+      const { data, error } = await query.order('lot_id').order('start_date', { ascending: false })
+
+      if (error) {
+        return createErrorResponse(handleError(error, 'contract:findByLotIds'))
+      }
+
+      return { success: true as const, data: (data || []) as ContractWithRelations[] }
+    } catch (error) {
+      logger.error({ error, lotIds }, '❌ [CONTRACT-REPO] findByLotIds error')
+      return createErrorResponse(handleError(error as Error, 'contract:findByLotIds'))
+    }
+  }
+
+  /**
    * Get active contracts for all lots in a building
    * Returns contracts with lot info for grouping by lot
    */

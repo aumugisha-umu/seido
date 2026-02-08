@@ -1,5 +1,6 @@
 // Server Component - loads data server-side
 import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 import {
   createServerLotService,
   createServerInterventionService,
@@ -15,6 +16,50 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
+
+type PageProps = {
+  params: Promise<{ id: string }>
+}
+
+/**
+ * ✅ Dynamic SEO Metadata for Lot Detail Page
+ * - Title includes lot reference for better SEO
+ * - Description includes building name and category
+ */
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { id } = await params
+
+  try {
+    const supabase = await createServerSupabaseClient()
+
+    // Lightweight query just for metadata
+    const { data: lot } = await supabase
+      .from('lots')
+      .select('reference, category, building:building_id(name)')
+      .eq('id', id)
+      .single()
+
+    if (!lot) {
+      return {
+        title: 'Lot non trouvé | SEIDO',
+        description: 'Ce lot n\'existe pas ou vous n\'avez pas les permissions nécessaires.'
+      }
+    }
+
+    const buildingName = lot.building?.name || ''
+    const buildingSuffix = buildingName ? ` - ${buildingName}` : ''
+
+    return {
+      title: `${lot.reference}${buildingSuffix} | SEIDO`,
+      description: `Détails du lot : ${lot.reference}. Catégorie : ${lot.category || 'Non spécifié'}. Gestion des contacts et interventions.`
+    }
+  } catch {
+    return {
+      title: 'Lot | SEIDO',
+      description: 'Détails du lot'
+    }
+  }
+}
 
 // Loading skeleton while data is fetched
 function LotDetailsLoading() {

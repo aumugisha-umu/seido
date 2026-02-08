@@ -1,0 +1,271 @@
+{
+  "project": "SEIDO",
+  "featureName": "Performance Navigation Optimization",
+  "branchName": "preview",
+  "description": "Optimisation complete des performances de navigation: data fetching, bundle size, navigation patterns, re-renders, et migration Server Components",
+  "createdAt": "2026-02-08",
+  "prdSource": "tasks/prd-performance-optimization.md",
+  "status": "in_progress",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fix N+1 queries dans use-tenant-data",
+      "description": "En tant que locataire, je veux que le dashboard charge rapidement afin de ne pas attendre 2-3 secondes pour voir mes interventions",
+      "acceptanceCriteria": [
+        "Remplacer la boucle Promise.all(map) par 3 batch queries avec .in('intervention_id', ids)",
+        "Les donnees quotes, timeSlots, assignments sont recuperees en 3 queries totales",
+        "Le comportement fonctionnel reste identique",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Batch queries implementees lignes 220-270. Pattern Map<string, T[]> pour O(1) lookup. Gain: 3N queries -> 3 queries."
+    },
+    {
+      "id": "US-002",
+      "title": "Fix N+1 queries dans dashboard gestionnaire",
+      "description": "En tant que gestionnaire, je veux que mon dashboard charge en moins de 2 secondes afin de pouvoir travailler efficacement",
+      "acceptanceCriteria": [
+        "Batch queries pour quotes et time_slots avec .in() au lieu de boucle",
+        "Queries reduites de 20-200 a 2",
+        "Le dashboard affiche les memes donnees",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Batch queries implementees lignes 165-215. Inclut nested relation time_slot_responses. Gain: 2N queries -> 2 queries."
+    },
+    {
+      "id": "US-003",
+      "title": "Activer cache sur donnees statiques",
+      "description": "En tant que systeme, je veux cacher les intervention types afin de reduire les appels DB repetitifs",
+      "acceptanceCriteria": [
+        "Utiliser unstable_cache pour getInterventionTypes avec revalidate 300s",
+        "Le cache se reinvalide correctement apres 5 minutes",
+        "Les types d'intervention s'affichent correctement",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "getCachedInterventionTypes ajoute a lib/cache/cached-queries.ts. Tag 'intervention-types' pour invalidation manuelle via revalidateTag()."
+    },
+    {
+      "id": "US-004",
+      "title": "Ajouter recharts a optimizePackageImports",
+      "description": "En tant que systeme, je veux tree-shaker recharts afin de reduire le bundle de 50KB",
+      "acceptanceCriteria": [
+        "Ajouter 'recharts' a experimental.optimizePackageImports dans next.config.js",
+        "npm run build passe sans erreur",
+        "Les charts s'affichent correctement",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Ajoute aussi @radix-ui/react-popover, select, tooltip, avatar. Gain estime: ~150-200KB."
+    },
+    {
+      "id": "US-005",
+      "title": "Lazy load BigCalendarWrapper",
+      "description": "En tant qu'utilisateur, je veux que les pages sans calendrier chargent plus vite afin de naviguer rapidement",
+      "acceptanceCriteria": [
+        "Dynamic import de BigCalendarWrapper avec ssr: false",
+        "Skeleton de chargement affiche pendant le load",
+        "Le calendrier fonctionne normalement une fois charge",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Dynamic import dans interventions-calendar-view.tsx. Skeleton avec message 'Chargement du calendrier...'. Gain: ~100KB initial load."
+    },
+    {
+      "id": "US-006",
+      "title": "Lazy load XLSX dans template-generator",
+      "description": "En tant qu'utilisateur, je veux que l'app charge sans la bibliotheque Excel sauf si j'utilise l'import",
+      "acceptanceCriteria": [
+        "Dynamic import de XLSX dans generateFullTemplate et autres fonctions",
+        "L'import Excel fonctionne normalement",
+        "Le bundle initial est reduit de ~500KB",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Lazy load dans template-generator.ts ET excel-parser.ts. Pattern getXLSX() avec cache module. API route mis a jour avec await."
+    },
+    {
+      "id": "US-007",
+      "title": "Deplacer faker vers devDependencies",
+      "description": "En tant que systeme, je veux que faker ne soit pas dans le bundle production",
+      "acceptanceCriteria": [
+        "@faker-js/faker est dans devDependencies",
+        "npm run build passe sans erreur",
+        "Aucune utilisation de faker en production",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Deplace de dependencies vers devDependencies. Aucun import trouve dans le codebase."
+    },
+    {
+      "id": "US-008",
+      "title": "Remplacer window.location.href critiques",
+      "description": "En tant qu'utilisateur, je veux des navigations fluides sans flash blanc afin d'avoir une experience moderne",
+      "acceptanceCriteria": [
+        "intervention-action-buttons.tsx: tous window.location.href remplaces par router.push",
+        "finalization-modal-live.tsx: window.location.href remplace",
+        "auth/callback: GARDE tel quel (cookies session necessitent full reload)",
+        "Les navigations fonctionnent identiquement",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "10 occurrences remplacees dans intervention-action-buttons.tsx + 1 dans finalization-modal-live.tsx. auth/callback garde window.location car les cookies de session necessitent un full reload."
+    },
+    {
+      "id": "US-009",
+      "title": "Remplacer router.push par Link dans cards",
+      "description": "En tant qu'utilisateur, je veux que les cartes cliquables prefetchent leur destination",
+      "acceptanceCriteria": [
+        "intervention-card.tsx: onClick router.push remplace par Link wrapper",
+        "lot-card-actions.tsx: idem",
+        "Prefetch automatique actif",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "intervention-card: titre + bouton Eye. lot-card-actions: view + edit + create intervention. Pattern asChild pour Button+Link."
+    },
+    {
+      "id": "US-010",
+      "title": "Remplacer window.location.reload par router.refresh",
+      "description": "En tant qu'utilisateur, je veux que les mutations rafraichissent sans recharger toute la page",
+      "acceptanceCriteria": [
+        "documents-tab.tsx: 3 window.location.reload remplaces",
+        "quotes-tab.tsx: 1 remplacement",
+        "profile-page.tsx: 1 remplacement",
+        "Les donnees se rafraichissent correctement",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "5 occurrences remplacees: documents-tab.tsx (3x via router.refresh()), quotes-tab.tsx (1x via handleDataChange callback), profile-page.tsx (1x). Pattern useCallback pour callbacks stables."
+    },
+    {
+      "id": "US-011",
+      "title": "Fix Context Providers value inline",
+      "description": "En tant que systeme, je veux eviter les re-renders en cascade des Context Providers",
+      "acceptanceCriteria": [
+        "carousel.tsx: value wrappe dans useMemo",
+        "pwa-banner-context.tsx: value wrappe dans useMemo",
+        "Les composants consommateurs ne re-renderent plus inutilement",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "useMemo applique aux deux Context Providers. carousel.tsx: contextValue avec 8 deps. pwa-banner-context.tsx: contextValue avec 5 deps. Evite recreation d'objet a chaque render."
+    },
+    {
+      "id": "US-012",
+      "title": "Memoiser callbacks router.push",
+      "description": "En tant que systeme, je veux que les callbacks de navigation soient stables",
+      "acceptanceCriteria": [
+        "Pattern useCallback cree pour navigation",
+        "Applique aux dashboards (manager-dashboard-v2, locataire-dashboard-hybrid)",
+        "Re-renders reduits sur les listes d'interventions",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "manager-dashboard-v2: 7 callbacks memoises (import, intervention, contract, building, lot, contact, contracts). locataire-dashboard-hybrid: 1 callback (nouvelle-demande). 12 occurrences inline remplacees."
+    },
+    {
+      "id": "US-013",
+      "title": "Ajouter React.memo aux composants cards",
+      "description": "En tant que systeme, je veux que les cards ne re-renderent pas si leurs props n'ont pas change",
+      "acceptanceCriteria": [
+        "InterventionCard wrappe avec React.memo",
+        "StatsCard et KPICard idem",
+        "areEqual custom si necessaire pour comparaison profonde",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "InterventionCard et StatsCard wrappes avec memo(). KPICarousel inline rendering - refactoring plus important differe. areEqual custom non necessaire car props sont des primitives/objets shallow."
+    },
+    {
+      "id": "US-014",
+      "title": "Migrer page notifications gestionnaire vers SSR",
+      "description": "En tant que gestionnaire, je veux que la page notifications charge instantanement",
+      "acceptanceCriteria": [
+        "Page convertie en Server Component",
+        "Fetch des notifications cote serveur",
+        "Client Component uniquement pour actions (marquer lu, archiver)",
+        "SSR complet verifie",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "dependsOn": ["US-001", "US-002", "US-003"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "page.tsx converti en Server Component (75 lignes). notifications-client.tsx pour interactivite (700 lignes). use-notifications.ts supporte initialData/initialUnreadCount pour SSR. Gain: 0 client-side fetch au load initial."
+    },
+    {
+      "id": "US-015",
+      "title": "Migrer page mail vers hybrid SSR/Client",
+      "description": "En tant que gestionnaire, je veux que la page mail (856 lignes) charge plus rapidement",
+      "acceptanceCriteria": [
+        "Page splitee en Server Component (layout, initial data) + Client Components (interactions)",
+        "Les emails se chargent cote serveur",
+        "L'interactivite (reply, forward) reste cote client",
+        "Reduction JS initial de 40%",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "dependsOn": ["US-014"],
+      "sizing": "L",
+      "passes": true,
+      "notes": "page.tsx (220 lignes Server) + mail-client.tsx (650 lignes Client). 6 fetches paralleles server-side: counts, buildings, connections, linkedEntities, replyGroups, emails. Client recoit tout pre-rempli. Gain: 0 requetes client au load initial, affichage instantane."
+    },
+    {
+      "id": "US-016",
+      "title": "Documenter pattern migration hooks data vers SSR",
+      "description": "En tant que developpeur, je veux un guide pour migrer les hooks client vers Server Components",
+      "acceptanceCriteria": [
+        "Template de migration documente dans docs/",
+        "Exemple concret avec use-interventions.ts",
+        "Checklist de verification SSR",
+        "Pattern appliquable aux futurs developpements"
+      ],
+      "priority": 5,
+      "dependsOn": ["US-014", "US-015"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "docs/architecture/ssr-migration-pattern.md cree. Pattern 3 etapes: (1) hook initialData, (2) Server Component fetch, (3) Client Component interactivity. Exemple concret: notifications. Checklist incluse."
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useRouter } from "next/navigation"
 import { getLotCategoryConfig } from "@/lib/lot-types"
+import { usePrefetch } from "@/hooks/use-prefetch"
 
 interface LotCardProps {
   lot: {
@@ -101,6 +103,14 @@ export default function LotCard({
   }
   const buildingAddress = lot.building?.address_record ? getAddressText(lot.building.address_record) : 'Adresse non disponible'
 
+  // URL for lot detail page
+  const lotUrl = useMemo(() => `/gestionnaire/biens/lots/${lot.id}`, [lot.id])
+
+  // ✅ Prefetch on hover - page loads instantly when user clicks (only in view mode)
+  const { onMouseEnter: prefetchOnEnter, onMouseLeave: prefetchOnLeave } = usePrefetch(lotUrl, {
+    enabled: mode === 'view'
+  })
+
   const handleCardClick = (e: React.MouseEvent) => {
     // Empêcher le clic si on clique sur un bouton
     if ((e.target as HTMLElement).closest('button')) {
@@ -115,13 +125,15 @@ export default function LotCard({
   }
 
   return (
-    <Card 
+    <Card
       className={`
         ${isOccupied ? 'border-l-4 border-l-green-500' : 'border-l-4 border-l-gray-300'}
         ${mode === "select" ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}
         ${isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''}
       `}
       onClick={handleCardClick}
+      onMouseEnter={prefetchOnEnter}
+      onMouseLeave={prefetchOnLeave}
     >
       <CardContent className="p-0 flex flex-col flex-1">
         <div className="flex-1">

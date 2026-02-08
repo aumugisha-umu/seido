@@ -73,6 +73,15 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
         ).length
     }, [interventions])
 
+    // ⚡ Memoized navigation callbacks to prevent re-renders
+    const navigateToImport = useCallback(() => router.push('/gestionnaire/import'), [router])
+    const navigateToNewIntervention = useCallback(() => router.push('/gestionnaire/interventions/nouvelle-intervention'), [router])
+    const navigateToNewContract = useCallback(() => router.push('/gestionnaire/contrats/nouveau'), [router])
+    const navigateToNewBuilding = useCallback(() => router.push('/gestionnaire/biens/immeubles/nouveau'), [router])
+    const navigateToNewLot = useCallback(() => router.push('/gestionnaire/biens/lots/nouveau'), [router])
+    const navigateToNewContact = useCallback(() => router.push('/gestionnaire/contacts/nouveau'), [router])
+    const navigateToContracts = useCallback(() => router.push('/gestionnaire/biens/contrats'), [router])
+
     // Filter interventions by selected period
     const filteredInterventions = useMemo(() => {
         if (period.value === 'all' || !period.startDate) {
@@ -181,7 +190,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
 
                             <Button
                                 variant="outline"
-                                onClick={() => router.push("/gestionnaire/import")}
+                                onClick={navigateToImport}
                                 className="hidden sm:flex bg-card border-border text-foreground rounded-xl"
                             >
                                 <Upload className="h-4 w-4 mr-2" />
@@ -198,35 +207,35 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-44">
                                     <DropdownMenuItem
-                                        onClick={() => router.push("/gestionnaire/interventions/nouvelle-intervention")}
+                                        onClick={navigateToNewIntervention}
                                         className="flex items-center gap-2 cursor-pointer"
                                     >
                                         <Wrench className="h-4 w-4" />
                                         <span>Une intervention</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
-                                        onClick={() => router.push("/gestionnaire/contrats/nouveau")}
+                                        onClick={navigateToNewContract}
                                         className="flex items-center gap-2 cursor-pointer"
                                     >
                                         <FileText className="h-4 w-4" />
                                         <span>Un contrat</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
-                                        onClick={() => router.push("/gestionnaire/biens/immeubles/nouveau")}
+                                        onClick={navigateToNewBuilding}
                                         className="flex items-center gap-2 cursor-pointer"
                                     >
                                         <Building2 className="h-4 w-4" />
                                         <span>Un immeuble</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
-                                        onClick={() => router.push("/gestionnaire/biens/lots/nouveau")}
+                                        onClick={navigateToNewLot}
                                         className="flex items-center gap-2 cursor-pointer"
                                     >
                                         <Home className="h-4 w-4" />
                                         <span>Un lot</span>
                                     </DropdownMenuItem>
                                     <DropdownMenuItem
-                                        onClick={() => router.push("/gestionnaire/contacts/nouveau")}
+                                        onClick={navigateToNewContact}
                                         className="flex items-center gap-2 cursor-pointer"
                                     >
                                         <UserPlus className="h-4 w-4" />
@@ -277,7 +286,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                             occupancyRate: stats.occupancyRate,
                             tenantCount,
                             contractStats,
-                            onContractClick: () => router.push('/gestionnaire/biens/contrats'),
+                            onContractClick: navigateToContracts,
                             progressData
                         })}
                         hideHeroCard
@@ -321,11 +330,11 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
 
             {/* Mobile FAB - Quick Actions */}
             <GestionnaireFAB
-                onCreateIntervention={() => router.push('/gestionnaire/interventions/nouvelle-intervention')}
-                onCreateContract={() => router.push('/gestionnaire/contrats/nouveau')}
-                onCreateBuilding={() => router.push('/gestionnaire/biens/immeubles/nouveau')}
-                onCreateLot={() => router.push('/gestionnaire/biens/lots/nouveau')}
-                onCreateContact={() => router.push('/gestionnaire/contacts/nouveau')}
+                onCreateIntervention={navigateToNewIntervention}
+                onCreateContract={navigateToNewContract}
+                onCreateBuilding={navigateToNewBuilding}
+                onCreateLot={navigateToNewLot}
+                onCreateContact={navigateToNewContact}
             />
 
             {/* Onboarding Modal - Auto-opens on first visit */}

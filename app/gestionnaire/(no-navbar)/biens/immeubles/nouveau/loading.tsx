@@ -1,3 +1,5 @@
-export default function Loading() {
-  return null
+import { PageSkeleton } from '@/components/ui/page-skeleton'
+
+export default function NewBuildingLoading() {
+  return <PageSkeleton variant="form" />
 }

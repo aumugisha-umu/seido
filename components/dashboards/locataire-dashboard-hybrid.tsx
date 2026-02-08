@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
@@ -121,6 +121,9 @@ export default function LocataireDashboardHybrid({
     refetchGlobalNotifications()
   }
 
+  // ⚡ Memoized navigation callback to prevent re-renders
+  const navigateToNewDemande = useCallback(() => router.push('/locataire/interventions/nouvelle-demande'), [router])
+
   if (loading) return <div className="p-4 animate-pulse">Loading...</div>
   if (error) return <div className="p-4 text-red-500">{error}</div>
   if (!tenantData) return null
@@ -186,7 +189,7 @@ export default function LocataireDashboardHybrid({
               {/* Report Problem Button (visible on all screens) */}
               {canCreateIntervention && (
                 <Button
-                  onClick={() => router.push('/locataire/interventions/nouvelle-demande')}
+                  onClick={navigateToNewDemande}
                   className="flex bg-primary hover:bg-primary/90 text-white font-medium h-9 px-3 sm:px-4 rounded-lg"
                 >
                   <Plus className="h-4 w-4 mr-1.5" />
@@ -413,7 +416,7 @@ export default function LocataireDashboardHybrid({
         {/* Mobile: Floating Action Button for Report Problem */}
         {canCreateIntervention && (
           <Button
-            onClick={() => router.push('/locataire/interventions/nouvelle-demande')}
+            onClick={navigateToNewDemande}
             className="sm:hidden fixed bottom-6 right-6 z-50 h-14 w-14 rounded-full bg-primary hover:bg-primary/90 shadow-lg p-0"
             aria-label="Signaler un problème"
           >

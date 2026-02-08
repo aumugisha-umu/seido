@@ -3444,3 +3444,74 @@ export async function getInterventionCountByPropertyAction(
     }
   }
 }
+
+/**
+ * Load interventions with pagination support
+ *
+ * ✅ NEW (2026-02-08): Pagination support for large intervention lists
+ * - Returns { data, total, hasMore } for efficient "Load More" navigation
+ * - Default limit: 50 items per page
+ *
+ * @param teamId - Team ID to filter by
+ * @param options.limit - Number of items per page (default: 50)
+ * @param options.offset - Number of items to skip (default: 0)
+ * @param options.filters - Additional filters (status, urgency, type, etc.)
+ */
+export async function loadInterventionsPaginatedAction(
+  teamId: string,
+  options?: {
+    limit?: number
+    offset?: number
+    filters?: {
+      status?: InterventionStatus
+      urgency?: string
+      type?: string
+      building_id?: string
+      lot_id?: string
+    }
+  }
+): Promise<ActionResult<{
+  data: Intervention[]
+  total: number
+  hasMore: boolean
+}>> {
+  try {
+    const authContext = await getServerActionAuthContextOrNull()
+
+    if (!authContext) {
+      return { success: false, error: 'Non authentifié' }
+    }
+
+    // Security: Verify user belongs to this team
+    if (authContext.team.id !== teamId && !authContext.activeTeamIds.includes(teamId)) {
+      return { success: false, error: 'Accès non autorisé à cette équipe' }
+    }
+
+    const interventionService = await createServerActionInterventionService()
+
+    const result = await interventionService.getByTeamPaginated(teamId, {
+      limit: options?.limit ?? 50,
+      offset: options?.offset ?? 0,
+      filters: options?.filters
+    })
+
+    if (!result.success) {
+      return { success: false, error: result.error || 'Erreur lors du chargement' }
+    }
+
+    return {
+      success: true,
+      data: {
+        data: result.data,
+        total: result.total,
+        hasMore: result.hasMore
+      }
+    }
+  } catch (error) {
+    logger.error('❌ [SERVER-ACTION] Error loading paginated interventions:', error)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Erreur inconnue'
+    }
+  }
+}

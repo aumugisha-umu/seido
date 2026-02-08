@@ -144,6 +144,39 @@ export function getCachedTeamMembers(teamId: string) {
 }
 
 // ============================================================================
+// Intervention Types Cache (5 minutes - reference data)
+// ============================================================================
+
+/**
+ * Cache pour intervention types - données de référence rarement modifiées
+ * TTL: 5 minutes
+ * Tags: ['intervention-types']
+ *
+ * Note: Ces données changent rarement (admin only), donc un cache long est approprié.
+ */
+export const getCachedInterventionTypes = unstable_cache(
+  async () => {
+    logger.info('📋 [CACHE] Fetching intervention types...')
+
+    const { getInterventionTypesServer } = await import('@/lib/services/domain/intervention-types.server')
+    const result = await getInterventionTypesServer()
+
+    if (!result) {
+      logger.error('❌ [CACHE] Failed to get intervention types')
+      throw new Error('Failed to get intervention types')
+    }
+
+    logger.info(`✅ [CACHE] Intervention types cached (${result.types.length} types, ${result.categories.length} categories)`)
+    return result
+  },
+  ['intervention-types'],
+  {
+    revalidate: 300, // 5 minutes
+    tags: ['intervention-types']
+  }
+)
+
+// ============================================================================
 // Utility: Manual Cache Invalidation
 // ============================================================================
 
@@ -171,6 +204,9 @@ export const CACHE_TAGS = {
   // Interventions
   INTERVENTIONS: 'interventions',
   teamInterventions: (teamId: string) => `team-${teamId}-interventions`,
+
+  // Intervention Types (reference data)
+  INTERVENTION_TYPES: 'intervention-types',
 
   // Notifications
   NOTIFICATIONS: 'notifications',

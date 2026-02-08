@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useViewMode, type ViewMode } from '@/hooks/use-view-mode'
+import { useDebounce } from '@/hooks/use-debounce'
 
 // ============================================================================
 // USE DATA NAVIGATOR HOOK
@@ -77,6 +78,9 @@ export function useDataNavigator<T>({
 
     // Search state
     const [searchTerm, setSearchTerm] = useState('')
+    // Debounce search term to avoid filtering on every keystroke
+    // 300ms delay provides responsive feel while reducing unnecessary re-renders
+    const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
     // Filter state
     const [activeFilters, setActiveFilters] = useState<Record<string, string>>({})
@@ -87,13 +91,13 @@ export function useDataNavigator<T>({
         syncWithUrl: false
     })
 
-    // Filter data based on search term and active filters
+    // Filter data based on debounced search term and active filters
     const filteredData = useMemo(() => {
         let result = data
 
-        // Apply search
-        if (searchTerm.trim()) {
-            const searchLower = searchTerm.toLowerCase()
+        // Apply search (using debounced value to avoid filtering on every keystroke)
+        if (debouncedSearchTerm.trim()) {
+            const searchLower = debouncedSearchTerm.toLowerCase()
             result = result.filter((item: any) => {
                 return searchableFields.some(field => {
                     const value = getNestedValue(item, field)
@@ -117,7 +121,7 @@ export function useDataNavigator<T>({
         })
 
         return result
-    }, [data, searchTerm, activeFilters, searchableFields])
+    }, [data, debouncedSearchTerm, activeFilters, searchableFields])
 
     // Handle filter change
     const handleFilterChange = (filterId: string, value: string) => {

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useMemo, useEffect, useCallback } from "react"
-import { ListTodo, AlertTriangle, Settings, Archive, Clock, LucideIcon, Filter, ArrowUpDown, X } from "lucide-react"
+import { ListTodo, AlertTriangle, Settings, Archive, Clock, LucideIcon, Filter, ArrowUpDown, X, Loader2, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -125,6 +125,16 @@ interface InterventionsNavigatorProps {
   showCombinedFilter?: boolean
   /** Show active filters as removable badges */
   showActiveFiltersBadges?: boolean
+
+  // ✅ NEW: Pagination support (2026-02-08)
+  /** Total count of interventions (for display and "Load More") */
+  total?: number
+  /** Whether more interventions are available to load */
+  hasMore?: boolean
+  /** Callback to load more interventions */
+  onLoadMore?: () => void
+  /** Whether currently loading more interventions */
+  isLoadingMore?: boolean
 }
 
 /**
@@ -172,7 +182,12 @@ export function InterventionsNavigator({
   showStatusFilter = false,
   showUrgencyFilter = false,
   showCombinedFilter = false,
-  showActiveFiltersBadges = false
+  showActiveFiltersBadges = false,
+  // ✅ NEW: Pagination props
+  total,
+  hasMore = false,
+  onLoadMore,
+  isLoadingMore = false
 }: InterventionsNavigatorProps) {
   const [searchTerm, setSearchTerm] = useState('')
   const [activeTab, setActiveTab] = useState<string | undefined>(initialActiveTab)
@@ -371,6 +386,34 @@ export function InterventionsNavigator({
     return configs[tabId] || { title: "Aucune donnée", description: "" }
   }
 
+  // ✅ Load More button component
+  const LoadMoreButton = () => {
+    if (!hasMore || !onLoadMore) return null
+
+    return (
+      <div className="flex justify-center py-4">
+        <Button
+          variant="outline"
+          onClick={onLoadMore}
+          disabled={isLoadingMore}
+          className="gap-2"
+        >
+          {isLoadingMore ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Chargement...
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-4 w-4" />
+              Charger plus ({interventions.length}/{total || '?'})
+            </>
+          )}
+        </Button>
+      </div>
+    )
+  }
+
   // Render content for each tab
   const renderTabContent = (tabId: string) => {
     const tabData = getFilteredByTab(tabId)
@@ -386,16 +429,20 @@ export function InterventionsNavigator({
     }
 
     return (
-      <InterventionsViewContainer
-        interventions={tabData}
-        userContext={userContext}
-        loading={loading}
-        emptyStateConfig={getEmptyStateForTab(tabId)}
-        showStatusActions={true}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        hideViewSwitcher={true}
-      />
+      <>
+        <InterventionsViewContainer
+          interventions={tabData}
+          userContext={userContext}
+          loading={loading}
+          emptyStateConfig={getEmptyStateForTab(tabId)}
+          showStatusActions={true}
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          hideViewSwitcher={true}
+        />
+        {/* ✅ Load More button - only show on "toutes" tab to avoid confusion with filtered tabs */}
+        {tabId === 'toutes' && <LoadMoreButton />}
+      </>
     )
   }
 

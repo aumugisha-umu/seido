@@ -1,5 +1,6 @@
 "use client"
 
+import { memo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
@@ -103,7 +104,8 @@ const variantStyles = {
  * />
  * ```
  */
-export function StatsCard({
+// ⚡ React.memo prevents re-renders when props haven't changed
+export const StatsCard = memo(function StatsCard({
     id,
     label,
     value,
@@ -197,4 +199,4 @@ export function StatsCard({
             </CardContent>
         </Card>
     )
-}
+})

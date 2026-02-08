@@ -540,6 +540,106 @@ export class InterventionRepository extends BaseRepository<Intervention, Interve
   }
 
   /**
+   * Get interventions by team with pagination support
+   *
+   * ✅ NEW (2026-02-08): Pagination support for large lists
+   * - Returns { data, total, hasMore } for efficient "Load More" or page-based navigation
+   * - Uses Supabase's count option to get total without extra query
+   * - Default limit: 50 items
+   *
+   * @param teamId - Team ID to filter by
+   * @param options.limit - Number of items per page (default: 50)
+   * @param options.offset - Number of items to skip (default: 0)
+   * @param options.filters - Additional filters (status, urgency, type, etc.)
+   */
+  async findByTeamPaginated(
+    teamId: string,
+    options?: {
+      limit?: number
+      offset?: number
+      filters?: {
+        status?: Intervention['status']
+        urgency?: string
+        type?: string
+        building_id?: string
+        lot_id?: string
+      }
+    }
+  ) {
+    const limit = options?.limit ?? 50
+    const offset = options?.offset ?? 0
+    const filters = options?.filters
+
+    // Build query with count option to get total
+    let queryBuilder = this.supabase
+      .from(this.tableName)
+      .select(`
+        *,
+        lot:lot_id(id, reference, building_id),
+        building:building_id(id, name, team_id),
+        intervention_assignments(
+          role,
+          is_primary,
+          user:user_id(id, name, email, role, provider_category)
+        ),
+        quotes:intervention_quotes(
+          id,
+          status,
+          amount,
+          provider_id,
+          provider:users!provider_id(name)
+        ),
+        selected_time_slot:intervention_time_slots!intervention_id(
+          id,
+          slot_date,
+          start_time,
+          end_time,
+          status
+        )
+      `, { count: 'exact' })
+      .eq('team_id', teamId)
+      .is('deleted_at', null)
+
+    // Apply filters if provided
+    if (filters?.status) {
+      queryBuilder = queryBuilder.eq('status', filters.status)
+    }
+    if (filters?.urgency) {
+      queryBuilder = queryBuilder.eq('urgency', filters.urgency)
+    }
+    if (filters?.type) {
+      queryBuilder = queryBuilder.eq('type', filters.type)
+    }
+    if (filters?.building_id) {
+      queryBuilder = queryBuilder.eq('building_id', filters.building_id)
+    }
+    if (filters?.lot_id) {
+      queryBuilder = queryBuilder.eq('lot_id', filters.lot_id)
+    }
+
+    // Apply ordering and pagination
+    queryBuilder = queryBuilder
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    const { data, error, count } = await queryBuilder
+
+    if (error) {
+      return createErrorResponse(handleError(error, 'intervention:findByTeamPaginated'))
+    }
+
+    const total = count ?? 0
+    const hasMore = offset + (data?.length ?? 0) < total
+
+    return {
+      success: true as const,
+      data: data || [],
+      total,
+      hasMore
+    }
+  }
+
+  /**
    * Update intervention status with validation
    */
   async updateStatus(id: string, newStatus: Intervention['status']) {

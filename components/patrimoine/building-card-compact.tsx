@@ -1,11 +1,13 @@
 "use client"
 
+import { useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Building2, MapPin, Home, Users, AlertCircle, Eye, Edit } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { CardComponentProps } from '@/components/data-navigator/types'
 import { cn } from '@/lib/utils'
+import { usePrefetch } from '@/hooks/use-prefetch'
 
 interface BuildingData {
     id: string
@@ -48,8 +50,14 @@ export function BuildingCardCompact({ item, actions }: CardComponentProps<Buildi
     // BEM Classes
     const blockClass = "building-card"
 
+    // URL for navigation and prefetch
+    const buildingUrl = useMemo(() => `/gestionnaire/biens/immeubles/${building.id}`, [building.id])
+
+    // ✅ Prefetch on hover - page loads instantly when user clicks
+    const { onMouseEnter: prefetchOnEnter, onMouseLeave: prefetchOnLeave } = usePrefetch(buildingUrl)
+
     const handleCardClick = () => {
-        router.push(`/gestionnaire/biens/immeubles/${building.id}`)
+        router.push(buildingUrl)
     }
 
     return (
@@ -59,6 +67,8 @@ export function BuildingCardCompact({ item, actions }: CardComponentProps<Buildi
                 "group hover:shadow-md hover:border-primary/30 transition-all duration-200 h-full bg-white p-0 cursor-pointer"
             )}
             onClick={handleCardClick}
+            onMouseEnter={prefetchOnEnter}
+            onMouseLeave={prefetchOnLeave}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {

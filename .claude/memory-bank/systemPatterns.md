@@ -1519,7 +1519,95 @@ interface BuildingTenantsResult {
 - `app/gestionnaire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx`
 - `app/gestionnaire/(with-navbar)/interventions/interventions-page-client.tsx`
 
+### 28. Suspense Streaming Pattern (NOUVEAU 2026-02-08)
+
+Pattern pour afficher la page immediatement et streamer le contenu lourd :
+
+```
++-------------------------------------------------------------+
+| PAGE SERVER COMPONENT (instant shell)                        |
+|                                                             |
+| export default async function Page() {                       |
+|   const { team } = await getServerAuthContext('gestionnaire')|
+|   return (                                                   |
+|     <Suspense fallback={<PageSkeleton variant="dashboard"/>}>|
+|       <AsyncContent teamId={team.id} />                      |
+|     </Suspense>                                               |
+|   )                                                          |
+| }                                                            |
++-------------------------------------------------------------+
+                           |
+                           v (streams when data ready)
++-------------------------------------------------------------+
+| ASYNC SERVER COMPONENT (data-heavy)                          |
+|                                                             |
+| async function AsyncContent({ teamId }) {                    |
+|   const data = await slowDataFetch(teamId)  // 200-500ms     |
+|   return <DashboardClient data={data} />                     |
+| }                                                            |
++-------------------------------------------------------------+
+```
+
+**Fichiers de reference :**
+- `app/gestionnaire/(with-navbar)/dashboard/page.tsx` - Page wrapper
+- `app/gestionnaire/(with-navbar)/dashboard/components/async-dashboard-content.tsx` - Async content
+- `components/ui/page-skeleton.tsx` - Skeletons (5 variants: list, detail, form, dashboard, cards)
+
+**Quand utiliser :**
+- Pages avec data fetch > 200ms
+- Shell meaningfull a afficher (header, sidebar, skeleton)
+- Contenu qui peut etre streame separement
+
+**Avantages :**
+- TTI (Time to Interactive) reduit — shell immediate
+- Meilleure UX percue — utilisateur voit du contenu instantanement
+- Compatible avec PPR (Partial Prerendering) quand Next.js canary
+
+### 29. Virtual Scrolling avec Seuil (NOUVEAU 2026-02-08)
+
+Pattern pour listes longues avec react-window v2 :
+
+```typescript
+// Constants
+const VIRTUALIZATION_THRESHOLD = 50  // Ne virtualiser que si > 50 items
+const ROW_HEIGHT = 52                 // Hauteur fixe par ligne
+const OVERSCAN_COUNT = 5              // Lignes pre-rendues hors viewport
+
+// Usage
+{items.length > VIRTUALIZATION_THRESHOLD ? (
+  <List
+    rowCount={items.length}
+    rowHeight={ROW_HEIGHT}
+    rowProps={{ items, onItemClick }}
+    rowComponent={VirtualizedRow}
+    defaultHeight={400}
+    width="100%"
+  />
+) : (
+  // Rendu classique pour petites listes
+  items.map(item => <ItemRow key={item.id} item={item} />)
+)}
+```
+
+**API react-window v2 (breaking changes depuis v1) :**
+
+| v1 Prop | v2 Prop |
+|---------|---------|
+| `FixedSizeList` | `List` |
+| `itemCount` | `rowCount` |
+| `itemSize` | `rowHeight` |
+| `itemData` | `rowProps` |
+| `height` | `defaultHeight` |
+| `children` (function) | `rowComponent` |
+
+**Fichier de reference :** `components/interventions/interventions-list-view-v1.tsx`
+
+**Quand utiliser :**
+- Listes avec 50+ items
+- Hauteur de ligne fixe ou calculable
+- Performance de scroll critique
+
 ---
-*Derniere mise a jour: 2026-02-04 18:10*
-*Analyse approfondie: Migration Auth COMPLETE + Optimization API calls + Invited Users Only + PWA Notification Prompt + ContactSelector Modal Pattern + Fix ensureInterventionConversationThreads*
+*Derniere mise a jour: 2026-02-08*
+*Analyse approfondie: Performance Navigation Optimization V2 COMPLETE (17 stories)*
 *References: lib/services/README.md, lib/server-context.ts, lib/api-auth-helper.ts, .claude/CLAUDE.md*

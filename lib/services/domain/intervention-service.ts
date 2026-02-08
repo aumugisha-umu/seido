@@ -280,6 +280,29 @@ export class InterventionService {
   }
 
   /**
+   * Get interventions by team with pagination support
+   *
+   * ✅ NEW (2026-02-08): For large lists with "Load More" or page-based navigation
+   * - Returns { data, total, hasMore } for efficient pagination
+   * - Default limit: 50 items
+   *
+   * @param teamId - Team ID to filter by
+   * @param options.limit - Number of items per page (default: 50)
+   * @param options.offset - Number of items to skip (default: 0)
+   * @param options.filters - Additional filters
+   */
+  async getByTeamPaginated(
+    teamId: string,
+    options?: {
+      limit?: number
+      offset?: number
+      filters?: InterventionFilters
+    }
+  ) {
+    return this.interventionRepo.findByTeamPaginated(teamId, options)
+  }
+
+  /**
    * Get interventions by building
    */
   async getByBuilding(buildingId: string) {
@@ -328,6 +351,38 @@ export class InterventionService {
       return createSuccessResponse(data || [])
     } catch (error) {
       return createErrorResponse(handleError(error, 'interventions:getByLot'))
+    }
+  }
+
+  /**
+   * Batch fetch interventions for multiple lots at once
+   * ✅ Optimized: 1 query instead of N queries for N lots
+   * Used by building detail page to avoid N+1 problem
+   */
+  async getByLotIds(lotIds: string[]) {
+    try {
+      if (lotIds.length === 0) {
+        return createSuccessResponse([])
+      }
+
+      const { data, error } = await this.interventionRepo.supabase
+        .from('interventions')
+        .select(`
+          *,
+          building:building_id(id, name, address_record:address_id(*)),
+          lot:lot_id(id, reference, category)
+        `)
+        .in('lot_id', lotIds)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        return createErrorResponse(handleError(error, 'interventions:getByLotIds'))
+      }
+
+      return createSuccessResponse(data || [])
+    } catch (error) {
+      return createErrorResponse(handleError(error, 'interventions:getByLotIds'))
     }
   }
 
@@ -2340,6 +2395,75 @@ export class InterventionService {
    */
 
   /**
+   * ✅ OPTIMIZED: Get property address using parallel queries
+   * Replaces the repeated if/else sequential pattern with Promise.all
+   *
+   * @param lotId - Optional lot ID
+   * @param buildingId - Optional building ID
+   * @returns { propertyAddress: string, lotReference?: string }
+   */
+  private async getInterventionPropertyAddress(
+    lotId: string | null | undefined,
+    buildingId: string | null | undefined
+  ): Promise<{ propertyAddress: string; lotReference?: string }> {
+    const defaultResult = { propertyAddress: 'Adresse non spécifiée' }
+
+    if (!lotId && !buildingId) {
+      return defaultResult
+    }
+
+    try {
+      // ════════════════════════════════════════════════════════════════════
+      // Parallel fetch: lot and building data at the same time
+      // ════════════════════════════════════════════════════════════════════
+      const [lotResult, buildingResult] = await Promise.all([
+        // Fetch lot with nested address and building address
+        lotId
+          ? this.interventionRepo.supabase
+              .from('lots')
+              .select('reference, address_record:address_id(*), buildings(address_record:address_id(*))')
+              .eq('id', lotId)
+              .single()
+          : Promise.resolve({ data: null, error: null }),
+
+        // Fetch building with address (only if no lot_id, for fallback)
+        buildingId && !lotId
+          ? this.interventionRepo.supabase
+              .from('buildings')
+              .select('address_record:address_id(*)')
+              .eq('id', buildingId)
+              .single()
+          : Promise.resolve({ data: null, error: null })
+      ])
+
+      // Priority 1: Lot address (from lot or lot's building)
+      if (lotResult.data) {
+        const lot = lotResult.data
+        const lotAddr = (lot as any).address_record
+        const buildingAddr = (lot.buildings as any)?.address_record
+        const addressRecord = lotAddr || buildingAddr
+
+        return {
+          propertyAddress: addressRecord ? formatAddressFromRecord(addressRecord) : defaultResult.propertyAddress,
+          lotReference: lot.reference || undefined
+        }
+      }
+
+      // Priority 2: Building address (fallback)
+      if (buildingResult.data?.address_record) {
+        return {
+          propertyAddress: formatAddressFromRecord(buildingResult.data.address_record)
+        }
+      }
+
+      return defaultResult
+    } catch (error) {
+      logger.error('Error fetching property address', error)
+      return defaultResult
+    }
+  }
+
+  /**
    * Helper: Send intervention created email to manager
    */
   private async sendInterventionCreatedEmail(intervention: Intervention, tenantId: string) {
@@ -2366,35 +2490,11 @@ export class InterventionService {
         return
       }
 
-      // Get property address
-      let propertyAddress = 'Adresse non spécifiée'
-      let lotReference: string | undefined
-
-      if (intervention.lot_id) {
-        const { data: lot } = await this.interventionRepo.supabase
-          .from('lots')
-          .select('reference, address_record:address_id(*), buildings(address_record:address_id(*))')
-          .eq('id', intervention.lot_id)
-          .single()
-
-        if (lot) {
-          lotReference = lot.reference || undefined
-          // Priorité: adresse du lot, sinon adresse du building
-          const lotAddr = (lot as any).address_record
-          const buildingAddr = (lot.buildings as any)?.address_record
-          propertyAddress = formatAddressFromRecord(lotAddr || buildingAddr)
-        }
-      } else if (intervention.building_id) {
-        const { data: building } = await this.interventionRepo.supabase
-          .from('buildings')
-          .select('address_record:address_id(*)')
-          .eq('id', intervention.building_id)
-          .single()
-
-        if (building?.address_record) {
-          propertyAddress = formatAddressFromRecord(building.address_record)
-        }
-      }
+      // ✅ OPTIMIZED: Get property address using parallel queries
+      const { propertyAddress, lotReference } = await this.getInterventionPropertyAddress(
+        intervention.lot_id,
+        intervention.building_id
+      )
 
       // Send email to first manager (or all managers in future)
       const manager = (teamMembers[0].users as any)
@@ -2427,35 +2527,11 @@ export class InterventionService {
       const tenants = await this.getInterventionTenants(intervention.id)
       if (tenants.length === 0) return
 
-      // Get property address
-      let propertyAddress = 'Adresse non spécifiée'
-      let lotReference: string | undefined
-
-      if (intervention.lot_id) {
-        const { data: lot } = await this.interventionRepo.supabase
-          .from('lots')
-          .select('reference, address_record:address_id(*), buildings(address_record:address_id(*))')
-          .eq('id', intervention.lot_id)
-          .single()
-
-        if (lot) {
-          lotReference = lot.reference || undefined
-          // Priorité: adresse du lot, sinon adresse du building
-          const lotAddr = (lot as any).address_record
-          const buildingAddr = (lot.buildings as any)?.address_record
-          propertyAddress = formatAddressFromRecord(lotAddr || buildingAddr)
-        }
-      } else if (intervention.building_id) {
-        const { data: building } = await this.interventionRepo.supabase
-          .from('buildings')
-          .select('address_record:address_id(*)')
-          .eq('id', intervention.building_id)
-          .single()
-
-        if (building?.address_record) {
-          propertyAddress = formatAddressFromRecord(building.address_record)
-        }
-      }
+      // ✅ OPTIMIZED: Get property address using parallel queries
+      const { propertyAddress, lotReference } = await this.getInterventionPropertyAddress(
+        intervention.lot_id,
+        intervention.building_id
+      )
 
       // Send to first tenant
       await emailService.sendInterventionApproved({
@@ -2486,35 +2562,11 @@ export class InterventionService {
       const tenants = await this.getInterventionTenants(intervention.id)
       if (tenants.length === 0) return
 
-      // Get property address
-      let propertyAddress = 'Adresse non spécifiée'
-      let lotReference: string | undefined
-
-      if (intervention.lot_id) {
-        const { data: lot } = await this.interventionRepo.supabase
-          .from('lots')
-          .select('reference, address_record:address_id(*), buildings(address_record:address_id(*))')
-          .eq('id', intervention.lot_id)
-          .single()
-
-        if (lot) {
-          lotReference = lot.reference || undefined
-          // Priorité: adresse du lot, sinon adresse du building
-          const lotAddr = (lot as any).address_record
-          const buildingAddr = (lot.buildings as any)?.address_record
-          propertyAddress = formatAddressFromRecord(lotAddr || buildingAddr)
-        }
-      } else if (intervention.building_id) {
-        const { data: building } = await this.interventionRepo.supabase
-          .from('buildings')
-          .select('address_record:address_id(*)')
-          .eq('id', intervention.building_id)
-          .single()
-
-        if (building?.address_record) {
-          propertyAddress = formatAddressFromRecord(building.address_record)
-        }
-      }
+      // ✅ OPTIMIZED: Get property address using parallel queries
+      const { propertyAddress, lotReference } = await this.getInterventionPropertyAddress(
+        intervention.lot_id,
+        intervention.building_id
+      )
 
       // Send to first tenant
       await emailService.sendInterventionRejected({
@@ -2557,35 +2609,11 @@ export class InterventionService {
         return
       }
 
-      // Get property address
-      let propertyAddress = 'Adresse non spécifiée'
-      let lotReference: string | undefined
-
-      if (intervention.lot_id) {
-        const { data: lot } = await this.interventionRepo.supabase
-          .from('lots')
-          .select('reference, address_record:address_id(*), buildings(address_record:address_id(*))')
-          .eq('id', intervention.lot_id)
-          .single()
-
-        if (lot) {
-          lotReference = lot.reference || undefined
-          // Priorité: adresse du lot, sinon adresse du building
-          const lotAddr = (lot as any).address_record
-          const buildingAddr = (lot.buildings as any)?.address_record
-          propertyAddress = formatAddressFromRecord(lotAddr || buildingAddr)
-        }
-      } else if (intervention.building_id) {
-        const { data: building } = await this.interventionRepo.supabase
-          .from('buildings')
-          .select('address_record:address_id(*)')
-          .eq('id', intervention.building_id)
-          .single()
-
-        if (building?.address_record) {
-          propertyAddress = formatAddressFromRecord(building.address_record)
-        }
-      }
+      // ✅ OPTIMIZED: Get property address using parallel queries
+      const { propertyAddress, lotReference } = await this.getInterventionPropertyAddress(
+        intervention.lot_id,
+        intervention.building_id
+      )
 
       // Parse scheduled date from slot
       const scheduledDate = new Date(`${slot.slot_date}T${slot.start_time}`)
@@ -2630,35 +2658,11 @@ export class InterventionService {
 
       if (!teamMembers || teamMembers.length === 0) return
 
-      // Get property address
-      let propertyAddress = 'Adresse non spécifiée'
-      let lotReference: string | undefined
-
-      if (intervention.lot_id) {
-        const { data: lot } = await this.interventionRepo.supabase
-          .from('lots')
-          .select('reference, address_record:address_id(*), buildings(address_record:address_id(*))')
-          .eq('id', intervention.lot_id)
-          .single()
-
-        if (lot) {
-          lotReference = lot.reference || undefined
-          // Priorité: adresse du lot, sinon adresse du building
-          const lotAddr = (lot as any).address_record
-          const buildingAddr = (lot.buildings as any)?.address_record
-          propertyAddress = formatAddressFromRecord(lotAddr || buildingAddr)
-        }
-      } else if (intervention.building_id) {
-        const { data: building } = await this.interventionRepo.supabase
-          .from('buildings')
-          .select('address_record:address_id(*)')
-          .eq('id', intervention.building_id)
-          .single()
-
-        if (building?.address_record) {
-          propertyAddress = formatAddressFromRecord(building.address_record)
-        }
-      }
+      // ✅ OPTIMIZED: Get property address using parallel queries
+      const { propertyAddress, lotReference } = await this.getInterventionPropertyAddress(
+        intervention.lot_id,
+        intervention.building_id
+      )
 
       // Check if documents exist
       const { data: documents } = await this.interventionRepo.supabase
@@ -2716,33 +2720,11 @@ export class InterventionService {
         return
       }
 
-      // Get property address
-      let propertyAddress = 'Adresse non spécifiée'
-
-      if (intervention.lot_id) {
-        const { data: lot } = await this.interventionRepo.supabase
-          .from('lots')
-          .select('address_record:address_id(*), buildings(address_record:address_id(*))')
-          .eq('id', intervention.lot_id)
-          .single()
-
-        if (lot) {
-          // Priorité: adresse du lot, sinon adresse du building
-          const lotAddr = (lot as any).address_record
-          const buildingAddr = (lot.buildings as any)?.address_record
-          propertyAddress = formatAddressFromRecord(lotAddr || buildingAddr)
-        }
-      } else if (intervention.building_id) {
-        const { data: building } = await this.interventionRepo.supabase
-          .from('buildings')
-          .select('address_record:address_id(*)')
-          .eq('id', intervention.building_id)
-          .single()
-
-        if (building?.address_record) {
-          propertyAddress = formatAddressFromRecord(building.address_record)
-        }
-      }
+      // ✅ OPTIMIZED: Get property address using parallel queries
+      const { propertyAddress } = await this.getInterventionPropertyAddress(
+        intervention.lot_id,
+        intervention.building_id
+      )
 
       // Send email
       await emailService.sendQuoteRequest({

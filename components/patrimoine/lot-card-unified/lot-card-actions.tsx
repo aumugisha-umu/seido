@@ -1,6 +1,6 @@
 "use client"
 
-import { useRouter } from "next/navigation"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -33,7 +33,6 @@ export function LotCardActions({
   onToggleExpand,
   showDropdown = true
 }: LotCardActionsProps) {
-  const router = useRouter()
 
   // Selection mode - show select button
   if (mode === "select") {
@@ -97,18 +96,17 @@ export function LotCardActions({
         )}
       </Button>
 
-      {/* 2. Quick access: View details button */}
+      {/* 2. Quick access: View details button - ⚡ Link for prefetch */}
       <Button
         variant="ghost"
         size="sm"
+        asChild
         className="h-8 w-8 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
-        onClick={(e) => {
-          e.stopPropagation()
-          router.push(`/gestionnaire/biens/lots/${lot.id}`)
-        }}
         title="Voir détails"
       >
-        <Eye className="h-4 w-4" />
+        <Link href={`/gestionnaire/biens/lots/${lot.id}`} onClick={(e) => e.stopPropagation()}>
+          <Eye className="h-4 w-4" />
+        </Link>
       </Button>
 
       {/* 3. Dropdown menu with other actions */}
@@ -125,30 +123,22 @@ export function LotCardActions({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            {/* Edit */}
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation()
-                router.push(`/gestionnaire/biens/lots/modifier/${lot.id}`)
-              }}
-              className="cursor-pointer"
-            >
-              <Edit className="h-4 w-4 mr-2" />
-              Modifier
+            {/* Edit - ⚡ Link for prefetch */}
+            <DropdownMenuItem asChild className="cursor-pointer">
+              <Link href={`/gestionnaire/biens/lots/modifier/${lot.id}`} onClick={(e) => e.stopPropagation()}>
+                <Edit className="h-4 w-4 mr-2" />
+                Modifier
+              </Link>
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
 
-            {/* Create intervention */}
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.stopPropagation()
-                router.push(`/gestionnaire/interventions/nouvelle-intervention?lot=${lot.id}`)
-              }}
-              className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-            >
-              <Wrench className="h-4 w-4 mr-2" />
-              Créer une intervention
+            {/* Create intervention - ⚡ Link for prefetch */}
+            <DropdownMenuItem asChild className="cursor-pointer text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+              <Link href={`/gestionnaire/interventions/nouvelle-intervention?lot=${lot.id}`} onClick={(e) => e.stopPropagation()}>
+                <Wrench className="h-4 w-4 mr-2" />
+                Créer une intervention
+              </Link>
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />

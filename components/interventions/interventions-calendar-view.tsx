@@ -1,9 +1,23 @@
-﻿"use client"
+"use client"
 
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import type { InterventionWithRelations } from '@/lib/services'
 import type { InterventionDateField } from '@/lib/intervention-calendar-utils'
-import { BigCalendarWrapper } from './big-calendar-wrapper'
+
+// ⚡ Lazy load BigCalendarWrapper (~100KB savings on initial load)
+// react-big-calendar is a heavy library, only load when calendar view is displayed
+const BigCalendarWrapper = dynamic(
+  () => import('./big-calendar-wrapper').then(mod => ({ default: mod.BigCalendarWrapper })),
+  {
+    ssr: false, // Calendar requires browser APIs
+    loading: () => (
+      <div className="flex-1 min-h-[500px] animate-pulse bg-muted rounded-lg flex items-center justify-center">
+        <div className="text-muted-foreground text-sm">Chargement du calendrier...</div>
+      </div>
+    )
+  }
+)
 
 /**
  * 📅 INTERVENTIONS CALENDAR VIEW - React Big Calendar Integration

@@ -134,13 +134,15 @@ export class ConversationService {
       const user = await this.getUserWithRole(userId)
       const filteredThreads = await this.filterThreadsByAccess(result.data, user)
 
-      // Add unread counts for each thread
-      const threadsWithUnread = await Promise.all(
-        filteredThreads.map(async (thread) => ({
-          ...thread,
-          unread_count: await this.getThreadUnreadCount(thread.id, userId)
-        }))
-      )
+      // ✅ OPTIMIZED: Batch get unread counts (3 queries instead of 2-4 per thread)
+      const threadIds = filteredThreads.map(t => t.id)
+      const unreadCounts = await this.getThreadsUnreadCountsBatch(threadIds, userId)
+
+      // Add unread counts to threads
+      const threadsWithUnread = filteredThreads.map(thread => ({
+        ...thread,
+        unread_count: unreadCounts.get(thread.id) || 0
+      }))
 
       return createSuccessResponse(threadsWithUnread)
     } catch (error) {
@@ -1271,6 +1273,123 @@ export class ConversationService {
     } catch (error) {
       logger.error('Error getting thread unread count', error)
       return 0
+    }
+  }
+
+  /**
+   * ✅ OPTIMIZED: Batch get unread counts for multiple threads
+   * Reduces N+1 queries (2-4 queries per thread) to just 2-3 total queries
+   *
+   * @param threadIds - Array of thread IDs to get unread counts for
+   * @param userId - Current user ID
+   * @returns Map of threadId -> unreadCount
+   */
+  private async getThreadsUnreadCountsBatch(
+    threadIds: string[],
+    userId: string
+  ): Promise<Map<string, number>> {
+    const unreadCounts = new Map<string, number>()
+
+    if (threadIds.length === 0) {
+      return unreadCounts
+    }
+
+    try {
+      // ════════════════════════════════════════════════════════════════════
+      // Query 1: Get all participants for all threads in ONE query
+      // ════════════════════════════════════════════════════════════════════
+      const { data: participants } = await this.conversationRepo.supabase
+        .from('conversation_participants')
+        .select('thread_id, last_read_message_id')
+        .eq('user_id', userId)
+        .in('thread_id', threadIds)
+
+      // Build a map of threadId -> last_read_message_id
+      const participantMap = new Map<string, string | null>()
+      for (const p of participants || []) {
+        participantMap.set(p.thread_id, p.last_read_message_id)
+      }
+
+      // Collect message IDs we need to fetch timestamps for
+      const messageIdsToFetch: string[] = []
+      for (const p of participants || []) {
+        if (p.last_read_message_id) {
+          messageIdsToFetch.push(p.last_read_message_id)
+        }
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // Query 2: Get timestamps for all last_read messages in ONE query
+      // ════════════════════════════════════════════════════════════════════
+      const messageTimestamps = new Map<string, string>()
+      if (messageIdsToFetch.length > 0) {
+        const { data: messages } = await this.conversationRepo.supabase
+          .from('conversation_messages')
+          .select('id, created_at')
+          .in('id', messageIdsToFetch)
+
+        for (const msg of messages || []) {
+          messageTimestamps.set(msg.id, msg.created_at)
+        }
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // Query 3: Get all recent messages for all threads in ONE query
+      // We'll count them client-side based on each participant's last_read
+      // ════════════════════════════════════════════════════════════════════
+      const { data: allMessages } = await this.conversationRepo.supabase
+        .from('conversation_messages')
+        .select('id, thread_id, created_at')
+        .in('thread_id', threadIds)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+
+      // Group messages by thread for efficient counting
+      const messagesByThread = new Map<string, Array<{ id: string; created_at: string }>>()
+      for (const msg of allMessages || []) {
+        if (!messagesByThread.has(msg.thread_id)) {
+          messagesByThread.set(msg.thread_id, [])
+        }
+        messagesByThread.get(msg.thread_id)!.push({
+          id: msg.id,
+          created_at: msg.created_at
+        })
+      }
+
+      // ════════════════════════════════════════════════════════════════════
+      // Calculate unread counts client-side
+      // ════════════════════════════════════════════════════════════════════
+      for (const threadId of threadIds) {
+        const lastReadMessageId = participantMap.get(threadId)
+        const threadMessages = messagesByThread.get(threadId) || []
+
+        if (!lastReadMessageId) {
+          // User hasn't read any messages -> all are unread
+          unreadCounts.set(threadId, threadMessages.length)
+        } else {
+          // Count messages created after the last read message
+          const lastReadTimestamp = messageTimestamps.get(lastReadMessageId)
+          if (!lastReadTimestamp) {
+            // Edge case: message was deleted, treat all as read
+            unreadCounts.set(threadId, 0)
+          } else {
+            const unreadCount = threadMessages.filter(
+              msg => msg.created_at > lastReadTimestamp
+            ).length
+            unreadCounts.set(threadId, unreadCount)
+          }
+        }
+      }
+
+      logger.info(`[CONVERSATION] Batch unread counts: ${threadIds.length} threads, 3 queries total`)
+      return unreadCounts
+    } catch (error) {
+      logger.error('Error in batch unread counts', error)
+      // Fallback: return 0 for all threads
+      for (const threadId of threadIds) {
+        unreadCounts.set(threadId, 0)
+      }
+      return unreadCounts
     }
   }
 

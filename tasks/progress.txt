@@ -1,83 +1,119 @@
-# Progress Log — Fix Conversation Participants Management
-# Started: 2026-02-06
-# Stories: 4 total
+# Progress Log - Performance Navigation Optimization V2
+# Started: 2026-02-08
+# Stories: 17 total
+# Previous feature: Performance Navigation Optimization V1 (archived)
 ---
 
-## 2026-02-06 — US-001 ✅
+## Analysis Phase (2026-02-08)
 
-**Story:** Modifier le trigger SQL add_team_managers_to_thread
+### 5-Agent Deep Analysis Results
 
-**Changes:**
-- Created migration: `supabase/migrations/20260206100000_remove_auto_add_all_managers_trigger.sql`
-- Dropped trigger `thread_add_managers` on `conversation_threads`
-- Dropped function `add_team_managers_to_thread()`
+**Agent 1: Pages SSR Analysis**
+- 9/12 pages already optimized as Server Components
+- 2 minor candidates: locataire/prestataire profile pages
+- Pattern getServerAuthContext() correctly applied everywhere
 
-**Learnings:**
-- Le trigger `add_assignment_to_conversation_participants` reste actif et gère correctement l'ajout via assignments
-- RLS (`can_view_conversation`) assure l'accès lecture même sans être participant explicite
-- Participants explicites = visibilité dans la liste + tracking des messages lus
+**Agent 2: Next.js 15 Best Practices**
+- Score: 46/100 - Significant gaps identified
+- Missing: error.tsx (0 files), not-found.tsx (0 files)
+- Loading.tsx: 16 files but 10+ return null (no feedback)
+- No Suspense boundaries for streaming
+- No generateMetadata on dynamic pages
+- PPR not enabled
 
-## 2026-02-06 — US-002 ✅ (UPDATED)
+**Agent 3: Supabase Best Practices**
+- Score: 85/100 - Very good
+- Missing: Browser client singleton (multiple instances possible)
+- Missing: Index on conversation_messages(thread_id, created_at)
+- Missing: Exponential backoff on realtime reconnection
 
-**Story:** Création intervention locataire: gestionnaires liés au bien
+**Agent 4: List Pages Analysis**
+- Score: 33/100 - Critical gaps
+- NO pagination on any list (interventions, biens, contacts, contrats)
+- NO virtual scrolling (500 items = 500 DOM nodes)
+- NO debounce on search filters (O(n) on every keystroke)
+- Partial skeleton loading (inconsistent)
+- Partial React.memo (InterventionCard only)
+- NO prefetch on hover
 
-**Clarification reçue:** Les gestionnaires liés au lot/immeuble doivent être ajoutés (pas TOUS, mais ceux de lot_contacts + building_contacts)
+**Agent 5: Detail Pages Analysis**
+- Score: 70/100 - Good but waterfalls
+- Intervention detail: 10-20 sequential queries for unread counts
+- Building detail: N*2 queries for lot contracts/interventions
+- Address loading: 3-4 sequential fallback queries
+- No lazy loading on heavy tabs (Conversations, Documents)
+- 12+ useState on intervention detail (high but acceptable)
 
-**Changes:**
-- Modifié `app/api/create-intervention/route.ts` (lignes 281-343)
-- Query `lot_contacts` pour gestionnaires du lot
-- Query `building_contacts` pour gestionnaires de l'immeuble parent (si applicable)
-- Dédoublonnage par user_id
-- Filtre: uniquement `role = 'gestionnaire'` avec `auth_user_id` (compte actif)
-- Ajout aux threads GROUP et TENANT_TO_MANAGERS
+### Priority Matrix
 
-**Learnings:**
-- Différence entre "TOUS les gestionnaires de l'équipe" (mauvais) vs "gestionnaires responsables du bien" (correct)
-- Les contacts sont définis via lot_contacts et building_contacts, pas via team membership
+| Priority | Phase | Stories | Impact |
+|----------|-------|---------|--------|
+| 1 | Error Handling | US-101, US-102, US-103 | Stability + UX |
+| 2 | List Performance | US-201, US-202, US-203, US-204 | Critical UX |
+| 3 | Detail Pages | US-301, US-302, US-303, US-304 | Load time |
+| 4 | Next.js 15 | US-401, US-402, US-403 | Modern patterns |
+| 5 | Supabase | US-501, US-502, US-503 | Connections + DB |
 
-## 2026-02-06 — US-003 ✅
+### Expected Gains
 
-**Story:** Création intervention gestionnaire: seulement les assignés
-
-**Analysis:**
-- Vérifié `app/api/create-manager-intervention/route.ts`
-- Les gestionnaires sélectionnés sont insérés dans `intervention_assignments` (lignes 643-654)
-- Le trigger `add_assignment_to_conversation_participants` (CASE 3) s'active à chaque INSERT
-- Ce trigger ajoute SEULEMENT le gestionnaire assigné comme participant
-
-**Result:** Déjà fonctionnel grâce au trigger existant + US-001 qui a supprimé l'ajout automatique de TOUS les managers
-
-## 2026-02-06 — US-004 ✅
-
-**Story:** Ajout automatique au premier message
-
-**Changes:**
-- Modifié `lib/services/domain/conversation-service.ts` (lignes 319-332)
-- Ajout d'un bloc après la vérification d'accès dans `sendMessage()`
-- Récupère le thread et ses participants
-- Si l'utilisateur n'est pas déjà participant, l'ajoute automatiquement
-- Log informatif pour traçabilité
-
-**Learnings:**
-- Les gestionnaires ont accès via `checkThreadAccess` qui vérifie le team_id (pas besoin d'être participant)
-- L'ajout comme participant est nécessaire pour: affichage dans la liste, tracking des messages lus, compteurs non-lus
-- `addParticipant` est idempotent (ON CONFLICT DO NOTHING)
+| Metric | Before V2 | After V2 | Improvement |
+|--------|-----------|----------|-------------|
+| List 1000 items (render) | 2-3s | <500ms | 80% |
+| Intervention detail (queries) | 20+ | 5-8 | 60-75% |
+| Filter search (latency) | 200ms/char | 0ms debounced | 100% |
+| Fatal error (recovery) | Crash | Error boundary | Stability |
+| Memory (long list) | O(n) DOM | O(k) visible | 90% |
 
 ---
 
-## ✅ FEATURE COMPLETE — Fix Conversation Participants Management
+## 2026-02-08 — Implementation Phase Complete
 
-**All 4 stories passed!**
+### US-101 to US-103: Error Handling & Loading States
+- Implemented: 5 error.tsx files (global + 4 roles), 5 not-found.tsx files, PageSkeleton component with 5 variants
+- Files: `app/error.tsx`, `app/*/error.tsx`, `app/*/not-found.tsx`, `components/ui/page-skeleton.tsx`
+- Learnings: Server Components for not-found (no 'use client'), error.tsx needs 'use client' for reset()
 
-| Story | Status | Summary |
-|-------|--------|---------|
-| US-001 | ✅ | Migration: supprimé trigger `add_team_managers_to_thread` |
-| US-002 | ✅ | Ajout des gestionnaires liés au lot/immeuble (lot_contacts + building_contacts) |
-| US-003 | ✅ | Déjà fonctionnel via trigger `add_assignment_to_conversation_participants` |
-| US-004 | ✅ | Ajout auto comme participant au premier message dans `sendMessage()` |
+### US-201: useDebounce Hook
+- Implemented: useDebounce + useDebounceCallback hooks
+- Files: `hooks/use-debounce.ts`, `hooks/use-data-navigator.ts`
+- Learnings: Use ref for callback to avoid stale closure issues
 
-**Files changed:**
-- `supabase/migrations/20260206100000_remove_auto_add_all_managers_trigger.sql` (NEW)
-- `lib/services/domain/conversation-service.ts` (MODIFIED - US-004: auto-add on first message)
-- `app/api/create-intervention/route.ts` (MODIFIED - US-002: add property managers)
+### US-202: Backend Pagination
+- Implemented: findByTeamPaginated in repository, getByTeamPaginated in service, loadInterventionsPaginatedAction
+- Files: `lib/services/repositories/intervention.repository.ts`, `lib/services/domain/intervention-service.ts`
+- Learnings: Use `count: 'exact'` + `.range()` for pagination with total
+
+### US-203: Virtual Scrolling
+- Implemented: react-window v2 integration with VIRTUALIZATION_THRESHOLD=50
+- Files: `components/interventions/interventions-list-view-v1.tsx`
+- Learnings: react-window v2 has breaking API changes (Learning #018), only virtualize 50+ items (Learning #019)
+- Bug Fixed: Duplicate import in use-debounce.ts (useEffect imported twice)
+
+### US-204: Prefetch on Hover
+- Implemented: usePrefetch hook with 150ms delay
+- Files: `hooks/use-prefetch.ts`, `components/interventions/intervention-card.tsx`, `components/buildings/*`
+- Learnings: router.prefetch() works great, cleanup on mouse leave prevents unnecessary prefetches
+
+### US-301 to US-304: Detail Pages Optimization
+- Implemented: Batch queries for unread counts, parallel address loading, batch lot queries, lazy-loaded chat tabs
+- Files: `lib/services/domain/conversation-service.ts`, `lib/services/domain/intervention-service.ts`, building page.tsx
+- Learnings: Map<string, T[]> for O(1) batch result lookup, dynamic() with ssr:false for heavy components
+
+### US-401 to US-403: Next.js 15 Patterns
+- Implemented: Suspense streaming on dashboard + interventions, generateMetadata on detail pages, PPR config (commented)
+- Files: `async-dashboard-content.tsx`, `async-interventions-content.tsx`, building/lot/intervention pages
+- Learnings: Suspense streaming is powerful (Learning #020), PPR requires Next.js canary
+
+### US-501 to US-503: Supabase Optimizations
+- Implemented: Browser client singleton, verified existing indexes, exponential backoff with toast warnings
+- Files: `lib/services/core/supabase-client.ts`, `contexts/realtime-context.tsx`
+- Learnings: Index already existed (idx_messages_thread_created), add disconnection UX feedback
+
+### Bug Fixes During Implementation
+1. **use-debounce.ts**: Duplicate `useEffect` import at lines 19 and 64
+2. **react-window v2**: API changes required import/prop updates
+3. **mail/page.tsx**: Wrong table name (`email_connections` → `team_email_connections`), wrong column (`address` → `address_record:address_id(formatted_address)`)
+4. **intervention-detail-client.tsx**: Duplicate `import dynamic from 'next/dynamic'` at lines 10 and 158
+
+---
 

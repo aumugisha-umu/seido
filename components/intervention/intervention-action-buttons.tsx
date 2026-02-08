@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import {
   CheckCircle,
   XCircle,
@@ -108,11 +109,17 @@ export function InterventionActionButtons({
   onProposeSlots,
   timeSlots = []
 }: InterventionActionButtonsProps) {
+  const router = useRouter()
   const [isProcessing, setIsProcessing] = useState(false)
   const [showConfirmDialog, setShowConfirmDialog] = useState(false)
   const [selectedAction, setSelectedAction] = useState<ActionConfig | null>(null)
   const [comment, setComment] = useState('')
   const [error, setError] = useState<string | null>(null)
+
+  // ⚡ Optimized navigation: use router.push instead of window.location.href
+  const navigateTo = useCallback((path: string) => {
+    router.push(path)
+  }, [router])
 
   // States for closure modals
   const [showWorkCompletionModal, setShowWorkCompletionModal] = useState(false)
@@ -446,12 +453,12 @@ export function InterventionActionButtons({
 
         case 'process_quotes':
           // Naviguer vers l'onglet estimations pour traiter les estimations reçues
-          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=devis`
+          navigateTo(`/gestionnaire/interventions/${intervention.id}?tab=devis`)
           return
 
         case 'view_quotes':
           // Naviguer vers l'onglet estimations en mode consultation
-          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=devis`
+          navigateTo(`/gestionnaire/interventions/${intervention.id}?tab=devis`)
           return
 
         case 'waiting_quotes':
@@ -462,7 +469,7 @@ export function InterventionActionButtons({
           if (onOpenQuoteModal) {
             onOpenQuoteModal()
           } else {
-            window.location.href = `/prestataire/interventions/${intervention.id}?action=quote`
+            navigateTo(`/prestataire/interventions/${intervention.id}?action=quote`)
           }
           return
 
@@ -472,7 +479,7 @@ export function InterventionActionButtons({
           } else if (onOpenQuoteModal) {
             onOpenQuoteModal()
           } else {
-            window.location.href = `/prestataire/interventions/${intervention.id}?action=quote`
+            navigateTo(`/prestataire/interventions/${intervention.id}?action=quote`)
           }
           return
 
@@ -489,7 +496,7 @@ export function InterventionActionButtons({
           return
 
         case 'view_quote':
-          window.location.href = `/prestataire/interventions/${intervention.id}#quotes`
+          navigateTo(`/prestataire/interventions/${intervention.id}#quotes`)
           return
 
         case 'start_planning':
@@ -498,7 +505,7 @@ export function InterventionActionButtons({
             onProposeSlots()
             return
           }
-          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=execution`
+          navigateTo(`/gestionnaire/interventions/${intervention.id}?tab=execution`)
           return
 
         case 'confirm_availabilities':
@@ -513,11 +520,11 @@ export function InterventionActionButtons({
             return
           }
           // Fallback redirection for gestionnaire
-          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
+          navigateTo(`/gestionnaire/interventions/${intervention.id}?tab=time-slots`)
           return
 
         case 'reschedule':
-          window.location.href = `/gestionnaire/interventions/${intervention.id}?tab=time-slots`
+          navigateTo(`/gestionnaire/interventions/${intervention.id}?tab=time-slots`)
           return
 
         case 'start_work':
@@ -529,7 +536,7 @@ export function InterventionActionButtons({
           break
 
         case 'modify_schedule':
-          window.location.href = `/locataire/interventions/${intervention.id}?action=modify-schedule`
+          navigateTo(`/locataire/interventions/${intervention.id}?action=modify-schedule`)
           return
 
         case 'reject_schedule':

@@ -28,8 +28,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Generate template
-    const buffer = generateTemplateBuffer(
+    // Generate template (⚡ async for lazy-loaded XLSX)
+    const buffer = await generateTemplateBuffer(
       type as 'full' | 'building' | 'lot' | 'contact' | 'contract',
       true // Include examples
     );

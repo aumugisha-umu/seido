@@ -59,7 +59,7 @@ npm run supabase:migrate # Creer nouvelle migration (avec timestamp correct)
 app/[role]/          # Routes par role (admin, gestionnaire, prestataire, locataire)
   - 87 pages total (reparties en 5+ route groups)
 components/          # 230+ composants reutilisables (22 directories)
-hooks/               # 61 custom hooks
+hooks/               # 66 custom hooks (+useDebounce, usePrefetch)
 lib/services/        # Architecture Repository Pattern
   core/              # Clients Supabase (4 types), base repository, error handler
   repositories/      # 22 repositories (acces donnees)

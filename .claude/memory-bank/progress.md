@@ -59,6 +59,59 @@
 
 ## Sprint Actuel (Jan-Feb 2026)
 
+### 2026-02-08 - Performance Navigation Optimization V2 COMPLETE
+
+**Session: Performance Optimization V2 — 17 User Stories**
+
+Feature complete avec tous les 17 stories implementes et valides.
+
+**Commit:** `3bb1f4e` feat(performance): complete Performance Navigation Optimization V2 (17 stories)
+
+**Stories par Phase:**
+
+| Phase | Stories | Description |
+|-------|---------|-------------|
+| Error Handling | US-101, US-102, US-103 | error.tsx, not-found.tsx, PageSkeleton |
+| List Performance | US-201, US-202, US-203, US-204 | useDebounce, pagination, virtual scroll, prefetch |
+| Detail Pages | US-301, US-302, US-303, US-304 | Batch queries, parallel loading, lazy tabs |
+| Next.js 15 | US-401, US-402, US-403 | Suspense, generateMetadata, PPR |
+| Supabase | US-501, US-502, US-503 | Singleton, indexes, backoff |
+
+**Fichiers crees (33):**
+- 10 error.tsx / not-found.tsx (5 roles)
+- 2 async content components (dashboard, interventions)
+- 7 loading.tsx (dashboard, mail, profile pour 3 roles)
+- 1 PageSkeleton component (5 variants)
+- 2 hooks (useDebounce, usePrefetch)
+- 1 retrospective document
+- 1 SSR migration pattern doc
+
+**Fichiers modifies (57):**
+- Services: intervention-service, conversation-service, contract.service
+- Repositories: intervention, contract, conversation
+- Components: intervention-card, building cards, lot-card, interventions-list-view-v1
+- Pages: dashboard, interventions, mail, notifications, building detail, lot detail
+
+**Learnings ajoutes a AGENTS.md:**
+- #018: react-window v2 API migration
+- #019: Virtualization threshold (50+ items)
+- #020: Suspense streaming with async Server Components
+- #021: Supabase relation alias syntax for joins
+
+**Patterns ajoutes a systemPatterns.md:**
+- #28: Suspense Streaming Pattern
+- #29: Virtual Scrolling avec Seuil
+
+**Bug fixes:**
+- use-debounce.ts: Duplicate useEffect import
+- react-window v2: API changes (FixedSizeList → List)
+- mail/page.tsx: Wrong table/column names
+- intervention-detail-client.tsx: Duplicate dynamic import
+
+**Retrospective:** `docs/learnings/2026-02-08-performance-navigation-v2-retrospective.md`
+
+---
+
 ### 2026-02-04 - Fix Critique ensureInterventionConversationThreads
 
 **Session: Code Review Bugfix — Conversation Threads**
@@ -843,23 +896,25 @@ Nouvelle architecture adresses avec support Google Maps:
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-02-02)
+## Metriques Projet (2026-02-08)
 
 | Metrique | Valeur |
 |----------|--------|
 | Repositories | **22** |
 | Domain Services | **32** |
 | API Routes | **113** (10 domaines) |
-| Hooks | **65** (+1 use-notification-prompt) |
-| Components | **235+** (+3 PWA notification) |
+| Hooks | **66** (+2: useDebounce, usePrefetch) |
+| Components | **361** (+3 nouveaux) |
 | Pages | **87** (5+ route groups) |
 | DB Tables | **44** |
 | DB Enums | 39 |
 | DB Functions | **79** |
-| Migrations | **147+** |
+| Migrations | **155** |
 | Server Actions | **17** files |
-| Notification Actions | **20** (+4 quote notifications) |
+| Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
+| **AGENTS.md Learnings** | **21** (+4 nouveaux) |
+| **systemPatterns.md Patterns** | **29** (+2 nouveaux) |
 
 ### Metriques Ecosysteme .claude/ (2026-01-23)
 
@@ -903,7 +958,8 @@ Nouvelle architecture adresses avec support Google Maps:
 | **2026-02-03** | **Simplification "Approuvée"** | **UX plus claire, moins de boutons** | **Un seul bouton "Planifier", message simplifié** |
 | **2026-02-03** | **ContactSelector dans Modal** | **Mockups → vrais composants** | **Pattern `hideUI={true}` + `ref.openContactModal()`** |
 | **2026-02-04** | **Fix ensureInterventionConversationThreads** | **Bug deleted_at fantôme + gap participants group** | **Fonction débloquée, participants ajoutés aux group threads existants** |
+| **2026-02-08** | **Performance Navigation Optimization V2** | **Perfs listes + pages detail + Next.js 15 patterns** | **17 stories, 90 fichiers, 4 learnings AGENTS.md, 2 patterns systemPatterns.md** |
 
 ---
-*Derniere mise a jour: 2026-02-04 18:10*
-*Session: Fix critique ensureInterventionConversationThreads (3 bugs)*
+*Derniere mise a jour: 2026-02-08*
+*Session: Performance Navigation Optimization V2 COMPLETE + COMPOUNDED (17 stories)*

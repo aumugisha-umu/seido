@@ -725,8 +725,8 @@ export function ChatInterface({
     userRole === 'gestionnaire'
 
   return (
-    <Card className={`flex flex-col h-full ${className}`}>
-      <CardHeader className="pb-3">
+    <Card className={`flex flex-col h-full gap-2 ${className}`}>
+      <CardHeader className="pb-0">
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-2 flex-1">
             {(() => {
@@ -734,44 +734,15 @@ export function ChatInterface({
                 ? getConversationDisplayInfo(thread.thread_type, userRole, participants)
                 : { title: 'Conversation' }
 
-              // Get specific participant for non-group threads
-              const getTargetParticipant = () => {
-                if (!thread) return null
-                if (thread.thread_type === 'tenant_to_managers') {
-                  return participants.find(p => p.user.role === 'locataire')
-                }
-                if (thread.thread_type === 'provider_to_managers') {
-                  return participants.find(p => p.user.role === 'prestataire')
-                }
-                return null
-              }
-
-              const targetParticipant = getTargetParticipant()
-
               return (
                 <>
                   <CardTitle className="text-lg">
                     {displayInfo.title}
                   </CardTitle>
 
-                  {/* For group threads: show all participants */}
-                  {thread?.thread_type === 'group' && !isLoading && participants.length > 0 && (
+                  {/* Show all participants for any thread type */}
+                  {!isLoading && participants.length > 0 && (
                     <ParticipantsDisplay participants={participants} />
-                  )}
-
-                  {/* For tenant/provider threads: show avatar + name */}
-                  {thread?.thread_type !== 'group' && displayInfo.subtitle && targetParticipant && (
-                    <div className="flex items-center gap-2">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage src={targetParticipant.user.avatar_url || undefined} />
-                        <AvatarFallback className="text-xs">
-                          {targetParticipant.user.first_name?.[0]}{targetParticipant.user.last_name?.[0]}
-                        </AvatarFallback>
-                      </Avatar>
-                      <p className="text-sm text-muted-foreground">
-                        {displayInfo.subtitle}
-                      </p>
-                    </div>
                   )}
                 </>
               )

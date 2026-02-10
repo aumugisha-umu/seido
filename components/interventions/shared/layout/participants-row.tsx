@@ -7,6 +7,8 @@
  * - Avatar chips for compact participant display
  * - Grouped by role with clear visual distinction
  * - Message icon for 1-1 chat (role-based permissions)
+ * - Two sections: account holders vs simple contacts
+ * - Rich HoverCard with full contact info
  *
  * Chat permissions:
  * - Gestionnaires can chat with everyone
@@ -18,12 +20,17 @@ import { cn } from '@/lib/utils'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import {
+  HoverCard,
+  HoverCardTrigger,
+  HoverCardContent
+} from '@/components/ui/hover-card'
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip'
-import { Users, MessageSquare } from 'lucide-react'
+import { Users, ContactRound, MessageSquare, Mail, Phone, Building2 } from 'lucide-react'
 
 type UserRole = 'gestionnaire' | 'locataire' | 'prestataire' | 'admin'
 type ThreadType = 'group' | 'tenant_to_managers' | 'provider_to_managers'
@@ -32,8 +39,11 @@ interface Participant {
   id: string
   name: string
   email?: string
+  phone?: string
   avatar_url?: string | null
   company_name?: string | null
+  /** Whether the user has an auth account (can log in and chat) */
+  hasAccount?: boolean
 }
 
 interface ParticipantsRowProps {
@@ -54,19 +64,19 @@ interface ParticipantsRowProps {
 // Role colors following the existing design system
 const roleConfig = {
   managers: {
-    label: 'Gestionnaires',
+    label: 'Gestionnaire',
     bgColor: 'bg-blue-100',
     textColor: 'text-blue-700',
     borderColor: 'border-blue-200'
   },
   providers: {
-    label: 'Prestataires',
+    label: 'Prestataire',
     bgColor: 'bg-amber-100',
     textColor: 'text-amber-700',
     borderColor: 'border-amber-200'
   },
   tenants: {
-    label: 'Locataires',
+    label: 'Locataire',
     bgColor: 'bg-emerald-100',
     textColor: 'text-emerald-700',
     borderColor: 'border-emerald-200'
@@ -84,68 +94,133 @@ const getInitials = (name: string) => {
 
 interface ParticipantChipProps {
   participant: Participant
-  role: 'managers' | 'providers' | 'tenants'
+  roleKey: 'managers' | 'providers' | 'tenants'
   /** Afficher l'icône message pour ce participant */
   showChatIcon?: boolean
   /** Callback pour ouvrir le chat */
   onChatClick?: () => void
 }
 
-const ParticipantChip = ({ participant, role, showChatIcon, onChatClick }: ParticipantChipProps) => {
-  const config = roleConfig[role]
+const ParticipantChip = ({ participant, roleKey, showChatIcon, onChatClick }: ParticipantChipProps) => {
+  const config = roleConfig[roleKey]
+  const hasAccount = participant.hasAccount !== false // default true for backwards compat
 
   return (
-    <TooltipProvider delayDuration={300}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div
-            className={cn(
-              'inline-flex items-center gap-1.5 px-2 py-1 rounded-full',
-              'border transition-colors cursor-default',
-              config.bgColor,
-              config.borderColor,
-              'hover:opacity-80'
+    <HoverCard openDelay={300} closeDelay={100}>
+      <HoverCardTrigger asChild>
+        <div
+          className={cn(
+            'inline-flex items-center gap-1.5 px-2 py-1 rounded-full',
+            'transition-colors cursor-default',
+            hasAccount
+              ? cn('border', config.bgColor, config.borderColor)
+              : cn('border border-dashed', config.bgColor + '/50', config.borderColor),
+            'hover:opacity-80'
+          )}
+        >
+          <Avatar className={cn('h-5 w-5', !hasAccount && 'grayscale-[40%]')}>
+            {participant.avatar_url && (
+              <AvatarImage src={participant.avatar_url} alt={participant.name} />
             )}
-          >
-            <Avatar className="h-5 w-5">
+            <AvatarFallback className={cn(
+              'text-[10px] font-medium',
+              hasAccount ? cn(config.bgColor, config.textColor) : cn(config.bgColor + '/50', config.textColor + '/60')
+            )}>
+              {getInitials(participant.name)}
+            </AvatarFallback>
+          </Avatar>
+          <span className={cn(
+            'text-xs font-medium truncate max-w-[100px]',
+            hasAccount ? config.textColor : config.textColor + '/60'
+          )}>
+            {participant.name}
+          </span>
+          {/* Icône message pour ouvrir le chat 1-1 (only for users with accounts) */}
+          {showChatIcon && hasAccount && onChatClick && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onChatClick()
+              }}
+              className={cn(
+                'ml-0.5 p-0.5 rounded-full transition-colors',
+                'hover:bg-white/50 active:bg-white/70',
+                config.textColor
+              )}
+              aria-label={`Envoyer un message à ${participant.name}`}
+            >
+              <MessageSquare className="h-3 w-3" />
+            </button>
+          )}
+        </div>
+      </HoverCardTrigger>
+      <HoverCardContent side="bottom" align="start" className="w-64 p-3">
+        <div className="space-y-2">
+          {/* Header: Avatar + Name + Role badge */}
+          <div className="flex items-center gap-2.5">
+            <Avatar className="h-8 w-8">
               {participant.avatar_url && (
                 <AvatarImage src={participant.avatar_url} alt={participant.name} />
               )}
-              <AvatarFallback className={cn('text-[10px] font-medium', config.bgColor, config.textColor)}>
+              <AvatarFallback className={cn(
+                'text-xs font-medium',
+                config.bgColor, config.textColor
+              )}>
                 {getInitials(participant.name)}
               </AvatarFallback>
             </Avatar>
-            <span className={cn('text-xs font-medium truncate max-w-[100px]', config.textColor)}>
-              {participant.name}
-            </span>
-            {/* Icône message pour ouvrir le chat 1-1 */}
-            {showChatIcon && onChatClick && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onChatClick()
-                }}
-                className={cn(
-                  'ml-0.5 p-0.5 rounded-full transition-colors',
-                  'hover:bg-white/50 active:bg-white/70',
-                  config.textColor
-                )}
-                aria-label={`Envoyer un message à ${participant.name}`}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold truncate">{participant.name}</p>
+              <Badge
+                variant="secondary"
+                className={cn('h-4 px-1.5 text-[10px] font-medium', config.bgColor, config.textColor)}
               >
-                <MessageSquare className="h-3 w-3" />
-              </button>
+                {config.label}
+              </Badge>
+            </div>
+          </div>
+
+          {/* Separator */}
+          {(participant.email || participant.phone || participant.company_name) && (
+            <div className="border-t" />
+          )}
+
+          {/* Contact details */}
+          <div className="space-y-1.5">
+            {participant.email && (
+              <div className="flex items-center gap-2">
+                <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <a
+                  href={`mailto:${participant.email}`}
+                  className="text-xs text-muted-foreground hover:text-foreground truncate transition-colors"
+                >
+                  {participant.email}
+                </a>
+              </div>
+            )}
+            {participant.phone && (
+              <div className="flex items-center gap-2">
+                <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <a
+                  href={`tel:${participant.phone}`}
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {participant.phone}
+                </a>
+              </div>
+            )}
+            {participant.company_name && (
+              <div className="flex items-center gap-2">
+                <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="text-xs text-muted-foreground truncate">
+                  {participant.company_name}
+                </span>
+              </div>
             )}
           </div>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-xs">
-          <div className="space-y-0.5">
-            <p className="font-medium">{participant.name}</p>
-            {participant.email && <p className="text-muted-foreground">{participant.email}</p>}
-            {participant.company_name && <p className="text-muted-foreground">{participant.company_name}</p>}
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+        </div>
+      </HoverCardContent>
+    </HoverCard>
   )
 }
 
@@ -205,55 +280,82 @@ export const ParticipantsRow = ({
     { key: 'tenants' as const, items: participants.tenants }
   ].filter(g => g.items.length > 0)
 
+  // Flatten all participants with their role key attached, then split by account status
+  const allParticipants = groups.flatMap(({ key, items }) =>
+    items.map(p => ({ ...p, roleKey: key }))
+  )
+  const withAccount = allParticipants.filter(p => p.hasAccount !== false)
+  const contacts = allParticipants.filter(p => p.hasAccount === false)
+
+  const renderChip = (p: typeof allParticipants[number]) => {
+    const threadType = canChatWith(currentUserRole, p.roleKey)
+    const isCurrentUser = p.id === currentUserId
+    const showChat = !isCurrentUser && threadType !== null && !!onOpenChat
+
+    return (
+      <ParticipantChip
+        key={p.id}
+        participant={p}
+        roleKey={p.roleKey}
+        showChatIcon={showChat}
+        onChatClick={showChat ? () => onOpenChat!(p.id, threadType!) : undefined}
+      />
+    )
+  }
+
   return (
-    <div className={cn('flex items-center gap-3 flex-wrap', className)}>
+    <div className={cn('flex items-center gap-2 flex-wrap', className)}>
       {/* Icon + Label */}
-      <div className="flex items-center gap-1.5 text-muted-foreground">
-        <Users className="h-4 w-4" />
-        <span className="text-sm font-medium">Participants</span>
-        <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-          {totalCount}
-        </Badge>
-      </div>
+      <TooltipProvider delayDuration={300}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="flex items-center gap-1.5 text-muted-foreground cursor-default">
+              <Users className="h-4 w-4" />
+              <span className="text-sm font-medium">Participants</span>
+              <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                {withAccount.length}
+              </Badge>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Utilisateurs ayant un compte Seido</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       {/* Separator */}
       <div className="h-4 w-px bg-border" />
 
-      {/* Participant chips grouped by role */}
-      <div className="flex items-center gap-2 flex-wrap flex-1">
-        {groups.map(({ key, items }) => {
-          // Déterminer si on peut chatter avec ce groupe
-          const threadType = canChatWith(currentUserRole, key)
-
-          return (
-            <div key={key} className="flex items-center gap-1">
-              {items.slice(0, 3).map((participant) => {
-                // Ne pas afficher l'icône chat pour soi-même
-                const isCurrentUser = participant.id === currentUserId
-                const showChat = !isCurrentUser && threadType !== null && onOpenChat
-
-                return (
-                  <ParticipantChip
-                    key={participant.id}
-                    participant={participant}
-                    role={key}
-                    showChatIcon={showChat}
-                    onChatClick={showChat ? () => onOpenChat(participant.id, threadType!) : undefined}
-                  />
-                )
-              })}
-              {items.length > 3 && (
-                <Badge
-                  variant="outline"
-                  className={cn('text-xs', roleConfig[key].textColor, roleConfig[key].borderColor)}
-                >
-                  +{items.length - 3}
-                </Badge>
-              )}
-            </div>
-          )
-        })}
+      {/* Account holders */}
+      <div className="flex items-center gap-1 flex-wrap">
+        {withAccount.map(renderChip)}
       </div>
+
+      {/* Contacts section (only if contacts exist) */}
+      {contacts.length > 0 && (
+        <>
+          <div className="h-4 w-px bg-border" />
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-1.5 text-muted-foreground cursor-default">
+                  <ContactRound className="h-3.5 w-3.5" />
+                  <span className="text-sm font-medium">Contacts</span>
+                  <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                    {contacts.length}
+                  </Badge>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Contacts externes sans compte Seido</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <div className="flex items-center gap-1 flex-wrap">
+            {contacts.map(renderChip)}
+          </div>
+        </>
+      )}
     </div>
   )
 }

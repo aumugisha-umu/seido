@@ -820,6 +820,43 @@ export class ConversationService {
   }
 
   /**
+   * Get all provider user IDs assigned to an intervention
+   * ✅ FIX 2026-02-09: Symmetric to getInterventionTenants for checkThreadAccess
+   * @param interventionId - The intervention ID
+   * @param onlyInvited - If true (default), only returns users with auth_id
+   * @returns Array of provider user IDs (prestataires assigned to this intervention)
+   */
+  private async getInterventionProviders(interventionId: string, onlyInvited: boolean = true): Promise<string[]> {
+    try {
+      // Join with users table to check auth_id
+      const { data, error } = await this.conversationRepo.supabase
+        .from('intervention_assignments')
+        .select(`
+          user_id,
+          user:users!inner(id, auth_user_id)
+        `)
+        .eq('intervention_id', interventionId)
+        .eq('role', 'prestataire')
+
+      if (error) {
+        logger.error('Failed to fetch intervention providers', error)
+        return []
+      }
+
+      // Filter by auth_id if onlyInvited is true
+      const providers = data?.filter(a => {
+        if (!onlyInvited) return true
+        return !!(a.user as any)?.auth_user_id
+      }) || []
+
+      return providers.map(a => a.user_id)
+    } catch (error) {
+      logger.error('Error in getInterventionProviders', error)
+      return []
+    }
+  }
+
+  /**
    * Check if user has access to intervention
    */
   private async checkInterventionAccess(interventionId: string, userId: string): Promise<boolean> {
@@ -894,6 +931,15 @@ export class ConversationService {
       if (thread.data.thread_type === 'tenant_to_managers' && user.role === 'locataire') {
         const tenants = await this.getInterventionTenants(thread.data.intervention_id)
         if (tenants.includes(userId)) {
+          return true
+        }
+      }
+
+      // ✅ FIX 2026-02-09: Special case for provider_to_managers thread - provider always has access
+      // Symmetric to tenant_to_managers above (fixes PERMISSION_DENIED bug)
+      if (thread.data.thread_type === 'provider_to_managers' && user.role === 'prestataire') {
+        const providers = await this.getInterventionProviders(thread.data.intervention_id)
+        if (providers.includes(userId)) {
           return true
         }
       }

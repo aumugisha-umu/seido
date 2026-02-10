@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-08
-**Total Learnings:** 21
+**Last Updated:** 2026-02-11
+**Total Learnings:** 28
 
 ---
 
@@ -85,12 +85,47 @@
 **When to Use:** Any feature assigning managers to property-related entities (interventions, contracts, etc.)
 **Added:** 2026-02-06 | **Source:** Conversation participants fix
 
+#### Learning #022: DB enum fields must propagate to ALL display components
+**Problem:** `scheduling_type` (fixed/slots/flexible) existed in DB but `InterventionDetailsCard` and `PlanningCard` had zero awareness — they only reasoned about slot/date data. Flexible mode (no slots by design) showed "En attente" and "Aucun creneau propose".
+**Solution:** When a DB enum affects display, audit ALL components that show related data. Thread the enum through types → config functions → UI. In SEIDO: check gestionnaire + locataire + prestataire views (3 roles x 2 components = 6 call sites).
+**Example:** `components/interventions/shared/cards/intervention-details-card.tsx:getPlanningStatusConfig()` — 4th param `schedulingType`
+**When to Use:** Any new DB enum or mode field that changes how related data should be displayed
+**Added:** 2026-02-09 | **Source:** Planning Mode Display Fix
+
+#### Learning #023: Avatar fallback cascade (first_name → name → email → '?')
+**Problem:** `AvatarFallback` using `first_name?.[0] + last_name?.[0]` renders empty string when both are null (common: many users only have `name` filled via OAuth).
+**Solution:** Use cascade: `first_name+last_name` → `name.split(' ').map(p=>p[0])` → `email.substring(0,2)` → `'?'`. The ParticipantsDisplay component already had this pattern.
+**Example:** `components/chat/chat-interface.tsx:767-772` — avatar fallback in individual thread header
+**When to Use:** Any component rendering user avatars/initials
+**Added:** 2026-02-09 | **Source:** Chat Avatar Display Fix
+
 #### Learning #012: Trigger Removal vs Application Code
 **Problem:** SQL trigger `add_team_managers_to_thread` added ALL managers globally — too coarse-grained for role-specific logic.
 **Solution:** Remove coarse triggers; implement fine-grained logic in application code where you have full context (user role, property links, etc.).
 **Example:** Migration `20260206100000_remove_auto_add_all_managers_trigger.sql` + app code in route.ts
 **When to Use:** When trigger behavior is too generic and needs role/context awareness
 **Added:** 2026-02-06 | **Source:** Conversation participants fix
+
+#### Learning #024: DB triggers must guard on auth_user_id
+**Problem:** The `add_assignment_to_conversation_participants` trigger added ALL assigned users (including contacts without auth accounts) to conversation threads. Contacts without accounts can't log in so they pollute participant lists and end up in wrong threads.
+**Solution:** Add a `SELECT EXISTS(... WHERE auth_user_id IS NOT NULL)` guard at the top of any trigger that adds conversation participants. Return early if the user has no auth account.
+**Example:** `supabase/migrations/20260209100000_fix_trigger_individual_threads.sql:30-35` — `v_has_auth` guard
+**When to Use:** Any DB trigger that adds users to conversations, notifications, or permission-gated features
+**Added:** 2026-02-09 | **Source:** Conversation thread bugs fix
+
+#### Learning #025: Supabase migration repair workflow
+**Problem:** A migration was already applied to the remote DB but needed to be updated (bug in the SQL). Can't just re-run or edit — Supabase treats applied migrations as immutable.
+**Solution:** Use `npx supabase migration repair --status reverted <timestamp> --linked` to mark as un-applied, edit the local file, then `npx supabase db push --linked` to re-apply. Include retroactive cleanup (DELETE/INSERT) in the migration for data consistency.
+**Example:** Migration `20260209100000` — reverted and re-pushed with auth_user_id guard
+**When to Use:** When an already-applied migration has a bug that needs fixing (not just adding new behavior)
+**Added:** 2026-02-09 | **Source:** Conversation thread bugs fix
+
+#### Learning #026: Optional boolean backwards compat (`!== false` pattern)
+**Problem:** Adding `hasAccount?: boolean` to a shared `Participant` interface would break existing callers that don't pass the field — they'd be treated as `false` (no account) if using `!!participant.hasAccount`.
+**Solution:** Use `participant.hasAccount !== false` instead of `!!participant.hasAccount`. This treats `undefined` as `true` (default: has account), only `false` means explicitly no account. Allows gradual adoption across callers.
+**Example:** `components/interventions/shared/layout/participants-row.tsx:94` — `const hasAccount = participant.hasAccount !== false`
+**When to Use:** When adding optional boolean flags to shared interfaces where existing callers shouldn't break
+**Added:** 2026-02-09 | **Source:** Participant account indicator
 
 ### Performance
 
@@ -163,6 +198,20 @@
 **Example:** `app/gestionnaire/(with-navbar)/mail/page.tsx:67`
 **When to Use:** When joining tables and needing a custom property name or selecting specific columns
 **Added:** 2026-02-08 | **Source:** Performance Navigation Optimization V2 (mail page fix)
+
+#### Learning #027: ISO date string timezone trap — use parseLocalDate
+**Problem:** `new Date("2026-01-01")` interprets the string as UTC midnight. In France (UTC+1), this becomes Dec 31 at 23:00 — off by one day. Affects DatePicker, Calendar, and any ISO↔Date conversions.
+**Solution:** Never use `new Date(isoString)` for display dates. Use `parseLocalDate(str)` which splits the string and constructs `new Date(year, month-1, day)` in local time. Use `formatLocalDate(date)` for the reverse.
+**Example:** `components/ui/date-picker.tsx:33-46` — exported `parseLocalDate` + `formatLocalDate`
+**When to Use:** Any component converting between ISO date strings (YYYY-MM-DD) and `Date` objects for display or form input
+**Added:** 2026-02-11 | **Source:** DatePicker enhancement (month/year dropdowns + manual input)
+
+#### Learning #028: react-day-picker v9 captionLayout="dropdown" for month/year selection
+**Problem:** Default Calendar only shows month-by-month arrows — selecting dates far in the past/future (e.g., birth date, lease start) requires clicking dozens of times.
+**Solution:** Set `captionLayout="dropdown"` on the Calendar component (react-day-picker v9 native support). Add `startMonth`/`endMonth` props for the dropdown range. Requires `fr` locale from date-fns for French month names.
+**Example:** `components/ui/calendar.tsx` — default captionLayout changed to `"dropdown"`, ±10 year range
+**When to Use:** Any Calendar/DatePicker where users might need to select dates more than 2 months away
+**Added:** 2026-02-11 | **Source:** DatePicker enhancement (month/year dropdowns)
 
 ### Testing
 

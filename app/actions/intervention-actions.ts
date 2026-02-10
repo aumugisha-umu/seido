@@ -24,6 +24,17 @@ import { createQuoteRequestsForProviders } from '@/app/api/create-manager-interv
 import { createInterventionNotification } from './notification-actions'
 import { ensureInterventionConversationThreads } from './conversation-actions'
 import { mapInterventionType } from '@/lib/utils/intervention-mappers'
+import {
+  determineInterventionStatus,
+  mapOptionToSchedulingType,
+  computeScheduledDate,
+  createFixedSlot,
+  createProposedSlots,
+  clearTimeSlots,
+  updateConfirmationRequirements,
+  storeProviderGuidelines,
+  storePerProviderInstructions,
+} from '@/lib/services/domain/scheduling-service'
 
 // Type aliases
 type InterventionUrgency = Database['public']['Enums']['intervention_urgency']
@@ -2481,6 +2492,12 @@ export async function programInterventionAction(
     requireQuote?: boolean
     selectedProviders?: string[]
     instructions?: string
+    // Assignment mode & per-provider instructions
+    assignmentMode?: string
+    providerInstructions?: Record<string, string>
+    // Confirmation participants
+    confirmationRequired?: string[]
+    requiresConfirmation?: boolean
   }
 ): Promise<ActionResult<Intervention>> {
   try {
@@ -2557,156 +2574,91 @@ export async function programInterventionAction(
     // Quote status is now tracked via intervention_quotes table and shown via QuoteStatusBadge
 
     const { option, directSchedule, proposedSlots } = planningData
+    const requiresConfirmation = !!(planningData.requiresConfirmation || (planningData.confirmationRequired && planningData.confirmationRequired.length > 0))
 
-    // Handle different planning types
-    switch (option) {
-      case 'direct': {
-        // Direct appointment - create time slot, wait for confirmation
-        if (!directSchedule || !directSchedule.date || !directSchedule.startTime) {
-          return {
-            success: false,
-            error: 'Date et heure sont requises pour fixer le rendez-vous'
-          }
-        }
-
-        // Calculate end_time: use provided endTime or add 1 hour by default
-        // This respects the DB constraint: end_time > start_time
-        let calculatedEndTime = directSchedule.endTime
-        if (!calculatedEndTime || calculatedEndTime === directSchedule.startTime) {
-          // Add 1 hour to start_time as default duration
-          const [hours, minutes] = directSchedule.startTime.split(':').map(Number)
-          const endHours = (hours + 1) % 24
-          calculatedEndTime = `${String(endHours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
-        }
-
-        // Delete any existing slots first
-        await supabase
-          .from('intervention_time_slots')
-          .delete()
-          .eq('intervention_id', interventionId)
-
-        // Create ONE time slot for the fixed appointment
-        const { error: insertSlotError } = await supabase
-          .from('intervention_time_slots')
-          .insert([{
-            intervention_id: interventionId,
-            slot_date: directSchedule.date,
-            start_time: directSchedule.startTime,
-            end_time: calculatedEndTime, // ✅ end_time > start_time (constraint respected)
-            is_selected: false, // Not yet confirmed by tenant/provider
-            proposed_by: user.id, // Gestionnaire who proposed it
-            notes: 'Rendez-vous fixé par le gestionnaire'
-          }])
-
-        if (insertSlotError) {
-          logger.error('❌ [SERVER-ACTION] Error creating appointment slot:', insertSlotError)
-          return { success: false, error: 'Erreur lors de la création du rendez-vous' }
-        }
-
-        logger.info('📅 [SERVER-ACTION] Direct appointment slot created:', {
-          start: directSchedule.startTime,
-          end: calculatedEndTime
-        })
-        break
-      }
-
-      case 'propose': {
-        // Propose multiple slots for tenant/provider selection
-        if (!proposedSlots || proposedSlots.length === 0) {
-          return {
-            success: false,
-            error: 'Des créneaux proposés sont requis pour la planification avec choix'
-          }
-        }
-
-        // Delete any existing slots first
-        await supabase
-          .from('intervention_time_slots')
-          .delete()
-          .eq('intervention_id', interventionId)
-
-        // Store proposed time slots with proposed_by field
-        const timeSlots = proposedSlots.map((slot) => ({
-          intervention_id: interventionId,
-          slot_date: slot.date,
-          start_time: slot.startTime,
-          end_time: slot.endTime,
-          is_selected: false, // Not yet confirmed
-          proposed_by: user.id // Gestionnaire who proposed these slots
-        }))
-
-        const { error: insertSlotsError } = await supabase
-          .from('intervention_time_slots')
-          .insert(timeSlots)
-
-        if (insertSlotsError) {
-          logger.error('❌ [SERVER-ACTION] Error inserting time slots:', insertSlotsError)
-          return { success: false, error: 'Erreur lors de la création des créneaux' }
-        }
-
-        logger.info('📅 [SERVER-ACTION] Proposed slots created:', { slotsCount: timeSlots.length })
-        break
-      }
-
-      case 'organize': {
-        // Autonomous organization - tenant and provider coordinate directly
-        logger.info('📅 [SERVER-ACTION] Organization mode - autonomous coordination')
-
-        // Delete any existing time slots (important: prevents display bug)
-        const { error: deleteError } = await supabase
-          .from('intervention_time_slots')
-          .delete()
-          .eq('intervention_id', interventionId)
-
-        if (deleteError) {
-          logger.warn('⚠️ [SERVER-ACTION] Error deleting old time slots:', deleteError)
-        } else {
-          logger.info('🗑️ [SERVER-ACTION] Old time slots deleted for flexible mode')
-        }
-        break
-      }
-
-      default:
+    // ── Step 1: Validate inputs ──────────────────────────────────
+    if (option === 'direct') {
+      if (!directSchedule || !directSchedule.date || !directSchedule.startTime) {
         return {
           success: false,
-          error: 'Type de planification non reconnu'
+          error: 'Date et heure sont requises pour fixer le rendez-vous'
         }
+      }
+    } else if (option === 'propose') {
+      if (!proposedSlots || proposedSlots.length === 0) {
+        return {
+          success: false,
+          error: 'Des créneaux proposés sont requis pour la planification avec choix'
+        }
+      }
     }
 
-    // Build manager comment
-    const managerCommentParts = []
+    // ── Step 2: Create time slots via shared scheduling service ──
+    // Uses identical logic as creation flow (create-manager-intervention/route.ts)
     if (option === 'direct' && directSchedule) {
-      managerCommentParts.push(`Rendez-vous proposé pour le ${directSchedule.date} à ${directSchedule.startTime}`)
+      const { error: slotError } = await createFixedSlot(
+        supabase,
+        interventionId,
+        directSchedule.date,
+        directSchedule.startTime,
+        directSchedule.endTime || undefined,
+        user.id,
+        requiresConfirmation
+      )
+      if (slotError) {
+        return { success: false, error: 'Erreur lors de la création du rendez-vous' }
+      }
+      logger.info('📅 [SERVER-ACTION] Fixed slot created via scheduling service')
     } else if (option === 'propose' && proposedSlots) {
-      managerCommentParts.push(`${proposedSlots.length} créneaux proposés`)
+      const { error: slotsError } = await createProposedSlots(
+        supabase,
+        interventionId,
+        proposedSlots,
+        user.id
+      )
+      if (slotsError) {
+        return { success: false, error: 'Erreur lors de la création des créneaux' }
+      }
+      logger.info('📅 [SERVER-ACTION] Proposed slots created via scheduling service', { count: proposedSlots.length })
     } else if (option === 'organize') {
-      managerCommentParts.push(`Planification autonome activée`)
+      await clearTimeSlots(supabase, interventionId)
+      logger.info('📅 [SERVER-ACTION] Time slots cleared for flexible mode')
     }
 
-    // Update intervention status to planification
-    // Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
-    const newStatus = 'planification' as InterventionStatus
+    // ── Step 3: Determine intervention status (matches creation flow 3-case logic) ──
+    const newStatus = determineInterventionStatus(
+      option,
+      directSchedule,
+      requiresConfirmation,
+      planningData.requireQuote
+    )
 
     logger.info(`📅 [SERVER-ACTION] Status decision: ${intervention.status} → ${newStatus}`)
 
-    const updateData: any = {
+    // ── Step 4: Update intervention with scheduling data ──
+    const updateData: Record<string, unknown> = {
       status: newStatus,
+      scheduling_type: mapOptionToSchedulingType(option),
       updated_at: new Date().toISOString()
     }
 
-    // Set scheduling_type based on option (using DB enum values)
-    if (option === 'direct') {
-      updateData.scheduling_type = 'fixed'
-    } else if (option === 'propose') {
-      updateData.scheduling_type = 'slots'
-    } else if (option === 'organize') {
-      updateData.scheduling_type = 'flexible'
+    // Set scheduled_date for fixed mode (ISO format matching creation flow)
+    if (option === 'direct' && directSchedule?.date && directSchedule?.startTime) {
+      updateData.scheduled_date = computeScheduledDate(directSchedule.date, directSchedule.startTime)
+    }
+
+    // Store assignment_mode on intervention
+    if (planningData.assignmentMode) {
+      updateData.assignment_mode = planningData.assignmentMode
     }
 
     logger.info('📅 [SERVER-ACTION] Update data prepared:', {
       option,
       scheduling_type: updateData.scheduling_type,
-      status: updateData.status
+      status: updateData.status,
+      has_scheduled_date: !!updateData.scheduled_date,
+      assignment_mode: planningData.assignmentMode,
+      confirmation_count: planningData.confirmationRequired?.length || 0
     })
 
     const { data: updatedIntervention, error: updateError } = await supabase
@@ -2721,7 +2673,25 @@ export async function programInterventionAction(
       return { success: false, error: 'Erreur lors de la mise à jour de l\'intervention' }
     }
 
-    // Create quote requests if requireQuote is enabled and providers are selected
+    // ── Step 5: Update confirmation requirements via shared service ──
+    await updateConfirmationRequirements(
+      supabase,
+      interventionId,
+      planningData.confirmationRequired || [],
+      requiresConfirmation
+    )
+
+    // ── Step 6: Store instructions via shared service (correct column: provider_guidelines) ──
+    if (planningData.instructions) {
+      await storeProviderGuidelines(supabase, interventionId, planningData.instructions)
+    }
+
+    // ── Step 7: Store per-provider instructions via shared service ──
+    if (planningData.providerInstructions) {
+      await storePerProviderInstructions(supabase, interventionId, planningData.providerInstructions)
+    }
+
+    // ── Step 8: Create quote requests if needed ──
     let quoteStats: { totalSelected: number; skipped: number; created: number } | null = null
 
     if (planningData.requireQuote && planningData.selectedProviders && planningData.selectedProviders.length > 0) {
@@ -2731,8 +2701,7 @@ export async function programInterventionAction(
       })
 
       try {
-        // Check for existing active quotes (pending or sent)
-        // to avoid creating duplicates
+        // Check for existing active quotes to avoid duplicates
         const { data: existingQuotes, error: quotesCheckError } = await supabase
           .from('intervention_quotes')
           .select('id, provider_id, status')
@@ -2744,37 +2713,20 @@ export async function programInterventionAction(
           throw quotesCheckError
         }
 
-        // Build set of provider IDs that already have active quotes
         const existingProviderIds = new Set(
           (existingQuotes || []).map(q => q.provider_id)
         )
 
-        // Filter out providers who already have active quotes
         const newProviderIds = planningData.selectedProviders.filter(
           providerId => !existingProviderIds.has(providerId)
         )
 
-        const skippedCount = existingProviderIds.size
-        const newCount = newProviderIds.length
-
         quoteStats = {
           totalSelected: planningData.selectedProviders.length,
-          skipped: skippedCount,
-          created: newCount
+          skipped: existingProviderIds.size,
+          created: newProviderIds.length
         }
 
-        logger.info('📊 [SERVER-ACTION] Quote creation analysis:', {
-          totalSelected: planningData.selectedProviders.length,
-          alreadyHaveQuotes: skippedCount,
-          willCreateNew: newCount,
-          existingQuoteDetails: existingQuotes?.map(q => ({
-            id: q.id,
-            provider: q.provider_id,
-            status: q.status
-          }))
-        })
-
-        // Only create quotes for NEW providers
         if (newProviderIds.length > 0) {
           await createQuoteRequestsForProviders({
             interventionId,
@@ -2785,41 +2737,23 @@ export async function programInterventionAction(
             globalMessage: planningData.instructions || undefined,
             supabase
           })
-
-          logger.info('✅ [SERVER-ACTION] Created quote requests for NEW providers only', {
-            newQuotesCount: newProviderIds.length
-          })
-        } else {
-          logger.info('⏭️ [SERVER-ACTION] Skipped quote creation - all selected providers already have active quotes')
         }
 
-        // Set requires_quote flag on intervention (status no longer changes to demande_de_devis)
+        // Set requires_quote flag
         const { error: requiresQuoteError } = await supabase
           .from('interventions')
           .update({ requires_quote: true })
           .eq('id', interventionId)
 
-        if (requiresQuoteError) {
-          logger.error('❌ [SERVER-ACTION] Error setting requires_quote flag:', requiresQuoteError)
-        } else {
-          logger.info('✅ [SERVER-ACTION] Intervention requires_quote flag set to true')
-          // Update the returned intervention
-          if (updatedIntervention) {
-            updatedIntervention.requires_quote = true
-          }
+        if (!requiresQuoteError && updatedIntervention) {
+          updatedIntervention.requires_quote = true
         }
-
       } catch (quoteError) {
         logger.error('❌ [SERVER-ACTION] Error creating quote requests:', quoteError)
-        // Don't fail the whole operation if quote creation fails
-        // The intervention is still programmed, just without the quote requests
       }
     }
 
-    // Note: demande_de_devis removed - always use planification or planifiee based on option
-    const finalStatus = planningData.option === 'organize' ? 'planification' : 'planifiee'
-
-    logger.info('✅ [SERVER-ACTION] Intervention programmed successfully', { finalStatus })
+    logger.info('✅ [SERVER-ACTION] Intervention programmed successfully', { status: newStatus })
 
     // Revalidate intervention pages
     revalidatePath('/gestionnaire/interventions')

@@ -61,6 +61,7 @@ export type ActionType =
   | 'start_planning'
   | 'manage_quotes'
   | 'propose_slots'
+  | 'manage_planning'
   | 'remind_tenant'
   | 'finalize'
   | 'reopen'
@@ -128,18 +129,11 @@ const getGestionnaireActions = (
     case 'planification':
       return [
         {
-          label: 'Gérer créneaux',
-          icon: Clock,
+          label: 'Gérer planification',
+          icon: Calendar,
           variant: 'primary',
-          actionType: 'propose_slots',
-          href: `${baseUrl}?tab=planning`
-        },
-        {
-          label: 'Gérer estimations',
-          icon: FileText,
-          variant: 'primary',
-          actionType: 'manage_quotes',
-          href: `${baseUrl}?tab=planning`
+          actionType: 'manage_planning',
+          href: `${baseUrl}?action=manage_planning`
         }
       ]
 

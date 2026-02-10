@@ -513,7 +513,9 @@ export async function POST(request: NextRequest) {
         })
 
         if (tenantThreadResult.success && tenantThreadResult.data?.id) {
-          logger.info({ threadId: tenantThreadResult.data.id, type: 'tenant_to_managers', participantId: tenant.id }, "✅ Individual tenant thread created")
+          // ✅ FIX 2026-02-09: Add tenant as explicit participant to their individual thread
+          await conversationRepo.addParticipant(tenantThreadResult.data.id, tenant.id)
+          logger.info({ threadId: tenantThreadResult.data.id, type: 'tenant_to_managers', participantId: tenant.id }, "✅ Individual tenant thread created + tenant added as participant")
           await sendThreadWelcomeMessage(serviceClientForThreads, tenantThreadResult.data.id, 'tenant_to_managers', user.id, tenant.name)
         } else {
           logger.error({ error: tenantThreadResult.error, tenantId: tenant.id }, "⚠️ Failed to create individual tenant thread")
@@ -551,7 +553,9 @@ export async function POST(request: NextRequest) {
         })
 
         if (providerThreadResult.success && providerThreadResult.data?.id) {
-          logger.info({ threadId: providerThreadResult.data.id, type: 'provider_to_managers', participantId: provider.id }, "✅ Individual provider thread created")
+          // ✅ FIX 2026-02-09: Add provider as explicit participant to their individual thread
+          await conversationRepo.addParticipant(providerThreadResult.data.id, provider.id)
+          logger.info({ threadId: providerThreadResult.data.id, type: 'provider_to_managers', participantId: provider.id }, "✅ Individual provider thread created + provider added as participant")
           await sendThreadWelcomeMessage(serviceClientForThreads, providerThreadResult.data.id, 'provider_to_managers', user.id, provider.name)
         } else {
           logger.error({ error: providerThreadResult.error, providerId: provider.id }, "⚠️ Failed to create individual provider thread")

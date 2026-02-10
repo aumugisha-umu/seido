@@ -15,9 +15,11 @@ interface TimePicker24hProps {
     onChange: (value: string) => void
     className?: string
     disabled?: boolean
+    /** Extra className applied to SelectContent (useful for z-index override in nested portals) */
+    contentClassName?: string
 }
 
-export function TimePicker24h({ value, onChange, className, disabled }: TimePicker24hProps) {
+export function TimePicker24h({ value, onChange, className, disabled, contentClassName }: TimePicker24hProps) {
     // Parse value "HH:mm"
     // If value is empty or invalid, default to empty strings
     const [hours, minutes] = React.useMemo(() => {
@@ -50,7 +52,7 @@ export function TimePicker24h({ value, onChange, className, disabled }: TimePick
                 <SelectTrigger className="w-[70px] bg-white focus:ring-0 focus:ring-offset-0">
                     <SelectValue placeholder="HH" />
                 </SelectTrigger>
-                <SelectContent className="h-[200px]">
+                <SelectContent className={cn("h-[200px]", contentClassName)}>
                     {hourOptions.map((h) => (
                         <SelectItem key={h} value={h}>
                             {h}
@@ -63,7 +65,7 @@ export function TimePicker24h({ value, onChange, className, disabled }: TimePick
                 <SelectTrigger className="w-[70px] bg-white focus:ring-0 focus:ring-offset-0">
                     <SelectValue placeholder="MM" />
                 </SelectTrigger>
-                <SelectContent className="h-[200px]">
+                <SelectContent className={cn("h-[200px]", contentClassName)}>
                     {minuteOptions.map((m) => (
                         <SelectItem key={m} value={m}>
                             {m}

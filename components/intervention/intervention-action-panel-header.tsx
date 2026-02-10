@@ -37,6 +37,24 @@ interface InterventionActionPanelHeaderProps {
     end_time: string
     status?: string
     proposed_by?: string
+    proposed_by_user?: {
+      first_name?: string | null
+      last_name?: string | null
+      company_name?: string | null
+      role?: string
+      name?: string
+    } | null
+    responses?: Array<{
+      user_id: string
+      response: string
+      user?: {
+        first_name?: string | null
+        last_name?: string | null
+        company_name?: string | null
+        role?: string
+        name?: string
+      } | null
+    }>
   }>
 }
 

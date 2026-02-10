@@ -17,7 +17,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { MapPin, Clock, Loader2, CheckCircle, Eye, MoreVertical, Flame, Calendar } from "lucide-react"
+import { MapPin, Clock, Loader2, CheckCircle, Eye, MoreVertical, Flame, Calendar, Edit } from "lucide-react"
 import { cn } from "@/lib/utils"
 import {
   getStatusColor,
@@ -133,6 +133,27 @@ export const InterventionCard = memo(function InterventionCard({
     ? `En attente de ${pendingCount} réponse${pendingCount > 1 ? 's' : ''}`
     : baseActionMessage
   const actions = getRoleBasedActions(intervention.id, intervention.status, userRole)
+
+  // Override labels when user has already responded to all active slots
+  if (intervention.status === 'planification' && userId && intervention.timeSlots) {
+    const activeSlots = intervention.timeSlots.filter(
+      (s: any) => s.status === 'pending' || s.status === 'requested'
+    )
+    const hasRespondedToAll = activeSlots.length > 0 && activeSlots.every((slot: any) => {
+      const userResp = slot.responses?.find((r: any) => r.user_id === userId)
+      return userResp && userResp.response !== 'pending'
+    })
+
+    if (hasRespondedToAll) {
+      for (const action of actions) {
+        if (action.actionType === 'select_slot' || action.actionType === 'propose_timeslots') {
+          action.label = 'Modifier mes réponses'
+          action.icon = Edit
+        }
+      }
+    }
+  }
+
   const dotMenuActions = getDotMenuActions(intervention.id, intervention.status, userRole)
 
   // Generate intervention URL based on role

@@ -92,14 +92,12 @@ export function getInterventionTabsConfig(role: InterventionUserRole): TabConfig
     case 'provider':
       return [
         ...baseTabs,
-        { value: 'planning', label: 'Planning' },
-        { value: 'activity', label: 'Activité' }
+        { value: 'planning', label: 'Planning' }
       ]
     case 'tenant':
       return [
         ...baseTabs,
-        { value: 'planning', label: 'Rendez-vous' },
-        { value: 'activity', label: 'Activité' }
+        { value: 'planning', label: 'Rendez-vous' }
       ]
   }
 }

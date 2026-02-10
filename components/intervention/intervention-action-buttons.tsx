@@ -92,6 +92,24 @@ interface InterventionActionButtonsProps {
     end_time: string
     status?: string
     proposed_by?: string
+    proposed_by_user?: {
+      first_name?: string | null
+      last_name?: string | null
+      company_name?: string | null
+      role?: string
+      name?: string
+    } | null
+    responses?: Array<{
+      user_id: string
+      response: string
+      user?: {
+        first_name?: string | null
+        last_name?: string | null
+        company_name?: string | null
+        role?: string
+        name?: string
+      } | null
+    }>
   }>
 }
 
@@ -151,6 +169,13 @@ export function InterventionActionButtons({
   // Définir les actions disponibles selon le statut et le rôle
   const getAvailableActions = (): ActionConfig[] => {
     const actions: ActionConfig[] = []
+
+    // Check if user has actively responded to ALL active (pending/requested) slots
+    const activeSlots = (timeSlots || []).filter(s => s.status === 'pending' || s.status === 'requested')
+    const hasRespondedToAll = activeSlots.length > 0 && activeSlots.every(slot => {
+      const userResp = slot.responses?.find(r => r.user_id === userId)
+      return userResp && userResp.response !== 'pending'
+    })
 
     switch (intervention.status) {
       case 'demande':
@@ -263,41 +288,54 @@ export function InterventionActionButtons({
         if (userRole === 'locataire') {
           actions.push({
             key: 'confirm_slot',
-            label: 'Valider un créneau',
-            icon: CheckCircle,
-            description: 'Confirmer un créneau proposé'
+            label: hasRespondedToAll ? 'Modifier mes réponses' : 'Valider un créneau',
+            icon: hasRespondedToAll ? Edit : CheckCircle,
+            description: hasRespondedToAll
+              ? 'Modifier vos réponses aux créneaux proposés'
+              : 'Confirmer un créneau proposé'
           })
         }
         if (userRole === 'prestataire') {
           // Use helper function to analyze time slots and determine action
           const analysis = analyzeTimeSlots(timeSlots, userId)
           const actionKey = getProviderActionForTimeSlots(analysis)
-          const label = getProviderActionLabel(actionKey)
 
-          // Map action keys to icons and descriptions
-          const actionConfig = {
-            confirm_availabilities: {
-              icon: CheckCircle,
-              description: 'Valider ou rejeter les créneaux proposés par le gestionnaire'
-            },
-            modify_availabilities: {
+          if (hasRespondedToAll && actionKey === 'confirm_availabilities') {
+            // User already responded to all slots — show "Modifier mes réponses"
+            actions.push({
+              key: 'confirm_availabilities',
+              label: 'Modifier mes réponses',
               icon: Edit,
-              description: 'Modifier vos disponibilités existantes'
-            },
-            add_availabilities: {
-              icon: Calendar,
-              description: 'Saisir vos créneaux de disponibilité'
+              description: 'Modifier vos réponses aux créneaux proposés'
+            })
+          } else {
+            const label = getProviderActionLabel(actionKey)
+
+            // Map action keys to icons and descriptions
+            const actionConfig = {
+              confirm_availabilities: {
+                icon: CheckCircle,
+                description: 'Valider ou rejeter les créneaux proposés par le gestionnaire'
+              },
+              modify_availabilities: {
+                icon: Edit,
+                description: 'Modifier vos disponibilités existantes'
+              },
+              add_availabilities: {
+                icon: Calendar,
+                description: 'Saisir vos créneaux de disponibilité'
+              }
             }
+
+            const config = actionConfig[actionKey]
+
+            actions.push({
+              key: actionKey,
+              label,
+              icon: config.icon,
+              description: config.description
+            })
           }
-
-          const config = actionConfig[actionKey]
-
-          actions.push({
-            key: actionKey,
-            label,
-            icon: config.icon,
-            description: config.description
-          })
         }
         break
 
@@ -892,16 +930,31 @@ export function InterventionActionButtons({
         isOpen={showSlotConfirmationModal}
         onClose={() => setShowSlotConfirmationModal(false)}
         slots={timeSlots
-          .filter(slot => slot.status === 'proposed' || slot.status === 'requested')
+          .filter(slot => slot.status === 'pending' || slot.status === 'requested')
           .map(slot => ({
             id: slot.id,
             slot_date: slot.slot_date,
             start_time: slot.start_time,
             end_time: slot.end_time,
             notes: null,
-            proposer_name: undefined,
-            proposer_role: undefined,
-            responses: []
+            proposer_name: slot.proposed_by_user
+              ? (slot.proposed_by_user.name
+                || (slot.proposed_by_user.first_name
+                  ? `${slot.proposed_by_user.first_name} ${slot.proposed_by_user.last_name || ''}`.trim()
+                  : slot.proposed_by_user.company_name) || undefined)
+              : undefined,
+            proposer_role: slot.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
+            responses: slot.responses?.map(r => ({
+              user_id: r.user_id,
+              response: r.response as 'accepted' | 'rejected' | 'pending',
+              user: r.user ? {
+                name: r.user.name
+                  || (r.user.first_name
+                    ? `${r.user.first_name} ${r.user.last_name || ''}`.trim()
+                    : r.user.company_name || 'Utilisateur'),
+                role: r.user.role
+              } : undefined
+            })) || []
           }))}
         interventionId={intervention.id}
         onSuccess={onActionComplete}

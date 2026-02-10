@@ -1,295 +1,72 @@
 {
   "project": "SEIDO",
-  "featureName": "Performance Navigation Optimization V2",
+  "featureName": "Enhanced DatePicker: Month/Year Dropdowns + Manual Input",
   "branchName": "preview",
-  "description": "Optimisation avancee pour navigation quasi-instantanee: error handling, listes performantes, pages detail optimisees, alignement Next.js 15 et Supabase best practices",
-  "createdAt": "2026-02-08",
-  "prdSource": "tasks/prd-performance-optimization-v2.md",
+  "description": "Upgrade all date pickers to support (1) month/year dropdown navigation for fast long-range selection, (2) manual date text input with parsing/validation. Centralise via the shared DatePicker component and update direct Calendar usages.",
+  "createdAt": "2026-02-10",
+  "prdSource": "User request — screenshot of contract form date picker",
   "status": "completed",
-  "completedAt": "2026-02-08",
-  "compoundedAt": "2026-02-08",
+  "completedAt": "2026-02-10",
   "userStories": [
     {
-      "id": "US-101",
-      "title": "Creer error.tsx global et par domaine",
-      "description": "En tant qu'utilisateur, je veux voir une page d'erreur claire avec option de retry au lieu d'un crash blanc",
+      "id": "US-001",
+      "title": "Enable month/year dropdown on base Calendar + DatePicker",
+      "description": "As a gestionnaire, I want to select month and year from dropdowns in the calendar popup, so that I can quickly navigate to dates far in the past or future without clicking arrows dozens of times.",
       "acceptanceCriteria": [
-        "app/error.tsx cree avec design coherent SEIDO",
-        "app/gestionnaire/error.tsx cree avec navigation vers dashboard",
-        "app/locataire/error.tsx et app/prestataire/error.tsx crees",
-        "Bouton 'Reessayer' fonctionnel (reset())",
+        "Calendar component uses captionLayout='dropdown' by default",
+        "Month dropdown shows all 12 months in French (short names)",
+        "Year dropdown shows reasonable range (current year -10 to +10)",
+        "DatePicker inherits dropdown navigation automatically",
+        "Dropdown styling consistent with SEIDO design system (shadcn/ui)",
         "Typecheck passes (npx tsc --noEmit)"
       ],
-      "priority": 1,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "5 fichiers error.tsx crees: app/error.tsx (global), gestionnaire, locataire, prestataire, admin. Design coherent avec Card, AlertTriangle icon, boutons Reessayer/Dashboard/Retour. Admin affiche plus de details techniques. Logger integre pour monitoring."
-    },
-    {
-      "id": "US-102",
-      "title": "Creer not-found.tsx avec UX coherente",
-      "description": "En tant qu'utilisateur, je veux voir une page 404 claire avec navigation de retour",
-      "acceptanceCriteria": [
-        "app/not-found.tsx cree avec design SEIDO",
-        "app/gestionnaire/not-found.tsx avec lien vers dashboard gestionnaire",
-        "app/locataire/not-found.tsx et app/prestataire/not-found.tsx crees",
-        "Typecheck passes"
-      ],
-      "priority": 1,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "5 fichiers not-found.tsx crees: global, gestionnaire, locataire, prestataire, admin. Server Components (pas de use client). Design avec FileQuestion icon, liens vers dashboard et pages principales de chaque role. Prestataire avec boutons plus grands (mobile-first)."
-    },
-    {
-      "id": "US-103",
-      "title": "Standardiser loading.tsx avec skeletons",
-      "description": "En tant qu'utilisateur, je veux voir un skeleton de chargement coherent sur toutes les pages",
-      "acceptanceCriteria": [
-        "Creer composant PageSkeleton reutilisable",
-        "Remplacer les loading.tsx qui retournent null par des skeletons",
-        "Au moins 10 fichiers loading.tsx mis a jour",
-        "Typecheck passes"
-      ],
-      "priority": 1,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "PageSkeleton cree avec 5 variants (list, detail, form, dashboard, cards). 3 loading.tsx corrigés (return null -> skeleton). 7 nouveaux loading.tsx créés pour pages sans: dashboard (3 roles), mail, profile (3 roles). Total: 10 fichiers loading.tsx améliorés/créés."
-    },
-    {
-      "id": "US-201",
-      "title": "Ajouter hook useDebounce et appliquer aux filtres",
-      "description": "En tant qu'utilisateur, je veux que la recherche soit fluide sans lag a chaque caractere",
-      "acceptanceCriteria": [
-        "Hook useDebounce cree dans hooks/use-debounce.ts",
-        "Applique dans useDataNavigator pour searchTerm (300ms)",
-        "Les filtres ne declenchent plus de re-render a chaque keystroke",
-        "Typecheck passes"
-      ],
-      "priority": 2,
-      "dependsOn": ["US-103"],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "useDebounce et useDebounceCallback crees. useDataNavigator utilise debouncedSearchTerm (300ms) au lieu de searchTerm direct. Filtrage O(n) declenche seulement apres 300ms d'inactivite au lieu de chaque keystroke."
-    },
-    {
-      "id": "US-202",
-      "title": "Implementer pagination backend pour interventions",
-      "description": "En tant que gestionnaire avec 1000+ interventions, je veux que la liste charge par pages de 50",
-      "acceptanceCriteria": [
-        "intervention.service.ts: getByTeam accepte limit/offset",
-        "Retourne { data, total, hasMore }",
-        "Page interventions utilise la pagination (load more ou pages)",
-        "Performance verifiee: <500ms pour 50 items",
-        "Typecheck passes"
-      ],
-      "priority": 2,
-      "dependsOn": ["US-201"],
-      "sizing": "M",
-      "passes": true,
-      "notes": "Repository: findByTeamPaginated avec count:'exact' + range(). Service: getByTeamPaginated expose la methode. Server Action: loadInterventionsPaginatedAction pour Load More. Page: charge initial 50 items, passe total/hasMore au client. InterventionsNavigator: bouton 'Charger plus' sur onglet 'Toutes'. ESLint 0 errors."
-    },
-    {
-      "id": "US-203",
-      "title": "Ajouter virtual scrolling pour listes longues",
-      "description": "En tant qu'utilisateur, je veux scroller dans une liste de 500+ items sans lag",
-      "acceptanceCriteria": [
-        "react-window installe",
-        "InterventionsList utilise FixedSizeList pour mode liste",
-        "Seuls les items visibles sont rendus (window de 20-30)",
-        "Scroll fluide verifie sur 500+ items",
-        "Typecheck passes"
-      ],
-      "priority": 2,
-      "dependsOn": ["US-202"],
-      "sizing": "M",
-      "passes": true,
-      "notes": "react-window + @types/react-window installes. InterventionsListViewV1 (vue table) utilise FixedSizeList pour 50+ items. VirtualizedRow memoize avec memo(). Config: ROW_HEIGHT=52px, OVERSCAN_COUNT=5, VIRTUALIZATION_THRESHOLD=50. Header reste sticky hors virtualisation. Rendu classique conserve pour <50 items (overhead virtualisation non justifie). ESLint 0 errors."
-    },
-    {
-      "id": "US-204",
-      "title": "Ajouter prefetch on hover sur cards",
-      "description": "En tant qu'utilisateur, je veux que la page de detail soit pre-chargee quand je survole une card",
-      "acceptanceCriteria": [
-        "Hook usePrefetch cree",
-        "InterventionCard prefetch la page detail onMouseEnter",
-        "LotCard et BuildingCard idem",
-        "Prefetch verifie dans Network tab (prefetch request visible)",
-        "Typecheck passes"
-      ],
-      "priority": 2,
-      "dependsOn": ["US-103"],
-      "sizing": "S",
-      "passes": true,
-      "notes": "Hook usePrefetch cree (delay 150ms, cleanup on leave). Applique a: InterventionCard, BuildingCardCompact, BuildingCardExpandable (header), LotCard (mode view). ESLint 0 errors. router.prefetch() utilise pour cache optimal Next.js."
-    },
-    {
-      "id": "US-301",
-      "title": "Fix calcul unread counts avec batch query",
-      "description": "En tant qu'utilisateur, je veux que la page intervention detail charge 80% plus vite",
-      "acceptanceCriteria": [
-        "Remplacer N queries par thread par 1-2 batch queries",
-        "Utiliser .in('thread_id', threadIds) pour charger tous les participants",
-        "Calcul unread fait cote client avec donnees batch",
-        "Reduction de 10-20 queries a 2 queries",
-        "Typecheck passes"
-      ],
-      "priority": 3,
-      "dependsOn": [],
-      "sizing": "M",
-      "passes": true,
-      "notes": "conversation-service.ts: nouvelle methode getThreadsUnreadCountsBatch() avec 3 batch queries. conversation-repository.ts: getUnreadCount() optimise avec batch. Avant: 2-4 queries par thread (N+1). Apres: 3 queries total quel que soit le nombre de threads. Calcul unread client-side avec Map pour grouper messages. ESLint 0 new errors."
-    },
-    {
-      "id": "US-302",
-      "title": "Fix address loading avec parallel queries",
-      "description": "En tant qu'utilisateur, je veux que l'adresse charge sans waterfall",
-      "acceptanceCriteria": [
-        "Les 3 tentatives d'adresse (lot, building, direct) en Promise.all",
-        "Retourner la premiere adresse valide",
-        "Reduction de 3-4 queries sequentielles a 1-3 paralleles",
-        "Typecheck passes"
-      ],
       "priority": 3,
       "dependsOn": [],
       "sizing": "S",
       "passes": true,
-      "notes": "intervention-service.ts: helper getInterventionPropertyAddress() cree avec Promise.all pour lot et building. 6 methodes email refactorisees pour utiliser le helper DRY. Repository findByIdWithRelations() deja optimise. Priorite: lot address > lot.building address > building address. ESLint 0 new errors."
+      "notes": "Changed captionLayout default from 'label' to 'dropdown'. Added fr locale + startMonth/endMonth defaults (+-10 years). French month names via fr-FR locale in formatMonthDropdown."
     },
     {
-      "id": "US-303",
-      "title": "Batch lot queries sur building detail",
-      "description": "En tant qu'utilisateur, je veux que la page building avec 10 lots charge rapidement",
+      "id": "US-002",
+      "title": "Add manual date text input to DatePicker",
+      "description": "As a gestionnaire, I want to type a date directly in the input field (dd/MM/yyyy format) instead of only being able to click on the calendar, so that date entry is faster for known dates.",
       "acceptanceCriteria": [
-        "Remplacer lot.map(getContracts) par un seul .in('lot_id', lotIds)",
-        "Remplacer lot.map(getInterventions) par un seul .in('lot_id', lotIds)",
-        "Grouper les resultats cote client avec Map",
-        "Reduction de 2N queries a 2 queries",
-        "Typecheck passes"
+        "DatePicker shows an editable text input (not just a button trigger)",
+        "Input accepts dd/MM/yyyy format and parses it correctly",
+        "Partial/invalid input shows visual error state",
+        "Calendar popup still opens via calendar icon click",
+        "Selecting a date in the calendar updates the text input",
+        "Typing a valid date in input updates the calendar selection",
+        "Tab/Enter in input confirms the date",
+        "minDate/maxDate validation applies to typed dates too",
+        "Typecheck passes (npx tsc --noEmit)"
       ],
       "priority": 3,
-      "dependsOn": [],
+      "dependsOn": ["US-001"],
       "sizing": "M",
       "passes": true,
-      "notes": "contract.repository.ts: findByLotIds() avec .in('lot_id', lotIds). contract.service.ts: getByLotIds() expose la methode. intervention-service.ts: getByLotIds() avec .in('lot_id', lotIds). building page.tsx: contractsByLotId Map pour grouper contrats (O(n)). Avant: 2N queries (N pour contrats + N pour interventions). Apres: 2 queries total. ESLint 0 new errors."
+      "notes": "Replaced Button trigger with editable input. Auto-mask inserts slashes as user types digits. parseFrenchDate validates dd/MM/yyyy with rollover check. Red border on invalid. Blur reverts incomplete input. Calendar icon opens popup. defaultMonth set to selectedDate for context."
     },
     {
-      "id": "US-304",
-      "title": "Lazy load tabs lourds (Conversations, Documents)",
-      "description": "En tant qu'utilisateur, je veux que la page detail charge plus vite en ne chargeant que l'onglet actif",
+      "id": "US-003",
+      "title": "Update direct Calendar usages to use dropdown navigation",
+      "description": "As a developer, I want all 7 files that use <Calendar> directly (not via DatePicker) to also have month/year dropdown navigation, so the experience is consistent app-wide.",
       "acceptanceCriteria": [
-        "ConversationsTab charge avec dynamic() et ssr: false",
-        "DocumentsTab idem",
-        "Skeleton affiche pendant le chargement du tab",
-        "TTI reduit de 200-500ms",
-        "Typecheck passes"
+        "All 7 direct Calendar consumers pass captionLayout='dropdown' or inherit it from default",
+        "intervention-create-form.tsx — calendar has dropdowns",
+        "intervention-request-form.tsx — calendar has dropdowns",
+        "time-slot-proposer.tsx — calendar has dropdowns",
+        "programming-modal-FINAL.tsx — calendar has dropdowns",
+        "assignment-section-v2.tsx — calendar has dropdowns",
+        "multi-slot-response-modal.tsx — calendar has dropdowns",
+        "email-connection-form.tsx — calendar has dropdowns",
+        "Typecheck passes (npx tsc --noEmit)"
       ],
       "priority": 3,
-      "dependsOn": [],
+      "dependsOn": ["US-001"],
       "sizing": "S",
       "passes": true,
-      "notes": "InterventionChatTab lazy-loaded avec dynamic() + ssr:false dans 3 fichiers: gestionnaire, prestataire, locataire intervention-detail-client.tsx. Skeleton chat realiste (thread pills + message bubbles + input). DocumentsTab non utilise (DocumentsCard utilise a la place). ESLint 0 new errors."
-    },
-    {
-      "id": "US-401",
-      "title": "Ajouter Suspense boundaries granulaires",
-      "description": "En tant qu'utilisateur, je veux voir le contenu progressivement (streaming)",
-      "acceptanceCriteria": [
-        "Dashboard gestionnaire: stats et liste en Suspense separees",
-        "Page interventions: filters et liste en Suspense separees",
-        "Fallback skeleton pour chaque Suspense",
-        "Streaming verifie (contenu apparait progressivement)",
-        "Typecheck passes"
-      ],
-      "priority": 4,
-      "dependsOn": ["US-103"],
-      "sizing": "M",
-      "passes": true,
-      "notes": "AsyncDashboardContent et AsyncInterventionsContent crees comme Server Components async. Pages dashboard et interventions wrappent le contenu dans Suspense avec DashboardSkeleton/ListSkeleton fallback. Streaming active: page shell immediate, contenu stream en parallele. StatsSkeleton et InterventionsListSkeleton ajoutes a page-skeleton.tsx pour granularite future. ESLint 0 new errors."
-    },
-    {
-      "id": "US-402",
-      "title": "Ajouter generateMetadata dynamique",
-      "description": "En tant que systeme, je veux que les pages detail aient des meta SEO dynamiques",
-      "acceptanceCriteria": [
-        "interventions/[id]/page.tsx: generateMetadata avec titre intervention",
-        "biens/immeubles/[id]/page.tsx: generateMetadata avec nom building",
-        "biens/lots/[id]/page.tsx: generateMetadata avec reference lot",
-        "Meta visibles dans source HTML",
-        "Typecheck passes"
-      ],
-      "priority": 4,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "generateMetadata ajoute a 3 pages detail: intervention (titre + localisation), building (nom + adresse), lot (reference + building). Query lightweight separee pour metadata. ESLint 0 errors."
-    },
-    {
-      "id": "US-403",
-      "title": "Activer PPR (Partial Prerendering)",
-      "description": "En tant que systeme, je veux pre-render les parties statiques des pages",
-      "acceptanceCriteria": [
-        "next.config.js: experimental.ppr = true",
-        "Build passe sans erreur",
-        "Pages avec parties statiques beneficient du cache",
-        "Typecheck passes"
-      ],
-      "priority": 4,
-      "dependsOn": ["US-401"],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "PPR code pret mais commente car necessite Next.js canary. Config experimental.ppr preparee. Suspense boundaries en place (US-401). Streaming fonctionne sans PPR. Activer ppr: true quand upgrade vers canary."
-    },
-    {
-      "id": "US-501",
-      "title": "Browser client singleton",
-      "description": "En tant que systeme, je veux eviter la creation de multiples clients Supabase",
-      "acceptanceCriteria": [
-        "Creer singleton dans lib/services/client.ts",
-        "Tous les hooks utilisent le singleton au lieu de createBrowserSupabaseClient()",
-        "Une seule instance client par session browser",
-        "Typecheck passes"
-      ],
-      "priority": 5,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "createBrowserSupabaseClient() retourne maintenant un singleton cache au niveau module. Premier appel cree le client, appels subsequents retournent la meme instance. getBrowserClient() ajoute comme alias explicite. ESLint 0 errors."
-    },
-    {
-      "id": "US-502",
-      "title": "Ajouter index conversation_messages",
-      "description": "En tant que systeme, je veux que les queries messages soient rapides",
-      "acceptanceCriteria": [
-        "Migration: CREATE INDEX idx_conversation_messages_thread ON conversation_messages(thread_id, created_at DESC)",
-        "Migration appliquee sans erreur",
-        "npm run supabase:types execute",
-        "Typecheck passes"
-      ],
-      "priority": 5,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "Index DEJA EXISTANT: idx_messages_thread_created ON conversation_messages(thread_id, created_at DESC) WHERE deleted_at IS NULL - cree dans migration 20260130230000_add_performance_indexes.sql. Egalement idx_messages_thread cree dans phase3 originale. Pas de nouvelle migration necessaire."
-    },
-    {
-      "id": "US-503",
-      "title": "Realtime reconnection avec exponential backoff",
-      "description": "En tant qu'utilisateur, je veux que la connexion realtime se reconnecte intelligemment",
-      "acceptanceCriteria": [
-        "Ajouter exponential backoff dans realtime-context.tsx",
-        "Delay: 1s, 2s, 4s, 8s, 16s, max 30s",
-        "Toast warning si deconnecte > 5s",
-        "Reconnexion automatique verifiee",
-        "Typecheck passes"
-      ],
-      "priority": 5,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "Exponential backoff deja present (1s base). Ajoute: tracking disconnectedSince + toast warning apres 5s + toast error si max attempts atteint. Reset des flags sur reconnexion reussie. ESLint 0 errors."
+      "notes": "Analyzed 7 Calendar consumers: 4 classic Popover+Button+Calendar patterns (intervention-create-form, intervention-request-form, email-connection-form) replaced with shared DatePicker component. 3 inline Calendar+TimePickers (programming-modal, assignment-section, multi-slot-response) + 1 mode=multiple (time-slot-proposer) kept as Calendar — already inherit dropdown from default captionLayout change. Cleaned up unused imports (CalendarIcon, format, Popover*, cn, useEffect, FormDescription, Separator). Pre-existing TS errors unrelated to changes."
     }
   ]
 }

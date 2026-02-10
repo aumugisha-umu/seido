@@ -1,0 +1,82 @@
+{
+  "project": "SEIDO",
+  "featureName": "Planning Modal: Fix instructions + messages + confirmation participants + account filtering",
+  "branchName": "preview",
+  "description": "Fix instructions textarea not working, update messages to clarify invited-only access, exclude non-account contacts from quotes/confirmation, add slot confirmation participants selector matching creation flow, wire data through to server action.",
+  "createdAt": "2026-02-09",
+  "prdSource": "User request with screenshots",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fix instructions textarea + add local state for instructions",
+      "description": "As a gestionnaire, I want the instructions textarea in the planning modal to work (typing updates the value), so I can add instructions when scheduling.",
+      "acceptanceCriteria": [
+        "Add modalInstructions state in parent, initialized from intervention.instructions",
+        "Pass instructions and onInstructionsChange props to ProgrammingModal",
+        "Typing in textarea updates the displayed text in real-time",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Added modalInstructions state, passed instructions + onInstructionsChange to modal"
+    },
+    {
+      "id": "US-002",
+      "title": "Update modal messages for invited-only clarity",
+      "description": "As a gestionnaire, I want all messages in the planning modal to clearly state that only invited contacts (with accounts) receive notifications and have access to instructions, estimation, and planning.",
+      "acceptanceCriteria": [
+        "Participants section subtitle mentions invited contacts",
+        "Instructions info notice mentions invited contacts only",
+        "Quote section mentions only invited providers",
+        "Planning section 'organize' info mentions invited participants",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Updated 4 messages: participants subtitle, instructions info, quote description, organize info"
+    },
+    {
+      "id": "US-003",
+      "title": "Add ParticipantConfirmationSelector to 'direct' and 'propose' modes in planning modal",
+      "description": "As a gestionnaire, when I choose 'Fixer le rendez-vous' or 'Proposer des disponibilités' in the planning modal, I want to see the same ParticipantConfirmationSelector as in the creation flow — optional toggle for fixed date, mandatory for slots — so I can choose who must validate.",
+      "acceptanceCriteria": [
+        "In 'direct' (fixed date) mode: optional confirmation toggle (Switch) + ParticipantConfirmationSelector (mandatory=false) when toggled on",
+        "In 'propose' (slots) mode: mandatory ParticipantConfirmationSelector (mandatory=true) always visible",
+        "Selector shows managers (excluding current user), providers, tenants — only those with accounts",
+        "Contacts without accounts are excluded from the selector",
+        "New props: confirmationRequired, onConfirmationRequiredChange, requiresConfirmation, onRequiresConfirmationChange added to modal",
+        "New state managed in parent component",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Added ParticipantConfirmationSelector + UserCheck icon, confirmationManagers/Providers/Tenants memos filter by has_account, direct mode has optional Switch toggle, propose mode has mandatory selector always visible, currentUserId passed to exclude self from managers"
+    },
+    {
+      "id": "US-004",
+      "title": "Wire confirmation data + assignmentMode + instructions through server action",
+      "description": "As a developer, I want the planning hook and server action to accept and process confirmationRequired, assignmentMode, providerInstructions and instructions, so the data is correctly stored in the DB.",
+      "acceptanceCriteria": [
+        "PlanningData type includes confirmationRequired field",
+        "useInterventionPlanning accepts confirmationRequired param",
+        "handleProgrammingConfirm includes confirmationRequired in payload",
+        "programInterventionAction accepts and processes confirmationRequired: updates intervention_assignments.requires_confirmation",
+        "programInterventionAction stores instructions on intervention",
+        "programInterventionAction stores assignmentMode on intervention",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-003"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Extended PlanningData with confirmationRequired+requiresConfirmation, hook passes them in payload, server action stores instructions+assignment_mode+requires_participant_confirmation on intervention, updates intervention_assignments.requires_confirmation+confirmation_status per user, also handles providerInstructions"
+    }
+  ]
+}

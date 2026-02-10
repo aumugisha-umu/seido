@@ -1,0 +1,72 @@
+# Progress Log - Conversation System Harmonization
+# Started: 2026-02-09
+# Stories: 6 total (US-001 to US-005 + US-003b)
+# Previous feature: Performance Navigation Optimization V2 (completed 2026-02-08)
+---
+
+## Investigation Phase (2026-02-09)
+
+### Bug Report
+- User: Prestataire receives PERMISSION_DENIED when sending messages
+- Error: "You do not have permission to send messages in this conversation"
+- Additional: Title displays "Discussion generale" instead of "Gestionnaire"
+
+### Root Cause Analysis
+
+**Bug 1: PERMISSION_DENIED (3 layers)**
+1. Application: `conversation-service.ts:checkThreadAccess()` - No fallback for `provider_to_managers`
+2. Application: `ensureInterventionConversationThreads()` - Provider NOT added as participant to individual thread
+3. Database: `can_view_conversation()` RLS - Only checks participants + managers, not assigned providers
+
+**Bug 2: Title Display**
+- `getConversationDisplayInfo()` logic is CORRECT (returns "Gestionnaire" for provider)
+- Root cause: `getThreadAction` uses user's Supabase client → RLS blocks → thread is null → title fallback
+- Fix: Adding provider as participant (US-003) fixes RLS access → thread loads → correct title
+
+**Bug 3: DB Trigger LIMIT 1 (discovered during implementation)**
+- `add_assignment_to_conversation_participants` uses LIMIT 1 for individual threads
+- With multiple providers, it picks the wrong thread (should filter by participant_id)
+
+---
+
+## Implementation Phase (2026-02-09)
+
+### US-001: Fix checkThreadAccess (✅ DONE)
+- Added `getInterventionProviders()` in conversation-service.ts (symmetric to getInterventionTenants)
+- Added fallback for `provider_to_managers` in `checkThreadAccess()` (line 935-943)
+- Files: `lib/services/domain/conversation-service.ts`
+
+### US-002: Fix title display (✅ DONE - no code change needed)
+- `getConversationDisplayInfo()` already handles `provider_to_managers` correctly
+- Bug was caused by RLS blocking `getThreadAction` (thread was null)
+- Fix from US-003 (add participant) resolves this automatically
+
+### US-003: Add participant to individual threads (✅ DONE)
+- `ensureInterventionConversationThreads()` now adds provider/tenant as participant
+  - On creation: `await conversationRepo.addParticipant(result.data.id, provider.id)`
+  - On existing thread: `await conversationRepo.addParticipant(existingProviderThread.id, provider.id)`
+- `create-manager-intervention/route.ts` also adds participant after thread creation
+- Files: `app/actions/conversation-actions.ts`, `app/api/create-manager-intervention/route.ts`
+
+### US-003b: Fix DB trigger (✅ DONE)
+- Created migration `20260209100000_fix_trigger_individual_threads.sql`
+- Trigger now uses `AND participant_id = NEW.user_id` for individual threads
+- Managers iterate ALL individual threads (not LIMIT 1)
+- Retroactive fix: adds all missing participants to existing individual threads
+
+### US-004: Verify tenant creation flow (✅ DONE - already correct)
+- `create-intervention/route.ts` already adds tenant as participant (lines 271-278)
+- Also adds managers from lot/building contacts (lines 321-331)
+- No changes needed
+
+### US-005: Unit tests (DEFERRED)
+- Requires E2E test environment with Supabase setup
+- Will be addressed in future testing sprint
+
+### Key Learnings
+1. **Three layers of access control**: App (checkThreadAccess) + App (participants) + DB (RLS)
+2. **participant_id ≠ participant**: Thread's `participant_id` column identifies the thread owner, but doesn't grant access. Must also be in `conversation_participants` table.
+3. **LIMIT 1 vs participant_id filter**: Old trigger assumed one thread per type, broke with individual threads (2026-02-01 migration).
+4. **intervention-service.ts was already correct**: `assignUser()` and `assignMultipleProviders()` already add participants. Bug was only in `ensureInterventionConversationThreads` and `create-manager-intervention`.
+
+---

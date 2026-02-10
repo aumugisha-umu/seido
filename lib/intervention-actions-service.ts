@@ -54,6 +54,12 @@ export interface PlanningData {
   requireQuote?: boolean
   selectedProviders?: string[]
   instructions?: string
+  // Assignment mode & per-provider instructions
+  assignmentMode?: string
+  providerInstructions?: Record<string, string>
+  // Confirmation participants
+  confirmationRequired?: string[]
+  requiresConfirmation?: boolean
 }
 
 export interface ExecutionData {

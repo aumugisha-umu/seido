@@ -59,6 +59,42 @@
 
 ## Sprint Actuel (Jan-Feb 2026)
 
+### 2026-02-09 - Planning Button + Conversation Thread Fix + Participant Indicator
+
+**Session 1: Planning Button Consolidation**
+
+Replaced 2 header buttons ("Gérer créneaux" + "Gérer estimations") on gestionnaire intervention detail page (status `planification`) with a single "Gérer planification" button that opens the ProgrammingModal with pre-filled state.
+
+| Fichier | Changement |
+|---------|------------|
+| `lib/intervention-action-utils.ts` | `manage_planning` ActionType + single button |
+| `gestionnaire intervention-detail-client.tsx` | Handler + URL auto-open + pre-fill useEffect |
+
+**Pre-fill logic:** Maps `scheduling_type` DB enum → modal option (`fixed`→`direct`, `slots`→`propose`, `flexible`→`organize`). Existing time slots pre-filled.
+
+---
+
+**Session 2: Conversation Thread Fix (4 stories via Ralph)**
+
+Fix 3 bugs: (1) DB trigger adds contacts without accounts to conversations, (2) trigger uses LIMIT 1 without participant_id for individual threads, (3) no visual distinction between users with/without accounts in participant badges.
+
+| Story | Description | Files |
+|-------|-------------|-------|
+| US-001 | DB trigger: auth_user_id guard + participant_id filter | Migration SQL |
+| US-002 | hasAccount flag in participant types | 4 files (3 roles + shared type) |
+| US-003 | Visual indicator (dashed border, muted, no chat icon) | participants-row.tsx |
+| US-004 | Already done (create-intervention handles threads) | No change |
+
+**Key decisions:**
+- Migration repair workflow (revert + re-push) instead of DB reset
+- `hasAccount !== false` for backwards compat (treats undefined as true)
+- Retroactive cleanup in migration (DELETE bad data + INSERT missing participants)
+
+**Learnings ajoutés:** AGENTS.md #024-#026
+**Retrospective:** `docs/learnings/2026-02-09-conversation-thread-fix-retrospective.md`
+
+---
+
 ### 2026-02-08 - Performance Navigation Optimization V2 COMPLETE
 
 **Session: Performance Optimization V2 — 17 User Stories**
@@ -896,7 +932,7 @@ Nouvelle architecture adresses avec support Google Maps:
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-02-08)
+## Metriques Projet (2026-02-09)
 
 | Metrique | Valeur |
 |----------|--------|
@@ -904,17 +940,17 @@ Nouvelle architecture adresses avec support Google Maps:
 | Domain Services | **32** |
 | API Routes | **113** (10 domaines) |
 | Hooks | **66** (+2: useDebounce, usePrefetch) |
-| Components | **361** (+3 nouveaux) |
+| Components | **361** |
 | Pages | **87** (5+ route groups) |
 | DB Tables | **44** |
 | DB Enums | 39 |
 | DB Functions | **79** |
-| Migrations | **155** |
+| Migrations | **156** (+1: fix_trigger_individual_threads) |
 | Server Actions | **17** files |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
-| **AGENTS.md Learnings** | **21** (+4 nouveaux) |
-| **systemPatterns.md Patterns** | **29** (+2 nouveaux) |
+| **AGENTS.md Learnings** | **26** (+5 since V2) |
+| **systemPatterns.md Patterns** | **29** |
 
 ### Metriques Ecosysteme .claude/ (2026-01-23)
 
@@ -959,7 +995,9 @@ Nouvelle architecture adresses avec support Google Maps:
 | **2026-02-03** | **ContactSelector dans Modal** | **Mockups → vrais composants** | **Pattern `hideUI={true}` + `ref.openContactModal()`** |
 | **2026-02-04** | **Fix ensureInterventionConversationThreads** | **Bug deleted_at fantôme + gap participants group** | **Fonction débloquée, participants ajoutés aux group threads existants** |
 | **2026-02-08** | **Performance Navigation Optimization V2** | **Perfs listes + pages detail + Next.js 15 patterns** | **17 stories, 90 fichiers, 4 learnings AGENTS.md, 2 patterns systemPatterns.md** |
+| **2026-02-09** | **Planning Button Consolidation** | **2 boutons → 1, ProgrammingModal pre-fill** | **2 fichiers, manage_planning ActionType** |
+| **2026-02-09** | **Conversation Thread Fix** | **Trigger auth_user_id guard + participant indicator** | **4 stories, 3 learnings AGENTS.md, migration repair workflow** |
 
 ---
-*Derniere mise a jour: 2026-02-08*
-*Session: Performance Navigation Optimization V2 COMPLETE + COMPOUNDED (17 stories)*
+*Derniere mise a jour: 2026-02-09*
+*Session: Conversation Thread Fix + Planning Button COMPLETE + COMPOUNDED*

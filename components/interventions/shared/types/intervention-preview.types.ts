@@ -266,6 +266,8 @@ export interface PlanningCardProps {
   scheduledDate?: string
   /** Heure de début du créneau confirmé (format HH:MM ou HH:MM:SS) */
   scheduledStartTime?: string
+  /** Type de planification choisi par le gestionnaire */
+  schedulingType?: 'fixed' | 'slots' | 'flexible' | null
   userRole: UserRole
   currentUserId: string
   onAddSlot?: () => void
@@ -358,6 +360,8 @@ export interface InterventionDetailsCardProps {
     scheduledEndTime?: string | null
     /** Mode date fixe (selected_by_manager) - ne pas afficher l'heure de fin */
     isFixedScheduling?: boolean
+    /** Type de planification choisi par le gestionnaire */
+    schedulingType?: 'fixed' | 'slots' | 'flexible' | null
     /** Statut du planning: pending (rien), proposed (créneaux proposés), scheduled (confirmé), completed */
     status: 'pending' | 'proposed' | 'scheduled' | 'completed'
     /** Nombre de créneaux proposés (pour status='proposed') */

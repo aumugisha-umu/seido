@@ -1,10 +1,60 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Performance Navigation Optimization V2 - COMPLETE + COMPOUNDED
+**Objectif:** Intervention Workflow Polish + ParticipantsRow Tooltips (IN PROGRESS)
 **Branch:** `preview`
 **Sprint:** Multi-Team Support + Performance Optimization (Jan-Feb 2026)
-**Derniere analyse:** Performance optimization V2 - 17/17 stories - 2026-02-08
+**Derniere analyse:** ParticipantsRow polish + scheduling service - 2026-02-11
+
+---
+
+## 🔧 IN PROGRESS: Intervention Workflow Polish (2026-02-11)
+
+### Vue d'Ensemble
+Multiple uncommitted changes improving intervention workflow and UI polish:
+
+1. **New scheduling-service.ts** (327 lines) — Domain service for intervention scheduling logic
+2. **ParticipantsRow polish** — Tooltips on section labels, ContactRound icon, badge consistency, separate counts
+3. **Intervention planning enhancements** — New params: assignmentMode, providerInstructions, confirmationRequired
+4. **UI components** — Calendar, date-picker, time-picker, modals improvements
+5. **Programming modal + approval modal** — Workflow refinements
+
+### Changes Summary (40 files, uncommitted)
+
+| Area | Files Changed | Key Change |
+|------|--------------|------------|
+| New service | scheduling-service.ts (327 lines) | Domain logic for scheduling |
+| ParticipantsRow | participants-row.tsx | Tooltip, ContactRound icon, badge unification |
+| Planning hook | use-intervention-planning.ts | assignmentMode, providerInstructions params |
+| Intervention workflow | action-utils, actions-service | Workflow refinements |
+| UI components | calendar, date-picker, time-picker | Polish |
+| Modals | programming-modal, approval-modal, multi-slot | Enhancements |
+
+---
+
+## ✅ COMPLETE: Conversation Thread Fix + Planning Button (2026-02-09)
+
+### Vue d'Ensemble
+Two features completed:
+1. **Planning Button Consolidation** — Replaced 2 header buttons ("Gérer créneaux" + "Gérer estimations") with single "Gérer planification" that opens ProgrammingModal with pre-filled state
+2. **Conversation Thread Fix** (4 stories via Ralph) — Fixed DB trigger bugs + added visual participant account indicator
+
+### Changes Summary
+
+| Feature | Files Changed | Key Change |
+|---------|--------------|------------|
+| Planning button | 2 | `manage_planning` action + pre-fill modal |
+| DB trigger fix | 1 migration | auth_user_id guard + participant_id filter |
+| hasAccount flag | 4 | Propagate auth_user_id to participant types (3 roles) |
+| Visual indicator | 1 | Dashed border + muted colors + no chat icon for contacts |
+
+### New Learnings (AGENTS.md #024-#026)
+- #024: DB triggers must guard on auth_user_id
+- #025: Supabase migration repair workflow
+- #026: Optional boolean backwards compat (`!== false`)
+
+### Retrospective
+`docs/learnings/2026-02-09-conversation-thread-fix-retrospective.md`
 
 ---
 
@@ -149,22 +199,22 @@ demande -> rejetee (terminal)
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-02-08)
+## Metriques Systeme (Mise a jour 2026-02-11)
 
 | Composant | Valeur |
 |-----------|--------|
 | **Tables DB** | **44** |
-| **Migrations** | **155** |
+| **Migrations** | **156** |
 | **API Routes** | **113** (10 domaines) |
 | **Pages** | **87** (5+ route groups) |
-| **Composants** | **361** (+3 nouveaux) |
-| **Hooks** | **66** (+2 nouveaux: useDebounce, usePrefetch) |
-| **Services domain** | **32** |
+| **Composants** | **361** |
+| **Hooks** | **66** |
+| **Services domain** | **33** (+1: scheduling-service) |
 | **Repositories** | **22** |
 | Statuts intervention | 9 |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **21** (+4 nouveaux) |
-| **systemPatterns.md Patterns** | **29** (+2 nouveaux) |
+| **AGENTS.md Learnings** | **26** |
+| **systemPatterns.md Patterns** | **29** |
 
 ---
 
@@ -209,5 +259,11 @@ import { List, type RowComponentProps } from 'react-window'
 
 ---
 
-*Derniere mise a jour: 2026-02-08*
-*Focus: Performance Navigation Optimization V2 COMPLETE + COMPOUNDED (17 stories, 4 learnings, 2 patterns)*
+*Derniere mise a jour: 2026-02-11*
+*Focus: Intervention Workflow Polish + ParticipantsRow Tooltips (IN PROGRESS, 40 files uncommitted)*
+
+## Files Recently Modified
+### 2026-02-10 23:16:12 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/AGENTS.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/tasks/progress.txt`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/learnings/2026-02-11-datepicker-participants-polish-retrospective.md`

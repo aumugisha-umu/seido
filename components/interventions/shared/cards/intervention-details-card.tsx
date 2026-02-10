@@ -35,6 +35,7 @@ import {
   Clock,
   AlertCircle,
   User,
+  Users,
   XCircle,
   HelpCircle
 } from 'lucide-react'
@@ -52,7 +53,8 @@ import { ParticipantsRow } from '../layout/participants-row'
 const getPlanningStatusConfig = (
   status: 'pending' | 'proposed' | 'scheduled' | 'completed',
   interventionStatus?: string,
-  proposedCount?: number
+  proposedCount?: number,
+  schedulingType?: 'fixed' | 'slots' | 'flexible' | null
 ) => {
   switch (status) {
     case 'completed':
@@ -99,6 +101,16 @@ const getPlanningStatusConfig = (
           color: 'text-slate-500',
           bgColor: 'bg-slate-50',
           description: null // Pas de description redondante
+        }
+      }
+      // Mode flexible: les participants s'organisent entre eux
+      if (schedulingType === 'flexible') {
+        return {
+          icon: Users,
+          label: 'Coordination autonome',
+          color: 'text-emerald-600',
+          bgColor: 'bg-emerald-50',
+          description: 'Les participants s\'organisent entre eux'
         }
       }
       // Statuts approuvee, planification, planifiee, etc.
@@ -188,7 +200,7 @@ interface PlanningStatusSectionProps {
 }
 
 const PlanningStatusSection = ({ planning, interventionStatus, onNavigateToPlanning }: PlanningStatusSectionProps) => {
-  const planningConfig = getPlanningStatusConfig(planning.status, interventionStatus, planning.proposedSlotsCount)
+  const planningConfig = getPlanningStatusConfig(planning.status, interventionStatus, planning.proposedSlotsCount, planning.schedulingType)
   const quotesConfig = getQuotesStatusConfig(
     planning.quotesStatus,
     interventionStatus,

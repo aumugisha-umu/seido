@@ -22,7 +22,8 @@ import {
   Plus,
   Clock,
   CheckCircle2,
-  CalendarCheck
+  CalendarCheck,
+  Users
 } from 'lucide-react'
 import { PlanningCardProps } from '../types'
 import { TimeSlotCard } from '../atoms'
@@ -36,6 +37,7 @@ export const PlanningCard = ({
   timeSlots = [],
   scheduledDate,
   scheduledStartTime,
+  schedulingType,
   userRole,
   currentUserId,
   onAddSlot,
@@ -69,7 +71,7 @@ export const PlanningCard = ({
           Planning
         </h3>
 
-        {canPropose && onAddSlot && (
+        {canPropose && onAddSlot && schedulingType !== 'flexible' && (
           <Button
             variant="outline"
             size="sm"
@@ -167,20 +169,38 @@ export const PlanningCard = ({
 
         {/* Message si aucun créneau et pas de date planifiée */}
         {!scheduledDate && timeSlots.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-            <Calendar className="h-10 w-10 mb-2 text-slate-300" />
-            <p className="text-sm">Aucun créneau proposé</p>
-            {canPropose && onAddSlot && (
-              <Button
-                variant="link"
-                size="sm"
-                onClick={onAddSlot}
-                className="mt-2"
-              >
-                Proposer un créneau
-              </Button>
-            )}
-          </div>
+          schedulingType === 'flexible' ? (
+            <div className="p-4 bg-emerald-50/30 border border-emerald-200 rounded-lg">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center flex-shrink-0">
+                  <Users className="h-5 w-5 text-emerald-600" />
+                </div>
+                <div className="flex-1">
+                  <h5 className="font-semibold text-sm text-emerald-900 mb-1">
+                    Coordination autonome
+                  </h5>
+                  <p className="text-sm text-emerald-700 leading-relaxed">
+                    Les participants se coordonnent directement entre eux pour fixer le rendez-vous.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <Calendar className="h-10 w-10 mb-2 text-slate-300" />
+              <p className="text-sm">Aucun créneau proposé</p>
+              {canPropose && onAddSlot && (
+                <Button
+                  variant="link"
+                  size="sm"
+                  onClick={onAddSlot}
+                  className="mt-2"
+                >
+                  Proposer un créneau
+                </Button>
+              )}
+            </div>
+          )
         )}
       </div>
     </div>

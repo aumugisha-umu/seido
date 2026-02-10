@@ -79,7 +79,7 @@ import { formatDate, formatTime, formatTimeRange } from '@/components/interventi
 // Modal pour choisir un créneau
 import { ChooseTimeSlotModal } from '@/components/intervention/modals/choose-time-slot-modal'
 // Modal pour répondre à un ou plusieurs créneaux (accepter/refuser)
-import { MultiSlotResponseModal } from '@/components/intervention/modals/multi-slot-response-modal'
+import { MultiSlotResponseModal, type TimeSlot as ModalTimeSlot } from '@/components/intervention/modals/multi-slot-response-modal'
 // Modal pour prévisualiser les documents
 import { DocumentPreviewModal } from '@/components/intervention/modals/document-preview-modal'
 
@@ -327,6 +327,11 @@ export function InterventionDetailClient({
   const [isCancellingQuote, setIsCancellingQuote] = useState(false)
   // ✅ FIX 2026-01-26: Use requires_quote field instead of deprecated demande_de_devis status
   const [requireQuote, setRequireQuote] = useState(intervention.requires_quote || false)
+  const [modalAssignmentMode, setModalAssignmentMode] = useState<AssignmentMode>(assignmentMode || 'group')
+  const [modalProviderInstructions, setModalProviderInstructions] = useState<Record<string, string>>({})
+  const [modalInstructions, setModalInstructions] = useState(intervention.instructions || '')
+  const [requiresConfirmation, setRequiresConfirmation] = useState(false)
+  const [confirmationRequired, setConfirmationRequired] = useState<string[]>([])
   const [showFinalizationModal, setShowFinalizationModal] = useState(false)
 
   // Ref to track if URL action has been processed (prevents re-triggering from unstable deps)
@@ -336,8 +341,11 @@ export function InterventionDetailClient({
   const [activeConversation, setActiveConversation] = useState<'group' | string>('group')
   const [selectedSlotIdForChoice, setSelectedSlotIdForChoice] = useState<string | null>(null)
   const [isChooseModalOpen, setIsChooseModalOpen] = useState(false)
-  // État pour la modale de réponse à un créneau
-  const [responseModalSlotId, setResponseModalSlotId] = useState<string | null>(null)
+  // État pour la modale de réponse à un créneau (all active slots)
+  const [responseModalSlots, setResponseModalSlots] = useState<ModalTimeSlot[]>([])
+  const [responseModalExisting, setResponseModalExisting] = useState<
+    Record<string, { response: 'accept' | 'reject' | 'pending'; reason?: string }>
+  >({})
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
 
   // Thread type sélectionné pour le chat (utilisé quand on clique sur une icône message)
@@ -506,7 +514,8 @@ export function InterventionDetailClient({
         email: a.user?.email || '',
         phone: a.user?.phone,
         role: a.user?.role,
-        type: 'gestionnaire' as const
+        type: 'gestionnaire' as const,
+        has_account: !!(a.user as any)?.auth_user_id
       }))
       .filter(c => c.id) // Remove empty contacts
 
@@ -518,7 +527,8 @@ export function InterventionDetailClient({
         email: a.user?.email || '',
         phone: a.user?.phone,
         role: a.user?.role,
-        type: 'prestataire' as const
+        type: 'prestataire' as const,
+        has_account: !!(a.user as any)?.auth_user_id
       }))
       .filter(c => c.id)
 
@@ -530,7 +540,8 @@ export function InterventionDetailClient({
         email: a.user?.email || '',
         phone: a.user?.phone,
         role: a.user?.role,
-        type: 'locataire' as const
+        type: 'locataire' as const,
+        has_account: !!(a.user as any)?.auth_user_id
       }))
       .filter(c => c.id)
 
@@ -561,6 +572,16 @@ export function InterventionDetailClient({
     )
   }, [])
 
+  const handleProviderInstructionsChange = useCallback((providerId: string, instructions: string) => {
+    setModalProviderInstructions(prev => ({ ...prev, [providerId]: instructions }))
+  }, [])
+
+  const handleConfirmationRequiredChange = useCallback((userId: string, required: boolean) => {
+    setConfirmationRequired(prev =>
+      required ? [...prev, userId] : prev.filter(id => id !== userId)
+    )
+  }, [])
+
   // ============================================================================
   // Transformations pour les composants shared (nouveau design PreviewHybrid)
   // ============================================================================
@@ -574,7 +595,9 @@ export function InterventionDetailClient({
         name: a.user!.name || '',
         email: a.user!.email || undefined,
         phone: a.user!.phone || undefined,
-        role: 'manager' as const
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'manager' as const,
+        hasAccount: !!a.user!.auth_user_id
       })),
     providers: assignments
       .filter(a => a.role === 'prestataire' && a.user)
@@ -583,7 +606,9 @@ export function InterventionDetailClient({
         name: a.user!.name || '',
         email: a.user!.email || undefined,
         phone: a.user!.phone || undefined,
-        role: 'provider' as const
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'provider' as const,
+        hasAccount: !!a.user!.auth_user_id
       })),
     tenants: assignments
       .filter(a => a.role === 'locataire' && a.user)
@@ -592,7 +617,9 @@ export function InterventionDetailClient({
         name: a.user!.name || '',
         email: a.user!.email || undefined,
         phone: a.user!.phone || undefined,
-        role: 'tenant' as const
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'tenant' as const,
+        hasAccount: !!a.user!.auth_user_id
       }))
   }), [assignments])
 
@@ -760,14 +787,13 @@ export function InterventionDetailClient({
     ? timeSlots.find(s => s.id === selectedSlotIdForChoice)
     : null
 
-  // Récupérer le slot complet pour la modale de réponse
-  const selectedSlotForResponse = responseModalSlotId
-    ? timeSlots.find(s => s.id === responseModalSlotId)
-    : null
-  // Récupérer la réponse actuelle de l'utilisateur pour ce slot
-  const currentUserResponseForSlot = selectedSlotForResponse
-    ? (selectedSlotForResponse as any).responses?.find((r: any) => r.user_id === serverUserId)?.response
-    : null
+  // Slots proposed by current user (for cancel-on-accept logic)
+  const userProposedSlotIds = useMemo(() =>
+    timeSlots
+      .filter(s => s.proposed_by === serverUserId && (s.status === 'pending' || s.status === 'requested'))
+      .map(s => s.id),
+    [timeSlots, serverUserId]
+  )
 
   // Créneau confirmé (si un créneau est sélectionné/confirmé)
   const confirmedSlot = timeSlots.find(s => s.status === 'selected')
@@ -804,17 +830,63 @@ export function InterventionDetailClient({
   const planning = useInterventionPlanning(
     requireQuote,
     selectedProviderIds,
-    intervention.instructions || '',
+    modalInstructions,
     selectedManagerIds,
     selectedTenantIds,
+    modalAssignmentMode,
+    modalProviderInstructions,
+    confirmationRequired,
+    requiresConfirmation,
   )
 
-  // Reset participant selection to defaults when programming modal opens
+  // Reset participant selection and pre-fill scheduling state when programming modal opens
   useEffect(() => {
     if (planning.programmingModal.isOpen) {
+      // Reset participants to defaults
       setSelectedManagerIds(managers.map(m => m.id))
       setSelectedProviderIds(providers.map(p => p.id))
       setSelectedTenantIds(tenants.map(t => t.id))
+
+      // Pre-fill confirmation from existing assignments
+      const confirmationUserIds = assignments
+        .filter(a => a.requires_confirmation === true)
+        .map(a => a.user_id)
+        .filter((id): id is string => !!id)
+
+      if (confirmationUserIds.length > 0) {
+        setRequiresConfirmation(true)
+        setConfirmationRequired(confirmationUserIds)
+      } else {
+        setRequiresConfirmation(false)
+        setConfirmationRequired([])
+      }
+
+      // Pre-fill scheduling option from current intervention state (for planification status)
+      const schedulingType = intervention.scheduling_type
+      if (schedulingType === 'fixed') {
+        planning.setProgrammingOption('direct')
+        if (scheduledDate && scheduledStartTime) {
+          planning.setProgrammingDirectSchedule({
+            date: scheduledDate,
+            startTime: scheduledStartTime.substring(0, 5),
+            endTime: scheduledEndTime?.substring(0, 5) || ''
+          })
+        }
+      } else if (schedulingType === 'slots') {
+        planning.setProgrammingOption('propose')
+        const existingSlots = timeSlots
+          .filter(s => s.status === 'pending' || s.status === 'requested')
+          .map(s => ({
+            date: s.slot_date || '',
+            startTime: (s.start_time || '').substring(0, 5),
+            endTime: (s.end_time || '').substring(0, 5)
+          }))
+        if (existingSlots.length > 0) {
+          planning.setProgrammingProposedSlots(existingSlots)
+        }
+      } else if (schedulingType === 'flexible') {
+        planning.setProgrammingOption('organize')
+      }
     }
   }, [planning.programmingModal.isOpen]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -905,6 +977,10 @@ export function InterventionDetailClient({
       setTimeout(() => {
         planning.openProgrammingModal(interventionActionData)
       }, 100)
+    } else if (actionParam === 'manage_planning' && intervention.status === 'planification') {
+      setTimeout(() => {
+        planning.openProgrammingModal(interventionActionData)
+      }, 100)
     } else {
       // Unknown action or status mismatch, reset the flag to allow future processing
       processedUrlActionRef.current = false
@@ -944,10 +1020,9 @@ export function InterventionDetailClient({
         // Open ProgrammingModal via planning hook
         planning.openProgrammingModal(interventionActionData)
         return
-      case 'propose_slots':
-      case 'manage_quotes':
-        // Simply switch to planning tab instead of navigating
-        setActiveTab('planning')
+      case 'manage_planning':
+        // Open ProgrammingModal pre-filled with current state
+        planning.openProgrammingModal(interventionActionData)
         return
       case 'finalize':
         // Check if it's an API action or navigation
@@ -1628,13 +1703,55 @@ export function InterventionDetailClient({
     }
   }
 
-  // Handler pour ouvrir la modale de réponse à un créneau
-  const handleOpenResponseModal = (slotId: string) => {
-    const slotExists = timeSlots.some(s => s.id === slotId)
-    if (slotExists) {
-      setResponseModalSlotId(slotId)
-      setIsResponseModalOpen(true)
+  // Handler pour ouvrir la modale de réponse — affiche TOUS les créneaux actifs
+  const handleOpenResponseModal = (_slotId: string) => {
+    const activeSlots = timeSlots.filter(s =>
+      s.status === 'pending' || s.status === 'requested'
+    )
+    if (activeSlots.length === 0) return
+
+    // Transform to modal format
+    const modalSlots: ModalTimeSlot[] = activeSlots.map(slot => ({
+      id: slot.id,
+      slot_date: slot.slot_date || '',
+      start_time: slot.start_time || '',
+      end_time: slot.end_time || '',
+      notes: (slot as any).notes || null,
+      proposer_name: slot.proposed_by_user?.first_name
+        ? `${slot.proposed_by_user.first_name} ${slot.proposed_by_user.last_name || ''}`
+        : slot.proposed_by_user?.company_name || (slot.proposed_by_user as any)?.name,
+      proposer_role: slot.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
+      responses: ((slot as any).responses || []).map((r: any) => ({
+        user_id: r.user_id,
+        response: r.response as 'accepted' | 'rejected' | 'pending',
+        user: {
+          name: r.user?.first_name
+            ? `${r.user.first_name} ${r.user.last_name || ''}`
+            : r.user?.company_name || r.user?.name || 'Utilisateur',
+          role: r.user?.role
+        }
+      }))
+    }))
+
+    // Build existingResponses with correct type mapping: 'accepted'->'accept', 'rejected'->'reject'
+    const existing: Record<string, { response: 'accept' | 'reject' | 'pending'; reason?: string }> = {}
+    for (const slot of activeSlots) {
+      const userResp = ((slot as any).responses || []).find(
+        (r: any) => r.user_id === serverUserId
+      )
+      if (userResp && userResp.response !== 'pending') {
+        existing[slot.id] = {
+          response: userResp.response === 'accepted' ? 'accept'
+                  : userResp.response === 'rejected' ? 'reject'
+                  : 'pending',
+          reason: userResp.notes || undefined
+        }
+      }
     }
+
+    setResponseModalSlots(modalSlots)
+    setResponseModalExisting(existing)
+    setIsResponseModalOpen(true)
   }
 
   // Handler pour fermer la modale et rafraîchir
@@ -2101,9 +2218,10 @@ export function InterventionDetailClient({
             id: m.id,
             name: m.name,
             email: m.email || '',
-            phone: m.phone,
+            phone: m.phone || undefined,
             role: m.role,
-            type: 'gestionnaire' as const
+            type: 'gestionnaire' as const,
+            has_account: !!m.has_account
           }))}
           selectedManagers={selectedManagerIds}
           onManagerToggle={handleManagerToggle}
@@ -2112,15 +2230,29 @@ export function InterventionDetailClient({
             id: t.id,
             name: t.name,
             email: t.email || '',
-            phone: t.phone,
+            phone: t.phone || undefined,
             type: 'locataire' as const,
-            has_account: true // Assigned tenants have accounts
+            has_account: !!t.has_account
           }))}
           selectedTenants={selectedTenantIds}
           onTenantToggle={handleTenantToggle}
           showTenantsSection={tenants.length > 0}
           includeTenants={tenants.length > 0}
           onIncludeTenantsChange={() => {}}
+          // Instructions
+          instructions={modalInstructions}
+          onInstructionsChange={setModalInstructions}
+          // Assignment mode & per-provider instructions
+          assignmentMode={modalAssignmentMode}
+          onAssignmentModeChange={setModalAssignmentMode}
+          providerInstructions={modalProviderInstructions}
+          onProviderInstructionsChange={handleProviderInstructionsChange}
+          // Confirmation participants
+          requiresConfirmation={requiresConfirmation}
+          onRequiresConfirmationChange={setRequiresConfirmation}
+          confirmationRequired={confirmationRequired}
+          onConfirmationRequiredChange={handleConfirmationRequiredChange}
+          currentUserId={serverUserId}
         />
 
         {/* Cancel Slot Modal */}
@@ -2223,6 +2355,7 @@ export function InterventionDetailClient({
                         scheduledStartTime,
                         scheduledEndTime,
                         isFixedScheduling, // ✅ Mode date fixe: ne pas afficher l'heure de fin
+                        schedulingType: intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null,
                         status: planningStatus,
                         proposedSlotsCount,
                         quotesCount: transformedQuotes.length,
@@ -2292,6 +2425,7 @@ export function InterventionDetailClient({
                     timeSlots={transformedTimeSlots}
                     scheduledDate={scheduledDate || undefined}
                     scheduledStartTime={scheduledStartTime || undefined}
+                    schedulingType={intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null}
                     userRole="manager"
                     currentUserId={serverUserId}
                     onAddSlot={handleOpenProgrammingModalWithData}
@@ -2384,37 +2518,21 @@ export function InterventionDetailClient({
           />
         )}
 
-        {/* Modale de réponse à un créneau (accepter/refuser) */}
-        {selectedSlotForResponse && (
+        {/* Modale de réponse aux créneaux (accepter/refuser — tous les créneaux actifs) */}
+        {responseModalSlots.length > 0 && (
           <MultiSlotResponseModal
             isOpen={isResponseModalOpen}
             onClose={() => {
               setIsResponseModalOpen(false)
-              setResponseModalSlotId(null)
+              setResponseModalSlots([])
+              setResponseModalExisting({})
             }}
-            slots={[{
-              id: selectedSlotForResponse.id,
-              slot_date: selectedSlotForResponse.slot_date || '',
-              start_time: selectedSlotForResponse.start_time || '',
-              end_time: selectedSlotForResponse.end_time || '',
-              notes: (selectedSlotForResponse as any).notes,
-              proposer_name: selectedSlotForResponse.proposed_by_user?.first_name
-                ? `${selectedSlotForResponse.proposed_by_user.first_name} ${selectedSlotForResponse.proposed_by_user.last_name || ''}`
-                : selectedSlotForResponse.proposed_by_user?.company_name,
-              proposer_role: selectedSlotForResponse.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
-              responses: (selectedSlotForResponse as any).responses?.map((r: any) => ({
-                user_id: r.user_id,
-                response: r.response as 'accepted' | 'rejected' | 'pending',
-                user: {
-                  name: r.user?.first_name
-                    ? `${r.user.first_name} ${r.user.last_name || ''}`
-                    : r.user?.company_name || 'Utilisateur',
-                  role: r.user?.role
-                }
-              })) || []
-            }]}
+            slots={responseModalSlots}
             interventionId={intervention.id}
-            existingResponses={currentUserResponseForSlot ? { [selectedSlotForResponse.id]: { response: currentUserResponseForSlot } } : undefined}
+            existingResponses={Object.keys(responseModalExisting).length > 0
+              ? responseModalExisting
+              : undefined}
+            userProposedSlotIds={userProposedSlotIds}
             onSuccess={handleRefresh}
           />
         )}
@@ -2471,6 +2589,7 @@ export function InterventionDetailClient({
             onActionChange={approvalHook.handleActionChange}
             onConfirm={approvalHook.handleConfirmAction}
             isLoading={approvalHook.isLoading}
+            documents={documents}
           />
         )}
 

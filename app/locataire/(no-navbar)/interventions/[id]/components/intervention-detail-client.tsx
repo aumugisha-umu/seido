@@ -73,15 +73,15 @@ import { InterventionActionPanelHeader } from '@/components/intervention/interve
 // ProgrammingModal removed - locataires don't need to program interventions
 // import { ProgrammingModal } from '@/components/intervention/modals/programming-modal'
 import { CancelSlotModal } from '@/components/intervention/modals/cancel-slot-modal'
-import { MultiSlotResponseModal } from '@/components/intervention/modals/multi-slot-response-modal'
+import { MultiSlotResponseModal, type TimeSlot as ModalTimeSlot } from '@/components/intervention/modals/multi-slot-response-modal'
 
 // Hooks
 import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
 import { useAutoExecuteAction } from '@/hooks/use-auto-execute-action'
 import { useActivityLogs } from '@/hooks/use-activity-logs'
 
-// Activity tab (shared)
-import { ActivityTab } from '@/components/interventions/activity-tab'
+// Progression card (moved from Activity tab to General tab)
+import { InterventionProgressCard } from '@/components/interventions/intervention-progress-card'
 
 // Confirmation banners
 import {
@@ -153,6 +153,13 @@ export function LocataireInterventionDetailClient({
   const router = useRouter()
   const planning = useInterventionPlanning()
   const [activeTab, setActiveTab] = useState('general')
+
+  // Response modal state (all active slots)
+  const [responseModalSlots, setResponseModalSlots] = useState<ModalTimeSlot[]>([])
+  const [responseModalExisting, setResponseModalExisting] = useState<
+    Record<string, { response: 'accept' | 'reject' | 'pending'; reason?: string }>
+  >({})
+  const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
 
   // ============================================================================
   // Auto-Execute Actions from Email Magic Links
@@ -377,7 +384,9 @@ export function LocataireInterventionDetailClient({
           name: a.user.name || '',
           email: a.user.email || undefined,
           phone: a.user.phone || undefined,
-          role: 'manager' as const
+          company_name: (typeof a.user.company === 'object' ? a.user.company?.name : a.user.company) || undefined,
+          role: 'manager' as const,
+          hasAccount: !!a.user.auth_user_id
         })),
       providers: assignmentList
         .filter((a: any) => a.role === 'prestataire' && a.user)
@@ -386,7 +395,9 @@ export function LocataireInterventionDetailClient({
           name: a.user.name || '',
           email: a.user.email || undefined,
           phone: a.user.phone || undefined,
-          role: 'provider' as const
+          company_name: (typeof a.user.company === 'object' ? a.user.company?.name : a.user.company) || undefined,
+          role: 'provider' as const,
+          hasAccount: !!a.user.auth_user_id
         })),
       tenants: assignmentList
         .filter((a: any) => a.role === 'locataire' && a.user)
@@ -395,7 +406,9 @@ export function LocataireInterventionDetailClient({
           name: a.user.name || '',
           email: a.user.email || undefined,
           phone: a.user.phone || undefined,
-          role: 'tenant' as const
+          company_name: (typeof a.user.company === 'object' ? a.user.company?.name : a.user.company) || undefined,
+          role: 'tenant' as const,
+          hasAccount: !!a.user.auth_user_id
         }))
     }
   }, [assignmentList])
@@ -438,6 +451,14 @@ export function LocataireInterventionDetailClient({
   const scheduledDate = confirmedSlot?.slot_date || null
   const scheduledStartTime = confirmedSlot?.start_time || null
 
+  // Slots proposed by current user (for cancel-on-accept logic)
+  const userProposedSlotIds = useMemo(() =>
+    timeSlots
+      .filter(s => s.proposed_by === currentUser.id && (s.status === 'pending' || s.status === 'requested'))
+      .map(s => s.id),
+    [timeSlots, currentUser.id]
+  )
+
   // Handler pour ouvrir le chat depuis un participant (icône message dans ParticipantsRow)
   const handleOpenChatFromParticipant = (
     _participantId: string,
@@ -461,6 +482,69 @@ export function LocataireInterventionDetailClient({
       console.error('Error selecting slot:', error)
       toast.error('Erreur lors de la sélection du créneau')
     }
+  }
+
+  // Handle accept/reject slot — opens response modal with ALL active slots
+  const handleAcceptSlot = (slot: TimeSlot) => {
+    if (!slot) {
+      toast.error('Erreur: créneau non trouvé')
+      return
+    }
+    handleOpenResponseModal(slot.id)
+  }
+
+  const handleRejectSlot = (slot: TimeSlot) => {
+    handleOpenResponseModal(slot.id)
+  }
+
+  // Handle opening response modal — shows ALL active slots
+  const handleOpenResponseModal = (_slotId: string) => {
+    const activeSlots = timeSlots.filter(s =>
+      s.status === 'pending' || s.status === 'requested'
+    )
+    if (activeSlots.length === 0) return
+
+    const modalSlots: ModalTimeSlot[] = activeSlots.map(slot => ({
+      id: slot.id,
+      slot_date: slot.slot_date || '',
+      start_time: slot.start_time || '',
+      end_time: slot.end_time || '',
+      notes: (slot as any).notes || null,
+      proposer_name: slot.proposed_by_user?.first_name
+        ? `${slot.proposed_by_user.first_name} ${slot.proposed_by_user.last_name || ''}`
+        : slot.proposed_by_user?.company_name || (slot.proposed_by_user as any)?.name,
+      proposer_role: slot.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
+      responses: ((slot as any).responses || []).map((r: any) => ({
+        user_id: r.user_id,
+        response: r.response as 'accepted' | 'rejected' | 'pending',
+        user: {
+          name: r.user?.first_name
+            ? `${r.user.first_name} ${r.user.last_name || ''}`
+            : r.user?.company_name || r.user?.name || 'Utilisateur',
+          role: r.user?.role
+        }
+      }))
+    }))
+
+    // Build existingResponses: 'accepted'->'accept', 'rejected'->'reject'
+    const existing: Record<string, { response: 'accept' | 'reject' | 'pending'; reason?: string }> = {}
+    for (const slot of activeSlots) {
+      const userResp = ((slot as any).responses || []).find(
+        (r: any) => r.user_id === currentUser.id
+      )
+      if (userResp && userResp.response !== 'pending') {
+        existing[slot.id] = {
+          response: userResp.response === 'accepted' ? 'accept'
+                  : userResp.response === 'rejected' ? 'reject'
+                  : 'pending',
+          reason: userResp.notes || undefined
+        }
+      }
+    }
+
+    setResponseModalSlots(modalSlots)
+    setResponseModalExisting(existing)
+    setIsResponseModalOpen(true)
   }
 
   // Handle work validation
@@ -578,6 +662,16 @@ export function LocataireInterventionDetailClient({
             userRole="locataire"
             userId={currentUser.id}
             onActionComplete={handleActionComplete}
+            timeSlots={timeSlots.map(s => ({
+              id: s.id,
+              slot_date: s.slot_date,
+              start_time: s.start_time,
+              end_time: s.end_time,
+              status: s.status || undefined,
+              proposed_by: s.proposed_by || undefined,
+              proposed_by_user: s.proposed_by_user || null,
+              responses: s.responses || []
+            }))}
           />
         }
         hasGlobalNav={false}
@@ -603,6 +697,25 @@ export function LocataireInterventionDetailClient({
           interventionId={intervention.id}
           onSuccess={handleActionComplete}
         />
+
+        {/* Slot Response Modal (all active slots with pre-filled responses) */}
+        {responseModalSlots.length > 0 && (
+          <MultiSlotResponseModal
+            isOpen={isResponseModalOpen}
+            onClose={() => {
+              setIsResponseModalOpen(false)
+              setResponseModalSlots([])
+              setResponseModalExisting({})
+            }}
+            slots={responseModalSlots}
+            interventionId={intervention.id}
+            existingResponses={Object.keys(responseModalExisting).length > 0
+              ? responseModalExisting
+              : undefined}
+            userProposedSlotIds={userProposedSlotIds}
+            onSuccess={handleActionComplete}
+          />
+        )}
 
         {/* Layout pleine largeur sans sidebar */}
         <div className="flex-1 flex flex-col rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
@@ -640,6 +753,7 @@ export function LocataireInterventionDetailClient({
                       onOpenChat={handleOpenChatFromParticipant}
                       planning={{
                         scheduledDate,
+                        schedulingType: intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null,
                         status: scheduledDate ? 'scheduled' : 'pending',
                         quotesCount: 0,
                         quotesStatus: 'pending'
@@ -647,14 +761,25 @@ export function LocataireInterventionDetailClient({
                     />
                   </div>
 
-                  {/* Documents */}
-                  <div className="mt-6 flex-1 min-h-0 overflow-hidden">
+                  {/* Documents & Progression — side by side on desktop, stacked on mobile */}
+                  <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <DocumentsCard
                       documents={transformedDocuments}
                       userRole="tenant"
                       onView={(id) => console.log('View document:', id)}
                       onDownload={(id) => console.log('Download document:', id)}
-                      className="overflow-hidden h-full"
+                    />
+                    <InterventionProgressCard
+                      intervention={intervention}
+                      activityLogs={activityLogs.map(log => ({
+                        ...log,
+                        user: (log as any).user_name ? {
+                          id: (log as any).user_id,
+                          name: (log as any).user_name,
+                          email: (log as any).user_email || '',
+                          avatar_url: (log as any).user_avatar_url || null
+                        } : undefined
+                      }))}
                     />
                   </div>
                 </ContentWrapper>
@@ -705,23 +830,6 @@ export function LocataireInterventionDetailClient({
                 />
               </TabsContent>
 
-              {/* TAB: ACTIVITÉ */}
-              <TabsContent value="activity" className="mt-0 flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
-                  <ActivityTab
-                    intervention={intervention}
-                    activityLogs={activityLogs.map(log => ({
-                      ...log,
-                      user: (log as any).user_name ? {
-                        id: (log as any).user_id,
-                        name: (log as any).user_name,
-                        email: (log as any).user_email || '',
-                        avatar_url: (log as any).user_avatar_url || null
-                      } : undefined
-                    }))}
-                  />
-                </div>
-              </TabsContent>
 
               {/* TAB: PLANNING */}
               <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
@@ -731,9 +839,19 @@ export function LocataireInterventionDetailClient({
                     timeSlots={transformedTimeSlots}
                     scheduledDate={scheduledDate || undefined}
                     scheduledStartTime={scheduledStartTime || undefined}
+                    schedulingType={intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null}
                     userRole="tenant"
                     currentUserId={currentUser.id}
                     onSelectSlot={handleSelectSlot}
+                    onApproveSlot={(slotId) => {
+                      const slot = timeSlots.find(s => s.id === slotId)
+                      if (slot) handleAcceptSlot(slot)
+                    }}
+                    onRejectSlot={(slotId) => {
+                      const slot = timeSlots.find(s => s.id === slotId)
+                      if (slot) handleRejectSlot(slot)
+                    }}
+                    onOpenResponseModal={handleOpenResponseModal}
                     className="flex-1 min-h-0"
                   />
                 </div>

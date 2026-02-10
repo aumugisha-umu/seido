@@ -1,0 +1,73 @@
+{
+  "project": "SEIDO",
+  "featureName": "Centralized Scheduling Service — Fix programInterventionAction to match creation flow",
+  "branchName": "preview",
+  "description": "Extract scheduling logic from creation flow into a shared scheduling-service.ts, then refactor programInterventionAction to use it. Fixes 8 bugs: wrong slot status column, missing selected_slot_id, missing scheduled_date, missing selected_by_manager, wrong instructions column, no RLS bypass, no response cleanup, wrong intervention status determination.",
+  "createdAt": "2026-02-09",
+  "prdSource": "Brainstorming analysis of creation flow vs planning modal divergences",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create scheduling-service.ts with shared scheduling functions",
+      "description": "As a developer, I want a centralized scheduling service that extracts the exact slot creation, status determination, and linking logic from the creation flow, so both the creation flow and the planning modal produce identical DB state.",
+      "acceptanceCriteria": [
+        "New file lib/services/domain/scheduling-service.ts exists",
+        "determineInterventionStatus() returns 'planifiee' for fixed+date+!confirmation, 'planification' otherwise (matches creation flow lines 319-353)",
+        "createFixedSlot() uses service role client, sets status='selected'|'pending' based on confirmation, sets selected_by_manager, links selected_slot_id on intervention, cleans up pending responses (matches creation flow lines 940-1017)",
+        "createProposedSlots() uses service role client, sets status='pending', sets proposed_by (matches creation flow lines 895-938)",
+        "clearTimeSlots() deletes existing slots for flexible mode",
+        "updateConfirmationRequirements() sets intervention flag + assignment requires_confirmation/confirmation_status (matches creation flow lines 727-768)",
+        "storeProviderGuidelines() stores in provider_guidelines column (matches creation flow line 1164)",
+        "storePerProviderInstructions() stores per-provider instructions on assignments",
+        "computeScheduledDate() returns ISO string format '${date}T${time}:00.000Z' (matches creation flow line 310)",
+        "mapOptionToSchedulingType() maps direct→fixed, propose→slots, organize→flexible",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Created lib/services/domain/scheduling-service.ts with 10 functions: determineInterventionStatus, mapOptionToSchedulingType, computeScheduledDate, createFixedSlot, createProposedSlots, clearTimeSlots, updateConfirmationRequirements, storeProviderGuidelines, storePerProviderInstructions. All replicate exact creation flow logic with line references."
+    },
+    {
+      "id": "US-002",
+      "title": "Refactor programInterventionAction to use scheduling service",
+      "description": "As a developer, I want programInterventionAction to use the shared scheduling service instead of its own divergent logic, so fixed appointments are correctly stored with status='selected', selected_slot_id linked, scheduled_date set, and provider_guidelines used.",
+      "acceptanceCriteria": [
+        "Direct mode: calls createFixedSlot() which sets status='selected'|'pending', selected_by_manager, links selected_slot_id, cleans responses",
+        "Propose mode: calls createProposedSlots() which sets status='pending' on all slots",
+        "Organize mode: calls clearTimeSlots()",
+        "Status determined by determineInterventionStatus() — fixed+!confirm → 'planifiee'",
+        "scheduled_date set via computeScheduledDate() for direct mode",
+        "Instructions stored in provider_guidelines (not instructions column) via storeProviderGuidelines()",
+        "Per-provider instructions stored via storePerProviderInstructions()",
+        "Confirmation requirements updated via updateConfirmationRequirements()",
+        "Old divergent slot creation code (is_selected, no status, no selected_slot_id) completely removed",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Replaced ~200 lines of divergent slot creation code with calls to scheduling service. Fixed all 8 bugs: status enum (selected/pending), selected_by_manager, selected_slot_id linking, scheduled_date ISO, status determination (planifiee for fixed+!confirm), provider_guidelines column, RLS bypass via service role, pending response cleanup. Added import for all 9 scheduling service functions."
+    },
+    {
+      "id": "US-003",
+      "title": "Verify display components work with corrected data",
+      "description": "As a gestionnaire, I want the planning tab to show 'Intervention planifiée' with the confirmed date for fixed appointments, and the general tab to show the correct planning status, so the UI correctly reflects the scheduled state.",
+      "acceptanceCriteria": [
+        "PlanningCard: fixed slot with status='selected' appears in 'Créneau confirmé' section (not 'Créneaux proposés')",
+        "PlanningCard: scheduledDate displays the green 'Intervention planifiée' banner with date+time",
+        "Pre-fill logic in intervention-detail-client.tsx: confirmedSlot found via status==='selected', scheduledDate and scheduledStartTime populated",
+        "Modal re-open pre-fills date and time correctly from confirmedSlot data",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Verified all display paths work with corrected data — zero UI code changes needed. PlanningCard line 58 finds status='selected' → confirmedSlots section. Line 91 scheduledDate shows green banner. Detail client line 794 confirmedSlot found, lines 849-854 pre-fill date+time. getPlanningStatusConfig('scheduled') returns 'Confirmé' purple badge."
+    }
+  ]
+}

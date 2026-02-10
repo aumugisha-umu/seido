@@ -78,7 +78,7 @@ import { Building2, MapPin, User as UserIcon, Calendar } from 'lucide-react'
 // Modals
 import { QuoteSubmissionModal } from '@/components/intervention/modals/quote-submission-modal'
 import { ModifyChoiceModal } from '@/components/intervention/modals/modify-choice-modal'
-import { MultiSlotResponseModal } from '@/components/intervention/modals/multi-slot-response-modal'
+import { MultiSlotResponseModal, type TimeSlot as ModalTimeSlot } from '@/components/intervention/modals/multi-slot-response-modal'
 
 // Multi-provider components
 import { LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
@@ -90,8 +90,8 @@ import { acceptTimeSlotAction, rejectTimeSlotAction } from '@/app/actions/interv
 import { useAutoExecuteAction } from '@/hooks/use-auto-execute-action'
 import { useActivityLogs } from '@/hooks/use-activity-logs'
 
-// Activity tab (shared)
-import { ActivityTab } from '@/components/interventions/activity-tab'
+// Progression card (moved from Activity tab to General tab)
+import { InterventionProgressCard } from '@/components/interventions/intervention-progress-card'
 
 // Confirmation banners
 import {
@@ -213,8 +213,11 @@ export function PrestataireInterventionDetailClient({
   const [slotToModify, setSlotToModify] = useState<TimeSlot | null>(null)
   const [currentChoice, setCurrentChoice] = useState<'accepted' | 'rejected'>('accepted')
 
-  // Response modal state (for accept/reject with confirmation)
-  const [responseModalSlotId, setResponseModalSlotId] = useState<string | null>(null)
+  // Response modal state (all active slots)
+  const [responseModalSlots, setResponseModalSlots] = useState<ModalTimeSlot[]>([])
+  const [responseModalExisting, setResponseModalExisting] = useState<
+    Record<string, { response: 'accept' | 'reject' | 'pending'; reason?: string }>
+  >({})
   const [isResponseModalOpen, setIsResponseModalOpen] = useState(false)
 
   // Thread type à utiliser pour InterventionChatTab
@@ -281,9 +284,8 @@ export function PrestataireInterventionDetailClient({
       },
       // Prestataire rejects a time slot
       reject_slot: async ({ slotId }) => {
-        // Open MultiSlotResponseModal (handles both accept and reject)
-        setResponseModalSlotId(slotId)
-        setIsResponseModalOpen(true)
+        // Open MultiSlotResponseModal with all active slots
+        handleOpenResponseModal(slotId)
         throw new Error('Veuillez indiquer la raison du refus')
       },
       // Prestataire submits a quick estimate
@@ -433,7 +435,9 @@ export function PrestataireInterventionDetailClient({
         name: a.user!.name || '',
         email: a.user!.email || undefined,
         phone: a.user!.phone || undefined,
-        role: 'manager' as const
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'manager' as const,
+        hasAccount: !!a.user!.auth_user_id
       })),
     providers: assignments
       .filter(a => a.role === 'prestataire' && a.user)
@@ -442,7 +446,9 @@ export function PrestataireInterventionDetailClient({
         name: a.user!.name || '',
         email: a.user!.email || undefined,
         phone: a.user!.phone || undefined,
-        role: 'provider' as const
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'provider' as const,
+        hasAccount: !!a.user!.auth_user_id
       })),
     tenants: assignments
       .filter(a => a.role === 'locataire' && a.user)
@@ -451,7 +457,9 @@ export function PrestataireInterventionDetailClient({
         name: a.user!.name || '',
         email: a.user!.email || undefined,
         phone: a.user!.phone || undefined,
-        role: 'tenant' as const
+        company_name: (typeof a.user!.company === 'object' ? (a.user!.company as any)?.name : a.user!.company) || undefined,
+        role: 'tenant' as const,
+        hasAccount: !!a.user!.auth_user_id
       }))
   }), [assignments])
 
@@ -489,15 +497,13 @@ export function PrestataireInterventionDetailClient({
     }))
   , [timeSlots])
 
-  // Slot sélectionné pour la modale de réponse
-  const selectedSlotForResponse = responseModalSlotId
-    ? timeSlots.find(s => s.id === responseModalSlotId)
-    : null
-
-  // Réponse actuelle de l'utilisateur pour ce slot
-  const currentUserResponseForSlot = selectedSlotForResponse
-    ? (selectedSlotForResponse as any).responses?.find((r: any) => r.user_id === currentUser.id)?.response
-    : null
+  // Slots proposed by current user (for cancel-on-accept logic)
+  const userProposedSlotIds = useMemo(() =>
+    timeSlots
+      .filter(s => s.proposed_by === currentUser.id && (s.status === 'pending' || s.status === 'requested'))
+      .map(s => s.id),
+    [timeSlots, currentUser.id]
+  )
 
   // Documents transformés pour DocumentsCard
   const transformedDocuments: InterventionDocument[] = useMemo(() =>
@@ -531,32 +537,68 @@ export function PrestataireInterventionDetailClient({
     setTimeout(() => setRefreshing(false), 1000)
   }
 
-  // Handle reject slot - opens the reject modal
+  // Handle reject slot — opens response modal with ALL active slots
   const handleRejectSlot = (slot: TimeSlot) => {
-    setSlotToReject(slot)
-    setRejectSlotModalOpen(true)
+    handleOpenResponseModal(slot.id)
   }
 
-  // Handle accept slot - opens the response modal for confirmation
+  // Handle accept slot — opens response modal with ALL active slots
   const handleAcceptSlot = (slot: TimeSlot) => {
-    console.log('🔵 [DEBUG] handleAcceptSlot called:', { slotId: slot?.id, interventionId: intervention.id })
     if (!slot) {
-      console.error('🔴 [DEBUG] handleAcceptSlot: slot is undefined!')
       toast.error('Erreur: créneau non trouvé')
       return
     }
-    // Open the response modal instead of calling action directly
-    setResponseModalSlotId(slot.id)
-    setIsResponseModalOpen(true)
+    handleOpenResponseModal(slot.id)
   }
 
-  // Handle opening response modal (for modify choice button)
-  const handleOpenResponseModal = (slotId: string) => {
-    const slotExists = timeSlots.some(s => s.id === slotId)
-    if (slotExists) {
-      setResponseModalSlotId(slotId)
-      setIsResponseModalOpen(true)
+  // Handle opening response modal — shows ALL active slots
+  const handleOpenResponseModal = (_slotId: string) => {
+    const activeSlots = timeSlots.filter(s =>
+      s.status === 'pending' || s.status === 'requested'
+    )
+    if (activeSlots.length === 0) return
+
+    const modalSlots: ModalTimeSlot[] = activeSlots.map(slot => ({
+      id: slot.id,
+      slot_date: slot.slot_date || '',
+      start_time: slot.start_time || '',
+      end_time: slot.end_time || '',
+      notes: (slot as any).notes || null,
+      proposer_name: slot.proposed_by_user?.first_name
+        ? `${slot.proposed_by_user.first_name} ${slot.proposed_by_user.last_name || ''}`
+        : slot.proposed_by_user?.company_name || (slot.proposed_by_user as any)?.name,
+      proposer_role: slot.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
+      responses: ((slot as any).responses || []).map((r: any) => ({
+        user_id: r.user_id,
+        response: r.response as 'accepted' | 'rejected' | 'pending',
+        user: {
+          name: r.user?.first_name
+            ? `${r.user.first_name} ${r.user.last_name || ''}`
+            : r.user?.company_name || r.user?.name || 'Utilisateur',
+          role: r.user?.role
+        }
+      }))
+    }))
+
+    // Build existingResponses: 'accepted'->'accept', 'rejected'->'reject'
+    const existing: Record<string, { response: 'accept' | 'reject' | 'pending'; reason?: string }> = {}
+    for (const slot of activeSlots) {
+      const userResp = ((slot as any).responses || []).find(
+        (r: any) => r.user_id === currentUser.id
+      )
+      if (userResp && userResp.response !== 'pending') {
+        existing[slot.id] = {
+          response: userResp.response === 'accepted' ? 'accept'
+                  : userResp.response === 'rejected' ? 'reject'
+                  : 'pending',
+          reason: userResp.notes || undefined
+        }
+      }
     }
+
+    setResponseModalSlots(modalSlots)
+    setResponseModalExisting(existing)
+    setIsResponseModalOpen(true)
   }
 
   // Handle modify choice - opens the modify choice modal
@@ -868,6 +910,7 @@ export function PrestataireInterventionDetailClient({
                       onOpenChat={handleOpenChatFromParticipant}
                       planning={{
                         scheduledDate,
+                        schedulingType: intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null,
                         status: scheduledDate ? 'scheduled' : 'pending',
                         quotesCount: transformedQuotes.length,
                         quotesStatus: transformedQuotes.some(q => q.status === 'approved')
@@ -880,15 +923,26 @@ export function PrestataireInterventionDetailClient({
                     />
                   </div>
 
-                  {/* Documents */}
-                  <div className="mt-6 flex-1 min-h-0 overflow-hidden">
+                  {/* Documents & Progression — side by side on desktop, stacked on mobile */}
+                  <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <DocumentsCard
                       documents={transformedDocuments}
                       userRole="provider"
                       onUpload={() => console.log('Upload document')}
                       onView={(id) => console.log('View document:', id)}
                       onDownload={(id) => console.log('Download document:', id)}
-                      className="overflow-hidden h-full"
+                    />
+                    <InterventionProgressCard
+                      intervention={intervention}
+                      activityLogs={activityLogs.map(log => ({
+                        ...log,
+                        user: (log as any).user_name ? {
+                          id: (log as any).user_id,
+                          name: (log as any).user_name,
+                          email: (log as any).user_email || '',
+                          avatar_url: (log as any).user_avatar_url || null
+                        } : undefined
+                      }))}
                     />
                   </div>
                 </ContentWrapper>
@@ -939,23 +993,6 @@ export function PrestataireInterventionDetailClient({
                 />
               </TabsContent>
 
-              {/* TAB: ACTIVITÉ */}
-              <TabsContent value="activity" className="mt-0 flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
-                  <ActivityTab
-                    intervention={intervention}
-                    activityLogs={activityLogs.map(log => ({
-                      ...log,
-                      user: (log as any).user_name ? {
-                        id: (log as any).user_id,
-                        name: (log as any).user_name,
-                        email: (log as any).user_email || '',
-                        avatar_url: (log as any).user_avatar_url || null
-                      } : undefined
-                    }))}
-                  />
-                </div>
-              </TabsContent>
 
               {/* TAB: PLANNING */}
               <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
@@ -974,6 +1011,7 @@ export function PrestataireInterventionDetailClient({
                     timeSlots={transformedTimeSlots}
                     scheduledDate={scheduledDate || undefined}
                     scheduledStartTime={scheduledStartTime || undefined}
+                    schedulingType={intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null}
                     userRole="provider"
                     currentUserId={currentUser.id}
                     onAddSlot={handleOpenAvailabilityModal}
@@ -1078,42 +1116,22 @@ export function PrestataireInterventionDetailClient({
         </DialogContent>
       </Dialog>
 
-      {/* Multi Slot Response Modal (handles both accept and reject for multiple slots) */}
-      {selectedSlotForResponse && (
+      {/* Multi Slot Response Modal (all active slots with pre-filled responses) */}
+      {responseModalSlots.length > 0 && (
         <MultiSlotResponseModal
           isOpen={isResponseModalOpen}
           onClose={() => {
             setIsResponseModalOpen(false)
-            setResponseModalSlotId(null)
+            setResponseModalSlots([])
+            setResponseModalExisting({})
           }}
-          slots={[{
-            id: selectedSlotForResponse.id,
-            slot_date: selectedSlotForResponse.slot_date || '',
-            start_time: selectedSlotForResponse.start_time || '',
-            end_time: selectedSlotForResponse.end_time || '',
-            notes: (selectedSlotForResponse as any).notes,
-            proposer_name: selectedSlotForResponse.proposed_by_user?.first_name
-              ? `${selectedSlotForResponse.proposed_by_user.first_name} ${selectedSlotForResponse.proposed_by_user.last_name || ''}`
-              : selectedSlotForResponse.proposed_by_user?.company_name,
-            proposer_role: selectedSlotForResponse.proposed_by_user?.role as 'gestionnaire' | 'prestataire' | 'locataire' | undefined,
-            responses: (selectedSlotForResponse as any).responses?.map((r: any) => ({
-              user_id: r.user_id,
-              response: r.response as 'accepted' | 'rejected' | 'pending',
-              user: {
-                name: r.user?.first_name
-                  ? `${r.user.first_name} ${r.user.last_name || ''}`
-                  : r.user?.company_name || 'Utilisateur',
-                role: r.user?.role
-              }
-            })) || []
-          }]}
+          slots={responseModalSlots}
           interventionId={intervention.id}
-          existingResponses={currentUserResponseForSlot ? { [selectedSlotForResponse.id]: { response: currentUserResponseForSlot } } : undefined}
-          onSuccess={() => {
-            setIsResponseModalOpen(false)
-            setResponseModalSlotId(null)
-            handleRefresh()
-          }}
+          existingResponses={Object.keys(responseModalExisting).length > 0
+            ? responseModalExisting
+            : undefined}
+          userProposedSlotIds={userProposedSlotIds}
+          onSuccess={handleRefresh}
         />
       )}
 

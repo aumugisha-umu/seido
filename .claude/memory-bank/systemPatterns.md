@@ -10,8 +10,8 @@
 |  - Page data loading          |  - Interactive forms         |
 |  - Auth via getServerAuth()   |  - Real-time updates         |
 +-------------------------------------------------------------+
-|                    Domain Services (31)                      |
-|  intervention, notification, email, gmail-oauth, etc.       |
+|                    Domain Services (32)                      |
+|  intervention, notification, email, scheduling, etc.        |
 +-------------------------------------------------------------+
 |                    Repositories (22)                         |
 |  intervention, notification, user, building, address, etc.  |

@@ -1,0 +1,48 @@
+# Progress Log — Centralized Scheduling Service
+# Started: 2026-02-09
+# Stories: 3 total
+---
+
+## US-001: Create scheduling-service.ts (M) - DONE
+- Created `lib/services/domain/scheduling-service.ts` with 10 shared functions
+- `determineInterventionStatus()` — 3-case logic matching creation flow lines 319-353
+- `createFixedSlot()` — service role + status='selected'|'pending' + selected_by_manager + selected_slot_id linking + response cleanup
+- `createProposedSlots()` — service role + status='pending' + proposed_by
+- `clearTimeSlots()` — delete all slots for flexible mode
+- `updateConfirmationRequirements()` — flag on intervention + reset-then-set on assignments
+- `storeProviderGuidelines()` — correct column (provider_guidelines, not instructions)
+- `storePerProviderInstructions()` — per-assignment instructions
+- `computeScheduledDate()` — ISO format matching creation flow
+- `mapOptionToSchedulingType()` — direct→fixed, propose→slots, organize→flexible
+- Typecheck: 0 new errors
+- Files: `lib/services/domain/scheduling-service.ts`
+
+## US-002: Refactor programInterventionAction to use scheduling service (M) - DONE
+- Added import for all 9 scheduling service functions
+- Replaced switch block (~100 lines) with 3 service calls: createFixedSlot, createProposedSlots, clearTimeSlots
+- Replaced hardcoded `'planification'` status with `determineInterventionStatus()` — returns 'planifiee' for fixed+!confirm
+- Added `scheduled_date = computeScheduledDate()` for direct mode
+- Replaced `updateData.instructions =` with `storeProviderGuidelines()` — correct column
+- Replaced inline confirmation update with `updateConfirmationRequirements()`
+- Replaced inline provider instructions with `storePerProviderInstructions()`
+- 8 bugs fixed: slot status, selected_by_manager, selected_slot_id, scheduled_date, intervention status, instructions column, RLS bypass, response cleanup
+- Typecheck: 0 new errors (line 2769 pre-existing type mismatch unchanged)
+- Files: `app/actions/intervention-actions.ts`
+
+## US-003: Verify display components work with corrected data (S) - DONE
+- Traced data flow from DB → service → component for all 3 display paths
+- PlanningCard line 58: `status === 'selected'` → confirmedSlots section (works with new slot status)
+- PlanningCard line 91: `scheduledDate` → green "Intervention planifiee" banner (works with new scheduled_date)
+- Detail client line 794: `confirmedSlot = timeSlots.find(s => s.status === 'selected')` → pre-fill works
+- Detail client lines 849-854: `scheduledDate` and `scheduledStartTime` populated from confirmedSlot
+- `getPlanningStatusConfig('scheduled')` returns "Confirme" purple badge
+- Zero UI code changes needed — all display logic already handles the correct data shape
+- Files: none modified (verification only)
+
+---
+## Quality Gate — PASSED
+- TypeScript: 0 new errors (56 pre-existing in intervention-actions.ts, none in our files)
+- ESLint: 0 new warnings
+- Security: service role used only for RLS bypass (same as creation flow)
+- Performance: no regressions, same DB operation count as creation flow
+- Patterns: follows domain service pattern, consistent logger usage

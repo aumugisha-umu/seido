@@ -895,7 +895,10 @@ export async function ensureInterventionConversationThreads(
 
     // 2. Per PROVIDER: ensure individual thread + group participation
     for (const provider of providers) {
-      if (!threadExists('provider_to_managers', provider.id)) {
+      const existingProviderThread = threads.find(
+        t => t.thread_type === 'provider_to_managers' && t.participant_id === provider.id
+      )
+      if (!existingProviderThread) {
         const result = await conversationRepo.createThread({
           intervention_id: interventionId,
           thread_type: 'provider_to_managers',
@@ -905,10 +908,15 @@ export async function ensureInterventionConversationThreads(
           participant_id: provider.id
         })
         if (result.success && result.data?.id) {
+          // ✅ FIX 2026-02-09: Add provider as explicit participant to their individual thread
+          await conversationRepo.addParticipant(result.data.id, provider.id)
           await sendThreadWelcomeMessageWithClient(serviceClient, result.data.id, 'provider_to_managers', currentUser.id, provider.name || undefined)
           created++
-          logger.info({ threadId: result.data.id, participantId: provider.id }, '✅ [ENSURE-THREADS] Created provider_to_managers thread')
+          logger.info({ threadId: result.data.id, participantId: provider.id }, '✅ [ENSURE-THREADS] Created provider_to_managers thread + added provider as participant')
         }
+      } else {
+        // ✅ FIX 2026-02-09: Ensure provider is participant even if thread already exists
+        await conversationRepo.addParticipant(existingProviderThread.id, provider.id)
       }
       // Ensure provider is participant of group thread
       if (groupThreadId) {
@@ -918,7 +926,10 @@ export async function ensureInterventionConversationThreads(
 
     // 3. Per TENANT: ensure individual thread + group participation
     for (const tenant of tenants) {
-      if (!threadExists('tenant_to_managers', tenant.id)) {
+      const existingTenantThread = threads.find(
+        t => t.thread_type === 'tenant_to_managers' && t.participant_id === tenant.id
+      )
+      if (!existingTenantThread) {
         const result = await conversationRepo.createThread({
           intervention_id: interventionId,
           thread_type: 'tenant_to_managers',
@@ -928,10 +939,15 @@ export async function ensureInterventionConversationThreads(
           participant_id: tenant.id
         })
         if (result.success && result.data?.id) {
+          // ✅ FIX 2026-02-09: Add tenant as explicit participant to their individual thread
+          await conversationRepo.addParticipant(result.data.id, tenant.id)
           await sendThreadWelcomeMessageWithClient(serviceClient, result.data.id, 'tenant_to_managers', currentUser.id, tenant.name || undefined)
           created++
-          logger.info({ threadId: result.data.id, participantId: tenant.id }, '✅ [ENSURE-THREADS] Created tenant_to_managers thread')
+          logger.info({ threadId: result.data.id, participantId: tenant.id }, '✅ [ENSURE-THREADS] Created tenant_to_managers thread + added tenant as participant')
         }
+      } else {
+        // ✅ FIX 2026-02-09: Ensure tenant is participant even if thread already exists
+        await conversationRepo.addParticipant(existingTenantThread.id, tenant.id)
       }
       // Ensure tenant is participant of group thread
       if (groupThreadId) {

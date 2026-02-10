@@ -1148,6 +1148,11 @@ input:-webkit-autofill:active {
          data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95;
 }
 
+.unified-modal__content--2xl {
+  @apply w-full max-w-5xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
+         data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95;
+}
+
 .unified-modal__content--full {
   @apply w-[95vw] max-w-7xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
          data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95;
@@ -1164,9 +1169,10 @@ input:-webkit-autofill:active {
     @apply max-w-[calc(100%-2rem)];
   }
 
-  /* lg, xl, full deviennent bottom sheet */
+  /* lg, xl, 2xl, full deviennent bottom sheet */
   .unified-modal__content--lg,
   .unified-modal__content--xl,
+  .unified-modal__content--2xl,
   .unified-modal__content--full {
     @apply top-auto bottom-0 left-0 right-0
            translate-x-0 translate-y-0
@@ -1178,6 +1184,7 @@ input:-webkit-autofill:active {
 
   .unified-modal__content--lg[data-state="closed"],
   .unified-modal__content--xl[data-state="closed"],
+  .unified-modal__content--2xl[data-state="closed"],
   .unified-modal__content--full[data-state="closed"] {
     animation-name: slideDown !important;
   }

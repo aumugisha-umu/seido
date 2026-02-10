@@ -1,0 +1,46 @@
+# Progress Log — Planning Mode Display Fix
+# Started: 2026-02-09
+# Stories: 4 total — 4 DONE
+---
+
+## 2026-02-09 — US-001: Add schedulingType to shared types (XS)
+- Added `schedulingType?: 'fixed' | 'slots' | 'flexible' | null` to:
+  - `InterventionDetailsCardProps.planning` in intervention-preview.types.ts
+  - `PlanningCardProps` in intervention-preview.types.ts
+- Files: components/interventions/shared/types/intervention-preview.types.ts
+
+## 2026-02-09 — US-002: Handle flexible in PlanningStatusSection (S)
+- Added `Users` lucide import
+- Extended `getPlanningStatusConfig` with 4th param `schedulingType`
+- When `schedulingType === 'flexible'` and status is pending: shows emerald Users icon + "Coordination autonome" label
+- Placed AFTER demande/rejetee checks (those take priority over flexible display)
+- Files: components/interventions/shared/cards/intervention-details-card.tsx
+
+## 2026-02-09 — US-003: Handle flexible in PlanningCard (S)
+- Added `Users` lucide import, destructured `schedulingType` from props
+- Hidden "Proposer un creneau" header button when schedulingType='flexible'
+- Replaced empty state with ternary: flexible shows emerald card (same visual as InterventionSchedulingPreview), non-flexible shows original empty state
+- Files: components/interventions/shared/cards/planning-card.tsx
+
+## 2026-02-09 — US-004: Pass scheduling_type from detail clients (XS)
+- Wired `schedulingType: intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null` to 6 call sites:
+  - gestionnaire: InterventionDetailsCard planning prop + PlanningCard prop
+  - locataire: InterventionDetailsCard planning prop + PlanningCard prop
+  - prestataire: InterventionDetailsCard planning prop + PlanningCard prop
+- Files:
+  - app/gestionnaire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx
+  - app/locataire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx
+  - app/prestataire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx
+
+## 2026-02-09 — Pre-Ralph: Chat Avatar + Header Spacing Fix
+- Fixed AvatarFallback showing blank when first_name/last_name are null
+- Applied cascade pattern: first_name+last_name → name.split(' ') → '?'
+- Reduced Card gap-6 → gap-2 and CardHeader pb-3 → pb-0 for tighter spacing
+- Files: components/chat/chat-interface.tsx
+
+## Learnings
+- scheduling_type lives on the `interventions` DB row (enum: fixed|slots|flexible)
+- InterventionDetailsCard and PlanningCard had ZERO awareness of scheduling_type before this fix
+- The emerald card visual pattern (bg-emerald-50/30, Users icon) was already established in InterventionSchedulingPreview — reused for consistency
+- demande/rejetee intervention statuses take display priority over scheduling_type (correct UX order)
+- Avatar fallback must cascade: first_name+last_name → name → email → '?' (OAuth users often only have name)

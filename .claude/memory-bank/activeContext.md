@@ -263,6 +263,6 @@ import { List, type RowComponentProps } from 'react-window'
 *Focus: Intervention Workflow Polish + ParticipantsRow Tooltips (IN PROGRESS, 40 files uncommitted)*
 
 ## Files Recently Modified
-### 2026-02-11 12:20:22 (Auto-updated)
+### 2026-02-11 12:59:56 (Auto-updated)
 - `C:/Users/arthu/.claude/plans/fluffy-growing-narwhal.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/supabase/migrations/20260211110000_fix_function_search_path_mutable.sql`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/supabase/migrations/20260211120000_fix_interventions_active_security_invoker.sql`

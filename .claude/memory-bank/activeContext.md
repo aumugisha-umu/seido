@@ -263,5 +263,6 @@ import { List, type RowComponentProps } from 'react-window'
 *Focus: Intervention Workflow Polish + ParticipantsRow Tooltips (IN PROGRESS, 40 files uncommitted)*
 
 ## Files Recently Modified
-### 2026-02-11 00:26:44 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/components/gestionnaire-sidebar.tsx`
+### 2026-02-11 11:55:31 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/supabase/migrations/20260211100000_fix_security_definer_views.sql`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/tasks/prd.json`

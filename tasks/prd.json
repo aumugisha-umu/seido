@@ -1,163 +1,26 @@
 {
   "project": "SEIDO",
-  "featureName": "Sidebar Navigation for Gestionnaire",
-  "branchName": "feature/gestionnaire-sidebar-nav",
-  "description": "Replace the gestionnaire top navigation bar with a collapsible left sidebar, keeping a slim topbar for page title + notifications. Mobile uses a Sheet drawer from left.",
+  "featureName": "Fix SECURITY DEFINER Views",
+  "branchName": "preview",
+  "description": "Convert 5 views flagged by Supabase linter from SECURITY DEFINER to SECURITY INVOKER to enforce proper RLS.",
   "createdAt": "2026-02-11",
-  "prdSource": "tasks/prd-sidebar-navigation.md",
+  "prdSource": null,
   "status": "in_progress",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Create GestionnaireSidebar component (expanded mode)",
-      "description": "As a gestionnaire, I want a left sidebar showing my navigation items with icons and labels, so I can navigate between sections without using the top bar. Build the sidebar using shadcn SidebarProvider + Sidebar primitives. Include: logo/brand header, main nav items (Dashboard, Patrimoine, Contacts, Contrats, Interventions), secondary items (Parametres, Aides), and user profile footer with avatar/name/role/logout.",
+      "title": "Convert 5 SECURITY DEFINER views to SECURITY INVOKER",
+      "description": "As a security-conscious developer, I want all views to use SECURITY INVOKER so that RLS policies are enforced for the querying user, not the view creator.",
       "acceptanceCriteria": [
-        "Sidebar renders with all 7 nav items (5 main + 2 secondary) using correct Lucide icons",
-        "Active page is highlighted with primary color background and left accent indicator",
-        "User profile section at bottom shows avatar, name, role label, and logout action",
-        "Logo 'Seido / Gestion Immobiliere' at top links to dashboard",
-        "Sidebar uses shadcn SidebarProvider, Sidebar, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton primitives",
-        "Typecheck passes (npx tsc --noEmit)"
+        "Migration sets security_invoker=on for contracts_active, lots_active, buildings_active, lots_with_contacts, activity_logs_with_user",
+        "Migration applies cleanly via supabase db push --linked",
+        "Supabase linter no longer flags these 5 views"
       ],
       "priority": 1,
       "dependsOn": [],
-      "sizing": "M",
+      "sizing": "XS",
       "passes": true,
-      "notes": "Created components/gestionnaire-sidebar.tsx using shadcn Sidebar primitives with collapsible='icon'. 5 main nav items + 2 secondary items. Logo uses Picto_Seido_Color.png. Active state with primary bg + left border accent. User profile dropdown in footer."
-    },
-    {
-      "id": "US-002",
-      "title": "Implement sidebar collapsed mode with tooltips",
-      "description": "As a gestionnaire, I want to collapse the sidebar to icons-only mode so I get more screen space for content. When collapsed, hovering an icon shows a tooltip with the item label. A toggle button (chevron) switches between expanded/collapsed. State persists in cookie.",
-      "acceptanceCriteria": [
-        "Toggle button (ChevronLeft/ChevronRight) collapses/expands sidebar",
-        "Collapsed mode shows only icons (no labels), sidebar width ~48px",
-        "Expanded mode shows icons + labels, sidebar width ~240px",
-        "Tooltips appear on hover in collapsed mode showing item labels",
-        "State persists via cookie across page reloads and sessions",
-        "Keyboard shortcut Ctrl+B toggles sidebar",
-        "Smooth CSS transition (200-300ms) between states",
-        "Typecheck passes (npx tsc --noEmit)"
-      ],
-      "priority": 1,
-      "dependsOn": ["US-001"],
-      "sizing": "S",
-      "passes": true,
-      "notes": "Handled by shadcn SidebarProvider: cookie persistence (sidebar_state), Ctrl+B keyboard shortcut, 200ms transitions. Toggle button with ChevronLeft/Right in sidebar. SidebarMenuButton tooltip prop shows labels on hover in collapsed mode."
-    },
-    {
-      "id": "US-003",
-      "title": "Create GestionnaireTopbar component",
-      "description": "As a gestionnaire, I want a slim top bar that shows the current page title, optional page-level actions, and the notification bell, so I always know where I am and can access notifications quickly. The topbar replaces the current DashboardHeader for gestionnaire (with-navbar) pages.",
-      "acceptanceCriteria": [
-        "Top bar displays current page title based on pathname",
-        "Notification bell with unread count badge positioned on right side",
-        "Top bar is sticky at top of content area",
-        "On mobile (<768px), shows hamburger button on left to open sidebar Sheet",
-        "Height matches design (~64px desktop, ~56px mobile)",
-        "Team selector appears in topbar for multi-team users",
-        "Typecheck passes (npx tsc --noEmit)"
-      ],
-      "priority": 2,
-      "dependsOn": ["US-001"],
-      "sizing": "M",
-      "passes": true,
-      "notes": "Created components/gestionnaire-topbar.tsx. Slim topbar with page title (pathname-based mapping), notification bell with popover, team selector for multi-team users, and mobile hamburger button using useSidebar().toggleSidebar()."
-    },
-    {
-      "id": "US-004",
-      "title": "Integrate sidebar + topbar in (with-navbar) layout",
-      "description": "As a gestionnaire, I want the sidebar and topbar to be the default navigation on all list/dashboard pages, replacing the current DashboardHeader. Modify the (with-navbar)/layout.tsx to use the new components wrapped in SidebarProvider.",
-      "acceptanceCriteria": [
-        "Layout uses SidebarProvider wrapping GestionnaireSidebar + GestionnaireTopbar + main content",
-        "Content area adapts width based on sidebar state (expanded/collapsed)",
-        "Existing DashboardHeader is NOT rendered for gestionnaire (with-navbar) pages",
-        "DashboardHeader still works for admin role (no regression)",
-        "All notification hooks (useGlobalNotifications, useNotificationPopover) work in new topbar",
-        "No-navbar pages (detail/edit) are unaffected",
-        "Typecheck passes (npx tsc --noEmit)"
-      ],
-      "priority": 2,
-      "dependsOn": ["US-001", "US-002", "US-003"],
-      "sizing": "M",
-      "passes": true,
-      "notes": "Modified (with-navbar)/layout.tsx: replaced DashboardHeader with SidebarProvider + GestionnaireSidebar + GestionnaireTopbar. Reads sidebar_state cookie server-side for defaultOpen to prevent layout flash. DashboardHeader untouched for admin role."
-    },
-    {
-      "id": "US-005",
-      "title": "Mobile responsive sidebar (Sheet drawer < 768px)",
-      "description": "As a gestionnaire on mobile, I want the sidebar to appear as a slide-in drawer from the left when I tap the hamburger menu, so I can navigate without the sidebar taking permanent space. The drawer auto-closes when I navigate.",
-      "acceptanceCriteria": [
-        "On screens < 768px, sidebar is hidden (no persistent sidebar)",
-        "Hamburger button in topbar opens Sheet from left side",
-        "Sheet contains full sidebar content (logo, nav items, user profile)",
-        "Sheet auto-closes on route change (pathname change)",
-        "Sheet auto-closes on nav item click",
-        "Touch targets are minimum 48px",
-        "Backdrop overlay dismisses sheet on tap",
-        "Body scroll is locked when sheet is open",
-        "Typecheck passes (npx tsc --noEmit)"
-      ],
-      "priority": 3,
-      "dependsOn": ["US-004"],
-      "sizing": "M",
-      "passes": true,
-      "notes": "Handled by shadcn Sidebar primitive: isMobile auto-detects <768px, renders Sheet instead of fixed sidebar. Hamburger in topbar calls toggleSidebar() which triggers setOpenMobile(). useEffect on pathname closes mobile sheet on route change. handleNavClick closes on item click. SidebarMenuButton size='lg' gives 48px+ touch targets."
-    },
-    {
-      "id": "US-006",
-      "title": "Tablet responsive behavior (768-1023px auto-collapse)",
-      "description": "As a gestionnaire on a tablet (768-1023px), I want the sidebar to default to collapsed mode (icons only) to maximize content space, while still being expandable when needed.",
-      "acceptanceCriteria": [
-        "On screens 768-1023px, sidebar defaults to collapsed (icons only)",
-        "User can expand sidebar, but it auto-collapses on navigation",
-        "On screens >= 1024px, sidebar follows cookie-persisted state",
-        "Transition between breakpoints is smooth (no flash/jump)",
-        "Typecheck passes (npx tsc --noEmit)"
-      ],
-      "priority": 3,
-      "dependsOn": ["US-004"],
-      "sizing": "S",
-      "passes": true,
-      "notes": "Added useEffect with resize listener in GestionnaireSidebar: auto-collapses when width 768-1023px. Only runs on mount (not re-triggered by open state). Desktop (>=1024px) follows cookie-persisted state."
-    },
-    {
-      "id": "US-007",
-      "title": "Visual polish: CSS variables, transitions, active states",
-      "description": "As a gestionnaire, I want the sidebar to look polished with proper colors, spacing, hover effects, and smooth animations matching the reference design images.",
-      "acceptanceCriteria": [
-        "CSS variables for sidebar dimensions in globals.css",
-        "Active item has primary bg + left border accent matching reference images",
-        "Hover states on nav items (subtle background change)",
-        "Smooth expand/collapse animation (200-300ms ease-in-out)",
-        "Proper spacing between main nav, secondary nav, and user profile sections",
-        "Separator lines between sections match reference design",
-        "No layout shift on initial page load (cookie-based initial state)",
-        "Typecheck passes (npx tsc --noEmit)"
-      ],
-      "priority": 3,
-      "dependsOn": ["US-004"],
-      "sizing": "S",
-      "passes": true,
-      "notes": "CSS vars already in globals.css (--sidebar, --sidebar-foreground, etc. for light+dark). Active items: bg-primary/10 + text-primary + border-l-[3px] border-l-primary. Hover: hover:bg-sidebar-accent (from shadcn). 200ms transitions from sidebar.tsx primitives. Cookie read server-side for defaultOpen."
-    },
-    {
-      "id": "US-008",
-      "title": "Multi-team selector integration in sidebar",
-      "description": "As a gestionnaire with multiple teams, I want the team selector to be accessible from the sidebar (expanded mode) or topbar (collapsed/mobile), so I can switch teams easily.",
-      "acceptanceCriteria": [
-        "Team selector in sidebar header when expanded and user has multiple teams",
-        "Team selector in topbar when sidebar is collapsed",
-        "Team selector in mobile Sheet drawer",
-        "Team change triggers router.refresh() as current behavior",
-        "Single-team users see no selector (same as current)",
-        "Typecheck passes (npx tsc --noEmit)"
-      ],
-      "priority": 3,
-      "dependsOn": ["US-004"],
-      "sizing": "S",
-      "passes": true,
-      "notes": "TeamSelectorCompact in sidebar header (visible when expanded + hasMultipleTeams). TeamSelector in topbar (visible when collapsed via sm:block). Both use useCurrentTeam hook with same state. Mobile Sheet inherits sidebar content including team selector."
+      "notes": "Single migration using ALTER VIEW SET (security_invoker = on). No DROP/RECREATE needed."
     }
   ]
 }

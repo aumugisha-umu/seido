@@ -4,7 +4,7 @@
 > **Updated by:** sp-compound skill after each feature completion.
 
 **Last Updated:** 2026-02-11
-**Total Learnings:** 28
+**Total Learnings:** 29
 
 ---
 
@@ -212,6 +212,15 @@
 **Example:** `components/ui/calendar.tsx` — default captionLayout changed to `"dropdown"`, ±10 year range
 **When to Use:** Any Calendar/DatePicker where users might need to select dates more than 2 months away
 **Added:** 2026-02-11 | **Source:** DatePicker enhancement (month/year dropdowns)
+
+### Security
+
+#### Learning #029: SECURITY DEFINER views — use ALTER VIEW SET (security_invoker = on)
+**Problem:** Supabase linter flags views as SECURITY DEFINER even when migrations don't explicitly set it. Views created by the migration runner (superuser) can silently default to DEFINER, bypassing RLS for all querying users.
+**Solution:** Explicitly set `ALTER VIEW public.view_name SET (security_invoker = on)` in a migration. This is non-destructive — no DROP/RECREATE needed, no GRANT re-application, no view definition changes. PostgreSQL 15+ feature.
+**Example:** `supabase/migrations/20260211100000_fix_security_definer_views.sql` — 5 views fixed
+**When to Use:** When Supabase linter reports `security_definer_view` errors, or when creating any new view that queries RLS-protected tables
+**Added:** 2026-02-11 | **Source:** Supabase security linter fix (5 views)
 
 ### Testing
 

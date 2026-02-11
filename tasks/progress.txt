@@ -33,3 +33,10 @@
 - Implemented: scheduling-service.ts (327 lines), planning hook enhancements (assignmentMode, providerInstructions, confirmationRequired), ProgrammingModal workflow refinements, approval-modal improvements, multi-slot-response-modal updates
 - Files: lib/services/domain/scheduling-service.ts (NEW), hooks/use-intervention-planning.ts, components/intervention/modals/*, app/*/interventions/[id]/components/intervention-detail-client.tsx (3 roles)
 - Decision: New domain service extracts scheduling logic from scattered components → single source of truth for intervention planning rules
+
+## 2026-02-11 — Fix SECURITY DEFINER Views (Supabase Linter)
+- Implemented: Single migration converting 5 views from SECURITY DEFINER to SECURITY INVOKER
+- Files: supabase/migrations/20260211100000_fix_security_definer_views.sql (NEW)
+- Views fixed: contracts_active, lots_active, buildings_active, lots_with_contacts, activity_logs_with_user
+- Learnings: ALTER VIEW SET (security_invoker = on) is non-destructive — no DROP/RECREATE needed. Migrations may not explicitly set SECURITY DEFINER but DB state can diverge.
+- Decision: Used ALTER VIEW instead of DROP+RECREATE to avoid cascading dependency issues and GRANT re-application

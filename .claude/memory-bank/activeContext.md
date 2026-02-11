@@ -263,7 +263,5 @@ import { List, type RowComponentProps } from 'react-window'
 *Focus: Intervention Workflow Polish + ParticipantsRow Tooltips (IN PROGRESS, 40 files uncommitted)*
 
 ## Files Recently Modified
-### 2026-02-10 23:16:12 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/AGENTS.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/tasks/progress.txt`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/learnings/2026-02-11-datepicker-participants-polish-retrospective.md`
+### 2026-02-11 00:26:44 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/gestionnaire-sidebar.tsx`

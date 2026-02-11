@@ -1,0 +1,72 @@
+{
+  "project": "SEIDO",
+  "featureName": "Enhanced DatePicker: Month/Year Dropdowns + Manual Input",
+  "branchName": "preview",
+  "description": "Upgrade all date pickers to support (1) month/year dropdown navigation for fast long-range selection, (2) manual date text input with parsing/validation. Centralise via the shared DatePicker component and update direct Calendar usages.",
+  "createdAt": "2026-02-10",
+  "prdSource": "User request — screenshot of contract form date picker",
+  "status": "completed",
+  "completedAt": "2026-02-10",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Enable month/year dropdown on base Calendar + DatePicker",
+      "description": "As a gestionnaire, I want to select month and year from dropdowns in the calendar popup, so that I can quickly navigate to dates far in the past or future without clicking arrows dozens of times.",
+      "acceptanceCriteria": [
+        "Calendar component uses captionLayout='dropdown' by default",
+        "Month dropdown shows all 12 months in French (short names)",
+        "Year dropdown shows reasonable range (current year -10 to +10)",
+        "DatePicker inherits dropdown navigation automatically",
+        "Dropdown styling consistent with SEIDO design system (shadcn/ui)",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Changed captionLayout default from 'label' to 'dropdown'. Added fr locale + startMonth/endMonth defaults (+-10 years). French month names via fr-FR locale in formatMonthDropdown."
+    },
+    {
+      "id": "US-002",
+      "title": "Add manual date text input to DatePicker",
+      "description": "As a gestionnaire, I want to type a date directly in the input field (dd/MM/yyyy format) instead of only being able to click on the calendar, so that date entry is faster for known dates.",
+      "acceptanceCriteria": [
+        "DatePicker shows an editable text input (not just a button trigger)",
+        "Input accepts dd/MM/yyyy format and parses it correctly",
+        "Partial/invalid input shows visual error state",
+        "Calendar popup still opens via calendar icon click",
+        "Selecting a date in the calendar updates the text input",
+        "Typing a valid date in input updates the calendar selection",
+        "Tab/Enter in input confirms the date",
+        "minDate/maxDate validation applies to typed dates too",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Replaced Button trigger with editable input. Auto-mask inserts slashes as user types digits. parseFrenchDate validates dd/MM/yyyy with rollover check. Red border on invalid. Blur reverts incomplete input. Calendar icon opens popup. defaultMonth set to selectedDate for context."
+    },
+    {
+      "id": "US-003",
+      "title": "Update direct Calendar usages to use dropdown navigation",
+      "description": "As a developer, I want all 7 files that use <Calendar> directly (not via DatePicker) to also have month/year dropdown navigation, so the experience is consistent app-wide.",
+      "acceptanceCriteria": [
+        "All 7 direct Calendar consumers pass captionLayout='dropdown' or inherit it from default",
+        "intervention-create-form.tsx — calendar has dropdowns",
+        "intervention-request-form.tsx — calendar has dropdowns",
+        "time-slot-proposer.tsx — calendar has dropdowns",
+        "programming-modal-FINAL.tsx — calendar has dropdowns",
+        "assignment-section-v2.tsx — calendar has dropdowns",
+        "multi-slot-response-modal.tsx — calendar has dropdowns",
+        "email-connection-form.tsx — calendar has dropdowns",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Analyzed 7 Calendar consumers: 4 classic Popover+Button+Calendar patterns (intervention-create-form, intervention-request-form, email-connection-form) replaced with shared DatePicker component. 3 inline Calendar+TimePickers (programming-modal, assignment-section, multi-slot-response) + 1 mode=multiple (time-slot-proposer) kept as Calendar — already inherit dropdown from default captionLayout change. Cleaned up unused imports (CalendarIcon, format, Popover*, cn, useEffect, FormDescription, Separator). Pre-existing TS errors unrelated to changes."
+    }
+  ]
+}

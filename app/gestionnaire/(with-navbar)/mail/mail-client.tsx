@@ -19,6 +19,7 @@ import { EmailDetail } from './components/email-detail'
 import { toast } from 'sonner'
 import { extractTextFromHtml } from '@/lib/templates/email-pdf-template'
 import { Button } from '@/components/ui/button'
+import { PageActions } from "@/components/page-actions"
 import { Plus, RefreshCw, X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { EmailClientService } from '@/lib/services/client/email-client.service'
@@ -637,24 +638,14 @@ export function MailClient({
 
   return (
     <div className="h-full flex flex-col overflow-hidden layout-container">
-      {/* Page Header */}
-      <div className="mb-4 lg:mb-6 flex-shrink-0">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <h1 className="text-2xl font-bold text-foreground sm:text-3xl">
-            Emails
-          </h1>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={handleSync} disabled={isLoading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-              Synchroniser
-            </Button>
-            <Button onClick={handleCompose} className="w-fit">
-              <Plus className="h-4 w-4 mr-2" />
-              <span>Rédiger</span>
-            </Button>
-          </div>
-        </div>
-      </div>
+      <PageActions>
+        <Button variant="outline" onClick={handleSync} disabled={isLoading}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />Synchroniser
+        </Button>
+        <Button onClick={handleCompose} className="w-fit">
+          <Plus className="h-4 w-4 mr-2" /><span>Rédiger</span>
+        </Button>
+      </PageActions>
 
       {/* White Card with Email Interface */}
       <div className="bg-card rounded-lg shadow-sm border border-border flex-1 min-h-0 overflow-hidden">

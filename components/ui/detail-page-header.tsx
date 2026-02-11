@@ -9,7 +9,7 @@
  * Features:
  * - Sticky positioning (stuck below main app header)
  * - White background with shadow
- * - Left: SEIDO Logo + Back button
+ * - Left: Back button
  * - Center: Title + Badges + Metadata
  * - Right: Primary actions + Dropdown menu
  * - Responsive design (mobile/tablet/desktop)
@@ -25,9 +25,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { ArrowLeft, MoreVertical, type LucideIcon } from 'lucide-react'
-import Image from 'next/image'
-import Link from 'next/link'
-import { usePathname } from 'next/navigation'
 
 export interface DetailPageHeaderBadge {
   label: string
@@ -94,11 +91,6 @@ export function DetailPageHeader({
   statusIndicator,
   hasGlobalNav = false,
 }: DetailPageHeaderProps) {
-  const pathname = usePathname()
-
-  // Extract role from pathname (e.g., /gestionnaire/... → gestionnaire)
-  const role = pathname?.split('/')[1] || 'gestionnaire'
-
   // Adjust top position based on global nav presence
   const topClass = hasGlobalNav ? 'top-16' : 'top-0'
 
@@ -108,31 +100,13 @@ export function DetailPageHeader({
       <div className={`sticky ${topClass} z-50 bg-white border-b border-gray-200 shadow-sm`}>
         <div className="content-max-width px-4 sm:px-6">
           <div className="h-16 flex items-center gap-3 sm:gap-6">
-            {/* LEFT: Picto + Back Button */}
-            <div className="flex items-center gap-3 sm:gap-4 flex-shrink-0">
-              {/* SEIDO Picto (clickable to dashboard) */}
-              <Link
-                href={`/${role}/dashboard`}
-                className="flex-shrink-0 hover:opacity-80 transition-opacity p-1.5 -m-1.5 rounded-lg hover:bg-gray-100"
-                aria-label="Retour au dashboard"
-                title="Retour au dashboard"
-              >
-                <Image
-                  src="/images/Logo/Picto_Seido_Color.png"
-                  alt="SEIDO"
-                  width={32}
-                  height={32}
-                  className="h-8 w-8"
-                  priority
-                />
-              </Link>
-
-              {/* Back Button - Material Design 3 Leading Navigation */}
+            {/* LEFT: Back Button */}
+            <div className="flex items-center flex-shrink-0">
               <Button
                 variant="ghost"
                 size="default"
                 onClick={onBack}
-                className="flex-shrink-0 text-gray-700 hover:text-gray-900 hover:bg-gray-100/80 active:bg-gray-200/80 transition-colors duration-200 h-10 px-3 -ml-1"
+                className="flex-shrink-0 text-gray-700 hover:text-gray-900 hover:bg-gray-100/80 active:bg-gray-200/80 transition-colors duration-200 h-10 px-3"
                 aria-label={backButtonText}
               >
                 <ArrowLeft className="h-5 w-5" />

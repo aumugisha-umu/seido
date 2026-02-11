@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation"
 import { useNavigationPending } from "@/hooks/use-navigation-pending"
 
 import { Button } from "@/components/ui/button"
+import { PageActions } from "@/components/page-actions"
 import { useInterventionApproval } from "@/hooks/use-intervention-approval"
 import { useInterventionQuoting } from "@/hooks/use-intervention-quoting"
 import { useInterventionPlanning } from "@/hooks/use-intervention-planning"
@@ -196,27 +197,11 @@ export function InterventionsPageClient({
     <div className="h-full flex flex-col overflow-hidden layout-container">
       <InterventionCancellationProvider>
         <div className="content-max-width flex flex-col flex-1 min-h-0 overflow-hidden">
-          {/* Page Header */}
-          <div className="mb-4 lg:mb-6 flex-shrink-0">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold text-foreground sm:text-3xl mb-2">
-                  Interventions
-                </h1>
-              </div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button
-                  className="flex items-center gap-2"
-                  onClick={() => navigate("/gestionnaire/interventions/nouvelle-intervention")}
-                  isLoading={isNavigating}
-                  loadingText="Nouvelle intervention"
-                >
-                  <Plus className="h-4 w-4" />
-                  Nouvelle intervention
-                </Button>
-              </div>
-            </div>
-          </div>
+          <PageActions>
+            <Button className="flex items-center gap-2" onClick={() => navigate("/gestionnaire/interventions/nouvelle-intervention")} isLoading={isNavigating} loadingText="Nouvelle intervention">
+              <Plus className="h-4 w-4" />Nouvelle intervention
+            </Button>
+          </PageActions>
 
           {/* Interventions Navigator - Full height, ContentNavigator handles card styling */}
           <InterventionsNavigator

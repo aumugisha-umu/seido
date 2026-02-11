@@ -3,6 +3,7 @@
 import { Plus, Upload } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { PageActions } from "@/components/page-actions"
 import { PatrimoineNavigator } from "@/components/patrimoine/patrimoine-navigator"
 import { useState, useEffect, useCallback, useRef } from "react"
 import { logger } from '@/lib/logger'
@@ -120,41 +121,17 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
   return (
     <div className="h-full flex flex-col overflow-hidden layout-container">
       <div className="content-max-width flex flex-col flex-1 min-h-0 overflow-hidden">
-        {/* Page Header */}
-        <div className="mb-4 lg:mb-6 flex-shrink-0">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground sm:text-3xl mb-2">
-                Patrimoine
-              </h1>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                variant="outline"
-                className="flex items-center space-x-2"
-                onClick={() => router.push('/gestionnaire/import')}
-              >
-                <Upload className="h-4 w-4" />
-                <span>Importer</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="flex items-center space-x-2"
-                onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}
-              >
-                <Plus className="h-4 w-4" />
-                <span>Nouveau lot</span>
-              </Button>
-              <Button
-                className="flex items-center space-x-2"
-                onClick={() => router.push('/gestionnaire/biens/immeubles/nouveau')}
-              >
-                <Plus className="h-4 w-4" />
-                <span>Nouvel immeuble</span>
-              </Button>
-            </div>
-          </div>
-        </div>
+        <PageActions>
+          <Button variant="outline" className="flex items-center space-x-2" onClick={() => router.push('/gestionnaire/import')}>
+            <Upload className="h-4 w-4" /><span>Importer</span>
+          </Button>
+          <Button variant="outline" className="flex items-center space-x-2" onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}>
+            <Plus className="h-4 w-4" /><span>Nouveau lot</span>
+          </Button>
+          <Button className="flex items-center space-x-2" onClick={() => router.push('/gestionnaire/biens/immeubles/nouveau')}>
+            <Plus className="h-4 w-4" /><span>Nouvel immeuble</span>
+          </Button>
+        </PageActions>
 
         {/* Card wrapper - Structure exacte du dashboard */}
         <div className="flex-1 flex flex-col min-h-0">

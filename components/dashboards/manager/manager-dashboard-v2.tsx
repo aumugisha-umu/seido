@@ -28,6 +28,7 @@ import { useToast } from "@/hooks/use-toast"
 import { GestionnaireFAB } from "@/components/ui/fab"
 import { PeriodSelector, getDefaultPeriod, type Period } from "@/components/ui/period-selector"
 import { OnboardingButton, OnboardingModal } from "@/components/onboarding"
+import { PageActions } from "@/components/page-actions"
 
 import type { ContractStats } from "@/lib/types/contract.types"
 import type { Database } from "@/lib/database.types"
@@ -170,90 +171,78 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
     return (
         <div className="dashboard">
             <div className="dashboard__container pb-24 lg:pb-0 flex flex-col">
-                {/* Header Section */}
-                <div className="dashboard__header">
-                    {/* Line 1: Title + Guide + Desktop buttons */}
-                    <div className="flex items-center justify-between gap-3">
-                        <h1 className="text-2xl sm:text-3xl font-bold text-foreground truncate">Tableau de bord</h1>
-
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                            {/* Onboarding Guide Button */}
-                            <OnboardingButton />
-
-                            {/* Desktop only: Period + Import + Add */}
-                            <div className="hidden sm:block">
-                                <PeriodSelector
-                                    value={period.value}
-                                    onChange={setPeriod}
-                                />
-                            </div>
-
-                            <Button
-                                variant="outline"
-                                onClick={navigateToImport}
-                                className="hidden sm:flex bg-card border-border text-foreground rounded-xl"
-                            >
-                                <Upload className="h-4 w-4 mr-2" />
-                                <span>Importer</span>
-                            </Button>
-
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button className="hidden sm:flex rounded-xl px-4">
-                                        <Plus className="h-4 w-4 mr-2" />
-                                        <span>Ajouter</span>
-                                        <ChevronDown className="h-4 w-4 ml-2" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-44">
-                                    <DropdownMenuItem
-                                        onClick={navigateToNewIntervention}
-                                        className="flex items-center gap-2 cursor-pointer"
-                                    >
-                                        <Wrench className="h-4 w-4" />
-                                        <span>Une intervention</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={navigateToNewContract}
-                                        className="flex items-center gap-2 cursor-pointer"
-                                    >
-                                        <FileText className="h-4 w-4" />
-                                        <span>Un contrat</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={navigateToNewBuilding}
-                                        className="flex items-center gap-2 cursor-pointer"
-                                    >
-                                        <Building2 className="h-4 w-4" />
-                                        <span>Un immeuble</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={navigateToNewLot}
-                                        className="flex items-center gap-2 cursor-pointer"
-                                    >
-                                        <Home className="h-4 w-4" />
-                                        <span>Un lot</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                        onClick={navigateToNewContact}
-                                        className="flex items-center gap-2 cursor-pointer"
-                                    >
-                                        <UserPlus className="h-4 w-4" />
-                                        <span>Un contact</span>
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-                    </div>
-
-                    {/* Line 2 (mobile only): Period selector compact */}
-                    <div className="sm:hidden mt-2">
+                {/* Header Actions (rendered in topbar via portal) */}
+                <PageActions>
+                    <OnboardingButton />
+                    <div className="hidden sm:block">
                         <PeriodSelector
                             value={period.value}
                             onChange={setPeriod}
-                            compact
                         />
                     </div>
+                    <Button
+                        variant="outline"
+                        onClick={navigateToImport}
+                        className="hidden sm:flex bg-card border-border text-foreground rounded-xl"
+                    >
+                        <Upload className="h-4 w-4 mr-2" />
+                        <span>Importer</span>
+                    </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button className="hidden sm:flex rounded-xl px-4">
+                                <Plus className="h-4 w-4 mr-2" />
+                                <span>Ajouter</span>
+                                <ChevronDown className="h-4 w-4 ml-2" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-44">
+                            <DropdownMenuItem
+                                onClick={navigateToNewIntervention}
+                                className="flex items-center gap-2 cursor-pointer"
+                            >
+                                <Wrench className="h-4 w-4" />
+                                <span>Une intervention</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={navigateToNewContract}
+                                className="flex items-center gap-2 cursor-pointer"
+                            >
+                                <FileText className="h-4 w-4" />
+                                <span>Un contrat</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={navigateToNewBuilding}
+                                className="flex items-center gap-2 cursor-pointer"
+                            >
+                                <Building2 className="h-4 w-4" />
+                                <span>Un immeuble</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={navigateToNewLot}
+                                className="flex items-center gap-2 cursor-pointer"
+                            >
+                                <Home className="h-4 w-4" />
+                                <span>Un lot</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                onClick={navigateToNewContact}
+                                className="flex items-center gap-2 cursor-pointer"
+                            >
+                                <UserPlus className="h-4 w-4" />
+                                <span>Un contact</span>
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </PageActions>
+
+                {/* Mobile period selector (stays in content area) */}
+                <div className="sm:hidden mb-4">
+                    <PeriodSelector
+                        value={period.value}
+                        onChange={setPeriod}
+                        compact
+                    />
                 </div>
 
                 {/* Pending Actions Section - FIRST on mobile, after stats on desktop */}

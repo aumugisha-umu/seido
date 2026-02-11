@@ -229,7 +229,7 @@ input[autocomplete="cc-number"],
   --chart-5: oklch(0.3588 0.1354 278.6973);
   /* #34d399 */
   --radius: 0.5rem;
-  --sidebar: oklch(0.9670 0.0029 264.5419);
+  --sidebar: oklch(1.0000 0 0);
   /* #f0f4ff */
   --sidebar-foreground: oklch(0.2795 0.0368 260.0310);
   /* #000000 */

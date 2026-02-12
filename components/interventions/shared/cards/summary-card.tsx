@@ -35,7 +35,7 @@ export interface SummaryCardProps {
   /** Statut du planning */
   planningStatus?: 'pending' | 'scheduled' | 'completed'
   /** Statut des devis */
-  quotesStatus?: 'pending' | 'received' | 'approved'
+  quotesStatus?: 'none' | 'pending' | 'received' | 'approved'
   /** Classes CSS additionnelles */
   className?: string
 }
@@ -80,6 +80,13 @@ export const SummaryCard = ({
 
   const getQuotesStatusConfig = () => {
     switch (quotesStatus) {
+      case 'none':
+        return {
+          icon: FileText,
+          label: 'Non requis',
+          color: 'text-slate-500',
+          bgColor: 'bg-slate-50'
+        }
       case 'approved':
         return {
           icon: CheckCircle2,

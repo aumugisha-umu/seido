@@ -237,8 +237,7 @@ const getPrestataireActions = (
           icon: CheckCircle,
           variant: 'primary',
           actionType: 'mark_completed',
-          apiRoute: '/api/intervention-complete',
-          apiMethod: 'POST'
+          href: `${baseUrl}?action=complete`
         },
         {
           label: 'Voir détails',

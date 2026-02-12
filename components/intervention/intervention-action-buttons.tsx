@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
   CheckCircle,
@@ -85,6 +85,7 @@ interface InterventionActionButtonsProps {
   onCancelIntervention?: () => void
   onRejectQuoteRequest?: (_quote: Quote) => void
   onProposeSlots?: () => void
+  autoOpenComplete?: boolean
   timeSlots?: Array<{
     id: string
     slot_date: string
@@ -125,6 +126,7 @@ export function InterventionActionButtons({
   onCancelIntervention,
   onRejectQuoteRequest,
   onProposeSlots,
+  autoOpenComplete = false,
   timeSlots = []
 }: InterventionActionButtonsProps) {
   const router = useRouter()
@@ -146,6 +148,13 @@ export function InterventionActionButtons({
   const [tenantValidationInitialMode, setTenantValidationInitialMode] = useState<'approve' | 'reject'>('approve')
   const [showSimplifiedFinalizationModal, setShowSimplifiedFinalizationModal] = useState(false)
   const [showSlotConfirmationModal, setShowSlotConfirmationModal] = useState(false)
+
+  // Auto-open completion modal when navigated from card with ?action=complete
+  useEffect(() => {
+    if (autoOpenComplete) {
+      setShowSimpleWorkCompletionModal(true)
+    }
+  }, [autoOpenComplete])
 
   // Hook for quote management
   const quoting = useInterventionQuoting()
@@ -671,6 +680,50 @@ export function InterventionActionButtons({
     try {
       setIsProcessing(true)
       setError(null)
+
+      // Upload voice note first if present (before closing intervention)
+      if (data.voiceNote) {
+        const formData = new FormData()
+        formData.append('file', data.voiceNote)
+        formData.append('interventionId', intervention.id)
+        formData.append('description', 'Note vocale - rapport de fin de travaux')
+
+        const uploadResponse = await fetch('/api/upload-intervention-document', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (!uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json()
+          logger.error({ error: uploadResult.error }, '❌ Voice note upload failed')
+          setError(uploadResult.error || "Erreur lors de l'upload de la note vocale")
+          return false
+        }
+        logger.info({}, '✅ Voice note uploaded successfully')
+      }
+
+      // Upload media files (photos/videos) if present
+      if (data.mediaFiles && data.mediaFiles.length > 0) {
+        for (const file of data.mediaFiles) {
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('interventionId', intervention.id)
+          formData.append('description', `Pièce jointe - rapport de fin de travaux`)
+
+          const uploadResponse = await fetch('/api/upload-intervention-document', {
+            method: 'POST',
+            body: formData,
+          })
+
+          if (!uploadResponse.ok) {
+            const uploadResult = await uploadResponse.json()
+            logger.error({ error: uploadResult.error, fileName: file.name }, '❌ Media file upload failed')
+            setError(uploadResult.error || `Erreur lors de l'upload de ${file.name}`)
+            return false
+          }
+          logger.info({ fileName: file.name }, '✅ Media file uploaded successfully')
+        }
+      }
 
       const result = await interventionActionsService.simpleCompleteIntervention(
         intervention.id,

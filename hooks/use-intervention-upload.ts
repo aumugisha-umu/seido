@@ -14,7 +14,12 @@ const ALLOWED_MIME_TYPES = [
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   'text/plain',
-  'application/zip'
+  'application/zip',
+  'audio/webm',
+  'audio/mp4',
+  'audio/ogg',
+  'audio/wav',
+  'audio/mpeg',
 ]
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024 // 10 MB
@@ -34,6 +39,7 @@ export const DOCUMENT_TYPES: { value: InterventionDocumentType; label: string }[
   { value: 'certificat', label: 'Certificat' },
   { value: 'garantie', label: 'Garantie' },
   { value: 'bon_de_commande', label: 'Bon de commande' },
+  { value: 'note_vocale', label: 'Note vocale' },
   { value: 'autre', label: 'Autre' }
 ]
 

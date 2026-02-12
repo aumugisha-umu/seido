@@ -1,14 +1,65 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Intervention Workflow Polish + ParticipantsRow Tooltips (IN PROGRESS)
+**Objectif:** Voice Recorder + Documents Management + Reports Card (COMPLETE 2026-02-12)
 **Branch:** `preview`
 **Sprint:** Multi-Team Support + Performance Optimization (Jan-Feb 2026)
-**Derniere analyse:** ParticipantsRow polish + scheduling service - 2026-02-11
+**Derniere analyse:** Voice recorder audio upload + reports display - 2026-02-12
 
 ---
 
-## 🔧 IN PROGRESS: Intervention Workflow Polish (2026-02-11)
+## ✅ COMPLETE: Voice Recorder + Documents + Reports Card (2026-02-12)
+
+### Vue d'Ensemble
+Améliorations complètes de l'upload de fichiers et de l'affichage des rapports de clôture :
+
+1. **Fix fileName audio** — Nomenclature "Rapport audio - [titre intervention]"
+2. **Fix mediaFiles upload** — Les File objects n'étaient pas envoyés (perdus dans JSON.stringify)
+3. **Fix preview/download documents** — Signed URLs via createBrowserSupabaseClient pour prestataire et locataire
+4. **Nouveau composant ReportsCard** — Affiche les 3 rapports de clôture (provider_report, tenant_report, manager_report) pour les 3 rôles
+5. **AGENTS.md enrichi** — 3 nouveaux learnings (#030, #031, #032)
+6. **Retrospective créée** — docs/learnings/2026-02-12-voice-recorder-documents-reports-retrospective.md
+
+### Changes Summary
+
+| Area | Files Changed | Key Change |
+|------|--------------|------------|
+| Voice recorder | use-audio-recorder.ts, voice-recorder.tsx | fileName: "Rapport audio - [title]" |
+| Upload fix | intervention-action-buttons.tsx | FormData pour File objects (au lieu de JSON.stringify) |
+| Documents preview | documents-card.tsx (prestataire, locataire) | createBrowserSupabaseClient pour signed URLs |
+| Reports display | reports-card.tsx (NEW) | Composant shared pour les 3 rôles |
+| Data fetching | 3 page.tsx (gestionnaire, prestataire, locataire) | Fetch intervention_reports |
+| Knowledge base | AGENTS.md, progress.txt | +3 learnings, total: 32 |
+
+### Fichiers créés (1)
+- `components/interventions/shared/cards/reports-card.tsx` (165 lignes)
+
+### Fichiers modifiés (13)
+- `hooks/use-audio-recorder.ts`
+- `components/intervention/voice-recorder.tsx`
+- `components/intervention/simple-work-completion-modal.tsx`
+- `components/intervention/intervention-action-buttons.tsx`
+- `components/interventions/shared/cards/reports-card.tsx`
+- `components/interventions/shared/cards/index.ts`
+- `app/prestataire/(no-navbar)/interventions/[id]/page.tsx`
+- `app/prestataire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx`
+- `app/locataire/(no-navbar)/interventions/[id]/page.tsx`
+- `app/locataire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx`
+- `app/gestionnaire/(no-navbar)/interventions/[id]/page.tsx`
+- `app/gestionnaire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx`
+- `AGENTS.md`
+
+### Nouveaux Learnings (AGENTS.md #030-#032)
+- #030: JSON.stringify strips File objects — use FormData for uploads
+- #031: Signed URLs require client-side Supabase client with auth
+- #032: ReportsCard shared component pattern for consistent UI
+
+### Retrospective
+`docs/learnings/2026-02-12-voice-recorder-documents-reports-retrospective.md`
+
+---
+
+## 🚧 IN PROGRESS: Intervention Workflow Polish (2026-02-11)
 
 ### Vue d'Ensemble
 Multiple uncommitted changes improving intervention workflow and UI polish:
@@ -134,25 +185,6 @@ Optimisation complete des performances de navigation en 5 phases, 17 user storie
 
 ---
 
-## ✅ COMPLETE: Performance Navigation Optimization V1 (2026-02-08 earlier)
-
-### Patterns Documentes V1
-
-1. **Batch Query + Map** - N+1 → batch `.in()` + Map O(1) lookup
-2. **SSR/Client Hybrid** - Server fetch → props → Client interactivity
-3. **Lazy Loading** - `next/dynamic` components, `await import()` utilities
-4. **Memoization** - `React.memo` + `useCallback` pour listes
-
-### Learnings V1 (AGENTS.md #013-#017)
-
-- #013: N+1 batch with Map for O(1) lookup
-- #014: unstable_cache with revalidation tags
-- #015: Lazy load heavy libraries with dynamic import
-- #016: SSR/Client hybrid with initialData prop
-- #017: React.memo + useCallback for list performance
-
----
-
 ## Flow des Interventions - Vue Complete
 
 ### Statuts (9 actifs)
@@ -199,22 +231,23 @@ demande -> rejetee (terminal)
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-02-11)
+## Metriques Systeme (Mise a jour 2026-02-12)
 
 | Composant | Valeur |
 |-----------|--------|
 | **Tables DB** | **44** |
-| **Migrations** | **156** |
-| **API Routes** | **113** (10 domaines) |
+| **Migrations** | **165** |
+| **API Routes** | **114** (10 domaines) |
 | **Pages** | **87** (5+ route groups) |
-| **Composants** | **361** |
-| **Hooks** | **66** |
+| **Composants** | **362** |
+| **Hooks** | **68** |
 | **Services domain** | **33** (+1: scheduling-service) |
-| **Repositories** | **22** |
+| **Repositories** | **19** |
 | Statuts intervention | 9 |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **26** |
+| **AGENTS.md Learnings** | **32** (+3) |
 | **systemPatterns.md Patterns** | **29** |
+| **Shared Cards** | **15** (documents, reports, comments, conversation, quotes, planning, summary, intervention-details) |
 
 ---
 
@@ -251,18 +284,20 @@ import { List, type RowComponentProps } from 'react-window'
 
 | Hash | Description |
 |------|-------------|
-| `3bb1f4e` | feat(performance): complete Performance Navigation Optimization V2 (17 stories) |
-| `ade27fc` | chore: update dirty files and last sync timestamp |
-| `1831c48` | feat(landing-header): enhance UI with new login icon and responsive adjustments |
-| `afeb2c8` | docs: compound learnings from conversation participants fix |
-| `71ca982` | fix(conversations): improve participant management for tenant interventions |
+| `992cc39` | fix(security): set interventions_active view to SECURITY INVOKER |
+| `ff7c703` | fix(security): set search_path='' on 52 functions + scope webhook RLS policy |
+| `fdea638` | chore: update last sync timestamp and modify PRD for security views |
+| `f5e15a5` | feat(sidebar): implement collapsible sidebar navigation for gestionnaire |
+| `bdfbbb9` | docs: update AGENTS.md with new learnings and memory bank |
 
 ---
 
-*Derniere mise a jour: 2026-02-11*
-*Focus: Intervention Workflow Polish + ParticipantsRow Tooltips (IN PROGRESS, 40 files uncommitted)*
+*Derniere mise a jour: 2026-02-12 14:00*
+*Focus: Voice Recorder + Documents + Reports Card COMPLETE (13 files modified)*
 
 ## Files Recently Modified
-### 2026-02-11 12:59:56 (Auto-updated)
-- `C:/Users/arthu/.claude/plans/fluffy-growing-narwhal.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/supabase/migrations/20260211120000_fix_interventions_active_security_invoker.sql`
+### 2026-02-12 13:07:28 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/systemPatterns.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/auto-memory/last-sync`

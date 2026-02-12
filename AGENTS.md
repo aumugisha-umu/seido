@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-11
-**Total Learnings:** 29
+**Last Updated:** 2026-02-12
+**Total Learnings:** 32
 
 ---
 
@@ -126,6 +126,27 @@
 **Example:** `components/interventions/shared/layout/participants-row.tsx:94` — `const hasAccount = participant.hasAccount !== false`
 **When to Use:** When adding optional boolean flags to shared interfaces where existing callers shouldn't break
 **Added:** 2026-02-09 | **Source:** Participant account indicator
+
+#### Learning #030: File objects are lost when passed through JSON.stringify/fetch body
+**Problem:** `SimpleWorkCompletionModal` passes `mediaFiles: File[]` to a service that serializes them via `JSON.stringify` in a `fetch` body. `File` objects become `{name, size, type}` metadata — the actual binary content is silently lost.
+**Solution:** Upload `File` objects individually via `FormData` + `/api/upload-intervention-document` BEFORE calling the service action. Pass only document IDs or metadata to the JSON service call.
+**Example:** `components/intervention/intervention-action-buttons.tsx:703-720` — upload loop for mediaFiles
+**When to Use:** Any handler that receives `File[]` from a modal and needs to persist them server-side
+**Added:** 2026-02-12 | **Source:** Prestataire closure modal — mediaFiles not saved
+
+#### Learning #031: console.log stubs in production handlers — always search & replace
+**Problem:** `onView` and `onDownload` handlers for `DocumentsCard` were `console.log` stubs in prestataire and locataire views. Buttons appeared to work (no error) but did nothing. No linter or test catches this.
+**Solution:** After implementing a handler for one role (e.g., gestionnaire), grep the codebase for `console.log` stubs on the same prop across all role views. Pattern: `grep -r "console.log.*View document\|console.log.*Download document"`.
+**Example:** `app/prestataire/.../intervention-detail-client.tsx:990-991` — replaced stubs with `createSignedUrl` handlers
+**When to Use:** Any time you implement document/file handlers for one role view — check all 3 role views
+**Added:** 2026-02-12 | **Source:** Document preview/download fix for prestataire & locataire
+
+#### Learning #032: intervention_reports content not shown in detail pages
+**Problem:** `intervention_reports` table stores closure reports (provider_report, tenant_report, manager_report) but no detail page component displayed them — only the gestionnaire finalization modal queried them. Reports were invisible after submission.
+**Solution:** Created shared `ReportsCard` component, fetch `intervention_reports` server-side in all 3 page.tsx files, pass as `reports` prop to detail clients. Display above DocumentsCard.
+**Example:** `components/interventions/shared/cards/reports-card.tsx` — shared component with report_type-based styling
+**When to Use:** When adding a new data table — always verify it has a display component in ALL relevant role views
+**Added:** 2026-02-12 | **Source:** Closure reports visibility fix
 
 ### Performance
 

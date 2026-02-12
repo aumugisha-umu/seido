@@ -12,6 +12,7 @@ import dynamic from 'next/dynamic'
 import { TabsContent } from '@/components/ui/tabs'
 import { selectTimeSlotAction, validateByTenantAction } from '@/app/actions/intervention-actions'
 import { toast } from 'sonner'
+import { createBrowserSupabaseClient } from '@/lib/services'
 import { formatErrorMessage } from '@/lib/utils/error-formatter'
 import { Building2, MapPin, Calendar } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -26,7 +27,9 @@ import {
   // Cards
   InterventionDetailsCard,
   DocumentsCard,
-  PlanningCard
+  PlanningCard,
+  ReportsCard,
+  InterventionReport,
 } from '@/components/interventions/shared'
 
 // Unified tabs component (replaces InterventionTabs)
@@ -134,6 +137,7 @@ type TimeSlot = Database['public']['Tables']['intervention_time_slots']['Row'] &
 interface LocataireInterventionDetailClientProps {
   intervention: Intervention
   documents: Document[]
+  reports: InterventionReport[]
   threads: Thread[]
   timeSlots: TimeSlot[]
   currentUser: User
@@ -144,6 +148,7 @@ interface LocataireInterventionDetailClientProps {
 export function LocataireInterventionDetailClient({
   intervention,
   documents,
+  reports,
   threads,
   timeSlots,
   currentUser,
@@ -459,6 +464,49 @@ export function LocataireInterventionDetailClient({
     [timeSlots, currentUser.id]
   )
 
+  const handleViewDocument = async (documentId: string) => {
+    const doc = documents.find(d => d.id === documentId)
+    if (!doc) {
+      toast.error('Document non trouvé')
+      return
+    }
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const { data, error } = await supabase.storage
+        .from(doc.storage_bucket)
+        .createSignedUrl(doc.storage_path, 3600)
+      if (error) throw error
+      window.open(data.signedUrl, '_blank')
+    } catch {
+      toast.error("Impossible d'ouvrir le document")
+    }
+  }
+
+  const handleDownloadDocument = async (documentId: string) => {
+    const doc = documents.find(d => d.id === documentId)
+    if (!doc) {
+      toast.error('Document non trouvé')
+      return
+    }
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const fileName = doc.original_filename || doc.filename || 'document'
+      const { data, error } = await supabase.storage
+        .from(doc.storage_bucket)
+        .createSignedUrl(doc.storage_path, 3600, { download: fileName })
+      if (error) throw error
+      const link = document.createElement('a')
+      link.href = data.signedUrl
+      link.download = fileName
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch {
+      toast.error('Impossible de télécharger le document')
+    }
+  }
+
   // Handler pour ouvrir le chat depuis un participant (icône message dans ParticipantsRow)
   const handleOpenChatFromParticipant = (
     _participantId: string,
@@ -756,18 +804,25 @@ export function LocataireInterventionDetailClient({
                         schedulingType: intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null,
                         status: scheduledDate ? 'scheduled' : 'pending',
                         quotesCount: 0,
-                        quotesStatus: 'pending'
+                        quotesStatus: intervention.requires_quote ? 'pending' : 'none'
                       }}
                     />
                   </div>
+
+                  {/* Rapports de clôture */}
+                  {reports.length > 0 && (
+                    <div className="mt-6">
+                      <ReportsCard reports={reports} />
+                    </div>
+                  )}
 
                   {/* Documents & Progression — side by side on desktop, stacked on mobile */}
                   <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
                     <DocumentsCard
                       documents={transformedDocuments}
                       userRole="tenant"
-                      onView={(id) => console.log('View document:', id)}
-                      onDownload={(id) => console.log('Download document:', id)}
+                      onView={handleViewDocument}
+                      onDownload={handleDownloadDocument}
                     />
                     <InterventionProgressCard
                       intervention={intervention}

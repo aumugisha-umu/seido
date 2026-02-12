@@ -111,7 +111,8 @@ export default async function InterventionDetailPage({ params }: PageProps) {
       { data: timeSlots },
       { data: threads, allMessages: threadMessages, allParticipants: threadParticipants },
       { data: comments },
-      { data: linkedInterventions }
+      { data: linkedInterventions },
+      { data: reports }
     ] = await Promise.all([
       // Building (avec address_record pour la localisation)
       intervention.building_id
@@ -299,7 +300,15 @@ export default async function InterventionDetailPage({ params }: PageProps) {
           child:interventions!child_intervention_id(id, reference, title, status),
           provider:users!provider_id(id, first_name, last_name, avatar_url)
         `)
-        .or(`parent_intervention_id.eq.${id},child_intervention_id.eq.${id}`)
+        .or(`parent_intervention_id.eq.${id},child_intervention_id.eq.${id}`),
+
+      // Reports (closure reports from all roles)
+      supabase
+        .from('intervention_reports')
+        .select('*, creator:created_by(name)')
+        .eq('intervention_id', id)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: true })
     ])
 
     logger.info('✅ [INTERVENTION-PAGE] Step 2 complete', {
@@ -436,6 +445,7 @@ export default async function InterventionDetailPage({ params }: PageProps) {
         }}
         assignments={assignments || []}
         documents={documents || []}
+        reports={reports || []}
         quotes={quotes || []}
         timeSlots={timeSlots || []}
         threads={threads || []}

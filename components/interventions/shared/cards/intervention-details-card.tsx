@@ -132,12 +132,19 @@ const getPlanningStatusConfig = (
  * @param receivedCount - Nombre de devis reçus
  */
 const getQuotesStatusConfig = (
-  status: 'pending' | 'received' | 'approved',
+  status: 'none' | 'pending' | 'received' | 'approved',
   interventionStatus?: string,
   requestedCount: number = 0,
   receivedCount: number = 0
 ) => {
   switch (status) {
+    case 'none':
+      return {
+        icon: FileText,
+        label: 'Non requis',
+        color: 'text-slate-500',
+        bgColor: 'bg-slate-50'
+      }
     case 'approved':
       return {
         icon: CheckCircle2,

@@ -373,7 +373,7 @@ export interface InterventionDetailsCardProps {
     /** Nombre de devis reçus (statut sent) */
     receivedQuotesCount?: number
     /** Statut des devis */
-    quotesStatus: 'pending' | 'received' | 'approved'
+    quotesStatus: 'none' | 'pending' | 'received' | 'approved'
     /** Montant du devis validé */
     selectedQuoteAmount?: number | null
     /** Statistiques de réponses aux créneaux (pour afficher X/Y dans la vue générale) */

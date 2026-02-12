@@ -592,8 +592,14 @@ export const uploadInterventionDocumentSchema = z.object({
     'image/png',
     'image/webp',
     'image/gif',
+    // ✅ Audio (notes vocales)
+    'audio/webm',
+    'audio/mp4',
+    'audio/ogg',
+    'audio/wav',
+    'audio/mpeg',
   ], {
-    errorMap: () => ({ message: 'Format de fichier invalide. Seuls PDF, DOC, DOCX, XLS, XLSX, JPEG, PNG, WEBP, GIF sont autorisés' })
+    errorMap: () => ({ message: 'Format de fichier invalide. Formats autorisés : PDF, DOC, DOCX, XLS, XLSX, JPEG, PNG, WEBP, GIF, WebM, MP4, OGG, WAV, MP3' })
   }),
   description: z.string().max(2000).trim().optional(),
 })

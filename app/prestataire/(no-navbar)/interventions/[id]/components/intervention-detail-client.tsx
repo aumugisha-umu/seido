@@ -6,8 +6,8 @@
  * Utilise les composants partagés BEM pour le nouveau design
  */
 
-import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useMemo, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { TabsContent } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogHeader, DialogFooter } from '@/components/ui/dialog'
@@ -31,7 +31,9 @@ import {
   InterventionDetailsCard,
   DocumentsCard,
   QuotesCard,
-  PlanningCard
+  PlanningCard,
+  ReportsCard,
+  InterventionReport,
 } from '@/components/interventions/shared'
 
 // Unified tabs component (replaces InterventionTabs)
@@ -154,6 +156,7 @@ interface ParentLink {
 interface PrestataireInterventionDetailClientProps {
   intervention: Intervention
   documents: Document[]
+  reports: InterventionReport[]
   quotes: Quote[]
   threads: Thread[]
   timeSlots: TimeSlot[]
@@ -186,6 +189,7 @@ const statusLabels: Record<string, { label: string; color: string }> = {
 export function PrestataireInterventionDetailClient({
   intervention,
   documents,
+  reports,
   quotes,
   threads,
   timeSlots,
@@ -198,6 +202,18 @@ export function PrestataireInterventionDetailClient({
   initialParticipantsByThread
 }: PrestataireInterventionDetailClientProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const [autoOpenComplete, setAutoOpenComplete] = useState(false)
+
+  // Detect ?action=complete query param to auto-open completion modal
+  useEffect(() => {
+    if (searchParams.get('action') === 'complete') {
+      setAutoOpenComplete(true)
+      // Clean URL to prevent re-opening on refresh
+      window.history.replaceState(null, '', window.location.pathname)
+    }
+  }, [searchParams])
+
   const [activeTab, setActiveTab] = useState('general')
   const [refreshing, setRefreshing] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
@@ -531,6 +547,49 @@ export function PrestataireInterventionDetailClient({
     setActiveTab('conversations')
   }
 
+  const handleViewDocument = async (documentId: string) => {
+    const doc = documents.find(d => d.id === documentId)
+    if (!doc) {
+      toast.error('Document non trouvé')
+      return
+    }
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const { data, error } = await supabase.storage
+        .from(doc.storage_bucket)
+        .createSignedUrl(doc.storage_path, 3600)
+      if (error) throw error
+      window.open(data.signedUrl, '_blank')
+    } catch {
+      toast.error("Impossible d'ouvrir le document")
+    }
+  }
+
+  const handleDownloadDocument = async (documentId: string) => {
+    const doc = documents.find(d => d.id === documentId)
+    if (!doc) {
+      toast.error('Document non trouvé')
+      return
+    }
+    try {
+      const supabase = createBrowserSupabaseClient()
+      const fileName = doc.original_filename || doc.filename || 'document'
+      const { data, error } = await supabase.storage
+        .from(doc.storage_bucket)
+        .createSignedUrl(doc.storage_path, 3600, { download: fileName })
+      if (error) throw error
+      const link = document.createElement('a')
+      link.href = data.signedUrl
+      link.download = fileName
+      link.style.display = 'none'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } catch {
+      toast.error('Impossible de télécharger le document')
+    }
+  }
+
   const handleRefresh = async () => {
     setRefreshing(true)
     router.refresh()
@@ -836,6 +895,7 @@ export function PrestataireInterventionDetailClient({
             onRejectQuoteRequest={handleRejectQuoteRequest}
             onCancelQuote={handleCancelQuote}
             onProposeSlots={handleOpenAvailabilityModal}
+            autoOpenComplete={autoOpenComplete}
           />
         }
         hasGlobalNav={false}
@@ -917,11 +977,20 @@ export function PrestataireInterventionDetailClient({
                           ? 'approved'
                           : transformedQuotes.length > 0
                             ? 'received'
-                            : 'pending',
+                            : intervention.requires_quote
+                              ? 'pending'
+                              : 'none',
                         selectedQuoteAmount: transformedQuotes.find(q => q.status === 'approved')?.amount
                       }}
                     />
                   </div>
+
+                  {/* Rapports de clôture */}
+                  {reports.length > 0 && (
+                    <div className="mt-6">
+                      <ReportsCard reports={reports} />
+                    </div>
+                  )}
 
                   {/* Documents & Progression — side by side on desktop, stacked on mobile */}
                   <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -929,8 +998,8 @@ export function PrestataireInterventionDetailClient({
                       documents={transformedDocuments}
                       userRole="provider"
                       onUpload={() => console.log('Upload document')}
-                      onView={(id) => console.log('View document:', id)}
-                      onDownload={(id) => console.log('Download document:', id)}
+                      onView={handleViewDocument}
+                      onDownload={handleDownloadDocument}
                     />
                     <InterventionProgressCard
                       intervention={intervention}

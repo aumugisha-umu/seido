@@ -5,14 +5,14 @@
 ### Phase 1: Core Architecture ✅
 - Users, Teams, Companies, Invitations
 - Repository Pattern implementation
-- 21 repositories crees
+- 19 repositories crees
 
 ### Phase 2: Property Management ✅
 - Buildings, Lots, Property Documents
 - RLS policies multi-tenant
 
 ### Phase 3: Interventions ✅
-- Workflow 11 statuts
+- Workflow 9 statuts
 - Chat/Conversation system
 - Notifications infrastructure
 - Email system (IMAP/SMTP)
@@ -56,8 +56,67 @@
 - [x] **Web/PWA Notification Unification** (2026-02-02) - PushNotificationToggle unifié pour web et PWA
 - [x] **Quote Notifications Multi-Canal** (2026-02-02) - 4 nouvelles actions: quote request/submit/approve/reject
 - [x] **Push Subscription Security Fix** (2026-02-02) - userProfile.id + null data check pour RLS silent blocks
+- [x] **Voice Recorder + Documents + Reports Card** (2026-02-12) - Upload audio, signed URLs, composant reports partagé
 
 ## Sprint Actuel (Jan-Feb 2026)
+
+### 2026-02-12 - Voice Recorder + Documents Management + Reports Display
+
+**Session: File Upload Improvements + Reports Card**
+
+Améliorations complètes de l'upload de fichiers audio et de l'affichage des rapports de clôture :
+
+| Feature | Description |
+|---------|-------------|
+| **Fix fileName audio** | Nomenclature "Rapport audio - [titre intervention]" |
+| **Fix mediaFiles upload** | FormData pour File objects (JSON.stringify les supprimait) |
+| **Fix documents preview** | Signed URLs via createBrowserSupabaseClient (prestataire, locataire) |
+| **ReportsCard component** | Composant shared affichant les 3 rapports de clôture (provider, tenant, manager) |
+| **Data fetching** | Fetch intervention_reports dans les 3 page.tsx |
+
+**Fichiers créés (1):**
+- `components/interventions/shared/cards/reports-card.tsx` (165 lignes)
+
+**Fichiers modifiés (13):**
+- Hooks: use-audio-recorder.ts
+- Components: voice-recorder.tsx, simple-work-completion-modal.tsx, intervention-action-buttons.tsx
+- Cards: reports-card.tsx (NEW), documents-card.tsx, index.ts
+- Pages: 3 x page.tsx (gestionnaire, prestataire, locataire)
+- Detail clients: 3 x intervention-detail-client.tsx
+- Knowledge base: AGENTS.md (+3 learnings), progress.txt
+
+**Learnings ajoutés:** AGENTS.md #030-#032
+**Retrospective:** `docs/learnings/2026-02-12-voice-recorder-documents-reports-retrospective.md`
+
+---
+
+### 2026-02-11 - Security & RLS Policy Consolidation
+
+**Session: Fix Supabase Linter Warnings — 4 Migrations**
+
+Applied 4 migrations to fix security issues and consolidate overlapping RLS policies:
+
+| Migration | Description |
+|-----------|-------------|
+| `20260211140000` | Performance advisor fixes (reverted) |
+| `20260211150000` | Revert all (rollback) |
+| `20260211160000` | Re-apply: search_path='public' on 52 functions, SECURITY INVOKER on 6 views, InitPlan caching on 18 policies |
+| `20260211170000` | Fix ~53 `multiple_permissive_policies` warnings across 13 tables |
+
+**Policy Consolidation (migration 170000):**
+
+| Group | Action | Tables |
+|-------|--------|--------|
+| A | Updated 3 helper functions (proprietaire + contract-based locataire), dropped 7 redundant SELECT policies | buildings, lots, interventions |
+| B | Replaced 4 FOR ALL with individual action policies | intervention_type_*, import_jobs |
+| C | Merged 8 overlapping UPDATE into 4 (soft-delete pattern) | documents, quotes, reports, interventions |
+| D | Merged/dropped overlapping SELECT/INSERT/UPDATE policies | quotes, emails, email_attachments, users |
+
+**Net result:** 27 policies dropped, 17 created = 10 fewer policies. Zero remaining duplicates.
+
+**Key learning:** `pg_policies.roles` is `name[]` not `text[]` — must cast `::text[]` when using `@>` operator.
+
+---
 
 ### 2026-02-09 - Planning Button + Conversation Thread Fix + Participant Indicator
 
@@ -330,601 +389,6 @@ Refactoring pour unifier l'expérience notifications entre web et PWA.
 
 ---
 
-### 2026-01-31 - Auth API Optimization (Session 5) - CRITIQUE PERFORMANCE
-
-**Problème résolu:** 250+ appels API `/auth/v1/user` en 10 minutes pour un seul utilisateur connecté.
-
-**Root Causes Identifiées:**
-
-| Cause | Impact |
-|-------|--------|
-| `getUser()` avec retry loop | Jusqu'à 4 appels réseau par invocation |
-| `getSession()` avec double validation | Appelait `getSession()` + `getUser()` |
-| `createServerSupabaseClient()` non cached | Nouveau client créé à chaque appel |
-| Middleware + Pages = double validation | 2 appels `getUser()` par navigation |
-
-**Solution:**
-
-**Principe clé:** Le middleware fait l'unique appel réseau `getUser()`. Les pages utilisent `getSession()` qui lit le JWT localement (ZERO network call).
-
-**Fichiers modifiés:**
-
-| Fichier | Changement |
-|---------|------------|
-| `lib/auth-dal.ts` | `getUser()` utilise `getSession()` au lieu de `supabase.auth.getUser()` |
-| `lib/auth-dal.ts` | Suppression du retry loop dans `getUser()` |
-| `lib/auth-dal.ts` | `getSession()` n'appelle plus `getUser()` en double |
-| `lib/services/core/supabase-client.ts` | Ajout `cache()` wrapper sur `createServerSupabaseClient` |
-| `hooks/use-auth.tsx` | Flag `initialSessionHandled` pour éviter appels dupliqués |
-
-**Résultat:**
-- **Avant**: 250+ appels en 10 minutes
-- **Après**: 1 appel par navigation (comportement attendu)
-
-**Commit:** `2431cc3` perf(auth): reduce auth API calls from 250+ to 1 per navigation
-
----
-
-### 2026-01-31 - Formulaire Intervention Locataire + Confirmation Gestionnaire (Session 4)
-
-**Ce qui a été fait:**
-
-**1. Extension Types d'Intervention Locataire**
-- Le dropdown locataire n'affichait que 20 types (catégorie "Bien")
-- 7 types pertinents étaient masqués (catégorie "Locataire" : Réclamation, Nuisances, Demande d'info...)
-- Solution: Composant accepte maintenant un tableau de catégories
-
-**Fichiers modifiés:**
-- `components/intervention/intervention-type-combobox.tsx` (type `categoryFilter` étendu)
-- `app/locataire/.../nouvelle-demande-client.tsx` (filtre `["bien", "locataire"]`)
-
-**2. Fix Confirmation Gestionnaire (Header Prématuré)**
-- L'étape 4 du gestionnaire affichait "Intervention créée !" AVANT la création réelle
-- Root cause: `showSuccessHeader={true}` alors qu'on est encore à l'étape de confirmation
-
-**Fichier modifié:**
-- `app/gestionnaire/.../nouvelle-intervention-client.tsx` (`showSuccessHeader={false}`)
-
-**Pattern documenté:** Cohérence locataire/gestionnaire pour `InterventionConfirmationSummary`
-
----
-
-### 2026-01-31 - SWR Server Component Fix + Tenant Dashboard UX (Session 3)
-
-**Ce qui a été fait:**
-
-**1. Fix `ReferenceError: window is not defined`**
-- Root cause: SWR accède à `window` au moment de l'import du module
-- Le hook `use-intervention-types.ts` était importé dans Server Component
-- Solution: Créé `lib/services/domain/intervention-types.server.ts` séparé
-
-**Fichiers modifiés:**
-- `lib/services/domain/intervention-types.server.ts` (CRÉÉ)
-- `app/gestionnaire/.../nouvelle-intervention/page.tsx` (import mis à jour)
-- `hooks/use-intervention-types.ts` (fonction supprimée)
-
-**2. Fix Affichage Étage/Porte Dashboard Locataire**
-- Problème: Bullet `•` affiché en premier, mauvais alignement, champs inexistants
-- Solution: Pattern séparateurs conditionnels + `pl-7` alignement + description ajoutée
-
-**Fichiers modifiés:**
-- `lib/services/domain/tenant.service.ts` (ajout `description` dans requête)
-- `lib/utils/tenant-transform.ts` (ajout `description` au type)
-- `hooks/use-tenant-data.ts` (ajout `description` à l'interface)
-- `components/dashboards/locataire-dashboard-hybrid.tsx` (nouveau affichage)
-
-**Pattern documenté:** Séparation client/serveur pour hooks SWR dans activeContext.md
-
----
-
-### 2026-01-31 - Authentication Refactoring (MAJEUR)
-
-**Problème résolu:** L'authentification dans SEIDO faisait des appels redondants à plusieurs endroits au lieu de passer l'information depuis les points d'entrée.
-
-**3 phases complétées:**
-
-| Phase | Description | Fichiers modifiés |
-|-------|-------------|-------------------|
-| **Phase 1: Hooks** | Suppression vérifications défensives session | 4 hooks |
-| **Phase 2: Server Actions** | Remplacement `getAuthenticatedUser()` par helper centralisé | 7 fichiers |
-| **Phase 3: Services** | Paramètres explicites + deprecation helpers legacy | 3 fichiers |
-
-#### Phase 1: Hooks Client (4 fichiers)
-
-| Fichier | Modification | Bug fix post-review |
-|---------|--------------|---------------------|
-| `hooks/use-tenant-data.ts` | Supprimé defensive session check | ✅ Ajouté `const supabase = createBrowserSupabaseClient()` ligne 212 |
-| `hooks/use-contacts-data.ts` | Supprimé defensive session check | ✅ Ajouté `const supabase = createBrowserSupabaseClient()` ligne 112 |
-| `hooks/use-interventions.ts` | Supprimé defensive session check | - |
-| `hooks/use-prestataire-data.ts` | Supprimé defensive session check | ✅ Ajouté `const supabase = createBrowserSupabaseClient()` ligne 203 |
-
-**Bug critique corrigé (post-review):** Les 3 hooks `use-contacts-data.ts`, `use-prestataire-data.ts`, `use-tenant-data.ts` utilisaient `supabase` sans l'avoir déclaré après la suppression des vérifications défensives.
-
-#### Phase 2: Server Actions (7 fichiers)
-
-**Nouveau helper créé:** `getServerActionAuthContextOrNull()` dans `lib/server-context.ts`
-
-| Fichier | Ancienne méthode | Nouvelle méthode | Bugs fixés |
-|---------|------------------|------------------|------------|
-| `app/actions/intervention-actions.ts` | `getAuthenticatedUser()` local | `getServerActionAuthContextOrNull()` | - |
-| `app/actions/intervention-comment-actions.ts` | `getAuthenticatedUser()` local | `getServerActionAuthContextOrNull()` | - |
-| `app/actions/email-conversation-actions.ts` | `getAuthenticatedUser()` local | `getServerActionAuthContextOrNull()` | - |
-| `app/actions/conversation-actions.ts` | `getAuthenticatedUser()` local | `getServerActionAuthContextOrNull()` | - |
-| `app/actions/contract-actions.ts` | `getSession()` + `.single()` | `getServerActionAuthContextOrNull()` | `.single()` → `.limit(1)` |
-| `app/actions/building-actions.ts` | `getSession()` + `.single()` | `getServerActionAuthContextOrNull()` | `.single()` → `.limit(1)` |
-| `app/actions/lot-actions.ts` | `getSession()` + `.single()` | `getServerActionAuthContextOrNull()` | `.single()` → `.limit(1)` |
-
-**Bug `.single()` fixé:** Pour les utilisateurs multi-profil (plusieurs équipes), `.single()` causait une erreur PGRST116 car plusieurs rows étaient retournées.
-
-#### Phase 3: Services/Repositories (3 fichiers)
-
-| Fichier | Modification |
-|---------|--------------|
-| `lib/services/domain/intervention-service.ts` | `getAll()` accepte maintenant `teamId` en paramètre optionnel |
-| `lib/services/repositories/team.repository.ts` | Supprimé debug auth call inutile |
-| `lib/services/core/supabase-client.ts` | Ajouté `@deprecated` sur `getCurrentUserId()`, `isAuthenticated()`, `getServerSession()` |
-
-#### Nouveau pattern Server Action
-
-```typescript
-// lib/server-context.ts - NOUVEAU HELPER
-import { getServerActionAuthContextOrNull } from '@/lib/server-context'
-
-export async function myAction(input: unknown): Promise<ActionResult<Data>> {
-  const authContext = await getServerActionAuthContextOrNull()
-  if (!authContext) {
-    return { success: false, error: 'Authentication required' }
-  }
-  const { profile, team, supabase } = authContext
-  // ...
-}
-```
-
-#### Points de vigilance pour debugging
-
-Si un bug d'authentification est trouvé, vérifier:
-
-1. **Hooks client** - Les 4 hooks modifiés (`use-tenant-data.ts`, `use-contacts-data.ts`, `use-prestataire-data.ts`, `use-interventions.ts`)
-2. **Server Actions** - Les 7 fichiers utilisant `getServerActionAuthContextOrNull()`
-3. **Bug `.single()`** - Tester avec un utilisateur multi-profil (plusieurs équipes)
-4. **Variable `supabase`** - Vérifier que `createBrowserSupabaseClient()` est appelé avant toute utilisation de `supabase`
-
-**Design document:** `docs/plans/2026-01-31-auth-refactoring-design.md`
-
----
-
-### 2026-01-30 - Finalization Modal z-index Fix
-
-**Problème:** La modale de finalisation était invisible malgré un state React correct.
-
-**Root cause:** CSS z-index manquant sur `.unified-modal__content` - la modale se rendait derrière l'overlay.
-
-**Solution:**
-```css
-.unified-modal__overlay { z-index: 9998; }
-.unified-modal__content { z-index: 9999; }
-```
-
-**Fichiers modifiés:**
-- `app/globals.css` - z-index overlay/content
-- `intervention-detail-client.tsx` - useEffect stabilisé avec ref
-- `finalization-modal-live.tsx` - Imports Lucide fusionnés
-- `unified-modal.tsx` - Cleanup
-
----
-
-### 2026-01-30 - Accessibility WCAG AA + Card Refactoring
-
-**Ce qui a été fait:**
-
-**1. ApprovalModal Accessibility (WCAG 2.1 AA)**
-
-| Amélioration | Avant | Après |
-|--------------|-------|-------|
-| Touch targets | `p-1.5` (24px) | `p-2.5` (40px) |
-| Icônes décoratives | Lisibles par screen readers | `aria-hidden="true"` |
-| Contraste | `text-slate-400` (~2.5:1) | `text-slate-500/600` (>4.5:1) |
-| Focus states | Absents | `focus-visible:ring-2` |
-| Loading state | Non annoncé | `role="status" aria-live="polite"` |
-
-**2. InterventionCard Refactoring**
-
-- **Renommage:** `PendingActionsCard` → `InterventionCard`
-- **Fix sizing:** Retrait `h-full` (cards stretched) → hauteur auto CSS Grid
-- **Suppression legacy:** `intervention-overview-card.tsx` (wrapper inutile)
-- **Inline content:** overview-tab.tsx utilise directement les sous-composants
-
-**Fichiers créés:**
-- `components/dashboards/shared/intervention-card.tsx`
-
-**Fichiers modifiés:**
-- `components/intervention/modals/approval-modal.tsx` - A11y fixes
-- `components/dashboards/shared/index.ts` - Export InterventionCard
-- `components/interventions/interventions-list.tsx` - Fix h-full + rename import
-- `app/gestionnaire/.../overview-tab.tsx` - Inline content
-- `app/prestataire/.../overview-tab.tsx` - Inline content
-- `lib/intervention-action-utils.ts` - "Modifier décision" → variant secondary
-
-**Fichiers supprimés:**
-- `components/dashboards/shared/pending-actions-card.tsx`
-- `components/interventions/intervention-overview-card.tsx`
-
----
-
-### 2026-01-30 - Performance Optimization + UX Intervention Tabs
-
-**Ce qui a été fait:**
-
-**1. Analyse Performance (4 agents parallèles)**
-
-| Issue | Root Cause | Fix |
-|-------|------------|-----|
-| Re-renders infinis | `useEffect` sans `[]` dans content-navigator.tsx | Ajout dependency array + garde NODE_ENV |
-| CSP violations | Domaines manquants connect-src | Ajout vercel-scripts, lh3.googleusercontent, frill-prod |
-| SW timeouts | Timeout 10s trop agressif | Augmenté à 30s + désactivé en dev |
-| Double query | activity-logs faisait 2 requêtes COUNT | Query unique avec `count: 'exact'` |
-
-**2. UX Intervention Tabs (Material Design)**
-
-- Tabs: Icônes retirées (texte seul pour clarté)
-- Responsive: Dropdown < 768px, Tabs horizontaux ≥ 768px
-- Nouveau composant `ParticipantsRow` (chips horizontaux)
-- Nouveau composant `ConversationSelector` (intégré dans Chat tab)
-
-**Fichiers modifiés:**
-- `components/content-navigator.tsx` - useEffect fix
-- `next.config.js` - SW disabled en dev + CSP étendu
-- `app/sw.ts` - Timeout 10s → 30s
-- `app/api/activity-logs/route.ts` - Query unique avec count
-- `components/interventions/shared/layout/intervention-tabs.tsx` - Responsive dropdown
-
-**Fichiers créés:**
-- `components/interventions/shared/layout/participants-row.tsx`
-- `components/interventions/shared/layout/conversation-selector.tsx`
-
-**Pattern documenté:** Service Worker en dev = source de problèmes CSP/cache → désactiver
-
----
-
-### 2026-01-29 - Analyse Approfondie + Localisation Tab + Fix Dashboard Locataire
-
-**Ce qui a ete fait:**
-
-**1. Analyse Approfondie Application (6 agents parallèles)**
-
-Verification complète de l'application avec agents spécialisés:
-
-| Agent | Findings |
-|-------|----------|
-| Database | 44 tables, 6 views, 39 enums, 79 fonctions RLS |
-| API | 113 routes, 10 domaines |
-| Services | 32 services domain, 22 repositories |
-| Pages | 87 pages, 5+ route groups |
-| Components | 230+ composants, 22 directories |
-| Hooks | 64 hooks, 17 server actions |
-
-**2. Nouvel Onglet Localisation (Intervention Preview)**
-
-- Créé `components/interventions/shared/tabs/localisation-tab.tsx`
-- Carte Google Maps 400px en grand format
-- Intégré pour les 3 rôles (gestionnaire, prestataire, locataire)
-- Supprimé duplication carte dans autres onglets
-
-**3. Fix Dashboard Locataire (Vue interventions vide)**
-
-- Root cause: Migration `20260126120000` avait DROP la vue `interventions_active` sans la recréer
-- Fix: Nouvelle migration `20260129210000_fix_recreate_interventions_active_view.sql`
-- Pattern documenté: Modification enum PostgreSQL → DROP views → modify → RECREATE views
-
-**Fichiers crees:**
-- `components/interventions/shared/tabs/localisation-tab.tsx`
-- `supabase/migrations/20260129210000_fix_recreate_interventions_active_view.sql`
-
-**Memory Bank synchronisé** avec métriques correctes (44 tables, 64 hooks, 87 pages, etc.)
-
----
-
-### 2026-01-29 (earlier) - Fix PostgREST Relations + Conversation Threads + Centralisation Adresses
-
-**Ce qui a ete fait:**
-
-**1. Fix PostgREST Relations RLS (Session 2)**
-
-Probleme: La page contact edit retournait 404 car les relations PostgREST echouaient silencieusement.
-
-| Issue | Root Cause | Fix |
-|-------|------------|-----|
-| Page 404 silencieux | Relations PostgREST + RLS incompatibles | Requetes separees |
-| Erreur non visible | Objet error Supabase vide dans logs | Logging ameliore |
-| Code duplique | Meme pattern fetch dans 5 methodes | Helpers prives DRY |
-| Performance listes | N+1 queries potentiel | Batch queries |
-
-**Fichier refactore:** `lib/services/repositories/contact.repository.ts`
-- Nouveaux helpers: `fetchCompanyWithAddress()`, `fetchTeam()`
-- 5 methodes mises a jour avec `Promise.all` pour parallelisme
-- `findByTeam()` optimise avec batch queries (3 requetes max au lieu de N)
-
-**Pattern documente:** #18 "Separate Queries Pattern" dans systemPatterns.md
-
----
-
-**2. Fix Conversation Threads Multi-Profil (Session 1 - MAJEUR)**
-
-Probleme: Les threads de conversation etaient crees mais les participants n'etaient pas ajoutes correctement.
-
-| Issue | Root Cause | Fix |
-|-------|------------|-----|
-| Threads non crees | `createInitialConversationThreads` jamais appele | Ajoute dans `create-manager-intervention/route.ts` |
-| CONFLICT error | Trigger + code ajoutent meme utilisateur | `upsert` avec `ignoreDuplicates` dans repository |
-| Participants manquants | Threads crees APRES assignments | Deplace creation AVANT assignments |
-| Migrations mal ordonnees | Timestamps avant migrations existantes | Renomme: 20260128 → 20260129200003+ |
-
-**2. Migrations Conversations Appliquees (4 fichiers)**
-
-- `20260129200003_fix_multi_profile_conversation_access.sql` - `can_view_conversation()` multi-profil
-- `20260129200004_fix_missing_conversation_participants.sql` - Fix participants manquants
-- `20260129200005_add_managers_to_conversation_participants.sql` - Trigger `thread_add_managers`
-- `20260129200006_conversation_email_notifications.sql` - Notifications email
-
-**3. Centralisation Adresses (3 migrations)**
-
-Nouvelle architecture adresses avec support Google Maps:
-
-- `20260129200000_create_addresses_table.sql` - Table centralisee + RLS
-- `20260129200001_migrate_addresses_to_centralized_table.sql` - Migration donnees
-- `20260129200002_drop_legacy_address_columns.sql` - Suppression colonnes legacy
-
-**4. Nouveaux Services Adresses**
-
-- `lib/services/domain/address.service.ts` - Service domain
-- `lib/services/repositories/address.repository.ts` - Repository CRUD
-
-**Fichiers modifies:**
-- `app/api/create-manager-intervention/route.ts` - Thread creation AVANT assignments
-- `lib/services/repositories/conversation-repository.ts` - Upsert participants
-- 7 migrations SQL
-
-**Pattern Documente:** Ordre creation intervention:
-```
-1. Create intervention
-2. Create threads (AVANT assignments!)
-3. Create assignments (trigger ajoute participants)
-4. Create time slots
-```
-
----
-
-### 2026-01-28 - Nettoyage Logs Auth + Navigation Contact Preview + Fix Badge Messages
-
-**Ce qui a ete fait:**
-
-**1. Nettoyage Logs Auth Production-Ready**
-- Suppression de ~113 logs `logger.info` de debug dans 6 fichiers auth
-- Conservation de 31 logs `error/warn` critiques pour diagnostic
-- Fichiers nettoyes: `auth-service.ts`, `use-auth.tsx`, `auth-dal.ts`, `auth-guard.tsx`, `callback/page.tsx`, `auth-router.ts`
-- Imports inutilises (`logError`) retires
-
-**2. Bouton Oeil Navigation Contact Preview**
-- Ajout bouton Eye dans `participants-list.tsx` pour navigation vers fiche contact
-- Clic sur card → conversation, Clic sur oeil → `/gestionnaire/contacts/details/[id]`
-- Masque pour l'utilisateur connecte (meme comportement que bouton conversation)
-
-**3. Fix Badge Messages Non-Lus Conversation**
-- Correction du bug ou le badge n'apparaissait jamais sur "Discussion generale"
-- Root cause: `page.tsx` ne calculait pas `unread_count` pour les threads
-- Fix applique dans 3 pages: gestionnaire, locataire, prestataire
-
-**Fichiers modifies:**
-- `lib/auth-service.ts` - Nettoyage logs
-- `hooks/use-auth.tsx` - Nettoyage logs
-- `lib/auth-dal.ts` - Nettoyage logs
-- `components/auth-guard.tsx` - Nettoyage logs
-- `app/auth/callback/page.tsx` - Nettoyage logs
-- `lib/auth-router.ts` - Nettoyage logs
-- `components/interventions/shared/sidebar/participants-list.tsx` - Bouton oeil
-- `app/gestionnaire/(no-navbar)/interventions/[id]/page.tsx` - Fix badge
-- `app/locataire/(no-navbar)/interventions/[id]/page.tsx` - Fix badge
-- `app/prestataire/(no-navbar)/interventions/[id]/page.tsx` - Fix badge
-
----
-
-### 2026-01-27 - Integration Skills sp-* dans Ecosysteme Claude Code
-**Ce qui a ete fait:**
-- **Integration complete des 13 skills `superpowers:sp-*`** dans les fichiers de configuration Claude Code
-- **Philosophie implementee:** "If a skill exists and 1% chance applies, invoke it."
-- **Red Flags universels** definis pour declenchement automatique des skills
-- **3 patterns d'orchestration** documentes (Creative Work, Bug Fix, Multi-Domain)
-
-**Fichiers modifies (16 total):**
-- `.claude/CLAUDE.md` - Section "Skills Auto-Invocation" avec matrice declenchement
-- `.claude/agents/_base-template.md` - Section "Skills Integration" (herite par tous)
-- `.claude/agents/ultrathink-orchestrator.md` - Section H "Skills Integration"
-- `.claude/agents/seido-debugger.md` - Skills mapping
-- `.claude/agents/tester.md` - TDD pattern principal
-- `.claude/agents/frontend-developer.md` - Workflow frontend
-- `.claude/agents/backend-developer.md` - Workflow backend
-- `.claude/agents/ui-designer.md` - Workflow design
-- `.claude/agents/refactoring-agent.md` - Workflow refactoring
-- `.claude/agents/database-analyzer.md` - Skills section
-- `.claude/agents/API-designer.md` - Workflow API
-- `.claude/agents/researcher.md` - Skills section
-- `.claude/agents/memory-synchronizer.md` - Skills section
-- `.claude/rules/intervention-rules.md` - Skills interventions
-- `.claude/rules/database-rules.md` - Skills database
-- `.claude/rules/ui-rules.md` - Skills UI
-
-**Impact:**
-- Tous les agents heritent automatiquement des comportements skills via `_base-template.md`
-- Process Skills (brainstorming/debugging) AVANT Implementation Skills
-- Verification obligatoire avant tout commit
-
----
-
-### 2026-01-27 - Verification Architecture Cards Intervention
-**Ce qui a ete fait:**
-- **Verification architecture cascade** pour les pages de details
-  - Confirmation que TOUTES les pages utilisent `InterventionsNavigator`
-  - Chaîne: `InterventionsNavigator` → `InterventionsViewContainer` → `InterventionsList` → `PendingActionsCard`
-  - Pages verifiees: Immeubles, Lots, Contrats, Contacts
-- **Aucune modification code** - architecture deja correcte
-- **Documentation pattern** "Component Cascade Architecture" ajoute a `systemPatterns.md`
-
-**Resultat:**
-- ✅ L'unification des cards (`PendingActionsCard` au lieu de `ManagerInterventionCard`) cascade automatiquement vers TOUTES les pages de details
-
-**Pattern documente:**
-- Nouveau pattern #14 dans `systemPatterns.md`: "Interventions Display Cascade Architecture"
-
-### 2026-01-26 - Migration Devis + Pagination + Bugfixes
-**Ce qui a ete fait:**
-- **Pagination vue liste interventions** (Session 2)
-  - Nouveau hook reutilisable `hooks/use-pagination.ts`
-  - Nouveau composant `intervention-pagination.tsx` avec labels francais
-  - Integration dans `dashboard-interventions-section.tsx`
-  - Reset automatique page 1 sur changement filtres
-  - 10 elements par page, responsive (mobile: "3 / 9")
-- **Migration workflow devis** (Session 1)
-  - Le statut des devis est maintenant derive de `intervention_quotes` (independant du workflow)
-  - `requires_quote: boolean` sur interventions determine si devis requis
-  - Nouveau composant `QuoteStatusBadge` pour affichage visuel
-  - Migration SQL `20260126120000_remove_demande_de_devis_status.sql`
-- **Bugfix UX: Affichage nombre reponses en attente**
-  - `pending-actions-card.tsx` - Utilise `getPendingResponderNames()` pour compter les reponses pending
-  - Affiche "En attente de X reponse(s)" au lieu du message generique
-  - Pluralisation correcte en francais
-
-**Fichiers crees (Session 2):**
-- `hooks/use-pagination.ts` (~140 lignes)
-- `components/interventions/intervention-pagination.tsx` (~175 lignes)
-
-**Fichiers modifies (Session 2):**
-- `components/dashboards/shared/dashboard-interventions-section.tsx` (imports + hook + render)
-
-**Fichiers crees (Session 1):**
-- `components/interventions/quote-status-badge.tsx`
-- `lib/utils/quote-status.ts`
-- `lib/intervention-action-utils.ts`
-- `supabase/migrations/20260126120000_remove_demande_de_devis_status.sql`
-
-**Fichiers modifies (Session 1):**
-- `components/dashboards/shared/pending-actions-card.tsx` (import + logique lignes 117-124)
-- `app/api/create-manager-intervention/route.ts`
-- `app/api/intervention/[id]/status/route.ts`
-- `hooks/use-intervention-workflow.ts`
-- `components/interventions/intervention-create-form.tsx`
-- `components/dashboards/manager/manager-dashboard-v2.tsx`
-
-### 2026-01-25 - Intervention Types Dynamiques + Confirmation Participant
-**Ce qui a été fait:**
-- **Types d'intervention dynamiques complets**
-  - Migration `20260125000000_add_revision_charges_type.sql` - Ajout type manquant
-  - Interface admin `/admin/intervention-types` - CRUD complet avec accordéon par catégorie
-  - Navigation admin mise à jour avec lien "Types intervention"
-  - TYPE_CONFIG enrichi avec `revision_charges`
-  - 37 types dans 3 catégories (bien, bail, locataire)
-- **Fix statut intervention avec confirmation requise**
-  - `create-manager-intervention/route.ts` - CAS 2 avec `!requiresParticipantConfirmation`
-  - `create-manager-intervention/route.ts` - Time slot `status`/`selected_by_manager` conditionnels
-  - `intervention-confirm-participation/route.ts` - Vérification tous confirmés + auto-update
-  - Flow: `planification` + slot `pending` → tous confirment → `planifiee` + slot `selected`
-- **Suppression Logs DEBUG** (84+ lignes)
-  - `create-manager-intervention/route.ts` - 1 log DEBUG verbeux
-  - `availability-response/route.ts` - 18 logs DEBUG supprimés
-  - `assignment-section-v2.tsx` - 4 console.log supprimés
-  - `intervention-create-form.tsx` - Code commenté (22 lignes)
-- **Migration `is_selected` → `status`** (pattern moderne)
-  - 4 fichiers API routes migrés
-  - 1 fichier service migré
-  - Pattern: `is_selected: true` → `status: 'selected'`
-  - Pattern: `.eq('is_selected', false)` → `.neq('status', 'selected')`
-
-**Fichiers modifiés:**
-- `app/api/create-manager-intervention/route.ts`
-- `app/api/intervention/[id]/availability-response/route.ts`
-- `app/api/intervention/[id]/select-slot/route.ts`
-- `app/api/intervention-schedule/route.ts`
-- `lib/services/domain/email-notification/data-enricher.ts`
-- `components/intervention/assignment-section-v2.tsx`
-- `components/interventions/intervention-create-form.tsx`
-
-### 2026-01-25 - Dashboard Redesign + Intervention Flow Audit
-**Ce qui a été fait:**
-- **Redesign Progress Tracker Dashboard**
-  - Intégration progression dans KPI card "En cours" (au lieu de section séparée)
-  - Nouveau composant `progress-mini.tsx` (~80 lignes)
-  - Suppression `progress-tracker.tsx` (261 lignes → 0)
-  - Gain d'espace: ~70px verticalement sur le dashboard
-- **PWA Push Notifications** complètement implémentées
-  - Table `push_subscriptions` pour stocker les subscriptions
-  - Service `lib/send-push-notification.ts` utilisant web-push
-- **Email Reply Sync** amélioré
-  - Quote stripping plus robuste
-  - Threading automatique des réponses email → conversations
-
-**Commits:**
-- `9b11d08` feat(notification): Implement push notifications
-- `1d83ff3` refactor(chat): Simplify message bubble layout
-- `8669422` refactor(email): Improve email quote stripping
-- `cdc216e` feat(email): Sync email replies to threads
-- `3febddf` feat(email): Enhanced email content display
-
-### 2026-01-23 - Optimisation Ecosysteme .claude/
-**Ce qui a ete fait:**
-- **Refactoring complet** de l'ecosysteme .claude/ pour reduire la duplication
-- **CLAUDE.md** reduit de 1,163 → 269 lignes (**-77%**)
-- **Nouveau template partage** `_base-template.md` cree (106 lignes)
-- **10 agents optimises** de 3,395 → 1,386 lignes (**-56%**)
-- **Reduction totale** de ~8,843 → ~3,363 lignes (**-62%**)
-
-**Principes appliques:**
-- Single Source of Truth: Memory Bank = documentation, CLAUDE.md = regles
-- Template inheritance: Agents heritent de `_base-template.md`
-- References > Duplication: Pointe vers Memory Bank au lieu de copier
-
-**Fichiers crees:**
-- `.claude/agents/_base-template.md` (NOUVEAU)
-
-**Fichiers modifies:**
-- `.claude/CLAUDE.md`
-- Tous les 10 agents dans `.claude/agents/`
-
-**Impact:**
-- ~6,000 tokens economises par session
-- Maintenance simplifiee (1 template au lieu de 10)
-- Duplication eliminee (<5% vs ~30% avant)
-
-### 2026-01-23 - Audit Email Notifications + Preview Page (plus tot)
-**Ce qui a ete fait:**
-- **Audit complet** du systeme de notifications email
-- **Correction page Email Preview** (`/emails/preview`)
-  - 6 templates corriges (props incorrects)
-  - 5 nouveaux scenarios ajoutes (interactif, avec devis)
-- **Verification service email-notification.service.ts**
-  - Tous les batch functions utilisent les bons props
-  - Coherence confirmee avec `emails/utils/types.ts`
-
-### 2026-01-22 - Audit Complet + Synchronisation Memory Bank
-**Ce qui a ete fait:**
-- **Audit complet** de l'infrastructure SEIDO par agents specialises
-- **Synchronisation Memory Bank** avec etat reel (100% a jour)
-- **Nettoyage dette technique** : suppression composant v2 obsolete
-
-**Ecarts corriges:**
-- Tables: 37 → **38** (+ email_links)
-- Enums: 36 → **39**
-- Repositories: 20 → **21** (+ email-link)
-- Services: 27 → **31** (+ 4 services email)
-- API Routes: 97 → **113**
-- Composants: 270+ → **369**
-- Vues: 4 → **6**
-
-### 2026-01-22 - Memory Bank Implementation
-**Ce qui a ete fait:**
-- Phase 1: Infrastructure Auto-Update (hooks, scripts)
-- Phase 2: Memory Bank Core (6 fichiers)
-- Scripts: track-changes.js, update-active-context.js, check-memory-drift.js
-- Configuration hooks dans settings.local.json
-
 ## Dette Technique Connue
 - 15 fichiers utilisent encore le singleton notification legacy
 - Certains composants pourraient migrer vers Server Components
@@ -932,25 +396,26 @@ Nouvelle architecture adresses avec support Google Maps:
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-02-09)
+## Metriques Projet (2026-02-12)
 
 | Metrique | Valeur |
 |----------|--------|
-| Repositories | **22** |
-| Domain Services | **32** |
-| API Routes | **113** (10 domaines) |
-| Hooks | **66** (+2: useDebounce, usePrefetch) |
-| Components | **361** |
+| Repositories | **19** |
+| Domain Services | **33** (+1: scheduling-service) |
+| API Routes | **114** (10 domaines) |
+| Hooks | **68** (+2: useDebounce, usePrefetch) |
+| Components | **362** |
 | Pages | **87** (5+ route groups) |
 | DB Tables | **44** |
 | DB Enums | 39 |
 | DB Functions | **79** |
-| Migrations | **156** (+1: fix_trigger_individual_threads) |
+| Migrations | **165** (+5: security fixes, policy consolidation, voice note support) |
 | Server Actions | **17** files |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
-| **AGENTS.md Learnings** | **26** (+5 since V2) |
+| **AGENTS.md Learnings** | **32** (+3: JSON.stringify File objects, signed URLs, ReportsCard) |
 | **systemPatterns.md Patterns** | **29** |
+| **Shared Cards** | **15** (documents, reports, comments, conversation, quotes, planning, summary, intervention-details) |
 
 ### Metriques Ecosysteme .claude/ (2026-01-23)
 
@@ -997,7 +462,9 @@ Nouvelle architecture adresses avec support Google Maps:
 | **2026-02-08** | **Performance Navigation Optimization V2** | **Perfs listes + pages detail + Next.js 15 patterns** | **17 stories, 90 fichiers, 4 learnings AGENTS.md, 2 patterns systemPatterns.md** |
 | **2026-02-09** | **Planning Button Consolidation** | **2 boutons → 1, ProgrammingModal pre-fill** | **2 fichiers, manage_planning ActionType** |
 | **2026-02-09** | **Conversation Thread Fix** | **Trigger auth_user_id guard + participant indicator** | **4 stories, 3 learnings AGENTS.md, migration repair workflow** |
+| **2026-02-11** | **Security Consolidation RLS** | **53 linter warnings, overlapping policies** | **4 migrations, 27 policies dropped, helpers expanded (proprietaire+contracts)** |
+| **2026-02-12** | **Voice Recorder + Documents + Reports** | **Upload audio, preview docs, affichage rapports** | **13 fichiers, composant ReportsCard shared, 3 learnings AGENTS.md** |
 
 ---
-*Derniere mise a jour: 2026-02-09*
-*Session: Conversation Thread Fix + Planning Button COMPLETE + COMPOUNDED*
+*Derniere mise a jour: 2026-02-12*
+*Session: Voice Recorder + Documents + Reports Card COMPLETE + COMPOUNDED*

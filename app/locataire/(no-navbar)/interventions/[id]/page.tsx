@@ -50,7 +50,8 @@ export default async function LocataireInterventionDetailPage({ params }: PagePr
     { data: timeSlots },
     { data: assignments },
     { data: messagesByThread },
-    { data: participantsByThread }
+    { data: participantsByThread },
+    { data: reports }
   ] = await Promise.all([
     // Building data
     result.data.building_id
@@ -243,7 +244,15 @@ export default async function LocataireInterventionDetailPage({ params }: PagePr
         byThread[p.thread_id].push(p)
       })
       return { data: byThread }
-    })()
+    })(),
+
+    // Reports (closure reports from all roles)
+    supabase
+      .from('intervention_reports')
+      .select('*, creator:created_by(name)')
+      .eq('intervention_id', id)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: true })
   ])
 
   // Get creator from first assignment (usually gestionnaire or locataire)
@@ -279,6 +288,7 @@ export default async function LocataireInterventionDetailPage({ params }: PagePr
     <LocataireInterventionDetailClient
       intervention={fullIntervention}
       documents={documents || []}
+      reports={reports || []}
       threads={threads || []}
       timeSlots={timeSlots || []}
       currentUser={userData}

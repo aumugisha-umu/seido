@@ -30,6 +30,7 @@ interface InterventionActionPanelHeaderProps {
   onCancelIntervention?: () => void
   onRejectQuoteRequest?: (_quote: Quote) => void
   onProposeSlots?: () => void
+  autoOpenComplete?: boolean
   timeSlots?: Array<{
     id: string
     slot_date: string
@@ -98,6 +99,7 @@ export function InterventionActionPanelHeader({
   onCancelIntervention,
   onRejectQuoteRequest,
   onProposeSlots,
+  autoOpenComplete,
   timeSlots = []
 }: InterventionActionPanelHeaderProps) {
   return (
@@ -126,6 +128,7 @@ export function InterventionActionPanelHeader({
           onCancelIntervention={onCancelIntervention}
           onRejectQuoteRequest={onRejectQuoteRequest}
           onProposeSlots={onProposeSlots}
+          autoOpenComplete={autoOpenComplete}
           timeSlots={timeSlots}
         />
       </div>

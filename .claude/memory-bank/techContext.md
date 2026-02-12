@@ -69,7 +69,7 @@ app/actions/         # 17 server action files
 app/api/             # 113 API routes (10 domaines)
 tests/               # Infrastructure E2E
 docs/                # 226 fichiers markdown
-supabase/migrations/ # 155 migrations SQL (mis a jour 2026-02-03)
+supabase/migrations/ # 160 migrations SQL (mis a jour 2026-02-11)
 ```
 
 ### Module email-notification (Refactore 2026-01)

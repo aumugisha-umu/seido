@@ -16,6 +16,8 @@ export { DocumentsCard, DocumentsGrid, type DocumentsGridProps } from './documen
 
 export { QuotesCard } from './quotes-card'
 
+export { ReportsCard, type InterventionReport } from './reports-card'
+
 export { PlanningCard, CompactPlanning, type CompactPlanningProps } from './planning-card'
 
 export {

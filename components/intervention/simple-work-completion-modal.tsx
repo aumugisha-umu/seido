@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import type { SimpleWorkCompletionData } from "./closure/simple-types"
+import { VoiceRecorder } from "./voice-recorder"
 import { logger } from '@/lib/logger'
 
 interface SimpleWorkCompletionModalProps {
@@ -36,6 +37,7 @@ export function SimpleWorkCompletionModal({
 }: SimpleWorkCompletionModalProps) {
   const [workReport, setWorkReport] = useState("")
   const [mediaFiles, setMediaFiles] = useState<File[]>([])
+  const [voiceNote, setVoiceNote] = useState<File | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
@@ -67,6 +69,7 @@ export function SimpleWorkCompletionModal({
     const data: SimpleWorkCompletionData = {
       workReport: workReport.trim(),
       mediaFiles,
+      voiceNote,
     }
 
     try {
@@ -77,6 +80,7 @@ export function SimpleWorkCompletionModal({
         // Réinitialiser le formulaire
         setWorkReport("")
         setMediaFiles([])
+        setVoiceNote(null)
 
         // Afficher le toast de succès
         toast({
@@ -100,6 +104,7 @@ export function SimpleWorkCompletionModal({
       // Réinitialiser le formulaire à la fermeture
       setWorkReport("")
       setMediaFiles([])
+      setVoiceNote(null)
       setError(null)
       onClose()
     }
@@ -143,6 +148,23 @@ export function SimpleWorkCompletionModal({
               placeholder="Décrivez brièvement les travaux réalisés..."
               className="min-h-[120px]"
               disabled={isLoading}
+            />
+          </div>
+
+          {/* Note vocale */}
+          <div className="space-y-2">
+            <Label>
+              Note vocale
+              <span className="text-sm text-gray-500 ml-2">
+                (optionnel)
+              </span>
+            </Label>
+            <VoiceRecorder
+              onRecordingComplete={(file) => setVoiceNote(file)}
+              onRecordingRemoved={() => setVoiceNote(null)}
+              disabled={isLoading}
+              maxDurationSeconds={300}
+              fileName={`Rapport audio - ${intervention.title}`}
             />
           </div>
 

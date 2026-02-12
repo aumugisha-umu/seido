@@ -1,0 +1,26 @@
+{
+  "project": "SEIDO",
+  "featureName": "Fix SECURITY DEFINER Views",
+  "branchName": "preview",
+  "description": "Convert 5 views flagged by Supabase linter from SECURITY DEFINER to SECURITY INVOKER to enforce proper RLS.",
+  "createdAt": "2026-02-11",
+  "prdSource": null,
+  "status": "in_progress",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Convert 5 SECURITY DEFINER views to SECURITY INVOKER",
+      "description": "As a security-conscious developer, I want all views to use SECURITY INVOKER so that RLS policies are enforced for the querying user, not the view creator.",
+      "acceptanceCriteria": [
+        "Migration sets security_invoker=on for contracts_active, lots_active, buildings_active, lots_with_contacts, activity_logs_with_user",
+        "Migration applies cleanly via supabase db push --linked",
+        "Supabase linter no longer flags these 5 views"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Single migration using ALTER VIEW SET (security_invoker = on). No DROP/RECREATE needed."
+    }
+  ]
+}

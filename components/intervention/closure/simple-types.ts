@@ -6,6 +6,9 @@ export interface SimpleWorkCompletionData {
 
   // Fichiers optionnels : photos et vidéos
   mediaFiles: File[]
+
+  // Note vocale optionnelle
+  voiceNote?: File | null
 }
 
 // Interface pour la réponse API

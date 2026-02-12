@@ -40,3 +40,9 @@
 - Views fixed: contracts_active, lots_active, buildings_active, lots_with_contacts, activity_logs_with_user
 - Learnings: ALTER VIEW SET (security_invoker = on) is non-destructive — no DROP/RECREATE needed. Migrations may not explicitly set SECURITY DEFINER but DB state can diverge.
 - Decision: Used ALTER VIEW instead of DROP+RECREATE to avoid cascading dependency issues and GRANT re-application
+
+## 2026-02-12 — Voice Recorder Polish + Document Handlers + ReportsCard
+- Implemented: 3 fixes — (1) dynamic voice note filename "Rapport audio - [titre]", (2) mediaFiles upload loop in closure handler, (3) shared ReportsCard component for all 3 roles
+- Files: hooks/use-audio-recorder.ts, components/intervention/voice-recorder.tsx, components/intervention/simple-work-completion-modal.tsx, components/intervention/intervention-action-buttons.tsx, components/interventions/shared/cards/reports-card.tsx (NEW), 3x page.tsx, 3x detail-client.tsx, prestataire+locataire signed URL handlers
+- Learnings: File objects silently lost in JSON.stringify — must upload via FormData before service calls. console.log stubs are invisible bugs — grep all role views after implementing for one. intervention_reports had no display component in detail pages.
+- Decision: ReportsCard as shared component above DocumentsCard (prestataire/locataire) or in Documents tab (gestionnaire). Sequential upload for mediaFiles (fail-fast over parallel).

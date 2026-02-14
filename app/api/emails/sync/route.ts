@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getApiAuthContext } from '@/lib/api-auth-helper';
 import { EmailSyncService } from '@/lib/services/domain/email-sync.service';
 import { createClient } from '@supabase/supabase-js';
+import { logger } from '@/lib/logger';
 
 /**
  * POST /api/emails/sync
@@ -22,7 +23,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'No team found' }, { status: 404 });
         }
 
-        console.log('📧 [MANUAL-SYNC] Starting sync for team:', userProfile.team_id);
+        logger.info({ teamId: userProfile.team_id }, '[MANUAL-SYNC] Starting sync for team');
 
         // Service client pour accéder aux connexions (bypass RLS)
         const serviceClient = createClient(
@@ -43,7 +44,7 @@ export async function POST(request: Request) {
         }
 
         if (!connections?.length) {
-            console.log('📧 [MANUAL-SYNC] No active connections found');
+            logger.info('[MANUAL-SYNC] No active connections found');
             return NextResponse.json({
                 success: true,
                 message: 'No active connections to sync',
@@ -51,16 +52,16 @@ export async function POST(request: Request) {
             });
         }
 
-        console.log(`📧 [MANUAL-SYNC] Found ${connections.length} active connection(s)`);
+        logger.info({ connectionCount: connections.length }, '[MANUAL-SYNC] Found active connections');
 
         const syncService = new EmailSyncService(serviceClient);
 
         // Sync parallèle de toutes les connexions de l'équipe
         const syncPromises = connections.map(async (connection) => {
             try {
-                console.log(`📧 [MANUAL-SYNC] Syncing connection ${connection.id} (${connection.email_address})`);
+                logger.info({ connectionId: connection.id, email: connection.email_address }, '[MANUAL-SYNC] Syncing connection');
                 const result = await syncService.syncConnection(connection as any);
-                console.log(`📧 [MANUAL-SYNC] Connection ${connection.id} result:`, result.status);
+                logger.info({ connectionId: connection.id, status: result.status }, '[MANUAL-SYNC] Connection sync result');
                 return result;
             } catch (err: any) {
                 console.error(`📧 [MANUAL-SYNC] Connection ${connection.id} error:`, err.message);
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
         const errorCount = syncResults.filter(r => r.status === 'error').length;
         const totalNewEmails = syncResults.reduce((acc, r) => acc + (r.count || 0), 0);
 
-        console.log(`📧 [MANUAL-SYNC] Completed: ${successCount} success, ${errorCount} errors, ${totalNewEmails} new emails`);
+        logger.info({ successCount, errorCount, totalNewEmails }, '[MANUAL-SYNC] Completed');
 
         return NextResponse.json({
             success: true,

@@ -35,7 +35,8 @@
       "WebFetch(domain:m3.material.io)",
       "Bash(timeout:*)",
       "Bash(npx eslint:*)",
-      "WebFetch(domain:docs.stripe.com)"
+      "WebFetch(domain:docs.stripe.com)",
+      "WebFetch(domain:prateeksha.com)"
     ],
     "deny": [],
     "ask": []
@@ -65,8 +66,8 @@
       }
     ]
   },
-  "outputStyle": "Explanatory",
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true
-  }
+  },
+  "outputStyle": "Explanatory"
 }

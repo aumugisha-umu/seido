@@ -85,7 +85,8 @@ const nextConfig = {
     '@supabase/supabase-js',
     '@supabase/ssr',
     '@react-email/render',
-    '@react-email/components'
+    '@react-email/components',
+    'pino',
   ],
 
   experimental: {

@@ -52,11 +52,6 @@ const getPriorityLabel = (priority: string) => {
 }
 
 const getInterventionLocationText = (intervention: InterventionData): string => {
-  // Debug logging
-  console.log('🔍 [LOCATION-DEBUG] Intervention status:', intervention.status)
-  console.log('🔍 [LOCATION-DEBUG] Building:', intervention.building)
-  console.log('🔍 [LOCATION-DEBUG] Lot:', intervention.lot)
-
   // Helper to format country enum to display name
   const formatCountry = (country: string | undefined): string => {
     if (!country) return ''
@@ -90,8 +85,6 @@ const getInterventionLocationText = (intervention: InterventionData): string => 
       const country = lotAddr?.country || buildingAddr?.country || ''
 
       const locationParts = [postal, city, formatCountry(country)].filter(Boolean)
-      console.log('🔍 [LOCATION-DEBUG] Location parts:', locationParts)
-
       if (locationParts.length > 0) {
         return `${lot.reference} - ${locationParts.join(', ')}`
       }
@@ -118,8 +111,6 @@ const getInterventionLocationText = (intervention: InterventionData): string => 
         formatCountry(addr?.country)
       ].filter(Boolean)
 
-      console.log('🔍 [LOCATION-DEBUG] Building location parts:', locationParts)
-
       if (locationParts.length > 0) {
         return locationParts.join(', ')
       }
@@ -138,7 +129,6 @@ const getInterventionLocationText = (intervention: InterventionData): string => 
     return `Immeuble ${intervention.building_id}`
   }
 
-  console.log('⚠️ [LOCATION-DEBUG] No location data available')
   return 'Localisation non spécifiée'
 }
 

@@ -171,7 +171,7 @@ export async function POST(
       const notificationService = new NotificationService(notificationRepository)
 
       // Récupérer les gestionnaires assignés
-      const { data: managerAssignments } = await supabase
+      const { data: managerAssignments } = await serviceRoleClient
         .from('intervention_assignments')
         .select('user:users!user_id(id, name, email, role), is_primary')
         .eq('intervention_id', interventionId)
@@ -205,7 +205,7 @@ export async function POST(
       ) || []
 
       // Récupérer le prestataire assigné
-      const { data: providerAssignments } = await supabase
+      const { data: providerAssignments } = await serviceRoleClient
         .from('intervention_assignments')
         .select('user:users!user_id(id, name, email, role)')
         .eq('intervention_id', interventionId)

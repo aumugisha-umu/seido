@@ -30,7 +30,8 @@ import {
   TooltipProvider,
   TooltipTrigger
 } from '@/components/ui/tooltip'
-import { Users, ContactRound, MessageSquare, Mail, Phone, Building2 } from 'lucide-react'
+import { Users, ContactRound, MessageSquare, Mail, Phone, Building2, Copy, Check } from 'lucide-react'
+import { useState, useCallback } from 'react'
 
 type UserRole = 'gestionnaire' | 'locataire' | 'prestataire' | 'admin'
 type ThreadType = 'group' | 'tenant_to_managers' | 'provider_to_managers'
@@ -90,6 +91,31 @@ const getInitials = (name: string) => {
     .join('')
     .toUpperCase()
     .slice(0, 2)
+}
+
+const CopyButton = ({ value }: { value: string }) => {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    navigator.clipboard.writeText(value)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }, [value])
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="p-0.5 rounded hover:bg-muted transition-colors shrink-0"
+      aria-label={`Copier ${value}`}
+    >
+      {copied
+        ? <Check className="h-3 w-3 text-green-500" />
+        : <Copy className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+      }
+    </button>
+  )
 }
 
 interface ParticipantChipProps {
@@ -192,10 +218,11 @@ const ParticipantChip = ({ participant, roleKey, showChatIcon, onChatClick }: Pa
                 <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <a
                   href={`mailto:${participant.email}`}
-                  className="text-xs text-muted-foreground hover:text-foreground truncate transition-colors"
+                  className="text-xs text-muted-foreground hover:text-foreground truncate transition-colors flex-1 min-w-0"
                 >
                   {participant.email}
                 </a>
+                <CopyButton value={participant.email} />
               </div>
             )}
             {participant.phone && (
@@ -203,10 +230,11 @@ const ParticipantChip = ({ participant, roleKey, showChatIcon, onChatClick }: Pa
                 <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                 <a
                   href={`tel:${participant.phone}`}
-                  className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  className="text-xs text-muted-foreground hover:text-foreground transition-colors flex-1 min-w-0"
                 >
                   {participant.phone}
                 </a>
+                <CopyButton value={participant.phone} />
               </div>
             )}
             {participant.company_name && (

@@ -645,8 +645,6 @@ export function ChatInterface({
       if (chatUpload.files.length > 0) {
         toast.info('Upload des fichiers en cours...')
         documentIds = await chatUpload.uploadFiles()
-        console.log('📎 [CHAT-INTERFACE] documentIds after upload:', documentIds)
-
         // If no files were successfully uploaded and message is empty, abort
         if (documentIds.length === 0 && !messageContent) {
           toast.error('Aucun fichier n\'a pu être uploadé')
@@ -677,12 +675,6 @@ export function ChatInterface({
       setMessages(prev => [...prev, optimisticMessage])
 
       // Send message with document IDs
-      console.log('📤 [CHAT-INTERFACE] Calling onSendMessage with:', {
-        content: messageContent || '📎 Fichier(s) partagé(s)',
-        documentIds,
-        documentIdsLength: documentIds.length
-      })
-
       if (onSendMessage) {
         await onSendMessage(messageContent || '📎 Fichier(s) partagé(s)', documentIds)
       } else {

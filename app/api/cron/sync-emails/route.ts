@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { EmailSyncService } from '@/lib/services/domain/email-sync.service';
+import { logger } from '@/lib/logger';
 
 // This route is called by Vercel Cron
 export async function GET(request: Request) {
@@ -33,7 +34,7 @@ export async function GET(request: Request) {
             return NextResponse.json({ message: 'No active connections to sync' });
         }
 
-        console.log(`Starting sync for ${connections.length} connections...`);
+        logger.info({ connectionCount: connections.length }, 'Starting sync for connections');
 
         const syncService = new EmailSyncService(supabase);
 

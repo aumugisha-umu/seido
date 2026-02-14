@@ -276,53 +276,47 @@ export function KPIMobileGrid({ cards, className, hideHeroCard = false }: KPIMob
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {gridCards.map((card) => {
                     const styles = variantStyles[card.variant || 'default']
-                    const Icon = card.icon
                     return (
                         <Card
                             key={card.id}
                             className={cn(
-                                "shadow-sm rounded-xl overflow-hidden group",
+                                "shadow-sm rounded-xl overflow-hidden",
                                 "dark:backdrop-blur-sm dark:shadow-none",
                                 styles.card,
                                 card.onClick && "cursor-pointer"
                             )}
                             onClick={card.onClick}
                         >
-                            <CardContent className="p-3 relative">
+                            <CardContent className="p-3">
+                                <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                    {card.label}
+                                </p>
+                                <p className={cn("text-xl font-bold mt-0.5", styles.value)}>
+                                    {card.value}
+                                </p>
+                                {card.sublabel && (
+                                    <div className="text-[11px] font-medium mt-0.5 text-foreground/60 leading-tight">
+                                        {card.sublabel}
+                                    </div>
+                                )}
                                 {card.badge && (
                                     <span className={cn(
-                                        "absolute top-2 right-2 text-[10px] font-medium px-1.5 py-0.5 rounded-full",
+                                        "inline-block text-[10px] font-medium px-1.5 py-0.5 rounded-full mt-1",
                                         badgeStyles[card.badge.variant]
                                     )}>
                                         {card.badge.text}
                                     </span>
                                 )}
-                                <div className="absolute right-0 top-0 p-2 opacity-10">
-                                    <Icon className={cn("h-12 w-12", card.iconColor || "text-primary")} />
-                                </div>
-                                <div className="relative z-10">
-                                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                        {card.label}
-                                    </p>
-                                    <p className={cn("text-xl font-bold mt-0.5", styles.value)}>
-                                        {card.value}
-                                    </p>
-                                    {card.sublabel && (
-                                        <div className="flex flex-col text-xs font-medium mt-0.5 text-foreground/60">
-                                            {card.sublabel}
-                                        </div>
-                                    )}
-                                    {card.progressBar && (
-                                        <div className="mt-2">
-                                            <ProgressMini
-                                                completed={card.progressBar.completed}
-                                                total={card.progressBar.total}
-                                                percentage={card.progressBar.percentage}
-                                                periodLabel={card.progressBar.periodLabel}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
+                                {card.progressBar && (
+                                    <div className="mt-1.5">
+                                        <ProgressMini
+                                            completed={card.progressBar.completed}
+                                            total={card.progressBar.total}
+                                            percentage={card.progressBar.percentage}
+                                            periodLabel={card.progressBar.periodLabel}
+                                        />
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     )
@@ -357,6 +351,8 @@ interface StatsToCardsOptions {
     tenantCount?: number
     contractStats?: ContractStats
     onContractClick?: () => void
+    /** Click handler for "Actions requises" card (scroll to interventions) */
+    onActionsClick?: () => void
     /** Progress data for period completion tracking */
     progressData?: {
         completed: number
@@ -378,6 +374,7 @@ export function statsToKPICards({
     tenantCount = 0,
     contractStats,
     onContractClick,
+    onActionsClick,
     progressData
 }: StatsToCardsOptions): KPICardData[] {
     const cards: KPICardData[] = []
@@ -390,7 +387,8 @@ export function statsToKPICards({
         sublabel: pendingCount > 0 ? 'Urgent' : 'Tout est calme',
         icon: AlertTriangle,
         iconColor: pendingCount > 0 ? 'text-amber-500' : 'text-emerald-500',
-        variant: pendingCount > 0 ? 'warning' : 'success'
+        variant: pendingCount > 0 ? 'warning' : 'success',
+        onClick: onActionsClick
     })
 
     // Patrimoine (manager only) - Clear labels for buildings + lots breakdown
@@ -404,13 +402,13 @@ export function statsToKPICards({
         cards.push({
             id: 'patrimoine',
             label: 'Patrimoine',
-            value: `${buildingsCount} imm.`,
-            sublabel: hasBoth ? (
+            value: buildingsCount,
+            sublabel: (
                 <>
-                    <span>{buildingLotsCount} lots liés</span>
-                    <span>{independentLotsCount} lots indép.</span>
+                    <span>{buildingsCount > 1 ? 'immeubles' : 'immeuble'}</span>
+                    <span>{totalLots} lots</span>
                 </>
-            ) : `${totalLots} lots`,
+            ),
             icon: Building2,
             iconColor: 'text-indigo-600',
             variant: 'default'
@@ -453,7 +451,7 @@ export function statsToKPICards({
         id: 'interventions',
         label: 'En cours',
         value: activeCount,
-        sublabel: completedCount > 0 ? `en cours · ${completedCount} terminée${completedCount > 1 ? 's' : ''}` : 'interventions',
+        sublabel: 'interventions',
         icon: Wrench,
         iconColor: 'text-blue-600',
         variant: 'default',

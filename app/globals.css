@@ -292,8 +292,8 @@ input[autocomplete="cc-number"],
   /* 40px - 10 en Tailwind */
   --dashboard-padding-y: 1.5rem;
   /* 24px - 6 en Tailwind */
-  --dashboard-section-gap: 2rem;
-  /* 32px - 8 en Tailwind */
+  --dashboard-section-gap: 1rem;
+  /* 16px - 4 en Tailwind */
   --dashboard-header-gap: 1rem;
   /* 16px - 4 en Tailwind */
 
@@ -811,8 +811,15 @@ input[autocomplete="cc-number"],
      ============================================ */
 
   /* Dashboard Block - Main container */
+  /* Mobile: no height constraint → natural scroll via <main overflow-y-auto> */
+  /* Desktop (lg+): h-full → interventions fills remaining space with internal scroll */
   .dashboard {
-    @apply min-h-screen bg-slate-50 font-sans;
+    @apply bg-slate-50 font-sans;
+  }
+  @media (min-width: 1024px) {
+    .dashboard {
+      @apply h-full;
+    }
   }
 
   /* Dashboard Container - Manages external padding */
@@ -847,9 +854,9 @@ input[autocomplete="cc-number"],
     margin-bottom: var(--dashboard-section-gap);
   }
 
-  /* Dashboard Content - Main content section (no bottom margin as it's the last element) */
+  /* Dashboard Content - Main content section, fills remaining vertical space */
   .dashboard__content {
-    /* No margin-bottom - last element */
+    @apply flex-1 min-h-0 flex flex-col;
   }
 
   /* Sticky footer base styles (without negative margins) */

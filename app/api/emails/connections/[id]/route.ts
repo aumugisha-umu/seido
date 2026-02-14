@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getApiAuthContext } from '@/lib/api-auth-helper';
+import { logger } from '@/lib/logger';
 
 export async function DELETE(
     request: Request,
@@ -53,7 +54,7 @@ export async function DELETE(
                     .delete()
                     .eq('email_connection_id', id);
 
-                console.log(`Deleted ${ids.length} emails and related data for connection ${id}`);
+                logger.info({ connectionId: id, emailCount: ids.length }, 'Deleted emails and related data for connection');
             }
         }
 

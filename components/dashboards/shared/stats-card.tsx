@@ -147,17 +147,17 @@ export const StatsCard = memo(function StatsCard({
             )}
             onClick={isClickable ? handleClick : undefined}
         >
-            <CardContent className="stats-card__content p-4 relative">
+            <CardContent className="stats-card__content p-3 relative">
                 {/* Background Icon */}
-                <div className="stats-card__icon-bg absolute right-0 top-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-                    <Icon className={cn("h-16 w-16", iconColor)} />
+                <div className="stats-card__icon-bg absolute right-0 top-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <Icon className={cn("h-12 w-12", iconColor)} />
                 </div>
 
                 {/* Content */}
                 <div className="stats-card__info relative z-10">
                     {/* Label */}
                     <p className={cn(
-                        "stats-card__label text-sm font-medium uppercase tracking-wider",
+                        "stats-card__label text-xs font-medium uppercase tracking-wider",
                         styles.label
                     )}>
                         {label}
@@ -165,7 +165,7 @@ export const StatsCard = memo(function StatsCard({
 
                     {/* Value + Sublabel */}
                     <div className="stats-card__value-container flex items-baseline gap-1.5 mt-1">
-                        <span className={cn("stats-card__value text-3xl font-bold", styles.value)}>
+                        <span className={cn("stats-card__value text-2xl font-bold", styles.value)}>
                             {value}
                         </span>
                         {sublabel && (
@@ -184,7 +184,7 @@ export const StatsCard = memo(function StatsCard({
 
                     {/* Sparkline (optional) */}
                     {trendData?.values && trendData.values.length > 1 && (
-                        <div className="stats-card__sparkline mt-3">
+                        <div className="stats-card__sparkline mt-2">
                             <Sparkline
                                 data={trendData.values}
                                 width={100}

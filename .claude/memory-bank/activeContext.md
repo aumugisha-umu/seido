@@ -296,8 +296,10 @@ import { List, type RowComponentProps } from 'react-window'
 *Focus: Voice Recorder + Documents + Reports Card COMPLETE (13 files modified)*
 
 ## Files Recently Modified
-### 2026-02-12 13:07:28 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/systemPatterns.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/auto-memory/last-sync`
+### 2026-02-13 17:14:42 (Auto-updated)
+- `C:/Users/arthu/.claude/plans/quirky-rolling-hamster.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/api/intervention/[id]/quotes/cancel-all/route.ts`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/intervention/modals/cancel-quote-confirm-modal.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/gestionnaire/(no-navbar)/interventions/[id]/components/intervention-detail-client.tsx`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/actions/intervention-actions.ts`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/components/intervention/modals/programming-modal-FINAL.tsx`

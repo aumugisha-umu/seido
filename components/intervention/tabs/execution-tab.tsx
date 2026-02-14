@@ -163,27 +163,11 @@ export function ExecutionTab({
 
   // Handle accept slot
   const handleAcceptSlot = async (slotId: string) => {
-    console.log('🔵 [ExecutionTab] Accept slot clicked:', {
-      slotId,
-      interventionId,
-      currentUserId,
-      userRole,
-      timestamp: new Date().toISOString()
-    })
-
     setAccepting(slotId)
     try {
-      console.log('🔵 [ExecutionTab] Calling acceptTimeSlotAction...')
       const result = await acceptTimeSlotAction(slotId, interventionId)
 
-      console.log('🔵 [ExecutionTab] acceptTimeSlotAction result:', {
-        success: result.success,
-        error: result.error,
-        data: result.data
-      })
-
       if (result.success) {
-        console.log('✅ [ExecutionTab] Slot accepted successfully, reloading page...')
         toast.success('Créneau accepté')
         window.location.reload()
       } else {
@@ -198,7 +182,6 @@ export function ExecutionTab({
       })
       toast.error('Erreur lors de l\'acceptation du créneau')
     } finally {
-      console.log('🔵 [ExecutionTab] Setting accepting to null')
       setAccepting(null)
     }
   }
@@ -512,22 +495,6 @@ export function ExecutionTab({
                                 {/* User's response status (if they responded) */}
                                 {(() => {
                                   const userResponse = getUserResponse(slot)
-
-                                  // Debug logging
-                                  console.log('🔍 [ExecutionTab] Button rendering logic:', {
-                                    slotId: slot.id,
-                                    currentUserId,
-                                    userResponse: userResponse ? {
-                                      id: userResponse.id,
-                                      response: userResponse.response,
-                                      userId: userResponse.user_id
-                                    } : null,
-                                    isProposer,
-                                    canSelectSlot,
-                                    slotStatus: slot.status,
-                                    hasResponses: !!slot.responses,
-                                    responsesCount: slot.responses?.length || 0
-                                  })
 
                                   // If user is the proposer/creator: show Modifier + Annuler
                                   if (isCreator) {

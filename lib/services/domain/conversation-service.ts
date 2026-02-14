@@ -297,15 +297,7 @@ export class ConversationService {
    */
   async sendMessage(threadId: string, content: string, userId: string, attachments?: string[]) {
     try {
-      console.log('🔧 [CONVERSATION-SERVICE] sendMessage called with:', {
-        threadId,
-        userId,
-        contentLength: content.length,
-        attachments,
-        attachmentsLength: attachments?.length,
-        attachmentsType: typeof attachments,
-        attachmentsIsArray: Array.isArray(attachments)
-      })
+      logger.debug({ threadId, userId, contentLength: content.length, attachmentsLength: attachments?.length }, '[CONVERSATION-SERVICE] sendMessage called')
 
       // Check user has access to send in this thread
       const hasAccess = await this.checkThreadSendAccess(threadId, userId)
@@ -363,24 +355,12 @@ export class ConversationService {
         return result
       }
 
-      console.log('✅ [CONVERSATION-SERVICE] Message created with ID:', result.data.id)
+      logger.debug({ messageId: result.data.id }, '[CONVERSATION-SERVICE] Message created')
 
       // Handle attachments if provided
-      console.log('🔍 [CONVERSATION-SERVICE] Checking attachments condition:', {
-        attachments,
-        attachmentsLength: attachments?.length,
-        conditionResult: !!(attachments && attachments.length > 0)
-      })
-
       if (attachments && attachments.length > 0) {
-        console.log('📎 [CONVERSATION-SERVICE] Calling linkDocumentsToMessage with:', {
-          messageId: result.data.id,
-          documentIds: attachments,
-          documentIdsLength: attachments.length
-        })
+        logger.debug({ messageId: result.data.id, documentIds: attachments }, '[CONVERSATION-SERVICE] Linking documents to message')
         await this.linkDocumentsToMessage(result.data.id, attachments)
-      } else {
-        console.log('⚠️ [CONVERSATION-SERVICE] Skipping linkDocumentsToMessage - no attachments')
       }
 
       // Send notifications to other participants
@@ -1191,63 +1171,33 @@ export class ConversationService {
    */
   private async linkDocumentsToMessage(messageId: string, documentIds: string[]) {
     try {
-      console.log('🔗 [LINK-DOCUMENTS] START - linkDocumentsToMessage called with:', {
-        messageId,
-        documentIds,
-        documentIdsLength: documentIds.length
-      })
+      logger.debug({ messageId, documentIds }, '[LINK-DOCUMENTS] linkDocumentsToMessage called')
 
       // Get the thread to find the intervention
-      console.log('🔍 [LINK-DOCUMENTS] Step 1: Fetching message to get thread_id...')
       const { data: message, error: messageError } = await this.conversationRepo.supabase
         .from('conversation_messages')
         .select('thread_id')
         .eq('id', messageId)
         .single()
 
-      console.log('📊 [LINK-DOCUMENTS] Step 1 result:', {
-        hasMessage: !!message,
-        threadId: message?.thread_id,
-        error: messageError
-      })
-
       if (!message) {
-        console.error('❌ [LINK-DOCUMENTS] Message not found for document linking', { messageId, error: messageError })
-        logger.error('Message not found for document linking', { messageId })
+        logger.error({ messageId, error: messageError }, 'Message not found for document linking')
         return
       }
 
-      console.log('🔍 [LINK-DOCUMENTS] Step 2: Fetching thread to get intervention_id...')
       const { data: thread, error: threadError } = await this.conversationRepo.supabase
         .from('conversation_threads')
         .select('intervention_id')
         .eq('id', message.thread_id)
         .single()
 
-      console.log('📊 [LINK-DOCUMENTS] Step 2 result:', {
-        hasThread: !!thread,
-        interventionId: thread?.intervention_id,
-        error: threadError
-      })
-
       if (!thread) {
-        console.error('❌ [LINK-DOCUMENTS] Thread not found for document linking', { threadId: message.thread_id, error: threadError })
-        logger.error('Thread not found for document linking', { threadId: message.thread_id })
+        logger.error({ threadId: message.thread_id, error: threadError }, 'Thread not found for document linking')
         return
       }
 
       // Update the documents to link them to this message
       // Only update documents that belong to this intervention (security check)
-      console.log('🔄 [LINK-DOCUMENTS] Step 3: Updating intervention_documents table...')
-      console.log('📝 [LINK-DOCUMENTS] UPDATE query:', {
-        table: 'intervention_documents',
-        update: { message_id: messageId },
-        where: {
-          id_in: documentIds,
-          intervention_id: thread.intervention_id
-        }
-      })
-
       const { data: updateData, error: updateError, count } = await this.conversationRepo.supabase
         .from('intervention_documents')
         .update({ message_id: messageId })
@@ -1255,23 +1205,13 @@ export class ConversationService {
         .eq('intervention_id', thread.intervention_id)
         .select()
 
-      console.log('📊 [LINK-DOCUMENTS] Step 3 result:', {
-        hasError: !!updateError,
-        error: updateError,
-        count,
-        updatedData: updateData
-      })
-
       if (updateError) {
-        console.error('❌ [LINK-DOCUMENTS] Failed to link documents to message', updateError)
-        logger.error('Failed to link documents to message', updateError)
+        logger.error({ error: updateError }, 'Failed to link documents to message')
       } else {
-        console.log(`✅ [LINK-DOCUMENTS] SUCCESS - Linked ${documentIds.length} documents to message ${messageId}`)
-        logger.info(`Successfully linked ${documentIds.length} documents to message ${messageId}`)
+        logger.info({ messageId, documentCount: documentIds.length }, 'Successfully linked documents to message')
       }
     } catch (error) {
-      console.error('❌ [LINK-DOCUMENTS] EXCEPTION in linkDocumentsToMessage:', error)
-      logger.error('Error linking documents to message', error)
+      logger.error({ error }, 'Error linking documents to message')
     }
   }
 

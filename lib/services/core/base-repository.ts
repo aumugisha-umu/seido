@@ -117,56 +117,17 @@ export abstract class BaseRepository<
    */
   async findById(id: string, _useCache = true): Promise<RepositoryResponse<TRow>> {
     const startTime = Date.now()
-    console.log(`🔍 [BASE-REPOSITORY] findById called`, {
-      table: this.tableName,
-      id,
-      timestamp: new Date().toISOString()
-    })
+    logger.debug({ table: this.tableName, id }, '[BASE-REPOSITORY] findById called')
 
     try {
-      console.log(`📍 [BASE-REPOSITORY] Step 1: Validating UUID...`, { table: this.tableName })
-      const validateStart = Date.now()
       validateUUID(id)
-      const validateElapsed = Date.now() - validateStart
-      console.log(`✅ [BASE-REPOSITORY] UUID validation passed`, {
-        table: this.tableName,
-        elapsed: `${validateElapsed}ms`
-      })
 
-      // ✅ DIAGNOSTIC: Check browser auth context before query
-      console.log(`📍 [BASE-REPOSITORY] Step 3: Checking browser auth context...`, { table: this.tableName })
-
-      // Check cookies
-      if (typeof document !== 'undefined') {
-        const cookieHeader = document.cookie
-        const cookies = cookieHeader ? cookieHeader.split(';').map(c => c.trim().split('=')[0]) : []
-        const authCookies = cookies.filter(c => c.includes('supabase') || c.includes('auth'))
-        console.log(`🍪 [BASE-REPOSITORY] Browser cookies check:`, {
-          totalCookies: cookies.length,
-          authCookies: authCookies.length,
-          authCookieNames: authCookies.slice(0, 3) // First 3 to avoid spam
-        })
-      }
-
-      // Check localStorage session
-      if (typeof localStorage !== 'undefined') {
-        const sessionKeys = Object.keys(localStorage).filter(k => k.includes('supabase') || k.includes('auth'))
-        console.log(`💾 [BASE-REPOSITORY] LocalStorage session check:`, {
-          sessionKeys: sessionKeys.length,
-          keyNames: sessionKeys.slice(0, 3) // First 3 to avoid spam
-        })
-      }
-
-      console.log(`📍 [BASE-REPOSITORY] Step 4: Querying Supabase with timeout...`, {
-        table: this.tableName,
-        id
-      })
       const queryStart = Date.now()
 
       // Create AbortController for explicit timeout
       const controller = new AbortController()
       const timeoutId = setTimeout(() => {
-        console.warn(`⏰ [BASE-REPOSITORY] Query timeout triggered after 5s`, { table: this.tableName })
+        logger.warn({ table: this.tableName }, '[BASE-REPOSITORY] Query timeout triggered after 5s')
         controller.abort()
       }, 5000) // 5s timeout
 
@@ -181,21 +142,9 @@ export abstract class BaseRepository<
         clearTimeout(timeoutId)
 
         const queryElapsed = Date.now() - queryStart
-        console.log(`⏱️ [BASE-REPOSITORY] Supabase query completed`, {
-          table: this.tableName,
-          hasData: !!data,
-          hasError: !!error,
-          errorCode: error?.code,
-          elapsed: `${queryElapsed}ms`
-        })
+        logger.debug({ table: this.tableName, hasData: !!data, hasError: !!error, errorCode: error?.code, elapsed: queryElapsed }, '[BASE-REPOSITORY] Supabase query completed')
 
         if (error) {
-          console.error(`❌ [BASE-REPOSITORY] Query error`, {
-            table: this.tableName,
-            errorCode: error.code,
-            errorMessage: error.message,
-            totalElapsed: `${Date.now() - startTime}ms`
-          })
 
           if (error.code === 'PGRST116') {
             throw new NotFoundException(this.tableName, id)
@@ -203,22 +152,13 @@ export abstract class BaseRepository<
           return createErrorResponse(handleError(error, `${this.tableName}:findById`))
         }
 
-        const totalElapsed = Date.now() - startTime
-        console.log(`✅ [BASE-REPOSITORY] findById completed successfully`, {
-          table: this.tableName,
-          totalElapsed: `${totalElapsed}ms`
-        })
+        logger.debug({ table: this.tableName, elapsed: Date.now() - startTime }, '[BASE-REPOSITORY] findById completed successfully')
 
         return createSuccessResponse(data as TRow)
       } catch (abortError: any) {
         clearTimeout(timeoutId)
 
         if (abortError.name === 'AbortError') {
-          const totalElapsed = Date.now() - startTime
-          console.error(`🚫 [BASE-REPOSITORY] Query aborted (5s timeout)`, {
-            table: this.tableName,
-            totalElapsed: `${totalElapsed}ms`
-          })
           return createErrorResponse({
             code: 'TIMEOUT',
             message: `Query timeout after 5s for ${this.tableName}`
@@ -227,12 +167,6 @@ export abstract class BaseRepository<
         throw abortError
       }
     } catch (error) {
-      const totalElapsed = Date.now() - startTime
-      console.error(`💥 [BASE-REPOSITORY] Exception in findById`, {
-        table: this.tableName,
-        error: error instanceof Error ? error.message : String(error),
-        totalElapsed: `${totalElapsed}ms`
-      })
       return createErrorResponse(handleError(error, `${this.tableName}:findById`))
     }
   }
@@ -284,9 +218,7 @@ export abstract class BaseRepository<
         count: data?.length || 0
       }
     } catch (error) {
-      console.error(`💥 [BaseRepository] Exception in findAll on table ${this.tableName}:`, error)
-      console.error(`💥 [BaseRepository] Error type:`, typeof error)
-      console.error(`💥 [BaseRepository] Error stringified:`, JSON.stringify(error, null, 2))
+      logger.error({ table: this.tableName, error }, '[BaseRepository] Exception in findAll')
       return {
         data: [],
         error: handleError(error, `${this.tableName}:findAll`),
@@ -413,12 +345,7 @@ export abstract class BaseRepository<
    * Update record by ID
    */
   async update(id: string, data: TUpdate): Promise<RepositoryResponse<TRow>> {
-    console.log(`🔄 [BASE-REPOSITORY] update called`, {
-      table: this.tableName,
-      id,
-      dataKeys: Object.keys(data),
-      timestamp: new Date().toISOString()
-    })
+    logger.debug({ table: this.tableName, id, dataKeys: Object.keys(data) }, '[BASE-REPOSITORY] update called')
 
     try {
       validateUUID(id)
@@ -427,7 +354,6 @@ export abstract class BaseRepository<
       // This was causing timeout issues with RLS on browser client.
       // Supabase will return an error if the record doesn't exist or is not accessible.
 
-      console.log(`📍 [BASE-REPOSITORY] Executing UPDATE query...`, { table: this.tableName, id })
       const queryStart = Date.now()
 
       const { data: result, error } = await this.supabase
@@ -438,33 +364,15 @@ export abstract class BaseRepository<
         .single()
 
       const queryElapsed = Date.now() - queryStart
-      console.log(`⏱️ [BASE-REPOSITORY] UPDATE query completed`, {
-        table: this.tableName,
-        hasData: !!result,
-        hasError: !!error,
-        errorCode: error?.code,
-        errorMessage: error?.message,
-        elapsed: `${queryElapsed}ms`
-      })
+      logger.debug({ table: this.tableName, hasData: !!result, hasError: !!error, elapsed: queryElapsed }, '[BASE-REPOSITORY] UPDATE query completed')
 
       if (error) {
-        console.error(`❌ [BASE-REPOSITORY] UPDATE error`, {
-          table: this.tableName,
-          id,
-          error: error.message,
-          code: error.code
-        })
         return createErrorResponse(handleError(error, `${this.tableName}:update`))
       }
 
-      console.log(`✅ [BASE-REPOSITORY] UPDATE success`, { table: this.tableName, id })
+      logger.debug({ table: this.tableName, id }, '[BASE-REPOSITORY] UPDATE success')
       return createSuccessResponse(result as unknown as TRow)
     } catch (error) {
-      console.error(`❌ [BASE-REPOSITORY] UPDATE exception`, {
-        table: this.tableName,
-        id,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      })
       return createErrorResponse(handleError(error, `${this.tableName}:update`))
     }
   }

@@ -38,12 +38,9 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
   // Polling pour vérifier la création du profil - retourne les données du profil
   const pollProfileCreation = async (authUserId: string, maxAttempts = 5) => {
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      console.log(`[CONFIRM-FLOW] Checking profile (attempt ${attempt + 1}/${maxAttempts})...`)
-
       const result = await checkProfileCreated(authUserId)
 
       if (result.success && result.data) {
-        console.log('[CONFIRM-FLOW] Profile found:', result.data)
         return result.data  // Retourner les données du profil
       }
 
@@ -61,7 +58,6 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
     const runConfirmFlow = async () => {
       try {
         // ÉTAPE 1 : Vérifier l'OTP
-        console.log('[CONFIRM-FLOW] Starting OTP verification...')
         setState('verifying')
 
         const confirmResult = await confirmEmailAction(tokenHash, type)
@@ -73,11 +69,9 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
           return
         }
 
-        console.log('[CONFIRM-FLOW] OTP verified successfully')
         setUserData(confirmResult.data)
 
         // ÉTAPE 2 : Vérifier que le profil est créé (polling)
-        console.log('[CONFIRM-FLOW] Waiting for profile creation...')
         setState('creating_profile')
 
         const profileData = await pollProfileCreation(confirmResult.data.authUserId)
@@ -93,7 +87,6 @@ export const ConfirmFlow = ({ tokenHash, type }: ConfirmFlowProps) => {
         }
 
         // ÉTAPE 3 : Succès ! Redirection directe vers le dashboard
-        console.log('[CONFIRM-FLOW] Profile created successfully, redirecting to dashboard...')
         const role = profileData.role || confirmResult.data.role
         router.push(`/${role}/dashboard`)
         return // Arrêter l'exécution, pas besoin de setState

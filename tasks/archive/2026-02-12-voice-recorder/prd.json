@@ -1,0 +1,80 @@
+{
+  "project": "SEIDO",
+  "featureName": "Voice Note in Closure Modal",
+  "branchName": "preview",
+  "description": "Allow prestataire to record a voice note in the intervention closure modal, saved as intervention_document with type note_vocale.",
+  "createdAt": "2026-02-12",
+  "prdSource": null,
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Migration DB: enum note_vocale + MIME audio bucket",
+      "description": "Add note_vocale to intervention_document_type enum and audio MIME types to storage bucket",
+      "acceptanceCriteria": [
+        "Enum note_vocale present in database.types.ts",
+        "Storage bucket accepts audio/webm, audio/mp4, audio/ogg, audio/wav, audio/mpeg",
+        "Migration is idempotent"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Migration applied + types regenerated. note_vocale in database.types.ts lines 4253/4570."
+    },
+    {
+      "id": "US-002",
+      "title": "Hook useAudioRecorder (MediaRecorder API)",
+      "description": "Custom React hook wrapping MediaRecorder API with cross-browser MIME detection, permission handling, timer, and cleanup",
+      "acceptanceCriteria": [
+        "MIME detection: webm/opus (Chrome/Firefox) then mp4 (Safari) fallback",
+        "Permission denied shows French error message",
+        "Auto-stop at 5 minutes",
+        "No memory leaks (cleanup streams + objectURL)",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Hook created at hooks/use-audio-recorder.ts (~230 lines). Cross-browser MIME detection, permission handling, timer with auto-stop, cleanup on unmount. Exports audioBlobToFile helper."
+    },
+    {
+      "id": "US-003",
+      "title": "VoiceRecorder component (3-state UI)",
+      "description": "Reusable UI component with idle/recording/recorded states, mobile-first design",
+      "acceptanceCriteria": [
+        "3 visual states: idle (mic button), recording (pulse + timer + stop), recorded (audio player + re-record + delete)",
+        "Native <audio controls> for playback",
+        "Touch targets >= 44px",
+        "Disabled state support",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Component at components/intervention/voice-recorder.tsx (~180 lines). 4 states: idle (dashed mic button), recording (red pulse + timer + stop), recorded (audio controls + re-record + delete), error (alert). Mobile touch targets 44px."
+    },
+    {
+      "id": "US-004",
+      "title": "Integration: modal + upload + schemas",
+      "description": "Wire VoiceRecorder into SimpleWorkCompletionModal, upload voice note via existing API before closure, update Zod schema and MIME types",
+      "acceptanceCriteria": [
+        "VoiceRecorder visible in modal between rapport and photos sections",
+        "Voice note uploaded via /api/upload-intervention-document before closure",
+        "Upload failure prevents closure (no data loss)",
+        "Without voice note, existing behavior unchanged",
+        "Zod schema accepts audio MIME types",
+        "use-intervention-upload.ts MIME types and DOCUMENT_TYPES updated",
+        "upload route getDocumentType detects audio as note_vocale",
+        "Typecheck passes (npx tsc --noEmit)"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-001", "US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "6 files modified: simple-types.ts (+voiceNote), simple-work-completion-modal.tsx (+VoiceRecorder), intervention-action-buttons.tsx (upload-before-close), upload-intervention-document route.ts (audio→note_vocale), schemas.ts (audio MIME), use-intervention-upload.ts (MIME+DOCUMENT_TYPES). Full syntax check passed."
+    }
+  ]
+}

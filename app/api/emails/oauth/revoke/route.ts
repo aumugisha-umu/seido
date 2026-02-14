@@ -9,6 +9,7 @@
 import { NextResponse } from 'next/server'
 import { getApiAuthContext } from '@/lib/api-auth-helper'
 import { GmailOAuthService } from '@/lib/services/domain/gmail-oauth.service'
+import { logger } from '@/lib/logger'
 
 export async function POST(request: Request) {
   try {
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
           .delete()
           .eq('email_connection_id', connectionId)
 
-        console.log(`Deleted ${ids.length} emails and related data for connection ${connectionId}`)
+        logger.info({ connectionId, emailCount: ids.length }, 'Deleted emails and related data for connection')
       }
     }
 

@@ -3,6 +3,7 @@ import { simpleParser, ParsedMail } from 'mailparser';
 import { TeamEmailConnection } from '@/lib/types/email-integration';
 import { EncryptionService } from './encryption.service';
 import { GmailOAuthService } from './gmail-oauth.service';
+import { logger } from '@/lib/logger';
 
 /**
  * Sanitizes error messages by removing invalid Unicode escape sequences
@@ -115,13 +116,13 @@ export class ImapService {
                 );
 
                 if (isExpired) {
-                    console.log('Access token expiré, rafraîchissement en cours...');
+                    logger.info('Access token expired, refreshing...');
                     const refreshed = await GmailOAuthService.refreshAccessToken(refreshToken);
                     finalAccessToken = refreshed.accessToken;
 
                     // Note: Le nouveau token devrait être sauvegardé en DB
                     // Cela sera géré par le service de sync qui a accès à Supabase
-                    console.log('Token rafraîchi avec succès');
+                    logger.info('Token refreshed successfully');
                 }
             }
 
@@ -179,7 +180,7 @@ export class ImapService {
                         searchCriteria = ['UNSEEN'];
                     }
 
-                    console.log('IMAP Search Criteria:', searchCriteria);
+                    logger.debug({ searchCriteria }, 'IMAP Search Criteria');
 
                     imap.search(searchCriteria, (err, uids) => {
                         if (err) {
@@ -197,7 +198,7 @@ export class ImapService {
                         const currentMax = Math.max(...uids);
                         if (currentMax > maxUid) maxUid = currentMax;
 
-                        console.log(`Found ${uids.length} emails. Fetching...`);
+                        logger.info({ emailCount: uids.length }, 'Found emails. Fetching...');
 
                         const f = imap.fetch(uids, { bodies: '', struct: true });
 

@@ -480,7 +480,6 @@ export const ApprovalModal = ({
                   id="internal-comment-reject"
                   value={internalComment}
                   onChange={(e) => {
-                    console.log('📝 [MODAL] Internal comment changed:', e.target.value)
                     onInternalCommentChange(e.target.value)
                   }}
                   placeholder="Notes internes (non visibles par le locataire)..."

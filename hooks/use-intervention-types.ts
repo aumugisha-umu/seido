@@ -51,8 +51,6 @@ export interface InterventionTypesData {
 async function fetchInterventionTypes(): Promise<InterventionTypesData> {
   const supabase = createBrowserSupabaseClient()
 
-  console.log('[useInterventionTypes] Fetching from database...')
-
   const [categoriesResult, typesResult] = await Promise.all([
     supabase
       .from('intervention_type_categories')
@@ -84,8 +82,6 @@ async function fetchInterventionTypes(): Promise<InterventionTypesData> {
     category_code: (t.category as { code: string; label_fr: string })?.code || '',
     category_label: (t.category as { code: string; label_fr: string })?.label_fr || '',
   })) as InterventionType[]
-
-  console.log(`[useInterventionTypes] Loaded ${types.length} types in ${categories.length} categories`)
 
   return { categories, types }
 }

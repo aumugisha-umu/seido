@@ -387,15 +387,15 @@ export function InterventionDetailClient({
   // State for action button loading
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
-  // State for cancel quote confirmation modal (from toggle)
+  // State for cancel quote confirmation modal (from toggle) — supports bulk cancel
   const [cancelQuoteConfirmModal, setCancelQuoteConfirmModal] = useState<{
     isOpen: boolean
-    quoteId: string | null
-    providerName: string
+    quoteCount: number
+    providerNames: string[]
   }>({
     isOpen: false,
-    quoteId: null,
-    providerName: ''
+    quoteCount: 0,
+    providerNames: []
   })
   const [isCancellingQuoteFromToggle, setIsCancellingQuoteFromToggle] = useState(false)
 
@@ -410,6 +410,13 @@ export function InterventionDetailClient({
   const getActiveQuote = () => {
     return quotes.find(q =>
       ['pending', 'sent', 'accepted'].includes(q.status)
+    )
+  }
+
+  // Helper: get ALL active quotes (for bulk cancel)
+  const getActiveQuotes = () => {
+    return quotes.filter(q =>
+      ['pending', 'sent'].includes(q.status) && (!q.amount || q.amount <= 0)
     )
   }
 
@@ -987,6 +994,10 @@ export function InterventionDetailClient({
       setTimeout(() => {
         planning.openProgrammingModal(interventionActionData)
       }, 100)
+    } else if (actionParam === 'modify_planning' && intervention.status === 'planifiee') {
+      setTimeout(() => {
+        planning.openProgrammingModal(interventionActionData)
+      }, 100)
     } else {
       // Unknown action or status mismatch, reset the flag to allow future processing
       processedUrlActionRef.current = false
@@ -1027,6 +1038,7 @@ export function InterventionDetailClient({
         planning.openProgrammingModal(interventionActionData)
         return
       case 'manage_planning':
+      case 'modify_planning':
         // Open ProgrammingModal pre-filled with current state
         planning.openProgrammingModal(interventionActionData)
         return
@@ -1104,7 +1116,6 @@ export function InterventionDetailClient({
         return
       case 'cancel':
         // TODO: Open cancel modal
-        console.log('Annuler intervention')
         return
     }
 
@@ -1162,60 +1173,55 @@ export function InterventionDetailClient({
 
   // Handle toggle quote request ON/OFF
   const handleToggleQuoteRequest = (checked: boolean) => {
-    // If toggling OFF and there is an active quote, show confirmation modal
+    // If toggling OFF and there are active quotes, show confirmation modal
     if (!checked) {
-      const activeQuote = getActiveQuote()
-      if (activeQuote) {
-        const providerName = activeQuote.provider?.name || 'ce prestataire'
+      const activeQuotes = getActiveQuotes()
+      if (activeQuotes.length > 0) {
+        const providerNames = activeQuotes.map(
+          q => q.provider?.name || 'Prestataire inconnu'
+        )
         setCancelQuoteConfirmModal({
           isOpen: true,
-          quoteId: activeQuote.id,
-          providerName
+          quoteCount: activeQuotes.length,
+          providerNames
         })
         // Don't change toggle state yet (will be updated after confirmation)
         return
       }
     }
-    // If toggling ON or no active quote, update toggle state directly
+    // If toggling ON or no active quotes, update toggle state directly
     setRequireQuote(checked)
   }
 
-  // Confirm cancel quote from toggle
+  // Confirm cancel ALL quotes from toggle
   const handleConfirmCancelQuoteFromToggle = async () => {
-    if (!cancelQuoteConfirmModal.quoteId) return
+    if (cancelQuoteConfirmModal.quoteCount === 0) return
 
     setIsCancellingQuoteFromToggle(true)
 
     try {
-      console.log('🔄 Cancelling quote from toggle:', {
-        interventionId: intervention.id,
-        quoteId: cancelQuoteConfirmModal.quoteId,
-        currentStatus: intervention.status
-      })
-
-      // 1. Cancel the quote request
       const cancelResponse = await fetch(
-        `/api/intervention/${intervention.id}/quotes/${cancelQuoteConfirmModal.quoteId}`,
-        { method: 'DELETE' }
+        `/api/intervention/${intervention.id}/quotes/cancel-all`,
+        { method: 'POST' }
       )
 
       if (!cancelResponse.ok) {
         const errorData = await cancelResponse.json().catch(() => ({}))
-        console.error('Quote cancellation failed:', errorData)
-        throw new Error(errorData.error || 'Failed to cancel quote')
+        console.error('Bulk quote cancellation failed:', errorData)
+        throw new Error(errorData.error || 'Failed to cancel quotes')
       }
 
-      console.log('✅ Quote cancelled successfully - status automatically updated to planification')
+      const result = await cancelResponse.json()
 
       toast({
-        title: 'Demande annulée',
-        description: 'La demande d\'estimation a été annulée'
+        title: result.cancelledCount > 1 ? 'Demandes annulées' : 'Demande annulée',
+        description: result.message || 'Les demandes d\'estimation ont été annulées'
       })
 
-      setCancelQuoteConfirmModal({ isOpen: false, quoteId: null, providerName: '' })
+      setCancelQuoteConfirmModal({ isOpen: false, quoteCount: 0, providerNames: [] })
       handleRefresh()
     } catch (error) {
-      console.error('Error cancelling quote from toggle:', error)
+      console.error('Error cancelling quotes from toggle:', error)
       const errorMessage = error instanceof Error ? error.message : 'Une erreur est survenue lors de l\'annulation'
       toast({
         title: 'Erreur',
@@ -1299,7 +1305,6 @@ export function InterventionDetailClient({
 
   // Handle redirect to multi-step contact creation flow
   const handleRequestContactCreation = (contactType: string) => {
-    console.log(`🔗 [INTERVENTION-DETAIL] Redirecting to contact creation: ${contactType}`)
     // Build return URL with placeholder that will be replaced by the contact creation page
     const baseReturnUrl = `/gestionnaire/interventions/${intervention.id}`
     const returnUrl = `${baseReturnUrl}?newContactId=PLACEHOLDER&contactType=${contactType}`
@@ -1309,8 +1314,6 @@ export function InterventionDetailClient({
   // Auto-assign newly created contact when returning from contact creation
   useEffect(() => {
     if (!newContactId || !returnedContactType || newContactId === 'PLACEHOLDER') return
-
-    console.log(`✅ [INTERVENTION-DETAIL] Auto-assigning new contact: ${newContactId}`)
 
     const role = returnedContactType === 'gestionnaire' || returnedContactType === 'manager'
       ? 'gestionnaire'
@@ -2214,11 +2217,14 @@ export function InterventionDetailClient({
             id: p.id,
             name: p.name,
             email: p.email || '',
-            role: p.role
+            role: p.role,
+            has_account: !!p.has_account
           }))}
           onConfirm={planning.handleProgrammingConfirm}
           isFormValid={planning.isProgrammingFormValid()}
           teamId={teamId || ''}
+          requireQuote={requireQuote}
+          onRequireQuoteChange={setRequireQuote}
           // Managers
           managers={managers.map(m => ({
             id: m.id,
@@ -2253,6 +2259,8 @@ export function InterventionDetailClient({
           onAssignmentModeChange={setModalAssignmentMode}
           providerInstructions={modalProviderInstructions}
           onProviderInstructionsChange={handleProviderInstructionsChange}
+          // Quote requests (for displaying active quotes in modal)
+          quoteRequests={quotes}
           // Confirmation participants
           requiresConfirmation={requiresConfirmation}
           onRequiresConfirmationChange={setRequiresConfirmation}
@@ -2288,12 +2296,13 @@ export function InterventionDetailClient({
           isLoading={isCancellingQuote}
         />
 
-        {/* Cancel Quote Confirm Modal (from toggle) */}
+        {/* Cancel Quote Confirm Modal (from toggle — bulk cancel) */}
         <CancelQuoteConfirmModal
           isOpen={cancelQuoteConfirmModal.isOpen}
-          onClose={() => setCancelQuoteConfirmModal({ isOpen: false, quoteId: null, providerName: '' })}
+          onClose={() => setCancelQuoteConfirmModal({ isOpen: false, quoteCount: 0, providerNames: [] })}
           onConfirm={handleConfirmCancelQuoteFromToggle}
-          providerName={cancelQuoteConfirmModal.providerName}
+          quoteCount={cancelQuoteConfirmModal.quoteCount}
+          providerNames={cancelQuoteConfirmModal.providerNames}
           isLoading={isCancellingQuoteFromToggle}
         />
 
@@ -2418,7 +2427,7 @@ export function InterventionDetailClient({
                       quotes={transformedQuotes}
                       userRole="manager"
                       showActions={true}
-                      onAddQuote={() => console.log('Add quote')}
+                      onAddQuote={() => { /* TODO: implement add quote */ }}
                       onApproveQuote={handleApproveQuote}
                       onRejectQuote={handleRejectQuote}
                       onCancelQuote={handleCancelQuote}

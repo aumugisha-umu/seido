@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getApiAuthContext } from '@/lib/api-auth-helper';
 import { EncryptionService } from '@/lib/services/domain/encryption.service';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
+import { logger } from '@/lib/logger';
 
 export async function POST(
     request: Request,
@@ -75,7 +76,7 @@ export async function POST(
                                 imap.end();
                                 return reject(err);
                             }
-                            console.log(`Test found ${results.length} emails in INBOX`);
+                            logger.info({ emailCount: results.length }, 'Test found emails in INBOX');
                             imap.end();
                             resolve(true);
                         });

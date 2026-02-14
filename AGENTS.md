@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-12
-**Total Learnings:** 32
+**Last Updated:** 2026-02-13
+**Total Learnings:** 34
 
 ---
 
@@ -235,6 +235,20 @@
 **Added:** 2026-02-11 | **Source:** DatePicker enhancement (month/year dropdowns)
 
 ### Security
+
+#### Learning #033: SECURITY DEFINER function rewrite regression — diff all role branches
+**Problem:** `get_accessible_intervention_ids()` was rewritten in migration `20260211170000` (multi-profile + contract support) but silently lost the `intervention_assignments` branch for locataire (originally added in `20260106160000`). Building-level interventions (`lot_id IS NULL`) became invisible to assigned locataires. The gestionnaire branch also regressed (fixed separately in `20260213120000`).
+**Solution:** Before rewriting any multi-role SECURITY DEFINER function, diff the current DB version branch-by-branch against the new version. Check each role's IF block independently. Use a checklist: admin, gestionnaire, prestataire, locataire — verify all access paths survive.
+**Example:** `supabase/migrations/20260213120000_fix_rls_gestionnaire_intervention_access.sql:72-78` — restored locataire `intervention_assignments` branch
+**When to Use:** Any time you rewrite `get_accessible_intervention_ids()` or similar multi-role SECURITY DEFINER helpers
+**Added:** 2026-02-13 | **Source:** Locataire building-level intervention visibility fix
+
+#### Learning #034: Action buttons — apiRoute vs href determines modal presence
+**Problem:** `intervention-action-utils.ts` used `apiRoute`/`apiMethod` for the `cloturee_par_locataire` finalize action, which executes a direct API call from intervention cards — bypassing the `FinalizationModalLive` modal entirely. The gestionnaire couldn't review reports or add notes.
+**Solution:** For any action requiring user input or review (finalization, approval), always use `href: ${baseUrl}?action=xxx` to navigate to the detail page where modals live. Reserve `apiRoute` for simple one-click actions that need no additional UI (e.g., "remind tenant").
+**Example:** `lib/intervention-action-utils.ts:169-179` — changed from `apiRoute` to `href` with `?action=finalize`
+**When to Use:** When adding or modifying action buttons in `intervention-action-utils.ts` — verify whether the action needs a modal
+**Added:** 2026-02-13 | **Source:** Closure button bypassing finalization modal
 
 #### Learning #029: SECURITY DEFINER views — use ALTER VIEW SET (security_invoker = on)
 **Problem:** Supabase linter flags views as SECURITY DEFINER even when migrations don't explicitly set it. Views created by the migration runner (superuser) can silently default to DEFINER, bypassing RLS for all querying users.

@@ -46,9 +46,3 @@
 - Files: hooks/use-audio-recorder.ts, components/intervention/voice-recorder.tsx, components/intervention/simple-work-completion-modal.tsx, components/intervention/intervention-action-buttons.tsx, components/interventions/shared/cards/reports-card.tsx (NEW), 3x page.tsx, 3x detail-client.tsx, prestataire+locataire signed URL handlers
 - Learnings: File objects silently lost in JSON.stringify — must upload via FormData before service calls. console.log stubs are invisible bugs — grep all role views after implementing for one. intervention_reports had no display component in detail pages.
 - Decision: ReportsCard as shared component above DocumentsCard (prestataire/locataire) or in Documents tab (gestionnaire). Sequential upload for mediaFiles (fail-fast over parallel).
-
-## 2026-02-13 — Fix: Building-level Interventions Invisible to Locataire + Closure Button Modal Bypass
-- Implemented: (1) Restored missing `intervention_assignments` branch for locataire in `get_accessible_intervention_ids()` — lost during `20260211170000` rewrite. (2) Fixed `cloturee_par_locataire` action button using `apiRoute` instead of `href`, bypassing finalization modal.
-- Files: supabase/migrations/20260213120000_fix_rls_gestionnaire_intervention_access.sql (updated via repair workflow), lib/intervention-action-utils.ts
-- Learnings: Multi-role SECURITY DEFINER functions are rewritten frequently and branches silently disappear. Must diff old vs new per-role before replacing. Action buttons with `apiRoute` execute directly; use `href` when a modal is needed.
-- Decision: Updated the existing untracked migration (repair + re-push) instead of creating a new one — keeps migration count manageable.

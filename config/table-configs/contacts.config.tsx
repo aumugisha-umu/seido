@@ -503,8 +503,8 @@ export const invitationsTableConfig: DataTableConfig<InvitationData> = {
             id: 'resend',
             label: 'Renvoyer',
             icon: RefreshCw,
-            onClick: (invitation) => {
-                console.log('Resend invitation:', invitation.id)
+            onClick: () => {
+                // no-op: resend not yet implemented
             }
         },
         {
@@ -512,8 +512,8 @@ export const invitationsTableConfig: DataTableConfig<InvitationData> = {
             label: 'Annuler',
             icon: XCircle,
             variant: 'destructive',
-            onClick: (invitation) => {
-                console.log('Cancel invitation:', invitation.id)
+            onClick: () => {
+                // no-op: cancel not yet implemented
             }
         }
     ],
@@ -619,8 +619,8 @@ export const companiesTableConfig: DataTableConfig<CompanyData> = {
             id: 'edit',
             label: 'Modifier',
             icon: Edit,
-            onClick: (company) => {
-                console.log('Edit company:', company.id)
+            onClick: () => {
+                // no-op: edit not yet implemented
             }
         }
     ],

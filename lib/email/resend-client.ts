@@ -64,24 +64,22 @@ export const isResendConfigured = (): boolean => {
  */
 export const emailLogger = {
   success: (to: string | string[], subject: string, emailId?: string) => {
-    console.log('✅ [EMAIL-SENT]', {
+    logger.info({
       to: Array.isArray(to) ? to.join(', ') : to,
       subject,
       emailId,
-      timestamp: new Date().toISOString(),
-    })
+    }, '[EMAIL-SENT] Email sent successfully')
   },
 
   error: (to: string | string[], subject: string, error: unknown) => {
-    console.error('❌ [EMAIL-FAILED]', {
+    logger.error({
       to: Array.isArray(to) ? to.join(', ') : to,
       subject,
       error: error instanceof Error ? error.message : String(error),
-      timestamp: new Date().toISOString(),
-    })
+    }, '[EMAIL-FAILED] Email send failed')
   },
 
   warning: (message: string) => {
-    console.warn('⚠️ [EMAIL-WARNING]', message)
+    logger.warn('[EMAIL-WARNING] ' + message)
   },
 }

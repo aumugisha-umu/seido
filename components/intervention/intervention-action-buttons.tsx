@@ -86,6 +86,7 @@ interface InterventionActionButtonsProps {
   onRejectQuoteRequest?: (_quote: Quote) => void
   onProposeSlots?: () => void
   autoOpenComplete?: boolean
+  autoOpenTenantValidation?: 'approve' | 'reject' | false
   timeSlots?: Array<{
     id: string
     slot_date: string
@@ -127,6 +128,7 @@ export function InterventionActionButtons({
   onRejectQuoteRequest,
   onProposeSlots,
   autoOpenComplete = false,
+  autoOpenTenantValidation = false,
   timeSlots = []
 }: InterventionActionButtonsProps) {
   const router = useRouter()
@@ -155,6 +157,14 @@ export function InterventionActionButtons({
       setShowSimpleWorkCompletionModal(true)
     }
   }, [autoOpenComplete])
+
+  // Auto-open tenant validation modal when navigated from card with ?action=validate_work or ?action=contest_work
+  useEffect(() => {
+    if (autoOpenTenantValidation) {
+      setTenantValidationInitialMode(autoOpenTenantValidation)
+      setShowTenantValidationModal(true)
+    }
+  }, [autoOpenTenantValidation])
 
   // Hook for quote management
   const quoting = useInterventionQuoting()
@@ -357,6 +367,12 @@ export function InterventionActionButtons({
             description: 'Clôturer définitivement l\'intervention',
             requiresComment: false
           })
+          actions.push({
+            key: 'modify_planning',
+            label: 'Modifier la planification',
+            icon: Edit,
+            description: 'Modifier la planification de l\'intervention'
+          })
         }
         if (userRole === 'prestataire') {
           actions.push({
@@ -548,6 +564,7 @@ export function InterventionActionButtons({
 
         case 'start_planning':
         case 'propose_slots':
+        case 'modify_planning':
           if (onProposeSlots) {
             onProposeSlots()
             return
@@ -747,10 +764,46 @@ export function InterventionActionButtons({
   }
 
   // Simple tenant validation handlers - Appelle la nouvelle route API
-  const handleApproveWork = async (data: { comments: string; photos: File[] }): Promise<boolean> => {
+  const handleApproveWork = async (data: { comments: string; photos: File[]; voiceNote: File | null }): Promise<boolean> => {
     try {
       setIsProcessing(true)
       setError(null)
+
+      // Upload voice note if present
+      if (data.voiceNote) {
+        const formData = new FormData()
+        formData.append('file', data.voiceNote)
+        formData.append('interventionId', intervention.id)
+        formData.append('description', 'Note vocale - validation locataire')
+        const uploadResponse = await fetch('/api/upload-intervention-document', {
+          method: 'POST',
+          body: formData,
+        })
+        if (!uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json()
+          setError(uploadResult.error || "Erreur lors de l'upload de la note vocale")
+          return false
+        }
+      }
+
+      // Upload photos if present
+      if (data.photos && data.photos.length > 0) {
+        for (const file of data.photos) {
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('interventionId', intervention.id)
+          formData.append('description', 'Photo - validation locataire')
+          const uploadResponse = await fetch('/api/upload-intervention-document', {
+            method: 'POST',
+            body: formData,
+          })
+          if (!uploadResponse.ok) {
+            const uploadResult = await uploadResponse.json()
+            setError(uploadResult.error || `Erreur lors de l'upload de ${file.name}`)
+            return false
+          }
+        }
+      }
 
       const response = await fetch(`/api/intervention/${intervention.id}/tenant-validation-simple`, {
         method: 'POST',
@@ -782,10 +835,46 @@ export function InterventionActionButtons({
     }
   }
 
-  const handleRejectWork = async (data: { comments: string; photos: File[] }): Promise<boolean> => {
+  const handleRejectWork = async (data: { comments: string; photos: File[]; voiceNote: File | null }): Promise<boolean> => {
     try {
       setIsProcessing(true)
       setError(null)
+
+      // Upload voice note if present
+      if (data.voiceNote) {
+        const formData = new FormData()
+        formData.append('file', data.voiceNote)
+        formData.append('interventionId', intervention.id)
+        formData.append('description', 'Note vocale - contestation locataire')
+        const uploadResponse = await fetch('/api/upload-intervention-document', {
+          method: 'POST',
+          body: formData,
+        })
+        if (!uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json()
+          setError(uploadResult.error || "Erreur lors de l'upload de la note vocale")
+          return false
+        }
+      }
+
+      // Upload photos if present
+      if (data.photos && data.photos.length > 0) {
+        for (const file of data.photos) {
+          const formData = new FormData()
+          formData.append('file', file)
+          formData.append('interventionId', intervention.id)
+          formData.append('description', 'Photo - contestation locataire')
+          const uploadResponse = await fetch('/api/upload-intervention-document', {
+            method: 'POST',
+            body: formData,
+          })
+          if (!uploadResponse.ok) {
+            const uploadResult = await uploadResponse.json()
+            setError(uploadResult.error || `Erreur lors de l'upload de ${file.name}`)
+            return false
+          }
+        }
+      }
 
       const response = await fetch(`/api/intervention/${intervention.id}/tenant-validation-simple`, {
         method: 'POST',

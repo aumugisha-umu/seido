@@ -15,7 +15,8 @@ import {
   FileText,
   Info,
   X,
-  ArrowRight
+  ArrowRight,
+  AlertTriangle
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -446,6 +447,11 @@ export const ProgrammingModalFinal = ({
   // Get all quote requests for this intervention (show all statuses)
   const allQuoteRequests = quoteRequests || []
 
+  // Active quotes: pending or sent, no amount submitted yet (cancellable)
+  const activeQuoteRequests = allQuoteRequests.filter(q =>
+    ['pending', 'sent'].includes(q.status) && q.amount <= 0
+  )
+
   // Tenants unchanged (not added via ContactSelector)
   const selectedTenantContacts: Contact[] = tenants
     .filter(t => selectedTenants.includes(t.id))
@@ -871,8 +877,8 @@ export const ProgrammingModalFinal = ({
                 Estimation préalable
               </h2>
               <p className="text-sm text-slate-600">
-                {intervention.status === 'demande_de_devis' && allQuoteRequests.length > 0
-                  ? "Demande de devis en cours"
+                {activeQuoteRequests.length > 0
+                  ? `${activeQuoteRequests.length} demande${activeQuoteRequests.length > 1 ? 's' : ''} d'estimation en cours`
                   : "Demander une estimation du temps et du coût avant la planification"
                 }
               </p>
@@ -888,7 +894,7 @@ export const ProgrammingModalFinal = ({
                       Demander une estimation
                     </h3>
                     <p className="text-xs text-slate-600">
-                      Seuls les prestataires invités (ayant un compte) recevront la demande d'estimation
+                      Seuls les prestataires invités (ayant un compte) recevront la demande d&apos;estimation
                     </p>
                   </div>
                 </div>
@@ -898,15 +904,31 @@ export const ProgrammingModalFinal = ({
                 />
               </div>
 
-              {/* Display quote requests if status is 'demande_de_devis' */}
-              {intervention.status === 'demande_de_devis' && allQuoteRequests.length > 0 && (
+              {/* Warning when toggling OFF with active quotes */}
+              {!requireQuote && activeQuoteRequests.length > 0 && (
+                <div className="flex items-start gap-2 text-amber-700 bg-amber-100 p-3 rounded-md border border-amber-300">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm">
+                    À la confirmation, {activeQuoteRequests.length > 1
+                      ? `les ${activeQuoteRequests.length} demandes d'estimation ci-dessous seront annulées`
+                      : "la demande d'estimation ci-dessous sera annulée"
+                    } et les prestataires ayant un compte en seront notifiés.
+                  </span>
+                </div>
+              )}
+
+              {/* Display active quote requests (pending/sent) — shown regardless of intervention status */}
+              {activeQuoteRequests.length > 0 && (
                 <div className="space-y-3 pt-3 border-t border-amber-300">
                   <h4 className="text-sm font-semibold text-slate-900 flex items-center gap-2">
                     <FileText className="h-4 w-4 text-amber-600" />
-                    Demande envoyée
+                    {activeQuoteRequests.length > 1
+                      ? `${activeQuoteRequests.length} demandes envoyées`
+                      : "Demande envoyée"
+                    }
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {allQuoteRequests.map(request => (
+                    {activeQuoteRequests.map(request => (
                       <QuoteRequestCard
                         key={request.id}
                         request={request}

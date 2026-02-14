@@ -74,7 +74,6 @@ export function InstallPWAButton() {
     // Check if already installed (display mode standalone)
     const checkIfInstalled = () => {
       if (window.matchMedia('(display-mode: standalone)').matches) {
-        console.log('✅ [PWA-INSTALL] App already installed (standalone mode)')
         setIsInstalled(true)
         return true
       }
@@ -88,22 +87,16 @@ export function InstallPWAButton() {
 
     const handleBeforeInstall = (e: Event) => {
       e.preventDefault()
-      console.log('✅ [PWA-INSTALL] beforeinstallprompt event fired!')
       setInstallPrompt(e as BeforeInstallPromptEvent)
     }
 
     const handleAppInstalled = () => {
-      console.log('✅ [PWA-INSTALL] App installed successfully')
       setIsInstalled(true)
       setInstallPrompt(null)
     }
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstall)
     window.addEventListener('appinstalled', handleAppInstalled)
-
-    // Debug logs
-    console.log('🔍 [PWA-INSTALL] Listeners registered')
-    console.log('🔍 [PWA-INSTALL] SW state:', navigator.serviceWorker?.controller ? 'active' : 'not active')
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
@@ -114,13 +107,9 @@ export function InstallPWAButton() {
   const handleInstallClick = async () => {
     if (!installPrompt) return
 
-    console.log('📲 [PWA-INSTALL] User clicked install')
-
     try {
       await installPrompt.prompt()
       const { outcome } = await installPrompt.userChoice
-
-      console.log(`📊 [PWA-INSTALL] User choice: ${outcome}`)
 
       if (outcome === 'accepted') {
         setInstallPrompt(null)

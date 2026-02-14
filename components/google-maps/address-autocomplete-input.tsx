@@ -280,7 +280,5 @@ function parseAddressComponents(place: google.maps.places.Place): AddressData {
     formattedAddress: place.formattedAddress || ''
   }
 
-  console.log('🏠 [AUTOCOMPLETE] parseAddressComponents result:', result)
-
   return result
 }

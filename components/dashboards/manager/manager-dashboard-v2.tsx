@@ -1,7 +1,8 @@
 "use client"
 
-import { useState, useCallback, useMemo, useEffect } from "react"
+import { useState, useCallback, useMemo, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { useRealtimeInterventions } from "@/hooks/use-realtime-interventions"
 import {
@@ -21,7 +22,6 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { DashboardStatsCards } from "@/components/dashboards/shared/dashboard-stats-cards"
-import { PendingActionsSection } from "@/components/dashboards/shared/pending-actions-section"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { KPIMobileGrid, statsToKPICards } from "@/components/dashboards/shared/kpi-carousel"
 import { useToast } from "@/hooks/use-toast"
@@ -161,16 +161,32 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
         }
     })
 
-    // Handler for card action completion (remove from list with animation)
-    const handleActionComplete = useCallback((interventionId: string) => {
-        // Remove the intervention from the local list
-        // This triggers an immediate UI update while the server processes
-        setInterventions(prev => prev.filter(i => i.id !== interventionId))
+    // Scroll-to-interventions + focus animation state
+    const interventionsRef = useRef<HTMLDivElement>(null)
+    const [initialActiveTab, setInitialActiveTab] = useState<string | undefined>(undefined)
+    const [focusInterventions, setFocusInterventions] = useState(false)
+
+    const handleActionsClick = useCallback(() => {
+        // 1. Switch to "À traiter" tab
+        setInitialActiveTab("actions_en_attente")
+
+        // 2. Scroll smooth to the interventions section
+        setTimeout(() => {
+            interventionsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }, 50)
+
+        // 3. Trigger focus animation
+        setFocusInterventions(true)
+        setTimeout(() => setFocusInterventions(false), 1500)
+
+        // 4. Reset initialActiveTab so ContentNavigator returns to uncontrolled mode
+        // This allows the user to freely click other tabs afterwards
+        setTimeout(() => setInitialActiveTab(undefined), 100)
     }, [])
 
     return (
         <div className="dashboard">
-            <div className="dashboard__container pb-24 lg:pb-0 flex flex-col">
+            <div className="dashboard__container pb-24 lg:pb-6 flex flex-col lg:h-full">
                 {/* Header Actions (rendered in topbar via portal) */}
                 <PageActions>
                     <OnboardingButton />
@@ -245,23 +261,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                     />
                 </div>
 
-                {/* Pending Actions Section - FIRST on mobile, after stats on desktop */}
-                <div className="dashboard__urgent mb-6 lg:order-2">
-                    <PendingActionsSection
-                        interventions={filteredInterventions}
-                        userRole="gestionnaire"
-                        onAllComplete={() => {
-                            toast({
-                                title: "Toutes les actions traitées !",
-                                description: "Vous avez traité toutes les actions en attente.",
-                                variant: "default",
-                                duration: 3000
-                            })
-                        }}
-                    />
-                </div>
-
-                {/* Stats Section - Mobile Grid (2x2, no "Actions requises" hero) */}
+                {/* Stats Section - Mobile Grid (2x2 + hero "Actions requises") */}
                 <div className="dashboard__stats lg:hidden">
                     <KPIMobileGrid
                         cards={statsToKPICards({
@@ -276,9 +276,9 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                             tenantCount,
                             contractStats,
                             onContractClick: navigateToContracts,
+                            onActionsClick: handleActionsClick,
                             progressData
                         })}
-                        hideHeroCard
                     />
                 </div>
 
@@ -296,11 +296,18 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                         tenantCount={tenantCount}
                         contractStats={contractStats}
                         progressData={progressData}
+                        onActionsClick={handleActionsClick}
                     />
                 </div>
 
                 {/* Content Section - Unified InterventionsNavigator */}
-                <div className="dashboard__content lg:order-3">
+                <div
+                    ref={interventionsRef}
+                    className={cn(
+                        "dashboard__content lg:order-3 transition-all duration-300 rounded-lg",
+                        focusInterventions && "ring-2 ring-amber-400/60 ring-offset-2"
+                    )}
+                >
                     <InterventionsNavigator
                         interventions={filteredInterventions}
                         userContext="gestionnaire"
@@ -313,6 +320,7 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                         showSortOptions={true}
                         showCombinedFilter={true}
                         compact={true}
+                        initialActiveTab={initialActiveTab}
                     />
                 </div>
             </div>

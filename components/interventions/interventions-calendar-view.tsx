@@ -75,8 +75,8 @@ export function InterventionsCalendarView({
         onSelectEvent={(intervention) => {
           router.push(`/${userContext}/interventions/${intervention.id}`)
         }}
-        onSelectSlot={(date) => {
-          console.log('Selected slot:', date)
+        onSelectSlot={() => {
+          // no-op
         }}
         initialView="week"
         className={className || "flex-1 min-h-0"}

@@ -74,12 +74,6 @@ export function PushNotificationToggle({ userId, className, onShowInstallGuide }
       const isActuallySubscribed = dbSubscribed
       setIsEnabled(isActuallySubscribed)
 
-      console.log('🔔 [PushToggle] Subscription status:', {
-        browserSubscribed,
-        dbSubscribed,
-        isActuallySubscribed
-      })
-
       setIsLoading(false)
     }
 

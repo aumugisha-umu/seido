@@ -465,12 +465,20 @@ export const InterventionCard = memo(function InterventionCard({
                 primaryActions.length === 1 ? "flex-col" : "flex-row"
               )}>
                 {primaryActions.map((action, idx) => {
-                  // Green background for primary workflow actions
-                  const isGreenAction = ['approve', 'process_request', 'finalize', 'validate_work', 'mark_completed', 'propose_slots', 'start_planning'].includes(action.actionType)
+                  // Green background for primary workflow actions (approve, finalize, etc.)
+                  const isGreenAction = ['approve', 'process_request', 'finalize', 'mark_completed', 'propose_slots', 'start_planning'].includes(action.actionType)
+                  // Use declared variant for destructive/primary actions, green override, or outline fallback
+                  const buttonVariant = isGreenAction
+                    ? toButtonVariant(action.variant)
+                    : action.variant === 'destructive'
+                      ? 'destructive' as const
+                      : action.variant === 'primary'
+                        ? 'default' as const
+                        : 'outline' as const
                   return (
                   <Button
                     key={idx}
-                    variant={isGreenAction ? toButtonVariant(action.variant) : 'outline'}
+                    variant={buttonVariant}
                     size="default"
                     onClick={() => handleActionClick(action)}
                     disabled={isLoading}

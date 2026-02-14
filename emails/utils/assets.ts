@@ -7,6 +7,7 @@
 
 import fs from 'fs'
 import path from 'path'
+import { logger } from '@/lib/logger'
 
 /**
  * Cache en mémoire pour éviter de réencoder les images à chaque email
@@ -170,7 +171,7 @@ export function getLogoColorBase64(): string {
  */
 export function clearImageCache(): void {
   imageCache.clear()
-  console.log('[EMAIL-ASSETS] Image cache cleared')
+  logger.debug('[EMAIL-ASSETS] Image cache cleared')
 }
 
 /**

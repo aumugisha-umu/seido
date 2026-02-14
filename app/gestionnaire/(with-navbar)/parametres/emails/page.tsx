@@ -133,12 +133,10 @@ export default function EmailSettingsPage() {
   const handleUnblock = (blacklistId: string) => {
     // Dummy implementation
     setBlacklist(prev => prev.filter(entry => entry.id !== blacklistId))
-    console.log('Unblocked blacklist entry:', blacklistId)
   }
 
   const handleAddManual = () => {
     toast.info('Manual blacklist entry modal would open here (dummy action)')
-    console.log('Add manual blacklist entry')
   }
 
   const handleConnectionAdded = () => {

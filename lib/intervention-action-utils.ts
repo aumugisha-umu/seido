@@ -15,8 +15,7 @@ import {
   UserCheck,
   Send,
   CalendarCheck,
-  ThumbsUp,
-  ThumbsDown,
+  AlertTriangle,
   Eye,
   Edit,
   XCircle,
@@ -145,25 +144,32 @@ const getGestionnaireActions = (
           variant: 'primary',
           actionType: 'finalize',
           href: `${baseUrl}?action=finalize`
+        },
+        {
+          label: 'Modifier planification',
+          icon: Edit,
+          variant: 'secondary',
+          actionType: 'modify_planning',
+          href: `${baseUrl}?action=modify_planning`
         }
       ]
 
     case 'cloturee_par_prestataire':
       return [
         {
+          label: 'Clôturer',
+          icon: CheckCircle,
+          variant: 'primary',
+          actionType: 'finalize',
+          href: `${baseUrl}?action=finalize`
+        },
+        {
           label: 'Relancer locataire',
           icon: Send,
-          variant: 'primary',
+          variant: 'secondary',
           actionType: 'remind_tenant',
           apiRoute: '/api/intervention-remind-tenant',
           apiMethod: 'POST'
-        },
-        {
-          label: 'Clôturer',
-          icon: CheckCircle,
-          variant: 'secondary',
-          actionType: 'finalize',
-          href: `${baseUrl}?action=finalize`
         }
       ]
 
@@ -174,8 +180,7 @@ const getGestionnaireActions = (
           icon: CheckCircle,
           variant: 'primary',
           actionType: 'finalize',
-          apiRoute: '/api/intervention-finalize',
-          apiMethod: 'POST'
+          href: `${baseUrl}?action=finalize`
         }
       ]
 
@@ -277,19 +282,18 @@ const getLocataireActions = (
     case 'cloturee_par_prestataire':
       return [
         {
-          label: 'Valider travaux',
-          icon: ThumbsUp,
+          label: 'Valider',
+          icon: CheckCircle,
           variant: 'primary',
           actionType: 'validate_work',
-          apiRoute: `/api/intervention/${interventionId}/validate-tenant`,
-          apiMethod: 'POST'
+          href: `${baseUrl}?action=validate_work`
         },
         {
           label: 'Contester',
-          icon: ThumbsDown,
+          icon: AlertTriangle,
           variant: 'destructive',
           actionType: 'contest_work',
-          href: `${baseUrl}?action=contest`
+          href: `${baseUrl}?action=contest_work`
         }
       ]
 

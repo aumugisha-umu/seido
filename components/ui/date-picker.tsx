@@ -180,10 +180,10 @@ export function DatePicker({
                     disabled={disabled}
                     maxLength={10}
                     className={cn(
-                        "flex h-10 w-full rounded-md border bg-background px-3 py-2 pr-10 text-sm",
-                        "ring-offset-background placeholder:text-muted-foreground",
-                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                        "disabled:cursor-not-allowed disabled:opacity-50",
+                        "flex h-10 w-full rounded-md border bg-white dark:bg-gray-800 px-3 py-2 pr-10 text-sm shadow-xs",
+                        "placeholder:text-muted-foreground",
+                        "focus-visible:outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+                        "disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
                         hasError
                             ? "border-destructive focus-visible:ring-destructive"
                             : "border-input"

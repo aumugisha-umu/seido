@@ -118,8 +118,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if intervention can receive quote request
-    // Note: demande_de_devis status removed - quote requests can be made from approuvee or planification
-    const allowedStatuses = ['approuvee', 'planification']
+    // Note: demande_de_devis status removed - quote requests can be made from approuvee, planification, or planifiee (re-planning)
+    const allowedStatuses = ['approuvee', 'planification', 'planifiee']
     if (!allowedStatuses.includes(intervention.status)) {
       return NextResponse.json({
         success: false,
@@ -135,10 +135,10 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    // Verify all providers exist and have proper role
+    // Verify all providers exist, have proper role, and have an account
     const { data: providers, error: providerError } = await supabase
       .from('users')
-      .select('id, name, email, role, provider_category')
+      .select('id, name, email, role, provider_category, auth_user_id')
       .in('id', targetProviderIds)
 
     if (providerError) {
@@ -165,6 +165,15 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Filter to only providers with accounts — contacts without accounts can't submit quotes
+    const eligibleProviders = providers.filter(p => p.auth_user_id !== null)
+    if (eligibleProviders.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'Aucun prestataire ayant un compte n\'a été trouvé. Seuls les prestataires invités peuvent recevoir des demandes d\'estimation.'
+      }, { status: 400 })
+    }
+
     // Check that all requested provider IDs were found
     const foundIds = providers.map(p => p.id)
     const missingIds = targetProviderIds.filter(id => !foundIds.includes(id))
@@ -175,11 +184,12 @@ export async function POST(request: NextRequest) {
       }, { status: 404 })
     }
 
-    // Check eligibility of requested providers (exclude those with pending/approved quotes)
+    // Check eligibility of account-holding providers (exclude those with pending/approved quotes)
+    const accountProviderIds = eligibleProviders.map(p => p.id)
     const { eligibleIds, ineligibleReasons } = await getEligibleProviders(
       supabase,
       interventionId,
-      targetProviderIds
+      accountProviderIds
     )
 
     if (eligibleIds.length === 0) {
@@ -195,9 +205,6 @@ export async function POST(request: NextRequest) {
         error: `Aucun prestataire éligible pour recevoir une demande d'estimation. ${reasonsList}`
       }, { status: 400 })
     }
-
-    // Filter providers to only include eligible ones
-    const eligibleProviders = providers.filter(p => eligibleIds.includes(p.id))
 
     // Update intervention to set requires_quote flag and quote information
     // Note: We no longer change status to demande_de_devis - quote status is tracked via intervention_quotes

@@ -997,7 +997,7 @@ export function PrestataireInterventionDetailClient({
                     <DocumentsCard
                       documents={transformedDocuments}
                       userRole="provider"
-                      onUpload={() => console.log('Upload document')}
+                      onUpload={() => { /* TODO: implement document upload */ }}
                       onView={handleViewDocument}
                       onDownload={handleDownloadDocument}
                     />
@@ -1085,11 +1085,9 @@ export function PrestataireInterventionDetailClient({
                     currentUserId={currentUser.id}
                     onAddSlot={handleOpenAvailabilityModal}
                     onApproveSlot={(slotId) => {
-                      console.log('🔵 [DEBUG] PlanningCard onApproveSlot called:', { slotId, timeSlotsCount: timeSlots.length })
                       const slot = timeSlots.find(s => s.id === slotId)
-                      console.log('🔵 [DEBUG] Slot found:', slot ? { id: slot.id, date: slot.slot_date } : 'NOT FOUND')
                       if (slot) handleAcceptSlot(slot)
-                      else console.error('🔴 [DEBUG] Slot not found in timeSlots array!')
+                      else console.error('Slot not found in timeSlots array for id:', slotId)
                     }}
                     onRejectSlot={(slotId) => {
                       const slot = timeSlots.find(s => s.id === slotId)

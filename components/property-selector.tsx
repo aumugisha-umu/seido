@@ -398,7 +398,6 @@ function PropertySelectorView({
                                   <DropdownMenuItem
                                     onClick={() => {
                                       // Future feature: Archive building
-                                      console.log('Archive building:', building.id)
                                     }}
                                     className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                                     disabled
@@ -538,7 +537,6 @@ function PropertySelectorView({
                                             <DropdownMenuItem
                                               onClick={() => {
                                                 // Future feature: Archive lot
-                                                console.log('Archive lot:', lot.id)
                                               }}
                                               className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
                                               disabled
@@ -1179,13 +1177,6 @@ export default function PropertySelector(props: PropertySelectorProps) {
   const buildingsArray = props.initialData?.buildings ?? hookResult.data?.buildings ?? []
   const lotsArray = props.initialData?.lots ?? hookResult.data?.lots ?? []
   const loading = props.initialData ? false : hookResult.loading
-
-  // Debug logs (keep for diagnostics, only when using initialData)
-  if (props.initialData) {
-    console.log('🔍 [PROPERTY-SELECTOR] Using initialData')
-    console.log('   buildingsCount:', buildingsArray.length)
-    console.log('   lotsCount:', lotsArray.length)
-  }
 
   return (
     <PropertySelectorView

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getApiAuthContext } from '@/lib/api-auth-helper';
 import { getServiceRoleClient } from '@/lib/api-service-role-helper';
 import { EmailRepository } from '@/lib/services/repositories/email.repository';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: Request) {
     try {
@@ -53,7 +54,7 @@ export async function GET(request: Request) {
         const search = searchParams.get('search') || undefined;
         const source = searchParams.get('source') || undefined; // 'all', 'notification_replies', or connection UUID
 
-        console.log('📧 [EMAILS-API] Fetching emails:', { teamId, folder, limit, offset, search, source });
+        logger.info({ teamId, folder, limit, offset, search, source }, '[EMAILS-API] Fetching emails');
 
         const result = await emailRepo.getEmailsByFolder(teamId, folder, {
             limit,
@@ -62,7 +63,7 @@ export async function GET(request: Request) {
             source
         });
 
-        console.log('📧 [EMAILS-API] Result:', { emailCount: result.data.length, total: result.count });
+        logger.info({ emailCount: result.data.length, total: result.count }, '[EMAILS-API] Result');
 
         return NextResponse.json({
             emails: result.data,

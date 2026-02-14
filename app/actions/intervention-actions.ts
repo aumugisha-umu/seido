@@ -2555,7 +2555,8 @@ export async function programInterventionAction(
 
     // Check if intervention can be scheduled
     // Note: demande_de_devis removed - quote status tracked via QuoteStatusBadge
-    if (!['approuvee', 'planification'].includes(intervention.status)) {
+    // planifiee allowed for re-planning (modify planning from scheduled state)
+    if (!['approuvee', 'planification', 'planifiee'].includes(intervention.status)) {
       return {
         success: false,
         error: `L'intervention ne peut pas être planifiée (statut actuel: ${intervention.status})`
@@ -2721,17 +2722,27 @@ export async function programInterventionAction(
           providerId => !existingProviderIds.has(providerId)
         )
 
+        // Filter to only providers with accounts (auth_user_id IS NOT NULL)
+        // Contacts without accounts can't log in to submit quotes
+        const { data: accountProviders } = await supabase
+          .from('users')
+          .select('id')
+          .in('id', newProviderIds)
+          .not('auth_user_id', 'is', null)
+
+        const eligibleProviderIds = accountProviders?.map(p => p.id) || []
+
         quoteStats = {
           totalSelected: planningData.selectedProviders.length,
-          skipped: existingProviderIds.size,
-          created: newProviderIds.length
+          skipped: existingProviderIds.size + (newProviderIds.length - eligibleProviderIds.length),
+          created: eligibleProviderIds.length
         }
 
-        if (newProviderIds.length > 0) {
+        if (eligibleProviderIds.length > 0) {
           await createQuoteRequestsForProviders({
             interventionId,
             teamId: intervention.team_id,
-            providerIds: newProviderIds,
+            providerIds: eligibleProviderIds,
             createdBy: user.id,
             messageType: 'global',
             globalMessage: planningData.instructions || undefined,
@@ -2750,6 +2761,50 @@ export async function programInterventionAction(
         }
       } catch (quoteError) {
         logger.error('❌ [SERVER-ACTION] Error creating quote requests:', quoteError)
+      }
+    }
+
+    // ── Step 8b: Cancel pending quotes if requireQuote toggled OFF ──
+    if (planningData.requireQuote === false) {
+      try {
+        const { data: pendingQuotes, error: pendingError } = await supabase
+          .from('intervention_quotes')
+          .select('id, status, amount')
+          .eq('intervention_id', interventionId)
+          .in('status', ['pending', 'sent'])
+          .is('deleted_at', null)
+
+        if (!pendingError && pendingQuotes && pendingQuotes.length > 0) {
+          // Only cancel quotes without a submitted amount
+          const cancellableIds = pendingQuotes
+            .filter(q => !q.amount || q.amount <= 0)
+            .map(q => q.id)
+
+          if (cancellableIds.length > 0) {
+            const { error: cancelError } = await supabase
+              .from('intervention_quotes')
+              .update({ status: 'cancelled' })
+              .in('id', cancellableIds)
+
+            if (cancelError) {
+              logger.error('❌ [SERVER-ACTION] Error cancelling pending quotes:', cancelError)
+            } else {
+              logger.info(`📋 [SERVER-ACTION] Cancelled ${cancellableIds.length} pending quote(s)`)
+            }
+          }
+
+          // Set requires_quote = false
+          await supabase
+            .from('interventions')
+            .update({ requires_quote: false })
+            .eq('id', interventionId)
+
+          if (updatedIntervention) {
+            updatedIntervention.requires_quote = false
+          }
+        }
+      } catch (cancelError) {
+        logger.error('❌ [SERVER-ACTION] Error in Step 8b (cancel pending quotes):', cancelError)
       }
     }
 

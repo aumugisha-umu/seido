@@ -90,9 +90,6 @@ export function EmailDetail({
   const currentUserId = user?.id
   const userRole = user?.role as 'gestionnaire' | 'admin' | undefined
 
-  // Debug: Log teamId prop
-  console.log('🔍 [EMAIL-DETAIL] teamId prop received:', teamId)
-
   // Email links state with in-memory cache to avoid re-fetching same email
   const [emailLinks, setEmailLinks] = useState<EmailLinkWithDetails[]>([])
   const [isLoadingLinks, setIsLoadingLinks] = useState(false)
@@ -247,17 +244,14 @@ export function EmailDetail({
 
   const handleLinkBuilding = (buildingId: string, lotId?: string) => {
     onLinkBuilding?.(buildingId, lotId)
-    console.log('Linked to building:', buildingId, 'lot:', lotId)
   }
 
   const handleSoftDelete = (emailId: string) => {
     onSoftDelete?.(emailId)
-    console.log('Soft deleted email:', emailId)
   }
 
   const handleBlacklist = (emailId: string, senderEmail: string, reason?: string) => {
     onBlacklist?.(emailId, senderEmail, reason)
-    console.log('Blacklisted:', senderEmail, 'reason:', reason)
   }
 
   // Check if this email is a conversation parent or child

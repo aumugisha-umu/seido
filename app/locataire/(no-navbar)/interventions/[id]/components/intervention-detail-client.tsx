@@ -7,7 +7,7 @@
  */
 
 import { useState, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { TabsContent } from '@/components/ui/tabs'
 import { selectTimeSlotAction, validateByTenantAction } from '@/app/actions/intervention-actions'
@@ -156,8 +156,17 @@ export function LocataireInterventionDetailClient({
   initialParticipantsByThread
 }: LocataireInterventionDetailClientProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const planning = useInterventionPlanning()
   const [activeTab, setActiveTab] = useState('general')
+
+  // Auto-open tenant validation modal when navigated from dashboard card
+  const autoAction = searchParams.get('action')
+  const autoOpenTenantValidation = useMemo(() => {
+    if (autoAction === 'validate_work') return 'approve' as const
+    if (autoAction === 'contest_work') return 'reject' as const
+    return false as const
+  }, [autoAction])
 
   // Response modal state (all active slots)
   const [responseModalSlots, setResponseModalSlots] = useState<ModalTimeSlot[]>([])
@@ -710,6 +719,7 @@ export function LocataireInterventionDetailClient({
             userRole="locataire"
             userId={currentUser.id}
             onActionComplete={handleActionComplete}
+            autoOpenTenantValidation={autoOpenTenantValidation}
             timeSlots={timeSlots.map(s => ({
               id: s.id,
               slot_date: s.slot_date,

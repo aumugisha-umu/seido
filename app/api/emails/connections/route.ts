@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getApiAuthContext } from '@/lib/api-auth-helper';
 import { EmailConnectionRepository } from '@/lib/services/repositories/email-connection.repository';
+import { logger } from '@/lib/logger';
 
 /**
  * GET /api/emails/connections
@@ -12,15 +13,15 @@ import { EmailConnectionRepository } from '@/lib/services/repositories/email-con
 export async function GET() {
     const startTime = Date.now();
     try {
-        console.log('[PERF] GET /api/emails/connections - Start');
+        logger.debug({ startTime }, '[PERF] GET /api/emails/connections - Start');
         const authResult = await getApiAuthContext();
-        console.log(`[PERF] Auth context retrieved in ${Date.now() - startTime}ms`);
+        logger.debug({ elapsed: Date.now() - startTime }, '[PERF] Auth context retrieved');
         if (!authResult.success) return authResult.error;
 
         const { supabase, userProfile } = authResult.data;
 
         if (!userProfile?.team_id) {
-            console.log('No team found for user, returning empty connections');
+            logger.info('No team found for user, returning empty connections');
             return NextResponse.json({ connections: [], notificationRepliesCount: 0 });
         }
 
@@ -33,7 +34,7 @@ export async function GET() {
             .select('id, provider, email_address, is_active, last_sync_at, last_error, sync_from_date, created_at, auth_method, oauth_token_expires_at')
             .eq('team_id', userProfile.team_id)
             .order('created_at', { ascending: false });
-        console.log(`[PERF] DB query completed in ${Date.now() - queryStart}ms`);
+        logger.debug({ elapsed: Date.now() - queryStart }, '[PERF] DB query completed');
 
         if (error) throw error;
 
@@ -108,7 +109,7 @@ export async function GET() {
         );
 
         await Promise.all(countPromises);
-        console.log(`[PERF] Email count queries completed in ${Date.now() - countStart}ms`);
+        logger.debug({ elapsed: Date.now() - countStart }, '[PERF] Email count queries completed');
 
         // Merge connections with their counts
         const connectionsWithCount = (connections || []).map(conn => ({
@@ -117,7 +118,7 @@ export async function GET() {
             unread_count: unreadCounts[conn.id] || 0
         }));
 
-        console.log(`[PERF] Total request time: ${Date.now() - startTime}ms`);
+        logger.debug({ elapsed: Date.now() - startTime }, '[PERF] Total request time');
         return NextResponse.json({
             connections: connectionsWithCount,
             notificationRepliesCount
@@ -140,7 +141,7 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        console.log('Received connection request body:', JSON.stringify(body, null, 2));
+        logger.debug({ body }, 'Received connection request body');
         const {
             provider,
             emailAddress,

@@ -300,8 +300,8 @@ export async function getCurrentUserId(client?: ReturnType<typeof createBrowserS
 export async function isAuthenticated(client?: ReturnType<typeof createBrowserSupabaseClient>): Promise<boolean> {
   try {
     const supabaseClient = client || createBrowserSupabaseClient()
-    const { data: { session } } = await supabaseClient.auth.getSession()
-    return !!session?.user
+    const { data } = await supabaseClient.auth.getSession()
+    return !!data.session
   } catch (error) {
     logger.error('Error checking authentication:', error)
     return false
@@ -331,13 +331,14 @@ export async function isAuthenticated(client?: ReturnType<typeof createBrowserSu
 export async function getServerSession() {
   const supabase = await createServerSupabaseClient()
 
-  const { data: { session }, error } = await supabase.auth.getSession()
+  const { data, error } = await supabase.auth.getSession()
 
-  if (error || !session) {
+  if (error || !data.session) {
     return null
   }
 
-  return session
+  // Spread to bypass Supabase Proxy warning on .user access
+  return { ...data.session }
 }
 
 // Re-export types

@@ -250,7 +250,7 @@ function RequestCard({ quote }: RequestCardProps) {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => console.log('View provider profile:', quote.provider_id)}
+              onClick={() => { /* TODO: navigate to provider profile */ }}
               className="text-xs h-7"
             >
               Voir profil

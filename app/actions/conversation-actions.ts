@@ -421,19 +421,7 @@ export async function sendMessageAction(
   content: string,
   attachments?: string[]
 ): Promise<ActionResult<ConversationMessage>> {
-  // Log BEFORE try-catch to ensure it always appears
-  console.log('🚀 [CONVERSATION-ACTION] ENTRY POINT - sendMessageAction called')
-  console.log('📥 [CONVERSATION-ACTION] Raw arguments received:', {
-    threadId,
-    threadIdType: typeof threadId,
-    content,
-    contentType: typeof content,
-    contentLength: content?.length,
-    attachments,
-    attachmentsType: typeof attachments,
-    attachmentsIsArray: Array.isArray(attachments),
-    attachmentsLength: attachments?.length
-  })
+  logger.debug({ threadId, contentLength: content?.length, attachmentsLength: attachments?.length }, '[CONVERSATION-ACTION] sendMessageAction called')
 
   try {
     // Auth check
@@ -444,21 +432,7 @@ export async function sendMessageAction(
     }
 
     // Validate input
-    console.log('🔧 [CONVERSATION-ACTION] sendMessageAction received:', {
-      threadId,
-      content,
-      attachments,
-      attachmentsLength: attachments?.length
-    })
-
     const validated = SendMessageSchema.parse({ threadId, content, attachments })
-
-    console.log('✅ [CONVERSATION-ACTION] After validation:', {
-      threadId: validated.threadId,
-      contentLength: validated.content.length,
-      attachments: validated.attachments,
-      attachmentsLength: validated.attachments?.length
-    })
 
     logger.info('✉️ [SERVER-ACTION] Sending message:', {
       threadId: validated.threadId,
@@ -469,13 +443,6 @@ export async function sendMessageAction(
 
     // Create service and execute
     const conversationService = await createServerActionConversationService()
-
-    console.log('📡 [CONVERSATION-ACTION] Calling conversationService.sendMessage with:', {
-      threadId: validated.threadId,
-      userId: user.id,
-      attachments: validated.attachments,
-      attachmentsLength: validated.attachments?.length
-    })
 
     const result = await conversationService.sendMessage(
       validated.threadId,

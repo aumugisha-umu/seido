@@ -59,9 +59,6 @@ export function LinkToEntityDialog({
     currentLinks,
     onLinksUpdated
 }: LinkToEntityDialogProps) {
-    // Debug: Log props on every render
-    console.log('🔍 [LINK-DIALOG] Component rendered with teamId:', teamId, 'open:', open)
-
     const [activeTab, setActiveTab] = useState<EmailLinkEntityType>('building')
     const [searchQuery, setSearchQuery] = useState('')
     const [searchResults, setSearchResults] = useState<EntitySearchResult[]>([])
@@ -73,7 +70,6 @@ export function LinkToEntityDialog({
     // Initialize pending state from current links
     useEffect(() => {
         if (open) {
-            console.log('🔍 [LINK-DIALOG] Dialog opened, teamId:', teamId)
             setPendingLinks([])
             setPendingUnlinks([])
             setSearchQuery('')
@@ -83,12 +79,10 @@ export function LinkToEntityDialog({
 
     // Fetch entities (either search or initial load)
     const fetchEntities = useCallback(async (type: EmailLinkEntityType, query: string = '') => {
-        console.log('🔍 [LINK-DIALOG] fetchEntities called:', { type, query, teamId })
         setIsSearching(true)
         try {
             // Build URL based on entity type
             const endpoint = getSearchEndpoint(type, teamId)
-            console.log('🔍 [LINK-DIALOG] endpoint resolved:', endpoint)
 
             // Skip if endpoint not available
             if (!endpoint) {

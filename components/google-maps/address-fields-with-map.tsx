@@ -172,16 +172,6 @@ export function AddressFieldsWithMap({
    * When onGeocodeResult is NOT provided, we call onFieldsChange only.
    */
   const handleAutocompleteSelect = useCallback((address: AddressData) => {
-    console.log('🔍 [ADDRESS-MAP] handleAutocompleteSelect called with address:', {
-      street: address.street,
-      postalCode: address.postalCode,
-      city: address.city,
-      country: address.country,
-      latitude: address.latitude,
-      longitude: address.longitude,
-      formattedAddress: address.formattedAddress
-    })
-
     const fieldsToUpdate: AddressFields = {
       street: address.street,
       postalCode: address.postalCode,
@@ -189,17 +179,11 @@ export function AddressFieldsWithMap({
       country: address.country
     }
 
-    console.log('🔍 [ADDRESS-MAP] fieldsToUpdate:', fieldsToUpdate)
-
     // Update internal coordinates state
     setCoords({ lat: address.latitude, lng: address.longitude })
     setFormattedAddress(address.formattedAddress)
 
     if (onGeocodeResult) {
-      console.log('🔍 [ADDRESS-MAP] Calling onGeocodeResult with fields:', {
-        hasOnGeocodeResult: true,
-        fields: fieldsToUpdate
-      })
       // ATOMIC UPDATE: Pass everything in onGeocodeResult, skip onFieldsChange
       onGeocodeResult({
         latitude: address.latitude,
@@ -210,7 +194,6 @@ export function AddressFieldsWithMap({
       })
       // DO NOT call onFieldsChange here - parent handles everything in onGeocodeResult
     } else {
-      console.log('🔍 [ADDRESS-MAP] Calling onFieldsChange (no onGeocodeResult)')
       // No geocode callback - just update fields
       onFieldsChange(fieldsToUpdate)
     }

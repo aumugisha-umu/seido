@@ -188,15 +188,6 @@ export default function LeaseFormDetailsMergedV1({
       setOverlapCheck(prev => ({ ...prev, isChecking: true }))
 
       try {
-        // 🔍 DEBUG: Log des paramètres d'appel
-        console.log('🔍 [OVERLAP-CHECK] Calling with:', {
-          lotId,
-          startDate,
-          durationMonths,
-          tenantUserIds,
-          existingContractId
-        })
-
         // Utilise la nouvelle action avec détection doublon/colocation
         const result = await checkContractOverlapWithDetails(
           lotId,
@@ -206,11 +197,7 @@ export default function LeaseFormDetailsMergedV1({
           existingContractId
         )
 
-        // 🔍 DEBUG: Log du résultat complet
-        console.log('🔍 [OVERLAP-CHECK] Result:', result)
-
         if (result.success && result.data) {
-          console.log('🔍 [OVERLAP-CHECK] Setting state with hasOverlap:', result.data.hasOverlap)
           setOverlapCheck({
             isChecking: false,
             hasOverlap: result.data.hasOverlap,
@@ -766,7 +753,7 @@ export default function LeaseFormDetailsMergedV1({
               saveAndRedirect('/gestionnaire/contacts/nouveau', { type: contactType })
             } else {
               // In edit mode, show message
-              console.log('Créez d\'abord le contact depuis la page contacts, puis revenez ici.')
+              // no-op: user should create contact from contacts page first
             }
           }}
         />

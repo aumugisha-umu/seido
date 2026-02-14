@@ -40,6 +40,8 @@ interface DashboardStatsCardsProps {
     }
     /** Progress tracking data for period completion */
     progressData?: ProgressData
+    /** Click handler for "Actions requises" card (scroll to interventions) */
+    onActionsClick?: () => void
 }
 
 // ============================================================================
@@ -58,13 +60,14 @@ export function DashboardStatsCards({
     contractStats,
     tenantCount = 0,
     trendData,
-    progressData
+    progressData,
+    onActionsClick
 }: DashboardStatsCardsProps) {
     const isManager = buildingsCount !== undefined
 
     return (
         <div className={cn(
-            "dashboard-stats-cards grid grid-cols-1 gap-6",
+            "dashboard-stats-cards grid grid-cols-1 gap-3 lg:gap-4",
             isManager ? "md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" : "md:grid-cols-3"
         )}>
             {/* Card 1: Actions requises (Always First) */}
@@ -76,7 +79,8 @@ export function DashboardStatsCards({
                 icon={AlertTriangle}
                 iconColor={pendingCount > 0 ? "text-amber-500" : "text-emerald-500"}
                 variant={pendingCount > 0 ? "warning" : "success"}
-                href="/gestionnaire/interventions?filter=pending"
+                onClick={onActionsClick}
+                href={onActionsClick ? undefined : "/gestionnaire/interventions?filter=pending"}
             />
 
             {/* Card 2: Patrimoine (Manager Only) - Buildings + lots breakdown */}
@@ -153,7 +157,7 @@ export function DashboardStatsCards({
                 value={activeCount}
                 sublabel="interventions"
                 secondaryValue={
-                    <div className="flex flex-col gap-1.5 w-full mt-1">
+                    <div className="flex flex-col gap-1 w-full">
                         {completedCount > 0 && (
                             <span className="text-success font-medium flex items-center gap-1 text-xs">
                                 <CheckCircle2 className="h-3 w-3" />

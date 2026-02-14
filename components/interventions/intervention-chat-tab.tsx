@@ -280,20 +280,7 @@ export function InterventionChatTab({
   const handleSendMessage = async (content: string, attachments?: string[]) => {
     if (!activeThread) return
 
-    console.log('💬 [INTERVENTION-CHAT-TAB] handleSendMessage called with:', {
-      threadId: activeThread.id,
-      content,
-      attachments,
-      attachmentsLength: attachments?.length
-    })
-
     const result = await sendMessageAction(activeThread.id, content, attachments)
-
-    console.log('💬 [INTERVENTION-CHAT-TAB] sendMessageAction result:', {
-      success: result.success,
-      hasData: !!result.data,
-      error: result.error
-    })
 
     if (!result.success) {
       console.error('❌ [INTERVENTION-CHAT-TAB] Full error object:', result.error)

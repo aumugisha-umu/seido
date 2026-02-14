@@ -148,7 +148,6 @@ export function LotCardActions({
               onClick={(e) => {
                 e.stopPropagation()
                 // Future feature: Archive lot
-                console.log('Archive lot:', lot.id)
               }}
               className="cursor-pointer text-amber-600 hover:text-amber-700 hover:bg-amber-50"
               disabled

@@ -1,5 +1,7 @@
 'use client'
 
+import { logger } from '@/lib/logger'
+
 export class PushNotificationManager {
   private static instance: PushNotificationManager
   private registration: ServiceWorkerRegistration | null = null
@@ -14,7 +16,7 @@ export class PushNotificationManager {
   }
 
   async initialize(): Promise<void> {
-    console.log('🔔 [PushManager] Initializing...')
+    logger.debug('PushManager initializing...')
 
     if (!('serviceWorker' in navigator)) {
       console.error('❌ [PushManager] Service Worker API not supported in this browser')
@@ -24,7 +26,7 @@ export class PushNotificationManager {
     try {
       // Check if any service worker is registered
       const registrations = await navigator.serviceWorker.getRegistrations()
-      console.log('🔔 [PushManager] Found', registrations.length, 'service worker registration(s)')
+      logger.debug({ count: registrations.length }, 'PushManager found service worker registrations')
 
       if (registrations.length === 0) {
         console.warn('⚠️ [PushManager] No service worker registered. In development mode, the SW is disabled by default.')
@@ -33,9 +35,9 @@ export class PushNotificationManager {
       }
 
       // Wait for the service worker to be ready
-      console.log('🔔 [PushManager] Waiting for service worker to be ready...')
+      logger.debug('PushManager waiting for service worker ready...')
       this.registration = await navigator.serviceWorker.ready
-      console.log('✅ [PushManager] Service Worker ready:', this.registration.scope)
+      logger.info({ scope: this.registration.scope }, 'PushManager service worker ready')
     } catch (error) {
       console.error('❌ [PushManager] Service Worker initialization failed:', error)
     }
@@ -47,15 +49,15 @@ export class PushNotificationManager {
     }
 
     const permission = await Notification.requestPermission()
-    console.log('🔔 [PushManager] Permission status:', permission)
+    logger.debug({ permission }, 'PushManager permission status')
     return permission
   }
 
   async subscribe(userId: string): Promise<PushSubscription> {
-    console.log('🔔 [PushManager] Starting subscribe process for userId:', userId)
+    logger.debug({ userId }, 'PushManager starting subscribe process')
 
     if (!this.registration) {
-      console.log('🔔 [PushManager] No registration, initializing...')
+      logger.debug('PushManager no registration, initializing...')
       await this.initialize()
     }
 
@@ -65,16 +67,16 @@ export class PushNotificationManager {
       throw new Error('Service Worker non disponible (désactivé en mode développement)')
     }
 
-    console.log('🔔 [PushManager] Registration OK, requesting permission...')
+    logger.debug('PushManager registration OK, requesting permission...')
     const permission = await this.requestPermission()
-    console.log('🔔 [PushManager] Permission result:', permission)
+    logger.debug({ permission }, 'PushManager permission result')
 
     if (permission !== 'granted') {
       throw new Error('Permission de notification refusée')
     }
 
     const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-    console.log('🔔 [PushManager] VAPID public key exists:', !!publicKey)
+    logger.debug({ hasKey: !!publicKey }, 'PushManager VAPID public key check')
 
     if (!publicKey) {
       console.error('❌ [PushManager] VAPID public key missing. Check NEXT_PUBLIC_VAPID_PUBLIC_KEY in .env.local')
@@ -82,23 +84,23 @@ export class PushNotificationManager {
     }
 
     try {
-      console.log('🔔 [PushManager] Creating push subscription with pushManager...')
+      logger.debug('PushManager creating push subscription...')
       const subscription = await this.registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: this.urlBase64ToUint8Array(publicKey)
       })
 
-      console.log('✅ [PushManager] Push subscription created:', subscription.endpoint.substring(0, 50) + '...')
+      logger.info({ endpoint: subscription.endpoint.substring(0, 50) }, 'PushManager subscription created')
 
       // Envoyer l'abonnement au serveur
-      console.log('🔔 [PushManager] Sending subscription to server...')
+      logger.debug('PushManager sending subscription to server...')
       const response = await fetch('/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId, subscription })
       })
 
-      console.log('🔔 [PushManager] Server response status:', response.status)
+      logger.debug({ status: response.status }, 'PushManager server response')
 
       if (!response.ok) {
         const error = await response.json()
@@ -107,7 +109,7 @@ export class PushNotificationManager {
       }
 
       const result = await response.json()
-      console.log('✅ [PushManager] Subscription saved to server successfully:', result)
+      logger.info('PushManager subscription saved to server')
       return subscription
     } catch (error) {
       console.error('❌ [PushManager] Subscribe error:', error)
@@ -126,7 +128,7 @@ export class PushNotificationManager {
       const subscription = await this.registration.pushManager.getSubscription()
       if (subscription) {
         await subscription.unsubscribe()
-        console.log('✅ [PushManager] Push subscription removed')
+        logger.info('PushManager push subscription removed')
       }
 
       // Supprimer du serveur
@@ -141,7 +143,7 @@ export class PushNotificationManager {
         throw new Error(error.error || 'Failed to remove subscription')
       }
 
-      console.log('✅ [PushManager] Subscription removed from server')
+      logger.info('PushManager subscription removed from server')
     } catch (error) {
       console.error('❌ [PushManager] Unsubscribe error:', error)
       throw error

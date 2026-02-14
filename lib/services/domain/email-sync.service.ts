@@ -5,6 +5,7 @@ import { EmailRepository } from '@/lib/services/repositories/email.repository';
 import { EmailBlacklistRepository } from '@/lib/services/repositories/email-blacklist.repository';
 import { GmailOAuthService } from '@/lib/services/domain/gmail-oauth.service';
 import { TeamEmailConnection } from '@/lib/types/email-integration';
+import { logger } from '@/lib/logger';
 
 /**
  * Sanitizes error messages before storing in DB or logging
@@ -63,7 +64,7 @@ export class EmailSyncService {
             return connection;
         }
 
-        console.log(`Refreshing OAuth token for connection ${connection.id}...`);
+        logger.info({ connectionId: connection.id }, 'Refreshing OAuth token for connection');
 
         try {
             // Déchiffrer le refresh token
@@ -95,7 +96,7 @@ export class EmailSyncService {
             if (error) {
                 console.error('Failed to update refreshed token:', error);
             } else {
-                console.log('OAuth token refreshed successfully');
+                logger.info('OAuth token refreshed successfully');
             }
 
             // Retourner la connexion avec le nouveau token
@@ -134,7 +135,7 @@ export class EmailSyncService {
                 );
 
                 if (isBlacklisted) {
-                    console.log(`Skipping blacklisted email from ${email.from}`);
+                    logger.debug({ from: email.from }, 'Skipping blacklisted email');
                     continue;
                 }
 

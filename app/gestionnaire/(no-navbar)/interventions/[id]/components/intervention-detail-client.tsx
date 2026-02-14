@@ -2421,20 +2421,6 @@ export function InterventionDetailClient({
               {/* TAB: PLANNING */}
               <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
                 <div className="flex-1 flex flex-col gap-4 p-4 sm:p-6 overflow-y-auto">
-                  {/* Devis */}
-                  {requireQuote && (
-                    <QuotesCard
-                      quotes={transformedQuotes}
-                      userRole="manager"
-                      showActions={true}
-                      onAddQuote={() => { /* TODO: implement add quote */ }}
-                      onApproveQuote={handleApproveQuote}
-                      onRejectQuote={handleRejectQuote}
-                      onCancelQuote={handleCancelQuote}
-                      className="flex-1 min-h-0"
-                    />
-                  )}
-
                   {/* Planning */}
                   <PlanningCard
                     timeSlots={transformedTimeSlots}
@@ -2443,7 +2429,6 @@ export function InterventionDetailClient({
                     schedulingType={intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null}
                     userRole="manager"
                     currentUserId={serverUserId}
-                    onAddSlot={handleOpenProgrammingModalWithData}
                     onApproveSlot={(slotId) => {
                       const slot = timeSlots.find(s => s.id === slotId)
                       if (slot) handleApproveSlot(slot)
@@ -2462,8 +2447,20 @@ export function InterventionDetailClient({
                     }}
                     onChooseSlot={handleChooseSlot}
                     onOpenResponseModal={handleOpenResponseModal}
-                    className="flex-1 min-h-0"
                   />
+
+                  {/* Devis */}
+                  {requireQuote && (
+                    <QuotesCard
+                      quotes={transformedQuotes}
+                      userRole="manager"
+                      showActions={true}
+                      onAddQuote={() => { /* TODO: implement add quote */ }}
+                      onApproveQuote={handleApproveQuote}
+                      onRejectQuote={handleRejectQuote}
+                      onCancelQuote={handleCancelQuote}
+                    />
+                  )}
                 </div>
               </TabsContent>
 

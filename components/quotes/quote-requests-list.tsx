@@ -22,7 +22,7 @@ interface QuoteRequest {
   intervention_type: string
   intervention_urgency: string
   quote_id?: string
-  quote_status?: 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled'
+  quote_status?: 'pending' | 'accepted' | 'rejected' | 'expired' | 'cancelled'
   quote_amount?: number
 }
 

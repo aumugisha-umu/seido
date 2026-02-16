@@ -11,6 +11,7 @@ interface InterventionActionPanelHeaderProps {
     status: string
     tenant_id?: string
     scheduled_date?: string
+    requires_quote?: boolean
     quotes?: Quote[]
     availabilities?: Array<{
       person: string
@@ -76,9 +77,6 @@ const shouldShowActionBadge = (
     case 'cloturee_par_prestataire':
     case 'cloturee_par_locataire':
       return true
-
-    case 'demande_de_devis':
-      return quotes?.some(q => q.status === 'pending' || q.status === 'sent') ?? false
 
     default:
       return false

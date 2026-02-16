@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-13
-**Total Learnings:** 34
+**Last Updated:** 2026-02-16
+**Total Learnings:** 38
 
 ---
 
@@ -256,6 +256,34 @@
 **Example:** `supabase/migrations/20260211100000_fix_security_definer_views.sql` — 5 views fixed
 **When to Use:** When Supabase linter reports `security_definer_view` errors, or when creating any new view that queries RLS-protected tables
 **Added:** 2026-02-11 | **Source:** Supabase security linter fix (5 views)
+
+#### Learning #036: Quote actions must be flag-based, not status-based
+**Problem:** Quote-related actions for prestataire were inside `case 'demande_de_devis':` — a status that was removed. This meant providers couldn't see quote actions when `requires_quote=true` on other statuses like `planification`.
+**Solution:** Decouple quote actions from intervention status. Move them to a post-switch block that checks `intervention.requires_quote` flag. Pass `{ requiresQuote, hasPendingQuote }` options through `getRoleBasedActions()`.
+**Example:** `components/intervention/intervention-action-buttons.tsx:382` — post-switch block, `lib/intervention-action-utils.ts:258` — options param
+**When to Use:** Any logic that checks "should this provider see quote actions?" — use `requires_quote` flag, not intervention status
+**Added:** 2026-02-16 | **Source:** Intervention workflow polish — demande_de_devis removal
+
+#### Learning #037: DB quote status is 'accepted' not 'approved'
+**Problem:** UI code used `status === 'approved'` to find accepted quotes, but the DB enum is `('draft', 'pending', 'sent', 'accepted', 'rejected', 'expired', 'cancelled')`. This caused quote approval badges and amounts to not display correctly.
+**Solution:** Use `'accepted'` everywhere. Update `quote-status-mapper.ts` with the full 7-value enum. Keep `'approved' → 'accepted'` as a legacy backward-compat mapping in the mapper only.
+**Example:** `lib/quote-status-mapper.ts:4` — full DbQuoteStatus type, `components/quotes/quote-card.tsx:65` — removed `case 'approved'` duplicates
+**When to Use:** Any code that reads or writes quote status — always check the actual DB enum values
+**Added:** 2026-02-16 | **Source:** Quote status alignment across 8 files
+
+#### Learning #038: Separate queries for finalization-context API (RLS safety)
+**Problem:** The finalization-context API used nested PostgREST selects (`interventions + lot + building + address`). With RLS, nested relations can silently return `null` (AGENTS.md #004). The API was returning partial data.
+**Solution:** Refactored to 6 parallel separate queries (building, lot, assignments, reports, timeSlots, quotes) matching the gestionnaire page.tsx pattern. This ensures each query respects its own RLS policy.
+**Example:** `app/api/intervention/[id]/finalization-context/route.ts:57-108` — Promise.all with 6 queries
+**When to Use:** Any API route that fetches related data across tables with different RLS policies
+**Added:** 2026-02-16 | **Source:** Finalization modal data completeness fix
+
+#### Learning #035: Time slot status is 'selected' not 'confirmed'
+**Problem:** Finalization modal searched for `timeSlots.find(s => s.status === 'confirmed')` — never matched. The DB stores confirmed time slots as `status = 'selected'` (set when gestionnaire picks a slot). This caused the modal to show "2 créneaux proposés" instead of the confirmed date/time.
+**Solution:** Use `s.status === 'selected'` for confirmed slots. Filter `pending`/`requested` for proposed count (not `timeSlots.length` which includes selected). Also fetch `selected_by_manager` to detect fixed scheduling.
+**Example:** `components/intervention/finalization-modal-live.tsx:362` — useMemo `planning`
+**When to Use:** Any component displaying time slot confirmation status or counting proposed slots
+**Added:** 2026-02-16 | **Source:** Finalization modal Planning & Estimation fix
 
 ### Testing
 

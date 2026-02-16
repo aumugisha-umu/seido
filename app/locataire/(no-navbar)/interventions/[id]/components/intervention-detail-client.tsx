@@ -557,9 +557,8 @@ export function LocataireInterventionDetailClient({
   // Handle opening response modal — shows ALL active slots
   const handleOpenResponseModal = (_slotId: string) => {
     const activeSlots = timeSlots.filter(s =>
-      s.status === 'pending' || s.status === 'requested'
+      s.status !== 'cancelled' && s.status !== 'rejected'
     )
-    if (activeSlots.length === 0) return
 
     const modalSlots: ModalTimeSlot[] = activeSlots.map(slot => ({
       id: slot.id,

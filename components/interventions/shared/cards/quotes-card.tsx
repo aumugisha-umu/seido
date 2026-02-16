@@ -43,6 +43,8 @@ interface QuoteItemProps {
   onReject?: () => void
   /** Annuler une demande de devis (seulement pour statut pending) */
   onCancel?: () => void
+  /** Répondre à une demande de devis (prestataire: ouvrir la modale d'estimation) */
+  onRespond?: () => void
 }
 
 const QuoteItem = ({
@@ -51,19 +53,23 @@ const QuoteItem = ({
   showActions = true,
   onApprove,
   onReject,
-  onCancel
+  onCancel,
+  onRespond
 }: QuoteItemProps) => {
   const canManage = permissions.canManageQuotes(userRole)
+  const canSubmit = permissions.canSubmitQuote(userRole)
   // Valider/Refuser seulement pour les estimations reçues (sent)
   const canShowApproveReject = showActions && canManage && quote.status === 'sent'
   // Annuler seulement pour les demandes en attente (pending)
   const canShowCancel = showActions && canManage && quote.status === 'pending'
+  // Répondre à une demande (prestataire, statut pending)
+  const canShowRespond = canSubmit && quote.status === 'pending' && !!onRespond
   // Indique si c'est une demande en attente (pas encore d'estimation reçue)
   const isPendingRequest = quote.status === 'pending'
 
   const getStatusConfig = () => {
     switch (quote.status) {
-      case 'approved':
+      case 'accepted':
         return {
           icon: CheckCircle2,
           label: 'Validé',
@@ -167,9 +173,23 @@ const QuoteItem = ({
         </p>
       ) : null}
 
-      {/* Actions - Valider/Refuser pour estimations reçues (sent), Annuler pour demandes (pending) */}
-      {(canShowApproveReject || canShowCancel) && (
+      {/* Actions - Valider/Refuser pour estimations reçues, Annuler pour demandes, Répondre pour prestataire */}
+      {(canShowApproveReject || canShowCancel || canShowRespond) && (
         <div className="flex items-center gap-2 mt-3 pt-3 border-t border-dashed border-slate-200">
+          {/* Répondre - prestataire avec demande en attente */}
+          {canShowRespond && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRespond}
+              className="w-full text-blue-700 border-blue-300 hover:bg-blue-100"
+              aria-label="Soumettre une estimation en réponse à la demande"
+            >
+              <FileText className="h-3.5 w-3.5 mr-1" aria-hidden="true" />
+              Soumettre une estimation
+            </Button>
+          )}
+
           {/* Valider/Refuser - seulement pour les estimations reçues */}
           {canShowApproveReject && (
             <>
@@ -229,6 +249,7 @@ export const QuotesCard = ({
   onApproveQuote,
   onRejectQuote,
   onCancelQuote,
+  onRespondToQuote,
   isLoading = false,
   className
 }: QuotesCardProps) => {
@@ -238,8 +259,8 @@ export const QuotesCard = ({
   // Sépare les estimations par statut - 4 groupes distincts
   const requestedQuotes = quotes.filter(q => q.status === 'pending')  // Demandes en attente du prestataire
   const receivedQuotes = quotes.filter(q => q.status === 'sent')      // Estimations reçues, en attente de validation
-  const approvedQuotes = quotes.filter(q => q.status === 'approved')
-  const otherQuotes = quotes.filter(q => !['pending', 'sent', 'approved'].includes(q.status))
+  const approvedQuotes = quotes.filter(q => q.status === 'accepted')
+  const otherQuotes = quotes.filter(q => !['pending', 'sent', 'accepted'].includes(q.status))
 
   if (!canView) {
     return null
@@ -327,6 +348,7 @@ export const QuotesCard = ({
                   userRole={userRole}
                   showActions={showActions}
                   onCancel={onCancelQuote ? () => onCancelQuote(quote.id) : undefined}
+                  onRespond={onRespondToQuote}
                 />
               ))}
             </div>

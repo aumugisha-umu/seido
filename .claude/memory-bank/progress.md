@@ -57,6 +57,7 @@
 - [x] **Quote Notifications Multi-Canal** (2026-02-02) - 4 nouvelles actions: quote request/submit/approve/reject
 - [x] **Push Subscription Security Fix** (2026-02-02) - userProfile.id + null data check pour RLS silent blocks
 - [x] **Voice Recorder + Documents + Reports Card** (2026-02-12) - Upload audio, signed URLs, composant reports partagé
+- [ ] **Intervention Workflow Polish** (2026-02-16) - 7 themes, 40 files: demande_de_devis→requires_quote, approved→accepted, finalization API, quote form simplification, details card enrichi, dashboard simplification, quote modals
 
 ## Sprint Actuel (Jan-Feb 2026)
 
@@ -413,9 +414,10 @@ Refactoring pour unifier l'expérience notifications entre web et PWA.
 | Server Actions | **17** files |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
-| **AGENTS.md Learnings** | **32** (+3: JSON.stringify File objects, signed URLs, ReportsCard) |
+| **AGENTS.md Learnings** | **38** (+6: time slot status, flag-based quotes, accepted enum, separate queries, finalization fix) |
 | **systemPatterns.md Patterns** | **29** |
 | **Shared Cards** | **15** (documents, reports, comments, conversation, quotes, planning, summary, intervention-details) |
+| **Quote Status Enum (DB)** | **7** (draft, pending, sent, accepted, rejected, expired, cancelled) |
 
 ### Metriques Ecosysteme .claude/ (2026-01-23)
 
@@ -464,7 +466,8 @@ Refactoring pour unifier l'expérience notifications entre web et PWA.
 | **2026-02-09** | **Conversation Thread Fix** | **Trigger auth_user_id guard + participant indicator** | **4 stories, 3 learnings AGENTS.md, migration repair workflow** |
 | **2026-02-11** | **Security Consolidation RLS** | **53 linter warnings, overlapping policies** | **4 migrations, 27 policies dropped, helpers expanded (proprietaire+contracts)** |
 | **2026-02-12** | **Voice Recorder + Documents + Reports** | **Upload audio, preview docs, affichage rapports** | **13 fichiers, composant ReportsCard shared, 3 learnings AGENTS.md** |
+| **2026-02-16** | **Intervention Workflow Polish** | **7 themes: demande_de_devis removal, approved→accepted, finalization API, quote form, details card, dashboards, quote modals** | **40 fichiers, -500 lignes net, 4 learnings AGENTS.md (#035-#038)** |
 
 ---
-*Derniere mise a jour: 2026-02-12*
-*Session: Voice Recorder + Documents + Reports Card COMPLETE + COMPOUNDED*
+*Derniere mise a jour: 2026-02-16*
+*Session: Intervention Workflow Polish — 7 themes, 40 files, comprehensive knowledge base update*

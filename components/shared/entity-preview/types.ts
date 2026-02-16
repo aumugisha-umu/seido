@@ -83,7 +83,7 @@ export function getInterventionTabsConfig(role: InterventionUserRole): TabConfig
     case 'manager':
       return [
         ...baseTabs,
-        { value: 'planning', label: 'Planning' },
+        { value: 'planning', label: 'Planning et Estimations' },
         { value: 'documents', label: 'Documents' },
         { value: 'contacts', label: 'Contacts' },
         { value: 'emails', label: 'Emails' },
@@ -92,7 +92,7 @@ export function getInterventionTabsConfig(role: InterventionUserRole): TabConfig
     case 'provider':
       return [
         ...baseTabs,
-        { value: 'planning', label: 'Planning' }
+        { value: 'planning', label: 'Planning et Estimation' }
       ]
     case 'tenant':
       return [

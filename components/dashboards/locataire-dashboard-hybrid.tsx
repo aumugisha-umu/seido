@@ -16,7 +16,6 @@ import { useGlobalNotifications } from "@/hooks/use-global-notifications"
 import { useNotificationPopover } from "@/hooks/use-notification-popover"
 import UserMenu from "@/components/user-menu"
 import NotificationPopover from "@/components/notification-popover"
-import { PendingActionsSection } from "@/components/dashboards/shared/pending-actions-section"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 
 // Helper functions for formatting
@@ -423,12 +422,6 @@ export default function LocataireDashboardHybrid({
             <Plus className="h-6 w-6" />
           </Button>
         )}
-
-        {/* --- PENDING ACTIONS SECTION: Orange wrapper with horizontal scroll --- */}
-        <PendingActionsSection
-          interventions={filteredInterventions}
-          userRole="locataire"
-        />
 
         {/* --- INTERVENTIONS SECTION (Unified InterventionsNavigator) --- */}
         <InterventionsNavigator

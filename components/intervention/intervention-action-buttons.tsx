@@ -12,7 +12,8 @@ import {
   FileText,
   Edit3,
   Trash2,
-  Edit
+  Edit,
+  CalendarCheck
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { getActionStyling as getActionStylingFromLib } from "@/lib/intervention-action-styles"
@@ -60,6 +61,7 @@ interface InterventionActionButtonsProps {
     status: string
     tenant_id?: string
     scheduled_date?: string
+    requires_quote?: boolean
     quotes?: Quote[]
     availabilities?: Array<{
       person: string
@@ -222,78 +224,8 @@ export function InterventionActionButtons({
         }
         break
 
-      case 'demande_de_devis':
-        if (userRole === 'gestionnaire') {
-          // Ajouter le bouton "Modifier la planification" comme pour le statut planification
-          actions.push({
-            key: 'propose_slots',
-            label: 'Modifier la planification',
-            icon: Edit,
-            description: 'Modifier la planification existante'
-          })
-        }
-        if (userRole === 'prestataire') {
-          if (currentUserQuote) {
-            if (currentUserQuote.status === 'pending') {
-              const isQuoteRequest = !currentUserQuote.amount || currentUserQuote.amount === 0
-
-              if (isQuoteRequest) {
-                // Ne plus afficher "Rejeter la demande" - uniquement "Soumettre une estimation"
-                actions.push({
-                  key: 'submit_quote',
-                  label: 'Soumettre une estimation',
-                  icon: FileText,
-                  description: 'Soumettre votre estimation pour cette intervention'
-                })
-              } else {
-                actions.push(
-                  {
-                    key: 'edit_quote',
-                    label: 'Modifier l\'estimation',
-                    icon: Edit3,
-                    description: 'Modifier votre estimation en attente d\'évaluation'
-                  },
-                  {
-                    key: 'cancel_quote',
-                    label: 'Annuler l\'estimation',
-                    icon: Trash2,
-                    description: 'Annuler votre estimation actuelle'
-                  }
-                )
-              }
-            } else if (currentUserQuote.status === 'sent') {
-              actions.push(
-                {
-                  key: 'edit_quote',
-                  label: 'Modifier l\'estimation',
-                  icon: Edit3,
-                  description: 'Modifier votre estimation envoyée'
-                },
-                {
-                  key: 'cancel_quote',
-                  label: 'Annuler l\'estimation',
-                  icon: Trash2,
-                  description: 'Annuler votre estimation'
-                }
-              )
-            } else if (currentUserQuote.status === 'accepted') {
-              actions.push({
-                key: 'view_quote',
-                label: 'Voir l\'estimation',
-                icon: FileText,
-                description: 'Consulter votre estimation approuvée'
-              })
-            }
-          } else {
-            actions.push({
-              key: 'submit_quote',
-              label: 'Soumettre une estimation',
-              icon: FileText,
-              description: 'Proposer votre estimation pour cette intervention'
-            })
-          }
-        }
-        break
+      // Note: 'demande_de_devis' status removed — quote actions now handled
+      // via requires_quote flag in the post-switch block below
 
       case 'planification':
         if (userRole === 'gestionnaire') {
@@ -333,16 +265,16 @@ export function InterventionActionButtons({
             // Map action keys to icons and descriptions
             const actionConfig = {
               confirm_availabilities: {
-                icon: CheckCircle,
-                description: 'Valider ou rejeter les créneaux proposés par le gestionnaire'
+                icon: CalendarCheck,
+                description: 'Répondre aux créneaux proposés pour cette intervention'
               },
               modify_availabilities: {
-                icon: Edit,
-                description: 'Modifier vos disponibilités existantes'
+                icon: CalendarCheck,
+                description: 'Gérer vos réponses aux créneaux proposés'
               },
               add_availabilities: {
-                icon: Calendar,
-                description: 'Saisir vos créneaux de disponibilité'
+                icon: CalendarCheck,
+                description: 'Consulter et répondre aux créneaux de planification'
               }
             }
 
@@ -447,8 +379,71 @@ export function InterventionActionButtons({
         break
     }
 
+    // Quote actions for prestataire — decoupled from status, based on requires_quote flag
+    if (userRole === 'prestataire' && intervention.requires_quote) {
+      if (currentUserQuote) {
+        if (currentUserQuote.status === 'pending') {
+          const isQuoteRequest = !currentUserQuote.amount || currentUserQuote.amount === 0
+
+          if (isQuoteRequest) {
+            actions.push({
+              key: 'submit_quote',
+              label: 'Soumettre une estimation',
+              icon: FileText,
+              description: 'Soumettre votre estimation pour cette intervention'
+            })
+          } else {
+            actions.push(
+              {
+                key: 'edit_quote',
+                label: 'Modifier l\'estimation',
+                icon: Edit3,
+                description: 'Modifier votre estimation en attente d\'évaluation'
+              },
+              {
+                key: 'cancel_quote',
+                label: 'Annuler l\'estimation',
+                icon: Trash2,
+                description: 'Annuler votre estimation actuelle'
+              }
+            )
+          }
+        } else if (currentUserQuote.status === 'sent') {
+          actions.push(
+            {
+              key: 'edit_quote',
+              label: 'Modifier l\'estimation',
+              icon: Edit3,
+              description: 'Modifier votre estimation envoyée'
+            },
+            {
+              key: 'cancel_quote',
+              label: 'Annuler l\'estimation',
+              icon: Trash2,
+              description: 'Annuler votre estimation'
+            }
+          )
+        } else if (currentUserQuote.status === 'accepted') {
+          actions.push({
+            key: 'view_quote',
+            label: 'Voir l\'estimation',
+            icon: FileText,
+            description: 'Consulter votre estimation approuvée'
+          })
+        }
+      } else {
+        // No quote yet from this provider — show submit button
+        actions.push({
+          key: 'submit_quote',
+          label: 'Soumettre une estimation',
+          icon: FileText,
+          description: 'Proposer votre estimation pour cette intervention'
+        })
+      }
+    }
+
     // Actions communes disponibles selon le contexte
-    if (['approuvee', 'demande_de_devis', 'planification', 'planifiee'].includes(intervention.status)) {
+    if (['approuvee', 'planification', 'planifiee'].includes(intervention.status)) {
       if (userRole === 'gestionnaire') {
         actions.push({
           key: 'cancel',
@@ -573,18 +568,10 @@ export function InterventionActionButtons({
           return
 
         case 'confirm_availabilities':
-          onActionComplete?.('execution')
-          return
-
         case 'modify_availabilities':
         case 'add_availabilities':
-          // Open modal via callback (for prestataire)
-          if (onProposeSlots) {
-            onProposeSlots()
-            return
-          }
-          // Fallback redirection for gestionnaire
-          navigateTo(`/gestionnaire/interventions/${intervention.id}?tab=time-slots`)
+          // Open MultiSlotResponseModal (same as confirm_slot for locataire)
+          setShowSlotConfirmationModal(true)
           return
 
         case 'reschedule':
@@ -1072,7 +1059,7 @@ export function InterventionActionButtons({
         isOpen={showSlotConfirmationModal}
         onClose={() => setShowSlotConfirmationModal(false)}
         slots={timeSlots
-          .filter(slot => slot.status === 'pending' || slot.status === 'requested')
+          .filter(slot => slot.status !== 'cancelled' && slot.status !== 'rejected')
           .map(slot => ({
             id: slot.id,
             slot_date: slot.slot_date,

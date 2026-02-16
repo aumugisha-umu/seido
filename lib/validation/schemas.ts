@@ -533,7 +533,6 @@ export const submitQuoteSchema = z.object({
   amount: z.number().positive().max(1000000), // max 1M EUR
   description: z.string().min(10, 'La description du devis doit contenir au moins 10 caractères').max(5000).trim(),
   validUntil: dateStringSchema.optional(),
-  estimatedDuration: z.number().int().min(1).max(480).optional(), // minutes
 })
 
 /**

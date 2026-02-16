@@ -154,7 +154,8 @@ CREATE TABLE addresses (
 Enums principaux utilises dans le schema :
 - `user_role` (4 valeurs)
 - `intervention_status` (**9 valeurs** - mis a jour 2026-01-26)
-- `quote_status`, `priority_type`, `contact_type`, etc.
+- `quote_status` (**7 valeurs** — `draft`, `pending`, `sent`, `accepted`, `rejected`, `expired`, `cancelled`)
+- `priority_type`, `contact_type`, etc.
 
 ### Fonctions PostgreSQL (79 total - mis a jour 2026-01-29)
 

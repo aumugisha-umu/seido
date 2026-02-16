@@ -108,6 +108,10 @@ import {
 // Quote status utilities
 import { getQuoteBadgeStatus, getQuoteBadgeLabel, getQuoteBadgeColor } from '@/lib/utils/quote-status'
 
+// Quote approval/rejection modals
+import { QuoteApprovalModal } from '@/components/quotes/quote-approval-modal'
+import { QuoteRejectionModal } from '@/components/quotes/quote-rejection-modal'
+
 // Role-based actions utilities
 import {
   getRoleBasedActions,
@@ -329,6 +333,19 @@ export function InterventionDetailClient({
     providerName: ''
   })
   const [isCancellingQuote, setIsCancellingQuote] = useState(false)
+  // État pour les modales d'approbation/rejet d'estimation
+  const [quoteApprovalModal, setQuoteApprovalModal] = useState<{
+    isOpen: boolean
+    quoteId: string
+    providerName: string
+    totalAmount: number
+  } | null>(null)
+  const [quoteRejectionModal, setQuoteRejectionModal] = useState<{
+    isOpen: boolean
+    quoteId: string
+    providerName: string
+    totalAmount: number
+  } | null>(null)
   // ✅ FIX 2026-01-26: Use requires_quote field instead of deprecated demande_de_devis status
   const [requireQuote, setRequireQuote] = useState(intervention.requires_quote || false)
   const [modalAssignmentMode, setModalAssignmentMode] = useState<AssignmentMode>(assignmentMode || 'group')
@@ -828,7 +845,7 @@ export function InterventionDetailClient({
       : 'pending'
 
   // Statut des devis
-  const quotesStatus = transformedQuotes.some(q => q.status === 'approved')
+  const quotesStatus = transformedQuotes.some(q => q.status === 'accepted')
     ? 'approved'
     : transformedQuotes.length > 0
       ? 'received'
@@ -837,7 +854,7 @@ export function InterventionDetailClient({
         : 'none'
 
   // Montant du devis validé
-  const selectedQuoteAmount = transformedQuotes.find(q => q.status === 'approved')?.amount
+  const selectedQuoteAmount = transformedQuotes.find(q => q.status === 'accepted')?.amount
 
   // Initialize planning hook with dynamic participant selection
   const planning = useInterventionPlanning(
@@ -1445,68 +1462,26 @@ export function InterventionDetailClient({
     handleOpenProgrammingModalWithData()
   }
 
-  // Handler pour approuver une estimation
-  const handleApproveQuote = async (quoteId: string) => {
-    try {
-      const response = await fetch(`/api/intervention/${intervention.id}/quotes/${quoteId}/approve`, {
-        method: 'POST'
-      })
-
-      const result = await response.json()
-
-      if (result.success || response.ok) {
-        toast({
-          title: 'Estimation approuvée',
-          description: 'L\'estimation a été approuvée avec succès'
-        })
-        handleRefresh()
-      } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Erreur lors de l\'approbation de l\'estimation',
-          variant: 'destructive'
-        })
-      }
-    } catch (error) {
-      console.error('Error approving quote:', error)
-      toast({
-        title: 'Erreur',
-        description: 'Erreur lors de l\'approbation de l\'estimation',
-        variant: 'destructive'
-      })
-    }
+  // Handler pour approuver une estimation → ouvre la modale de confirmation
+  const handleApproveQuote = (quoteId: string) => {
+    const quote = transformedQuotes.find(q => q.id === quoteId)
+    setQuoteApprovalModal({
+      isOpen: true,
+      quoteId,
+      providerName: quote?.provider_name || 'Prestataire',
+      totalAmount: quote?.amount || 0
+    })
   }
 
-  // Handler pour rejeter une estimation
-  const handleRejectQuote = async (quoteId: string) => {
-    try {
-      const response = await fetch(`/api/intervention/${intervention.id}/quotes/${quoteId}/reject`, {
-        method: 'POST'
-      })
-
-      const result = await response.json()
-
-      if (result.success || response.ok) {
-        toast({
-          title: 'Estimation rejetée',
-          description: 'L\'estimation a été rejetée'
-        })
-        handleRefresh()
-      } else {
-        toast({
-          title: 'Erreur',
-          description: result.error || 'Erreur lors du rejet de l\'estimation',
-          variant: 'destructive'
-        })
-      }
-    } catch (error) {
-      console.error('Error rejecting quote:', error)
-      toast({
-        title: 'Erreur',
-        description: 'Erreur lors du rejet de l\'estimation',
-        variant: 'destructive'
-      })
-    }
+  // Handler pour rejeter une estimation → ouvre la modale de rejet
+  const handleRejectQuote = (quoteId: string) => {
+    const quote = transformedQuotes.find(q => q.id === quoteId)
+    setQuoteRejectionModal({
+      isOpen: true,
+      quoteId,
+      providerName: quote?.provider_name || 'Prestataire',
+      totalAmount: quote?.amount || 0
+    })
   }
 
   // Handler pour annuler une demande d'estimation (statut pending)
@@ -1914,7 +1889,7 @@ export function InterventionDetailClient({
                         className="gap-2 min-h-[36px] relative"
                       >
                         <MessageSquareText className="w-4 h-4" />
-                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
+                        <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-xs font-medium text-white">
                           {transformedComments.length}
                         </span>
                       </Button>
@@ -2017,7 +1992,7 @@ export function InterventionDetailClient({
                   className="h-9 w-9 relative"
                 >
                   <MessageSquareText className="w-4 h-4" />
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-[10px] font-medium text-white">
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-blue-600 text-xs font-medium text-white">
                     {transformedComments.length}
                   </span>
                   <span className="sr-only">{transformedComments.length} commentaires</span>
@@ -2605,6 +2580,40 @@ export function InterventionDetailClient({
             onConfirm={approvalHook.handleConfirmAction}
             isLoading={approvalHook.isLoading}
             documents={documents}
+          />
+        )}
+
+        {/* Modale d'approbation d'estimation */}
+        {quoteApprovalModal && (
+          <QuoteApprovalModal
+            isOpen={quoteApprovalModal.isOpen}
+            onClose={() => setQuoteApprovalModal(null)}
+            onSuccess={() => {
+              setQuoteApprovalModal(null)
+              handleRefresh()
+            }}
+            quote={{
+              id: quoteApprovalModal.quoteId,
+              providerName: quoteApprovalModal.providerName,
+              totalAmount: quoteApprovalModal.totalAmount
+            }}
+          />
+        )}
+
+        {/* Modale de rejet d'estimation */}
+        {quoteRejectionModal && (
+          <QuoteRejectionModal
+            isOpen={quoteRejectionModal.isOpen}
+            onClose={() => setQuoteRejectionModal(null)}
+            onSuccess={() => {
+              setQuoteRejectionModal(null)
+              handleRefresh()
+            }}
+            quote={{
+              id: quoteRejectionModal.quoteId,
+              providerName: quoteRejectionModal.providerName,
+              totalAmount: quoteRejectionModal.totalAmount
+            }}
           />
         )}
 

@@ -216,27 +216,25 @@ const getGestionnaireActions = (
  */
 const getPrestataireActions = (
   status: string,
-  interventionId: string
+  interventionId: string,
+  options?: { requiresQuote?: boolean; hasPendingQuote?: boolean }
 ): RoleBasedAction[] => {
   const baseUrl = `/prestataire/interventions/${interventionId}`
+  const actions: RoleBasedAction[] = []
 
   switch (status) {
-    // Note: demande_de_devis removed - providers can submit quotes from 'planification' status
-    // Quote submission button shown when intervention.requires_quote = true
-
     case 'planification':
-      return [
-        {
-          label: 'Gérer créneaux',
-          icon: CalendarCheck,
-          variant: 'primary',
-          actionType: 'propose_timeslots',
-          href: `${baseUrl}?tab=planning`
-        }
-      ]
+      actions.push({
+        label: 'Gérer planification',
+        icon: CalendarCheck,
+        variant: 'primary',
+        actionType: 'propose_timeslots',
+        href: `${baseUrl}?tab=planning`
+      })
+      break
 
     case 'planifiee':
-      return [
+      actions.push(
         {
           label: 'Marquer terminée',
           icon: CheckCircle,
@@ -251,11 +249,22 @@ const getPrestataireActions = (
           actionType: 'view_details',
           href: baseUrl
         }
-      ]
-
-    default:
-      return []
+      )
+      break
   }
+
+  // Quote action — shown when requires_quote and provider has a pending quote request
+  if (options?.requiresQuote && options?.hasPendingQuote) {
+    actions.push({
+      label: 'Gérer devis',
+      icon: Euro,
+      variant: actions.length > 0 ? 'secondary' : 'primary',
+      actionType: 'submit_quote',
+      href: `${baseUrl}?action=quote`
+    })
+  }
+
+  return actions
 }
 
 /**
@@ -323,13 +332,14 @@ const getLocataireActions = (
 export const getRoleBasedActions = (
   interventionId: string,
   status: string,
-  userRole: UserRole
+  userRole: UserRole,
+  options?: { requiresQuote?: boolean; hasPendingQuote?: boolean }
 ): RoleBasedAction[] => {
   switch (userRole) {
     case 'gestionnaire':
       return getGestionnaireActions(status, interventionId)
     case 'prestataire':
-      return getPrestataireActions(status, interventionId)
+      return getPrestataireActions(status, interventionId, options)
     case 'locataire':
       return getLocataireActions(status, interventionId)
     default:

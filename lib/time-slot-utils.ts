@@ -82,9 +82,9 @@ export function getProviderActionLabel(
     actionKey: 'confirm_availabilities' | 'modify_availabilities' | 'add_availabilities'
 ): string {
     const labels = {
-        confirm_availabilities: 'Confirmer disponibilités',
-        modify_availabilities: 'Modifier la planification',
-        add_availabilities: 'Ajouter mes disponibilités'
+        confirm_availabilities: 'Gérer planification',
+        modify_availabilities: 'Gérer planification',
+        add_availabilities: 'Gérer planification'
     }
 
     return labels[actionKey]

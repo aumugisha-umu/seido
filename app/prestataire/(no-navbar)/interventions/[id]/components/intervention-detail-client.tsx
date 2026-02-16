@@ -205,11 +205,16 @@ export function PrestataireInterventionDetailClient({
   const searchParams = useSearchParams()
   const [autoOpenComplete, setAutoOpenComplete] = useState(false)
 
-  // Detect ?action=complete query param to auto-open completion modal
+  // Detect ?action=complete or ?action=quote query param to auto-open modals
   useEffect(() => {
-    if (searchParams.get('action') === 'complete') {
+    const action = searchParams.get('action')
+    if (action === 'complete') {
       setAutoOpenComplete(true)
-      // Clean URL to prevent re-opening on refresh
+    } else if (action === 'quote') {
+      setQuoteModalOpen(true)
+    }
+    // Clean URL to prevent re-opening on refresh
+    if (action) {
       window.history.replaceState(null, '', window.location.pathname)
     }
   }, [searchParams])
@@ -217,7 +222,6 @@ export function PrestataireInterventionDetailClient({
   const [activeTab, setActiveTab] = useState('general')
   const [refreshing, setRefreshing] = useState(false)
   const [quoteModalOpen, setQuoteModalOpen] = useState(false)
-  const [availabilityOnlyMode, setAvailabilityOnlyMode] = useState(false) // Hide estimation section
   const [selectedQuote, setSelectedQuote] = useState<Quote | null>(null)
   const [rejectQuoteModalOpen, setRejectQuoteModalOpen] = useState(false)
   const [quoteToReject, setQuoteToReject] = useState<Quote | null>(null)
@@ -313,7 +317,6 @@ export function PrestataireInterventionDetailClient({
         }
 
         // Open the quote modal with pre-filled amount
-        setAvailabilityOnlyMode(false)
         setQuoteModalOpen(true)
 
         // Note: The modal will handle the actual submission
@@ -386,6 +389,16 @@ export function PrestataireInterventionDetailClient({
 
   const hasProposedSlots = pendingSlotsForCurrentUser.length > 0
   const proposedSlotsCount = pendingSlotsForCurrentUser.length
+
+  // Count ALL active (non-cancelled/selected/confirmed/rejected) slots, regardless of response
+  const totalActiveSlotsCount = useMemo(() => {
+    return timeSlots.filter(slot =>
+      !['cancelled', 'selected', 'confirmed', 'rejected'].includes(slot.status)
+    ).length
+  }, [timeSlots])
+
+  // True when user has responded to all proposed slots (none pending, but active slots exist)
+  const hasRespondedToAllSlots = totalActiveSlotsCount > 0 && proposedSlotsCount === 0
 
   // Handler to navigate to planning tab when clicking "Voir les créneaux"
   const handleViewSlots = () => {
@@ -596,26 +609,26 @@ export function PrestataireInterventionDetailClient({
     setTimeout(() => setRefreshing(false), 1000)
   }
 
-  // Handle reject slot — opens response modal with ALL active slots
+  // Handle reject slot — opens response modal with ALL active slots, pre-filled as reject
   const handleRejectSlot = (slot: TimeSlot) => {
-    handleOpenResponseModal(slot.id)
+    handleOpenResponseModal(slot.id, 'reject')
   }
 
-  // Handle accept slot — opens response modal with ALL active slots
+  // Handle accept slot — opens response modal with ALL active slots, pre-filled as accept
   const handleAcceptSlot = (slot: TimeSlot) => {
     if (!slot) {
       toast.error('Erreur: créneau non trouvé')
       return
     }
-    handleOpenResponseModal(slot.id)
+    handleOpenResponseModal(slot.id, 'accept')
   }
 
   // Handle opening response modal — shows ALL active slots
-  const handleOpenResponseModal = (_slotId: string) => {
+  // intent param pre-fills the clicked slot's response (accept/reject)
+  const handleOpenResponseModal = (slotId: string, intent?: 'accept' | 'reject') => {
     const activeSlots = timeSlots.filter(s =>
-      s.status === 'pending' || s.status === 'requested'
+      s.status !== 'cancelled' && s.status !== 'rejected'
     )
-    if (activeSlots.length === 0) return
 
     const modalSlots: ModalTimeSlot[] = activeSlots.map(slot => ({
       id: slot.id,
@@ -655,6 +668,19 @@ export function PrestataireInterventionDetailClient({
       }
     }
 
+    // Overlay user's click intent for the target slot
+    if (slotId && intent) {
+      existing[slotId] = { response: intent }
+      // If accepting, auto-reject all other pending slots (matches modal behavior)
+      if (intent === 'accept') {
+        for (const s of activeSlots) {
+          if (s.id !== slotId && !existing[s.id]) {
+            existing[s.id] = { response: 'reject', reason: 'Autre créneau accepté' }
+          }
+        }
+      }
+    }
+
     setResponseModalSlots(modalSlots)
     setResponseModalExisting(existing)
     setIsResponseModalOpen(true)
@@ -665,12 +691,6 @@ export function PrestataireInterventionDetailClient({
     setSlotToModify(slot)
     setCurrentChoice(currentResponse)
     setModifyChoiceModalOpen(true)
-  }
-
-  // Handle opening availability modal (quote submission modal in availability-only mode)
-  const handleOpenAvailabilityModal = () => {
-    setAvailabilityOnlyMode(true)
-    setQuoteModalOpen(true)
   }
 
   // Handle opening reject quote modal from action panel
@@ -758,15 +778,17 @@ export function PrestataireInterventionDetailClient({
 
   // Handle opening quote submission modal (full quote with estimation)
   const handleOpenQuoteModal = () => {
-    setSelectedQuote(null)
-    setAvailabilityOnlyMode(false) // Show full form with estimation
+    // Find existing pending quote request for this provider so the API uses UPDATE path
+    const pendingQuote = transformedQuotes.find(
+      q => q.provider_id === currentUser.id && (q.status === 'pending' || q.status === 'sent')
+    ) || null
+    setSelectedQuote(pendingQuote)
     setQuoteModalOpen(true)
   }
 
   // Handle editing existing quote
   const handleEditQuote = (quote: Quote) => {
     setSelectedQuote(quote)
-    setAvailabilityOnlyMode(false) // Ensure full form is shown when editing
     setQuoteModalOpen(true)
   }
 
@@ -782,9 +804,7 @@ export function PrestataireInterventionDetailClient({
       laborCost: laborItem?.total || quote.amount || 0,
       materialsCost: materialsItem?.total || 0,
       workDetails: quote.description || '',
-      estimatedDurationHours: laborItem?.quantity || 1,
       attachments: [],
-      providerAvailabilities: []
     }
   }
 
@@ -876,6 +896,7 @@ export function PrestataireInterventionDetailClient({
               status: intervention.status,
               tenant_id: intervention.tenant_id || undefined,
               scheduled_date: intervention.scheduled_date || undefined,
+              requires_quote: intervention.requires_quote || false,
               quotes: quotes.map(q => ({
                 id: q.id,
                 status: q.status,
@@ -894,7 +915,6 @@ export function PrestataireInterventionDetailClient({
             onEditQuote={handleEditQuote}
             onRejectQuoteRequest={handleRejectQuoteRequest}
             onCancelQuote={handleCancelQuote}
-            onProposeSlots={handleOpenAvailabilityModal}
             autoOpenComplete={autoOpenComplete}
           />
         }
@@ -936,24 +956,6 @@ export function PrestataireInterventionDetailClient({
               {/* TAB: GENERAL */}
               <TabsContent value="general" className="mt-0 flex-1 flex flex-col overflow-hidden">
                 <ContentWrapper>
-                  {/* Bannières de confirmation si nécessaire */}
-                  {/* Show slot banner if there are pending slots, otherwise show confirmation banner */}
-                  {hasProposedSlots ? (
-                    <ConfirmationRequiredBanner
-                      interventionId={intervention.id}
-                      hasProposedSlots={true}
-                      proposedSlotsCount={proposedSlotsCount}
-                      onViewSlots={handleViewSlots}
-                    />
-                  ) : showConfirmationBanner && (
-                    <ConfirmationRequiredBanner
-                      interventionId={intervention.id}
-                      scheduledDate={intervention.scheduled_date}
-                      scheduledTime={null}
-                      onConfirm={handleConfirmationResponse}
-                      onReject={handleConfirmationResponse}
-                    />
-                  )}
                   {showConfirmedBanner && <ConfirmationSuccessBanner />}
                   {showRejectedBanner && <ConfirmationRejectedBanner />}
 
@@ -968,19 +970,30 @@ export function PrestataireInterventionDetailClient({
                       currentUserId={currentUser.id}
                       currentUserRole="prestataire"
                       onOpenChat={handleOpenChatFromParticipant}
+                      onOpenSlotResponseModal={() => handleOpenResponseModal('')}
+                      onOpenQuoteModal={handleOpenQuoteModal}
+                      pendingSlotsForUser={proposedSlotsCount}
+                      requiresQuote={intervention.requires_quote}
+                      hasSubmittedQuote={transformedQuotes.some(q => q.provider_id === currentUser.id && q.status === 'sent')}
                       planning={{
                         scheduledDate,
                         schedulingType: intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null,
-                        status: scheduledDate ? 'scheduled' : 'pending',
+                        status: scheduledDate ? 'scheduled'
+                          : proposedSlotsCount > 0 ? 'proposed'
+                          : hasRespondedToAllSlots ? 'responded'
+                          : 'pending',
+                        proposedSlotsCount: hasRespondedToAllSlots ? totalActiveSlotsCount : proposedSlotsCount,
                         quotesCount: transformedQuotes.length,
-                        quotesStatus: transformedQuotes.some(q => q.status === 'approved')
+                        requestedQuotesCount: transformedQuotes.filter(q => q.status === 'pending').length,
+                        receivedQuotesCount: transformedQuotes.filter(q => q.status === 'sent').length,
+                        quotesStatus: transformedQuotes.some(q => q.status === 'accepted')
                           ? 'approved'
-                          : transformedQuotes.length > 0
+                          : transformedQuotes.some(q => q.status === 'sent')
                             ? 'received'
                             : intervention.requires_quote
                               ? 'pending'
                               : 'none',
-                        selectedQuoteAmount: transformedQuotes.find(q => q.status === 'approved')?.amount
+                        selectedQuoteAmount: transformedQuotes.find(q => q.status === 'accepted')?.amount
                       }}
                     />
                   </div>
@@ -1064,17 +1077,8 @@ export function PrestataireInterventionDetailClient({
 
 
               {/* TAB: PLANNING */}
-              <TabsContent value="planning" className="mt-0 flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 flex flex-col gap-4 p-4 sm:p-6">
-                  {/* Devis du prestataire */}
-                  <QuotesCard
-                    quotes={transformedQuotes.filter(q => q.provider_id === currentUser.id)}
-                    userRole="provider"
-                    showActions={false}
-                    onAddQuote={handleOpenQuoteModal}
-                    className="flex-1 min-h-0"
-                  />
-
+              <TabsContent value="planning" className="mt-0 flex-1 overflow-auto">
+                <div className="flex flex-col gap-4 p-4 sm:p-6">
                   {/* Planning */}
                   <PlanningCard
                     timeSlots={transformedTimeSlots}
@@ -1083,7 +1087,6 @@ export function PrestataireInterventionDetailClient({
                     schedulingType={intervention.scheduling_type as 'fixed' | 'slots' | 'flexible' | null}
                     userRole="provider"
                     currentUserId={currentUser.id}
-                    onAddSlot={handleOpenAvailabilityModal}
                     onApproveSlot={(slotId) => {
                       const slot = timeSlots.find(s => s.id === slotId)
                       if (slot) handleAcceptSlot(slot)
@@ -1094,7 +1097,14 @@ export function PrestataireInterventionDetailClient({
                       if (slot) handleRejectSlot(slot)
                     }}
                     onOpenResponseModal={handleOpenResponseModal}
-                    className="flex-1 min-h-0"
+                  />
+
+                  {/* Devis du prestataire */}
+                  <QuotesCard
+                    quotes={transformedQuotes.filter(q => q.provider_id === currentUser.id)}
+                    userRole="provider"
+                    showActions={true}
+                    onRespondToQuote={handleOpenQuoteModal}
                   />
                 </div>
               </TabsContent>
@@ -1111,7 +1121,6 @@ export function PrestataireInterventionDetailClient({
           ...intervention,
           urgency: intervention.urgency || 'normale',
           priority: intervention.urgency || 'normale',
-          time_slots: timeSlots
         }}
         existingQuote={selectedQuote ? transformQuoteToExistingQuote(selectedQuote) : undefined}
         quoteRequest={selectedQuote ? {
@@ -1124,10 +1133,8 @@ export function PrestataireInterventionDetailClient({
         onSuccess={() => {
           setQuoteModalOpen(false)
           setSelectedQuote(null)
-          setAvailabilityOnlyMode(false) // Reset mode
           handleRefresh()
         }}
-        hideEstimationSection={availabilityOnlyMode}
       />
 
       {/* Reject Quote Request Modal */}

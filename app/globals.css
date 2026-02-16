@@ -1128,7 +1128,7 @@ input:-webkit-autofill:active {
 
 .unified-modal__footer {
   @apply flex items-center gap-3 p-4 border-t border-slate-100
-         flex-shrink-0 bg-slate-50/50;
+         flex-shrink-0 bg-white;
 }
 
 /* ─────────────────────────────────────────────────────────────────

@@ -23,26 +23,10 @@ export async function GET(
 
     logger.info({ interventionId, userId: user.id }, '📊 Fetching finalization context')
 
-    // 1. Fetch intervention with lot/building
+    // 1. Fetch intervention (flat, no nested building/lot to avoid RLS issues)
     const { data: intervention, error: interventionError } = await supabase
       .from('interventions')
-      .select(`
-        *,
-        lot:lot_id(
-          id,
-          reference,
-          building:building_id(
-            id,
-            name,
-            address_record:address_id(
-              formatted_address,
-              street,
-              city,
-              postal_code
-            )
-          )
-        )
-      `)
+      .select('*')
       .eq('id', interventionId)
       .single()
 
@@ -70,28 +54,28 @@ export async function GET(
       }, { status: 400 })
     }
 
-    // ⚡ OPTIMISATION: Fetch assignments et reports en parallèle
-    // (intervention déjà validée, ces deux requêtes sont indépendantes)
-    const [assignmentsResult, reportsResult] = await Promise.all([
-      // 2. Fetch assignments (to get tenant/provider contacts)
+    // ⚡ Fetch building, lot, assignments, reports en parallèle
+    // Separate queries avoid RLS issues with nested PostgREST joins (AGENTS.md pattern)
+    // Same pattern as gestionnaire intervention detail page (page.tsx lines 116-132)
+    const [buildingResult, lotResult, assignmentsResult, reportsResult, timeSlotsResult, quotesResult] = await Promise.all([
+      // Building (with address — separate query, not nested)
+      intervention.building_id
+        ? supabase.from('buildings').select('*, address_record:address_id(*)').eq('id', intervention.building_id).single()
+        : Promise.resolve({ data: null, error: null }),
+
+      // Lot (with building + address — same select as page.tsx line 124)
+      intervention.lot_id
+        ? supabase.from('lots').select('*, address_record:address_id(*), building:building_id(*, address_record:address_id(*))').eq('id', intervention.lot_id).single()
+        : Promise.resolve({ data: null, error: null }),
+
+      // ALL assignments with full user data (same as page.tsx line 130)
       supabase
         .from('intervention_assignments')
-        .select(`
-          id,
-          role,
-          is_primary,
-          user:user_id(
-            id,
-            name,
-            email,
-            phone,
-            role,
-            provider_category
-          )
-        `)
-        .eq('intervention_id', interventionId),
+        .select('*, user:users!user_id(*, company:company_id(*))')
+        .eq('intervention_id', interventionId)
+        .order('assigned_at', { ascending: false }),
 
-      // 3. Fetch intervention reports (provider_report, tenant_report)
+      // Reports
       supabase
         .from('intervention_reports')
         .select(`
@@ -107,28 +91,38 @@ export async function GET(
         .eq('intervention_id', interventionId)
         .is('deleted_at', null)
         .in('report_type', ['provider_report', 'tenant_report'])
-        .order('created_at', { ascending: true })
+        .order('created_at', { ascending: true }),
+
+      // Time slots (for planning status in details card)
+      supabase
+        .from('intervention_time_slots')
+        .select('id, slot_date, start_time, end_time, status, selected_by_manager')
+        .eq('intervention_id', interventionId)
+        .order('slot_date', { ascending: true }),
+
+      // Quotes (for estimation status in details card)
+      supabase
+        .from('intervention_quotes')
+        .select('id, amount, status')
+        .eq('intervention_id', interventionId)
+        .is('deleted_at', null)
     ])
 
+    const { data: building, error: buildingError } = buildingResult
+    const { data: lot, error: lotError } = lotResult
     const { data: assignments, error: assignmentsError } = assignmentsResult
     const { data: reports, error: reportsError } = reportsResult
+    const { data: timeSlots, error: timeSlotsError } = timeSlotsResult
+    const { data: quotes, error: quotesError } = quotesResult
 
-    if (assignmentsError) {
-      logger.warn({ error: assignmentsError }, '⚠️ Error fetching assignments')
-    }
-    if (reportsError) {
-      logger.warn({ error: reportsError }, '⚠️ Error fetching reports')
-    }
+    if (buildingError) logger.warn({ error: buildingError }, '⚠️ Error fetching building')
+    if (lotError) logger.warn({ error: lotError }, '⚠️ Error fetching lot')
+    if (assignmentsError) logger.warn({ error: assignmentsError }, '⚠️ Error fetching assignments')
+    if (reportsError) logger.warn({ error: reportsError }, '⚠️ Error fetching reports')
+    if (timeSlotsError) logger.warn({ error: timeSlotsError }, '⚠️ Error fetching time slots')
+    if (quotesError) logger.warn({ error: quotesError }, '⚠️ Error fetching quotes')
 
-    // Extract tenant and provider from assignments
-    const tenantAssignment = assignments?.find(a => a.role === 'locataire')
-    const providerAssignment = assignments?.find(a => a.role === 'prestataire' && a.is_primary)
-      || assignments?.find(a => a.role === 'prestataire')
-
-    const tenant = tenantAssignment?.user || null
-    const provider = providerAssignment?.user || null
-
-    // Build simplified response
+    // Build response — return raw assignments for frontend to map (same as General tab)
     const responseData = {
       intervention: {
         id: intervention.id,
@@ -137,19 +131,25 @@ export async function GET(
         type: intervention.type,
         urgency: intervention.urgency,
         description: intervention.description,
+        instructions: intervention.provider_guidelines,
+        scheduling_type: intervention.scheduling_type,
+        requires_quote: intervention.requires_quote,
         status: intervention.status,
         is_contested: intervention.is_contested,
-        lot: intervention.lot
+        lot,
+        building
       },
-      tenant,
-      provider,
+      assignments: assignments || [],
+      timeSlots: timeSlots || [],
+      quotes: quotes || [],
       reports: reports || []
     }
 
     logger.info({
       hasIntervention: true,
-      hasTenant: !!tenant,
-      hasProvider: !!provider,
+      assignmentsCount: (assignments || []).length,
+      timeSlotsCount: (timeSlots || []).length,
+      quotesCount: (quotes || []).length,
       reportsCount: responseData.reports.length
     }, '✅ Finalization context fetched successfully')
 

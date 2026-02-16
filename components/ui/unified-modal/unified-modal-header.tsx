@@ -15,6 +15,7 @@ export const UnifiedModalHeader = ({
   subtitle,
   icon,
   variant = 'default',
+  badge,
   onBack,
   className,
 }: UnifiedModalHeaderProps) => {
@@ -52,6 +53,13 @@ export const UnifiedModalHeader = ({
           </DialogPrimitive.Description>
         )}
       </div>
+
+      {/* Optional badge / extra content */}
+      {badge && (
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {badge}
+        </div>
+      )}
     </div>
   )
 }

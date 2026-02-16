@@ -25,7 +25,7 @@ interface UserAvailability {
 interface Quote {
   id: string
   providerId: string
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'accepted' | 'rejected'
 }
 
 interface UserAvailabilitiesDisplayProps {

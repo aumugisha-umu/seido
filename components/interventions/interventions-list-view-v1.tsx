@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { List, type RowComponentProps } from 'react-window'
 import {
   Eye,
+  Euro,
   MoreVertical,
   ArrowUpDown,
   ArrowUp,
@@ -131,6 +132,7 @@ interface VirtualRowData {
   userContext: 'gestionnaire' | 'prestataire' | 'locataire'
   userId?: string
   onRowClick: (id: string) => void
+  onQuoteClick?: (id: string) => void
   renderTypeBadge: (type: string) => React.ReactNode
 }
 
@@ -143,7 +145,7 @@ const VirtualizedRow = memo(function VirtualizedRow({
   style,
   ...rowProps
 }: RowComponentProps<VirtualRowData>) {
-  const { interventions, userContext, userId, onRowClick, renderTypeBadge } = rowProps as VirtualRowData
+  const { interventions, userContext, userId, onRowClick, onQuoteClick, renderTypeBadge } = rowProps as VirtualRowData
   const intervention = interventions[index]
 
   if (!intervention) return null
@@ -288,6 +290,12 @@ const VirtualizedRow = memo(function VirtualizedRow({
                 <Eye className="h-4 w-4 mr-2" aria-hidden="true" />
                 Voir les détails
               </DropdownMenuItem>
+              {userContext === 'prestataire' && intervention.requires_quote && onQuoteClick && (
+                <DropdownMenuItem onClick={() => onQuoteClick(intervention.id)}>
+                  <Euro className="h-4 w-4 mr-2" aria-hidden="true" />
+                  Gérer devis
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -469,6 +477,10 @@ export function InterventionsListViewV1({
     router.push(getInterventionUrl(interventionId))
   }, [router, getInterventionUrl])
 
+  const onQuoteClick = useCallback((interventionId: string) => {
+    router.push(`${getInterventionUrl(interventionId)}?action=quote`)
+  }, [router, getInterventionUrl])
+
   /**
    * 🎨 Get type label - formats type code to readable label
    */
@@ -540,8 +552,9 @@ export function InterventionsListViewV1({
     userContext,
     userId,
     onRowClick,
+    onQuoteClick,
     renderTypeBadge
-  }), [sortedInterventions, userContext, userId, onRowClick])
+  }), [sortedInterventions, userContext, userId, onRowClick, onQuoteClick])
 
   if (loading) {
     return (
@@ -929,7 +942,12 @@ export function InterventionsListViewV1({
                             <Eye className="h-4 w-4 mr-2" aria-hidden="true" />
                             Voir les détails
                           </DropdownMenuItem>
-                          {/* Add more actions as needed */}
+                          {userContext === 'prestataire' && intervention.requires_quote && (
+                            <DropdownMenuItem onClick={() => router.push(`/prestataire/interventions/${intervention.id}?action=quote`)}>
+                              <Euro className="h-4 w-4 mr-2" aria-hidden="true" />
+                              Gérer devis
+                            </DropdownMenuItem>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>

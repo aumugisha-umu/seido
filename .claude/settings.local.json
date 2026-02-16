@@ -36,7 +36,9 @@
       "Bash(timeout:*)",
       "Bash(npx eslint:*)",
       "WebFetch(domain:docs.stripe.com)",
-      "WebFetch(domain:prateeksha.com)"
+      "WebFetch(domain:prateeksha.com)",
+      "WebFetch(domain:www.kolide.com)",
+      "WebFetch(domain:www.brand-theory.com)"
     ],
     "deny": [],
     "ask": []

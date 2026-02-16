@@ -17,7 +17,6 @@ import {
 } from '@/components/ui/unified-modal'
 import { Button } from '@/components/ui/button'
 import { QuoteSubmissionForm } from '@/components/intervention/quote-submission-form'
-import { useAuth } from '@/hooks/use-auth'
 
 // Re-export InterventionData type for compatibility
 export interface InterventionData {
@@ -32,13 +31,6 @@ export interface InterventionData {
   building_name?: string
   unit_reference?: string
   created_at?: string
-  time_slots?: Array<{
-    id: string
-    status: string
-    slot_date: string
-    start_time: string
-    end_time?: string
-  }>
   scheduling_type?: string
 }
 
@@ -55,8 +47,6 @@ interface QuoteSubmissionModalProps {
   // Callbacks
   onSuccess: () => void
 
-  // Display options
-  hideEstimationSection?: boolean // Hide estimation fields (for availability-only mode)
 }
 
 // Types from QuoteSubmissionForm
@@ -65,14 +55,7 @@ interface ExistingQuote {
   laborCost?: number
   materialsCost?: number
   workDetails?: string
-  estimatedDurationHours?: number
   attachments?: File[]
-  providerAvailabilities?: Array<{
-    date: string
-    startTime: string
-    endTime?: string
-    isFlexible?: boolean
-  }>
 }
 
 interface QuoteRequest {
@@ -90,11 +73,7 @@ export function QuoteSubmissionModal({
   existingQuote,
   quoteRequest,
   onSuccess,
-  hideEstimationSection = false
 }: QuoteSubmissionModalProps) {
-
-  // Get current user ID for time slot responses
-  const { profile } = useAuth()
 
   // Ref for form submission handler (using ref instead of state to avoid updater function issues)
   const submitHandlerRef = useRef<(() => void) | null>(null)
@@ -149,24 +128,6 @@ export function QuoteSubmissionModal({
 
   // Déterminer le titre et le label du bouton selon le mode
   const getModalTitle = () => {
-    if (hideEstimationSection) {
-      // Distinguer les 3 cas selon le status des time slots
-      const hasRequestedSlots = intervention.time_slots
-        && intervention.time_slots.some(slot => slot.status === 'requested')
-      const hasPendingSlots = intervention.time_slots
-        && intervention.time_slots.some(slot => slot.status === 'pending')
-
-      if (hasRequestedSlots) {
-        // Slots proposés par le gestionnaire → le prestataire doit confirmer
-        return "Confirmer mes disponibilités"
-      } else if (hasPendingSlots) {
-        // Slots créés par le prestataire → il peut les modifier
-        return "Modifier la planification"
-      } else {
-        // Aucun slot → création
-        return "Ajouter mes disponibilités"
-      }
-    }
     return isEditMode ? "Modifier l'estimation" : "Soumettre une estimation"
   }
 
@@ -203,17 +164,14 @@ export function QuoteSubmissionModal({
             description: intervention.description || '',
             urgency: intervention.urgency || intervention.priority || 'normale',
             quote_deadline: quoteRequest?.deadline,
-            time_slots: intervention.time_slots || [],
             scheduling_type: intervention.scheduling_type
           }}
-          currentUserId={profile?.id}
           existingQuote={existingQuote}
           quoteRequest={quoteRequest}
           onSuccess={handleSuccess}
           onSubmitReady={handleSetSubmitHandler}
           onValidationChange={setIsFormValid}
           onLoadingChange={setIsLoading}
-          hideEstimationSection={hideEstimationSection}
         />
       </UnifiedModalBody>
 

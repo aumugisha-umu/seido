@@ -132,7 +132,19 @@ export const InterventionCard = memo(function InterventionCard({
   const actionMessage = intervention.status === 'planification' && pendingCount > 0
     ? `En attente de ${pendingCount} réponse${pendingCount > 1 ? 's' : ''}`
     : baseActionMessage
-  const actions = getRoleBasedActions(intervention.id, intervention.status, userRole)
+  // Determine if provider has a pending quote to act on
+  const hasPendingQuote = userRole === 'prestataire' && intervention.requires_quote && (
+    !intervention.quotes?.length ||
+    intervention.quotes.some((q: any) =>
+      (q.provider_id === userId || q.created_by === userId) &&
+      (q.status === 'pending' || q.status === 'draft')
+    ) ||
+    !intervention.quotes.some((q: any) => q.provider_id === userId || q.created_by === userId)
+  )
+  const actions = getRoleBasedActions(intervention.id, intervention.status, userRole, {
+    requiresQuote: intervention.requires_quote,
+    hasPendingQuote
+  })
 
   // Override labels when user has already responded to all active slots
   if (intervention.status === 'planification' && userId && intervention.timeSlots) {

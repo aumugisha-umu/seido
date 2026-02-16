@@ -25,7 +25,7 @@ interface Quote {
   estimated_start_date?: string
   terms_and_conditions?: string
   attachments: string[]
-  status: 'pending' | 'approved' | 'rejected'
+  status: 'pending' | 'accepted' | 'rejected'
   submitted_at: string
   reviewed_at?: string
   reviewed_by?: string

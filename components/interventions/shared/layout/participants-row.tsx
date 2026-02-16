@@ -149,7 +149,7 @@ const ParticipantChip = ({ participant, roleKey, showChatIcon, onChatClick }: Pa
               <AvatarImage src={participant.avatar_url} alt={participant.name} />
             )}
             <AvatarFallback className={cn(
-              'text-[10px] font-medium',
+              'text-xs font-medium',
               hasAccount ? cn(config.bgColor, config.textColor) : cn(config.bgColor + '/50', config.textColor + '/60')
             )}>
               {getInitials(participant.name)}
@@ -197,12 +197,20 @@ const ParticipantChip = ({ participant, roleKey, showChatIcon, onChatClick }: Pa
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold truncate">{participant.name}</p>
-              <Badge
-                variant="secondary"
-                className={cn('h-4 px-1.5 text-[10px] font-medium', config.bgColor, config.textColor)}
-              >
-                {config.label}
-              </Badge>
+              <div className="flex items-center gap-1.5">
+                <Badge
+                  variant="secondary"
+                  className={cn('h-5 px-1.5 text-xs font-medium', config.bgColor, config.textColor)}
+                >
+                  {config.label}
+                </Badge>
+                <span className={cn(
+                  'text-xs',
+                  hasAccount ? 'text-emerald-600' : 'text-muted-foreground'
+                )}>
+                  {hasAccount ? 'Compte Seido' : 'Contact externe'}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -332,37 +340,36 @@ export const ParticipantsRow = ({
   }
 
   return (
-    <div className={cn('flex items-center gap-2 flex-wrap', className)}>
-      {/* Icon + Label */}
-      <TooltipProvider delayDuration={300}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="flex items-center gap-1.5 text-muted-foreground cursor-default">
-              <Users className="h-4 w-4" />
-              <span className="text-sm font-medium">Participants</span>
-              <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-                {withAccount.length}
-              </Badge>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Utilisateurs ayant un compte Seido</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+    <div className={cn('flex flex-col gap-2', className)}>
+      {/* Participants row (users with accounts) */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-1.5 text-muted-foreground cursor-default">
+                <Users className="h-4 w-4" />
+                <span className="text-sm font-medium">Participants</span>
+                <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                  {withAccount.length}
+                </Badge>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>Utilisateurs ayant un compte Seido</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
-      {/* Separator */}
-      <div className="h-4 w-px bg-border" />
+        <div className="h-4 w-px bg-border" />
 
-      {/* Account holders */}
-      <div className="flex items-center gap-1 flex-wrap">
-        {withAccount.map(renderChip)}
+        <div className="flex items-center gap-1 flex-wrap">
+          {withAccount.map(renderChip)}
+        </div>
       </div>
 
-      {/* Contacts section (only if contacts exist) */}
+      {/* Contacts row (users without accounts) — separate line */}
       {contacts.length > 0 && (
-        <>
-          <div className="h-4 w-px bg-border" />
+        <div className="flex items-center gap-2 flex-wrap">
           <TooltipProvider delayDuration={300}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -379,10 +386,11 @@ export const ParticipantsRow = ({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
           <div className="flex items-center gap-1 flex-wrap">
             {contacts.map(renderChip)}
           </div>
-        </>
+        </div>
       )}
     </div>
   )

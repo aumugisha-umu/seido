@@ -156,7 +156,9 @@ import { ReportsCard } from '@/components/interventions/shared/cards'
 | Channels realtime multiples | RealtimeProvider unique |
 | `npm run build` automatique | Demander a l'utilisateur |
 | Singleton notification legacy | Server Actions |
-| Utiliser statut demande_de_devis | requires_quote + intervention_quotes |
+| Utiliser statut demande_de_devis | requires_quote flag + intervention_quotes table |
+| Quote status `approved` dans le code | `accepted` (DB enum: draft, pending, sent, accepted, rejected, expired, cancelled) |
+| Quote actions dans un `case` status spécifique | Post-switch block basé sur `requires_quote` flag |
 | Creer composant card intervention custom | Utiliser InterventionsNavigator |
 | Coder sans invoquer skill brainstorming | Invoquer sp-brainstorming AVANT |
 | Fixer bug sans diagnostic systematique | Invoquer sp-systematic-debugging |

@@ -52,3 +52,45 @@
 - Files: supabase/migrations/20260213120000_fix_rls_gestionnaire_intervention_access.sql (updated via repair workflow), lib/intervention-action-utils.ts
 - Learnings: Multi-role SECURITY DEFINER functions are rewritten frequently and branches silently disappear. Must diff old vs new per-role before replacing. Action buttons with `apiRoute` execute directly; use `href` when a modal is needed.
 - Decision: Updated the existing untracked migration (repair + re-push) instead of creating a new one — keeps migration count manageable.
+
+## 2026-02-16 — Intervention Workflow Polish: 7 Themes (40 files)
+
+### Theme 1: Suppression complète du statut `demande_de_devis`
+- Files: intervention-action-buttons.tsx, intervention-action-utils.ts, intervention-alert-utils.ts, intervention-action-styles.ts
+- Change: Toutes les actions de devis sont maintenant basées sur `intervention.requires_quote` flag, pas sur un statut d'intervention
+- Learning: Decoupler les actions de devis du workflow principal → plus flexible, un prestataire peut soumettre un devis depuis n'importe quel statut
+
+### Theme 2: Migration `approved` → `accepted` (DB enum alignment)
+- Files: quote-status-mapper.ts, quote-card.tsx, integrated-quotes-card.tsx, integrated-quotes-section.tsx, intervention-preview.types.ts, quotes-card.tsx, gestionnaire detail-client.tsx
+- Change: DbQuoteStatus aligné sur le vrai enum DB (7 valeurs: draft, pending, sent, accepted, rejected, expired, cancelled)
+- Learning: Toujours vérifier le vrai enum DB avant d'utiliser des valeurs de statut en frontend
+
+### Theme 3: Refactoring finalization-context API
+- Files: app/api/intervention/[id]/finalization-context/route.ts
+- Change: Nested PostgREST select → 6 requêtes parallèles séparées (pattern AGENTS.md #004)
+- Learning: Les nested selects avec RLS retournent silencieusement null → toujours utiliser Promise.all
+
+### Theme 4: Quote submission simplification
+- Files: quote-submission-form.tsx (-726 lines), quote-submission-modal.tsx (-42 lines), intervention-quote-submit/route.ts
+- Change: Toute la logique time slots retirée du formulaire de devis. Time slots gérés exclusivement via Planning tab
+- Learning: Séparation des concerns — estimation ≠ planification, même si les deux étaient dans le même formulaire
+
+### Theme 5: InterventionDetailsCard enrichi
+- Files: intervention-details-card.tsx, intervention-preview.types.ts
+- Change: Nouvelles props (onOpenSlotResponseModal, onOpenQuoteModal, pendingSlotsForUser, requiresQuote, hasSubmittedQuote, sections filter). Planning status accepte 'responded'
+- Learning: Les composants shared cards doivent supporter des callbacks role-spécifiques via props optionnelles
+
+### Theme 6: Dashboard simplification + list view quotes
+- Files: locataire-dashboard-hybrid.tsx, provider-dashboard-v2.tsx, intervention-card.tsx, interventions-list-view-v1.tsx
+- Change: PendingActionsSection supprimé des dashboards (tab "À traiter" suffit). Menu "Gérer devis" ajouté pour prestataire dans la list view
+- Learning: Réduire les sections dupliquées (pending actions header + navigator tab = redondant)
+
+### Theme 7: Quote modals + UI polish
+- Files: gestionnaire detail-client.tsx, unified-modal-header.tsx, unified-modal.types.ts, time-slot-utils.ts, participants-row.tsx
+- Change: QuoteApprovalModal/QuoteRejectionModal remplacent les fetch directs. UnifiedModalHeader reçoit prop `badge`. Labels prestataire unifiés "Gérer planification". Tabs renommés "Planning et Estimations"
+- Learning: Les actions destructives (approuver/rejeter devis) méritent une modale de confirmation, pas un fetch direct
+
+### Fix: Finalization Modal Planning & Estimation Display
+- Files: finalization-modal-live.tsx, finalization-context/route.ts
+- Change: `'confirmed'` → `'selected'`, filter proposed slots, `selected_by_manager` for fixed scheduling, removed "Informations générales" title
+- Learning: Cross-référencer la vue fonctionnelle (General tab) pour diagnostiquer les bugs d'affichage

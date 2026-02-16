@@ -32,6 +32,8 @@ export interface UnifiedModalHeaderProps {
   icon?: ReactNode
   /** Color variant */
   variant?: UnifiedModalVariant
+  /** Optional badge/extra content rendered to the right of title area */
+  badge?: ReactNode
   /** Back button callback (for multi-step modals) */
   onBack?: () => void
   /** Additional classes */

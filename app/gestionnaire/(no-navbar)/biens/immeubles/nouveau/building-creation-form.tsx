@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import type { User, Team, Contact } from "@/lib/services/core/service-types"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader} from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import {
@@ -43,6 +44,8 @@ import { useManagerStats } from "@/hooks/use-manager-stats"
 import { createTeamService, createBuildingService, createLotService, createContactInvitationService } from "@/lib/services"
 import { createCompleteProperty } from "@/app/actions/building-actions"
 import { BuildingConfirmationStep } from "@/components/building-confirmation-step"
+import { PropertyInterventionsStep } from "@/components/property-interventions-step"
+import type { ScheduledInterventionData } from "@/components/contract/intervention-schedule-row"
 
 
 
@@ -55,6 +58,9 @@ import { buildingSteps } from "@/lib/step-configurations"
 import { LotCategory, getLotCategoryConfig, getAllLotCategories } from "@/lib/lot-types"
 import LotCategorySelector from "@/components/ui/lot-category-selector"
 import { logger, logError } from '@/lib/logger'
+import { usePropertyDocumentUpload } from '@/hooks/use-property-document-upload'
+import { BUILDING_DOCUMENT_SLOTS, LOT_IN_BUILDING_DOCUMENT_SLOTS } from '@/lib/constants/property-document-slots'
+import { useMultiLotDocumentUpload } from '@/hooks/use-multi-lot-document-upload'
 import { BuildingLotsStepV2 } from "@/components/building-lots-step-v2"
 import { BuildingContactsStepV3 } from "@/components/building-contacts-step-v3"
 
@@ -194,6 +200,13 @@ export default function NewImmeubleePage({
   const [categoryCountsByTeam, setCategoryCountsByTeam] = useState<Record<string, number>>(initialCategoryCounts)
   // Validation état: nom unique immeuble
   const [isNameDuplicate, setIsNameDuplicate] = useState(false)
+
+  // Interventions planifiées (étape 4)
+  const [scheduledInterventions, setScheduledInterventions] = useState<ScheduledInterventionData[]>([])
+  // Per-lot interventions: Map of tempLotId → ScheduledInterventionData[]
+  const [lotInterventions, setLotInterventions] = useState<Record<string, ScheduledInterventionData[]>>({})
+  // Expansion state for lot intervention cards (step 4)
+  const [expandedInterventionLots, setExpandedInterventionLots] = useState<Record<string, boolean>>({})
   const [isNameChecking, setIsNameChecking] = useState(false)
   // Flag pour tracker si l'utilisateur a édité manuellement le nom de l'immeuble
   const [hasUserEditedName, setHasUserEditedName] = useState(false)
@@ -207,6 +220,23 @@ export default function NewImmeubleePage({
   // Flag to track if step 3 has been initialized (to prevent reopening all lots)
   const hasInitializedStep3 = useRef(false)
 
+  // Document upload hook for building documents
+  const buildingDocUpload = usePropertyDocumentUpload({
+    entityType: 'building',
+    entityId: undefined,
+    teamId: userTeam?.id,
+    slotConfigs: BUILDING_DOCUMENT_SLOTS,
+    onUploadError: (err) => toast.error(err)
+  })
+
+  // Multi-lot document upload hook (manages docs for all lots at once)
+  const { lotDocUploads, uploadForLot: uploadLotDocs } = useMultiLotDocumentUpload({
+    lotIds: lots.map(l => l.id),
+    teamId: userTeam?.id,
+    slotConfigs: LOT_IN_BUILDING_DOCUMENT_SLOTS,
+    onUploadError: (err) => toast.error(err)
+  })
+
   // ✅ NEW: Lazy service initialization - Services créés uniquement quand userProfile est prêt
   // Note: This component receives userProfile as a prop, so we use that instead of useAuth
   const [services, setServices] = useState<{
@@ -218,7 +248,7 @@ export default function NewImmeubleePage({
 
   // Wrapper pour setCurrentStep qui met aussi à jour maxStepReached
   const setCurrentStep = (step: number) => {
-    const clampedStep = Math.max(1, Math.min(step, 4)) // 4 étapes total
+    const clampedStep = Math.max(1, Math.min(step, 5)) // 5 étapes total (Info, Lots, Contacts&Docs, Interventions, Confirmation)
     setCurrentStepState(clampedStep)
     if (clampedStep > maxStepReached) {
       setMaxStepReached(clampedStep)
@@ -550,6 +580,21 @@ export default function NewImmeubleePage({
     }))
   }
 
+  // Helper: create a setter for a specific lot's interventions
+  const setLotInterventionsForLot = useCallback((lotId: string) => {
+    return (value: React.SetStateAction<ScheduledInterventionData[]>) => {
+      setLotInterventions(prev => ({
+        ...prev,
+        [lotId]: typeof value === 'function' ? value(prev[lotId] || []) : value
+      }))
+    }
+  }, [])
+
+  // Toggle expansion for lot intervention cards (step 4)
+  const toggleInterventionLotExpansion = (lotId: string) => {
+    setExpandedInterventionLots(prev => ({ ...prev, [lotId]: !prev[lotId] }))
+  }
+
   // Callbacks pour la gestion des contacts (nouvelle interface centralisee avec contexte)
   const handleContactAdd = (contact: Contact, contactType: string, context?: { lotId?: string }) => {
     logger.info('🎯 [IMMEUBLE] Contact ajouté:', contact.name, 'type:', contactType, context?.lotId ? `à lot ${context.lotId}` : 'niveau immeuble')
@@ -685,6 +730,9 @@ export default function NewImmeubleePage({
     if (currentStep === 3) {
       return true // L'assignation des contacts est optionnelle
     }
+    if (currentStep === 4) {
+      return true // Les interventions sont optionnelles
+    }
     return true
   }
 
@@ -803,9 +851,6 @@ export default function NewImmeubleePage({
       }).filter(item => item.lotIndex !== -1) // Filtrer les lots qui n'existent plus
 
       // ✅ Utiliser la Server Action pour créer l'immeuble avec auth server-side
-      // La Server Action utilise createServerCompositeService() avec le server client authentifié
-      // Cela garantit que auth.uid() est disponible pour les RLS policies
-      // Note: Si succès, la Server Action fait redirect() automatiquement vers /gestionnaire/biens
       const result = await createCompleteProperty({
         building: immeubleData,
         lots: lotsData,
@@ -813,8 +858,6 @@ export default function NewImmeubleePage({
         lotContactAssignments: lotContactAssignmentsData,
       })
 
-      // Si on arrive ici, c'est que la création a échoué
-      // (sinon redirect() dans la Server Action aurait interrompu l'exécution)
       if (!result.success) {
         const errorMessage = typeof result.error === 'string'
           ? result.error
@@ -822,12 +865,109 @@ export default function NewImmeubleePage({
         throw new Error(errorMessage)
       }
 
-    } catch (err) {
-      // ✅ redirect() throws NEXT_REDIRECT - propager sans afficher d'erreur
-      if (err instanceof Error && err.message === 'NEXT_REDIRECT') {
-        throw err
+      // Upload building documents if any were staged
+      if (buildingDocUpload.hasFiles) {
+        try {
+          await buildingDocUpload.uploadFiles(result.data.building.id, userTeam!.id)
+          logger.info('✅ Building documents uploaded for building:', result.data.building.id)
+        } catch (docError) {
+          logger.error('⚠️ Document upload failed (building created successfully):', docError)
+        }
       }
 
+      // Upload per-lot documents if any were staged
+      for (let i = 0; i < lots.length; i++) {
+        const tempLotId = lots[i].id
+        const realLotId = result.data.lots[i]?.id
+        if (realLotId && lotDocUploads[tempLotId]?.hasFiles) {
+          try {
+            await uploadLotDocs(tempLotId, realLotId, userTeam!.id)
+            logger.info(`✅ Lot documents uploaded for lot ${realLotId}`)
+          } catch (docError) {
+            logger.error(`⚠️ Lot document upload failed for lot ${realLotId}:`, docError)
+          }
+        }
+      }
+
+      // Create scheduled interventions (building-level → building_id only, no lot_id)
+      const toCreate = scheduledInterventions.filter(i => i.enabled && i.scheduledDate)
+      if (toCreate.length > 0) {
+        try {
+          const { createInterventionAction } = await import('@/app/actions/intervention-actions')
+
+          const results = await Promise.allSettled(
+            toCreate.map(async (intervention) => {
+              return createInterventionAction({
+                title: intervention.title,
+                description: intervention.description,
+                type: intervention.interventionTypeCode,
+                urgency: 'basse',
+                building_id: result.data.building.id,
+                team_id: userTeam!.id,
+                requested_date: intervention.scheduledDate || undefined
+              }, {
+                useServiceRole: true,
+                assignments: intervention.assignedUsers.length > 0
+                  ? intervention.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
+                  : undefined
+              })
+            })
+          )
+
+          const successCount = results.filter(r => r.status === 'fulfilled' && (r.value as { success: boolean }).success).length
+          logger.info({ successCount, total: results.length, buildingId: result.data.building.id }, 'Building interventions created')
+        } catch (interventionError) {
+          logger.error('⚠️ Intervention creation failed (building created successfully):', interventionError)
+        }
+      }
+
+      // Create per-lot interventions (each lot gets its own set)
+      if (Object.keys(lotInterventions).length > 0) {
+        try {
+          const { createInterventionAction } = await import('@/app/actions/intervention-actions')
+
+          for (let i = 0; i < lots.length; i++) {
+            const tempLotId = lots[i].id
+            const realLotId = result.data.lots[i]?.id
+            if (!realLotId) continue
+
+            const lotIntervs = (lotInterventions[tempLotId] || []).filter(iv => iv.enabled && iv.scheduledDate)
+            if (lotIntervs.length === 0) continue
+
+            const lotResults = await Promise.allSettled(
+              lotIntervs.map(intervention =>
+                createInterventionAction({
+                  title: intervention.title,
+                  description: intervention.description,
+                  type: intervention.interventionTypeCode,
+                  urgency: 'basse',
+                  lot_id: realLotId,
+                  team_id: userTeam!.id,
+                  requested_date: intervention.scheduledDate || undefined
+                }, {
+                  useServiceRole: true,
+                  assignments: intervention.assignedUsers.length > 0
+                    ? intervention.assignedUsers.map(a => ({ userId: a.userId, role: a.role }))
+                    : undefined
+                })
+              )
+            )
+
+            const lotSuccessCount = lotResults.filter(r => r.status === 'fulfilled' && (r.value as { success: boolean }).success).length
+            logger.info({ lotSuccessCount, total: lotResults.length, lotId: realLotId }, 'Lot interventions created')
+          }
+        } catch (lotInterventionError) {
+          logger.error('⚠️ Lot intervention creation failed (building created successfully):', lotInterventionError)
+        }
+      }
+
+      // Succès - Rediriger vers la page des biens
+      toast.success("Immeuble créé avec succès", {
+        description: `L'immeuble "${result.data.building.name}" a été créé avec ${result.data.lots.length} lot(s).`
+      })
+      router.push('/gestionnaire/biens')
+
+    } catch (err) {
       logger.error("Error creating building:", err)
       setError(
         err instanceof Error
@@ -985,7 +1125,7 @@ export default function NewImmeubleePage({
           />
         )}
 
-        {/* Step 3: Contacts Assignment */}
+        {/* Step 3: Contacts & Documents (merged) */}
         {currentStep === 3 && (
           <BuildingContactsStepV3
             buildingInfo={buildingInfo}
@@ -1010,11 +1150,121 @@ export default function NewImmeubleePage({
             openBuildingManagerModal={openBuildingManagerModal}
             removeBuildingManager={removeBuildingManager}
             toggleLotExpansion={toggleLotExpansion}
+            buildingDocUpload={buildingDocUpload}
+            lotDocUploads={lotDocUploads}
           />
         )}
 
-        {/* Step 4: Confirmation */}
+        {/* Step 4: Interventions (building-level + per-lot) */}
         {currentStep === 4 && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* Building-level interventions — in a Card */}
+            <Card className="shadow-sm overflow-hidden">
+              <CardContent className="px-4 py-4">
+                <PropertyInterventionsStep
+                  entityType="building"
+                  scheduledInterventions={scheduledInterventions}
+                  onInterventionsChange={setScheduledInterventions}
+                  missingDocuments={buildingDocUpload.missingRecommendedTypes}
+                  documentExpiryDates={
+                    Object.fromEntries(
+                      buildingDocUpload.slots
+                        .filter(s => s.files.length > 0 && s.files[0]?.expiryDate)
+                        .map(s => [s.type, s.files[0].expiryDate!])
+                    )
+                  }
+                  teamId={userTeam?.id || ''}
+                  availableContacts={[]}
+                  currentUser={userProfile ? { id: userProfile.id, name: userProfile.name } : undefined}
+                />
+              </CardContent>
+            </Card>
+
+            {/* Per-lot interventions — collapsible cards */}
+            {lots.length > 0 && (
+              <div className="space-y-3">
+                {/* Section header */}
+                <div className="flex items-center gap-2 px-1">
+                  <h3 className="text-sm font-semibold text-gray-700">
+                    Interventions spécifiques aux lots
+                  </h3>
+                  <span className="text-xs text-muted-foreground">
+                    ({lots.length} lot{lots.length > 1 ? 's' : ''})
+                  </span>
+                </div>
+
+                {/* Lot cards */}
+                {lots.map((lot, index) => {
+                  const lotUpload = lotDocUploads[lot.id]
+                  if (!lotUpload) return null
+
+                  const lotNumber = lots.length - index
+                  const isExpanded = expandedInterventionLots[lot.id] || false
+                  const categoryConfig = getLotCategoryConfig(lot.category)
+
+                  // Count enabled interventions for this lot
+                  const lotIntervs = lotInterventions[lot.id] || []
+                  const enabledCount = lotIntervs.filter(i => i.enabled).length
+
+                  return (
+                    <div key={lot.id} className="border rounded-lg bg-white overflow-hidden">
+                      {/* Collapsible header */}
+                      <button
+                        type="button"
+                        onClick={() => toggleInterventionLotExpansion(lot.id)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors"
+                      >
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg text-sm font-bold bg-blue-100 text-blue-700">
+                          #{lotNumber}
+                        </div>
+                        <div className="flex-1 text-left">
+                          <span className="font-medium text-sm">{lot.reference}</span>
+                          <Badge variant="outline" className="ml-2 text-xs">
+                            {categoryConfig.label}
+                          </Badge>
+                        </div>
+                        {enabledCount > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {enabledCount} actif{enabledCount > 1 ? 's' : ''}
+                          </Badge>
+                        )}
+                        {isExpanded
+                          ? <ChevronUp className="w-4 h-4 text-gray-400" />
+                          : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                      </button>
+
+                      {/* Expanded content */}
+                      {isExpanded && (
+                        <div className="px-4 pb-4 border-t">
+                          <PropertyInterventionsStep
+                            entityType="lot_in_building"
+                            scheduledInterventions={lotInterventions[lot.id] || []}
+                            onInterventionsChange={setLotInterventionsForLot(lot.id)}
+                            missingDocuments={lotUpload.missingRecommendedTypes}
+                            documentExpiryDates={
+                              Object.fromEntries(
+                                lotUpload.slots
+                                  .filter(s => s.files.length > 0 && s.files[0]?.expiryDate)
+                                  .map(s => [s.type, s.files[0].expiryDate!])
+                              )
+                            }
+                            teamId={userTeam?.id || ''}
+                            availableContacts={[]}
+                            currentUser={userProfile ? { id: userProfile.id, name: userProfile.name } : undefined}
+                            hideHeader
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 5: Confirmation */}
+        {currentStep === 5 && (
           <BuildingConfirmationStep
             buildingInfo={buildingInfo}
             buildingManagers={buildingManagers}
@@ -1022,6 +1272,12 @@ export default function NewImmeubleePage({
             lots={lots}
             lotContactAssignments={lotContactAssignments}
             assignedManagers={assignedManagers}
+            buildingDocSlots={buildingDocUpload.slots}
+            lotDocSlots={Object.fromEntries(
+              Object.entries(lotDocUploads).map(([lotId, upload]) => [lotId, upload.slots])
+            )}
+            buildingInterventions={scheduledInterventions}
+            lotInterventions={lotInterventions}
           />
         )}
         </div>
@@ -1040,28 +1296,30 @@ export default function NewImmeubleePage({
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   {currentStep === 2 && "Retour à l'immeuble"}
                   {currentStep === 3 && "Étape précédente"}
-                  {currentStep === 4 && "Retour"}
+                  {currentStep === 4 && "Étape précédente"}
+                  {currentStep === 5 && "Retour"}
                 </Button>
               )}
 
               {/* Next/Submit Button - Always show */}
               <Button
                 onClick={() => {
-                  if (currentStep === 4) {
+                  if (currentStep === 5) {
                     handleFinish()
                   } else {
                     setCurrentStep(currentStep + 1)
                   }
                 }}
-                disabled={!canProceedToNextStep() || (currentStep === 4 && isCreating)}
+                disabled={!canProceedToNextStep() || (currentStep === 5 && isCreating)}
                 className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto ml-auto"
               >
-                {isCreating && currentStep === 4 && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                {isCreating && currentStep === 5 && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {currentStep === 1 && "Continuer vers les lots"}
                 {currentStep === 2 && "Continuer vers les contacts"}
-                {currentStep === 3 && "Créer l'immeuble"}
-                {currentStep === 4 && (isCreating ? "Création en cours..." : "Confirmer la création")}
-                {currentStep < 4 && <ChevronDown className="w-4 h-4 ml-2 rotate-[-90deg]" />}
+                {currentStep === 3 && "Planifier les interventions"}
+                {currentStep === 4 && "Voir la confirmation"}
+                {currentStep === 5 && (isCreating ? "Création en cours..." : "Confirmer la création")}
+                {currentStep < 5 && <ChevronDown className="w-4 h-4 ml-2 rotate-[-90deg]" />}
               </Button>
           </div>
         </div>

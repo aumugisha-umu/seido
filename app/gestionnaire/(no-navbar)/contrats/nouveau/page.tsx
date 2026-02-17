@@ -29,7 +29,7 @@ export default async function NewContractPage({
   }>
 }) {
   // Server-side auth + team verification
-  const { team } = await getServerAuthContext('gestionnaire')
+  const { team, profile } = await getServerAuthContext('gestionnaire')
 
   const params = await searchParams
   const prefilledLotId = params.lot || null
@@ -134,6 +134,7 @@ export default async function NewContractPage({
       initialBuildingsData={buildingsData}
       initialContacts={contacts}
       prefilledLotId={prefilledLotId}
+      currentUser={{ id: profile.id, name: profile.name || profile.email || '' }}
       // Props pour retour après création de contact
       sessionKey={sessionKey}
       newContactId={newContactId}

@@ -83,6 +83,8 @@ interface LotContactCardV4Props {
   floor?: string
   doorNumber?: string
   description?: string
+  /** Optional footer content rendered inside the Card (e.g. doc/intervention summaries) */
+  children?: React.ReactNode
 }
 
 export function LotContactCardV4({
@@ -107,7 +109,8 @@ export function LotContactCardV4({
   isExisting = false,
   floor,
   doorNumber,
-  description
+  description,
+  children
 }: LotContactCardV4Props) {
   const categoryConfig = getLotCategoryConfig(lotCategory)
 
@@ -175,19 +178,6 @@ export function LotContactCardV4({
                 </Badge>
 
                 {/* Visual Indicators - Colored badges with icons */}
-                {lotManagers.length > 0 && (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Badge variant="secondary" className="text-xs bg-purple-100 text-purple-700 border border-purple-300 font-medium px-2 py-0.5 cursor-help">
-                        <Users className="w-3.5 h-3.5 mr-1" />
-                        {lotManagers.length}
-                      </Badge>
-                    </TooltipTrigger>
-                    <TooltipContent side="top"><p className="text-xs">Gestionnaires spécifiques</p></TooltipContent>
-                  </Tooltip>
-                )}
-
-
                 {providers.length > 0 && (
                   <Tooltip>
                     <TooltipTrigger asChild>
@@ -522,6 +512,7 @@ export function LotContactCardV4({
           </div>
         </CardContent>
       )}
+      {children}
     </Card>
   )
 }

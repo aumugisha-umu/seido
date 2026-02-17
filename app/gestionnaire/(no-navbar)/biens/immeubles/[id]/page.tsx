@@ -230,20 +230,17 @@ export default async function BuildingDetailsPage({
       elapsed: `${Date.now() - startTime}ms`
     })
 
-    // ✅ 2026-02-08: Batch load interventions for ALL lots in 1 query (N+1 → 1 query)
-    // Previously: N queries for N lots via Promise.allSettled. Now: 1 query with .in('lot_id', lotIds)
-    let interventions: unknown[] = []
-    if (lots.length > 0) {
-      logger.info('📍 [BUILDING-PAGE-SERVER] Step 3: Batch loading interventions...')
+    // ✅ 2026-02-18: Fetch building-level AND lot-level interventions in 1 query
+    // Uses .or(building_id.eq.X, lot_id.in.(Y)) to capture both XOR cases
+    logger.info('📍 [BUILDING-PAGE-SERVER] Step 3: Batch loading interventions...')
 
-      const interventionsResult = await interventionService.getByLotIds(lotIds)
-      interventions = interventionsResult.success ? (interventionsResult.data || []) : []
+    const interventionsResult = await interventionService.getByBuildingWithLots(id, lotIds)
+    const interventions: unknown[] = interventionsResult.success ? (interventionsResult.data || []) : []
 
-      logger.info('✅ [BUILDING-PAGE-SERVER] Interventions batch loaded', {
-        interventionCount: interventions.length,
-        elapsed: `${Date.now() - startTime}ms`
-      })
-    }
+    logger.info('✅ [BUILDING-PAGE-SERVER] Interventions batch loaded', {
+      interventionCount: interventions.length,
+      elapsed: `${Date.now() - startTime}ms`
+    })
 
     // Load interventions with documents (for documents tab)
     logger.info('📍 [BUILDING-PAGE-SERVER] Step 4: Loading interventions with documents...')

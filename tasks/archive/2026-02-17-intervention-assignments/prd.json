@@ -1,0 +1,80 @@
+{
+  "project": "SEIDO",
+  "featureName": "Assignation de personnes aux interventions du bail",
+  "branchName": "preview",
+  "description": "Ajouter la possibilite d'assigner des gestionnaires, prestataires et locataires a chaque intervention dans l'etape Interventions du wizard de bail. Bouton + par ligne, Popover avec checkboxes, locataires pre-selectionnes au premier clic.",
+  "createdAt": "2026-02-17",
+  "prdSource": "tasks/prd-intervention-assignments.md",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Enrichir le modele de donnees avec assignedUsers",
+      "description": "As a developer, I want ScheduledInterventionData to include an assignedUsers array so the UI can track who is assigned to each intervention",
+      "acceptanceCriteria": [
+        "InterventionAssignment type defined (userId, role, name)",
+        "ScheduledInterventionData has assignedUsers: InterventionAssignment[]",
+        "contract-form-container initializes assignedUsers: [] for each intervention",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Types added in intervention-schedule-row.tsx, container initializes assignedUsers: []"
+    },
+    {
+      "id": "US-002",
+      "title": "Ajouter le bouton + et Popover d'assignation dans InterventionScheduleRow",
+      "description": "As a gestionnaire, I want a '+' button on each intervention row that opens a popover where I can assign team members so I can plan who will handle each task",
+      "acceptanceCriteria": [
+        "Button with Users icon appears on each enabled intervention row",
+        "Clicking opens a Popover with 3 sections: Gestionnaires, Prestataires, Locataires",
+        "Each person shown with Checkbox + name + role badge",
+        "First click auto-selects lease tenants (if not already assigned)",
+        "Assigned users shown as avatar initials inline on the row",
+        "Button shows count badge when users are assigned",
+        "Hidden when intervention is disabled",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Popover with 3 type buttons (manager/tenant/provider), avatars with tooltips, count badge. Uses shared ContactSelector via ref."
+    },
+    {
+      "id": "US-003",
+      "title": "Propager les assignations dans LeaseInterventionsStep et container",
+      "description": "As a developer, I want the assignment changes to flow from the row through the step to the container state so assignments are tracked for submission",
+      "acceptanceCriteria": [
+        "LeaseInterventionsStep receives availableContacts and leasetenantIds props",
+        "LeaseInterventionsStep passes onAssignmentChange to each row",
+        "contract-form-container computes available contacts grouped by role",
+        "container passes contacts + tenant IDs to LeaseInterventionsStep",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Step uses ContactSelector hideUI+ref, auto-assigns tenants on first type click, container passes teamId/leaseTenantIds/availableContacts"
+    },
+    {
+      "id": "US-004",
+      "title": "Creer les assignments cote serveur a la soumission",
+      "description": "As a gestionnaire, I want the people I assigned to be created as intervention_assignments when the lease is submitted so they appear on the intervention detail page",
+      "acceptanceCriteria": [
+        "createInterventionAction accepts optional assignments param",
+        "Server action inserts into intervention_assignments after creating intervention",
+        "handleSubmit passes assignedUsers for each intervention",
+        "Lint passes"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Batch insert with service role client, non-blocking error handling"
+    }
+  ]
+}

@@ -42,13 +42,13 @@ export async function POST(request: NextRequest) {
 
     // Construire l'objet pour validation Zod
     const requestData = {
-      buildingId: formData.get('building_id') as string | undefined,
-      lotId: formData.get('lot_id') as string | undefined,
+      buildingId: (formData.get('building_id') as string | null) ?? undefined,
+      lotId: (formData.get('lot_id') as string | null) ?? undefined,
       fileName: file.name,
       fileSize: file.size,
       fileType: file.type,
       visibility: (formData.get('visibility_level') as string) || 'equipe',
-      description: formData.get('description') as string | undefined
+      description: (formData.get('description') as string | null) ?? undefined
     }
 
     // ✅ ZOD VALIDATION

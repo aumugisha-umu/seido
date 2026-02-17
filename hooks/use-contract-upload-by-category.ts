@@ -95,6 +95,16 @@ export const useContractUploadByCategory = ({
   }, [baseUpload])
 
   /**
+   * Définit la date d'expiration pour tous les fichiers d'un slot
+   */
+  const setSlotExpiryDate = useCallback((slotType: string, date: string | undefined) => {
+    const slotFiles = filesByType.get(slotType as ContractDocumentType) || []
+    slotFiles.forEach(file => {
+      baseUpload.setFileExpiryDate(file.id, date)
+    })
+  }, [filesByType, baseUpload])
+
+  /**
    * Obtient l'état d'un slot spécifique
    */
   const getSlotState = useCallback((slotType: ContractDocumentType): DocumentSlotState | undefined => {
@@ -119,15 +129,18 @@ export const useContractUploadByCategory = ({
   }, [slots])
 
   /**
-   * Progression globale (slots avec au moins un fichier / total slots)
+   * Progression basée sur les documents recommandés uniquement
    */
   const progress = useMemo(() => {
+    const recommendedSlots = slots.filter(s => s.recommended)
+    const uploadedRecommended = recommendedSlots.filter(s => s.hasFiles).length
+    const total = recommendedSlots.length
     return {
-      uploaded: uploadedSlotsCount,
-      total: slots.length,
-      percentage: Math.round((uploadedSlotsCount / slots.length) * 100)
+      uploaded: uploadedRecommended,
+      total,
+      percentage: total > 0 ? Math.round((uploadedRecommended / total) * 100) : 0
     }
-  }, [uploadedSlotsCount, slots.length])
+  }, [slots])
 
   /**
    * Vérifie si tous les documents recommandés sont présents
@@ -145,6 +158,7 @@ export const useContractUploadByCategory = ({
     // Actions par slot
     addFilesToSlot,
     removeFileFromSlot,
+    setSlotExpiryDate,
 
     // Tracking des recommandations
     missingRecommendedDocuments,

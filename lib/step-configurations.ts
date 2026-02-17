@@ -12,7 +12,11 @@ export const buildingSteps: StepConfig[] = [
   },
   {
     icon: Users,
-    label: "Contacts"
+    label: "Contacts & Documents"
+  },
+  {
+    icon: CalendarCheck,
+    label: "Interventions"
   },
   {
     icon: Check,
@@ -23,7 +27,7 @@ export const buildingSteps: StepConfig[] = [
 export const lotSteps: StepConfig[] = [
   {
     icon: Building2,
-    label: "Immeuble "
+    label: "Immeuble"
   },
   {
     icon: Home,
@@ -31,7 +35,11 @@ export const lotSteps: StepConfig[] = [
   },
   {
     icon: Users,
-    label: "Contacts"
+    label: "Contacts & Documents"
+  },
+  {
+    icon: CalendarCheck,
+    label: "Interventions"
   },
   {
     icon: Check,

@@ -1,19 +1,24 @@
 "use client"
 
 /**
- * InterventionScheduleRow - Ligne d'intervention pour la modale de planification
+ * InterventionScheduleRow - Ligne d'intervention pour la planification du bail
  *
  * Affiche une intervention planifiable avec :
  * - Checkbox pour activer/désactiver
- * - Titre et description
- * - Date picker pour la date planifiée
- * - Badge "Auto" si la date est auto-calculée
+ * - Titre, description et avatars des personnes assignées
+ * - Bouton d'assignation avec Popover pour choisir le type de contact
+ * - Select dropdown avec options de planification relatives
+ * - DatePicker conditionnel pour l'option "Date personnalisée"
  */
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DatePicker } from '@/components/ui/date-picker'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip'
 import {
   ClipboardCheck,
   ClipboardX,
@@ -22,11 +27,17 @@ import {
   Shield,
   FileSearch,
   Calendar,
-  Sparkles
+  Sparkles,
+  UserPlus,
+  Users,
+  User,
+  Briefcase
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { CUSTOM_DATE_VALUE } from '@/lib/constants/lease-interventions'
+import type { SchedulingOption } from '@/lib/constants/lease-interventions'
 
 // Map des icônes par nom
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -39,6 +50,13 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Calendar
 }
 
+/** Personne assignée à une intervention */
+export interface InterventionAssignment {
+  userId: string
+  role: 'gestionnaire' | 'prestataire' | 'locataire'
+  name: string
+}
+
 export interface ScheduledInterventionData {
   key: string
   title: string
@@ -49,12 +67,30 @@ export interface ScheduledInterventionData {
   enabled: boolean
   scheduledDate: Date | null
   isAutoCalculated: boolean
+  availableOptions: SchedulingOption[]
+  selectedSchedulingOption: string
+  assignedUsers: InterventionAssignment[]
 }
+
+const ROLE_COLORS: Record<string, string> = {
+  gestionnaire: 'bg-purple-100 text-purple-700 border-purple-200',
+  prestataire: 'bg-green-100 text-green-700 border-green-200',
+  locataire: 'bg-blue-100 text-blue-700 border-blue-200'
+}
+
+const ASSIGN_TYPE_OPTIONS = [
+  { type: 'manager', label: 'Gestionnaires', Icon: Users, color: 'text-purple-600' },
+  { type: 'tenant', label: 'Locataires', Icon: User, color: 'text-blue-600' },
+  { type: 'provider', label: 'Prestataires', Icon: Briefcase, color: 'text-green-600' }
+]
 
 interface InterventionScheduleRowProps {
   intervention: ScheduledInterventionData
   onToggle: (enabled: boolean) => void
   onDateChange: (date: Date | null) => void
+  onSchedulingOptionChange: (optionValue: string) => void
+  /** Called when user wants to assign a specific contact type (opens ContactSelector) */
+  onAssignType: (contactType: string) => void
   disabled?: boolean
   className?: string
 }
@@ -63,16 +99,25 @@ export function InterventionScheduleRow({
   intervention,
   onToggle,
   onDateChange,
+  onSchedulingOptionChange,
+  onAssignType,
   disabled = false,
   className
 }: InterventionScheduleRowProps) {
   const IconComponent = ICON_MAP[intervention.icon] || Calendar
+  const isCustomDate = intervention.selectedSchedulingOption === CUSTOM_DATE_VALUE
+  const assignCount = intervention.assignedUsers.length
+  const [popoverOpen, setPopoverOpen] = useState(false)
 
   const handleToggle = useCallback((checked: boolean) => {
     onToggle(checked)
   }, [onToggle])
 
-  const handleDateChange = useCallback((dateStr: string) => {
+  const handleOptionChange = useCallback((value: string) => {
+    onSchedulingOptionChange(value)
+  }, [onSchedulingOptionChange])
+
+  const handleCustomDateChange = useCallback((dateStr: string) => {
     if (dateStr) {
       onDateChange(new Date(dateStr))
     } else {
@@ -80,17 +125,29 @@ export function InterventionScheduleRow({
     }
   }, [onDateChange])
 
-  // Format date for display
+  const handleAssignTypeClick = useCallback((contactType: string) => {
+    setPopoverOpen(false)
+    onAssignType(contactType)
+  }, [onAssignType])
+
+  // Format date for readable display
   const formattedDate = useMemo(() => {
     if (!intervention.scheduledDate) return null
     return format(intervention.scheduledDate, 'dd MMMM yyyy', { locale: fr })
   }, [intervention.scheduledDate])
 
-  // Convert Date to string for DatePicker
+  // Convert Date to ISO string for DatePicker (custom mode)
   const dateValue = useMemo(() => {
     if (!intervention.scheduledDate) return ''
     return format(intervention.scheduledDate, 'yyyy-MM-dd')
   }, [intervention.scheduledDate])
+
+  // Get initials for avatar
+  const getInitials = (name: string) => {
+    const parts = name.split(' ').filter(Boolean)
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+    return (name.substring(0, 2)).toUpperCase()
+  }
 
   return (
     <div
@@ -140,7 +197,7 @@ export function InterventionScheduleRow({
           >
             {intervention.title}
           </h4>
-          {intervention.isAutoCalculated && intervention.enabled && (
+          {!isCustomDate && intervention.enabled && (
             <Badge
               variant="secondary"
               className="text-xs gap-1 bg-primary/10 text-primary border-primary/20"
@@ -160,18 +217,124 @@ export function InterventionScheduleRow({
         >
           {intervention.description}
         </p>
+
+        {/* Avatars des personnes assignées */}
+        {intervention.enabled && assignCount > 0 && (
+          <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+            <TooltipProvider delayDuration={200}>
+              {intervention.assignedUsers.map(user => (
+                <Tooltip key={user.userId}>
+                  <TooltipTrigger asChild>
+                    <div
+                      className={cn(
+                        "flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-medium border cursor-default",
+                        ROLE_COLORS[user.role] || 'bg-muted text-muted-foreground border-border'
+                      )}
+                    >
+                      {getInitials(user.name)}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="text-xs">
+                    {user.name} ({user.role})
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </TooltipProvider>
+          </div>
+        )}
       </div>
 
-      {/* Date Picker */}
-      <div className="shrink-0 w-[160px]">
+      {/* Bouton d'assignation avec Popover pour choisir le type */}
+      {intervention.enabled && (
+        <div className="shrink-0">
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={disabled}
+                className={cn(
+                  "h-9 gap-1.5 text-xs",
+                  assignCount > 0 && "border-primary/30 text-primary"
+                )}
+              >
+                {assignCount > 0 ? (
+                  <>
+                    <Users className="h-3.5 w-3.5" />
+                    {assignCount}
+                  </>
+                ) : (
+                  <>
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Assigner
+                  </>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-48 p-1.5">
+              <div className="space-y-0.5">
+                <p className="text-xs font-medium text-muted-foreground px-2 py-1">Ajouter des...</p>
+                {ASSIGN_TYPE_OPTIONS.map(({ type, label, Icon, color }) => (
+                  <Button
+                    key={type}
+                    variant="ghost"
+                    size="sm"
+                    className="w-full justify-start gap-2 h-8 text-xs"
+                    onClick={() => handleAssignTypeClick(type)}
+                  >
+                    <Icon className={cn("h-3.5 w-3.5", color)} />
+                    {label}
+                  </Button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+
+      {/* Planification : Select + date */}
+      <div className="shrink-0 w-[240px] space-y-1.5">
         {intervention.enabled ? (
-          <DatePicker
-            value={dateValue}
-            onChange={handleDateChange}
-            placeholder="Date"
-            disabled={disabled}
-            className="w-full"
-          />
+          <>
+            {/* Dropdown des options relatives */}
+            <Select
+              value={intervention.selectedSchedulingOption}
+              onValueChange={handleOptionChange}
+              disabled={disabled}
+            >
+              <SelectTrigger className="w-full h-9 text-xs">
+                <SelectValue placeholder="Quand ?" />
+              </SelectTrigger>
+              <SelectContent>
+                {intervention.availableOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value} className="text-xs">
+                    {option.label}
+                  </SelectItem>
+                ))}
+                <SelectItem value={CUSTOM_DATE_VALUE} className="text-xs">
+                  Date personnalisée
+                </SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* DatePicker conditionnel pour date personnalisée */}
+            {isCustomDate && (
+              <DatePicker
+                value={dateValue}
+                onChange={handleCustomDateChange}
+                placeholder="Choisir une date"
+                disabled={disabled}
+                className="w-full"
+              />
+            )}
+
+            {/* Date calculée en texte lisible */}
+            {formattedDate && (
+              <p className="text-xs text-muted-foreground pl-1">
+                {formattedDate}
+              </p>
+            )}
+          </>
         ) : (
           <div className="h-10 flex items-center justify-center text-xs text-muted-foreground">
             —

@@ -1,0 +1,82 @@
+{
+  "project": "SEIDO",
+  "featureName": "Dates relatives pour interventions du bail",
+  "branchName": "preview",
+  "description": "Remplacer le DatePicker brut par un dropdown d'options relatives (X mois avant/après échéance) dans l'étape Interventions du wizard de création de bail. Chaque template définit ses propres options. Option 'Date personnalisée' ouvre un DatePicker. Option dynamique pour l'assurance basée sur la date d'expiration du document.",
+  "createdAt": "2026-02-17",
+  "prdSource": "tasks/prd-relative-intervention-dates.md",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Définir les scheduling options par template",
+      "description": "As a developer, I want each LeaseInterventionTemplate to define its own list of relative scheduling options so the dropdown is contextual per intervention type",
+      "acceptanceCriteria": [
+        "New SchedulingOption type with value, label, and calculateDate function",
+        "Each of the 6 templates has a schedulingOptions array + defaultOption",
+        "A CUSTOM_DATE_OPTION constant exists for the 'Date personnalisée' fallback",
+        "Missing document interventions also have scheduling options (7j, 14j, 1 mois)",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Added SchedulingOption interface, CUSTOM_DATE_VALUE/OPTION, INSURANCE_EXPIRY_NEXT_DAY_VALUE. Each of 6 templates + missing doc factory has schedulingOptions[] and defaultSchedulingOption."
+    },
+    {
+      "id": "US-002",
+      "title": "Enrichir ScheduledInterventionData avec selectedOption",
+      "description": "As a developer, I want ScheduledInterventionData to track which scheduling option is selected so the UI can render the correct dropdown state",
+      "acceptanceCriteria": [
+        "ScheduledInterventionData has selectedSchedulingOption: string field",
+        "ScheduledInterventionData has availableOptions: SchedulingOption[] field",
+        "contract-form-container initializes both fields from template defaults",
+        "Insurance reminder gets dynamic option when expiry date is available",
+        "When startDate/duration/chargesType changes, options recalculate dates",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Extended ScheduledInterventionData with availableOptions and selectedSchedulingOption. Container useEffect builds options from template, injects dynamic insurance option with INSURANCE_EXPIRY_NEXT_DAY_VALUE. Date calculated from selected option."
+    },
+    {
+      "id": "US-003",
+      "title": "Refondre InterventionScheduleRow avec Select dropdown",
+      "description": "As a gestionnaire, I want to see a dropdown with meaningful relative date options instead of a raw DatePicker so I understand when and why each intervention is scheduled",
+      "acceptanceCriteria": [
+        "DatePicker replaced by Select dropdown showing available options",
+        "Selecting an option recalculates the date automatically",
+        "Calculated date shown in readable text next to dropdown (ex: '02 décembre 2030')",
+        "Selecting 'Date personnalisée' shows a DatePicker below the Select",
+        "Badge 'Auto' shown when a relative option is selected (not custom)",
+        "Disabled state shows '—' as before",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Rewrote InterventionScheduleRow: Select dropdown replaces DatePicker, conditional DatePicker for custom mode, readable date text, Auto badge for relative options. Width increased to 240px for dropdown."
+    },
+    {
+      "id": "US-004",
+      "title": "Propager onSchedulingOptionChange dans LeaseInterventionsStep",
+      "description": "As a developer, I want LeaseInterventionsStep to handle scheduling option changes and propagate them to the parent container",
+      "acceptanceCriteria": [
+        "LeaseInterventionsStep passes onSchedulingOptionChange to each row",
+        "contract-form-container handles option changes: recalculates date from option",
+        "Changing startDate/duration recalculates all auto dates based on selected options",
+        "Insurance dynamic option updates when document expiry date changes",
+        "Lint passes"
+      ],
+      "priority": 4,
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Merged with US-003 since tightly coupled. LeaseInterventionsStep now receives startDate+endDate, has handleSchedulingOptionChange that recalculates dates from options. Container passes parseLocalDate/calculateContractEndDate results."
+    }
+  ]
+}

@@ -57,9 +57,54 @@
 - [x] **Quote Notifications Multi-Canal** (2026-02-02) - 4 nouvelles actions: quote request/submit/approve/reject
 - [x] **Push Subscription Security Fix** (2026-02-02) - userProfile.id + null data check pour RLS silent blocks
 - [x] **Voice Recorder + Documents + Reports Card** (2026-02-12) - Upload audio, signed URLs, composant reports partagé
-- [ ] **Intervention Workflow Polish** (2026-02-16) - 7 themes, 40 files: demande_de_devis→requires_quote, approved→accepted, finalization API, quote form simplification, details card enrichi, dashboard simplification, quote modals
+- [x] **Intervention Workflow Polish** (2026-02-16) - 7 themes, 40 files: demande_de_devis→requires_quote, approved→accepted, finalization API, quote form simplification, details card enrichi, dashboard simplification, quote modals
+- [x] **Property Documents + Interventions Step** (2026-02-17) - 5-step wizard for buildings/lots with document upload + intervention scheduling
+- [x] **Building Interventions Tab Fix** (2026-02-18) - XOR query pattern with `.or()` for building+lot interventions
+- [x] **Code Review Fixes (3C+7H+2Q)** (2026-02-18) - TDZ, multi-lot [0], Zod drift, role validation, type completeness
 
 ## Sprint Actuel (Jan-Feb 2026)
+
+### 2026-02-18 - Code Review Fixes (3 CRITICAL + 7 HIGH + 2 Quick)
+
+**Session: 5-Agent Code Review Fix Implementation**
+
+Applied 10 confirmed fixes from comprehensive code review across 9 files:
+
+| Severity | ID | Description | File(s) |
+|----------|-----|-------------|---------|
+| CRITICAL | C1 | TDZ: useState before dependent hooks | lots/nouveau/page.tsx |
+| CRITICAL | C2 | Duplicate imports (Badge, getLotCategoryConfig) | lots/nouveau/page.tsx |
+| CRITICAL | C3 | **DISMISSED** — XOR constraint correct | building-creation-form.tsx |
+| HIGH | H1 | Multi-lot: interventions only for [0] | lots/nouveau/page.tsx |
+| HIGH | H2 | Multi-lot: docs staged but never uploaded | lots/nouveau/page.tsx |
+| HIGH | H3 | ContractDocument missing expiry_date | contract.types.ts |
+| HIGH | H4 | expiryDate bypasses Zod validation | route.ts + schemas.ts |
+| HIGH | H5 | ResolvedLeaseInterventionTemplate fields | lease-interventions.ts |
+| HIGH | H6 | assignUser() missing gestionnaire check | intervention-service.ts |
+| HIGH | H7 | Unsafe `as` cast on assignments | intervention-actions.ts |
+| QUICK | Q1 | Trailing space "Immeuble " | step-configurations.ts |
+| QUICK | Q2 | Unused CUSTOM_DATE_OPTION export | lease-interventions.ts |
+
+**Learnings ajoutes:** AGENTS.md #043-#046
+**Retrospective:** `docs/learnings/2026-02-18-code-review-fixes-retrospective.md`
+
+---
+
+### 2026-02-17 - Property Documents + Interventions Step (5 stories)
+
+**Session: 5-Step Creation Wizard for Buildings & Lots**
+
+| Story | Description | Files |
+|-------|-------------|-------|
+| US-001 | Property intervention templates (6 building, 2 lot) | lib/constants/property-interventions.ts (NEW) |
+| US-002 | PropertyInterventionsStep component | components/property-interventions-step.tsx (NEW) |
+| US-003 | Building creation 4→5 steps | building-creation-form.tsx, step-configurations.ts |
+| US-004 | Building intervention DB creation | building-creation-form.tsx (handleFinish) |
+| US-005 | Lot creation integration (3 modes) | lots/nouveau/page.tsx, step-configurations.ts |
+
+**Also:** Property document upload hooks, multi-lot document upload, building interventions tab fix.
+
+---
 
 ### 2026-02-12 - Voice Recorder + Documents Management + Reports Display
 
@@ -397,24 +442,24 @@ Refactoring pour unifier l'expérience notifications entre web et PWA.
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-02-12)
+## Metriques Projet (2026-02-18)
 
 | Metrique | Valeur |
 |----------|--------|
 | Repositories | **19** |
-| Domain Services | **33** (+1: scheduling-service) |
+| Domain Services | **33** |
 | API Routes | **114** (10 domaines) |
-| Hooks | **68** (+2: useDebounce, usePrefetch) |
+| Hooks | **70** (+2: use-property-document-upload, use-multi-lot-document-upload) |
 | Components | **362** |
 | Pages | **87** (5+ route groups) |
 | DB Tables | **44** |
 | DB Enums | 39 |
 | DB Functions | **79** |
-| Migrations | **165** (+5: security fixes, policy consolidation, voice note support) |
+| Migrations | **165** |
 | Server Actions | **17** files |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
-| **AGENTS.md Learnings** | **38** (+6: time slot status, flag-based quotes, accepted enum, separate queries, finalization fix) |
+| **AGENTS.md Learnings** | **46** (+4: TDZ hooks, multi-lot [0], Zod drift, verify constraints) |
 | **systemPatterns.md Patterns** | **29** |
 | **Shared Cards** | **15** (documents, reports, comments, conversation, quotes, planning, summary, intervention-details) |
 | **Quote Status Enum (DB)** | **7** (draft, pending, sent, accepted, rejected, expired, cancelled) |
@@ -467,7 +512,9 @@ Refactoring pour unifier l'expérience notifications entre web et PWA.
 | **2026-02-11** | **Security Consolidation RLS** | **53 linter warnings, overlapping policies** | **4 migrations, 27 policies dropped, helpers expanded (proprietaire+contracts)** |
 | **2026-02-12** | **Voice Recorder + Documents + Reports** | **Upload audio, preview docs, affichage rapports** | **13 fichiers, composant ReportsCard shared, 3 learnings AGENTS.md** |
 | **2026-02-16** | **Intervention Workflow Polish** | **7 themes: demande_de_devis removal, approved→accepted, finalization API, quote form, details card, dashboards, quote modals** | **40 fichiers, -500 lignes net, 4 learnings AGENTS.md (#035-#038)** |
+| **2026-02-17** | **Property Documents + Interventions Step** | **5-step wizard with doc upload, intervention scheduling, multi-lot support** | **~15 fichiers, 2 new hooks, 2 new components, 2 constant files** |
+| **2026-02-18** | **Code Review Fixes (3C+7H+2Q)** | **TDZ, multi-lot [0], Zod drift, role validation, type completeness** | **9 fichiers, 4 learnings AGENTS.md (#043-#046), 1 false positive dismissed** |
 
 ---
-*Derniere mise a jour: 2026-02-16*
-*Session: Intervention Workflow Polish — 7 themes, 40 files, comprehensive knowledge base update*
+*Derniere mise a jour: 2026-02-18*
+*Session: Code review fixes + compound + memory bank update*

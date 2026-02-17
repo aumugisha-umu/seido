@@ -1,43 +1,107 @@
 {
   "project": "SEIDO",
-  "featureName": "Account Status Indicator + Filter for Quotes/Confirmation",
+  "featureName": "Interventions planifiées pour Immeubles & Lots",
   "branchName": "preview",
-  "description": "Add has_account badge in ContactSection and ContactSelector. Filter quote requests and confirmation to only users with accounts.",
-  "createdAt": "2026-02-13",
-  "prdSource": null,
+  "description": "Ajouter une étape Interventions dans les flux de création d'immeuble et de lot, avec templates d'interventions techniques récurrentes, dates dynamiques basées sur l'échéance des documents, et assignation de contacts. Réutilise InterventionScheduleRow et ContactSelector existants.",
+  "createdAt": "2026-02-17",
+  "prdSource": "tasks/prd-property-interventions.md",
   "status": "completed",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Add 'Non invité' badge in ContactSection and ContactSelector",
-      "description": "Show a visible 'Non invité' badge on contact cards in ContactSection (used in ProgrammingModal participant boxes) and in ContactSelector dropdown items (used in selection modals). Also update intervention creation/modification forms.",
+      "title": "Créer les templates d'interventions immeuble/lot",
+      "description": "As a developer, I want property intervention templates (property-interventions.ts) so that the UI can display recommended interventions with scheduling options for buildings and lots",
       "acceptanceCriteria": [
-        "ContactSection shows 'Non invité' badge for contacts where has_account is false",
-        "ContactSelector dropdown items show 'Non invité' badge for contacts without accounts",
-        "has_account field added to BaseContact interface and ContactSelector contact interface",
-        "Typecheck passes"
+        "PropertyInterventionTemplate type defined with document link and dynamic date support",
+        "BUILDING_INTERVENTION_TEMPLATES has 6 templates (chaudière, ascenseur, incendie, PEB, nettoyage, espaces verts)",
+        "LOT_INTERVENTION_TEMPLATES has 2 templates (chaudière, PEB)",
+        "LOT_IN_BUILDING_INTERVENTION_TEMPLATES is empty (only missing docs generate interventions)",
+        "createMissingPropertyDocumentIntervention() generates interventions for missing documents",
+        "generatePropertyInterventions() accepts entity type, creation date, document expiry dates, and missing documents",
+        "Each template has schedulingOptions with document-expiry-based options when applicable",
+        "Lint passes"
       ],
       "priority": 1,
       "dependsOn": [],
-      "sizing": "S",
+      "sizing": "M",
       "passes": true,
-      "notes": "Badge added to ContactSection (contact-section.tsx:350) and ContactSelector (ui/contact-selector.tsx:218). has_account added to both interfaces. Fixed provider mapping in detail page to pass has_account (was missing). assignment-section-v2.tsx already had has_account in its Contact interface."
+      "notes": "Created lib/constants/property-interventions.ts — 6 building templates, 2 lot templates, empty lot_in_building. Dynamic expiry-based scheduling options. Missing doc generator."
     },
     {
       "id": "US-002",
-      "title": "Filter quote requests and confirmation to account holders only",
-      "description": "In the server action createQuoteRequestsForProviders path, filter out providers without has_account. Also ensure confirmation requirements only target account holders (already done in ProgrammingModal but verify backend).",
+      "title": "Créer le composant PropertyInterventionsStep générique",
+      "description": "As a gestionnaire, I want an interventions step in the building/lot creation wizard so I can plan technical follow-ups when creating a property",
       "acceptanceCriteria": [
-        "Quote requests are only created for providers with auth_user_id (has_account)",
-        "Server action filters providers before calling createQuoteRequestsForProviders",
-        "Confirmation requirements already filter has_account in ProgrammingModal (verify)",
-        "Typecheck passes"
+        "PropertyInterventionsStep component accepts entityType ('building' | 'lot' | 'lot_in_building'), teamId, availableContacts, missingDocuments, documentExpiryDates",
+        "Renders standard interventions and missing document interventions (separated by Separator)",
+        "Toggle, date change, scheduling option change, and contact assignment work (same as LeaseInterventionsStep)",
+        "Uses InterventionScheduleRow (no modifications needed)",
+        "Uses ContactSelector with hideUI pattern for assignments",
+        "Header adapts title based on entity type",
+        "Lint passes"
       ],
       "priority": 2,
       "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Created components/property-interventions-step.tsx — reuses InterventionScheduleRow + ContactSelector hideUI pattern. Handles toggle/date/scheduling/assignment."
+    },
+    {
+      "id": "US-003",
+      "title": "Intégrer l'étape Interventions dans la création d'immeuble",
+      "description": "As a gestionnaire, I want the building creation wizard to include an Interventions step after Contacts & Documents so I can plan maintenance when creating a building",
+      "acceptanceCriteria": [
+        "buildingSteps updated to 5 steps: Info → Lots → Contacts & Docs → Interventions → Confirmation",
+        "Step 4 renders PropertyInterventionsStep with entityType='building'",
+        "Document expiry dates from buildingDocUpload are passed to the interventions step",
+        "Missing recommended building documents generate 'Récupérer' interventions",
+        "Confirmation step (now step 5) still works correctly",
+        "Navigation (next/back) works for all 5 steps",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Integrated into building-creation-form.tsx: step 4 = interventions, step 5 = confirmation. Passes missingRecommendedTypes + expiry dates."
+    },
+    {
+      "id": "US-004",
+      "title": "Créer les interventions en DB à la soumission (immeuble)",
+      "description": "As a gestionnaire, I want enabled interventions to be created in the database when I submit the building creation form",
+      "acceptanceCriteria": [
+        "After building + lots created, enabled interventions with dates are created via createInterventionAction",
+        "Building-level interventions use the building's first lot's ID (or building_id if supported)",
+        "Per-lot interventions (missing docs) use the corresponding lot_id",
+        "Assignments are passed to createInterventionAction",
+        "Failed intervention creation doesn't block building creation (Promise.allSettled)",
+        "Success/failure counts are logged",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003"],
       "sizing": "S",
       "passes": true,
-      "notes": "Server action (intervention-actions.ts:2721-2737): queries users with auth_user_id IS NOT NULL before creating quotes. API route (intervention-quote-request/route.ts:169): filters eligibleProviders by auth_user_id. Confirmation already pre-filtered in ProgrammingModal (lines 422-434) using has_account !== false."
+      "notes": "Added intervention creation to building handleFinish via Promise.allSettled + useServiceRole."
+    },
+    {
+      "id": "US-005",
+      "title": "Intégrer l'étape Interventions dans la création de lot",
+      "description": "As a gestionnaire, I want the lot creation wizard to include an Interventions step so I can plan maintenance when creating a standalone lot",
+      "acceptanceCriteria": [
+        "lotSteps updated to 5 steps: Immeuble → Lot → Contacts & Docs → Interventions → Confirmation",
+        "Step 4 renders PropertyInterventionsStep with correct entityType (lot or lot_in_building)",
+        "Document expiry dates from lot doc upload are passed",
+        "Missing recommended lot documents generate 'Récupérer' interventions",
+        "Interventions created in DB on submission (same pattern as US-004)",
+        "Navigation works for all 5 steps",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Integrated into lot creation page.tsx: 3 creation modes all create interventions. entityType adapts to lot vs lot_in_building. createInterventionsForLot helper avoids duplication."
     }
   ]
 }

@@ -19,6 +19,10 @@ export interface DocumentSlotConfig {
   allowMultiple: boolean
   hint?: string
   icon: string
+  /** Whether this document type has an expiry date */
+  hasExpiry?: boolean
+  /** Default validity period in years (used to suggest expiry date) */
+  defaultValidityYears?: number
 }
 
 /**
@@ -41,7 +45,9 @@ export const LEASE_DOCUMENT_SLOTS: DocumentSlotConfig[] = [
     recommended: true,
     allowMultiple: true,
     hint: 'Assurance habitation du locataire',
-    icon: 'Shield'
+    icon: 'Shield',
+    hasExpiry: true,
+    defaultValidityYears: 1
   },
   {
     type: 'justificatif_identite',
@@ -52,30 +58,13 @@ export const LEASE_DOCUMENT_SLOTS: DocumentSlotConfig[] = [
     icon: 'IdCard'
   },
 
-  // Documents optionnels
   {
     type: 'etat_des_lieux_entree',
     label: 'État des lieux d\'entrée',
-    recommended: false,
+    recommended: true,
     allowMultiple: true,
     hint: 'Peut être ajouté après l\'entrée dans les lieux',
     icon: 'ClipboardCheck'
-  },
-  {
-    type: 'diagnostic',
-    label: 'Diagnostics (PEB, DPE...)',
-    recommended: false,
-    allowMultiple: true,
-    hint: 'Certificat PEB, diagnostic plomb, amiante, etc.',
-    icon: 'FileBarChart'
-  },
-  {
-    type: 'justificatif_revenus',
-    label: 'Justificatifs de revenus',
-    recommended: false,
-    allowMultiple: true,
-    hint: 'Fiches de paie, avis d\'imposition',
-    icon: 'Receipt'
   },
   {
     type: 'autre',

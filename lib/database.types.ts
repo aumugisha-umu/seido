@@ -551,6 +551,7 @@ export type Database = {
           deleted_by: string | null
           description: string | null
           document_type: Database["public"]["Enums"]["contract_document_type"]
+          expiry_date: string | null
           file_size: number
           filename: string
           id: string
@@ -571,6 +572,7 @@ export type Database = {
           deleted_by?: string | null
           description?: string | null
           document_type?: Database["public"]["Enums"]["contract_document_type"]
+          expiry_date?: string | null
           file_size: number
           filename: string
           id?: string
@@ -591,6 +593,7 @@ export type Database = {
           deleted_by?: string | null
           description?: string | null
           document_type?: Database["public"]["Enums"]["contract_document_type"]
+          expiry_date?: string | null
           file_size?: number
           filename?: string
           id?: string
@@ -4304,6 +4307,15 @@ export type Database = {
         | "manuel_utilisation"
         | "photo_generale"
         | "autre"
+        | "certificat_peb"
+        | "conformite_electrique"
+        | "conformite_gaz"
+        | "detecteurs_fumee"
+        | "entretien_chaudiere"
+        | "controle_ascenseur"
+        | "citerne_mazout"
+        | "inventaire_amiante"
+        | "audit_energetique"
       provider_category: "prestataire" | "autre"
       response_type: "accepted" | "rejected" | "pending"
       team_member_role:
@@ -4626,6 +4638,15 @@ export const Constants = {
         "manuel_utilisation",
         "photo_generale",
         "autre",
+        "certificat_peb",
+        "conformite_electrique",
+        "conformite_gaz",
+        "detecteurs_fumee",
+        "entretien_chaudiere",
+        "controle_ascenseur",
+        "citerne_mazout",
+        "inventaire_amiante",
+        "audit_energetique",
       ],
       provider_category: ["prestataire", "autre"],
       response_type: ["accepted", "rejected", "pending"],

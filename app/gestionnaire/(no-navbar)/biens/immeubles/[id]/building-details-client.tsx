@@ -23,6 +23,8 @@ import { ContactsGridPreview } from '@/components/ui/contacts-grid-preview'
 import { BuildingLotsGrid } from '@/components/patrimoine/lot-card-unified'
 import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
+import { PropertyDocumentsPanel } from '@/components/documents'
+import { BUILDING_DOCUMENT_SLOTS } from '@/lib/constants/property-document-slots'
 
 interface BuildingContact {
   id: string
@@ -573,23 +575,34 @@ export default function BuildingDetailsClient({
             {/* Documents Tab */}
             <TabContentWrapper value="documents">
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-lg font-medium text-foreground">Documents de l'immeuble</h2>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Documents liés aux interventions réalisées dans cet immeuble
-                    </p>
-                  </div>
-                </div>
-
-                <DocumentsSection
-                  interventions={transformInterventionsForDocuments(interventionsWithDocs)}
-                  loading={false}
-                  emptyMessage="Aucun document trouvé"
-                  emptyDescription="Aucune intervention avec documents n'a été réalisée dans cet immeuble."
-                  onDocumentView={handleDocumentView}
-                  onDocumentDownload={handleDocumentDownload}
+                {/* Property documents (PEB, ascenseur, amiante, etc.) */}
+                <PropertyDocumentsPanel
+                  entityType="building"
+                  entityId={building.id}
+                  teamId={teamId}
+                  slotConfigs={BUILDING_DOCUMENT_SLOTS}
                 />
+
+                {/* Intervention documents */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-lg font-medium text-foreground">Documents d&apos;intervention</h2>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Documents liés aux interventions réalisées dans cet immeuble
+                      </p>
+                    </div>
+                  </div>
+
+                  <DocumentsSection
+                    interventions={transformInterventionsForDocuments(interventionsWithDocs)}
+                    loading={false}
+                    emptyMessage="Aucun document trouvé"
+                    emptyDescription="Aucune intervention avec documents n'a été réalisée dans cet immeuble."
+                    onDocumentView={handleDocumentView}
+                    onDocumentDownload={handleDocumentDownload}
+                  />
+                </div>
               </div>
             </TabContentWrapper>
 

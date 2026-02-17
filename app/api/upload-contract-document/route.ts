@@ -43,6 +43,9 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Extract optional expiry date
+    const expiryDate = formData.get('expiryDate') as string | null
+
     // Build object for Zod validation
     const requestData = {
       contractId: formData.get('contractId') as string,
@@ -50,7 +53,8 @@ export async function POST(request: NextRequest) {
       fileSize: file.size,
       fileType: file.type,
       documentType: formData.get('documentType') as string || 'autre',
-      description: formData.get('description') as string | undefined
+      description: formData.get('description') as string | undefined,
+      expiryDate: expiryDate || undefined
     }
 
     // ZOD VALIDATION
@@ -144,7 +148,8 @@ export async function POST(request: NextRequest) {
         storage_bucket: 'contract-documents',
         document_type: validatedData.documentType,
         uploaded_by: userProfile.id,
-        description: validatedData.description || `Document ${validatedData.documentType}`
+        description: validatedData.description || `Document ${validatedData.documentType}`,
+        ...(validatedData.expiryDate ? { expiry_date: validatedData.expiryDate } : {})
       })
       .select(`
         *,

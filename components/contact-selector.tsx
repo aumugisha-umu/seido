@@ -82,6 +82,8 @@ interface ContactSelectorProps {
   description?: string
   // Types de contacts autorisés (tous par défaut)
   allowedContactTypes?: string[]
+  // Filtrer les contacts affichés par type (ex: { tenant: ['id1', 'id2'] })
+  allowedContactIds?: Record<string, string[]>
   // Contacts déjà sélectionnés/assignés (pour affichage)
   selectedContacts?: { [contactType: string]: Contact[] }
   // NOUVEAU: Contacts assignés aux lots (par lotId puis par contactType)
@@ -108,7 +110,7 @@ interface ContactSelectorProps {
 
 // Interface pour les méthodes exposées via ref
 export interface ContactSelectorRef {
-  openContactModal: (contactType: string, lotId?: string) => void
+  openContactModal: (contactType: string, lotId?: string, preSelectedIds?: string[]) => void
 }
 
 export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorProps>(({
@@ -118,6 +120,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   title = "Assignation des contacts",
   description = "Assignez des contacts à vos lots (optionnel)",
   allowedContactTypes = contactTypes.map(type => type.key),
+  allowedContactIds,
   selectedContacts = {},
   lotContactAssignments = {},
   onContactSelected,
@@ -173,14 +176,14 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
   }
 
   // ✅ Fonction simplifiée pour ouvrir le modal - Les données sont déjà en cache via SWR!
-  const handleOpenContactModal = useCallback((_contactType: string, contextLotId?: string) => {
-    logger.info('🚀 [ContactSelector] Opening modal for:', _contactType, 'lotId:', contextLotId)
+  const handleOpenContactModal = useCallback((_contactType: string, contextLotId?: string, preSelectedIds?: string[]) => {
+    logger.info('🚀 [ContactSelector] Opening modal for:', _contactType, 'lotId:', contextLotId, 'preSelectedIds:', preSelectedIds?.length ?? 0)
 
     // Initialiser l'état du modal
     setSelectedContactType(_contactType)
     setSearchTerm("")
 
-    // NOUVEAU : Initialiser les sélections avec TOUS les contacts (immeuble + lot si applicable)
+    // Initialiser les sélections avec TOUS les contacts (immeuble + lot si applicable)
     const buildingContactsOfType = selectedContacts[_contactType] || []
     const allContactsOfType = [...buildingContactsOfType]
 
@@ -195,22 +198,27 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
     }
 
     const currentIds = allContactsOfType.map(c => c.id)
-    setPendingSelections(currentIds)
+
+    // initialSelections = état réel (ce qui est déjà assigné)
     setInitialSelections(currentIds)
 
-    setIsContactModalOpen(true)
+    // pendingSelections = état réel + pré-sélections (cochées mais pas encore confirmées)
+    if (preSelectedIds?.length) {
+      const merged = [...new Set([...currentIds, ...preSelectedIds])]
+      setPendingSelections(merged)
+    } else {
+      setPendingSelections(currentIds)
+    }
 
-    // ✅ Pas d'appel API - SWR a déjà chargé les données!
-    // ✅ Pas de timeout - les données sont instantanées depuis le cache
-    // ✅ Pas de loading state manuel - SWR gère isLoading automatiquement
+    setIsContactModalOpen(true)
   }, [selectedContacts, lotContactAssignments])
 
   // Exposer les méthodes publiques via ref
   useImperativeHandle(ref, () => ({
-    openContactModal: (contactType: string, contextLotId?: string) => {
-      logger.info('🎯 [ContactSelector] External openContactModal called:', contactType, 'lotId:', contextLotId)
+    openContactModal: (contactType: string, contextLotId?: string, preSelectedIds?: string[]) => {
+      logger.info('🎯 [ContactSelector] External openContactModal called:', contactType, 'lotId:', contextLotId, 'preSelectedIds:', preSelectedIds?.length ?? 0)
       setExternalLotId(contextLotId)
-      handleOpenContactModal(contactType, contextLotId)
+      handleOpenContactModal(contactType, contextLotId, preSelectedIds)
     }
   }), [handleOpenContactModal])
 
@@ -413,8 +421,16 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       return assignmentType === selectedContactType
     })
 
-    // Étape 2: Filtrer par terme de recherche
-    let result = contactsByType
+    // Étape 2: Filtrer par allowedContactIds (whitelist par type)
+    let result: typeof contactsByType
+    if (allowedContactIds?.[selectedContactType]) {
+      const allowed = new Set(allowedContactIds[selectedContactType])
+      result = contactsByType.filter(c => allowed.has(c.id))
+    } else {
+      result = contactsByType
+    }
+
+    // Étape 3: Filtrer par terme de recherche
     if (searchTerm.trim()) {
       result = result.filter(contact =>
         contact.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -427,12 +443,12 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
       )
     }
 
-    // Étape 3: Filtrer par spécialité
+    // Étape 4: Filtrer par spécialité
     if (specialityFilter !== 'all') {
       result = result.filter(contact => contact.speciality === specialityFilter)
     }
 
-    // Étape 4: Filtrer par statut d'invitation
+    // Étape 5: Filtrer par statut d'invitation
     // Logique basée sur la table user_invitations :
     // - null = pas d'invitation pour ce contact
     // - 'pending' = invitation envoyée, pas encore acceptée

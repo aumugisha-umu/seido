@@ -232,6 +232,7 @@ export async function createInterventionAction(
   options?: {
     redirectTo?: string
     useServiceRole?: boolean  // Bypass RLS pour création batch (auth vérifiée au niveau applicatif)
+    assignments?: Array<{ userId: string; role: string }>  // Personnes à assigner à l'intervention
   }
 ): Promise<ActionResult<Intervention>> {
   try {
@@ -326,6 +327,27 @@ export async function createInterventionAction(
           .eq('id', intervention.id)
 
         logger.info({ slotId: timeSlot.id, interventionId: intervention.id }, 'Time slot created and linked')
+      }
+    }
+
+    // Assigner les utilisateurs via la logique centralisée (même flow que gestionnaire UI)
+    const VALID_ASSIGNMENT_ROLES = ['gestionnaire', 'prestataire', 'locataire'] as const
+    if (options?.assignments && options.assignments.length > 0 && intervention) {
+      const validAssignments = options.assignments.filter(a =>
+        (VALID_ASSIGNMENT_ROLES as readonly string[]).includes(a.role)
+      )
+      const assignmentPromises = validAssignments.map(a =>
+        assignUserAction(intervention.id, a.userId, a.role as typeof VALID_ASSIGNMENT_ROLES[number])
+      )
+
+      const assignResults = await Promise.allSettled(assignmentPromises)
+      const succeeded = assignResults.filter(r => r.status === 'fulfilled' && (r.value as ActionResult<void>).success).length
+      const failed = assignResults.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !(r.value as ActionResult<void>).success)).length
+
+      if (failed > 0) {
+        logger.warn({ succeeded, failed, interventionId: intervention.id }, 'Some intervention assignments failed (non-blocking)')
+      } else {
+        logger.info({ count: succeeded, interventionId: intervention.id }, 'Intervention assignments created via assignUserAction')
       }
     }
 

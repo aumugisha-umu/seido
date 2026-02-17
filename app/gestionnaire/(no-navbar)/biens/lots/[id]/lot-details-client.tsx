@@ -27,6 +27,8 @@ import { ContactCardCompact } from '@/components/contacts/contact-card-compact'
 import type { ContractWithRelations } from '@/lib/types/contract.types'
 import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
+import { PropertyDocumentsPanel } from '@/components/documents'
+import { LOT_DOCUMENT_SLOTS } from '@/lib/constants/property-document-slots'
 
 // Helper function to get French label for lot category
 function getCategoryLabel(category: string): string {
@@ -718,23 +720,36 @@ export default function LotDetailsClient({
 
             {/* Documents Tab */}
             <TabContentWrapper value="documents">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-lg font-medium text-foreground">Documents du lot</h2>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Documents liés aux interventions réalisées dans ce lot
-                </p>
-              </div>
-            </div>
+              <div className="space-y-6">
+                {/* Property documents (PEB, conformité, etc.) */}
+                <PropertyDocumentsPanel
+                  entityType="lot"
+                  entityId={lot.id}
+                  teamId={teamId}
+                  slotConfigs={LOT_DOCUMENT_SLOTS}
+                />
 
-              <DocumentsSection
-                interventions={transformInterventionsForDocuments(interventionsWithDocs)}
-                loading={false}
-                emptyMessage="Aucun document trouvé"
-                emptyDescription="Aucune intervention avec documents n'a été réalisée dans ce lot."
-                onDocumentView={handleDocumentView}
-                onDocumentDownload={handleDocumentDownload}
-              />
+                {/* Intervention documents */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h2 className="text-lg font-medium text-foreground">Documents d&apos;intervention</h2>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Documents liés aux interventions réalisées dans ce lot
+                      </p>
+                    </div>
+                  </div>
+
+                  <DocumentsSection
+                    interventions={transformInterventionsForDocuments(interventionsWithDocs)}
+                    loading={false}
+                    emptyMessage="Aucun document trouvé"
+                    emptyDescription="Aucune intervention avec documents n'a été réalisée dans ce lot."
+                    onDocumentView={handleDocumentView}
+                    onDocumentDownload={handleDocumentDownload}
+                  />
+                </div>
+              </div>
             </TabContentWrapper>
 
             {/* Emails Tab */}

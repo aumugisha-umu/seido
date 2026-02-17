@@ -62,7 +62,7 @@ export const StepProgressHeader = ({
 
   return (
     <div className={`sticky ${topClass} z-50 bg-white border-b border-gray-200 shadow-sm`}>
-      <div className="content-max-width px-4 sm:px-6 h-16 grid grid-cols-3 items-center gap-4 relative overflow-hidden">
+      <div className="content-max-width px-4 sm:px-6 h-16 grid grid-cols-[auto_1fr_auto] items-center gap-4 relative overflow-hidden">
 
           {/* Left Column: Back Button */}
           <div className="flex items-center justify-start">
@@ -80,7 +80,7 @@ export const StepProgressHeader = ({
 
           {/* Center Column: Title + Badge (centered in its grid cell) */}
           <div className="flex items-center justify-center gap-2">
-            <h1 className="text-base sm:text-lg font-bold text-gray-900 whitespace-nowrap">
+            <h1 className="text-base sm:text-lg font-bold text-gray-900 truncate">
               {title}
             </h1>
             <Badge variant="secondary" className="flex lg:hidden flex-shrink-0 text-xs">

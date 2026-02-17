@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-16
-**Total Learnings:** 38
+**Last Updated:** 2026-02-18
+**Total Learnings:** 46
 
 ---
 
@@ -284,6 +284,64 @@
 **Example:** `components/intervention/finalization-modal-live.tsx:362` — useMemo `planning`
 **When to Use:** Any component displaying time slot confirmation status or counting proposed slots
 **Added:** 2026-02-16 | **Source:** Finalization modal Planning & Estimation fix
+
+### Planning & Documentation
+
+#### Learning #039: Verify codebase state BEFORE writing implementation plans
+**Problem:** The Stripe implementation plan referenced `ALTER TABLE subscriptions` and `createAdminSupabaseClient()` — but the `subscriptions` table doesn't exist yet (needs CREATE TABLE), and the admin client is actually `getSupabaseAdmin()` in `lib/services/core/supabase-admin.ts`. Email templates are in `emails/templates/` not `lib/email/templates/`. These mismatches would cause implementation failures.
+**Solution:** Before writing any implementation plan, run an Explore agent to verify: (1) actual table existence in DB/migrations, (2) actual function/export names in the codebase, (3) actual file paths for existing patterns (emails, services, etc.). Cross-reference `lib/database.types.ts`, `lib/services/index.ts`, and migration files.
+**Example:** `docs/stripe/2026-02-17-stripe-user-stories.md` — 11 corrections (C1-C11) identified during Ralph review
+**When to Use:** Any time you write an implementation plan that references existing codebase structures
+**Added:** 2026-02-17 | **Source:** Stripe subscription plan review (Ralph session)
+
+#### Learning #040: App-managed trial vs Stripe-managed trial — choose based on card requirement
+**Problem:** Stripe trials require a Subscription object, which requires either a payment method or `payment_method_collection=if_required`. If your product offers a trial with NO credit card at all, there's no Stripe Subscription to create during the trial period.
+**Solution:** Use app-managed trial: store `trial_end` timestamp in your own DB, use CRON jobs for notifications (J-7, J-3, J-1) and expiration. Create only a Stripe Customer at signup (no subscription). When user subscribes, create a fresh Stripe Subscription via Checkout. This is simpler and avoids Stripe's `trial_will_end` webhook (which never fires without a subscription).
+**Example:** `docs/stripe/2026-01-30-stripe-subscription-design.md` section 2.3 + 3.2
+**When to Use:** Any SaaS product offering a free trial without requiring a credit card at signup
+**Added:** 2026-02-17 | **Source:** Stripe subscription design — app-managed trial architecture decision
+
+#### Learning #041: Bulk INSERT bypasses business logic — use centralized service actions
+**Problem:** Lease-created interventions used a raw `supabase.from('intervention_assignments').insert(rows)` to create assignments. This only created DB rows — no conversation threads, no welcome messages, no group thread system messages, no participants added. The gestionnaire UI flow worked correctly because it called `assignUserAction()` which triggers the full `interventionService.assignUser()` pipeline.
+**Solution:** Never use raw INSERT for operations that have centralized business logic (service layer). Replace with the same action/service call used by the UI. Use `Promise.allSettled` (not `Promise.all`) so one failure doesn't block others.
+**Example:** `app/actions/intervention-actions.ts:335` — `assignUserAction()` replaces raw insert; `lib/services/domain/intervention-service.ts:611` — `assignUser()` now accepts `'locataire'` role
+**When to Use:** Any time a background/automated process creates data that the UI creates via a service — check if the service has side effects (threads, notifications, activity logs) that the raw INSERT would skip
+**Added:** 2026-02-17 | **Source:** Lease intervention assignments missing conversation threads
+
+#### Learning #042: XOR constraints make single-column queries miss half the data
+**Problem:** The `interventions` table has a XOR constraint (`building_id XOR lot_id`). Building-level interventions have `lot_id = NULL`. Querying `.in('lot_id', lotIds)` can never match NULL (SQL three-valued logic), so building-level interventions were invisible on the building detail page's "Interventions" tab.
+**Solution:** Use Supabase `.or()` to combine both sides of the XOR: `.or('building_id.eq.X,lot_id.in.(Y)')`. This captures building-level (lot_id IS NULL, building_id matches) AND lot-level (lot_id matches) interventions in a single query.
+**Example:** `lib/services/domain/intervention-service.ts` — `getByBuildingWithLots()` method
+**When to Use:** Any query on a table with XOR/mutually-exclusive foreign keys — always query BOTH sides of the constraint, not just one.
+**Added:** 2026-02-18 | **Source:** Building interventions tab showing 0 interventions
+
+#### Learning #043: Temporal dead zone — useState order matters with dependent hooks
+**Problem:** In the lot creation page, `useMultiLotDocumentUpload` used `lotData`, `lots`, and `independentLots` BEFORE their `useState` declarations. JavaScript's TDZ for `const`/`let` throws `ReferenceError` on access before declaration, causing the component to crash on mount.
+**Solution:** Any hook that depends on state values must be declared AFTER the `useState` hooks it reads. Unlike `var` (which hoists as `undefined`), `const`/`let` are uninitialized until execution reaches their declaration.
+**Example:** `app/gestionnaire/(no-navbar)/biens/lots/nouveau/page.tsx` — `useMultiLotDocumentUpload` moved after all 3 `useState` declarations
+**When to Use:** When adding hooks that reference component state — always verify declaration order
+**Added:** 2026-02-18 | **Source:** Code review fix — C1 critical build blocker
+
+#### Learning #044: Multi-lot creation — loop all successes, not just [0]
+**Problem:** In multi-lot creation, interventions and document uploads were only executed for `successfulCreations[0]` — the first created lot. All other lots silently missed interventions and had staged documents discarded.
+**Solution:** Always loop `for (const { lot, createdLot } of successfulCreations)` for post-creation side effects (interventions, document uploads, assignments).
+**Example:** `app/gestionnaire/(no-navbar)/biens/lots/nouveau/page.tsx` — both existing-building and independent branches
+**When to Use:** Any bulk creation flow where post-creation actions must apply to ALL created entities
+**Added:** 2026-02-18 | **Source:** Code review fix — H1+H2 multi-lot bugs
+
+#### Learning #045: Zod schema drift — always route raw input through validated data
+**Problem:** `expiryDate` was extracted from FormData and used directly in the DB insert, bypassing the Zod schema entirely. Any malformed date string would be written to the database.
+**Solution:** Add ALL user-provided fields to the Zod schema object. Use `validatedData.fieldName` in the DB insert, never the raw extracted value.
+**Example:** `app/api/upload-contract-document/route.ts` + `lib/validation/schemas.ts` — `expiryDate` now validated with regex pattern
+**When to Use:** When adding new fields to API routes — always extend the Zod schema AND use validated output
+**Added:** 2026-02-18 | **Source:** Code review fix — H4 validation bypass
+
+#### Learning #046: Verify DB constraints before "fixing" query patterns
+**Problem:** Code review identified per-lot interventions as missing `building_id`, suggesting a fix to add it. But the interventions table has a strict XOR constraint: `(building_id IS NOT NULL AND lot_id IS NULL) OR (building_id IS NULL AND lot_id IS NOT NULL)`. Adding both would violate the constraint and break inserts.
+**Solution:** Before changing any query or insert pattern on tables with CHECK constraints, read the migration SQL to verify the constraint definition. XOR constraints require querying BOTH sides with `.or()`, not storing both values.
+**Example:** `supabase/migrations/20251014134531_phase3_interventions_chat_system.sql` — `valid_intervention_location` CHECK
+**When to Use:** Whenever a code review suggests changing entity reference patterns — always verify the DB constraint first
+**Added:** 2026-02-18 | **Source:** Code review fix — C3 false positive dismissed
 
 ### Testing
 

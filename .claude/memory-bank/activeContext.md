@@ -1,59 +1,54 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Intervention Workflow Polish — 7 themes, 40 files (EN COURS, non-commité)
+**Objectif:** Code Review Fixes appliques — Property Documents + Interventions Step + Building Tab Fix
 **Branch:** `preview`
-**Sprint:** Multi-Team Support + Intervention Workflow + Compound Engineering (Jan-Feb 2026)
-**Derniere analyse:** Audit complet des 40 fichiers non-commités — 2026-02-16
+**Sprint:** Multi-Team Support + Intervention Workflow + Property Management Wizard (Jan-Feb 2026)
+**Derniere analyse:** Code review 5-agents, 3C+7H+2Q fixes — 2026-02-18
 
 ---
 
-## 🚧 EN COURS: Intervention Workflow Polish (40 files, non-commité)
+## ✅ COMPLETE: Code Review Fixes (2026-02-18)
 
-### Vue d'Ensemble
-Refactoring majeur du workflow intervention en 7 themes interconnectés :
+10 issues fixes, 1 dismissed (C3 false positive), 2 quick fixes:
 
-### Theme 1: Suppression `demande_de_devis` (COMPLET)
-Actions de devis basées sur `requires_quote` flag, pas sur un statut d'intervention.
-- **Files:** intervention-action-buttons.tsx, intervention-action-utils.ts, intervention-alert-utils.ts, intervention-action-styles.ts
+### Critical Fixes
+| ID | Issue | Fix |
+|----|-------|-----|
+| C1 | TDZ: useState used before declaration | Moved `useMultiLotDocumentUpload` after all useState hooks |
+| C2 | Duplicate imports (Badge, getLotCategoryConfig) | Removed duplicates + cleaned inline import() assertion |
+| C3 | Per-lot interventions missing building_id | **DISMISSED** — XOR constraint is strict, code correct |
 
-### Theme 2: Migration `approved` → `accepted` (COMPLET)
-DbQuoteStatus aligné sur le vrai enum DB (7 valeurs: draft, pending, sent, accepted, rejected, expired, cancelled).
-- **Files:** quote-status-mapper.ts, quote-card.tsx, integrated-quotes-*.tsx, intervention-preview.types.ts, quotes-card.tsx
+### High Fixes
+| ID | Issue | Fix |
+|----|-------|-----|
+| H1 | Multi-lot: interventions only for [0] | Loop ALL successfulCreations |
+| H2 | Multi-lot: docs staged but never uploaded | Added upload loop in both branches |
+| H3 | ContractDocument missing expiry_date | Added to interface + Insert + Update |
+| H4 | expiryDate bypasses Zod | Added to schema + routed through validatedData |
+| H5 | ResolvedLeaseInterventionTemplate fields | Added schedulingOptions + defaultSchedulingOption |
+| H6 | assignUser() missing gestionnaire check | Added role validation |
+| H7 | Unsafe `as` cast on assignments | Added VALID_ASSIGNMENT_ROLES filter |
 
-### Theme 3: Finalization-context API refactoring (COMPLET)
-Nested PostgREST select → 6 requêtes parallèles séparées (pattern AGENTS.md #004).
-- **Files:** finalization-context/route.ts
-
-### Theme 4: Quote submission simplification (COMPLET)
-Logique time slots retirée du formulaire de devis (-726 lignes). Time slots gérés via Planning tab.
-- **Files:** quote-submission-form.tsx, quote-submission-modal.tsx, intervention-quote-submit/route.ts
-
-### Theme 5: InterventionDetailsCard enrichi (COMPLET)
-Nouvelles props pour le prestataire (slot response, quote modal, pending slots, sections filter).
-- **Files:** intervention-details-card.tsx, intervention-preview.types.ts
-
-### Theme 6: Dashboard simplification (COMPLET)
-PendingActionsSection supprimé. Menu "Gérer devis" ajouté en list view.
-- **Files:** dashboards (3), interventions-list-view-v1.tsx, intervention-card.tsx
-
-### Theme 7: Quote modals + UI polish (COMPLET)
-QuoteApprovalModal/QuoteRejectionModal, UnifiedModalHeader badge prop, labels unifiés.
-- **Files:** detail-client (3 rôles), unified-modal, time-slot-utils, participants-row
-
-### Fix: Finalization Modal Planning (COMPLET)
-`'confirmed'` → `'selected'`, `selected_by_manager`, slot count filtering.
-
-### Nouveaux Learnings (AGENTS.md #035-#038)
-- #035: Time slot status 'selected' not 'confirmed'
-- #036: Quote actions must be flag-based, not status-based
-- #037: DB quote status is 'accepted' not 'approved'
-- #038: Separate queries for finalization-context API (RLS safety)
+### Quick Fixes
+- Q1: Trailing space "Immeuble " → "Immeuble"
+- Q2: Removed unused CUSTOM_DATE_OPTION export
 
 ---
 
-## ✅ COMPLETE: Voice Recorder + Documents + Reports Card (2026-02-12)
-[Collapsed — see progress.md for details]
+## ✅ COMPLETE: Property Documents + Interventions Step (2026-02-17)
+
+5-step creation wizard for buildings and lots:
+- Property document upload with slot configs and expiry dates
+- PropertyInterventionsStep component (building + lot creation)
+- 6 building templates + 2 lot templates + missing doc interventions
+- Multi-lot document upload hook with late-binding temp→real IDs
+
+---
+
+## ✅ COMPLETE: Intervention Workflow Polish (2026-02-16, committed)
+
+7 themes across 40 files: demande_de_devis→requires_quote, approved→accepted, finalization API, quote submission simplification, details card enrichment, dashboard simplification, quote modals.
 
 ---
 
@@ -75,31 +70,32 @@ demande -> rejetee (terminal)
 ### Quote Statuts (7 valeurs DB)
 ```
 draft -> pending -> sent -> accepted (terminal positif)
-                        -> rejected (terminal négatif)
+                        -> rejected (terminal negatif)
                         -> expired (terminal timeout)
-                        -> cancelled (terminal annulé)
+                        -> cancelled (terminal annule)
 ```
 
 ---
 
 ## Multi-Equipe - Etat Actuel
-Phases 5-11 complètes (voir progress.md).
+Phases 5-11 completes (voir progress.md).
 
 ---
 
 ## Prochaines Etapes
 
-### A faire immédiatement
-- [ ] Vérifier build complet (`npm run build`)
-- [ ] Commiter les 40 fichiers non-commités (git*)
+### A faire immediatement
+- [ ] Commiter les ~40 fichiers non-commites (git*)
+- [ ] Verifier build complet (`npm run build`) si demande
 
 ### Fonctionnalites a Venir
+- [ ] Stripe Subscription integration (36 user stories ready)
 - [ ] Google Maps Integration Phase 2-3
 - [ ] PPR activation quand Next.js canary disponible
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-02-16)
+## Metriques Systeme (Mise a jour 2026-02-18)
 
 | Composant | Valeur |
 |-----------|--------|
@@ -108,13 +104,13 @@ Phases 5-11 complètes (voir progress.md).
 | **API Routes** | **114** (10 domaines) |
 | **Pages** | **87** (5+ route groups) |
 | **Composants** | **362** |
-| **Hooks** | **68** |
+| **Hooks** | **70** (+2: use-property-document-upload, use-multi-lot-document-upload) |
 | **Services domain** | **33** |
 | **Repositories** | **19** |
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** (draft, pending, sent, accepted, rejected, expired, cancelled) |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **38** (+3) |
+| **AGENTS.md Learnings** | **46** (+4: TDZ hooks, multi-lot [0], Zod drift, verify constraints) |
 | **systemPatterns.md Patterns** | **29** |
 | **Shared Cards** | **15** |
 
@@ -124,22 +120,18 @@ Phases 5-11 complètes (voir progress.md).
 
 | Hash | Description |
 |------|-------------|
+| `64b747a` | feat(intervention-workflow): 7-theme polish — flag-based quotes, status alignment, finalization fix |
 | `d540064` | fix(planning-tab): fix layout overlap and reorder Planning before Estimation |
 | `cc750d3` | fix(quotes): bulk cancel all pending quotes when toggling off estimation |
-| `2d6c07b` | feat(intervention): voice recorder, document handlers, reports card + security migrations |
 
 ---
 
-*Derniere mise a jour: 2026-02-16 (audit complet 40 fichiers)*
-*Focus: Intervention Workflow Polish — 7 themes, prêt pour commit*
+*Derniere mise a jour: 2026-02-18 (code review fixes + compound + memory update)*
+*Focus: Code review fixes applied, ready for commit*
 
 ## Files Recently Modified
-### 2026-02-16 15:28:19 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/AGENTS.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/tasks/progress.txt`
+### 2026-02-17 23:49:12 (Auto-updated)
 - `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/techContext.md`
 - `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/systemPatterns.md`
-- `C:/Users/arthu/.claude/projects/C--Users-arthu-Desktop-Coding-Seido-app/memory/MEMORY.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/docs/learnings/2026-02-16-intervention-workflow-polish-retrospective.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/productContext.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/auto-memory/last-sync`

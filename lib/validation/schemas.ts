@@ -643,6 +643,7 @@ export const uploadContractDocumentSchema = z.object({
     'autre',
   ]).optional().default('autre'),
   description: z.string().max(2000).trim().optional(),
+  expiryDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD format').optional().nullable(),
 })
 
 /**

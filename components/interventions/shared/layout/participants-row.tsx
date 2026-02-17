@@ -36,7 +36,7 @@ import { useState, useCallback } from 'react'
 type UserRole = 'gestionnaire' | 'locataire' | 'prestataire' | 'admin'
 type ThreadType = 'group' | 'tenant_to_managers' | 'provider_to_managers'
 
-interface Participant {
+export interface Participant {
   id: string
   name: string
   email?: string
@@ -63,7 +63,7 @@ interface ParticipantsRowProps {
 }
 
 // Role colors following the existing design system
-const roleConfig = {
+export const roleConfig = {
   managers: {
     label: 'Gestionnaire',
     bgColor: 'bg-blue-100',
@@ -127,7 +127,7 @@ interface ParticipantChipProps {
   onChatClick?: () => void
 }
 
-const ParticipantChip = ({ participant, roleKey, showChatIcon, onChatClick }: ParticipantChipProps) => {
+export const ParticipantChip = ({ participant, roleKey, showChatIcon, onChatClick }: ParticipantChipProps) => {
   const config = roleConfig[roleKey]
   const hasAccount = participant.hasAccount !== false // default true for backwards compat
 

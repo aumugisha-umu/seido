@@ -82,11 +82,16 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 ### Phase 6 🚧 Performance & Polish (En cours)
 - [x] Auth API optimization (250+ calls → 1 per navigation)
 - [x] Infinite refresh loop fix (intervention detail page)
+- [x] **Property Documents** (upload with slot configs, expiry dates, multi-lot support)
+- [x] **Property Interventions Step** (5-step wizard for building/lot creation with scheduled interventions)
+- [x] **Intervention Workflow Polish** (7 themes: flag-based quotes, status alignment, finalization)
+- [x] **Code Review Fixes** (TDZ, multi-lot bugs, Zod validation, role checks)
+- [ ] Stripe Subscription integration (36 user stories ready)
 - [ ] Google Maps integration (AddressInput + Geocoding)
 - [ ] Dashboard analytics avancé
 
-### Métriques Infrastructure (2026-02-03)
-- **358 composants** (UI + dashboards + workflow)
+### Métriques Infrastructure (2026-02-18)
+- **362 composants** (UI + dashboards + workflow)
 - **61 hooks** custom
 - **22 repositories** + **32 domain services**
 - **113 API routes**

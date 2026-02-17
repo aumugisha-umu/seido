@@ -387,6 +387,38 @@ export class InterventionService {
   }
 
   /**
+   * Fetch ALL interventions related to a building: both building-level (lot_id IS NULL)
+   * and lot-level (lot_id IN lotIds). Uses Supabase .or() filter.
+   * Used by building detail page "Interventions" tab.
+   */
+  async getByBuildingWithLots(buildingId: string, lotIds: string[]) {
+    try {
+      const orFilter = lotIds.length > 0
+        ? `building_id.eq.${buildingId},lot_id.in.(${lotIds.join(',')})`
+        : `building_id.eq.${buildingId}`
+
+      const { data, error } = await this.interventionRepo.supabase
+        .from('interventions')
+        .select(`
+          *,
+          building:building_id(id, name, address_record:address_id(*)),
+          lot:lot_id(id, reference, category)
+        `)
+        .or(orFilter)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+
+      if (error) {
+        return createErrorResponse(handleError(error, 'interventions:getByBuildingWithLots'))
+      }
+
+      return createSuccessResponse(data || [])
+    } catch (error) {
+      return createErrorResponse(handleError(error, 'interventions:getByBuildingWithLots'))
+    }
+  }
+
+  /**
    * Get interventions by contract
    * Returns all interventions linked to a specific contract (bail)
    */
@@ -608,7 +640,7 @@ export class InterventionService {
   /**
    * Assign user to intervention
    */
-  async assignUser(interventionId: string, userId: string, role: 'gestionnaire' | 'prestataire', assignedBy: string) {
+  async assignUser(interventionId: string, userId: string, role: 'gestionnaire' | 'prestataire' | 'locataire', assignedBy: string) {
     try {
       // Validate intervention exists
       const intervention = await this.interventionRepo.findById(interventionId)
@@ -641,6 +673,22 @@ export class InterventionService {
         if (role === 'prestataire' && assigneeResult.data.role !== 'prestataire') {
           throw new ValidationException(
             'User must have provider role to be assigned as provider',
+            'interventions',
+            'role'
+          )
+        }
+
+        if (role === 'locataire' && assigneeResult.data.role !== 'locataire') {
+          throw new ValidationException(
+            'User must have tenant role to be assigned as tenant',
+            'interventions',
+            'role'
+          )
+        }
+
+        if (role === 'gestionnaire' && !['gestionnaire', 'admin'].includes(assigneeResult.data.role)) {
+          throw new ValidationException(
+            'User must have manager role to be assigned as manager',
             'interventions',
             'role'
           )

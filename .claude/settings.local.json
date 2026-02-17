@@ -38,7 +38,8 @@
       "WebFetch(domain:docs.stripe.com)",
       "WebFetch(domain:prateeksha.com)",
       "WebFetch(domain:www.kolide.com)",
-      "WebFetch(domain:www.brand-theory.com)"
+      "WebFetch(domain:www.brand-theory.com)",
+      "Bash(git log:*)"
     ],
     "deny": [],
     "ask": []

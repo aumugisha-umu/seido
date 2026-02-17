@@ -43,6 +43,8 @@ export interface ContractFileWithPreview {
   documentId?: string
   signedUrl?: string
   documentType: ContractDocumentType
+  /** Optional expiry date for documents with validity period */
+  expiryDate?: string
 }
 
 export interface UseContractUploadOptions {
@@ -181,6 +183,13 @@ export const useContractUpload = ({
     ))
   }, [])
 
+  // Set expiry date for a specific file
+  const setFileExpiryDate = useCallback((fileId: string, expiryDate: string | undefined) => {
+    setFiles(prev => prev.map(f =>
+      f.id === fileId ? { ...f, expiryDate } : f
+    ))
+  }, [])
+
   // Upload all pending files
   const uploadFiles = useCallback(async (overrideContractId?: string): Promise<string[]> => {
     const targetContractId = overrideContractId || contractId
@@ -218,6 +227,9 @@ export const useContractUpload = ({
           formData.append('contractId', targetContractId)
           formData.append('documentType', fileWithPreview.documentType)
           formData.append('description', `Document ${fileWithPreview.documentType} - ${fileWithPreview.file.name}`)
+          if (fileWithPreview.expiryDate) {
+            formData.append('expiryDate', fileWithPreview.expiryDate)
+          }
 
           const response = await fetch('/api/upload-contract-document', {
             method: 'POST',
@@ -320,6 +332,7 @@ export const useContractUpload = ({
     addFiles,
     removeFile,
     updateFileDocumentType,
+    setFileExpiryDate,
     uploadFiles,
     clearFiles,
     hasFiles: files.length > 0,

@@ -61,8 +61,34 @@
 - [x] **Property Documents + Interventions Step** (2026-02-17) - 5-step wizard for buildings/lots with document upload + intervention scheduling
 - [x] **Building Interventions Tab Fix** (2026-02-18) - XOR query pattern with `.or()` for building+lot interventions
 - [x] **Code Review Fixes (3C+7H+2Q)** (2026-02-18) - TDZ, multi-lot [0], Zod drift, role validation, type completeness
+- [x] **SEO Landing Page Optimization** (2026-02-19) - Score 52→78/100, 13 stories, JSON-LD schemas, FAQ structured data
+- [x] **Blog Section Complete** (2026-02-19) - 6 stories: lib/blog.ts, /blog index with filters, /blog/[slug] article pages, landing preview, navbar link, sitemap SEO
+- [x] **Blog Articles Published** (2026-02-19) - 2 articles on Belgian property management (Jan+Feb 2026 Le Cri), fully sourced with 45+ references
 
 ## Sprint Actuel (Jan-Feb 2026)
+
+### 2026-02-19 - Blog Section + SEO Articles (6 stories via Ralph)
+
+**Session: Full Blog Feature Implementation**
+
+| Story | Title | Files Created |
+|-------|-------|---------------|
+| US-001 | Blog utility library | `lib/blog.ts` |
+| US-002 | Blog article page | `app/blog/layout.tsx`, `app/blog/[slug]/page.tsx`, `components/blog/blog-markdown.tsx` |
+| US-003 | Blog index page | `app/blog/page.tsx`, `components/blog/blog-article-card.tsx`, `components/blog/blog-list-client.tsx` |
+| US-004 | Landing page blog section | Modified `app/page.tsx`, `components/landing/landing-page.tsx` |
+| US-005 | Navbar blog link | Modified `components/landing/landing-header.tsx`, `app/blog/layout.tsx` |
+| US-006 | Blog SEO sitemap | Modified `app/sitemap.ts` |
+
+**Key decisions:**
+- Pages over modals for SEO (individual URLs, JSON-LD, OG tags)
+- Server→Client boundary: `getLatestArticles()` in server parent, prop to client LandingPage
+- Layout consolidation: shared header/footer in `app/blog/layout.tsx`
+- `showBlogNav` prop on LandingHeader for blog navigation mode
+
+**Also this session:** 2 blog articles written, SEO-reviewed (Seven Sweeps), 45+ authoritative sources added
+
+---
 
 ### 2026-02-18 - Code Review Fixes (3 CRITICAL + 7 HIGH + 2 Quick)
 
@@ -442,16 +468,17 @@ Refactoring pour unifier l'expérience notifications entre web et PWA.
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-02-18)
+## Metriques Projet (2026-02-19)
 
 | Metrique | Valeur |
 |----------|--------|
 | Repositories | **19** |
 | Domain Services | **33** |
 | API Routes | **114** (10 domaines) |
-| Hooks | **70** (+2: use-property-document-upload, use-multi-lot-document-upload) |
-| Components | **362** |
-| Pages | **87** (5+ route groups) |
+| Hooks | **70** |
+| Components | **365** (+3 blog: blog-markdown, blog-article-card, blog-list-client) |
+| Pages | **89** (+2: blog index, blog article) |
+| Blog Articles | **2** (Jan 2026, Feb 2026) |
 | DB Tables | **44** |
 | DB Enums | 39 |
 | DB Functions | **79** |
@@ -515,6 +542,9 @@ Refactoring pour unifier l'expérience notifications entre web et PWA.
 | **2026-02-17** | **Property Documents + Interventions Step** | **5-step wizard with doc upload, intervention scheduling, multi-lot support** | **~15 fichiers, 2 new hooks, 2 new components, 2 constant files** |
 | **2026-02-18** | **Code Review Fixes (3C+7H+2Q)** | **TDZ, multi-lot [0], Zod drift, role validation, type completeness** | **9 fichiers, 4 learnings AGENTS.md (#043-#046), 1 false positive dismissed** |
 
+| **2026-02-19** | **SEO Landing Page Optimization** | **Score 52→78/100, JSON-LD schemas, FAQ structured data** | **13 stories, Title/meta/OG optimization** |
+| **2026-02-19** | **Blog Section Complete** | **Content marketing for SEO, article preview on landing** | **6 stories, 7 new files, 4 modified, gray-matter + react-markdown** |
+
 ---
-*Derniere mise a jour: 2026-02-18*
-*Session: Code review fixes + compound + memory bank update*
+*Derniere mise a jour: 2026-02-19*
+*Session: Blog section 6/6 + SEO articles + memory sync*

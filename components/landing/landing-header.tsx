@@ -27,6 +27,8 @@ export interface LandingHeaderProps {
   showNav?: boolean
   /** Afficher la navigation légale (CGU, Confidentialité, Cookies) */
   showLegalNav?: boolean
+  /** Afficher la navigation blog (Accueil, Tous les articles) */
+  showBlogNav?: boolean
   /** Classes CSS additionnelles */
   className?: string
 }
@@ -34,6 +36,7 @@ export interface LandingHeaderProps {
 export function LandingHeader({
   showNav = true,
   showLegalNav = false,
+  showBlogNav = false,
   className
 }: LandingHeaderProps) {
   const pathname = usePathname()
@@ -89,6 +92,12 @@ export function LandingHeader({
               >
                 FAQ
               </a>
+              <Link
+                href="/blog"
+                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+              >
+                Blog
+              </Link>
             </nav>
           )}
 
@@ -112,6 +121,29 @@ export function LandingHeader({
                   </Link>
                 )
               })}
+            </nav>
+          )}
+
+          {/* Navigation - Blog pages */}
+          {showBlogNav && (
+            <nav className="hidden md:flex items-center gap-6 flex-1 justify-center">
+              <Link
+                href="/"
+                className="text-sm font-medium text-white/70 hover:text-white transition-colors whitespace-nowrap leading-9"
+              >
+                Accueil
+              </Link>
+              <Link
+                href="/blog"
+                className={cn(
+                  'text-sm font-medium transition-colors whitespace-nowrap leading-9',
+                  pathname === '/blog'
+                    ? 'text-white border-b-2 border-blue-500 pb-1'
+                    : 'text-white/70 hover:text-white'
+                )}
+              >
+                Tous les articles
+              </Link>
             </nav>
           )}
 

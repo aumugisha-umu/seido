@@ -86,16 +86,19 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - [x] **Property Interventions Step** (5-step wizard for building/lot creation with scheduled interventions)
 - [x] **Intervention Workflow Polish** (7 themes: flag-based quotes, status alignment, finalization)
 - [x] **Code Review Fixes** (TDZ, multi-lot bugs, Zod validation, role checks)
+- [x] **SEO Landing Page Optimization** (score 52→78/100, JSON-LD, FAQ schema)
+- [x] **Blog Section** (landing preview, /blog index with filters, /blog/[slug] articles, sitemap SEO)
 - [ ] Stripe Subscription integration (36 user stories ready)
 - [ ] Google Maps integration (AddressInput + Geocoding)
 - [ ] Dashboard analytics avancé
 
-### Métriques Infrastructure (2026-02-18)
-- **362 composants** (UI + dashboards + workflow)
-- **61 hooks** custom
-- **22 repositories** + **32 domain services**
-- **113 API routes**
-- **155 migrations SQL**
+### Métriques Infrastructure (2026-02-19)
+- **365 composants** (UI + dashboards + workflow + blog)
+- **70 hooks** custom
+- **19 repositories** + **33 domain services**
+- **114 API routes**
+- **165 migrations SQL**
+- **2 blog articles** (SEO-optimized, sourced)
 
 ## Fonctionnalités Prévues
 - [ ] Google Maps integration - Priorité: Haute (Phase 2-3 restantes)
@@ -104,5 +107,5 @@ Les gestionnaires immobiliers passent 70-80% de leur temps en mode "pompier" :
 - [ ] Dashboard analytics avancé - Priorité: Haute
 
 ---
-*Dernière mise à jour: 2026-02-03*
+*Dernière mise à jour: 2026-02-19*
 *Références: docs/design/persona-gestionnaire-unifie.md, persona-prestataire.md, persona-locataire.md*

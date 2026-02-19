@@ -17,6 +17,7 @@
 | Caching | Redis + LRU | - |
 | Testing | Vitest + Playwright | - |
 | Email | Resend + React Email | 18 templates |
+| Blog/Markdown | gray-matter + react-markdown | remark-gfm, rehype-slug |
 
 ## Fichiers Cles
 
@@ -30,6 +31,8 @@
 | Repository de base | `lib/services/core/base-repository.ts` |
 | Notification actions | `app/actions/notification-actions.ts` |
 | Realtime context | `contexts/realtime-context.tsx` |
+| Blog utility | `lib/blog.ts` |
+| Blog articles | `blog/articles/*.md` |
 
 ## Commandes
 
@@ -57,8 +60,11 @@ npm run supabase:migrate # Creer nouvelle migration (avec timestamp correct)
 
 ```
 app/[role]/          # Routes par role (admin, gestionnaire, prestataire, locataire)
-  - 87 pages total (reparties en 5+ route groups)
+  - 89 pages total (reparties en 5+ route groups)
+app/blog/            # Blog pages (index + [slug] article pages)
+blog/articles/       # Markdown articles with YAML frontmatter
 components/          # 230+ composants reutilisables (22 directories)
+components/blog/     # Blog components (markdown, card, list-client)
 hooks/               # 66 custom hooks (+useDebounce, usePrefetch)
 lib/services/        # Architecture Repository Pattern
   core/              # Clients Supabase (4 types), base repository, error handler
@@ -320,6 +326,7 @@ type ConversationThreadType =
 | **NEXT_PUBLIC_GOOGLE_MAPS_API_KEY** | API Key Google Maps (a venir) |
 
 ---
-*Derniere mise a jour: 2026-02-03 18:30*
-*Analyse approfondie: 44 tables, 113 routes, 61 hooks, 87 pages, 155 migrations*
+*Derniere mise a jour: 2026-02-19*
+*Analyse approfondie: 44 tables, 114 routes, 70 hooks, 89 pages, 165 migrations*
+*Blog: 2 articles, gray-matter + react-markdown*
 *Regenerer types: npm run supabase:types*

@@ -8,9 +8,9 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import {
-    Building2, Users, Wrench, Home,
+    Building2, Wrench, Home,
     CheckCircle2, ArrowRight, Zap, Shield, BarChart3, Mail,
-    Sparkles, Globe, Smartphone, Clock, MessageSquare, TrendingUp,
+    Sparkles, Smartphone, Clock, MessageSquare, TrendingUp,
     FileText, AlertTriangle, Linkedin
 } from 'lucide-react'
 import { faq } from '@/data/faq'
@@ -19,6 +19,8 @@ import { Slider } from '@/components/ui/slider'
 import { DemoRequestForm } from './demo-request-form'
 import { LandingHeader } from './landing-header'
 import { PricingCards } from '@/components/pricing-cards'
+import { BlogArticleCard } from '@/components/blog/blog-article-card'
+import type { ArticleMeta } from '@/lib/blog'
 
 /**
  * VERSION 2 - MODERN PREMIUM
@@ -62,7 +64,11 @@ function FadeIn({ children, delay = 0, className = "" }: { children: React.React
     )
 }
 
-export function LandingPage() {
+interface LandingPageProps {
+    latestArticles?: ArticleMeta[]
+}
+
+export function LandingPage({ latestArticles = [] }: LandingPageProps) {
     const [showDemoModal, setShowDemoModal] = useState(false)
     const [lotCount, setLotCount] = useState(3)
 
@@ -111,12 +117,12 @@ export function LandingPage() {
                                 La gestion locative
                             </span>
                             <span className="block text-white">
-                                enfin sereine
+                                en toute sereinité
                             </span>
                         </h1>
 
                         <p className="landing-subtitle text-white/90 mb-6 md:mb-8 drop-shadow-lg max-w-2xl">
-                            Vos interventions sous contrôle. Vos locataires informés. Vos prestataires autonomes. <span className="font-bold">Vous, enfin libéré des relances.</span>
+                            Vos interventions centralisees, vos locataires informés, vos prestataires autonomes. <span className="font-bold">Gagnez jusqu'à 10h/semaine.</span>
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-4 mb-4 md:mb-6 max-w-2xl">
@@ -137,13 +143,13 @@ export function LandingPage() {
                         </div>
 
                         <p className="landing-caption text-white/50 mb-8 md:mb-10">
-                            Sans carte bancaire. Sans engagement. Setup en 10 minutes.
+                            
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mb-8 md:mb-10 max-w-2xl">
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
                                 <CheckCircle2 className="h-4 w-4 text-blue-300" />
-                                <span className="landing-caption text-white/80">Import CSV en 1 clic</span>
+                                <span className="landing-caption text-white/80">Import excel/csv</span>
                             </div>
                             <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 backdrop-blur-sm">
                                 <CheckCircle2 className="h-4 w-4 text-blue-300" />
@@ -158,25 +164,6 @@ export function LandingPage() {
                 </div>
             </section>
 
-            {/* Social Proof Bar */}
-            <section className="relative z-10 border-y border-white/10 bg-white/5 backdrop-blur-sm">
-                <div className="container mx-auto px-4 py-6">
-                    <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-12">
-                        <div className="flex items-center gap-2">
-                            <Users className="w-5 h-5 text-blue-400" />
-                            <span className="landing-caption text-white/70">Programme co-developpement <strong className="text-white">2026</strong> — gestionnaires belges</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Shield className="w-5 h-5 text-green-400" />
-                            <span className="landing-caption text-white/70">RGPD conforme — hebergement <strong className="text-white">Frankfurt (EU)</strong></span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Globe className="w-5 h-5 text-blue-400" />
-                            <span className="landing-caption text-white/70">Droit belge natif — <strong className="text-white">Bruxelles, Wallonie, Flandre</strong></span>
-                        </div>
-                    </div>
-                </div>
-            </section>
 
             {/* Combined Problem Section: Costs & Causes */}
             <section className="relative z-10 container mx-auto px-4 py-24">
@@ -184,7 +171,7 @@ export function LandingPage() {
                 <FadeIn>
                     <div className="text-center mb-12">
                         <h2 className="landing-h2 text-white mb-4">
-                            Le vrai coût d'une gestion locative sans outil
+                            Le vrai coût d'une gestion locative sans outil adapté
                         </h2>
                     </div>
                 </FadeIn >
@@ -226,7 +213,7 @@ export function LandingPage() {
                 <FadeIn>
                     <div className="max-w-4xl mx-auto text-center mb-12">
                         <h2 className="landing-h2 text-white mb-4">
-                            Gestion des interventions : là où ça se casse
+                            Gestion des interventions : là où ça coince
                         </h2>
                         <p className="landing-subtitle text-white/60">
                             Trois scénarios qui reviennent en boucle.
@@ -755,6 +742,49 @@ export function LandingPage() {
                     </FadeIn>
                 </div>
             </section >
+
+            {/* Blog Section — 3 Latest Articles */}
+            {latestArticles.length > 0 && (
+                <section id="blog" className="relative z-10 container mx-auto px-4 py-24">
+                    <FadeIn>
+                        <div className="text-center mb-12">
+                            <Badge className="mb-4 bg-purple-500/10 text-purple-300 border-purple-500/20 hover:bg-purple-500/10">
+                                <FileText className="w-3.5 h-3.5 mr-1.5" />
+                                Blog
+                            </Badge>
+                            <h2 className="landing-h2 text-white mb-4">
+                                Actualites gestion immobiliere Belgique
+                            </h2>
+                            <p className="landing-body text-white/60 max-w-2xl mx-auto">
+                                Analyses, decryptages et conseils pratiques pour gestionnaires immobiliers, proprietaires et syndics.
+                            </p>
+                        </div>
+                    </FadeIn>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl mx-auto mb-10">
+                        {latestArticles.map((article, i) => (
+                            <FadeIn key={article.slug} delay={i * 100}>
+                                <BlogArticleCard article={article} className="h-full" />
+                            </FadeIn>
+                        ))}
+                    </div>
+
+                    <FadeIn delay={300}>
+                        <div className="text-center">
+                            <Link href="/blog">
+                                <Button
+                                    variant="outline"
+                                    size="lg"
+                                    className="bg-transparent border-white/20 text-white hover:bg-white/10 hover:text-white rounded-full px-8"
+                                >
+                                    Voir tous les articles
+                                    <ArrowRight className="w-4 h-4 ml-2" />
+                                </Button>
+                            </Link>
+                        </div>
+                    </FadeIn>
+                </section>
+            )}
 
             {/* CTA Section */}
             < section className="relative z-10 container mx-auto px-4 py-32 text-center" >

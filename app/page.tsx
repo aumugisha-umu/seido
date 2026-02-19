@@ -2,12 +2,13 @@ import { LandingPage } from '@/components/landing'
 import { JsonLd } from '@/components/seo/json-ld'
 import type { Metadata } from 'next'
 import { faq } from '@/data/faq'
+import { getLatestArticles } from '@/lib/blog'
 
 export const metadata: Metadata = {
-  title: 'Gestion Locative Simplifiee — Gagnez 2h/jour | SEIDO',
+  title: 'Gestion Locative Simplifiee — Gagnez jusqu\'à 10h/semaine | SEIDO',
   description: 'SEIDO connecte gestionnaires, prestataires et locataires sur une seule plateforme. Interventions, documents, communication : tout au meme endroit. Essai gratuit.',
   openGraph: {
-    title: 'Gestion Locative Simplifiee — Gagnez 2h/jour | SEIDO',
+    title: 'Gestion Locative Simplifiee — Gagnez jusqu\'à 10h/semaine | SEIDO',
     description: 'SEIDO connecte gestionnaires, prestataires et locataires sur une seule plateforme. Interventions, documents, communication : tout au meme endroit. Essai gratuit.',
     images: ['/images/preview_image.webp'],
     type: 'website',
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Gestion Locative Simplifiee — Gagnez 2h/jour | SEIDO',
+      title: 'Gestion Locative Simplifiee — Gagnez jusqu\'à 10h/semaine | SEIDO',
     description: 'SEIDO connecte gestionnaires, prestataires et locataires sur une seule plateforme. Interventions, documents, communication : tout au meme endroit. Essai gratuit.',
     images: ['/images/preview_image.webp'],
   },
@@ -27,6 +28,9 @@ export const metadata: Metadata = {
 }
 
 export default function HomePage() {
+  // Server-side: read latest blog articles from filesystem
+  const latestArticles = getLatestArticles(3)
+
   return (
     <>
       <JsonLd
@@ -84,7 +88,7 @@ export default function HomePage() {
           ],
         }}
       />
-      <LandingPage />
+      <LandingPage latestArticles={latestArticles} />
     </>
   )
 }

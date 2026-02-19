@@ -39,7 +39,10 @@
       "WebFetch(domain:prateeksha.com)",
       "WebFetch(domain:www.kolide.com)",
       "WebFetch(domain:www.brand-theory.com)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "WebFetch(domain:skillsmp.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

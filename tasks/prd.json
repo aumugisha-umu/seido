@@ -1,229 +1,128 @@
 {
   "project": "SEIDO",
-  "featureName": "SEO/Copy/CRO Optimization: Landing Page + Auth",
+  "featureName": "Blog Section — Landing + Index + Article Pages",
   "branchName": "preview",
-  "description": "Audit initial 52/100 (Insuffisant). 18 BLOCKERs resolus (US-001 a US-008). Re-audit post-testimonials-removal: 66/100 (Acceptable). 10 WARNINGs identifies. Objectif : score >= 75/100. Focus: CTA harmonization, H2 keywords, GEO passages, entity density, LinkedIn/schema.",
+  "description": "Section blog complete : apercu 3 derniers articles sur landing page, page /blog avec liste filtrable, page /blog/[slug] avec rendu markdown stylise. Articles lus directement depuis blog/articles/*.md avec frontmatter YAML.",
   "createdAt": "2026-02-19",
-  "prdSource": "tasks/prd-seo-landing-auth.md",
+  "prdSource": "inline",
   "status": "completed",
   "userStories": [
     {
       "id": "US-001",
-      "title": "SEO Infrastructure: robots.ts, sitemap.ts, JsonLd component",
-      "description": "As a developer, I want technical SEO files (robots.ts, sitemap.ts, JsonLd component) so that search engines and AI crawlers can properly discover and index SEIDO pages",
+      "title": "Blog utility library (gray-matter + fs article parser)",
+      "description": "As a developer, I want a server-side utility that reads .md files from blog/articles/, parses YAML frontmatter with gray-matter, and exposes functions: getAllArticles(), getArticleBySlug(), getLatestArticles(n), getCategories(), getTags()",
       "acceptanceCriteria": [
-        "app/robots.ts exists with disallow /api/, /auth/, /dashboard/",
-        "app/sitemap.ts exists with homepage + legal pages",
-        "components/seo/json-ld.tsx exists with XSS-safe JSON-LD rendering",
-        "JsonLd component uses .replace(/</g, '\\u003c') for XSS prevention",
-        "Lint passes"
+        "gray-matter installed via npm",
+        "lib/blog.ts exports getAllArticles() returning sorted articles (newest first)",
+        "lib/blog.ts exports getArticleBySlug(slug) returning single article with parsed content",
+        "lib/blog.ts exports getLatestArticles(n) for landing page preview",
+        "Each article object contains: slug, title, date, author, category, tags, description, reading_time, content (raw markdown)",
+        "Lint passes (npm run lint)"
       ],
-      "priority": 1,
+      "priority": 2,
       "dependsOn": [],
       "sizing": "S",
       "passes": true,
-      "notes": "Created app/robots.ts (disallow api/auth/admin/role paths), fixed app/sitemap.ts (removed auth pages), created components/seo/json-ld.tsx with XSS-safe rendering."
+      "notes": "Created lib/blog.ts with 7 exports: getAllArticles, getArticleBySlug, getLatestArticles, getAllCategories, getAllTags, getAllSlugs + types ArticleMeta/Article. gray-matter + react-markdown installed."
     },
     {
       "id": "US-002",
-      "title": "Homepage Metadata: locale, canonical, alternates, JSON-LD, keywords cleanup",
-      "description": "As an SEO strategist, I want correct metadata on the homepage so that Google/AI Overviews show accurate rich results for SEIDO",
+      "title": "Blog article page (/blog/[slug]) with styled markdown rendering",
+      "description": "As a visitor, I want to read a full blog article on a dedicated page with beautiful markdown rendering (tables, headings, lists, blockquotes) matching the SEIDO dark theme design system",
       "acceptanceCriteria": [
-        "OG locale changed from fr_FR to fr_BE",
-        "keywords meta tag removed (deprecated since 2009)",
-        "alternates.canonical added pointing to https://www.seido-app.com",
-        "JSON-LD added: Organization + SoftwareApplication + FAQPage @graph",
-        "Title tag updated to include keyword + benefit + brand (50-60 chars)",
-        "Meta description updated with hook + solution + CTA (150-160 chars)",
-        "Lint passes"
+        "react-markdown installed via npm",
+        "app/blog/[slug]/page.tsx exists as Server Component",
+        "Page renders full article with styled markdown (headings, tables, lists, blockquotes, links)",
+        "Page has SEO metadata from frontmatter (title, description, OG tags)",
+        "Page includes JSON-LD Article schema",
+        "Page has breadcrumb navigation (Accueil > Blog > Article title)",
+        "Page uses SEIDO dark theme with glassmorphism consistent with legal pages",
+        "Tags displayed as Badge components",
+        "Back to blog link available",
+        "404 if slug not found",
+        "Lint passes (npm run lint)"
       ],
-      "priority": 1,
+      "priority": 3,
       "dependsOn": ["US-001"],
-      "sizing": "S",
+      "sizing": "M",
       "passes": true,
-      "notes": "Rewrote app/page.tsx: title with keyword+benefit+brand, description with hook+solution+CTA, locale fr_BE, removed keywords, added canonical, added JSON-LD @graph (Organization+SoftwareApplication+FAQPage from faq data)."
+      "notes": "Created app/blog/layout.tsx (dark theme + gradients), app/blog/[slug]/page.tsx (Server Component with generateStaticParams, generateMetadata, JSON-LD Article schema, breadcrumb, tags as Badge), components/blog/blog-markdown.tsx (client component with react-markdown + remark-gfm + rehype-slug + rehype-autolink-headings, 15 custom styled components for dark theme)."
     },
     {
       "id": "US-003",
-      "title": "Header CTA: 'Commencer' -> 'Essai gratuit' / 'Essayer gratuitement'",
-      "description": "As a visitor, I want a clear CTA in the header so that I understand the free trial offer without ambiguity",
+      "title": "Blog index page (/blog) with article cards + filters",
+      "description": "As a visitor, I want to browse all blog articles on /blog with category/tag filters and article cards showing title, description, date, reading time, tags",
       "acceptanceCriteria": [
-        "Desktop header CTA text changed to 'Essayer gratuitement'",
-        "Mobile header CTA text changed to 'Essai gratuit'",
-        "CTA still links to /auth/signup",
-        "Visual style preserved (gradient, sparkles icon)",
-        "Lint passes"
+        "app/blog/page.tsx exists as Server Component",
+        "Displays all articles as styled cards (title, description, date, reading_time, category, tags)",
+        "Filter by category (clickable category badges)",
+        "Filter by tag (clickable tag badges)",
+        "Articles sorted by date (newest first)",
+        "Each card links to /blog/[slug]",
+        "Page has SEO metadata (title, description)",
+        "Responsive grid: 1 col mobile, 2 cols tablet, 3 cols desktop",
+        "Empty state if no articles match filter",
+        "Lint passes (npm run lint)"
       ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "XS",
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
       "passes": true,
-      "notes": "Changed landing-header.tsx CTA text from 'Commencer'/'Essai' to 'Essayer gratuitement'/'Essai gratuit'. +104% CRO uplift per CXL data."
+      "notes": "Created 3 files: app/blog/page.tsx (Server Component, SEO metadata, Suspense skeleton), components/blog/blog-article-card.tsx (card with category badge, title, description, meta, tags preview), components/blog/blog-list-client.tsx (client component with search, category filter, tag filter, empty state, responsive grid)."
     },
     {
       "id": "US-004",
-      "title": "Hero Section: keyword in H1, micro-copy, social proof bar",
-      "description": "As a gestionnaire visiting the homepage, I want to immediately see what SEIDO does (keyword), social proof, and risk reversal so I feel confident to try",
+      "title": "Landing page blog section (3 latest articles preview)",
+      "description": "As a visitor on the landing page, I want to see a preview of the 3 latest blog articles so that I discover valuable content and am encouraged to visit the blog",
       "acceptanceCriteria": [
-        "H1 contains 'gestion locative' or 'gestion immobiliere' keyword",
-        "Micro-copy 'Sans carte bancaire. Sans engagement.' added directly under primary CTA",
-        "Social proof bar added between hero and problem section (e.g. '127+ agences' or trust metrics)",
-        "Hero subtitle retains existing quality messaging",
-        "Lint passes"
+        "New section added to landing-page.tsx between FAQ and CTA sections",
+        "Section displays 3 latest article cards (title, description, date, reading_time, category)",
+        "Each card links to /blog/[slug]",
+        "Section has H2 with keyword (e.g. 'Actualites gestion immobiliere Belgique')",
+        "CTA button 'Voir tous les articles' linking to /blog",
+        "Consistent dark theme styling with rest of landing page",
+        "Responsive: 1 col mobile, 3 cols desktop",
+        "Lint passes (npm run lint)"
       ],
-      "priority": 2,
-      "dependsOn": [],
+      "priority": 3,
+      "dependsOn": ["US-001"],
       "sizing": "S",
       "passes": true,
-      "notes": "H1 changed to 'La gestion locative / enfin sereine' (keyword in H1). Micro-copy added under CTA. Social proof bar added with trust signals (co-dev 2026, RGPD EU, marche belge)."
+      "notes": "Server-to-client data pattern: getLatestArticles(3) called in app/page.tsx (Server Component), passed as prop to LandingPage (Client Component). Blog section inserted between FAQ and CTA with FadeIn animations, BlogArticleCard reuse, responsive grid (1→3 cols), and 'Voir tous les articles' CTA button."
     },
     {
       "id": "US-005",
-      "title": "Testimonials E-E-A-T: real names or founder label",
-      "description": "As a visitor, I want to see credible testimonials with real attribution so I trust the social proof",
+      "title": "Navbar blog link + blog layout shared header/footer",
+      "description": "As a visitor, I want a 'Blog' link in the landing page navbar and a consistent header/footer on blog pages so I can navigate easily",
       "acceptanceCriteria": [
-        "Testimonials have real first names (can be pseudonymized) with role and company size",
-        "OR testimonials labeled as 'Programme Co-developpement 2026' with beta tester attribution",
-        "Star rating system replaced or complemented with credible attribution",
-        "Lint passes"
+        "Blog link added to landing-header.tsx desktop nav (between FAQ and auth buttons)",
+        "Blog link added to mobile nav menu",
+        "Blog pages (index + article) share consistent header with landing-header showBlogNav or similar",
+        "Blog pages have footer consistent with landing page",
+        "app/blog/layout.tsx provides shared layout wrapper",
+        "Lint passes (npm run lint)"
       ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "XS",
+      "priority": 3,
+      "dependsOn": ["US-002", "US-003"],
+      "sizing": "S",
       "passes": true,
-      "notes": "REVERTED: Testimonials section entirely removed per user request — fake testimonials harm E-E-A-T. Will add back with real testimonials when available."
+      "notes": "Added Blog link to landing-header desktop nav after FAQ. Created showBlogNav prop for blog pages with Accueil + Tous les articles links (active state on /blog). Moved LandingHeader into blog layout.tsx (shared across all blog pages). Moved footer to layout.tsx too — removed duplicate headers/footers from page.tsx and [slug]/page.tsx. Note: no mobile hamburger menu exists in the current design — all nav items use hidden md:flex pattern."
     },
     {
       "id": "US-006",
-      "title": "Footer: contact info, social links, trust signals",
-      "description": "As a visitor checking legitimacy, I want to see contact info and social links in the footer so I trust the company",
+      "title": "Blog SEO: sitemap entries + blog index in robots.ts",
+      "description": "As an SEO strategist, I want all blog article URLs in sitemap.ts and /blog allowed in robots.ts so that search engines discover and index blog content",
       "acceptanceCriteria": [
-        "Empty footer column replaced with company contact (email, phone +32)",
-        "LinkedIn link added",
-        "Trust badges added (RGPD, Hebergement EU, SSL)",
-        "Lint passes"
-      ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "Replaced empty footer column with Contact section (email, location Bruxelles, RGPD/EU badge)."
-    },
-    {
-      "id": "US-007",
-      "title": "CTA Consistency + Micro-copy: harmonize trial duration, CTA text, risk reversal",
-      "description": "As a visitor, I want consistent messaging about the free trial across all pages so I'm not confused",
-      "acceptanceCriteria": [
-        "Trial duration harmonized everywhere (choose 14 days or 1 month, apply consistently)",
-        "Signup CTA 'Creer mon compte' changed to 'Commencer mon essai gratuit'",
-        "Micro-copy 'Sans carte bancaire' added under signup CTA",
-        "Final CTA section consistent with pricing section messaging",
-        "Pricing cards CTA 'Demarrer mon essai gratuit' is consistent",
-        "Lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "Signup CTA changed to 'Commencer mon essai gratuit'. FAQ harmonized '14 jours' -> '1 mois' to match landing page. Pricing cards already say 'Demarrer mon essai gratuit' (consistent)."
-    },
-    {
-      "id": "US-008",
-      "title": "Auth Pages Metadata + noindex via robots.ts",
-      "description": "As an SEO strategist, I want auth pages properly handled by robots.ts and with basic metadata",
-      "acceptanceCriteria": [
-        "robots.ts disallow rule covers /auth/ path",
-        "Login page has metadata with title 'Connexion | SEIDO' and noindex",
-        "Signup page has metadata with title 'Inscription | SEIDO' and noindex",
-        "Lint passes"
+        "app/sitemap.ts updated to include /blog and all /blog/[slug] URLs dynamically",
+        "sitemap entries use article date as lastModified",
+        "robots.ts allows /blog path (not blocked)",
+        "Lint passes (npm run lint)"
       ],
       "priority": 3,
       "dependsOn": ["US-001"],
       "sizing": "XS",
       "passes": true,
-      "notes": "Added metadata exports with noindex/nofollow to login/page.tsx and signup/page.tsx. robots.ts already blocks /auth/."
-    },
-    {
-      "id": "US-009",
-      "title": "CTA verb harmonization across landing page",
-      "description": "As a visitor, I want consistent CTA wording across the entire landing page so that the messaging feels coherent and trustworthy",
-      "acceptanceCriteria": [
-        "Hero CTA changed from 'Tester gratuitement' to 'Essayer gratuitement' (match header)",
-        "Final CTA uses 'Essayer gratuitement' consistently",
-        "Pricing cards CTA remains 'Demarrer mon essai gratuit' (acceptable variant for pricing context)",
-        "Signup form CTA remains 'Commencer mon essai gratuit' (acceptable for form context)",
-        "Lint passes"
-      ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "Hero CTA 'Tester gratuitement' -> 'Essayer gratuitement'. Final CTA -> 'Essayer gratuitement — 1 mois offert'. Now 2 main verb families: 'Essayer' (landing CTAs) + 'Demarrer/Commencer' (pricing/signup forms)."
-    },
-    {
-      "id": "US-010",
-      "title": "Inject keywords into H2s + deduplicate 'Setup 10 min'",
-      "description": "As an SEO strategist, I want H2 headings to contain secondary keywords so that on-page SEO signals are stronger for AI crawlers",
-      "acceptanceCriteria": [
-        "At least 3 H2s contain secondary keywords (gestion locative, interventions, portail locataire, etc.)",
-        "H2s remain natural and readable (not keyword-stuffed)",
-        "Duplicate 'Setup en 10 minutes' removed from trust pills (keep in micro-copy only)",
-        "Trust pill replaced with alternative benefit text",
-        "Lint passes"
-      ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "4 H2s enriched with keywords: 'gestion locative sans outil', 'Gestion des interventions', 'Logiciel de gestion locative tout-en-un', 'Gestion locative SEIDO' (FAQ). Trust pill 'Setup en 10 min' replaced with 'Import CSV en 1 clic' to avoid duplication."
-    },
-    {
-      "id": "US-011",
-      "title": "Quantitative social proof + entity density boost",
-      "description": "As a visitor, I want to see concrete numbers and recognized institutions so that I trust SEIDO is real and established",
-      "acceptanceCriteria": [
-        "Social proof bar includes at least 1 quantitative metric",
-        "At least 5 recognized entities added across landing page (Federia, SNPC, APD, Supabase, etc.)",
-        "Total entity count reaches 15+",
-        "Lint passes"
-      ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "Social proof bar enriched with entities (gestionnaires belges, Frankfurt EU, Bruxelles/Wallonie/Flandre). Import section adds Smovin/Rentila/APD entities. Stats source now cites Federia/IPI. Total entities now 15+: SEIDO, Belgique, Bruxelles, Wallonie, Flandre, Frankfurt, EU, RGPD, APD, Federia, IPI, Supabase, Smovin, Rentila, CSV, Excel, EUR."
-    },
-    {
-      "id": "US-012",
-      "title": "Enrich FAQ answers into GEO-citable passages (134-167 words)",
-      "description": "As an SEO strategist, I want FAQ answers to be 134-167 words (citable passage length) so that AI crawlers can extract and cite them in AI Overviews",
-      "acceptanceCriteria": [
-        "At least 3 FAQ answers expanded to 134-167 words",
-        "Each enriched answer is self-contained (answers the question completely)",
-        "Each enriched answer contains at least 1 statistic or concrete metric",
-        "Existing FAQ quality preserved (clear, jargon-free)",
-        "Lint passes"
-      ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "notes": "3 FAQ answers expanded to 134-167 words: FAQ 1 (RGPD, ~148 words, entities APD/Supabase/Frankfurt/Bruxelles/Wallonie/Flandre), FAQ 3 (Deploy, ~145 words, entities SEIDO/CSV), FAQ 7 (Pricing, ~150 words, metrics 5EUR/50EUR/90 days). Each is self-contained with direct assertion + explanation + metric + implication."
-    },
-    {
-      "id": "US-013",
-      "title": "LinkedIn footer link + sameAs in JSON-LD schema",
-      "description": "As a visitor checking legitimacy, I want to see social media links so that I can verify SEIDO is a real company",
-      "acceptanceCriteria": [
-        "LinkedIn icon + link added to footer contact section",
-        "Organization schema includes sameAs with LinkedIn URL",
-        "Lint passes"
-      ],
-      "priority": 3,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "notes": "Added Linkedin icon + link in footer contact section. Added sameAs: ['https://www.linkedin.com/company/seido-app'] in Organization JSON-LD schema (app/page.tsx)."
+      "notes": "Updated app/sitemap.ts: added /blog (priority 0.8, weekly) and dynamic /blog/[slug] entries from getAllArticles() (priority 0.7, monthly, lastModified from article date). robots.ts already allows /blog via allow: '/' — no changes needed."
     }
   ]
 }

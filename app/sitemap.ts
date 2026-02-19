@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next'
+import { getAllArticles } from '@/lib/blog'
 
 /**
  * Sitemap dynamique pour SEIDO
@@ -12,6 +13,15 @@ import { MetadataRoute } from 'next'
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = 'https://www.seido-app.com'
 
+  // Dynamic blog article entries
+  const articles = getAllArticles()
+  const blogEntries: MetadataRoute.Sitemap = articles.map((article) => ({
+    url: `${baseUrl}/blog/${article.slug}`,
+    lastModified: new Date(article.date),
+    changeFrequency: 'monthly' as const,
+    priority: 0.7,
+  }))
+
   return [
     // Page d'accueil (landing)
     {
@@ -20,6 +30,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'weekly',
       priority: 1,
     },
+    // Blog index
+    {
+      url: `${baseUrl}/blog`,
+      lastModified: new Date(),
+      changeFrequency: 'weekly',
+      priority: 0.8,
+    },
+    // Blog articles (dynamic)
+    ...blogEntries,
     // Pages legales
     {
       url: `${baseUrl}/conditions-generales`,

@@ -1,54 +1,43 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Code Review Fixes appliques — Property Documents + Interventions Step + Building Tab Fix
+**Objectif:** Blog Section complete (6 stories) + SEO Landing page improvements
 **Branch:** `preview`
-**Sprint:** Multi-Team Support + Intervention Workflow + Property Management Wizard (Jan-Feb 2026)
-**Derniere analyse:** Code review 5-agents, 3C+7H+2Q fixes — 2026-02-18
+**Sprint:** Blog + SEO + Multi-Team Support (Feb 2026)
+**Derniere analyse:** Blog feature 6/6 stories done, ready to commit — 2026-02-19
 
 ---
 
-## ✅ COMPLETE: Code Review Fixes (2026-02-18)
+## ✅ COMPLETE: Blog Section — Landing + Index + Article Pages (2026-02-19)
 
-10 issues fixes, 1 dismissed (C3 false positive), 2 quick fixes:
+Full blog feature via Ralph methodology (6 user stories):
 
-### Critical Fixes
-| ID | Issue | Fix |
-|----|-------|-----|
-| C1 | TDZ: useState used before declaration | Moved `useMultiLotDocumentUpload` after all useState hooks |
-| C2 | Duplicate imports (Badge, getLotCategoryConfig) | Removed duplicates + cleaned inline import() assertion |
-| C3 | Per-lot interventions missing building_id | **DISMISSED** — XOR constraint is strict, code correct |
+| Story | Title | Files |
+|-------|-------|-------|
+| US-001 | Blog utility library (gray-matter + fs parser) | `lib/blog.ts` |
+| US-002 | Blog article page `/blog/[slug]` | `app/blog/[slug]/page.tsx`, `app/blog/layout.tsx`, `components/blog/blog-markdown.tsx` |
+| US-003 | Blog index page `/blog` with filters | `app/blog/page.tsx`, `components/blog/blog-article-card.tsx`, `components/blog/blog-list-client.tsx` |
+| US-004 | Landing page blog section (3 latest) | `app/page.tsx`, `components/landing/landing-page.tsx` |
+| US-005 | Navbar blog link + shared header/footer | `components/landing/landing-header.tsx`, `app/blog/layout.tsx` |
+| US-006 | Blog SEO: sitemap + robots | `app/sitemap.ts` |
 
-### High Fixes
-| ID | Issue | Fix |
-|----|-------|-----|
-| H1 | Multi-lot: interventions only for [0] | Loop ALL successfulCreations |
-| H2 | Multi-lot: docs staged but never uploaded | Added upload loop in both branches |
-| H3 | ContractDocument missing expiry_date | Added to interface + Insert + Update |
-| H4 | expiryDate bypasses Zod | Added to schema + routed through validatedData |
-| H5 | ResolvedLeaseInterventionTemplate fields | Added schedulingOptions + defaultSchedulingOption |
-| H6 | assignUser() missing gestionnaire check | Added role validation |
-| H7 | Unsafe `as` cast on assignments | Added VALID_ASSIGNMENT_ROLES filter |
-
-### Quick Fixes
-- Q1: Trailing space "Immeuble " → "Immeuble"
-- Q2: Removed unused CUSTOM_DATE_OPTION export
+**Key patterns:**
+- Server→Client data boundary: `getLatestArticles(3)` in server parent → prop to client LandingPage
+- Layout consolidation: header + footer in `app/blog/layout.tsx` (DRY)
+- Dynamic sitemap: `getAllArticles()` auto-discovers new `.md` files
+- 2 articles published: Jan 2026, Feb 2026 (Belgian property management)
 
 ---
 
-## ✅ COMPLETE: Property Documents + Interventions Step (2026-02-17)
+## ✅ COMPLETE: SEO Landing Page Optimization (2026-02-19, committed)
 
-5-step creation wizard for buildings and lots:
-- Property document upload with slot configs and expiry dates
-- PropertyInterventionsStep component (building + lot creation)
-- 6 building templates + 2 lot templates + missing doc interventions
-- Multi-lot document upload hook with late-binding temp→real IDs
+13 stories: Score 52 → 78/100. Title/meta optimized, JSON-LD schemas, FAQ structured data.
 
 ---
 
-## ✅ COMPLETE: Intervention Workflow Polish (2026-02-16, committed)
+## ✅ COMPLETE: Code Review Fixes (2026-02-18, committed)
 
-7 themes across 40 files: demande_de_devis→requires_quote, approved→accepted, finalization API, quote submission simplification, details card enrichment, dashboard simplification, quote modals.
+10 issues fixed (3C+7H+2Q): TDZ, multi-lot [0], Zod drift, role validation.
 
 ---
 
@@ -85,34 +74,37 @@ Phases 5-11 completes (voir progress.md).
 ## Prochaines Etapes
 
 ### A faire immediatement
-- [ ] Commiter les ~40 fichiers non-commites (git*)
+- [ ] Commiter blog feature + SEO articles (~15 fichiers non-commites)
 - [ ] Verifier build complet (`npm run build`) si demande
 
 ### Fonctionnalites a Venir
 - [ ] Stripe Subscription integration (36 user stories ready)
 - [ ] Google Maps Integration Phase 2-3
+- [ ] More blog articles (content marketing pipeline)
 - [ ] PPR activation quand Next.js canary disponible
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-02-18)
+## Metriques Systeme (Mise a jour 2026-02-19)
 
 | Composant | Valeur |
 |-----------|--------|
 | **Tables DB** | **44** |
 | **Migrations** | **165** |
 | **API Routes** | **114** (10 domaines) |
-| **Pages** | **87** (5+ route groups) |
-| **Composants** | **362** |
-| **Hooks** | **70** (+2: use-property-document-upload, use-multi-lot-document-upload) |
+| **Pages** | **89** (+2: blog index, blog article) |
+| **Composants** | **365** (+3: blog-markdown, blog-article-card, blog-list-client) |
+| **Hooks** | **70** |
 | **Services domain** | **33** |
 | **Repositories** | **19** |
+| **Libs** | +1: `lib/blog.ts` (blog article parser) |
 | Statuts intervention | 9 |
-| Statuts devis (DB enum) | **7** (draft, pending, sent, accepted, rejected, expired, cancelled) |
+| Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **46** (+4: TDZ hooks, multi-lot [0], Zod drift, verify constraints) |
+| **AGENTS.md Learnings** | **46** |
 | **systemPatterns.md Patterns** | **29** |
 | **Shared Cards** | **15** |
+| **Blog articles** | **2** (Jan 2026, Feb 2026) |
 
 ---
 
@@ -120,18 +112,19 @@ Phases 5-11 completes (voir progress.md).
 
 | Hash | Description |
 |------|-------------|
+| `eb0aa6f` | feat(seo): landing page SEO/CRO optimization — score 52 to 78/100 (13 stories) |
+| `92ca002` | feat(property-wizard): 5-step creation with documents, interventions + code review fixes (3C+7H+2Q) |
 | `64b747a` | feat(intervention-workflow): 7-theme polish — flag-based quotes, status alignment, finalization fix |
-| `d540064` | fix(planning-tab): fix layout overlap and reorder Planning before Estimation |
-| `cc750d3` | fix(quotes): bulk cancel all pending quotes when toggling off estimation |
 
 ---
 
-*Derniere mise a jour: 2026-02-18 (code review fixes + compound + memory update)*
-*Focus: Code review fixes applied, ready for commit*
+*Derniere mise a jour: 2026-02-19 (blog section complete, sync-memory)*
+*Focus: Blog feature 6/6, ready to commit*
 
 ## Files Recently Modified
-### 2026-02-17 23:49:12 (Auto-updated)
+### 2026-02-19 22:32:34 (Auto-updated)
 - `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/techContext.md`
 - `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/productContext.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/auto-memory/last-sync`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`
+- `C:/Users/arthu/.claude/projects/C--Users-arthu-Desktop-Coding-Seido-app/memory/MEMORY.md`

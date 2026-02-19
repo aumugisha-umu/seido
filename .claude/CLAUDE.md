@@ -318,6 +318,11 @@ L'agent orchestre ensuite les agents specialises selon la matrice de delegation
 | Feature multi-domaines | `sp-writing-plans` + `sp-dispatching-parallel-agents` |
 | Avant commit / "git*" | `sp-quality-gate` (AVANT le git add/commit) |
 | Feature completee / mergee | `sp-compound` (capitaliser les learnings) |
+| **Redaction texte site/app** | **`seo-strategist`** (brief) → **`seo-copywriter`** (redaction) → **`seo-reviewer`** (quality gate) |
+| **Nouveau contenu marketing** | `seo-strategist` (analyse concurrence + brief SEO) → `seo-copywriter` |
+| **Microcopy/notifications/emails** | `seo-copywriter` (redaction) → `seo-reviewer` (persona-fit check) |
+| **Audit SEO page existante** | `seo-strategist` (audit technique + E-E-A-T) |
+| **Review contenu avant publication** | `seo-reviewer` (Seven Sweeps + score 0-100) |
 
 ### Patterns d'Orchestration
 
@@ -343,6 +348,14 @@ sp-quality-gate → sp-verification-before-completion → sp-compound
 sp-ralph (PRD + stories) →
 sp-dispatching-parallel-agents → [agents use sp-tdd] →
 sp-quality-gate → sp-verification-before-completion → sp-compound
+```
+
+**Chain: SEO Content (site + app)**
+```
+seo-strategist (analyse concurrence + brief SEO) →
+seo-copywriter (redaction FR/EN/NL, persona-adapted) →
+seo-reviewer (Seven Sweeps + persona-fit + score 0-100) →
+[score >= 75] → Publication | [score < 75] → Retour copywriter
 ```
 
 ---

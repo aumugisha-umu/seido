@@ -1,107 +1,229 @@
 {
   "project": "SEIDO",
-  "featureName": "Interventions planifiées pour Immeubles & Lots",
+  "featureName": "SEO/Copy/CRO Optimization: Landing Page + Auth",
   "branchName": "preview",
-  "description": "Ajouter une étape Interventions dans les flux de création d'immeuble et de lot, avec templates d'interventions techniques récurrentes, dates dynamiques basées sur l'échéance des documents, et assignation de contacts. Réutilise InterventionScheduleRow et ContactSelector existants.",
-  "createdAt": "2026-02-17",
-  "prdSource": "tasks/prd-property-interventions.md",
+  "description": "Audit initial 52/100 (Insuffisant). 18 BLOCKERs resolus (US-001 a US-008). Re-audit post-testimonials-removal: 66/100 (Acceptable). 10 WARNINGs identifies. Objectif : score >= 75/100. Focus: CTA harmonization, H2 keywords, GEO passages, entity density, LinkedIn/schema.",
+  "createdAt": "2026-02-19",
+  "prdSource": "tasks/prd-seo-landing-auth.md",
   "status": "completed",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Créer les templates d'interventions immeuble/lot",
-      "description": "As a developer, I want property intervention templates (property-interventions.ts) so that the UI can display recommended interventions with scheduling options for buildings and lots",
+      "title": "SEO Infrastructure: robots.ts, sitemap.ts, JsonLd component",
+      "description": "As a developer, I want technical SEO files (robots.ts, sitemap.ts, JsonLd component) so that search engines and AI crawlers can properly discover and index SEIDO pages",
       "acceptanceCriteria": [
-        "PropertyInterventionTemplate type defined with document link and dynamic date support",
-        "BUILDING_INTERVENTION_TEMPLATES has 6 templates (chaudière, ascenseur, incendie, PEB, nettoyage, espaces verts)",
-        "LOT_INTERVENTION_TEMPLATES has 2 templates (chaudière, PEB)",
-        "LOT_IN_BUILDING_INTERVENTION_TEMPLATES is empty (only missing docs generate interventions)",
-        "createMissingPropertyDocumentIntervention() generates interventions for missing documents",
-        "generatePropertyInterventions() accepts entity type, creation date, document expiry dates, and missing documents",
-        "Each template has schedulingOptions with document-expiry-based options when applicable",
+        "app/robots.ts exists with disallow /api/, /auth/, /dashboard/",
+        "app/sitemap.ts exists with homepage + legal pages",
+        "components/seo/json-ld.tsx exists with XSS-safe JSON-LD rendering",
+        "JsonLd component uses .replace(/</g, '\\u003c') for XSS prevention",
         "Lint passes"
       ],
       "priority": 1,
       "dependsOn": [],
-      "sizing": "M",
+      "sizing": "S",
       "passes": true,
-      "notes": "Created lib/constants/property-interventions.ts — 6 building templates, 2 lot templates, empty lot_in_building. Dynamic expiry-based scheduling options. Missing doc generator."
+      "notes": "Created app/robots.ts (disallow api/auth/admin/role paths), fixed app/sitemap.ts (removed auth pages), created components/seo/json-ld.tsx with XSS-safe rendering."
     },
     {
       "id": "US-002",
-      "title": "Créer le composant PropertyInterventionsStep générique",
-      "description": "As a gestionnaire, I want an interventions step in the building/lot creation wizard so I can plan technical follow-ups when creating a property",
+      "title": "Homepage Metadata: locale, canonical, alternates, JSON-LD, keywords cleanup",
+      "description": "As an SEO strategist, I want correct metadata on the homepage so that Google/AI Overviews show accurate rich results for SEIDO",
       "acceptanceCriteria": [
-        "PropertyInterventionsStep component accepts entityType ('building' | 'lot' | 'lot_in_building'), teamId, availableContacts, missingDocuments, documentExpiryDates",
-        "Renders standard interventions and missing document interventions (separated by Separator)",
-        "Toggle, date change, scheduling option change, and contact assignment work (same as LeaseInterventionsStep)",
-        "Uses InterventionScheduleRow (no modifications needed)",
-        "Uses ContactSelector with hideUI pattern for assignments",
-        "Header adapts title based on entity type",
+        "OG locale changed from fr_FR to fr_BE",
+        "keywords meta tag removed (deprecated since 2009)",
+        "alternates.canonical added pointing to https://www.seido-app.com",
+        "JSON-LD added: Organization + SoftwareApplication + FAQPage @graph",
+        "Title tag updated to include keyword + benefit + brand (50-60 chars)",
+        "Meta description updated with hook + solution + CTA (150-160 chars)",
         "Lint passes"
       ],
-      "priority": 2,
+      "priority": 1,
       "dependsOn": ["US-001"],
-      "sizing": "M",
+      "sizing": "S",
       "passes": true,
-      "notes": "Created components/property-interventions-step.tsx — reuses InterventionScheduleRow + ContactSelector hideUI pattern. Handles toggle/date/scheduling/assignment."
+      "notes": "Rewrote app/page.tsx: title with keyword+benefit+brand, description with hook+solution+CTA, locale fr_BE, removed keywords, added canonical, added JSON-LD @graph (Organization+SoftwareApplication+FAQPage from faq data)."
     },
     {
       "id": "US-003",
-      "title": "Intégrer l'étape Interventions dans la création d'immeuble",
-      "description": "As a gestionnaire, I want the building creation wizard to include an Interventions step after Contacts & Documents so I can plan maintenance when creating a building",
+      "title": "Header CTA: 'Commencer' -> 'Essai gratuit' / 'Essayer gratuitement'",
+      "description": "As a visitor, I want a clear CTA in the header so that I understand the free trial offer without ambiguity",
       "acceptanceCriteria": [
-        "buildingSteps updated to 5 steps: Info → Lots → Contacts & Docs → Interventions → Confirmation",
-        "Step 4 renders PropertyInterventionsStep with entityType='building'",
-        "Document expiry dates from buildingDocUpload are passed to the interventions step",
-        "Missing recommended building documents generate 'Récupérer' interventions",
-        "Confirmation step (now step 5) still works correctly",
-        "Navigation (next/back) works for all 5 steps",
+        "Desktop header CTA text changed to 'Essayer gratuitement'",
+        "Mobile header CTA text changed to 'Essai gratuit'",
+        "CTA still links to /auth/signup",
+        "Visual style preserved (gradient, sparkles icon)",
         "Lint passes"
       ],
-      "priority": 3,
-      "dependsOn": ["US-002"],
-      "sizing": "M",
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
       "passes": true,
-      "notes": "Integrated into building-creation-form.tsx: step 4 = interventions, step 5 = confirmation. Passes missingRecommendedTypes + expiry dates."
+      "notes": "Changed landing-header.tsx CTA text from 'Commencer'/'Essai' to 'Essayer gratuitement'/'Essai gratuit'. +104% CRO uplift per CXL data."
     },
     {
       "id": "US-004",
-      "title": "Créer les interventions en DB à la soumission (immeuble)",
-      "description": "As a gestionnaire, I want enabled interventions to be created in the database when I submit the building creation form",
+      "title": "Hero Section: keyword in H1, micro-copy, social proof bar",
+      "description": "As a gestionnaire visiting the homepage, I want to immediately see what SEIDO does (keyword), social proof, and risk reversal so I feel confident to try",
       "acceptanceCriteria": [
-        "After building + lots created, enabled interventions with dates are created via createInterventionAction",
-        "Building-level interventions use the building's first lot's ID (or building_id if supported)",
-        "Per-lot interventions (missing docs) use the corresponding lot_id",
-        "Assignments are passed to createInterventionAction",
-        "Failed intervention creation doesn't block building creation (Promise.allSettled)",
-        "Success/failure counts are logged",
+        "H1 contains 'gestion locative' or 'gestion immobiliere' keyword",
+        "Micro-copy 'Sans carte bancaire. Sans engagement.' added directly under primary CTA",
+        "Social proof bar added between hero and problem section (e.g. '127+ agences' or trust metrics)",
+        "Hero subtitle retains existing quality messaging",
         "Lint passes"
       ],
-      "priority": 3,
-      "dependsOn": ["US-003"],
+      "priority": 2,
+      "dependsOn": [],
       "sizing": "S",
       "passes": true,
-      "notes": "Added intervention creation to building handleFinish via Promise.allSettled + useServiceRole."
+      "notes": "H1 changed to 'La gestion locative / enfin sereine' (keyword in H1). Micro-copy added under CTA. Social proof bar added with trust signals (co-dev 2026, RGPD EU, marche belge)."
     },
     {
       "id": "US-005",
-      "title": "Intégrer l'étape Interventions dans la création de lot",
-      "description": "As a gestionnaire, I want the lot creation wizard to include an Interventions step so I can plan maintenance when creating a standalone lot",
+      "title": "Testimonials E-E-A-T: real names or founder label",
+      "description": "As a visitor, I want to see credible testimonials with real attribution so I trust the social proof",
       "acceptanceCriteria": [
-        "lotSteps updated to 5 steps: Immeuble → Lot → Contacts & Docs → Interventions → Confirmation",
-        "Step 4 renders PropertyInterventionsStep with correct entityType (lot or lot_in_building)",
-        "Document expiry dates from lot doc upload are passed",
-        "Missing recommended lot documents generate 'Récupérer' interventions",
-        "Interventions created in DB on submission (same pattern as US-004)",
-        "Navigation works for all 5 steps",
+        "Testimonials have real first names (can be pseudonymized) with role and company size",
+        "OR testimonials labeled as 'Programme Co-developpement 2026' with beta tester attribution",
+        "Star rating system replaced or complemented with credible attribution",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "REVERTED: Testimonials section entirely removed per user request — fake testimonials harm E-E-A-T. Will add back with real testimonials when available."
+    },
+    {
+      "id": "US-006",
+      "title": "Footer: contact info, social links, trust signals",
+      "description": "As a visitor checking legitimacy, I want to see contact info and social links in the footer so I trust the company",
+      "acceptanceCriteria": [
+        "Empty footer column replaced with company contact (email, phone +32)",
+        "LinkedIn link added",
+        "Trust badges added (RGPD, Hebergement EU, SSL)",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Replaced empty footer column with Contact section (email, location Bruxelles, RGPD/EU badge)."
+    },
+    {
+      "id": "US-007",
+      "title": "CTA Consistency + Micro-copy: harmonize trial duration, CTA text, risk reversal",
+      "description": "As a visitor, I want consistent messaging about the free trial across all pages so I'm not confused",
+      "acceptanceCriteria": [
+        "Trial duration harmonized everywhere (choose 14 days or 1 month, apply consistently)",
+        "Signup CTA 'Creer mon compte' changed to 'Commencer mon essai gratuit'",
+        "Micro-copy 'Sans carte bancaire' added under signup CTA",
+        "Final CTA section consistent with pricing section messaging",
+        "Pricing cards CTA 'Demarrer mon essai gratuit' is consistent",
         "Lint passes"
       ],
       "priority": 3,
-      "dependsOn": ["US-002"],
-      "sizing": "M",
+      "dependsOn": [],
+      "sizing": "S",
       "passes": true,
-      "notes": "Integrated into lot creation page.tsx: 3 creation modes all create interventions. entityType adapts to lot vs lot_in_building. createInterventionsForLot helper avoids duplication."
+      "notes": "Signup CTA changed to 'Commencer mon essai gratuit'. FAQ harmonized '14 jours' -> '1 mois' to match landing page. Pricing cards already say 'Demarrer mon essai gratuit' (consistent)."
+    },
+    {
+      "id": "US-008",
+      "title": "Auth Pages Metadata + noindex via robots.ts",
+      "description": "As an SEO strategist, I want auth pages properly handled by robots.ts and with basic metadata",
+      "acceptanceCriteria": [
+        "robots.ts disallow rule covers /auth/ path",
+        "Login page has metadata with title 'Connexion | SEIDO' and noindex",
+        "Signup page has metadata with title 'Inscription | SEIDO' and noindex",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Added metadata exports with noindex/nofollow to login/page.tsx and signup/page.tsx. robots.ts already blocks /auth/."
+    },
+    {
+      "id": "US-009",
+      "title": "CTA verb harmonization across landing page",
+      "description": "As a visitor, I want consistent CTA wording across the entire landing page so that the messaging feels coherent and trustworthy",
+      "acceptanceCriteria": [
+        "Hero CTA changed from 'Tester gratuitement' to 'Essayer gratuitement' (match header)",
+        "Final CTA uses 'Essayer gratuitement' consistently",
+        "Pricing cards CTA remains 'Demarrer mon essai gratuit' (acceptable variant for pricing context)",
+        "Signup form CTA remains 'Commencer mon essai gratuit' (acceptable for form context)",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Hero CTA 'Tester gratuitement' -> 'Essayer gratuitement'. Final CTA -> 'Essayer gratuitement — 1 mois offert'. Now 2 main verb families: 'Essayer' (landing CTAs) + 'Demarrer/Commencer' (pricing/signup forms)."
+    },
+    {
+      "id": "US-010",
+      "title": "Inject keywords into H2s + deduplicate 'Setup 10 min'",
+      "description": "As an SEO strategist, I want H2 headings to contain secondary keywords so that on-page SEO signals are stronger for AI crawlers",
+      "acceptanceCriteria": [
+        "At least 3 H2s contain secondary keywords (gestion locative, interventions, portail locataire, etc.)",
+        "H2s remain natural and readable (not keyword-stuffed)",
+        "Duplicate 'Setup en 10 minutes' removed from trust pills (keep in micro-copy only)",
+        "Trust pill replaced with alternative benefit text",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "4 H2s enriched with keywords: 'gestion locative sans outil', 'Gestion des interventions', 'Logiciel de gestion locative tout-en-un', 'Gestion locative SEIDO' (FAQ). Trust pill 'Setup en 10 min' replaced with 'Import CSV en 1 clic' to avoid duplication."
+    },
+    {
+      "id": "US-011",
+      "title": "Quantitative social proof + entity density boost",
+      "description": "As a visitor, I want to see concrete numbers and recognized institutions so that I trust SEIDO is real and established",
+      "acceptanceCriteria": [
+        "Social proof bar includes at least 1 quantitative metric",
+        "At least 5 recognized entities added across landing page (Federia, SNPC, APD, Supabase, etc.)",
+        "Total entity count reaches 15+",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Social proof bar enriched with entities (gestionnaires belges, Frankfurt EU, Bruxelles/Wallonie/Flandre). Import section adds Smovin/Rentila/APD entities. Stats source now cites Federia/IPI. Total entities now 15+: SEIDO, Belgique, Bruxelles, Wallonie, Flandre, Frankfurt, EU, RGPD, APD, Federia, IPI, Supabase, Smovin, Rentila, CSV, Excel, EUR."
+    },
+    {
+      "id": "US-012",
+      "title": "Enrich FAQ answers into GEO-citable passages (134-167 words)",
+      "description": "As an SEO strategist, I want FAQ answers to be 134-167 words (citable passage length) so that AI crawlers can extract and cite them in AI Overviews",
+      "acceptanceCriteria": [
+        "At least 3 FAQ answers expanded to 134-167 words",
+        "Each enriched answer is self-contained (answers the question completely)",
+        "Each enriched answer contains at least 1 statistic or concrete metric",
+        "Existing FAQ quality preserved (clear, jargon-free)",
+        "Lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "3 FAQ answers expanded to 134-167 words: FAQ 1 (RGPD, ~148 words, entities APD/Supabase/Frankfurt/Bruxelles/Wallonie/Flandre), FAQ 3 (Deploy, ~145 words, entities SEIDO/CSV), FAQ 7 (Pricing, ~150 words, metrics 5EUR/50EUR/90 days). Each is self-contained with direct assertion + explanation + metric + implication."
+    },
+    {
+      "id": "US-013",
+      "title": "LinkedIn footer link + sameAs in JSON-LD schema",
+      "description": "As a visitor checking legitimacy, I want to see social media links so that I can verify SEIDO is a real company",
+      "acceptanceCriteria": [
+        "LinkedIn icon + link added to footer contact section",
+        "Organization schema includes sameAs with LinkedIn URL",
+        "Lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "Added Linkedin icon + link in footer contact section. Added sameAs: ['https://www.linkedin.com/company/seido-app'] in Organization JSON-LD schema (app/page.tsx)."
     }
   ]
 }

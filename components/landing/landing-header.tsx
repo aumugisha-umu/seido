@@ -132,8 +132,8 @@ export function LandingHeader({
                 size="sm"
                 className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 border-0 shadow-lg shadow-blue-500/25 px-2.5 sm:px-3"
               >
-                <span className="hidden sm:inline">Commencer</span>
-                <span className="sm:hidden text-xs">Essai</span>
+                <span className="hidden sm:inline">Essayer gratuitement</span>
+                <span className="sm:hidden text-xs">Essai gratuit</span>
                 <Sparkles className="w-3 h-3 ml-1 sm:ml-2" />
               </Button>
             </Link>

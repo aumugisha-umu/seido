@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
 
     // Upload vers Storage
     const uploadResult = await storageService.uploadFile({
-      bucket: 'property-documents',
+      bucket: 'documents',
       path: storagePath,
       file: file,
       contentType: file.type
@@ -121,7 +121,7 @@ export async function POST(request: NextRequest) {
       file_size: validatedData.fileSize,
       mime_type: validatedData.fileType,
       storage_path: uploadResult.data!.path,
-      storage_bucket: 'property-documents',
+      storage_bucket: 'documents',
       document_type: documentType,
       team_id: teamId,
       building_id: validatedData.buildingId || undefined,
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
     if (!createResult.success) {
       // Rollback: supprimer le fichier du Storage
       await storageService.deleteFiles({
-        bucket: 'property-documents',
+        bucket: 'documents',
         paths: [uploadResult.data!.path]
       })
 

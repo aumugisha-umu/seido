@@ -388,6 +388,7 @@ export function ContactSection({
               onAddContact()
             }}
             className={`w-full text-xs ${colorScheme.buttonBorder} ${colorScheme.buttonText} ${colorScheme.buttonHover} h-8`}
+            data-testid={`add-contact-btn-${sectionType}`}
           >
             {contacts.length > 0 ? (
               <>

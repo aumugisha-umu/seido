@@ -42,7 +42,13 @@
       "Bash(git log:*)",
       "WebFetch(domain:skillsmp.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npx vitest run:*)",
+      "Bash(npm run test:e2e:*)",
+      "Bash(if not exist \"C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\tests\\\\e2e\\\\setup\" mkdir \"C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\\\\tests\\\\e2e\\\\setup\")",
+      "Bash(test:*)",
+      "Bash(git -C \"C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\" diff --name-only HEAD~5)",
+      "Bash(git -C \"C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\" diff --name-only)"
     ],
     "deny": [],
     "ask": []

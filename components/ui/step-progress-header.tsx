@@ -113,6 +113,7 @@ export const StepProgressHeader = ({
               return (
                 <div
                   key={index}
+                  data-testid={`step-item-${stepNumber}`}
                   onClick={isClickable ? () => onStepClick(stepNumber) : undefined}
                   role={isClickable ? "button" : undefined}
                   tabIndex={isClickable ? 0 : undefined}

@@ -157,7 +157,7 @@ export const useMultiLotDocumentUpload = ({
       const entityId = overrideEntityId
       if (!entityId || !effectiveTeamId) {
         onUploadError?.('Missing entity ID or team ID')
-        return
+        throw new Error('Missing entity ID or team ID for document upload')
       }
 
       setIsUploading(true)
@@ -165,10 +165,12 @@ export const useMultiLotDocumentUpload = ({
         for (const fileState of pending) {
           const formData = new FormData()
           formData.append('file', fileState.file)
-          formData.append('lotId', entityId)
-          formData.append('teamId', effectiveTeamId)
-          formData.append('documentType', fileState.documentType)
-          if (fileState.expiryDate) formData.append('expiryDate', fileState.expiryDate)
+          // BUG FIX: API expects snake_case field names (lot_id, team_id, etc.)
+          formData.append('lot_id', entityId)
+          formData.append('team_id', effectiveTeamId)
+          formData.append('document_type', fileState.documentType)
+          formData.append('title', `${fileState.documentType} - ${fileState.file.name}`)
+          if (fileState.expiryDate) formData.append('expiry_date', fileState.expiryDate)
 
           const res = await fetch('/api/property-documents/upload', { method: 'POST', body: formData })
           if (!res.ok) {
@@ -176,17 +178,26 @@ export const useMultiLotDocumentUpload = ({
             throw new Error(err.error || 'Upload failed')
           }
 
-          // Mark as completed
+          // Extract document ID from API response
+          const result = await res.json()
+
+          // Mark as completed with document ID
           setFilesByLot(prev => {
             const next = new Map(prev)
             const current = next.get(lotId) || []
-            next.set(lotId, current.map(f => f.id === fileState.id ? { ...f, status: 'completed' as const } : f))
+            next.set(lotId, current.map(f => f.id === fileState.id ? {
+              ...f,
+              status: 'completed' as const,
+              progress: 100,
+              documentId: result.document?.id
+            } : f))
             return next
           })
         }
         logger.info(`Uploaded ${pending.length} files for lot ${lotId}`)
       } catch (err) {
         onUploadError?.(err instanceof Error ? err.message : 'Upload error')
+        throw err
       } finally {
         setIsUploading(false)
       }

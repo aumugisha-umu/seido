@@ -1292,6 +1292,7 @@ export default function NewImmeubleePage({
                   onClick={() => setCurrentStep(currentStep - 1)}
                   className="w-full sm:w-auto"
                   disabled={isCreating}
+                  data-testid="wizard-prev-btn"
                 >
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   {currentStep === 2 && "Retour à l'immeuble"}
@@ -1312,6 +1313,7 @@ export default function NewImmeubleePage({
                 }}
                 disabled={!canProceedToNextStep() || (currentStep === 5 && isCreating)}
                 className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto ml-auto"
+                data-testid={currentStep === 5 ? "wizard-submit-btn" : "wizard-next-btn"}
               >
                 {isCreating && currentStep === 5 && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                 {currentStep === 1 && "Continuer vers les lots"}

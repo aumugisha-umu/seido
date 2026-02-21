@@ -159,7 +159,7 @@ export default function GestionnaireSidebar({
             isActive && "bg-primary/10 text-primary font-medium border-l-[3px] border-l-primary rounded-l-none"
           )}
         >
-          <Link href={item.href} onClick={handleNavClick}>
+          <Link href={item.href} onClick={handleNavClick} data-testid={`sidebar-nav-${item.href.split('/').pop()}`}>
             <Icon className={cn("size-5", isActive && "text-primary")} />
             <span>{item.label}</span>
           </Link>

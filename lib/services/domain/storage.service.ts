@@ -8,8 +8,10 @@
  * - Validation de type MIME et taille
  *
  * Buckets supportés:
- * - property-documents (Phase 2)
- * - intervention-documents (existant)
+ * - documents (unified bucket for all document types)
+ * - property-documents (legacy)
+ * - intervention-documents (legacy)
+ * - contract-documents (legacy)
  */
 
 import { SupabaseClient } from '@supabase/supabase-js'
@@ -69,6 +71,23 @@ export interface DeleteFileResult {
 
 // Configuration des types MIME autorisés par bucket
 const ALLOWED_MIME_TYPES: Record<string, string[]> = {
+  'documents': [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain',
+    'application/zip',
+    'application/x-zip-compressed',
+    'audio/webm',
+    'audio/mp4',
+    'audio/mpeg'
+  ],
   'property-documents': [
     'image/jpeg',
     'image/png',
@@ -95,6 +114,7 @@ const ALLOWED_MIME_TYPES: Record<string, string[]> = {
 
 // Limite de taille par bucket (en bytes)
 const MAX_FILE_SIZE: Record<string, number> = {
+  'documents': 50 * 1024 * 1024, // 50 MB (matches bucket config)
   'property-documents': 10 * 1024 * 1024, // 10 MB
   'intervention-documents': 5 * 1024 * 1024, // 5 MB
 }

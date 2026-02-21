@@ -167,6 +167,7 @@ export default function LotCard({
                     variant={isSelected ? "default" : "outline"}
                     size="sm"
                     className="h-8 px-3 text-xs"
+                    data-testid={`lot-select-btn-${lot.id}`}
                     onClick={(e) => {
                       e.stopPropagation()
                       if (!isSelected) {

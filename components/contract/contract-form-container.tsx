@@ -1226,6 +1226,7 @@ export default function ContractFormContainer({
               onClick={handlePrevious}
               disabled={isSubmitting}
               className="w-full sm:w-auto"
+              data-testid="wizard-prev-btn"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Précédent
@@ -1237,6 +1238,7 @@ export default function ContractFormContainer({
               onClick={handleNext}
               disabled={!validateStep(currentStep)}
               className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto ml-auto"
+              data-testid="wizard-next-btn"
             >
               Continuer
               <ArrowRight className="w-4 h-4 ml-2" />
@@ -1246,6 +1248,7 @@ export default function ContractFormContainer({
               onClick={handleSubmit}
               disabled={isSubmitting || !validateStep(currentStep)}
               className="bg-primary text-primary-foreground hover:bg-primary/90 w-full sm:w-auto ml-auto"
+              data-testid="wizard-submit-btn"
             >
               {isSubmitting ? (mode === 'create' ? 'Création...' : 'Enregistrement...') : submitLabel}
               <SubmitIcon className="w-4 h-4 ml-2" />

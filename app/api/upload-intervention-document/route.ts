@@ -135,15 +135,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique filename and storage path
+    // Path format: {team_id}/{intervention_id}/{filename} — team_id first for RLS path-based checks
     const uniqueFilename = generateUniqueFilename(validatedData.fileName)
-    const storagePath = `interventions/${validatedData.interventionId}/${uniqueFilename}`
+    const storagePath = `${intervention.team_id}/${validatedData.interventionId}/${uniqueFilename}`
 
     logger.info({ storagePath: storagePath }, "☁️ Uploading to Supabase Storage:")
 
     // Upload file to Supabase Storage
     // Use normalized MIME type to pass bucket's allowed_mime_types check
     const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('intervention-documents')
+      .from('documents')
       .upload(storagePath, file, {
         contentType: normalizedMimeType,
         upsert: false // Don't overwrite if file exists
@@ -169,7 +170,7 @@ export async function POST(request: NextRequest) {
         file_size: validatedData.fileSize,
         mime_type: normalizedMimeType,
         storage_path: uploadData.path,
-        storage_bucket: 'intervention-documents',
+        storage_bucket: 'documents',
         document_type: getDocumentType(validatedData.fileType, validatedData.fileName),
         uploaded_by: userProfile.id,
         description: validatedData.description || `Document ajouté pour l'intervention`
@@ -186,7 +187,7 @@ export async function POST(request: NextRequest) {
       // Try to clean up the uploaded file if metadata storage fails
       try {
         await supabase.storage
-          .from('intervention-documents')
+          .from('documents')
           .remove([uploadData.path])
       } catch (cleanupError) {
         logger.error({ error: cleanupError }, "⚠️ Error cleaning up uploaded file:")

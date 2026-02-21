@@ -667,7 +667,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
           cleanContactContext() // Nettoyer le contexte quand le modal se ferme
         }
       }}>
-        <DialogContent className="max-w-[95vw] sm:max-w-2xl mx-4 sm:mx-auto">
+        <DialogContent className="max-w-[95vw] sm:max-w-2xl mx-4 sm:mx-auto" data-testid="contact-selector-dialog">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 flex-wrap">
               {selectedContactType === 'manager' && <Users className="w-5 h-5" />}
@@ -858,6 +858,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                               checked={isPendingSelected}
                               onChange={() => handlePendingSelect(contact.id)}
                               aria-label={`Sélectionner ${contact.name}`}
+                              data-testid={`contact-radio-${contact.id}`}
                             />
                           ) : (
                             <Checkbox
@@ -866,6 +867,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                               disabled={isLastManager}
                               aria-label={`Sélectionner ${contact.name}`}
                               className="h-5 w-5"
+                              data-testid={`contact-checkbox-${contact.id}`}
                             />
                           )}
                         </div>
@@ -917,6 +919,7 @@ export const ContactSelector = forwardRef<ContactSelectorRef, ContactSelectorPro
                   className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700"
                   onClick={handleConfirm}
                   disabled={isConfirming}
+                  data-testid="contact-confirm-btn"
                 >
                   {isConfirming ? (
                     <>

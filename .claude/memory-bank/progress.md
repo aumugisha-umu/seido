@@ -64,8 +64,39 @@
 - [x] **SEO Landing Page Optimization** (2026-02-19) - Score 52→78/100, 13 stories, JSON-LD schemas, FAQ structured data
 - [x] **Blog Section Complete** (2026-02-19) - 6 stories: lib/blog.ts, /blog index with filters, /blog/[slug] article pages, landing preview, navbar link, sitemap SEO
 - [x] **Blog Articles Published** (2026-02-19) - 2 articles on Belgian property management (Jan+Feb 2026 Le Cri), fully sourced with 45+ references
+- [x] **Lot Wizard Server Component Refactoring** (2026-02-20) - Extracted 2914-line page.tsx into lot-creation-form.tsx (client) + page.tsx (server)
+- [x] **Independent Lots Address Display Fix** (2026-02-20) - Batch address fetch in lot.repository.ts after JOIN removal optimization
+- [x] **Unified Documents Bucket** (2026-02-20) - Consolidated 3 storage buckets (property/intervention/contract) into 1 `documents` bucket
+- [x] **E2E Testing Infrastructure V2** (2026-02-20/21) - 25 E2E tests across 4 test files, 5 POMs, API-based auth, Puppeteer + Vitest
+- [x] **Contract Wizard E2E** (2026-02-21) - Full 5-step wizard test with doc upload, service role storage fix, 11 data-testid attrs added
 
 ## Sprint Actuel (Jan-Feb 2026)
+
+### 2026-02-20/21 - E2E Testing V2 + Unified Documents Bucket
+
+**Session: Full E2E Infrastructure + Document Consolidation**
+
+| Feature | Description | Files |
+|---------|-------------|-------|
+| Unified `documents` bucket | Migration + 3 upload routes updated | 1 migration, 3 API routes, storage.service.ts |
+| Lot wizard refactoring | 2914-line page.tsx → server + client separation | page.tsx, lot-creation-form.tsx (NEW) |
+| Building E2E + doc upload | 8 tests with real DB submission + PDF upload | building-creation.e2e.ts, building-wizard.page.ts |
+| Lot E2E + doc upload | 12 tests (2 modes) with doc upload | lot-creation.e2e.ts, lot-wizard.page.ts |
+| Contract E2E + doc upload | 1 test, 5-step wizard with real submission | contract-creation.e2e.ts, contract-wizard.page.ts (NEW) |
+| data-testid attributes | 11 new data-testid across 7 components | property-selector, contact-selector, step-progress-header, etc. |
+| Contracts navigator | Added "A venir" tab + cleaned unused imports | contracts-navigator.tsx |
+| Address fix | Batch address fetch for independent lots | lot.repository.ts, page.tsx |
+
+**Key decisions:**
+- API-based auth (Supabase GoTrue REST) instead of browser login — 2s setup vs 15s
+- Service role client for storage uploads (user client blocked by RLS)
+- Page Object Model pattern for test maintainability
+- data-testid over text matching for i18n resilience
+
+**Learnings added:** AGENTS.md #047-#057 (11 new, E2E patterns + storage)
+**Retrospectives:** 3 files in docs/learnings/2026-02-20-* and 2026-02-21-*
+
+---
 
 ### 2026-02-19 - Blog Section + SEO Articles (6 stories via Ralph)
 
@@ -468,7 +499,7 @@ Refactoring pour unifier l'expérience notifications entre web et PWA.
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-02-19)
+## Metriques Projet (2026-02-21)
 
 | Metrique | Valeur |
 |----------|--------|
@@ -476,20 +507,23 @@ Refactoring pour unifier l'expérience notifications entre web et PWA.
 | Domain Services | **33** |
 | API Routes | **114** (10 domaines) |
 | Hooks | **70** |
-| Components | **365** (+3 blog: blog-markdown, blog-article-card, blog-list-client) |
-| Pages | **89** (+2: blog index, blog article) |
+| Components | **365** |
+| Pages | **89** |
 | Blog Articles | **2** (Jan 2026, Feb 2026) |
 | DB Tables | **44** |
 | DB Enums | 39 |
 | DB Functions | **79** |
-| Migrations | **165** |
+| Migrations | **167** (+2: RLS standalone lots fix, unified documents bucket) |
 | Server Actions | **17** files |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
-| **AGENTS.md Learnings** | **46** (+4: TDZ hooks, multi-lot [0], Zod drift, verify constraints) |
+| **AGENTS.md Learnings** | **57** (+11: E2E patterns #047-#051, storage #053, contract E2E #054-#057) |
 | **systemPatterns.md Patterns** | **29** |
-| **Shared Cards** | **15** (documents, reports, comments, conversation, quotes, planning, summary, intervention-details) |
+| **Shared Cards** | **15** |
 | **Quote Status Enum (DB)** | **7** (draft, pending, sent, accepted, rejected, expired, cancelled) |
+| **E2E Test Files** | **4** (smoke, building, lot, contract) |
+| **E2E Page Objects** | **5** (dashboard, login, 3 wizards) |
+| **E2E Total Tests** | **25** |
 
 ### Metriques Ecosysteme .claude/ (2026-01-23)
 
@@ -544,7 +578,11 @@ Refactoring pour unifier l'expérience notifications entre web et PWA.
 
 | **2026-02-19** | **SEO Landing Page Optimization** | **Score 52→78/100, JSON-LD schemas, FAQ structured data** | **13 stories, Title/meta/OG optimization** |
 | **2026-02-19** | **Blog Section Complete** | **Content marketing for SEO, article preview on landing** | **6 stories, 7 new files, 4 modified, gray-matter + react-markdown** |
+| **2026-02-20** | **Unified Documents Bucket** | **3 buckets → 1 (property/intervention/contract → documents)** | **1 migration, 3 upload routes, storage.service.ts, config.toml** |
+| **2026-02-20** | **Lot Wizard Server Component Refactor** | **2914-line page.tsx extraction for maintainability** | **page.tsx (server) + lot-creation-form.tsx (client)** |
+| **2026-02-20/21** | **E2E Testing Infrastructure V2** | **Full Puppeteer + Vitest suite with POM pattern** | **25 tests, 4 test files, 5 POMs, API auth, 11 data-testid attrs** |
+| **2026-02-21** | **Contract E2E + Storage Fix** | **Service role for storage uploads, useImperativeHandle retry** | **contract-wizard.page.ts, upload-contract-document/route.ts** |
 
 ---
-*Derniere mise a jour: 2026-02-19*
-*Session: Blog section 6/6 + SEO articles + memory sync*
+*Derniere mise a jour: 2026-02-21*
+*Session: E2E testing V2 (25 tests green), unified documents bucket, contract wizard E2E*

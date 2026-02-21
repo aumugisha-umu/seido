@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-18
-**Total Learnings:** 46
+**Last Updated:** 2026-02-21
+**Total Learnings:** 57
 
 ---
 
@@ -43,6 +43,13 @@
 **Example:** `lib/services/repositories/intervention.repository.ts` — separate queries pattern
 **When to Use:** Any query joining tables with different RLS policies
 **Added:** 2026-02-04 | **Source:** Intervention detail page debugging
+
+#### Learning #052: Query optimization must replace removed data, not just remove JOINs
+**Problem:** `findByTeam()` was "optimized" (2026-01-30) by removing nested `address_record` JOINs, but no batch replacement was added. The column renderer in `patrimoine.config.tsx` expected `lot.address_record` and `lot.building.address_record` — both became undefined. Independent lots showed "-" for address, lot detail headers showed no address for manually-entered addresses.
+**Solution:** When removing nested JOINs for performance, always add a batch post-fetch: (1) collect all foreign key IDs from the result set, (2) single `.in()` query to fetch related records, (3) map results back. Also: separate "has displayable data" (text) from "has feature data" (coordinates for maps) — don't require lat/lng just to show an address string.
+**Example:** `lib/services/repositories/lot.repository.ts:228-243` — batch address fetch in findByTeam(); `app/gestionnaire/(no-navbar)/biens/lots/[id]/page.tsx:368` — relaxed condition accepts formatted_address without coordinates
+**When to Use:** Any time you optimize a repository query by removing nested JOINs — verify the UI still has all the data it needs, and add batch fetch if needed
+**Added:** 2026-02-20 | **Source:** Independent lots address display fix (3 files, 3 layers)
 
 ### UI & Components
 
@@ -351,6 +358,76 @@
 **Example:** `tests/e2e/` — test fixtures
 **When to Use:** Any feature touching auth, permissions, or user-specific data
 **Added:** 2026-02-04 | **Source:** Multi-team support QA
+
+#### Learning #047: Auto-init useEffects cause E2E race conditions
+**Problem:** Wizard step 2 has a `useEffect` that auto-creates the first lot when `lots.length === 0`. If the E2E test clicks "Next" before this effect runs, the button is disabled and `waitForStep()` times out — but only intermittently.
+**Solution:** Always call `waitForNextEnabled(15_000)` before every `clickNext()` in wizard E2E tests. This ensures async initialization (auto-created entities, API validations) has settled.
+**Example:** `tests/e2e/lot-creation.e2e.ts:233-243` — submission test with guards on every step transition
+**When to Use:** Any E2E test navigating multi-step wizards with auto-init effects
+**Added:** 2026-02-20 | **Source:** Lot wizard submission test flakiness
+
+#### Learning #048: Next.js client-side navigation bypasses Puppeteer waitForNavigation
+**Problem:** `router.push()` does client-side routing — Puppeteer's `waitForNavigation` never fires. Tests hang at redirect verification.
+**Solution:** Poll the URL with `page.waitForFunction((part) => window.location.href.includes(part), { timeout, polling: 500 }, urlPart)`.
+**Example:** `tests/e2e/pages/lot-wizard.page.ts:290-297` — `waitForRedirect()` method
+**When to Use:** Any E2E test that verifies redirect after form submission in Next.js App Router
+**Added:** 2026-02-20 | **Source:** Lot wizard E2E submission tests
+
+#### Learning #049: Dashboard-bounce clears Next.js client cache between E2E runs
+**Problem:** Navigating directly to the wizard a second time reuses Next.js client-side cached page state, causing stale form data and test failures.
+**Solution:** Navigate to `/gestionnaire/dashboard` first (with 1s delay), THEN navigate to the wizard. This forces a fresh Server Component render.
+**Example:** `tests/e2e/lot-creation.e2e.ts:173-179` — dashboard bounce before submission test
+**When to Use:** Any E2E test that re-visits a wizard/form page within the same browser session
+**Added:** 2026-02-20 | **Source:** Lot wizard independent mode E2E
+
+#### Learning #050: Radix toast detection — poll DOM text, not specific selectors
+**Problem:** Radix UI toasts render dynamically in the body with `data-state="open"`. CSS selectors targeting toast elements are fragile and break across Radix versions.
+**Solution:** Poll `document.body.innerText.includes('expected text')` via `page.waitForFunction()`. The text is stable across rendering changes.
+**Example:** `tests/e2e/pages/lot-wizard.page.ts:277-283` — `waitForSuccessToast()` polls for "créé avec succès"
+**When to Use:** Any E2E test verifying toast/notification messages with Radix UI
+**Added:** 2026-02-20 | **Source:** Lot wizard submission verification
+
+#### Learning #051: Radix RadioGroupItem — click label, verify via data-state
+**Problem:** Clicking the Radix `RadioGroupItem` directly via Puppeteer's `.click()` is unreliable during React hydration — the element may detach and reattach.
+**Solution:** Click `label[for="radioId"]` via `page.evaluate(() => el.click())`, then verify state with `radio.getAttribute('data-state') === 'checked'`. If first click fails (hydration race), retry once.
+**Example:** `tests/e2e/pages/lot-wizard.page.ts:103-136` — `selectIndependentMode()`
+**When to Use:** Any E2E test interacting with Radix RadioGroup, CheckboxGroup, or Switch components
+**Added:** 2026-02-20 | **Source:** Lot wizard independent mode selection
+
+#### Learning #053: Storage uploads need service role client when RLS blocks user client
+**Problem:** The contract document upload route used the user's Supabase client for `storage.from('documents').upload()`. Supabase storage has its own RLS on `storage.objects`. When the storage bucket RLS policy doesn't match the user's context (e.g., new bucket, restrictive policies), uploads silently fail or return "Bucket not found".
+**Solution:** Use `createServiceRoleSupabaseClient()` for storage upload operations. The service role bypasses storage RLS. Keep the user client for auth validation and team membership checks. Pattern: user client validates → service client uploads → service client inserts DB row.
+**Example:** `app/api/upload-contract-document/route.ts:83-96` — `serviceClient` for storage + DB, `supabase` for auth
+**When to Use:** Any API route uploading files to Supabase Storage — especially when consolidating buckets or changing RLS policies
+**Added:** 2026-02-21 | **Source:** Contract document upload "Bucket not found" fix
+
+#### Learning #054: useImperativeHandle ref timing — retry loop in E2E tests
+**Problem:** `ContactSelector` uses `useImperativeHandle` to expose an `openDialog()` method via ref. The ref is `null` until React runs the effect after mount + hydration. Clicking the "Add tenant" button before the ref is wired does nothing — no error, no dialog.
+**Solution:** Implement a 3-attempt retry loop: click button → wait 3s for dialog → if not open, wait 2s and retry. Also add a 2s initial delay after the button appears for hydration. The ref wiring takes 1-2 render cycles.
+**Example:** `tests/e2e/pages/contract-wizard.page.ts:164-237` — `addFirstTenant()` with retry loop
+**When to Use:** Any E2E test clicking buttons that trigger `useImperativeHandle`-exposed methods (contact modals, custom dialogs)
+**Added:** 2026-02-21 | **Source:** Contract wizard tenant selection E2E
+
+#### Learning #055: E2E toast verification — check success OR error to avoid blind timeouts
+**Problem:** `waitForSuccessToast()` only polled for the success message. When submission failed (e.g., RLS error), the test timed out after 30s without indicating WHY — the error toast was already on screen but the wait didn't look for it.
+**Solution:** Poll for both success AND error conditions: `text.includes('success') || text.includes('Erreur')`. Return the full page text so the assertion can report the actual error message. This cuts debugging time from "30s timeout + screenshot analysis" to "instant failure with error text".
+**Example:** `tests/e2e/pages/contract-wizard.page.ts:348-357` — dual-condition `waitForSuccessToast()`
+**When to Use:** Any E2E wait that polls for a success indicator after form submission
+**Added:** 2026-02-21 | **Source:** Contract wizard submission test debugging
+
+#### Learning #056: E2E network noise — filter analytics, HMR, and ERR_ABORTED in requestfailed handler
+**Problem:** Puppeteer's `requestfailed` event fires for every failed request, including: Contentsquare analytics (`contentsquare.net`), HMR WebSocket (`127.0.0.1:7242`), Google avatar images (`googleusercontent.com`), and RSC prefetch aborts (`ERR_ABORTED`). This floods test output with ~20+ irrelevant lines per test.
+**Solution:** Filter known noisy URLs and error types at the top of the handler: `if (url.includes('contentsquare.net') || ... || request.failure()?.errorText === 'net::ERR_ABORTED') return`. Only log genuine network failures.
+**Example:** `tests/e2e/contract-creation.e2e.ts:58-66` — filtered `requestfailed` handler
+**When to Use:** Any E2E test with `page.on('requestfailed')` debugging — always add noise filters
+**Added:** 2026-02-21 | **Source:** Contract wizard E2E test cleanup
+
+#### Learning #057: Cookie/PWA banners reappear on each page navigation — dismiss after EVERY goto
+**Problem:** Cookie consent and PWA install banners are rendered per-page in Next.js. After navigating from dashboard to wizard, both banners reappear, covering clickable elements. `position:fixed` overlays block Puppeteer's CDP coordinate-based clicks.
+**Solution:** Call `dismissAllBanners(page)` after EVERY `page.goto()` call. Use DOM-level `.click()` via `page.evaluate()` for all interactions to bypass overlays entirely. Pattern: navigate → wait for content → dismiss banners → interact.
+**Example:** `tests/e2e/contract-creation.e2e.ts:99-100,115-116` — dismiss after dashboard + after wizard navigation
+**When to Use:** Any E2E test that navigates to multiple pages — banners reappear each time
+**Added:** 2026-02-21 | **Source:** Contract wizard E2E overlay debugging
 
 ---
 

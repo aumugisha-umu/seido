@@ -1,0 +1,83 @@
+# Progress Log — Lot Wizard: Server Component Refactoring + Independent Mode E2E
+# Started: 2026-02-20
+# Stories: 5 total
+# Previous feature (Testing Infrastructure, 10/11 done) archived to tasks/archive/2026-02-20-testing-infrastructure/
+---
+
+## 2026-02-20 — US-001: Create Server Component page.tsx (S) ✅
+- Created 75-line Server Component at app/gestionnaire/(no-navbar)/biens/lots/nouveau/page.tsx
+- Mirrors immeubles/nouveau/page.tsx pattern exactly
+- getServerAuthContext('gestionnaire') for auth, createServerTeamService/createServerLotService for data
+- Added searchParams.buildingId → prefillBuildingId prop for pre-fill scenario
+- Renamed old page.tsx → lot-creation-form.tsx (prep for US-002)
+- Files: page.tsx (new), lot-creation-form.tsx (renamed)
+
+## 2026-02-20 — US-002: Refactor lot-creation-form.tsx (M) ✅
+- 2872→2711 lines (-161 lines)
+- Removed: useAuth(), useTeamStatus(), TeamCheckModal early return, isMounted hack
+- Removed: loadUserTeamAndManagers effect (~100 lines), loadCategoryCountsByTeam effect (~30 lines)
+- Removed: lazy service initialization (now immediate since auth verified server-side)
+- Replaced: useSearchParams() → prefillBuildingId prop, user.* → userProfile.*
+- Added: LotCreationFormProps interface (6 props from Server Component)
+- Deleted: loading.tsx (no longer needed)
+- Learnings: Building wizard (immeubles/nouveau) pattern is the gold standard for auth pages
+- Files: lot-creation-form.tsx, -loading.tsx
+
+## 2026-02-20 — US-003: Add data-testid to radio buttons (XS) ✅
+- Added 3 data-testid attributes: radio-existing, radio-new, radio-independent
+- TeamCheckModal fully removed so no flash possible on radio switch
+- Files: lot-creation-form.tsx
+
+## 2026-02-20 — US-004: E2E test existing building mode (S) ✅
+- Fixed 4 remaining bare `user` references missed during US-002 refactoring
+- Lines 501, 1182, 2116, 2214: `user` → `userProfile` (guard clauses)
+- Root cause: grep for `user.property` missed bare `!user`, `user?.id` patterns
+- Learnings: When removing a destructured hook variable, grep for `\buser\b` (bare), not just `user.property`
+- All 7 tests pass in 2 consecutive runs, 0 flakiness
+- Files: lot-creation-form.tsx
+
+## 2026-02-20 — US-005: E2E test independent mode (M) ✅
+- Added selectIndependentMode() to POM: label[for="independent"] click + Radix data-state verification
+- Added fillIndependentLotAddress() to POM: fills street/postalCode/city for step 2 validation
+- 3 new tests (10 total): select independent, navigate all 5 steps, back nav with state preserved
+- Key fixes during development:
+  - Radix RadioGroupItem: click label[for=X], verify via data-state="checked" (not CSS classes)
+  - Next.js client cache: navigate to dashboard first to force fresh Server Component render
+  - React hydration: page.evaluate(() => el.click()) avoids "Node detached" errors
+  - Shared login: single beforeAll/afterAll across nested describes (no double login)
+- Learnings: Radix data-state is the ONLY reliable E2E signal for radio state; CSS classes are flaky
+- 3 consecutive runs pass, 0 flakiness
+- Files: lot-creation.e2e.ts, lot-wizard.page.ts
+
+## 2026-02-20 — US-006: Extend POM with submission methods (S) ✅
+- Added 3 methods to lot-wizard.page.ts: clickSubmit, waitForSuccessToast, waitForRedirect
+- clickSubmit: waits for selector + clicks (not just querySelector, handles loading state)
+- waitForSuccessToast: polls DOM for "créé avec succès" text (Radix toast renders in body)
+- waitForRedirect: polls URL via page.waitForFunction (Next.js client-side navigation)
+- Learnings: Puppeteer waitForNavigation doesn't fire on Next.js router.push() — must poll URL
+- Files: lot-wizard.page.ts
+
+## 2026-02-20 — US-007: E2E submit and create lots in DB (M) ✅
+- Added 2 submission tests to lot-creation.e2e.ts (existing building + independent)
+- Added 3 submission methods + submission test to building-wizard.page.ts and building-creation.e2e.ts
+- Key flakiness fixes during development:
+  - selectFirstBuilding() timeout: 15s → 30s (cache invalidation after creation slows PropertySelector API)
+  - waitForNextEnabled(15_000) before EVERY clickNext(): step 2 auto-init useEffect creates first lot async
+  - selectIndependentMode() timeout: 5s → 10s (React hydration + Server→Client handoff delay)
+- Both submission tests create real data in staging DB:
+  - Existing building: lot created → toast "créé avec succès" → redirect /gestionnaire/biens/immeubles/{id}
+  - Independent: lot + address created → toast "créé avec succès" → redirect /gestionnaire/biens
+- 2 consecutive runs pass (12/12), 0 flakiness
+- Learnings:
+  - Auto-init useEffects are the #1 E2E race condition source — always waitForNextEnabled() before clickNext()
+  - Navigate to dashboard before wizard.navigate() to clear Next.js client cache between test runs
+  - Submission tests need separate fresh navigation (avoid stale state from navigation tests)
+- Files: lot-creation.e2e.ts, lot-wizard.page.ts, building-creation.e2e.ts, building-wizard.page.ts
+
+## 2026-02-20 — Bugfix: Independent lots address display (3-layer fix)
+- Implemented: Fixed address not appearing for independent lots in (1) lots list table and (2) lot detail header
+- Root cause: findByTeam() had address JOINs removed during optimization but no batch replacement added; page.tsx required lat/lng coordinates even for text-only address display; client LotAddress type was too narrow
+- Files: lot.repository.ts (batch address fetch), page.tsx (relaxed conditions), lot-details-client.tsx (nullable coords + map guard)
+- Learnings: When removing nested JOINs for perf, always verify a batch replacement exists. Separate "displayable data" (text) from "feature data" (coordinates) — don't block address display on map-specific fields
+- Decision: Used same batch-fetch pattern as findByIdWithRelations() for consistency; made coordinates nullable instead of creating separate types for map vs text display
+

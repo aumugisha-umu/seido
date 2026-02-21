@@ -146,8 +146,9 @@ npm run supabase:types   # Regenerer lib/database.types.ts
 npm run supabase:migrate # Nouvelle migration
 
 # Testing
-npm test                 # Tous les tests
-npx playwright test      # Tests E2E
+npm test                 # Unit tests (vitest)
+npm run test:e2e         # E2E tests (Puppeteer + vitest, requires dev server)
+npm run test:e2e:headed  # E2E with visible browser (cross-env)
 ```
 
 > Liste complete : `techContext.md`

@@ -144,6 +144,7 @@ function formatFileSize(bytes: number): string {
 }
 
 export function DocumentSlotGeneric({
+  type,
   label,
   hint,
   icon,
@@ -414,6 +415,7 @@ export function DocumentSlotGeneric({
               onChange={handleFileSelect}
               className="hidden"
               disabled={disabled}
+              data-testid={`doc-upload-${type}`}
             />
           </div>
         )}

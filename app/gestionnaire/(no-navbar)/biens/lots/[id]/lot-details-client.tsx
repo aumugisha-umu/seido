@@ -81,8 +81,8 @@ interface Intervention {
 }
 
 interface LotAddress {
-  latitude: number
-  longitude: number
+  latitude: number | null
+  longitude: number | null
   formatted_address: string | null
 }
 
@@ -525,7 +525,7 @@ export default function LotDetailsClient({
             )}
 
             {/* Section 1.6: Map Preview (if coordinates available) */}
-            {lotAddress && (
+            {lotAddress && lotAddress.latitude && lotAddress.longitude && (
               <div>
                 <h3 className="text-sm font-semibold text-foreground mb-3 px-1 flex items-center gap-2">
                   <MapPin className="h-4 w-4" />

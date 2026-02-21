@@ -125,6 +125,27 @@ allowed_mime_types = [
 ]
 objects_path = "./storage/intervention-documents"
 
+[storage.buckets.documents]
+public = false
+file_size_limit = "50MiB"
+allowed_mime_types = [
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+  "application/pdf",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/plain",
+  "application/zip",
+  "audio/webm",
+  "audio/mp4",
+  "audio/mpeg"
+]
+objects_path = "./storage/documents"
+
 [auth]
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used

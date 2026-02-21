@@ -15,7 +15,7 @@
 | Forms | React Hook Form + Zod | - |
 | State | React Context | 3 contexts |
 | Caching | Redis + LRU | - |
-| Testing | Vitest + Playwright | - |
+| Testing | Vitest + Puppeteer | E2E: 25 tests |
 | Email | Resend + React Email | 18 templates |
 | Blog/Markdown | gray-matter + react-markdown | remark-gfm, rehype-slug |
 
@@ -48,8 +48,9 @@ npx tsc --noEmit [file]  # Validation TypeScript ciblee
 npm run build            # Build production
 
 # Testing
-npm test                 # Tous les tests
-npx playwright test      # Tests E2E
+npm test                 # Unit tests (vitest)
+npm run test:e2e         # E2E tests (Puppeteer + vitest, requires dev server)
+npm run test:e2e:headed  # E2E with visible browser (cross-env)
 
 # Database
 npm run supabase:types   # Regenerer lib/database.types.ts
@@ -73,9 +74,11 @@ lib/services/        # Architecture Repository Pattern
     email-notification/  # Module refactore (15 fichiers)
 app/actions/         # 17 server action files
 app/api/             # 113 API routes (10 domaines)
-tests/               # Infrastructure E2E
-docs/                # 226 fichiers markdown
-supabase/migrations/ # 160 migrations SQL (mis a jour 2026-02-11)
+tests/               # E2E test infrastructure (Puppeteer + Vitest)
+  e2e/               # 4 test files, 5 POMs, 2 helpers, global setup
+  fixtures/          # Test accounts, test-document.pdf
+docs/                # 226+ fichiers markdown
+supabase/migrations/ # 167 migrations SQL (mis a jour 2026-02-21)
 ```
 
 ### Module email-notification (Refactore 2026-01)

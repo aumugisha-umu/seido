@@ -27,6 +27,7 @@ function SubmitButton() {
       type="submit"
       className="w-full bg-gradient-to-r from-brand-primary to-brand-secondary hover:from-brand-primary/90 hover:to-brand-secondary/90 text-white shadow-lg shadow-brand-primary/25 transition-all hover:scale-[1.02]"
       disabled={pending}
+      data-testid="login-submit-btn"
     >
       {pending ? "Connexion..." : "Se connecter"}
     </Button>
@@ -148,6 +149,7 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
           onChange={(e) => setEmail(e.target.value)}
           className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/20 transition-colors"
           required
+          data-testid="login-email-input"
         />
       </div>
 
@@ -163,6 +165,7 @@ export function LoginForm({ redirectTo }: LoginFormProps) {
             placeholder="Votre mot de passe"
             className="bg-white/10 border-white/20 text-white placeholder:text-white/40 focus:bg-white/20 transition-colors pr-10"
             required
+            data-testid="login-password-input"
           />
           <Button
             type="button"

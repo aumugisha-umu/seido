@@ -554,6 +554,7 @@ function PropertySelectorView({
                                         variant={isLotSelected ? "default" : "outline"}
                                         size="sm"
                                         className="h-6 px-2 text-xs"
+                                        data-testid={`lot-select-btn-${lot.id}`}
                                         onClick={() => {
                                           if (!isLotSelected) {
                                             onLotSelect?.(lot.id.toString(), building.id.toString())
@@ -693,6 +694,7 @@ function PropertySelectorView({
                                             variant={isLotSelected ? "default" : "outline"}
                                             size="sm"
                                             className="h-7 px-3 text-xs"
+                                            data-testid={`lot-select-btn-${lot.id}`}
                                             onClick={() => {
                                               if (!isLotSelected) {
                                                 onLotSelect?.(lot.id.toString(), building.id.toString())
@@ -930,6 +932,7 @@ function PropertySelectorView({
                         variant={isSelected ? "default" : "outline"}
                         size="sm"
                         className="h-8 px-3 text-xs"
+                        data-testid={`lot-select-btn-${lot.id}`}
                         onClick={() => {
                           if (!isSelected) {
                             onLotSelect?.(lot.id?.toString() || '', undefined)
@@ -1130,6 +1133,7 @@ function PropertySelectorView({
             : 'text-slate-600 hover:bg-slate-200/60'
         }`}
         title="Vue cartes"
+        data-testid="view-toggle-cards"
       >
         <LayoutGrid className="h-4 w-4" />
       </button>
@@ -1141,6 +1145,7 @@ function PropertySelectorView({
             : 'text-slate-600 hover:bg-slate-200/60'
         }`}
         title="Vue liste"
+        data-testid="view-toggle-list"
       >
         <List className="h-4 w-4" />
       </button>

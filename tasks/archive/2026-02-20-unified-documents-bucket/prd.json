@@ -1,0 +1,114 @@
+{
+  "project": "SEIDO",
+  "featureName": "Unified Document Bucket + E2E Document Upload Tests",
+  "branchName": "preview",
+  "description": "Fix property document uploads (bucket not found) by creating a single 'documents' bucket used by all 3 document systems. Keep separate tables (best practice: FK constraints, simple RLS). Add E2E tests for document uploads in building/lot/contract flows.",
+  "createdAt": "2026-02-20",
+  "prdSource": ".claude/plans/giggly-petting-hickey.md",
+  "status": "in_progress",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create 'documents' storage bucket via migration",
+      "description": "As a developer, I want a single 'documents' Supabase Storage bucket so that all document uploads (property, intervention, contract) go to one place.",
+      "acceptanceCriteria": [
+        "Migration creates 'documents' bucket with ON CONFLICT DO NOTHING",
+        "50MB file size limit, all relevant MIME types allowed (images, PDF, Office, audio, zip)",
+        "4 storage.objects RLS policies (INSERT/SELECT/UPDATE/DELETE) for authenticated users",
+        "supabase/config.toml updated with [storage.buckets.documents] for local dev",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "notes": "Migration 20260220150000: bucket 'documents' + get_team_id_from_document_path() helper + 4 storage RLS policies + property_documents DEFAULT updated. config.toml updated."
+    },
+    {
+      "id": "US-002",
+      "title": "Point all 3 upload routes to 'documents' bucket",
+      "description": "As a user, I want property/intervention/contract document uploads to use the new 'documents' bucket so that all uploads succeed.",
+      "acceptanceCriteria": [
+        "app/api/property-documents/upload/route.ts: bucket changed from 'property-documents' to 'documents' (3 occurrences)",
+        "app/api/upload-intervention-document/route.ts: bucket changed from 'intervention-documents' to 'documents' (3 occurrences)",
+        "app/api/upload-contract-document/route.ts: bucket changed from 'contract-documents' to 'documents' (3 occurrences)",
+        "lib/services/domain/storage.service.ts: add 'documents' bucket config alongside existing ones",
+        "property_documents table DEFAULT updated in migration (storage_bucket column)",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": ["US-001"],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "All 3 upload routes pointed to 'documents' bucket. storage.service.ts updated with 'documents' config (50MB, 15 MIME types). CRITICAL FIX: intervention route path changed from interventions/{id}/... to {team_id}/{id}/... to match documents bucket RLS path-based access."
+    },
+    {
+      "id": "US-003",
+      "title": "Update download/view routes to support both old and new buckets",
+      "description": "As a user, I want to download documents regardless of which bucket they were uploaded to (old or new), so that existing documents remain accessible.",
+      "acceptanceCriteria": [
+        "Download routes read storage_bucket from document row (not hardcoded)",
+        "app/api/download-intervention-document/route.ts + [id]/route.ts: use doc.storage_bucket",
+        "app/api/property-documents/[id]/download/route.ts: use doc.storage_bucket",
+        "Old documents (in 'intervention-documents' bucket) still downloadable",
+        "New documents (in 'documents' bucket) downloadable",
+        "Lint passes"
+      ],
+      "priority": 1,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "No changes needed — all 3 download/view routes already use doc.storage_bucket with fallback to old bucket name. Pattern: .from(document.storage_bucket || 'old-bucket'). Also verified view-intervention-document/route.ts uses same pattern."
+    },
+    {
+      "id": "US-004",
+      "title": "E2E: Building creation with document upload",
+      "description": "As a developer, I want E2E tests that verify document uploads work during building creation (step 4/5), so we have regression protection.",
+      "acceptanceCriteria": [
+        "Adapt existing building-creation.e2e.ts to include document upload step",
+        "Test uploads at least 1 document during building creation wizard",
+        "Test verifies document appears in the created building's detail page (or toast/no error)",
+        "All existing building creation tests still pass",
+        "Tests pass in 2 consecutive runs"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Added data-testid to document-slot-generic.tsx file inputs. Added document upload methods to building-wizard.page.ts POM. Modified submission test to include doc upload in step 3. 8/8 tests pass 2x consecutive. Key fix: Radix TabsTrigger requires Puppeteer native click (not page.evaluate), and TabsContent only renders children when active."
+    },
+    {
+      "id": "US-005",
+      "title": "E2E: Lot creation with document upload",
+      "description": "As a developer, I want E2E tests that verify document uploads work during lot creation (step 4/5), so we have regression protection for both existing-building and independent modes.",
+      "acceptanceCriteria": [
+        "Adapt existing lot-creation.e2e.ts to include document upload step",
+        "Test uploads at least 1 document during lot creation wizard",
+        "Test verifies document upload doesn't error (toast or document visible)",
+        "All existing lot creation tests still pass (12 tests)",
+        "Tests pass in 2 consecutive runs"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Added document upload methods to lot-wizard.page.ts POM (switchToDocumentsTab, expandFirstLotAccordion, uploadDocumentToSlot, hasStagedFile). Modified both submission tests to include doc upload in step 3. Key fix: Independent mode has accordion per lot — must expand first before doc inputs appear in DOM (double-nested conditional rendering: tab + accordion). 12/12 tests pass 2x consecutive."
+    },
+    {
+      "id": "US-006",
+      "title": "E2E: Contract creation with document upload",
+      "description": "As a developer, I want E2E tests that verify document uploads work during contract creation, so we have regression protection for the contract document flow.",
+      "acceptanceCriteria": [
+        "New or adapted E2E test for contract creation flow with document upload",
+        "Test uploads at least 1 document during contract creation",
+        "Test verifies document upload succeeds (no error, document visible or toast)",
+        "Tests pass in 2 consecutive runs"
+      ],
+      "priority": 2,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}

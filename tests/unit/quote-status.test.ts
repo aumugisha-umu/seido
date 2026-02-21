@@ -148,4 +148,57 @@ describe('hasActiveQuoteProcess', () => {
   it('returns false when only rejected quotes', () => {
     expect(hasActiveQuoteProcess([{ status: 'rejected' }], true)).toBe(false)
   })
+
+  it('returns false when only expired quotes', () => {
+    expect(hasActiveQuoteProcess([{ status: 'expired' }], true)).toBe(false)
+  })
+
+  it('returns false when only cancelled quotes', () => {
+    expect(hasActiveQuoteProcess([{ status: 'cancelled' }], true)).toBe(false)
+  })
+
+  it('returns true with mixed statuses including pending', () => {
+    expect(hasActiveQuoteProcess([
+      { status: 'rejected' },
+      { status: 'pending' },
+      { status: 'cancelled' },
+    ], true)).toBe(true)
+  })
+
+  it('returns true with mixed statuses including sent', () => {
+    expect(hasActiveQuoteProcess([
+      { status: 'rejected' },
+      { status: 'sent' },
+    ], true)).toBe(true)
+  })
+
+  it('returns false when all quotes are terminal (rejected/expired/cancelled)', () => {
+    expect(hasActiveQuoteProcess([
+      { status: 'rejected' },
+      { status: 'expired' },
+      { status: 'cancelled' },
+    ], true)).toBe(false)
+  })
+})
+
+describe('getQuoteBadgeStatus — edge cases', () => {
+  it('returns "requested" when mixed with expired quotes', () => {
+    const quotes = [
+      { status: 'pending' },
+      { status: 'expired' },
+    ]
+    expect(getQuoteBadgeStatus(quotes)).toBe('requested')
+  })
+
+  it('returns "validated" when accepted mixed with cancelled', () => {
+    const quotes = [
+      { status: 'accepted' },
+      { status: 'cancelled' },
+    ]
+    expect(getQuoteBadgeStatus(quotes)).toBe('validated')
+  })
+
+  it('handles single accepted quote', () => {
+    expect(getQuoteBadgeStatus([{ status: 'accepted' }])).toBe('validated')
+  })
 })

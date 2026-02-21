@@ -4,7 +4,7 @@
 > **Updated by:** sp-compound skill after each feature completion.
 
 **Last Updated:** 2026-02-21
-**Total Learnings:** 57
+**Total Learnings:** 62
 
 ---
 
@@ -428,6 +428,41 @@
 **Example:** `tests/e2e/contract-creation.e2e.ts:99-100,115-116` — dismiss after dashboard + after wizard navigation
 **When to Use:** Any E2E test that navigates to multiple pages — banners reappear each time
 **Added:** 2026-02-21 | **Source:** Contract wizard E2E overlay debugging
+
+#### Learning #058: Vitest fileParallelism — singleFork + concurrent:false is NOT enough for E2E
+**Problem:** E2E tests sharing a Puppeteer browser singleton ran concurrently across files despite `pool: 'forks'`, `singleFork: true`, and `sequence: { concurrent: false }`. Tests from two files interleaved, causing navigation interference (one test's goto interrupted another's page state).
+**Solution:** Add `fileParallelism: false` at the `test` level in vitest config. `singleFork` controls worker processes, `concurrent` controls within-file ordering, but `fileParallelism` (default `true`) controls whether multiple test files are dispatched concurrently to the same worker.
+**Example:** `tests/e2e/vitest.e2e.config.ts:29` — `fileParallelism: false`
+**When to Use:** Any vitest E2E config where test files share state (browser, DB connection, server)
+**Added:** 2026-02-21 | **Source:** Intervention workflow E2E debugging — cross-file interference
+
+#### Learning #059: SSR hydration gap — waitForContent passes on shell, then React replaces with skeleton
+**Problem:** `waitForContent(['général', 'participants'])` found tab labels in the SSR-rendered shell HTML, but React hydration then replaced the content with loading skeletons (grey placeholder bars). By the time the assertion ran, the page showed no readable text.
+**Solution:** Never use instant `hasContent()` snapshots for assertions. Always poll for the SPECIFIC text you're asserting with `page.waitForFunction(() => document.body.innerText.includes('target'))`. This survives the SSR→hydration→data-fetch lifecycle.
+**Example:** `tests/e2e/intervention-lifecycle.e2e.ts:124` — `waitForFunction` polling for 'planifier' instead of `hasContent`
+**When to Use:** Any E2E assertion on Server Component pages with client-side data fetching
+**Added:** 2026-02-21 | **Source:** Intervention lifecycle E2E — blank page after navigateTo
+
+#### Learning #060: Late-appearing system modals intercept button clicks — dismiss inside every action
+**Problem:** Notification permission modals ("Activez les notifications") appear on a TIMER (not on page load). `dismissAllBanners` in `navigateTo` runs too early. When `clickActionButton` fires 3+ seconds later, the modal has appeared and intercepts the click.
+**Solution:** Call `dismissAllBanners(page)` inside `clickActionButton` (and any other action method) BEFORE finding/clicking the target button. Defense in depth: dismiss at navigation AND at interaction time.
+**Example:** `tests/e2e/pages/intervention-detail.page.ts:130` — `dismissAllBanners` before `findButtonByText`
+**When to Use:** Any E2E POM method that clicks buttons on pages with timed system modals
+**Added:** 2026-02-21 | **Source:** Intervention workflow E2E — notification modal blocking approval flow
+
+#### Learning #061: Ghost dialog shells from dismissed Radix modals trap find()
+**Problem:** Dismissed Radix Dialog modals leave empty `[role="dialog"]` DOM elements (ghost shells). `Array.from(dialogs).find(d => !isSystem(d))` picks the FIRST non-system dialog — which may be an empty ghost shell with no buttons. The actual confirmation dialog is later in the array.
+**Solution:** Iterate ALL dialogs with `for...of`, skip entries with `textContent.trim().length < 5` (ghost shells), and return the first button match found in a non-ghost, non-system dialog. Never use `find()` for dialog selection.
+**Example:** `tests/e2e/pages/intervention-detail.page.ts:244-261` — `findDialogButton` iterates all dialogs
+**When to Use:** Any E2E interaction with Radix Dialog/AlertDialog modals (approval, cancel, confirm flows)
+**Added:** 2026-02-21 | **Source:** Intervention workflow E2E — approval "Confirmer" button never found
+
+#### Learning #062: Radix Dialog Portal elements need robustClick (CDP + coordinate fallback)
+**Problem:** Radix Dialog Portal renders modal content outside React's root `#__next` container. Standard `ElementHandle.click()` sometimes fails silently for portal-rendered buttons because the click event doesn't propagate through React's event delegation tree.
+**Solution:** Use a `robustClick` pattern: (1) CDP click via `element.click()`, (2) wait 200ms, (3) coordinate-based `page.mouse.click(centerX, centerY)` as fallback. The mouse click goes through the browser's full hit-testing, catching cases where CDP events don't reach React handlers.
+**Example:** `tests/e2e/pages/intervention-detail.page.ts:345-358` — `robustClick` method
+**When to Use:** Any E2E click on Radix Portal elements (Dialog, AlertDialog, Popover, DropdownMenu)
+**Added:** 2026-02-21 | **Source:** Intervention workflow E2E — dialog confirm button click failures
 
 ---
 

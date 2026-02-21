@@ -25,7 +25,11 @@ export default defineConfig({
     // Login once before all test files, cleanup after
     globalSetup: ['tests/e2e/setup/global-setup.ts'],
     teardownTimeout: 10_000,
-    // Sequential execution — E2E tests share browser state
+    // Sequential execution — E2E tests share browser state.
+    // fileParallelism: false prevents vitest from running multiple test files
+    // concurrently in the same fork (even with singleFork, files can still run
+    // in parallel without this flag, causing shared-browser interference).
+    fileParallelism: false,
     sequence: { concurrent: false },
     pool: 'forks',
     poolOptions: { forks: { singleFork: true } },

@@ -22,10 +22,18 @@ export const TEST_ACCOUNTS: Record<string, TestAccount> = {
     role: 'gestionnaire',
     displayName: 'Arthur (Gestionnaire)',
   },
-  // Add more test accounts as needed:
-  // prestataire: { ... },
-  // locataire: { ... },
-  // admin: { ... },
+  locataire: {
+    email: process.env.E2E_LOCATAIRE_EMAIL || 'demo+noelle.montagne@seido-app.com',
+    password: process.env.E2E_LOCATAIRE_PASSWORD || 'Wxcvbn123',
+    role: 'locataire',
+    displayName: 'Noelle Montagne (Locataire)',
+  },
+  prestataire: {
+    email: process.env.E2E_PRESTATAIRE_EMAIL || 'demo+artisan.polyvalent@seido-app.com',
+    password: process.env.E2E_PRESTATAIRE_PASSWORD || 'Wxcvbn123',
+    role: 'prestataire',
+    displayName: 'Artisan Polyvalent (Prestataire)',
+  },
 }
 
 /**

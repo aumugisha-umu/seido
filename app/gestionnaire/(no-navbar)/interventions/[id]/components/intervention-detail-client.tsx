@@ -126,6 +126,7 @@ import { useInterventionPlanning } from '@/hooks/use-intervention-planning'
 import { useTeamStatus } from '@/hooks/use-team-status'
 import { useToast } from '@/hooks/use-toast'
 import { useInterventionApproval } from '@/hooks/use-intervention-approval'
+import { useInterventionCancellation } from '@/hooks/use-intervention-cancellation'
 import { useActivityLogs } from '@/hooks/use-activity-logs'
 
 // Activity tab (shared)
@@ -164,6 +165,7 @@ import { FinalizationModalLive } from '@/components/intervention/finalization-mo
 
 // Dynamic import for approval modal (now handles everything in one modal)
 const ApprovalModal = dynamic(() => import("@/components/intervention/modals/approval-modal").then(mod => ({ default: mod.ApprovalModal })), { ssr: false })
+const CancelConfirmationModal = dynamic(() => import("@/components/intervention/modals/cancel-confirmation-modal").then(mod => ({ default: mod.CancelConfirmationModal })), { ssr: false })
 
 // Multi-provider components
 import { LinkedInterventionsSection, LinkedInterventionBanner } from '@/components/intervention/linked-interventions-section'
@@ -929,6 +931,7 @@ export function InterventionDetailClient({
 
   // Initialize approval hook for approve/reject actions
   const approvalHook = useInterventionApproval(handleRefresh)
+  const cancellationHook = useInterventionCancellation()
 
   // Prepare intervention data for approval hook
   const interventionActionData = useMemo(() => {
@@ -1132,7 +1135,7 @@ export function InterventionDetailClient({
         router.push(action.href || `/gestionnaire/interventions/modifier/${intervention.id}`)
         return
       case 'cancel':
-        // TODO: Open cancel modal
+        cancellationHook.handleCancellationAction(interventionActionData)
         return
     }
 
@@ -2580,6 +2583,22 @@ export function InterventionDetailClient({
             onConfirm={approvalHook.handleConfirmAction}
             isLoading={approvalHook.isLoading}
             documents={documents}
+          />
+        )}
+
+        {/* Modale d'annulation */}
+        {cancellationHook.cancellationModal.isOpen && (
+          <CancelConfirmationModal
+            isOpen={cancellationHook.cancellationModal.isOpen}
+            onClose={cancellationHook.closeCancellationModal}
+            onConfirm={cancellationHook.handleConfirmCancellation}
+            intervention={cancellationHook.cancellationModal.intervention}
+            cancellationReason={cancellationHook.cancellationReason}
+            onCancellationReasonChange={cancellationHook.setCancellationReason}
+            internalComment={cancellationHook.internalComment}
+            onInternalCommentChange={cancellationHook.setInternalComment}
+            isLoading={cancellationHook.isLoading}
+            error={cancellationHook.error}
           />
         )}
 

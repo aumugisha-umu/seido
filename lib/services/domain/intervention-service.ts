@@ -147,7 +147,7 @@ interface DashboardStats {
  * Valid status transitions mapping
  * Workflow: planifiee → cloturee_par_prestataire (direct transition)
  */
-const VALID_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> = {
+export const VALID_TRANSITIONS: Record<InterventionStatus, InterventionStatus[]> = {
   'demande': ['rejetee', 'approuvee'],
   'rejetee': [], // Terminal state
   'approuvee': ['planification', 'annulee'], // demande_de_devis removed - quote status tracked via intervention_quotes table

@@ -3,9 +3,10 @@
  *
  * Provides a shared browser instance with:
  * - Auth cookie restoration from globalSetup (no per-file login needed)
+ * - Multi-role support via newPageAs(role)
  *
  * The browser persists across all test files in a single run.
- * globalSetup logs in once; each test file restores cookies.
+ * globalSetup logs in once per role; each test file restores cookies.
  *
  * NOTE: userDataDir was removed — it caused DOM events to silently fail
  * in headless mode (clicks, addEventListener all broken). Cold starts are
@@ -14,12 +15,9 @@
 
 import puppeteer, { type Browser, type Page, type Protocol } from 'puppeteer'
 import fs from 'fs/promises'
-import path from 'path'
+import { AUTH_COOKIES_PATH, getAuthCookiesPath } from '../setup/global-setup'
 
 let browser: Browser | null = null
-
-/** Path to auth cookies saved by globalSetup */
-const AUTH_COOKIES_PATH = path.resolve(__dirname, '../.auth-cookies.json')
 
 /**
  * Launch or reuse the shared browser instance.
@@ -42,10 +40,21 @@ export async function getBrowser(): Promise<Browser> {
 }
 
 /**
- * Create a fresh page with auth cookies pre-loaded.
+ * Create a fresh page with gestionnaire auth cookies pre-loaded.
  * No login needed — cookies were saved by globalSetup.
+ * Backward compatible with existing tests.
  */
 export async function newPage(): Promise<Page> {
+  return newPageAs('gestionnaire')
+}
+
+/**
+ * Create a fresh page authenticated as a specific role.
+ *
+ * @param role - Role key from TEST_ACCOUNTS ('gestionnaire', 'locataire', 'prestataire')
+ * @returns Page with role-specific auth cookies pre-loaded
+ */
+export async function newPageAs(role: string): Promise<Page> {
   const b = await getBrowser()
   const page = await b.newPage()
 
@@ -53,28 +62,38 @@ export async function newPage(): Promise<Page> {
   page.setDefaultTimeout(15_000)
   page.setDefaultNavigationTimeout(45_000)
 
-  // Restore auth cookies from globalSetup
-  await restoreAuthCookies(page)
+  // Restore auth cookies for the specified role
+  await restoreAuthCookies(page, role)
 
   return page
 }
 
 /**
- * Load auth cookies saved by globalSetup into this page.
- * After this, navigating to any SEIDO page will be authenticated.
+ * Load auth cookies for a specific role into this page.
+ * After this, navigating to any SEIDO page will be authenticated as that role.
+ *
+ * @param page - Puppeteer page
+ * @param role - Role key ('gestionnaire', 'locataire', 'prestataire'). Defaults to 'gestionnaire'.
  */
-async function restoreAuthCookies(page: Page): Promise<void> {
-  try {
-    const data = await fs.readFile(AUTH_COOKIES_PATH, 'utf-8')
-    const cookies: Protocol.Network.CookieParam[] = JSON.parse(data)
-    if (cookies.length > 0) {
-      await page.setCookie(...cookies)
+async function restoreAuthCookies(page: Page, role: string = 'gestionnaire'): Promise<void> {
+  // Try role-specific path first, then legacy path for gestionnaire
+  const rolePath = getAuthCookiesPath(role)
+  const paths = role === 'gestionnaire' ? [rolePath, AUTH_COOKIES_PATH] : [rolePath]
+
+  for (const cookiePath of paths) {
+    try {
+      const data = await fs.readFile(cookiePath, 'utf-8')
+      const cookies: Protocol.Network.CookieParam[] = JSON.parse(data)
+      if (cookies.length > 0) {
+        await page.setCookie(...cookies)
+        return
+      }
+    } catch {
+      // Try next path
     }
-  } catch {
-    // Cookies file not found — globalSetup may have failed or not run.
-    // Tests will need to login manually as fallback.
-    console.warn('[Browser] Auth cookies not found — tests may need manual login')
   }
+
+  console.warn(`[Browser] Auth cookies not found for role '${role}' — tests may need manual login`)
 }
 
 /**

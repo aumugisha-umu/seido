@@ -1,10 +1,22 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** E2E Testing Infrastructure + Unified Documents Bucket + Contract Wizard E2E
+**Objectif:** Cancel Modal Wiring + Intervention Workflow Completion
 **Branch:** `preview`
-**Sprint:** E2E Testing V2 + Document Consolidation (Feb 2026)
-**Derniere analyse:** Contract E2E green, 25 total E2E tests, 57 AGENTS.md learnings — 2026-02-21
+**Sprint:** Intervention UX Completion + E2E Testing V2 (Feb 2026)
+**Derniere analyse:** Cancel modal wired, E2E cancel test un-skipped, lint clean — 2026-02-21
+
+---
+
+## ✅ COMPLETE: Cancel Modal Wiring (2026-02-21)
+
+Wired the pre-built cancellation infrastructure into the gestionnaire intervention detail page:
+- Imported `useInterventionCancellation` hook + `CancelConfirmationModal` (dynamic)
+- Replaced `case 'cancel': // TODO` stub with `cancellationHook.handleCancellationAction()`
+- Rendered modal in JSX after ApprovalModal block
+- Un-skipped E2E cancel test in `intervention-workflow.e2e.ts`
+
+**Pattern:** Same headless hook + dynamic modal as ApprovalModal (consistent codebase pattern).
 
 ---
 
@@ -93,7 +105,8 @@ draft -> pending -> sent -> accepted (terminal positif)
 ## Prochaines Etapes
 
 ### A faire immediatement
-- [ ] Commiter all changes (E2E tests, unified bucket, lot refactor, contract wizard, address fix)
+- [ ] Commiter all changes (cancel modal wiring, E2E tests, unified bucket, lot refactor, contract wizard)
+- [ ] Run E2E cancel test to validate: `npx vitest run --config tests/e2e/vitest.e2e.config.ts tests/e2e/intervention-workflow.e2e.ts`
 - [ ] Plan: Unified Document Table migration (current plan in giggly-petting-hickey.md)
 
 ### Fonctionnalites a Venir
@@ -122,9 +135,11 @@ draft -> pending -> sent -> accepted (terminal positif)
 | Notification actions | **20** |
 | **AGENTS.md Learnings** | **57** (+11: #047-#057, E2E patterns + storage) |
 | **systemPatterns.md Patterns** | **29** |
-| **E2E Test Files** | **4** (smoke, building, lot, contract) |
-| **E2E Page Objects** | **5** (dashboard, login, 3 wizards) |
-| **E2E Total Tests** | **25** |
+| **E2E Test Files** | **8** (smoke, building, lot, contract, 4 intervention) |
+| **E2E Page Objects** | **8** (dashboard, login, 3 wizards, 3 intervention) |
+| **E2E Total Tests** | **25+** (wizard tests) + intervention workflow tests |
+| **Unit Test Files** | **7** (intervention mappers/permissions/schemas/status/location, quote-status, vat) |
+| **Integration Test Files** | **4** (assignments, create, quotes, transitions) |
 | **Blog articles** | **2** (Jan 2026, Feb 2026) |
 
 ---
@@ -133,19 +148,17 @@ draft -> pending -> sent -> accepted (terminal positif)
 
 | Hash | Description |
 |------|-------------|
+| `875bd28` | feat(e2e+docs): E2E testing infrastructure V2, unified documents bucket, lot wizard refactor |
 | `9ca9940` | feat(blog): complete blog section — 6 stories, ~15 files (Ralph methodology) |
 | `eb0aa6f` | feat(seo): landing page SEO/CRO optimization — score 52 to 78/100 (13 stories) |
-| `92ca002` | feat(property-wizard): 5-step creation with documents, interventions + code review fixes (3C+7H+2Q) |
 
 ---
 
-*Derniere mise a jour: 2026-02-21 (E2E testing V2 complete, unified documents bucket, memory update)*
-*Focus: E2E infrastructure green, ready to commit*
+*Derniere mise a jour: 2026-02-21 (Cancel modal wired, E2E cancel test un-skipped)*
+*Focus: Cancel modal functional, intervention workflow feature-complete*
 
 ## Files Recently Modified
-### 2026-02-21 11:43:28 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/activeContext.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/progress.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/memory-bank/techContext.md`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.claude/auto-memory/last-sync`
-- `C:/Users/arthu/.claude/projects/C--Users-arthu-Desktop-Coding-Seido-app/memory/MEMORY.md`
+### 2026-02-21 21:12:59 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/tasks/prd.json`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/tasks/progress.txt`
+- `C:/Users/arthu/Desktop/Coding/Seido-app/.env.example`

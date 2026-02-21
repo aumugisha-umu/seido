@@ -1,73 +1,34 @@
-# Progress Log — Unified Document Bucket + E2E Tests
-# Started: 2026-02-20
-# Stories: 6 total
-# Previous feature (Lot Wizard E2E, 7/7 done) archived to tasks/archive/2026-02-20-lot-wizard-e2e/
+# Progress Log — Stripe Subscription Integration (TDD)
+# Started: 2026-02-21
+# Stories: 48 total (35 implementation + 13 test stories)
+# Previous feature (Unified Documents Bucket, 3/6 done) archived to tasks/archive/2026-02-20-unified-documents-bucket/
+# Methodology: TDD — test stories (T-xxx) written BEFORE implementation stories (US-xxx)
 ---
 
-## 2026-02-20 — US-001: Create 'documents' storage bucket via migration (S) ✅
-- Migration 20260220150000: bucket 'documents' + get_team_id_from_document_path() helper + 4 storage RLS policies
-- property_documents DEFAULT updated to 'documents'
-- config.toml updated with [storage.buckets.documents]
-- Files: 20260220150000_create_unified_documents_bucket.sql, config.toml
+## 2026-02-21 — Deep Audit: Stripe TDD Plan Verification
+- Audited all 48 stories against official Stripe docs + design doc (1337 lines) + implementation plan (1703 lines)
+- Cross-referenced with: Stripe subscription lifecycle (7 official statuses), 3D Secure test cards, webhook best practices, proration patterns
+- **14 gaps identified** across 4 categories:
+  - Missing Stripe statuses: incomplete, incomplete_expired, unpaid, paused (4 gaps)
+  - Missing webhook events: charge.refunded, customer.subscription.paused, out-of-order reconciliation (3 gaps)
+  - Missing E2E scenarios: 3D Secure card, decline card, manual navigation exploit (3 gaps)
+  - Missing email templates: J+7 feature, J+14 value, J+3 win-back (3 gaps)
+  - Missing edge cases: cancel_at_period_end, concurrent upgrade race condition (2 gaps)
+- **6 new corrections added** (C12-C17) to prd.json
+- **State machine expanded**: 8 → 12 transitions (added incomplete→active, incomplete→expired, past_due→unpaid, free_tier→active)
+- **Test count increased**: ~238 → ~258 estimated test cases
+- **All 13 T-xxx stories verified**: each has DOCS OBLIGATOIRES with specific Stripe URLs
+- Sources: Stripe Billing Testing, Stripe Subscription Lifecycle, Stripe 3D Secure, Stripe Prorations
+- Files modified: tasks/prd.json
 
-## 2026-02-20 — US-002: Point all 3 upload routes to 'documents' bucket (XS) ✅
-- property-documents/upload/route.ts: 3 occurrences 'property-documents' → 'documents'
-- upload-intervention-document/route.ts: 3 occurrences 'intervention-documents' → 'documents'
-- upload-contract-document/route.ts: 4 occurrences 'contract-documents' → 'documents'
-- storage.service.ts: added 'documents' bucket config (50MB, 15 MIME types incl audio)
-- CRITICAL FIX: intervention storage path changed from `interventions/{id}/...` to `{team_id}/{id}/...`
-  - Old format would fail documents bucket RLS because 'interventions' is not a valid UUID
-  - Property and contract routes already used {team_id}/... format
-- Learnings: When consolidating buckets, audit ALL path formats for RLS compatibility — not just bucket names
-- Files: property-documents/upload/route.ts, upload-intervention-document/route.ts, upload-contract-document/route.ts, storage.service.ts
-
-## 2026-02-20 — US-003: Update download/view routes for dual-bucket support (S) ✅
-- NO CHANGES NEEDED — all download/view routes already read storage_bucket from document row
-- download-intervention-document/route.ts: `.from(document.storage_bucket || 'intervention-documents')` (line 66)
-- download-intervention-document/[id]/route.ts: `.from(document.storage_bucket || 'intervention-documents')` (line 93)
-- property-documents/[id]/download/route.ts: `bucket: document.storage_bucket || 'property-documents'` (line 54)
-- view-intervention-document/route.ts: `.from(document.storage_bucket || 'intervention-documents')` (line 68)
-- Learnings: Previous devs planned ahead with storage_bucket column — always check existing code before writing new
-- Files: none modified (audit only)
-
-## 2026-02-20 — US-004: E2E: Building creation with document upload (M) ✅
-- Added data-testid={`doc-upload-${type}`} to document-slot-generic.tsx file inputs
-- Added document upload methods to building-wizard.page.ts POM: switchToDocumentsTab, uploadDocumentToSlot, hasStagedFile
-- Modified submission test to include doc upload in step 3 (Certificat PEB slot)
-- Key fix: Radix TabsTrigger requires Puppeteer native click (not page.evaluate), TabsContent only renders when active
-- 8/8 tests pass 2x consecutive
-- Files: components/documents/document-slot-generic.tsx, tests/e2e/pages/building-wizard.page.ts, tests/e2e/building-creation.e2e.ts, tests/fixtures/test-document.pdf
-
-## 2026-02-20 — US-005: E2E: Lot creation with document upload (M) ✅
-- Added document upload methods to lot-wizard.page.ts POM: switchToDocumentsTab, expandFirstLotAccordion, uploadDocumentToSlot, hasStagedFile
-- Modified BOTH submission tests (existing building + independent mode) to include doc upload in step 3
-- Key fix: Independent mode has accordion per lot — document slots only render when accordion expanded (double-nested conditional: tab active + accordion expanded)
-- Accordion expand: Find button[type="button"] inside active documents tabpanel, click to expand
-- 12/12 tests pass 2x consecutive
-- Learnings: Always check for nested conditional rendering layers (tabs → accordion → components) when writing E2E tests for complex forms
-- Files: tests/e2e/pages/lot-wizard.page.ts, tests/e2e/lot-creation.e2e.ts
-
-## 2026-02-21 — US-006: E2E: Contract creation with document upload (L) ✅
-- Created contract-wizard.page.ts POM: navigate, selectFirstLot, fillStartDate, fillRentAmount, addFirstTenant, uploadDocumentToSlot, clickSubmit, waitForSuccessToast, waitForRedirect
-- Created contract-creation.e2e.ts: full 5-step wizard with real DB submission
-- Added data-testid to PropertySelector (lot-select-btn), ContactSelector (contact-radio/checkbox/confirm), ContactSection (add-contact-btn-tenants), StepProgressHeader (step-item-N, wizard-next/prev/submit-btn), ContractFormContainer (contract-form-container)
-- Key fixes applied during session:
-  - upload-contract-document/route.ts: switched to service role client for storage upload (user client blocked by RLS)
-  - contract-wizard.page.ts: useImperativeHandle retry loop (3 attempts, 2s delay) for contact dialog
-  - contract-wizard.page.ts: dual-condition waitForSuccessToast (success OR error) for better debugging
-  - contract-creation.e2e.ts: network noise filtering (analytics, HMR, RSC prefetches, ERR_ABORTED)
-  - contract-creation.e2e.ts: generateUniqueStartDate (2040-2060 range) to avoid overlap conflicts
-  - contracts-navigator.tsx: added "À venir" tab for a_venir contract status
-- Code review cleanup:
-  - Removed unused Tabs/ContractStatus imports from contracts-navigator.tsx
-  - Fixed JSDoc typo (add-contact-btn-tenant → tenants plural)
-  - Removed stale userDataDir JSDoc from vitest.e2e.config.ts
-  - Removed unused BROWSER_DATA_DIR export from global-setup.ts
-- Test passes in 43s, 1/1 green
-- Files: tests/e2e/contract-creation.e2e.ts, tests/e2e/pages/contract-wizard.page.ts, tests/e2e/vitest.e2e.config.ts, tests/e2e/setup/global-setup.ts, app/api/upload-contract-document/route.ts, components/contracts/contracts-navigator.tsx, components/property-selector.tsx, components/contact-selector.tsx, components/ui/contact-section.tsx, components/ui/step-progress-header.tsx, components/contract/contract-form-container.tsx
-
-## 2026-02-21 — Compound: E2E Testing V2 Session
-- 5 new AGENTS.md learnings (#053-#057): service role storage, useImperativeHandle retry, dual-condition toast, network noise filter, banner dismiss pattern
-- Retrospective: docs/learnings/2026-02-21-e2e-contract-wizard-retrospective.md
-- E2E coverage: 3 wizards (building 8 tests, lot 12 tests, contract 1 test) + smoke 4 tests = 25 E2E tests total
+## 2026-02-21 — Stripe Setup Complete (Pre-requisites Done)
+- **Dashboard**: Mode test actif, produit "Seido subscription test" cree (50EUR/an + 5EUR/mois per unit)
+- **Customer Portal**: Configure (carte, annulation, factures — switch plan desactive car gere dans notre code)
+- **Stripe Tax**: Belgium 21% VAT exclusive active
+- **Smart Retries**: Active
+- **Coupon**: SEIDOBETA26 (25% permanent, expire 1 avr 2026)
+- **Stripe CLI**: v1.35.1 installe, login fait, listen configure
+- **Env vars**: STRIPE_SECRET_KEY, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ANNUAL, STRIPE_PRICE_MONTHLY, CRON_SECRET — tous set dans .env.local
+- **Status**: prd.json passe a "in_progress", readyForImplementation: true
+- **Next**: Commencer US-001 (Install packages) → T-001 (Tests utils) → US-002 (Migration DB)
 

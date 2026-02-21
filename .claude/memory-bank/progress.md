@@ -69,8 +69,27 @@
 - [x] **Unified Documents Bucket** (2026-02-20) - Consolidated 3 storage buckets (property/intervention/contract) into 1 `documents` bucket
 - [x] **E2E Testing Infrastructure V2** (2026-02-20/21) - 25 E2E tests across 4 test files, 5 POMs, API-based auth, Puppeteer + Vitest
 - [x] **Contract Wizard E2E** (2026-02-21) - Full 5-step wizard test with doc upload, service role storage fix, 11 data-testid attrs added
+- [x] **Cancel Modal Wiring** (2026-02-21) - Wired pre-built cancellation hook+modal into gestionnaire detail page, un-skipped E2E cancel test
 
 ## Sprint Actuel (Jan-Feb 2026)
+
+### 2026-02-21 - Cancel Modal Wiring (Intervention Detail Page)
+
+**Session: Wire pre-built cancellation infrastructure into gestionnaire detail page**
+
+| Change | File | Description |
+|--------|------|-------------|
+| Import hook | intervention-detail-client.tsx | `useInterventionCancellation` hook |
+| Dynamic modal | intervention-detail-client.tsx | `CancelConfirmationModal` via `next/dynamic` |
+| Wire handler | intervention-detail-client.tsx | Replace `case 'cancel': // TODO` with hook call |
+| Render modal | intervention-detail-client.tsx | JSX block after ApprovalModal |
+| Un-skip E2E | intervention-workflow.e2e.ts | Cancel test now active |
+
+**Pattern used:** Same headless hook + dynamic modal as `useInterventionApproval` + `ApprovalModal`. Zero new files created — all infrastructure was pre-built (hook, modal, API route, service method).
+
+**Lint:** Clean (no new warnings).
+
+---
 
 ### 2026-02-20/21 - E2E Testing V2 + Unified Documents Bucket
 
@@ -521,9 +540,11 @@ Refactoring pour unifier l'expérience notifications entre web et PWA.
 | **systemPatterns.md Patterns** | **29** |
 | **Shared Cards** | **15** |
 | **Quote Status Enum (DB)** | **7** (draft, pending, sent, accepted, rejected, expired, cancelled) |
-| **E2E Test Files** | **4** (smoke, building, lot, contract) |
-| **E2E Page Objects** | **5** (dashboard, login, 3 wizards) |
-| **E2E Total Tests** | **25** |
+| **E2E Test Files** | **8** (smoke, building, lot, contract, 4 intervention) |
+| **E2E Page Objects** | **8** (dashboard, login, 3 wizards, 3 intervention) |
+| **E2E Total Tests** | **25+** (wizards) + intervention workflow |
+| **Unit Test Files** | **7** |
+| **Integration Test Files** | **4** |
 
 ### Metriques Ecosysteme .claude/ (2026-01-23)
 
@@ -585,4 +606,4 @@ Refactoring pour unifier l'expérience notifications entre web et PWA.
 
 ---
 *Derniere mise a jour: 2026-02-21*
-*Session: E2E testing V2 (25 tests green), unified documents bucket, contract wizard E2E*
+*Session: Cancel modal wired on gestionnaire detail page, E2E cancel test un-skipped*

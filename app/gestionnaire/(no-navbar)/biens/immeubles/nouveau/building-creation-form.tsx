@@ -63,6 +63,9 @@ import { BUILDING_DOCUMENT_SLOTS, LOT_IN_BUILDING_DOCUMENT_SLOTS } from '@/lib/c
 import { useMultiLotDocumentUpload } from '@/hooks/use-multi-lot-document-upload'
 import { BuildingLotsStepV2 } from "@/components/building-lots-step-v2"
 import { BuildingContactsStepV3 } from "@/components/building-contacts-step-v3"
+import { useSubscription } from "@/hooks/use-subscription"
+import { UpgradeModal } from "@/components/billing/upgrade-modal"
+import { FREE_TIER_LIMIT } from "@/lib/stripe"
 
 // Type for team members with user details (from getTeamMembers)
 type TeamManagerWithUser = {
@@ -216,6 +219,10 @@ export default function NewImmeubleePage({
 
   // Flag to prevent hydration mismatch
   const [isMounted, setIsMounted] = useState(false)
+
+  // Subscription limit gating
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
+  const { status: subscriptionStatus, refresh: refreshSubscription } = useSubscription()
 
   // Flag to track if step 3 has been initialized (to prevent reopening all lots)
   const hasInitializedStep3 = useRef(false)
@@ -494,7 +501,19 @@ export default function NewImmeubleePage({
   }, [currentStep, lots.length, categoryCountsByTeam])
 
 
+  const isAtLotLimit = (): boolean => {
+    if (!subscriptionStatus) return false
+    if (subscriptionStatus.status === 'trialing') return false
+    if (subscriptionStatus.is_free_tier) return (subscriptionStatus.actual_lots + lots.length) >= FREE_TIER_LIMIT
+    if (subscriptionStatus.subscribed_lots > 0) return (subscriptionStatus.actual_lots + lots.length) >= subscriptionStatus.subscribed_lots
+    return false
+  }
+
   const addLot = () => {
+    if (isAtLotLimit()) {
+      setUpgradeModalOpen(true)
+      return
+    }
     // Generer la reference basee sur la categorie par defaut (appartement)
     const category = "appartement"
     const categoryConfig = getLotCategoryConfig(category)
@@ -551,6 +570,10 @@ export default function NewImmeubleePage({
   }
 
   const duplicateLot = (_id: string) => {
+    if (isAtLotLimit()) {
+      setUpgradeModalOpen(true)
+      return
+    }
     const lotToDuplicate = lots.find((lot) => lot.id === _id)
     if (lotToDuplicate) {
       const newLot: Lot = {
@@ -1122,6 +1145,7 @@ export default function NewImmeubleePage({
             onDuplicateLot={duplicateLot}
             onRemoveLot={removeLot}
             onToggleLotExpansion={toggleLotExpansion}
+            disableAddLot={isAtLotLimit()}
           />
         )}
 
@@ -1553,6 +1577,17 @@ export default function NewImmeubleePage({
             saveAndRedirect('/gestionnaire/contacts/nouveau', { type: contactType })
           }}
         />
+
+      <UpgradeModal
+        open={upgradeModalOpen}
+        onOpenChange={setUpgradeModalOpen}
+        currentLots={subscriptionStatus?.actual_lots ?? 0}
+        subscribedLots={subscriptionStatus?.subscribed_lots}
+        onUpgradeComplete={() => {
+          setUpgradeModalOpen(false)
+          refreshSubscription()
+        }}
+      />
     </div>
   )
 }

@@ -554,3 +554,125 @@ export interface DocumentUploadedEmailProps extends BaseEmailProps {
   /** URL vers l'entité liée (bien, lot, contrat...) */
   entityUrl: string
 }
+
+/**
+ * ═══════════════════════════════════════════════════════════
+ * 💳 TEMPLATES BILLING / SUBSCRIPTION
+ * ═══════════════════════════════════════════════════════════
+ */
+
+/**
+ * Props communes pour les emails billing
+ */
+export interface BaseBillingEmailProps extends BaseEmailProps {
+  /** Nom de l'équipe */
+  teamName: string
+  /** URL de la page billing */
+  billingUrl: string
+}
+
+/**
+ * Props pour "Bienvenue dans l'essai" (J+1)
+ */
+export interface TrialWelcomeEmailProps extends BaseBillingEmailProps {
+  /** Nombre de jours restants dans l'essai */
+  daysLeft: number
+  /** URL du dashboard */
+  dashboardUrl: string
+}
+
+/**
+ * Props pour "Feature engagement" (J+7)
+ */
+export interface FeatureEngagementEmailProps extends BaseBillingEmailProps {
+  /** Nombre d'interventions créées pendant la trial */
+  interventionCount: number
+  /** Nombre de lots gérés */
+  lotCount: number
+  /** Nombre de jours restants dans l'essai */
+  daysLeft: number
+}
+
+/**
+ * Props pour "Value report" (J+14)
+ */
+export interface ValueReportEmailProps extends BaseBillingEmailProps {
+  /** Nombre d'interventions clôturées */
+  completedInterventions: number
+  /** Heures estimées économisées */
+  hoursSaved: number
+  /** Équivalent argent économisé en EUR */
+  moneySaved: number
+  /** Nombre de lots gérés */
+  lotCount: number
+  /** Nombre de jours restants */
+  daysLeft: number
+}
+
+/**
+ * Props pour "Trial ending" (J-7, J-3, J-1)
+ */
+export interface TrialEndingEmailProps extends BaseBillingEmailProps {
+  /** Nombre de jours restants (7, 3, ou 1) */
+  daysLeft: number
+  /** Nombre de lots gérés */
+  lotCount: number
+  /** Prix annuel HT en EUR (calculé pour ce nombre de lots) */
+  annualPriceHT: number
+  /** Prix mensuel HT en EUR */
+  monthlyPriceHT: number
+  /** Économies annuelles en EUR (annuel vs mensuel) */
+  annualSavings: number
+}
+
+/**
+ * Props pour "Trial expired" (J+0)
+ */
+export interface TrialExpiredEmailProps extends BaseBillingEmailProps {
+  /** Nombre de lots gérés */
+  lotCount: number
+  /** Si le compte passe en read-only (>2 lots) ou free_tier (<=2) */
+  isReadOnly: boolean
+}
+
+/**
+ * Props pour "Win-back" (J+3 post-expiry)
+ */
+export interface WinBackEmailProps extends BaseBillingEmailProps {
+  /** Nombre de lots gérés */
+  lotCount: number
+  /** Nombre d'interventions créées */
+  interventionCount: number
+  /** Code promo si applicable */
+  promoCode?: string
+  /** Réduction en % si promo */
+  promoDiscount?: number
+}
+
+/**
+ * Props pour "Payment failed"
+ */
+export interface PaymentFailedEmailProps extends BaseBillingEmailProps {
+  /** Montant de la facture en EUR */
+  invoiceAmount: number
+  /** Nombre de tentatives échouées */
+  attemptCount: number
+  /** URL du portail Stripe pour mettre à jour la carte */
+  portalUrl: string
+}
+
+/**
+ * Props pour "Subscription activated" (après premier paiement réussi)
+ */
+export interface SubscriptionActivatedEmailProps extends BaseBillingEmailProps {
+  /** Plan choisi */
+  plan: 'annual' | 'monthly'
+  /** Nombre de lots couverts */
+  lotCount: number
+  /** Montant HT en EUR */
+  amountHT: number
+  /** Date du prochain renouvellement */
+  nextRenewalDate: string
+  /** URL du dashboard */
+  dashboardUrl: string
+}

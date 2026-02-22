@@ -7,6 +7,31 @@ import { RealtimeWrapper } from "@/components/realtime-wrapper"
 import { PWABannerWrapper } from "@/components/pwa/pwa-banner-wrapper"
 import { SidebarProvider } from "@/components/ui/sidebar"
 import GestionnaireSidebar from "@/components/gestionnaire-sidebar"
+import { SubscriptionBanners } from "@/components/billing/subscription-banners"
+import { SubscriptionService } from "@/lib/services/domain/subscription.service"
+import { SubscriptionRepository } from "@/lib/services/repositories/subscription.repository"
+import { StripeCustomerRepository } from "@/lib/services/repositories/stripe-customer.repository"
+import { getStripe } from "@/lib/stripe"
+import { unstable_cache } from "next/cache"
+import { createServiceRoleSupabaseClient } from "@/lib/services"
+
+// Cached count of active/trialing teams (social proof for trial banner)
+const getActiveTeamsCount = unstable_cache(
+  async () => {
+    try {
+      const adminClient = createServiceRoleSupabaseClient()
+      const { count } = await adminClient
+        .from('subscriptions')
+        .select('id', { count: 'exact', head: true })
+        .in('status', ['active', 'trialing'])
+      return count ?? 0
+    } catch {
+      return 0
+    }
+  },
+  ['active-teams-count'],
+  { revalidate: 3600 } // 1 hour cache
+)
 
 /**
  * 🔐 GESTIONNAIRE LAYOUT - ROOT LAYOUT
@@ -25,7 +50,7 @@ export default async function GestionnaireLayout({
 }: {
   children: React.ReactNode
 }) {
-  const { user, profile, team, sameRoleTeams } = await getServerAuthContext('gestionnaire')
+  const { user, profile, team, supabase, sameRoleTeams } = await getServerAuthContext('gestionnaire')
 
   const userName = profile.name || user.email?.split('@')[0] || 'Utilisateur'
   const userInitial = userName.charAt(0).toUpperCase()
@@ -34,6 +59,25 @@ export default async function GestionnaireLayout({
   const cookieStore = await cookies()
   const sidebarCookie = cookieStore.get("sidebar_state")?.value
   const defaultOpen = sidebarCookie !== "false"
+
+  // Fetch subscription info + social proof count in parallel (fail-safe — layout must not crash)
+  let subscriptionInfo = null
+  let activeTeamsCount = 0
+  try {
+    const stripe = getStripe()
+    const subRepo = new SubscriptionRepository(supabase)
+    const custRepo = new StripeCustomerRepository(supabase)
+    const subService = new SubscriptionService(stripe, subRepo, custRepo)
+    const serviceRoleRepo = new SubscriptionRepository(createServiceRoleSupabaseClient())
+    const [subInfo, teamsCount] = await Promise.all([
+      subService.getSubscriptionInfo(team.id, serviceRoleRepo),
+      getActiveTeamsCount(),
+    ])
+    subscriptionInfo = subInfo
+    activeTeamsCount = teamsCount
+  } catch {
+    // Silently fail — banners just won't show
+  }
 
   return (
     <PWABannerWrapper>
@@ -55,6 +99,7 @@ export default async function GestionnaireLayout({
             teamId={team.id}
           />
           <div className="flex flex-col flex-1 min-w-0 h-full">
+            <SubscriptionBanners subscriptionInfo={subscriptionInfo} role="gestionnaire" activeTeamsCount={activeTeamsCount} />
             <RealtimeWrapper userId={profile.id} teamId={team?.id}>
               {children}
             </RealtimeWrapper>

@@ -2,6 +2,7 @@
 
 import { createServerActionContactService, createServerActionLotService, createContactInvitationService, createServerActionSupabaseClient, createServerActionBuildingService } from '@/lib/services'
 import { createAddressService, type GooglePlaceAddress } from '@/lib/services/domain/address.service'
+import { createServiceRoleSubscriptionService } from '@/lib/services/domain/subscription-helpers'
 import type { LotInsert, ContactInvitationData, Building } from '@/lib/services'
 import { logger } from '@/lib/logger'
 import { revalidateTag, revalidatePath } from 'next/cache'
@@ -81,6 +82,25 @@ export async function createLotAction(
   options?: { redirectTo?: string }
 ) {
   try {
+    // ── Subscription limit check (defense-in-depth) ────────────────────
+    if (lotData.team_id) {
+      const subService = createServiceRoleSubscriptionService()
+      const canAdd = await subService.canAddProperty(lotData.team_id)
+      if (!canAdd.allowed) {
+        logger.warn('[SERVER-ACTION] Lot creation blocked by subscription limit:', {
+          teamId: lotData.team_id,
+          reason: canAdd.reason,
+        })
+        return {
+          success: false,
+          error: {
+            message: canAdd.reason ?? 'Limite d\'abonnement atteinte',
+            code: 'SUBSCRIPTION_LIMIT',
+          },
+        }
+      }
+    }
+
     logger.info('[SERVER-ACTION] Creating lot with data:', lotData)
 
     // Créer le service avec le client Supabase Server Action (accès aux cookies)

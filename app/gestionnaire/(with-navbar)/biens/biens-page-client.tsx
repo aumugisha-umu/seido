@@ -5,8 +5,12 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { PageActions } from "@/components/page-actions"
 import { PatrimoineNavigator } from "@/components/patrimoine/patrimoine-navigator"
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { logger } from '@/lib/logger'
+import { useSubscription } from "@/hooks/use-subscription"
+import { UpgradeModal } from "@/components/billing/upgrade-modal"
+import { UpgradePrompt } from "@/components/billing/upgrade-prompt"
+import { getAccessibleLots } from "@/app/actions/subscription-actions"
 
 interface BiensPageClientProps {
   initialBuildings: any[]
@@ -27,14 +31,39 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
   const router = useRouter()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const previousDataHashRef = useRef<string>('')
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
+  const { canAddProperty, isReadOnly, status, refresh: refreshSubscription } = useSubscription()
+
+  // ✅ Accessible lot IDs (null = all accessible, string[] = only these are accessible)
+  const [accessibleLotIds, setAccessibleLotIds] = useState<string[] | null>(null)
 
   // ✅ State for buildings and lots
   const [buildings, setBuildings] = useState(Array.isArray(initialBuildings) ? initialBuildings : [])
   const [lots, setLots] = useState(Array.isArray(initialLots) ? initialLots : [])
 
+  // ✅ Fetch accessible lot IDs for subscription restriction
+  useEffect(() => {
+    getAccessibleLots().then(result => {
+      if (result.success) {
+        setAccessibleLotIds(result.data ?? null)
+      }
+    }).catch(() => {
+      // Fail open — if fetch fails, all lots remain accessible
+      setAccessibleLotIds(null)
+    })
+  }, [])
+
+  // ✅ Compute locked lot IDs as a Set for O(1) lookups
+  const lockedLotIds = useMemo(() => {
+    if (!accessibleLotIds) return null // null = no restriction
+    const accessibleSet = new Set(accessibleLotIds)
+    const lockedIds = lots.filter(l => !accessibleSet.has(l.id)).map(l => l.id)
+    return lockedIds.length > 0 ? new Set(lockedIds) : null
+  }, [accessibleLotIds, lots])
+
   // ✅ Debug: Log initial data structure
   useEffect(() => {
-    logger.info("📊 [BIENS-PAGE-CLIENT] Initial data received:", {
+    logger.info("[BIENS-PAGE-CLIENT] Initial data received:", {
       buildingsCount: Array.isArray(initialBuildings) ? initialBuildings.length : 0,
       lotsCount: Array.isArray(initialLots) ? initialLots.length : 0,
       teamId: teamId,
@@ -125,13 +154,33 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
           <Button variant="outline" className="flex items-center space-x-2" onClick={() => router.push('/gestionnaire/import')}>
             <Upload className="h-4 w-4" /><span>Importer</span>
           </Button>
-          <Button variant="outline" className="flex items-center space-x-2" onClick={() => router.push('/gestionnaire/biens/lots/nouveau')}>
+          <Button
+            variant="outline"
+            className="flex items-center space-x-2"
+            disabled={isReadOnly}
+            onClick={() => {
+              if (!canAddProperty) { setUpgradeModalOpen(true); return }
+              router.push('/gestionnaire/biens/lots/nouveau')
+            }}
+          >
             <Plus className="h-4 w-4" /><span>Nouveau lot</span>
           </Button>
-          <Button className="flex items-center space-x-2" onClick={() => router.push('/gestionnaire/biens/immeubles/nouveau')}>
+          <Button
+            className="flex items-center space-x-2"
+            disabled={isReadOnly}
+            onClick={() => {
+              if (!canAddProperty) { setUpgradeModalOpen(true); return }
+              router.push('/gestionnaire/biens/immeubles/nouveau')
+            }}
+          >
             <Plus className="h-4 w-4" /><span>Nouvel immeuble</span>
           </Button>
         </PageActions>
+
+        {/* Read-only upgrade prompt */}
+        {isReadOnly && (
+          <UpgradePrompt context="add_lot" className="mb-4" />
+        )}
 
         {/* Card wrapper - Structure exacte du dashboard */}
         <div className="flex-1 flex flex-col min-h-0">
@@ -144,10 +193,19 @@ export function BiensPageClient({ initialBuildings, initialLots, teamId }: Biens
                 loading={isRefreshing}
                 onRefresh={handleRefresh}
                 className="bg-transparent border-0 shadow-none flex-1 flex flex-col min-h-0"
+                lockedLotIds={lockedLotIds}
               />
             </div>
           </div>
         </div>
+
+        {/* Upgrade modal */}
+        <UpgradeModal
+          open={upgradeModalOpen}
+          onOpenChange={setUpgradeModalOpen}
+          currentLots={status?.actual_lots ?? lots.length}
+          onUpgradeComplete={() => { refreshSubscription(); handleRefresh() }}
+        />
       </div>
     </div>
   )

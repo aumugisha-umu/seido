@@ -1,5 +1,5 @@
 // Server Component - loads data server-side
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import {
   createServerLotService,
@@ -10,6 +10,9 @@ import {
   createServerSupabaseClient
 } from '@/lib/services'
 import { getServerAuthContext } from '@/lib/server-context'
+import { createSubscriptionService } from '@/lib/services/domain/subscription-helpers'
+import { SubscriptionRepository } from '@/lib/services/repositories/subscription.repository'
+import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import LotDetailsClient from './lot-details-client'
 import { logger } from '@/lib/logger'
 import { Skeleton } from "@/components/ui/skeleton"
@@ -110,11 +113,33 @@ export default async function LotDetailsPage({
   const startTime = Date.now()
   const { id } = await params
 
-  // 🚨 SECURITY FIX: Cette page n'avait AUCUNE authentification!
   // ✅ AUTH + TEAM en 1 ligne (cached via React.cache())
-  const { team } = await getServerAuthContext('gestionnaire')
+  const { team, supabase } = await getServerAuthContext('gestionnaire')
 
-  logger.info('🏠 [LOT-PAGE-SERVER] Loading lot details', {
+  // ✅ Subscription restriction: block access to locked lots
+  let isLotLocked = false
+  try {
+    const subscriptionService = createSubscriptionService(supabase)
+    const serviceRoleRepo = new SubscriptionRepository(createServiceRoleSupabaseClient())
+    const subscriptionInfo = await subscriptionService.getSubscriptionInfo(team.id, serviceRoleRepo)
+
+    if (subscriptionInfo) {
+      const accessibleLotIds = await subscriptionService.getAccessibleLotIds(team.id, subscriptionInfo, supabase)
+      if (accessibleLotIds && !accessibleLotIds.includes(id)) {
+        isLotLocked = true
+      }
+    }
+  } catch (error) {
+    // Fail open: if subscription check fails, allow access
+    logger.warn('[LOT-PAGE-SERVER] Subscription check failed, allowing access', { lotId: id, error })
+  }
+
+  if (isLotLocked) {
+    logger.info('[LOT-PAGE-SERVER] Access blocked: lot is locked by subscription restriction', { lotId: id, teamId: team.id })
+    redirect('/gestionnaire/biens')
+  }
+
+  logger.info('[LOT-PAGE-SERVER] Loading lot details', {
     lotId: id,
     timestamp: new Date().toISOString()
   })

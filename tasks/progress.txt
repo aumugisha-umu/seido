@@ -1,34 +1,73 @@
-# Progress Log — Stripe Subscription Integration (TDD)
-# Started: 2026-02-21
-# Stories: 48 total (35 implementation + 13 test stories)
-# Previous feature (Unified Documents Bucket, 3/6 done) archived to tasks/archive/2026-02-20-unified-documents-bucket/
-# Methodology: TDD — test stories (T-xxx) written BEFORE implementation stories (US-xxx)
+# Progress Log — Stripe Billing Audit Fixes
+# Started: 2026-02-22
+# Stories: 6 total
 ---
 
-## 2026-02-21 — Deep Audit: Stripe TDD Plan Verification
-- Audited all 48 stories against official Stripe docs + design doc (1337 lines) + implementation plan (1703 lines)
-- Cross-referenced with: Stripe subscription lifecycle (7 official statuses), 3D Secure test cards, webhook best practices, proration patterns
-- **14 gaps identified** across 4 categories:
-  - Missing Stripe statuses: incomplete, incomplete_expired, unpaid, paused (4 gaps)
-  - Missing webhook events: charge.refunded, customer.subscription.paused, out-of-order reconciliation (3 gaps)
-  - Missing E2E scenarios: 3D Secure card, decline card, manual navigation exploit (3 gaps)
-  - Missing email templates: J+7 feature, J+14 value, J+3 win-back (3 gaps)
-  - Missing edge cases: cancel_at_period_end, concurrent upgrade race condition (2 gaps)
-- **6 new corrections added** (C12-C17) to prd.json
-- **State machine expanded**: 8 → 12 transitions (added incomplete→active, incomplete→expired, past_due→unpaid, free_tier→active)
-- **Test count increased**: ~238 → ~258 estimated test cases
-- **All 13 T-xxx stories verified**: each has DOCS OBLIGATOIRES with specific Stripe URLs
-- Sources: Stripe Billing Testing, Stripe Subscription Lifecycle, Stripe 3D Secure, Stripe Prorations
-- Files modified: tasks/prd.json
+## US-001: Consolidate mapStripeStatus to single source of truth ✅
+**Date:** 2026-02-22
+**Files:**
+- lib/services/domain/stripe-webhook.handler.ts (removed private mapStripeStatus, import SubscriptionService)
+- app/actions/subscription-actions.ts (replaced inline statusMap with SubscriptionService.mapStripeStatus())
+**Changes:**
+- Webhook handler: `this.mapStripeStatus()` → `SubscriptionService.mapStripeStatus()` (2 call sites)
+- Subscription actions: 10-line inline map → 1-line static call in verifyCheckoutSession
+- Left comment in webhook handler noting consolidation
+**Learnings:** Static methods on service classes make good shared utilities — importable without instantiation
 
-## 2026-02-21 — Stripe Setup Complete (Pre-requisites Done)
-- **Dashboard**: Mode test actif, produit "Seido subscription test" cree (50EUR/an + 5EUR/mois per unit)
-- **Customer Portal**: Configure (carte, annulation, factures — switch plan desactive car gere dans notre code)
-- **Stripe Tax**: Belgium 21% VAT exclusive active
-- **Smart Retries**: Active
-- **Coupon**: SEIDOBETA26 (25% permanent, expire 1 avr 2026)
-- **Stripe CLI**: v1.35.1 installe, login fait, listen configure
-- **Env vars**: STRIPE_SECRET_KEY, NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_ANNUAL, STRIPE_PRICE_MONTHLY, CRON_SECRET — tous set dans .env.local
-- **Status**: prd.json passe a "in_progress", readyForImplementation: true
-- **Next**: Commencer US-001 (Install packages) → T-001 (Tests utils) → US-002 (Migration DB)
+## US-002: Handle paused subscription status ✅
+**Date:** 2026-02-22
+**Files:**
+- lib/services/domain/subscription.service.ts (3 locations)
+**Changes:**
+- checkReadOnly: added `if (status === 'paused') return true`
+- checkCanAddProperty (private): added `'paused'` to blocked status list
+- canAddProperty (public): added `'paused'` to read-only blocked status list
+**Learnings:** When adding a new Stripe status, must check 3 places: checkReadOnly, checkCanAddProperty, and canAddProperty
 
+## US-003: Add subscription gate to lot edit page ✅
+**Date:** 2026-02-22
+**Files:**
+- app/gestionnaire/(no-navbar)/biens/lots/modifier/[id]/page.tsx
+**Changes:**
+- Added imports: createSubscriptionService, SubscriptionRepository, createServiceRoleSupabaseClient
+- Added subscription check after auth context (same pattern as lots/[id]/page.tsx)
+- isLotLocked computed in try/catch, redirect() called outside catch
+**Learnings:** CRUD completeness: when gating an entity, gate ALL routes (view, edit, create, delete)
+
+## US-004: Add subscription check to updateCompleteProperty + canAddProperty(count) ✅
+**Date:** 2026-02-22
+**Files:**
+- lib/services/domain/subscription.service.ts (canAddProperty signature change)
+- app/actions/building-actions.ts (createCompleteProperty + updateCompleteProperty)
+**Changes:**
+- canAddProperty(teamId, count=1): count parameter used in all limit comparisons
+- createCompleteProperty: passes data.lots.length as count
+- updateCompleteProperty: added full subscription gate after building verification
+- Error message includes slot count: "il ne reste que X slot(s) disponible(s)"
+**Learnings:** Boolean canAdd() is insufficient for batch operations — always accept a count parameter
+
+## US-005: Change getAccessibleLotIds fail-open to fail-closed ✅
+**Date:** 2026-02-22
+**Files:**
+- lib/services/domain/subscription.service.ts (getAccessibleLotIds)
+**Changes:**
+- DB query error: return [] instead of null
+- Log level: error (was already error, upgraded message to include "FAIL CLOSED")
+- Verified all callers: [] is truthy in JS, .includes() on [] returns false = lot locked
+**Learnings:** Layered fail pattern: service-level DB error = fail-closed, overall subscription check error = fail-open (from outer catch in callers)
+
+## US-006: Error boundary + useSubscription error state ✅
+**Date:** 2026-02-22
+**Files:**
+- hooks/use-subscription.ts (added hasError to return type)
+- components/settings-page.tsx (added BillingErrorBoundary class component)
+**Changes:**
+- useSubscription: added `hasError: boolean` to interface + return value
+- settings-page: inline BillingErrorBoundary wrapping SubscriptionSummaryCard
+- Fallback: amber card with warning icon + "Rechargez la page" message
+**Learnings:** Error boundaries must be class components in React — can't use hooks
+
+---
+## FEATURE COMPLETE ✅
+All 6/6 stories pass. Lint: 0 new errors. Tests: 62/62 subscription-service pass.
+Audit false positives eliminated: C1 (UpgradeModal quantity — service handles delta correctly), C8 (subscribedLots prop — already passed).

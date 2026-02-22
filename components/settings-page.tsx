@@ -1,27 +1,54 @@
 "use client"
 
+import React from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
-import { ArrowLeft, Bell, Smartphone, Mail } from "lucide-react"
+import { Bell, Mail, AlertTriangle } from "lucide-react"
 import { PushNotificationToggle } from "@/components/push-notification-toggle"
 import { InstallPWAButton } from "@/components/install-pwa-button"
-import { SubscriptionManagementSection } from "@/components/subscription-management-section"
+import { SubscriptionSummaryCard } from "@/components/billing/subscription-summary-card"
+
+// Lightweight error boundary for billing section
+class BillingErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <Card className="border-amber-200 dark:border-amber-800">
+          <CardContent className="flex items-center gap-3 py-4">
+            <AlertTriangle className="h-5 w-5 text-amber-600" />
+            <p className="text-sm text-muted-foreground">
+              Impossible de charger les informations d&apos;abonnement. Rechargez la page.
+            </p>
+          </CardContent>
+        </Card>
+      )
+    }
+    return this.props.children
+  }
+}
 
 interface SettingsPageProps {
   role: 'admin' | 'gestionnaire' | 'locataire' | 'prestataire'
-  dashboardPath: string
+  dashboardPath?: string
   defaultLotCount?: number
 }
 
-export default function SettingsPage({ role, dashboardPath, defaultLotCount }: SettingsPageProps) {
+export default function SettingsPage({ role }: SettingsPageProps) {
   const { user } = useAuth()
   const router = useRouter()
-
-  const handleBack = () => {
-    router.push(dashboardPath)
-  }
 
   if (!user) {
     return <div>Chargement...</div>
@@ -30,15 +57,6 @@ export default function SettingsPage({ role, dashboardPath, defaultLotCount }: S
   return (
     <div className="layout-padding">
       <div className="max-w-4xl mx-auto">
-        {/* Header avec bouton retour */}
-        <div className="flex items-center mb-6">
-          <Button variant="ghost" size="sm" onClick={handleBack} className="mr-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Retour
-          </Button>
-          <h1 className="text-2xl font-bold">Paramètres</h1>
-        </div>
-
         <div className="space-y-6">
           {/* Installation PWA */}
           <InstallPWAButton />
@@ -59,8 +77,12 @@ export default function SettingsPage({ role, dashboardPath, defaultLotCount }: S
             </CardContent>
           </Card>
 
-          {/* Gestion d'abonnement (Gestionnaire only) */}
-          {role === 'gestionnaire' && <SubscriptionManagementSection defaultLotCount={defaultLotCount} />}
+          {/* Abonnement summary (Gestionnaire only) */}
+          {role === 'gestionnaire' && (
+            <BillingErrorBoundary>
+              <SubscriptionSummaryCard />
+            </BillingErrorBoundary>
+          )}
 
           {/* Email Settings (Gestionnaire only) */}
           {role === 'gestionnaire' && (

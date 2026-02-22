@@ -45,15 +45,15 @@ export function getThreadWelcomeMessage(
 
     case 'tenant_to_managers':
       if (participantName) {
-        return `🔒 Cette conversation privée est réservée aux échanges entre ${participantName} et les gestionnaires. Les autres participants n'y ont pas accès.`
+        return `🔒 Cette conversation privée est réservée aux échanges entre ${participantName} et les gestionnaires. Les autres participants de l'intervention n'y ont pas accès.`
       }
-      return '🔒 Cette conversation privée est réservée aux échanges entre le locataire et les gestionnaires. Les autres participants n\'y ont pas accès.'
+      return '🔒 Cette conversation privée est réservée aux échanges entre le locataire et les gestionnaires. Les autres participants de l\'intervention n\'y ont pas accès.'
 
     case 'provider_to_managers':
       if (participantName) {
-        return `🔒 Cette conversation privée est réservée aux échanges entre ${participantName} et les gestionnaires. Les autres participants n'y ont pas accès.`
+        return `🔒 Cette conversation privée est réservée aux échanges entre ${participantName} et les gestionnaires. Les autres participants de l'intervention n'y ont pas accès.`
       }
-      return '🔒 Cette conversation privée est réservée aux échanges entre le prestataire et les gestionnaires. Les autres participants n\'y ont pas accès.'
+      return '🔒 Cette conversation privée est réservée aux échanges entre le prestataire et les gestionnaires. Les autres participants de l\'intervention n\'y ont pas accès.'
 
     default:
       return ''

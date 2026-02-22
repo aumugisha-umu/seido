@@ -155,8 +155,8 @@ export async function getInterventionNotifications(interventionId: string) {
   const { data, error } = await supabase
     .from('notifications')
     .select('*')
-    .eq('entity_type', 'intervention')
-    .eq('entity_id', interventionId)
+    .eq('related_entity_type', 'intervention')
+    .eq('related_entity_id', interventionId)
     .order('created_at', { ascending: false })
 
   if (error) throw new Error(`Failed to get notifications: ${error.message}`)
@@ -246,8 +246,8 @@ export async function cleanupTestInterventions() {
     await supabase
       .from('notifications')
       .delete()
-      .eq('entity_type', 'intervention')
-      .eq('entity_id', id)
+      .eq('related_entity_type', 'intervention')
+      .eq('related_entity_id', id)
 
     // Delete activity logs
     await supabase

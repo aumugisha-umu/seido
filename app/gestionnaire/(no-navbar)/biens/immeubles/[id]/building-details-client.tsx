@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +25,9 @@ import { EntityEmailsTab } from '@/components/emails/entity-emails-tab'
 import { GoogleMapsProvider, GoogleMapPreview } from '@/components/google-maps'
 import { PropertyDocumentsPanel } from '@/components/documents'
 import { BUILDING_DOCUMENT_SLOTS } from '@/lib/constants/property-document-slots'
+import { useSubscription } from '@/hooks/use-subscription'
+import { UpgradeModal } from '@/components/billing/upgrade-modal'
+import { getAccessibleLots } from '@/app/actions/subscription-actions'
 
 interface BuildingContact {
   id: string
@@ -126,6 +129,25 @@ export default function BuildingDetailsClient({
   const expandLotId = searchParams.get('expandLot')
 
   const [error, setError] = useState<string | null>(null)
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
+  const { canAddProperty, status: subscriptionStatus, refresh: refreshSubscription } = useSubscription()
+
+  // Accessible lot IDs for subscription restriction
+  const [accessibleLotIds, setAccessibleLotIds] = useState<string[] | null>(null)
+
+  useEffect(() => {
+    getAccessibleLots().then(result => {
+      if (result.success) setAccessibleLotIds(result.data ?? null)
+    }).catch(() => setAccessibleLotIds(null))
+  }, [])
+
+  const lockedLotIds = useMemo(() => {
+    if (!accessibleLotIds) return null
+    const accessibleSet = new Set(accessibleLotIds)
+    const allLotIds = lotsWithContacts.map(l => l.id)
+    const locked = allLotIds.filter(id => !accessibleSet.has(id))
+    return locked.length > 0 ? new Set(locked) : null
+  }, [accessibleLotIds, lotsWithContacts])
 
   // Contacts count state
   const [totalContacts, setTotalContacts] = useState<number>(0)
@@ -226,6 +248,10 @@ export default function BuildingDetailsClient({
         router.push(`/gestionnaire/interventions/nouvelle-intervention?buildingId=${building.id}`)
         break
       case "add-lot":
+        if (!canAddProperty) {
+          setUpgradeModalOpen(true)
+          return
+        }
         router.push(`/gestionnaire/biens/lots/nouveau?buildingId=${building.id}`)
         break
       default:
@@ -521,7 +547,13 @@ export default function BuildingDetailsClient({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => router.push(`/gestionnaire/biens/lots/nouveau?buildingId=${building.id}`)}
+                    onClick={() => {
+                      if (!canAddProperty) {
+                        setUpgradeModalOpen(true)
+                        return
+                      }
+                      router.push(`/gestionnaire/biens/lots/nouveau?buildingId=${building.id}`)
+                    }}
                     className="flex items-center gap-2"
                   >
                     <Plus className="h-4 w-4" />
@@ -547,6 +579,7 @@ export default function BuildingDetailsClient({
                     buildingOwners={owners}
                     buildingOthers={others}
                     initialExpandedLotId={expandLotId}
+                    lockedLotIds={lockedLotIds}
                   />
                 </div>
               </div>
@@ -629,6 +662,16 @@ export default function BuildingDetailsClient({
         </EntityPreviewLayout>
       </div>
       </div>
+      <UpgradeModal
+        open={upgradeModalOpen}
+        onOpenChange={setUpgradeModalOpen}
+        currentLots={subscriptionStatus?.actual_lots ?? 0}
+        subscribedLots={subscriptionStatus?.subscribed_lots}
+        onUpgradeComplete={() => {
+          setUpgradeModalOpen(false)
+          refreshSubscription()
+        }}
+      />
     </>
   )
 }

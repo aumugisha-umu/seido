@@ -33,11 +33,11 @@ const mockNotificationRepository = {
 } as unknown as NotificationRepository
 
 const mockEmailService = {
-  sendInterventionCreatedBatch: vi.fn()
+  sendInterventionCreatedBatch: vi.fn().mockResolvedValue({ success: true, sentCount: 1, failedCount: 0 })
 }
 
 const mockPushService = {
-  sendInterventionCreated: vi.fn()
+  sendInterventionCreated: vi.fn().mockResolvedValue({ success: true })
 }
 
 // ============================================================================

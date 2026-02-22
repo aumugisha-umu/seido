@@ -1,6 +1,8 @@
 import { getServerAuthContext } from '@/lib/server-context'
 import { createServerTeamService, createServerLotService } from '@/lib/services'
+import { createSubscriptionService } from '@/lib/services/domain/subscription-helpers'
 import LotCreationForm from './lot-creation-form'
+import { SubscriptionLimitPage } from '@/components/billing/subscription-limit-page'
 import { logger } from '@/lib/logger'
 
 /**
@@ -21,8 +23,22 @@ export default async function NewLotPage({
   searchParams: Promise<{ buildingId?: string }>
 }) {
   // Server-side auth + team verification (single call, cached with React 19 cache())
-  const { profile, team, teams } = await getServerAuthContext('gestionnaire')
+  const { profile, team, teams, supabase } = await getServerAuthContext('gestionnaire')
   const params = await searchParams
+
+  // ── Subscription limit gate ──────────────────────────────────────────
+  const subscriptionService = createSubscriptionService(supabase)
+  const canAddResult = await subscriptionService.canAddProperty(team.id)
+
+  if (!canAddResult.allowed && canAddResult.upgrade_needed) {
+    const info = await subscriptionService.getSubscriptionInfo(team.id)
+    return (
+      <SubscriptionLimitPage
+        currentLots={info?.actual_lots ?? 0}
+        subscribedLots={info?.subscribed_lots ?? 0}
+      />
+    )
+  }
 
   // Load team managers server-side
   const teamService = await createServerTeamService()

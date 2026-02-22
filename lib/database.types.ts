@@ -2783,6 +2783,218 @@ export type Database = {
           },
         ]
       }
+      stripe_customers: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          name: string | null
+          stripe_customer_id: string
+          team_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          stripe_customer_id: string
+          team_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string | null
+          stripe_customer_id?: string
+          team_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_customers_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: true
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_invoices: {
+        Row: {
+          amount_due: number
+          amount_paid: number
+          amount_remaining: number
+          created_at: string
+          currency: string
+          hosted_invoice_url: string | null
+          id: string
+          invoice_pdf: string | null
+          paid_at: string | null
+          period_end: string | null
+          period_start: string | null
+          status: string
+          stripe_customer_id: string
+          stripe_invoice_id: string
+          subscription_id: string | null
+        }
+        Insert: {
+          amount_due?: number
+          amount_paid?: number
+          amount_remaining?: number
+          created_at?: string
+          currency?: string
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_pdf?: string | null
+          paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          status?: string
+          stripe_customer_id: string
+          stripe_invoice_id: string
+          subscription_id?: string | null
+        }
+        Update: {
+          amount_due?: number
+          amount_paid?: number
+          amount_remaining?: number
+          created_at?: string
+          currency?: string
+          hosted_invoice_url?: string | null
+          id?: string
+          invoice_pdf?: string | null
+          paid_at?: string | null
+          period_end?: string | null
+          period_start?: string | null
+          status?: string
+          stripe_customer_id?: string
+          stripe_invoice_id?: string
+          subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_invoices_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_webhook_events: {
+        Row: {
+          event_id: string
+          event_type: string
+          processed_at: string
+          team_id: string | null
+        }
+        Insert: {
+          event_id: string
+          event_type: string
+          processed_at?: string
+          team_id?: string | null
+        }
+        Update: {
+          event_id?: string
+          event_type?: string
+          processed_at?: string
+          team_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_webhook_events_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: false
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          billable_properties: number
+          cancel_at: string | null
+          cancel_at_period_end: boolean
+          canceled_at: string | null
+          created_at: string
+          current_period_end: string | null
+          current_period_start: string | null
+          ended_at: string | null
+          id: string
+          last_behavioral_email_at: string | null
+          notification_j1_sent: boolean
+          notification_j3_sent: boolean
+          notification_j7_sent: boolean
+          price_id: string | null
+          status: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscribed_lots: number
+          team_id: string
+          trial_end: string | null
+          trial_expired_email_sent: boolean
+          trial_start: string | null
+          updated_at: string
+        }
+        Insert: {
+          billable_properties?: number
+          cancel_at?: string | null
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          ended_at?: string | null
+          id?: string
+          last_behavioral_email_at?: string | null
+          notification_j1_sent?: boolean
+          notification_j3_sent?: boolean
+          notification_j7_sent?: boolean
+          price_id?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscribed_lots?: number
+          team_id: string
+          trial_end?: string | null
+          trial_expired_email_sent?: boolean
+          trial_start?: string | null
+          updated_at?: string
+        }
+        Update: {
+          billable_properties?: number
+          cancel_at?: string | null
+          cancel_at_period_end?: boolean
+          canceled_at?: string | null
+          created_at?: string
+          current_period_end?: string | null
+          current_period_start?: string | null
+          ended_at?: string | null
+          id?: string
+          last_behavioral_email_at?: string | null
+          notification_j1_sent?: boolean
+          notification_j3_sent?: boolean
+          notification_j7_sent?: boolean
+          price_id?: string | null
+          status?: Database["public"]["Enums"]["subscription_status"]
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscribed_lots?: number
+          team_id?: string
+          trial_end?: string | null
+          trial_expired_email_sent?: boolean
+          trial_start?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_team_id_fkey"
+            columns: ["team_id"]
+            isOneToOne: true
+            referencedRelation: "teams"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       team_email_connections: {
         Row: {
           auth_method: string | null
@@ -3949,6 +4161,7 @@ export type Database = {
         Args: { p_thread_id: string }
         Returns: boolean
       }
+      can_team_add_property: { Args: { p_team_id: string }; Returns: boolean }
       can_validate_document: {
         Args: { p_document_id: string }
         Returns: boolean
@@ -3975,6 +4188,7 @@ export type Database = {
         Args: { slot_id_param: string }
         Returns: boolean
       }
+      cleanup_old_webhook_events: { Args: never; Returns: number }
       cleanup_old_webhook_logs: { Args: never; Returns: number }
       delete_team_cascade: { Args: { p_team_id: string }; Returns: Json }
       expire_old_invitations: { Args: never; Returns: number }
@@ -4064,6 +4278,10 @@ export type Database = {
           profile_id: string
         }[]
       }
+      get_team_id_from_document_path: {
+        Args: { storage_path: string }
+        Returns: string
+      }
       get_team_id_from_storage_path: {
         Args: { storage_path: string }
         Returns: string
@@ -4123,6 +4341,7 @@ export type Database = {
         Args: { allowed_roles?: string[]; check_team_id: string }
         Returns: boolean
       }
+      is_team_read_only: { Args: { p_team_id: string }; Returns: boolean }
       is_tenant_of_intervention: {
         Args: { p_intervention_id: string }
         Returns: boolean
@@ -4318,6 +4537,17 @@ export type Database = {
         | "audit_energetique"
       provider_category: "prestataire" | "autre"
       response_type: "accepted" | "rejected" | "pending"
+      subscription_status:
+        | "trialing"
+        | "active"
+        | "past_due"
+        | "canceled"
+        | "incomplete"
+        | "incomplete_expired"
+        | "unpaid"
+        | "paused"
+        | "free_tier"
+        | "read_only"
       team_member_role:
         | "admin"
         | "gestionnaire"
@@ -4650,6 +4880,18 @@ export const Constants = {
       ],
       provider_category: ["prestataire", "autre"],
       response_type: ["accepted", "rejected", "pending"],
+      subscription_status: [
+        "trialing",
+        "active",
+        "past_due",
+        "canceled",
+        "incomplete",
+        "incomplete_expired",
+        "unpaid",
+        "paused",
+        "free_tier",
+        "read_only",
+      ],
       team_member_role: [
         "admin",
         "gestionnaire",

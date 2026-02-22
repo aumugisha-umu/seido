@@ -1,0 +1,68 @@
+{
+  "project": "SEIDO",
+  "featureName": "Inline Upgrade UX — Quantity Selector in UpgradeModal",
+  "branchName": "feature/stripe-subscription",
+  "description": "Replace the tooltip-only gating on 'Ajouter un lot' with a direct UpgradeModal trigger. Enhance the UpgradeModal with a quantity selector (not just +1), live price preview, and confirmation dialog connected to Stripe. After upgrade, subscription refreshes and lot creation unlocks.",
+  "createdAt": "2026-02-22",
+  "status": "completed",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add quantity selector to UpgradeModal",
+      "description": "As a gestionnaire at the lot limit, I want to choose how many additional lots to add so that I can upgrade to my exact need in one step.",
+      "acceptanceCriteria": [
+        "Stepper: [-] [N] [+] for additionalLots (min 1, no max)",
+        "Dynamic preview: getUpgradePreview(additionalLots) updates on quantity change",
+        "Mode A (card saved): upgradeSubscription(additionalLots) with selected quantity",
+        "Mode B (no card): createCheckoutSessionAction({ quantity: currentLots + additionalLots })",
+        "Price per lot shown (e.g. '5 lots x 50EUR HT/an = 250EUR HT/an')",
+        "Debounce preview API calls (300ms) to avoid spam",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "layer": "UI",
+      "notes": "Stepper [-][N][+] with debounced preview (300ms), dual mode A/B quantity support, subscribedLots prop added"
+    },
+    {
+      "id": "US-002",
+      "title": "Make lot buttons trigger UpgradeModal instead of disabled+tooltip",
+      "description": "As a gestionnaire at the lot limit, I want the 'Ajouter un lot' button to directly open the upgrade modal so that I can upgrade without navigating to billing.",
+      "acceptanceCriteria": [
+        "BuildingInfoCard: button NOT disabled at limit — fires onAddLot which parent routes to modal",
+        "BuildingInfoCard: visual indicator when at limit (orange/amber style, 'Ajouter un lot (upgrade)' text or badge)",
+        "BuildingLotsStepV2 empty state button: same behavior (clickable, routes to modal)",
+        "Building detail page 'Ajouter un lot' dropdown: opens modal instead of navigating",
+        "Tooltip removed — replaced by direct action",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "S",
+      "passes": true,
+      "layer": "UI",
+      "notes": "Button always clickable, amber style at limit, TrendingUp icon, tooltip removed. Building detail page already wired."
+    },
+    {
+      "id": "US-003",
+      "title": "Wire all form locations + auto-refresh after upgrade",
+      "description": "As a gestionnaire, I want the subscription to refresh automatically after a successful upgrade so that I can immediately add lots.",
+      "acceptanceCriteria": [
+        "Building creation form: after modal upgrade complete, refreshSubscription() called, addLot re-enabled",
+        "Building edit form: same behavior",
+        "Lot creation form: same behavior",
+        "Building detail page: same behavior",
+        "No page reload needed — React state updates",
+        "Lint passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "XS",
+      "passes": true,
+      "layer": "UI",
+      "notes": "All 4 locations already had UpgradeModal + refreshSubscription wired. Added subscribedLots prop to all."
+    }
+  ]
+}

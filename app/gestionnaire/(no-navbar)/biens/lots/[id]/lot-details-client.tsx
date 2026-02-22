@@ -18,7 +18,9 @@ import { DocumentsSection } from "@/components/intervention/documents-section"
 import { DetailPageHeader, type DetailPageHeaderBadge, type DetailPageHeaderMetadata, type DetailPageHeaderAction } from "@/components/ui/detail-page-header"
 import { InterventionsNavigator } from "@/components/interventions/interventions-navigator"
 import { logger } from '@/lib/logger'
+import { toast } from 'sonner'
 import { deleteLotAction } from './actions'
+import { getSubscriptionStatus } from '@/app/actions/subscription-actions'
 import type { Lot } from '@/lib/services'
 // Stats badges removed from overview
 import { LotContactsGridPreview } from '@/components/ui/lot-contacts-grid-preview'
@@ -154,6 +156,25 @@ export default function LotDetailsClient({
 
       if (!deleteResult.success) {
         throw new Error(deleteResult.error?.message || 'Failed to delete lot')
+      }
+
+      // Check if user is overpaying after lot deletion
+      try {
+        const subResult = await getSubscriptionStatus()
+        if (subResult.success && subResult.data &&
+          subResult.data.subscribed_lots > subResult.data.actual_lots &&
+          subResult.data.has_stripe_subscription) {
+          toast.info('Vous payez encore pour des lots supprim\u00e9s', {
+            description: 'Ajustez votre abonnement dans le portail de facturation.',
+            action: {
+              label: 'G\u00e9rer',
+              onClick: () => router.push('/gestionnaire/settings/billing'),
+            },
+            duration: 10000,
+          })
+        }
+      } catch {
+        // Non-blocking — subscription check failure should not break delete flow
       }
 
       // Redirect to building page or buildings list

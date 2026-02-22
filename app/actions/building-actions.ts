@@ -10,6 +10,7 @@
 
 import { createServerActionCompositeService, createServerActionBuildingService } from '@/lib/services'
 import { getServerActionAuthContextOrNull } from '@/lib/server-context'
+import { createServiceRoleSubscriptionService } from '@/lib/services/domain/subscription-helpers'
 import { revalidatePath, revalidateTag } from 'next/cache'
 import type { CreateCompletePropertyData, CompositeOperationResult } from '@/lib/services/domain/composite.service'
 import type { Building, Lot } from '@/lib/services/core/service-types'
@@ -29,16 +30,31 @@ export async function createCompleteProperty(
   lots: Lot[]
 }>> {
   try {
-    logger.info('🏢 [SERVER-ACTION] Creating complete property:', {
+    // ── Subscription limit check (defense-in-depth) ────────────────────
+    if (data.building.team_id && data.lots.length > 0) {
+      const subService = createServiceRoleSubscriptionService()
+      const canAdd = await subService.canAddProperty(data.building.team_id, data.lots.length)
+      if (!canAdd.allowed) {
+        logger.warn('[SERVER-ACTION] Building creation blocked by subscription limit:', {
+          teamId: data.building.team_id,
+          reason: canAdd.reason,
+        })
+        return {
+          success: false,
+          data: { building: {} as Building, lots: [] },
+          error: canAdd.reason ?? 'Limite d\'abonnement atteinte',
+          operations: [],
+        }
+      }
+    }
+
+    logger.info('[SERVER-ACTION] Creating complete property:', {
       buildingName: data.building.name,
       lotsCount: data.lots.length,
       buildingContactsCount: data.buildingContacts?.length || 0,
       teamId: data.building.team_id
     })
 
-    // ✅ Create server action composite service with authenticated Supabase client
-    // ✅ Uses createServerActionSupabaseClient() which can MODIFY COOKIES
-    // ✅ This maintains auth session, ensuring auth.uid() is available for RLS policies
     const compositeService = await createServerActionCompositeService()
 
     // Execute property creation
@@ -160,6 +176,25 @@ export async function updateCompleteProperty(data: {
         },
         error: 'Building not found',
         operations: []
+      }
+    }
+
+    // ── Subscription limit check for new lots (defense-in-depth) ─────
+    if (data.lots.new.length > 0) {
+      const subService = createServiceRoleSubscriptionService()
+      const canAdd = await subService.canAddProperty(existingBuilding.team_id, data.lots.new.length)
+      if (!canAdd.allowed) {
+        logger.warn('[SERVER-ACTION] Building edit blocked by subscription limit:', {
+          teamId: existingBuilding.team_id,
+          newLotsCount: data.lots.new.length,
+          reason: canAdd.reason,
+        })
+        return {
+          success: false,
+          data: { building: {} as Building, lots: [] },
+          error: canAdd.reason ?? 'Limite d\'abonnement atteinte',
+          operations: [],
+        }
       }
     }
 

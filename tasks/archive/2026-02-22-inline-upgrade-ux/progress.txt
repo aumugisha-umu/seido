@@ -1,0 +1,43 @@
+# Progress Log — Inline Upgrade UX
+# Started: 2026-02-22
+# Stories: 3 total
+---
+
+## US-001: Add quantity selector to UpgradeModal ✅
+**Date:** 2026-02-22
+**Files:** components/billing/upgrade-modal.tsx
+**Changes:**
+- Added additionalLots state with stepper UI [-][N][+] (min 1, no max)
+- Debounced getUpgradePreview() calls (300ms via useRef)
+- Mode A: upgradeSubscription(additionalLots) with selected quantity
+- Mode B: createCheckoutSessionAction({ quantity: currentLots + additionalLots })
+- Price preview shows: current lots, new lots, proration, recurring change
+- New subscribedLots prop for limit label display (e.g. "3/5 lots")
+- Success state shows "+N lots ajoutés"
+**Learnings:** None new — existing patterns reused cleanly
+
+## US-002: Make lot buttons trigger UpgradeModal instead of disabled+tooltip ✅
+**Date:** 2026-02-22
+**Files:**
+- components/ui/building-info-card.tsx
+- components/building-lots-step-v2.tsx
+- app/gestionnaire/(no-navbar)/biens/immeubles/[id]/building-details-client.tsx
+**Changes:**
+- BuildingInfoCard: removed disabled+tooltip, button always clickable with amber styling at limit
+- BuildingInfoCard: TrendingUp icon + "(upgrade)" text when at limit
+- BuildingLotsStepV2: empty state button same amber upgrade pattern
+- Building detail page: added subscribedLots prop to UpgradeModal
+- Parent components (creation/edit forms, detail page) already had correct limit-checking in addLot/handleCustomAction
+**Learnings:** "Don't disable, redirect" — disabled+tooltip is a dead end; amber+click is a conversion path
+
+## US-003: Wire all form locations + auto-refresh after upgrade ✅
+**Date:** 2026-02-22
+**Files:**
+- app/gestionnaire/(no-navbar)/biens/immeubles/nouveau/building-creation-form.tsx
+- app/gestionnaire/(no-navbar)/biens/immeubles/modifier/[id]/edit-building-client.tsx
+- app/gestionnaire/(no-navbar)/biens/lots/nouveau/lot-creation-form.tsx
+**Changes:**
+- Added subscribedLots prop to UpgradeModal in all 3 remaining locations
+- Verified existing wiring: all 4 forms already had UpgradeModal + refreshSubscription() on complete
+- Flow: modal upgrade → onUpgradeComplete → refreshSubscription() → useSubscription refetches → canAddProperty updates → UI re-renders
+**Learnings:** All forms were already wired from the previous Stripe integration (48 stories). Only subscribedLots was missing.

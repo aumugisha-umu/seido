@@ -135,6 +135,17 @@ export {
 // Base repository export
 export { BaseRepository } from './core/base-repository'
 
+// Stripe repositories
+export { SubscriptionRepository } from './repositories/subscription.repository'
+export { StripeCustomerRepository } from './repositories/stripe-customer.repository'
+
+// Stripe service
+export { SubscriptionService } from './domain/subscription.service'
+export type { SubscriptionInfo, UpgradePreview, CanAddPropertyResult } from './domain/subscription.service'
+
+// Stripe webhook handler — NOT exported from barrel (server-only, uses fs transitively)
+// Import directly: import { StripeWebhookHandler } from '@/lib/services/domain/stripe-webhook.handler'
+
 // Type guards for repository responses
 export {
   isSuccessResponse,

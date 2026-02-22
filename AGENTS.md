@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-21
-**Total Learnings:** 62
+**Last Updated:** 2026-02-22
+**Total Learnings:** 77
 
 ---
 
@@ -463,6 +463,113 @@
 **Example:** `tests/e2e/pages/intervention-detail.page.ts:345-358` — `robustClick` method
 **When to Use:** Any E2E click on Radix Portal elements (Dialog, AlertDialog, Popover, DropdownMenu)
 **Added:** 2026-02-21 | **Source:** Intervention workflow E2E — dialog confirm button click failures
+
+### Stripe Integration
+
+#### Learning #063: Stripe checkout.session.metadata vs subscription_data.metadata are SEPARATE
+**Problem:** `team_id` was only set on `subscription_data.metadata` (intended for webhooks) but NOT on the checkout session's own `metadata`. When `verifyCheckoutSession` retrieved the session, `session.metadata.team_id` was empty, causing verification to always return `verified: false`. The subscription worked (webhook got the team_id) but the UI never showed the success state.
+**Solution:** Always set `metadata: { team_id }` at BOTH levels: (1) `subscription_data.metadata` for webhook handlers, and (2) the session-level `metadata` for checkout verification. They are independent objects in Stripe's API.
+**Example:** `lib/services/domain/subscription.service.ts:createCheckoutSession()` -- metadata at session level + subscription_data.metadata
+**When to Use:** Any Stripe Checkout Session creation where you need to read metadata back in `verifyCheckoutSession` AND in webhook handlers
+**Added:** 2026-02-22 | **Source:** Stripe billing debugging -- checkout verification always failing
+
+#### Learning #064: stripe.customers.retrieve() returns { deleted: true } instead of throwing
+**Problem:** `getOrCreateStripeCustomer` assumed that `stripe.customers.retrieve(id)` would throw if the customer was deleted. Instead, Stripe returns a `Stripe.DeletedCustomer` object with `{ id, object: 'customer', deleted: true }`. Code continued using the deleted customer ID, causing all subsequent API calls to fail.
+**Solution:** After `stripe.customers.retrieve()`, always check `if ('deleted' in customer && customer.deleted)`. If true, treat it the same as a not-found error: create a new customer and update the DB record.
+**Example:** `lib/services/domain/subscription.service.ts:getOrCreateStripeCustomer()` -- deleted check + recreate
+**When to Use:** Any code that retrieves a Stripe customer from a stored ID -- the customer may have been deleted in the Stripe Dashboard
+**Added:** 2026-02-22 | **Source:** Stripe billing debugging -- stale customer ID after dashboard deletion
+
+#### Learning #065: RLS on billing/admin tables -- ALL writes must use service_role client
+**Problem:** Server actions for Stripe billing used the authenticated Supabase client (`createServerSupabaseClient()`). The `stripe_customers` and `subscriptions` tables have RLS policies allowing SELECT for team members but NO INSERT/UPDATE policies for authenticated users. Writes returned `{ data: null, error: null }` (silent RLS block, see Learning #001).
+**Solution:** Use `createServiceRoleSupabaseClient()` for ALL write operations on billing tables. Keep the authenticated client for auth validation and team membership checks. Pattern: auth client validates user identity -> service role client performs DB writes.
+**Example:** `app/actions/subscription-actions.ts` -- service role client for subscription writes, auth client for `getServerActionAuthContextOrNull()`
+**When to Use:** Any server action or service that writes to tables with admin-only or restrictive RLS (billing, system config, audit logs)
+**Added:** 2026-02-22 | **Source:** Stripe billing debugging -- silent RLS violation on stripe_customers insert
+
+#### Learning #066: Pino logger truncates complex Stripe error objects -- use console.error for debugging
+**Problem:** Pino logger's default serialization only captures standard properties of Error objects (`message`, `stack`). Stripe errors have additional properties (`type`, `code`, `decline_code`, `param`, `raw`) that are non-enumerable and get silently dropped. Debug logs showed `"error": {}` for meaningful Stripe errors.
+**Solution:** For Stripe error debugging, add `console.error('Stripe error:', JSON.stringify(error, Object.getOwnPropertyNames(error)))`. `Object.getOwnPropertyNames()` captures non-enumerable properties that `JSON.stringify()` alone would miss. Remove these console.error calls before production.
+**Example:** `app/actions/subscription-actions.ts` -- added console.error alongside pino logger calls
+**When to Use:** Any debugging session involving Stripe or other APIs with custom error objects that extend Error
+**Added:** 2026-02-22 | **Source:** Stripe billing debugging -- invisible error details in pino logs
+
+#### Learning #067: OAuth signup bypasses DB triggers -- mirror trigger logic in OAuth action
+**Problem:** Email signup fires the `handle_new_user_confirmed()` DB trigger which initializes a trial subscription. OAuth signup uses `completeOAuthProfileAction()` which creates the team but never fires the trigger's subscription step. OAuth users got teams but no subscription record, causing `useSubscription` hook to show undefined/error state.
+**Solution:** Any business logic added to the signup trigger MUST also be added to `completeOAuthProfileAction()`. Use the service layer (e.g., `subscriptionService.initializeTrialSubscription()`) to keep the logic DRY -- call it from both paths.
+**Example:** `app/auth/complete-profile/actions.ts:completeOAuthProfileAction()` -- added `initializeTrialSubscription()` call after team creation
+**When to Use:** Any time you add logic to `handle_new_user_confirmed()` trigger or any signup-related DB trigger
+**Added:** 2026-02-22 | **Source:** Stripe billing debugging -- OAuth users missing subscription records
+
+#### Learning #068: Stripe webhook fallback for local development
+**Problem:** Stripe webhooks require a publicly accessible URL. During local development without Stripe CLI running (`stripe listen --forward-to`), webhooks never reach localhost. Checkout sessions complete in Stripe but the local DB never updates -- subscription remains in `trialing` state.
+**Solution:** Add a fallback in `verifyCheckoutSession`: when the session's `payment_status === 'paid'`, expand the subscription from the session object and sync it directly to the DB. This makes the checkout flow work without webhooks. The webhook handler remains the primary mechanism for production.
+**Example:** `app/actions/subscription-actions.ts:verifyCheckoutSession()` -- expands `line_items` and syncs subscription when webhook hasn't processed yet
+**When to Use:** Any Stripe integration that depends on webhooks for DB state changes -- always provide a verification fallback for the checkout redirect
+**Added:** 2026-02-22 | **Source:** Stripe billing debugging -- checkout success but DB not updated
+
+#### Learning #069: Stripe metered vs standard pricing -- quantity parameter rejected for metered
+**Problem:** Stripe prices created with `usage_type: metered` (pay-per-use) reject the `quantity` parameter in Checkout Sessions and Subscriptions. The error is `"You cannot pass quantity for metered usage prices"`. For per-unit SaaS billing (X lots at Y EUR/lot), you need `usage_type: licensed` (standard) prices.
+**Solution:** When creating Stripe products/prices for per-unit billing (fixed quantity billed per cycle), use the "Standard pricing" model (usage_type: licensed). Metered pricing is for usage-based billing where you report usage via the Meter API. Verify price configuration in Stripe Dashboard under Products > Pricing.
+**Example:** Stripe Dashboard -- Seido subscription prices created as "Standard pricing" with recurring/unit
+**When to Use:** Any Stripe product setup where you charge per-unit (per lot, per seat, per user) -- never use metered for fixed-quantity billing
+**Added:** 2026-02-22 | **Source:** Stripe billing debugging -- metered pricing error on checkout
+
+#### Learning #070: Stale Stripe customer IDs -- verify before use, recreate if invalid
+**Problem:** A Stripe customer ID stored in `stripe_customers` table may become invalid if the customer was deleted in Stripe Dashboard, or if the env was switched between test/live mode. Using a stale ID causes `stripe.checkout.sessions.create()` to fail with "No such customer: cus_xxx".
+**Solution:** In `getOrCreateStripeCustomer()`, always verify the stored customer ID: (1) call `stripe.customers.retrieve(storedId)`, (2) check for thrown errors (not found) AND `deleted: true` response, (3) if invalid, create a new customer and update the DB record via `stripeCustomerRepo.updateStripeCustomerId()`.
+**Example:** `lib/services/domain/subscription.service.ts:getOrCreateStripeCustomer()` -- retrieve + deleted check + fallback create
+**When to Use:** Any function that reads a stored Stripe customer/subscription/price ID from the DB before using it in Stripe API calls
+**Added:** 2026-02-22 | **Source:** Stripe billing debugging -- customer deleted in Dashboard but ID still in DB
+
+#### Learning #071: Stripe subscription period dates are on the subscription item, not the subscription root
+**Problem:** Reading `subscription.current_period_start` and `subscription.current_period_end` from a Stripe Subscription object (e.g. after `stripe.subscriptions.retrieve()` or from an expanded checkout session) returns `undefined`. The renewal date never persists and the UI shows "---".
+**Solution:** In the Stripe API, these timestamps live on the first subscription item: `subscription.items?.data?.[0]?.current_period_start` and `subscription.items?.data?.[0]?.current_period_end`. Read from the item first, with fallback to the root for older API shapes.
+**Example:** `lib/services/domain/subscription.service.ts:syncPeriodDatesFromStripe()` -- rawPeriodStart/End from firstItem; `app/actions/subscription-actions.ts:verifyCheckoutSession()` -- item then fullSub.items.data[0]
+**When to Use:** Any code that needs current billing period dates from a Stripe Subscription (verify checkout, lazy sync, webhooks)
+**Added:** 2026-02-22 | **Source:** Billing page renewal date always "---" (current_period_end null in DB)
+
+#### Learning #072: CRUD completeness — gate ALL routes when restricting access
+**Problem:** Lot detail page (`lots/[id]`) and creation page (`lots/nouveau`) had subscription gates, but lot edit page (`lots/modifier/[id]`) had NONE. Users could edit locked lots by typing the URL directly.
+**Solution:** When implementing access restrictions on any entity, audit ALL CRUD routes: view, create, edit, delete. Use a checklist: `[id]/page.tsx`, `nouveau/page.tsx`, `modifier/[id]/page.tsx`, and all related server actions.
+**Example:** `app/gestionnaire/(no-navbar)/biens/lots/modifier/[id]/page.tsx` — added subscription gate matching lots/[id]/page.tsx pattern
+**When to Use:** Any time you add access control to an entity (lots, interventions, buildings, etc.)
+**Added:** 2026-02-22 | **Source:** Billing audit — lot edit page bypass vulnerability
+
+#### Learning #073: Boolean canAdd() is insufficient for batch operations — use canAdd(count)
+**Problem:** `canAddProperty(teamId)` returned a boolean "can you add at least 1 lot?". Building creation with 5 lots would pass the check even with only 1 slot remaining.
+**Solution:** Add optional `count` parameter: `canAddProperty(teamId, count = 1)`. All limit comparisons use `actualLots + count <= limit` instead of `actualLots < limit`.
+**Example:** `lib/services/domain/subscription.service.ts:canAddProperty()` — count parameter with descriptive error message
+**When to Use:** Any quota/limit check where the operation can affect multiple items at once (batch creation, imports, duplications)
+**Added:** 2026-02-22 | **Source:** Billing audit — building creation batch bypass
+
+#### Learning #074: Layered fail behavior — fail-closed at service, fail-open at page
+**Problem:** `getAccessibleLotIds()` DB query failure returned `null` (all accessible) — a DB error granted full access. But fail-closed everywhere would brick the app on transient errors.
+**Solution:** Two-layer approach: (1) Service-level DB query error → fail-closed (return `[]`, no access), (2) Page-level subscription check error → fail-open (from outer try/catch). This gives security without bricking on transient failures.
+**Example:** `subscription.service.ts:getAccessibleLotIds()` returns `[]` on DB error; `lots/[id]/page.tsx` outer catch allows access on complete check failure
+**When to Use:** Any access restriction system with multiple failure modes (DB error, service error, network error)
+**Added:** 2026-02-22 | **Source:** Billing audit — fail-open security vulnerability
+
+#### Learning #075: Consolidate status mapping to avoid 3-file drift
+**Problem:** `mapStripeStatus()` was duplicated in 3 files (subscription.service.ts, stripe-webhook.handler.ts, subscription-actions.ts). Adding a new Stripe status required updating all 3 — guaranteed to be forgotten.
+**Solution:** Keep one `static mapStripeStatus()` on `SubscriptionService` (already public). Import and use everywhere else. Delete private copies.
+**Example:** `stripe-webhook.handler.ts` — `SubscriptionService.mapStripeStatus(subscription.status)` instead of private method
+**When to Use:** Any mapping function (status, enum, role) used in 2+ files — consolidate immediately
+**Added:** 2026-02-22 | **Source:** Billing audit — status mapping drift risk
+
+#### Learning #076: Always verify audit findings against actual code before implementing fixes
+**Problem:** Parallel audit agents flagged UpgradeModal's `upgradeSubscription(additionalLots)` as a revenue-loss bug, claiming it should pass the total. But the service method `upgradeSubscriptionDirect()` was designed to add delta to current Stripe quantity — the code was correct.
+**Solution:** Before implementing any audit fix, read the FULL call chain (caller → action → service → API). 2/10 "CRITICAL" findings were false positives eliminated by reading 2 additional files.
+**Example:** `upgrade-modal.tsx:125` → `subscription-actions.ts:215` → `subscription.service.ts:311` — additionalLots correctly used as delta
+**When to Use:** After any automated audit or code review that flags issues without full context
+**Added:** 2026-02-22 | **Source:** Billing audit — 2 false positives in UI audit report
+
+#### Learning #077: CSS opacity inheritance — use overlay, not parent opacity, for dimming
+**Problem:** Setting `opacity-60 grayscale` on a card parent also affects child elements (like "Unlock" button). CSS opacity is inherited and children CANNOT override it.
+**Solution:** Use a semi-transparent overlay (`bg-white/60 backdrop-blur-[1px]`) positioned absolutely over the card content. Child buttons rendered inside the overlay are at full opacity.
+**Example:** `components/patrimoine/lot-card-unified/lot-card-unified.tsx` — locked lot overlay with "Deverrouiller" button
+**When to Use:** Any time you need to dim/grey-out a container while keeping interactive elements inside at full opacity
+**Added:** 2026-02-22 | **Source:** Trial overage lot restriction — locked card rendering
 
 ---
 

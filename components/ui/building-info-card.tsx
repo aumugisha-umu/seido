@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { Building2, MapPin, Plus, Info } from "lucide-react"
+import { Building2, MapPin, Plus, Info, TrendingUp } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export interface BuildingInfoCardProps {
@@ -22,6 +22,7 @@ export interface BuildingInfoCardProps {
   onAddLot?: () => void
   className?: string
   readOnly?: boolean
+  disableAddLot?: boolean
 }
 
 /**
@@ -54,6 +55,7 @@ export function BuildingInfoCard({
   onAddLot,
   className,
   readOnly = false,
+  disableAddLot = false,
 }: BuildingInfoCardProps) {
   const fullAddress = `${address}, ${postalCode} ${city}, ${country}`
 
@@ -128,16 +130,30 @@ export function BuildingInfoCard({
 
             {/* Right Section: Action Button - only in edit mode */}
             {!readOnly && onAddLot && (
-              <Button
-                onClick={onAddLot}
-                size="sm"
-                className="bg-green-600 hover:bg-green-700 flex-shrink-0"
-                aria-label="Ajouter un nouveau lot à cet immeuble"
-              >
-                <Plus className="h-4 w-4 mr-1.5" aria-hidden="true" />
-                <span className="hidden sm:inline">Ajouter un lot</span>
-                <span className="sm:hidden">Ajouter</span>
-              </Button>
+              <span className="flex-shrink-0">
+                <Button
+                  onClick={onAddLot}
+                  size="sm"
+                  className={cn(
+                    disableAddLot
+                      ? "bg-amber-500 hover:bg-amber-600 text-white"
+                      : "bg-green-600 hover:bg-green-700"
+                  )}
+                  aria-label={disableAddLot ? "Mettre à niveau pour ajouter un lot" : "Ajouter un nouveau lot à cet immeuble"}
+                >
+                  {disableAddLot ? (
+                    <TrendingUp className="h-4 w-4 mr-1.5" aria-hidden="true" />
+                  ) : (
+                    <Plus className="h-4 w-4 mr-1.5" aria-hidden="true" />
+                  )}
+                  <span className="hidden sm:inline">
+                    {disableAddLot ? "Ajouter un lot (upgrade)" : "Ajouter un lot"}
+                  </span>
+                  <span className="sm:hidden">
+                    {disableAddLot ? "Upgrade" : "Ajouter"}
+                  </span>
+                </Button>
+              </span>
             )}
           </div>
 

@@ -186,6 +186,9 @@ export interface LotCardUnifiedProps {
   isExpanded?: boolean                  // External control of expansion
   defaultExpanded?: boolean             // Initial expansion state
 
+  // Subscription restriction
+  isLocked?: boolean                    // Lot is locked (trial expired, not in free tier)
+
   // Context flags
   showBuilding?: boolean                // Show building name (for Patrimoine list)
   showInterventionsCount?: boolean      // Show interventions badge

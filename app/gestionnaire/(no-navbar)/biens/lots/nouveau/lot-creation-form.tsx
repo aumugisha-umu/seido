@@ -44,6 +44,9 @@ import { useMultiLotDocumentUpload } from '@/hooks/use-multi-lot-document-upload
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { DocumentChecklistGeneric } from '@/components/documents/document-checklist-generic'
 import type { UsePropertyDocumentUploadReturn } from '@/hooks/use-property-document-upload'
+import { useSubscription } from "@/hooks/use-subscription"
+import { UpgradeModal } from "@/components/billing/upgrade-modal"
+import { FREE_TIER_LIMIT } from "@/lib/stripe"
 interface TeamManager {
   user: {
     id: string
@@ -214,6 +217,8 @@ export default function LotCreationForm({
   const [categoryCountsByTeam, setCategoryCountsByTeam] = useState<Record<string, number>>(initialCategoryCounts)
   const [teams, setTeams] = useState<Team[]>(allTeams)
   const [error, setError] = useState<string>("")
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
+  const { status: subscriptionStatus, refresh: refreshSubscription } = useSubscription()
   const contactSelectorRef = useRef<ContactSelectorRef>(null)
 
   // Interventions planifiées (étape 4)
@@ -738,8 +743,21 @@ export default function LotCreationForm({
   // Fonctions de gestion multi-lots
   // ========================================
 
+  const isAtLotLimit = (): boolean => {
+    if (!subscriptionStatus) return false
+    if (subscriptionStatus.status === 'trialing') return false
+    if (subscriptionStatus.is_free_tier) return (subscriptionStatus.actual_lots + lots.length) >= FREE_TIER_LIMIT
+    if (subscriptionStatus.subscribed_lots > 0) return (subscriptionStatus.actual_lots + lots.length) >= subscriptionStatus.subscribed_lots
+    return false
+  }
+
   const addLot = () => {
     if (lotData.buildingAssociation !== "existing") return
+
+    if (isAtLotLimit()) {
+      setUpgradeModalOpen(true)
+      return
+    }
 
     const category: LotCategory = "appartement"
     const categoryConfig = getLotCategoryConfig(category)
@@ -2708,6 +2726,17 @@ export default function LotCreationForm({
           </div>
         </DialogContent>
       </Dialog>
+
+      <UpgradeModal
+        open={upgradeModalOpen}
+        onOpenChange={setUpgradeModalOpen}
+        currentLots={subscriptionStatus?.actual_lots ?? 0}
+        subscribedLots={subscriptionStatus?.subscribed_lots}
+        onUpgradeComplete={() => {
+          setUpgradeModalOpen(false)
+          refreshSubscription()
+        }}
+      />
     </div>
   )
 }

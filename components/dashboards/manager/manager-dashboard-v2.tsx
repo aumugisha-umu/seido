@@ -28,6 +28,10 @@ import { useToast } from "@/hooks/use-toast"
 import { GestionnaireFAB } from "@/components/ui/fab"
 import { PeriodSelector, getDefaultPeriod, type Period } from "@/components/ui/period-selector"
 import { OnboardingButton, OnboardingModal } from "@/components/onboarding"
+import { OnboardingChecklist } from "@/components/billing/onboarding-checklist"
+import { useSubscription } from "@/hooks/use-subscription"
+import { useStrategicNotification } from "@/hooks/use-strategic-notification"
+import { FREE_TIER_LIMIT } from "@/lib/stripe"
 import { PageActions } from "@/components/page-actions"
 
 import type { ContractStats } from "@/lib/types/contract.types"
@@ -56,6 +60,14 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
 
     // Celebration flag for 100% completion (show toast once per session)
     const [hasShownCelebration, setHasShownCelebration] = useState(false)
+
+    // Strategic notification hook (upgrade prompts at positive moments)
+    const { daysLeftTrial } = useSubscription()
+    const { onInterventionClosed, checkQuotaWarning } = useStrategicNotification({
+        daysLeftTrial,
+        lotCount: stats.lotsCount ?? 0,
+        freeTierLimit: FREE_TIER_LIMIT,
+    })
 
     // Calculate tenant count from contactStats
     const tenantCount = contactStats?.contactsByType?.locataire?.total || 0
@@ -147,19 +159,38 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
     }, [period.value])
 
     // Realtime updates for interventions
+    const closedStatuses = ['cloturee_par_prestataire', 'cloturee_par_locataire', 'cloturee_par_gestionnaire']
     useRealtimeInterventions({
         interventionCallbacks: {
             onUpdate: useCallback((updatedIntervention: DbIntervention) => {
-                setInterventions(prev =>
-                    prev.map(intervention =>
+                setInterventions(prev => {
+                    const updated = prev.map(intervention =>
                         intervention.id === updatedIntervention.id
                             ? { ...intervention, ...updatedIntervention }
                             : intervention
                     )
-                )
-            }, [])
+
+                    // Strategic notification: detect intervention closure in realtime
+                    if (closedStatuses.includes(updatedIntervention.status)) {
+                        const oldIntervention = prev.find(i => i.id === updatedIntervention.id)
+                        if (oldIntervention && !closedStatuses.includes(oldIntervention.status)) {
+                            const totalClosed = updated.filter(i => closedStatuses.includes(i.status)).length
+                            onInterventionClosed(totalClosed)
+                        }
+                    }
+
+                    return updated
+                })
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+            }, [onInterventionClosed])
         }
     })
+
+    // Check quota warning on mount (90% of free tier)
+    useEffect(() => {
+        checkQuotaWarning()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [])
 
     // Scroll-to-interventions + focus animation state
     const interventionsRef = useRef<HTMLDivElement>(null)
@@ -298,6 +329,11 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                         progressData={progressData}
                         onActionsClick={handleActionsClick}
                     />
+                </div>
+
+                {/* Onboarding Checklist — trialing users only (self-contained) */}
+                <div className="lg:order-2">
+                    <OnboardingChecklist className="mb-4" />
                 </div>
 
                 {/* Content Section - Unified InterventionsNavigator */}

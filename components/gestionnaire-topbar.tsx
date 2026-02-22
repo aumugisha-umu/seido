@@ -26,7 +26,8 @@ const pageTitles: Record<string, string> = {
   "/gestionnaire/contrats": "Contrats",
   "/gestionnaire/mail": "Emails",
   "/gestionnaire/notifications": "Notifications",
-  "/gestionnaire/parametres": "Parametres",
+  "/gestionnaire/parametres": "Param\u00e8tres",
+  "/gestionnaire/settings": "Abonnement",
   "/gestionnaire/profile": "Mon profil",
   "/gestionnaire/aide": "Aides",
 }

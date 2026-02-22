@@ -126,6 +126,51 @@ export type ActionResult<T> =
   | { success: false; error: string }
 
 /**
+ * Check if a lot is locked by subscription restriction.
+ * Returns error message if locked, null if accessible.
+ * Fail-open: returns null on any error (doesn't block users on service failures).
+ */
+async function checkLotLockedBySubscription(lotId: string | null | undefined, teamId: string): Promise<string | null> {
+  if (!lotId) return null
+  try {
+    const { createSubscriptionService } = await import('@/lib/services/domain/subscription-helpers')
+    const { SubscriptionRepository } = await import('@/lib/services/repositories/subscription.repository')
+    const serviceRoleClient = createServiceRoleSupabaseClient()
+    const service = createSubscriptionService(serviceRoleClient)
+    const serviceRoleRepo = new SubscriptionRepository(serviceRoleClient)
+    const subscriptionInfo = await service.getSubscriptionInfo(teamId, serviceRoleRepo)
+    if (!subscriptionInfo) return null
+    const accessibleLotIds = await service.getAccessibleLotIds(teamId, subscriptionInfo, serviceRoleClient)
+    if (!accessibleLotIds) return null // null = all accessible
+    if (accessibleLotIds.includes(lotId)) return null // lot is in accessible list
+    return 'Lot verrouillé — souscrivez pour y accéder'
+  } catch (error) {
+    logger.warn('[INTERVENTION] Subscription check failed, allowing access (fail-open)', { lotId, teamId, error })
+    return null
+  }
+}
+
+/**
+ * Check if an intervention's lot is locked by looking up the intervention first.
+ * Used by status change actions where we have intervention ID but not lot_id.
+ */
+async function checkInterventionLotLocked(interventionId: string, teamId: string): Promise<string | null> {
+  try {
+    const supabase = createServiceRoleSupabaseClient()
+    const { data: intervention } = await supabase
+      .from('interventions')
+      .select('lot_id')
+      .eq('id', interventionId)
+      .limit(1)
+      .single()
+    if (!intervention?.lot_id) return null
+    return checkLotLockedBySubscription(intervention.lot_id, teamId)
+  } catch {
+    return null // Fail open
+  }
+}
+
+/**
  * ⚡ CACHE INVALIDATION HELPER
  * Centralise l'invalidation du cache pour les interventions
  * Utilise à la fois revalidateTag (pour unstable_cache) et revalidatePath (pour Full Route Cache)
@@ -241,6 +286,12 @@ export async function createInterventionAction(
     const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
+    }
+
+    // Subscription restriction: block creation on locked lots
+    const lotLocked = await checkLotLockedBySubscription(data.lot_id, data.team_id)
+    if (lotLocked) {
+      return { success: false, error: lotLocked }
     }
 
     // Validate input data
@@ -483,6 +534,10 @@ export async function updateInterventionAction(
     if (fetchError || !existingIntervention) {
       return { success: false, error: 'Intervention not found' }
     }
+
+    // Subscription restriction: block updates on locked lots
+    const lotLocked = await checkLotLockedBySubscription(existingIntervention.lot_id, existingIntervention.team_id)
+    if (lotLocked) return { success: false, error: lotLocked }
 
     // Update basic intervention data
     const updateData: Record<string, unknown> = {}
@@ -1037,6 +1092,12 @@ export async function approveInterventionAction(
       return { success: false, error: 'Only managers can approve interventions' }
     }
 
+    // Subscription restriction: block status changes on locked lots
+    if (authContext?.team?.id) {
+      const lotLocked = await checkInterventionLotLocked(id, authContext.team.id)
+      if (lotLocked) return { success: false, error: lotLocked }
+    }
+
     logger.info('✅ [SERVER-ACTION] Approving intervention:', { id, userId: user.id })
 
     // Create service and execute
@@ -1073,6 +1134,12 @@ export async function rejectInterventionAction(
     const user = authContext?.profile
     if (!user) {
       return { success: false, error: 'Authentication required' }
+    }
+
+    // Subscription restriction: block status changes on locked lots
+    if (authContext?.team?.id) {
+      const lotLocked = await checkInterventionLotLocked(id, authContext.team.id)
+      if (lotLocked) return { success: false, error: lotLocked }
     }
 
     // Only managers can reject
@@ -1241,6 +1308,12 @@ export async function startPlanningAction(id: string): Promise<ActionResult<Inte
     // Only managers can start planning
     if (!['gestionnaire', 'admin'].includes(user.role)) {
       return { success: false, error: 'Only managers can start planning' }
+    }
+
+    // Subscription restriction: block status changes on locked lots
+    if (authContext?.team?.id) {
+      const lotLocked = await checkInterventionLotLocked(id, authContext.team.id)
+      if (lotLocked) return { success: false, error: lotLocked }
     }
 
     logger.info('📅 [SERVER-ACTION] Starting planning:', { id, userId: user.id })
@@ -1442,6 +1515,12 @@ export async function finalizeByManagerAction(
       return { success: false, error: 'Only managers can finalize interventions' }
     }
 
+    // Subscription restriction: block status changes on locked lots
+    if (authContext?.team?.id) {
+      const lotLocked = await checkInterventionLotLocked(id, authContext.team.id)
+      if (lotLocked) return { success: false, error: lotLocked }
+    }
+
     // Validate final cost
     if (finalCost !== undefined && finalCost < 0) {
       return { success: false, error: 'Final cost cannot be negative' }
@@ -1495,7 +1574,13 @@ export async function cancelInterventionAction(
       return { success: false, error: 'Cancellation reason must be at least 10 characters' }
     }
 
-    logger.info('🚫 [SERVER-ACTION] Cancelling intervention:', {
+    // Subscription restriction: block status changes on locked lots
+    if (authContext?.team?.id) {
+      const lotLocked = await checkInterventionLotLocked(id, authContext.team.id)
+      if (lotLocked) return { success: false, error: lotLocked }
+    }
+
+    logger.info('[SERVER-ACTION] Cancelling intervention:', {
       id,
       userId: user.id
     })

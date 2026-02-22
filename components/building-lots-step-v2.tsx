@@ -3,7 +3,7 @@
 import React from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Plus, Building } from "lucide-react"
+import { Plus, Building, TrendingUp } from "lucide-react"
 import { LotInputCardV2 } from "@/components/ui/lot-input-card-v2"
 import { LotCategory } from "@/lib/lot-types"
 import { BuildingInfoCard } from "@/components/ui/building-info-card"
@@ -30,6 +30,7 @@ interface BuildingLotsStepV2Props {
   onDuplicateLot: (id: string) => void
   onRemoveLot: (id: string) => void
   onToggleLotExpansion: (lotId: string) => void
+  disableAddLot?: boolean
 }
 
 /**
@@ -77,7 +78,8 @@ export function BuildingLotsStepV2({
   onUpdateLot,
   onDuplicateLot,
   onRemoveLot,
-  onToggleLotExpansion
+  onToggleLotExpansion,
+  disableAddLot,
 }: BuildingLotsStepV2Props) {
   return (
     <div className="space-y-3 @container">
@@ -89,6 +91,7 @@ export function BuildingLotsStepV2({
         city={buildingCity}
         country={buildingCountry}
         onAddLot={onAddLot}
+        disableAddLot={disableAddLot}
       />
 
       {/* Lots Grid - Ultra Compact */}
@@ -102,9 +105,16 @@ export function BuildingLotsStepV2({
             <p className="text-sm text-gray-500 mb-4">
               Ajoutez votre premier lot pour commencer.
             </p>
-            <Button onClick={onAddLot} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Ajouter mon premier lot
+            <Button
+              onClick={onAddLot}
+              className={disableAddLot ? "bg-amber-500 hover:bg-amber-600 text-white" : "bg-blue-600 hover:bg-blue-700"}
+            >
+              {disableAddLot ? (
+                <TrendingUp className="w-4 h-4 mr-2" />
+              ) : (
+                <Plus className="w-4 h-4 mr-2" />
+              )}
+              {disableAddLot ? "Ajouter un lot (upgrade)" : "Ajouter mon premier lot"}
             </Button>
           </CardContent>
         </Card>

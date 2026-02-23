@@ -8,13 +8,13 @@ export async function DELETE(
 ) {
     try {
         const { id } = await params;
-        const authContext = await getApiAuthContext();
+        const authResult = await getApiAuthContext();
 
-        if (!authContext) {
+        if (!authResult.success) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { supabase } = authContext;
+        const { supabase } = authResult.data;
 
         // Récupérer le paramètre deleteEmails du body
         let deleteEmails = false;

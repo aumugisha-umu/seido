@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-22
-**Total Learnings:** 77
+**Last Updated:** 2026-02-23
+**Total Learnings:** 81
 
 ---
 
@@ -52,6 +52,27 @@
 **Added:** 2026-02-20 | **Source:** Independent lots address display fix (3 files, 3 layers)
 
 ### UI & Components
+
+#### Learning #078: sessionStorage for "dismiss until next session" patterns
+**Problem:** Onboarding checklist dismiss stored in `localStorage` was permanent — users never saw it again even if steps were incomplete.
+**Solution:** Use `sessionStorage` instead of `localStorage` for dismiss flags that should reset on next login/new tab. `sessionStorage` survives page refresh but clears on tab close.
+**Example:** `components/billing/onboarding-checklist.tsx:114,142` — DISMISS_KEY stored in sessionStorage
+**When to Use:** Any "hide for now" / "remind me later" UI that should reappear on next session
+**Added:** 2026-02-22 | **Source:** Onboarding checklist UX polish
+
+#### Learning #079: Contact creation prefill via ?type= query param
+**Problem:** Onboarding step "Ajouter un prestataire" linked to `/contacts/nouveau` without specifying the role — user had to manually select "Prestataire" in the dropdown.
+**Solution:** Always pass `?type=prestataire` (or `locataire`, `proprietaire`, etc.) when linking to contact creation. The page already reads `searchParams.type` and `mapContactType()` handles both English and French values.
+**Example:** `components/billing/onboarding-checklist.tsx:74` — `href: '/gestionnaire/contacts/nouveau?type=prestataire'`
+**When to Use:** ANY link/redirect to `/gestionnaire/contacts/nouveau` — always include `?type=` to pre-select the role
+**Added:** 2026-02-22 | **Source:** Onboarding checklist UX — prestataire step
+
+#### Learning #080: Sidebar footer — direct actions over nested dropdowns
+**Problem:** Logout button was hidden inside a `DropdownMenu` attached to the profile — users had to click profile to reveal it, adding friction for a critical action.
+**Solution:** Replace `DropdownMenu` with a direct layout: `<Link>` for profile (avatar+name) + visible `<button>` for logout icon. Collapsed sidebar uses `flex-col` stacking.
+**Example:** `components/gestionnaire-sidebar.tsx:260-305` — direct Link + LogOut button in SidebarFooter
+**When to Use:** When a sidebar footer has 2 distinct actions (profile + logout) — don't hide the secondary action in a dropdown
+**Added:** 2026-02-22 | **Source:** Sidebar UX polish — direct logout button
 
 #### Learning #005: ContactSelector hideUI pattern
 **Problem:** Need to reuse contact selection logic in custom modals without the default UI.
@@ -240,6 +261,13 @@
 **Example:** `components/ui/calendar.tsx` — default captionLayout changed to `"dropdown"`, ±10 year range
 **When to Use:** Any Calendar/DatePicker where users might need to select dates more than 2 months away
 **Added:** 2026-02-11 | **Source:** DatePicker enhancement (month/year dropdowns)
+
+#### Learning #078: SSR/API data-fetch divergence — always mirror junction-table logic in SSR
+**Problem:** Mail sidebar's `getLinkedEntities()` in `page.tsx` (SSR) queried ALL buildings, lots, contacts, etc. from entity tables with `limit(50)` and hardcoded `emailCount: 0`. The correct logic (filtering via `email_links` junction table + real counts) already existed in `/api/email-linked-entities/route.ts` but was never backported to SSR. Result: sidebar showed up to 300 unrelated entities.
+**Solution:** When an API endpoint uses a junction/link table for filtering, the SSR initial-load function MUST use the same query strategy. Pattern: (1) call RPC `get_distinct_linked_entities` for IDs + counts, (2) group by entity_type, (3) fetch only linked entity details in parallel. Keep a JS fallback for when RPC isn't deployed yet.
+**Example:** `app/gestionnaire/(with-navbar)/mail/page.tsx:124-290` — mirrors `app/api/email-linked-entities/route.ts`
+**When to Use:** Any SSR page that has a corresponding API endpoint — verify both paths use the same filtering logic
+**Added:** 2026-02-23 | **Source:** Mail sidebar showing all DB entities instead of only email-linked ones
 
 ### Security
 

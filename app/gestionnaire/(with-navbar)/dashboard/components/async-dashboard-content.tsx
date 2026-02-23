@@ -19,6 +19,7 @@ import { logger } from '@/lib/logger'
 import { filterPendingActions } from '@/lib/intervention-alert-utils'
 import { loadMultiTeamData, createTeamNameMap } from "@/lib/multi-team-helpers"
 import { ManagerDashboardV2 } from "@/components/dashboards/manager/manager-dashboard-v2"
+import type { OnboardingProgress } from "@/app/actions/subscription-actions"
 
 interface AsyncDashboardContentProps {
   profile: { id: string }
@@ -250,6 +251,43 @@ export async function AsyncDashboardContent({
     logger.error('❌ [ASYNC-DASHBOARD] Error loading data', { error })
   }
 
+  // Onboarding data: fetch subscription status + progress (separate try/catch to not break dashboard)
+  let onboardingProgress: OnboardingProgress | null = null
+  let isTrialing = false
+
+  try {
+    const { data: sub } = await supabase
+      .from('subscriptions')
+      .select('status')
+      .eq('team_id', effectiveTeamId)
+      .limit(1)
+
+    isTrialing = sub?.[0]?.status === 'trialing'
+
+    if (isTrialing) {
+      const [obLots, obTenants, obProviders, obContracts, obInterventions, obClosed] = await Promise.all([
+        supabase.from('lots').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId),
+        supabase.from('team_members').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId).eq('role', 'locataire'),
+        supabase.from('team_members').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId).eq('role', 'prestataire'),
+        supabase.from('contracts').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId),
+        supabase.from('interventions').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId),
+        supabase.from('interventions').select('id', { count: 'exact', head: true }).eq('team_id', effectiveTeamId)
+          .in('status', ['cloturee_par_gestionnaire', 'cloturee_par_prestataire', 'cloturee_par_locataire']),
+      ])
+
+      onboardingProgress = {
+        hasLot: (obLots.count ?? 0) > 0,
+        hasAddedTenant: (obTenants.count ?? 0) > 0,
+        hasInvitedProvider: (obProviders.count ?? 0) > 0,
+        hasContract: (obContracts.count ?? 0) > 0,
+        hasIntervention: (obInterventions.count ?? 0) > 0,
+        hasClosedIntervention: (obClosed.count ?? 0) > 0,
+      }
+    }
+  } catch (error) {
+    logger.warn('[ASYNC-DASHBOARD] Onboarding check failed, skipping', { error })
+  }
+
   return (
     <ManagerDashboardV2
       stats={stats}
@@ -257,6 +295,8 @@ export async function AsyncDashboardContent({
       contractStats={contractStats}
       interventions={allInterventions}
       pendingCount={pendingActionsCount}
+      onboardingProgress={onboardingProgress}
+      isTrialing={isTrialing}
     />
   )
 }

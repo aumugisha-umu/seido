@@ -22,7 +22,7 @@
 - Document handling
 - Import jobs
 
-### Phase 5: UX Improvements 🚧 (En cours)
+### Phase 5: UX Improvements ✅ (Complete)
 - [x] Google OAuth integration
 - [x] Onboarding modal (5 slides)
 - [x] Avatar system
@@ -71,7 +71,78 @@
 - [x] **Contract Wizard E2E** (2026-02-21) - Full 5-step wizard test with doc upload, service role storage fix, 11 data-testid attrs added
 - [x] **Cancel Modal Wiring** (2026-02-21) - Wired pre-built cancellation hook+modal into gestionnaire detail page, un-skipped E2E cancel test
 
-## Sprint Actuel (Jan-Feb 2026)
+### Phase 6: Stripe Subscription Integration ✅ (Complete 2026-02-22)
+- [x] **Stripe Subscription System** (2026-02-21/22) - 48 stories + 13 debugging fixes + 6 audit fixes
+- [x] **Lot Access Restriction** (2026-02-22) - Trial overage banner, locked lot cards, server-side gates
+- [x] **Billing Audit Fixes** (2026-02-22) - mapStripeStatus consolidation, fail-closed patterns, error boundaries
+
+## Sprint Actuel (Feb 2026)
+
+### 2026-02-21/22 - Stripe Subscription Integration (Feature Complete)
+
+**Session: Full billing system with trial management, subscription gates, and billing UI**
+
+| Feature | Description | Files |
+|---------|-------------|-------|
+| **Billing System** | 48 user stories + 13 debugging fixes + 6 audit fixes | 249 test cases total |
+| **DB Migrations** | Subscriptions, stripe_customers, stripe_invoices, webhook_events | 4 new migrations |
+| **UI Components** | Billing settings page, trial overage banner, locked lot cards | 11 new components |
+| **Services** | SubscriptionService, SubscriptionEmailService | 2 new services |
+| **Repositories** | SubscriptionRepository, StripeCustomerRepository | 2 new repositories |
+| **CRON Jobs** | Trial expiration, trial notifications, behavioral triggers, cleanup webhook events | 4 new API routes |
+| **Webhook Handler** | Stripe webhook with 8 event types (invoice.*, customer.subscription.*) | 1 new API route |
+| **Server Actions** | Subscription management, checkout session creation, portal access | subscription-actions.ts |
+
+**Key Features Implemented:**
+1. **Trial Management**
+   - 14-day trial with 2 properties free
+   - Auto-expire trial after 14 days
+   - Trial notifications (7-day, 3-day, 1-day, expired)
+
+2. **Subscription Gates**
+   - Server-side gates on lot detail/edit pages
+   - Building detail interventions tab restricted
+   - Intervention action guards on locked lots
+   - Server Action guards in createLotAction, updateCompleteProperty
+
+3. **Lot Access Restriction (6 stories)**
+   - Trial overage banner (dismissible, amber theme)
+   - Locked lot cards (semi-transparent overlay + "Déverrouiller" button)
+   - Server-side gates on lot detail + lot edit pages
+   - Intervention action guards on locked lots
+   - Building detail grid shows locked lots
+
+4. **Billing Audit Fixes (6 stories)**
+   - mapStripeStatus consolidated to single source
+   - Paused status handled in checkReadOnly/checkCanAddProperty
+   - Lot edit page subscription gate added
+   - updateCompleteProperty subscription check + canAddProperty(count)
+   - getAccessibleLotIds fail-closed (security)
+   - BillingErrorBoundary + useSubscription hasError
+
+**New Patterns Documented:**
+- Layered fail: service-level = fail-closed, page-level = fail-open
+- CRUD access checklist when restricting entities
+- canAddProperty(count) for batch quota checks
+- CSS overlay for locked card dimming (not parent opacity)
+
+**AGENTS.md Learnings Added:**
+- #072: Stripe metadata isolation (checkout.session vs subscription_data)
+- #073: Stripe customer stale detection (deleted: true returns, not throws)
+- #074: Billing table RLS (service role only, client silently fails)
+- #075: OAuth vs DB trigger (mirror trial init in completeOAuthProfileAction)
+- #076: Webhook fallback (verifyCheckoutSession for local dev)
+- #077: Metered vs Standard pricing (metered rejects quantity param)
+
+**Test Coverage:**
+- Unit tests: 218 (5 new Stripe test files)
+- Integration tests: 15 (1 new Stripe test file)
+- E2E tests: 16 (billing settings flow)
+- Total: 249 test cases
+
+**Retrospective:** `docs/learnings/2026-02-22-stripe-billing-audit-retrospective.md`
+
+---
 
 ### 2026-02-21 - Cancel Modal Wiring (Intervention Detail Page)
 
@@ -240,277 +311,6 @@ Applied 4 migrations to fix security issues and consolidate overlapping RLS poli
 
 ---
 
-### 2026-02-09 - Planning Button + Conversation Thread Fix + Participant Indicator
-
-**Session 1: Planning Button Consolidation**
-
-Replaced 2 header buttons ("Gérer créneaux" + "Gérer estimations") on gestionnaire intervention detail page (status `planification`) with a single "Gérer planification" button that opens the ProgrammingModal with pre-filled state.
-
-| Fichier | Changement |
-|---------|------------|
-| `lib/intervention-action-utils.ts` | `manage_planning` ActionType + single button |
-| `gestionnaire intervention-detail-client.tsx` | Handler + URL auto-open + pre-fill useEffect |
-
-**Pre-fill logic:** Maps `scheduling_type` DB enum → modal option (`fixed`→`direct`, `slots`→`propose`, `flexible`→`organize`). Existing time slots pre-filled.
-
----
-
-**Session 2: Conversation Thread Fix (4 stories via Ralph)**
-
-Fix 3 bugs: (1) DB trigger adds contacts without accounts to conversations, (2) trigger uses LIMIT 1 without participant_id for individual threads, (3) no visual distinction between users with/without accounts in participant badges.
-
-| Story | Description | Files |
-|-------|-------------|-------|
-| US-001 | DB trigger: auth_user_id guard + participant_id filter | Migration SQL |
-| US-002 | hasAccount flag in participant types | 4 files (3 roles + shared type) |
-| US-003 | Visual indicator (dashed border, muted, no chat icon) | participants-row.tsx |
-| US-004 | Already done (create-intervention handles threads) | No change |
-
-**Key decisions:**
-- Migration repair workflow (revert + re-push) instead of DB reset
-- `hasAccount !== false` for backwards compat (treats undefined as true)
-- Retroactive cleanup in migration (DELETE bad data + INSERT missing participants)
-
-**Learnings ajoutés:** AGENTS.md #024-#026
-**Retrospective:** `docs/learnings/2026-02-09-conversation-thread-fix-retrospective.md`
-
----
-
-### 2026-02-08 - Performance Navigation Optimization V2 COMPLETE
-
-**Session: Performance Optimization V2 — 17 User Stories**
-
-Feature complete avec tous les 17 stories implementes et valides.
-
-**Commit:** `3bb1f4e` feat(performance): complete Performance Navigation Optimization V2 (17 stories)
-
-**Stories par Phase:**
-
-| Phase | Stories | Description |
-|-------|---------|-------------|
-| Error Handling | US-101, US-102, US-103 | error.tsx, not-found.tsx, PageSkeleton |
-| List Performance | US-201, US-202, US-203, US-204 | useDebounce, pagination, virtual scroll, prefetch |
-| Detail Pages | US-301, US-302, US-303, US-304 | Batch queries, parallel loading, lazy tabs |
-| Next.js 15 | US-401, US-402, US-403 | Suspense, generateMetadata, PPR |
-| Supabase | US-501, US-502, US-503 | Singleton, indexes, backoff |
-
-**Fichiers crees (33):**
-- 10 error.tsx / not-found.tsx (5 roles)
-- 2 async content components (dashboard, interventions)
-- 7 loading.tsx (dashboard, mail, profile pour 3 roles)
-- 1 PageSkeleton component (5 variants)
-- 2 hooks (useDebounce, usePrefetch)
-- 1 retrospective document
-- 1 SSR migration pattern doc
-
-**Fichiers modifies (57):**
-- Services: intervention-service, conversation-service, contract.service
-- Repositories: intervention, contract, conversation
-- Components: intervention-card, building cards, lot-card, interventions-list-view-v1
-- Pages: dashboard, interventions, mail, notifications, building detail, lot detail
-
-**Learnings ajoutes a AGENTS.md:**
-- #018: react-window v2 API migration
-- #019: Virtualization threshold (50+ items)
-- #020: Suspense streaming with async Server Components
-- #021: Supabase relation alias syntax for joins
-
-**Patterns ajoutes a systemPatterns.md:**
-- #28: Suspense Streaming Pattern
-- #29: Virtual Scrolling avec Seuil
-
-**Bug fixes:**
-- use-debounce.ts: Duplicate useEffect import
-- react-window v2: API changes (FixedSizeList → List)
-- mail/page.tsx: Wrong table/column names
-- intervention-detail-client.tsx: Duplicate dynamic import
-
-**Retrospective:** `docs/learnings/2026-02-08-performance-navigation-v2-retrospective.md`
-
----
-
-### 2026-02-04 - Fix Critique ensureInterventionConversationThreads
-
-**Session: Code Review Bugfix — Conversation Threads**
-
-Fix de 3 problèmes identifiés par code review dans `ensureInterventionConversationThreads`:
-
-| Fix | Sévérité | Description |
-|-----|----------|-------------|
-| **Fix 1** | CRITIQUE | `.is('deleted_at', null)` sur `intervention_assignments` → colonne inexistante, fonction entièrement cassée (zéro threads créés) |
-| **Fix 2** | Efficacité | Capture directe du `groupThreadId` créé au lieu de re-query DB (élimine 1 query redondante) |
-| **Fix 3** | Fonctionnel | Ajout `else` branches pour `tenants_group` / `providers_group` existants → nouveaux users ajoutés aux group threads existants |
-
-**Fichier modifié:** `app/actions/conversation-actions.ts`
-
-**Leçons documentées:**
-- Supabase PostgREST échoue silencieusement si on filtre sur colonne inexistante
-- `addParticipant` est idempotent (ON CONFLICT DO NOTHING) → safe pour "ensure exists"
-- Toujours vérifier `database.types.ts` avant de filtrer sur une colonne
-
-**Lint:** ✅ Aucun nouveau warning
-
----
-
-### 2026-02-03 - Simplification Statut "Approuvée" + ProgrammingModal Réutilisable
-
-**Session: Workflow Simplification + UI Unification**
-
-Simplification de l'UX pour les interventions avec statut "approuvée" et intégration de vrais composants ContactSelector dans la ProgrammingModal.
-
-**Modifications:**
-
-| Fichier | Changement |
-|---------|------------|
-| `lib/intervention-action-utils.ts` | Un seul bouton "Planifier" (suppression "Demander estimation") |
-| `lib/intervention-utils.ts` | Message "En attente de planification" |
-| `programming-modal-FINAL.tsx` | ContactSelector réels au lieu de mockups inline |
-| `intervention-detail-client.tsx` | Réactivation ProgrammingModal + props managers/tenants |
-| `interventions-page-client.tsx` | Props minimales pour ProgrammingModal |
-| `intervention-card.tsx` | Callback `onOpenProgrammingModal` |
-| `pending-actions-section.tsx` | Propagation callback vers InterventionCard |
-
-**Pattern documenté:** ContactSelector avec `hideUI={true}` + `ref.openContactModal()` pour intégration dans modales.
-
-**Build:** ✅ Réussi sans erreurs
-
----
-
-### 2026-02-03 (earlier) - Fix Infinite Refresh Loop
-
-**Problème:** Boucle infinie de refresh sur la page de détail d'intervention.
-
-**Root Cause:** ChatInterface appelait `markThreadAsReadAction()` à chaque render, ce qui déclenchait `revalidatePath()` → re-render → nouvel appel → boucle.
-
-**Fix:**
-- `useRef<Set<string>>` pour tracker les threads déjà marqués lus (déduplication)
-- `useInterventionApproval`: Un seul refresh au lieu de callback + setTimeout
-
----
-
-### 2026-02-02 - Push Subscription Security Fix + PWA Notifications
-
-**Session 1: Quote Notifications Multi-Canal**
-
-Audit complet du système de notifications pour les devis. Identification et correction de gaps critiques.
-
-| Route | Avant | Après |
-|-------|-------|-------|
-| `intervention-quote-request` | ❌❌❌ | ✅✅✅ (Email + In-App + Push) |
-| `intervention-quote-submit` | ✅✅❌ | ✅✅✅ (Push ajouté) |
-| `quotes/[id]/approve` | ✅❌❌ | ✅✅✅ (In-App + Push ajoutés) |
-| `quotes/[id]/reject` | ✅❌❌ | ✅✅✅ (In-App + Push ajoutés) |
-
-**Nouvelles actions créées:**
-- `notifyQuoteRequested` - In-app + Push pour prestataire
-- `notifyQuoteApproved` - In-app + Push pour prestataire
-- `notifyQuoteRejected` - In-app + Push pour prestataire
-- `notifyQuoteSubmittedWithPush` - In-app + Push pour gestionnaires
-
-**Bug fix URLs Push:** Nouvelle fonction `sendRoleAwarePushNotifications()` qui groupe par rôle et envoie l'URL appropriée.
-
----
-
-**Session 2: PWA Notification Prompt**
-
-Maximisation du taux d'activation des notifications PWA via modale de rappel.
-
-| Fichier Créé | Description |
-|--------------|-------------|
-| `hooks/use-notification-prompt.tsx` | Hook de détection (isPWA, permission, user) |
-| `components/pwa/notification-permission-modal.tsx` | Modal UI avec bénéfices par rôle |
-| `components/pwa/notification-settings-guide.tsx` | Instructions paramètres par plateforme |
-| `contexts/notification-prompt-context.tsx` | Provider global |
-
-**Comportement:** Modale affichée à chaque ouverture PWA si notifications non activées.
-
----
-
-**Session 3: Web/PWA Notification Unification**
-
-Refactoring pour unifier l'expérience notifications entre web et PWA.
-
-| Composant | Changement |
-|-----------|------------|
-| `push-notification-toggle.tsx` | Unifié web + PWA |
-| `notification-permission-modal.tsx` | Guide contextuel selon permission state |
-| `notification-settings-guide.tsx` | Instructions iOS, Chrome, Safari |
-
----
-
-**Session 4: Push Subscription Security Fix**
-
-**Problème:** Les push subscriptions n'étaient pas sauvegardées malgré API 200.
-
-**Root causes:**
-1. **RLS Silent Block** - Supabase anon key peut bloquer sans erreur
-2. **No Null Check** - `.single()` retourne null si RLS bloque
-3. **Client userId** - Utilisait userId du client au lieu de userProfile.id
-
-**Fix appliqué:** `app/api/push/subscribe/route.ts`
-- `user_id: userProfile.id` (au lieu de userId)
-- Ajout check `if (!data)` pour détecter RLS silent blocks
-- Logs cohérents avec `userProfileId`
-
-**Commit:** `4d8a8e8` fix(push-subscribe): enhance security by using userProfile.id
-
----
-
-**Session 5: Debug Page Paramètres (EN COURS)**
-
-**Symptôme:** Page `/gestionnaire/parametres` bloquée sur "Chargement..."
-
-**Analyse:** Le composant `settings-page.tsx` attend `user` de `useAuth()`. Logs montrent initialisation partielle (`NotificationPrompt Initialized`).
-
-**À vérifier:**
-- Déploiement Vercel réussi
-- Refresh forcé (Ctrl+Shift+R)
-- Logs serveur Vercel
-
-**Note:** Le fix push-subscribe ne devrait PAS affecter le chargement car c'est une API POST non appelée au mount.
-
----
-
-### 2026-02-01 - Filtrage auth_id Conversations/Notifications pour Contacts Invités
-
-**Problème résolu:** Les utilisateurs ajoutés à une intervention mais non invités (sans compte `auth_id`) recevaient des conversations individuelles et des notifications alors qu'ils ne peuvent pas se connecter à l'application.
-
-**Règle métier implémentée:**
-- Utilisateurs avec `auth_id` (invités) → Conversations créées + Notifications envoyées
-- Contacts sans `auth_id` (informatifs) → Visibles dans listes mais exclus des conversations/notifications
-
-**Solution - Filtrage à tous les points d'entrée:**
-
-| Point d'Entrée | Fichier | Correction |
-|----------------|---------|------------|
-| API création intervention | `create-manager-intervention/route.ts` | `.not('auth_id', 'is', null)` sur tenants/providers |
-| Service assignUser() | `intervention-service.ts` | Check `hasAuthAccount` avant création thread |
-| Service assignMultipleProviders() | `intervention-service.ts` | Check `hasAuthAccount` |
-| Service createConversationThreads() | `intervention-service.ts` | Filtre managers avec `auth_id` |
-| Service addInitialParticipants() | `conversation-service.ts` | **FIX REVIEW** - Filtre tous les users |
-| Service getInterventionTenants() | `conversation-service.ts` | **FIX REVIEW** - JOIN avec filtre `auth_id` |
-| Actions lazy creation | `conversation-actions.ts` | Check `auth_id` avant création |
-| Actions notifications | `conversation-notification-actions.ts` | Filtre managers avec `auth_id` |
-
-**Data flow `has_account` pour UI:**
-- `contract.repository.ts` → Ajout `auth_id` aux selects
-- `contract.service.ts` → Conversion en `has_account: boolean`
-- `contract-actions.ts` → Propagation aux types
-- `assignment-section-v2.tsx` → Badge "Non invité" affiché
-
-**Fichiers modifiés (13):**
-- Backend: 4 fichiers (intervention-service, conversation-service, 2 routes)
-- Actions: 3 fichiers (conversation, notification, contract)
-- Repository/Service: 2 fichiers (contract)
-- UI: 3 fichiers (assignment-section, nouvelle-intervention, intervention-edit)
-- Docs: 1 fichier (design document)
-
-**Code review effectuée:** 4 issues IMPORTANT corrigées pendant la review
-
-**Design document:** `docs/plans/2026-02-01-invited-users-only-conversations-design.md`
-
----
-
 ## Dette Technique Connue
 - 15 fichiers utilisent encore le singleton notification legacy
 - Certains composants pourraient migrer vers Server Components
@@ -518,33 +318,33 @@ Refactoring pour unifier l'expérience notifications entre web et PWA.
 - ✅ Version variants nettoyes - **1 fichier supprime**
 - ✅ Ecosysteme .claude/ optimise - **62% reduction** (2026-01-23)
 
-## Metriques Projet (2026-02-21)
+## Metriques Projet (2026-02-22)
 
 | Metrique | Valeur |
 |----------|--------|
-| Repositories | **19** |
-| Domain Services | **33** |
-| API Routes | **114** (10 domaines) |
-| Hooks | **70** |
-| Components | **365** |
-| Pages | **89** |
+| Repositories | **21** (+2: subscription, stripe-customer) |
+| Domain Services | **34** (+2: subscription, subscription-email) |
+| API Routes | **120** (+6: 4 CRON, 1 webhook, 1 settings) |
+| Hooks | **70** (+2: useSubscription, useStrategicNotification) |
+| Components | **381** (+11: billing UI) |
+| Pages | **89** (+1: billing settings) |
 | Blog Articles | **2** (Jan 2026, Feb 2026) |
 | DB Tables | **44** |
 | DB Enums | 39 |
-| DB Functions | **79** |
-| Migrations | **167** (+2: RLS standalone lots fix, unified documents bucket) |
+| DB Functions | **79** (+5: subscription helpers) |
+| Migrations | **174** (+7: 4 Stripe, 2 trial init, 1 signup fix) |
 | Server Actions | **17** files |
 | Notification Actions | **20** |
 | Supabase Client Types | **4** (browser, server, serverAction, serviceRole) |
-| **AGENTS.md Learnings** | **57** (+11: E2E patterns #047-#051, storage #053, contract E2E #054-#057) |
+| **AGENTS.md Learnings** | **77** (+6: #072-#077, Stripe billing patterns) |
 | **systemPatterns.md Patterns** | **29** |
 | **Shared Cards** | **15** |
 | **Quote Status Enum (DB)** | **7** (draft, pending, sent, accepted, rejected, expired, cancelled) |
 | **E2E Test Files** | **8** (smoke, building, lot, contract, 4 intervention) |
 | **E2E Page Objects** | **8** (dashboard, login, 3 wizards, 3 intervention) |
 | **E2E Total Tests** | **25+** (wizards) + intervention workflow |
-| **Unit Test Files** | **7** |
-| **Integration Test Files** | **4** |
+| **Unit Test Files** | **12** (+5: Stripe tests) |
+| **Integration Test Files** | **5** (+1: Stripe) |
 
 ### Metriques Ecosysteme .claude/ (2026-01-23)
 
@@ -596,14 +396,14 @@ Refactoring pour unifier l'expérience notifications entre web et PWA.
 | **2026-02-16** | **Intervention Workflow Polish** | **7 themes: demande_de_devis removal, approved→accepted, finalization API, quote form, details card, dashboards, quote modals** | **40 fichiers, -500 lignes net, 4 learnings AGENTS.md (#035-#038)** |
 | **2026-02-17** | **Property Documents + Interventions Step** | **5-step wizard with doc upload, intervention scheduling, multi-lot support** | **~15 fichiers, 2 new hooks, 2 new components, 2 constant files** |
 | **2026-02-18** | **Code Review Fixes (3C+7H+2Q)** | **TDZ, multi-lot [0], Zod drift, role validation, type completeness** | **9 fichiers, 4 learnings AGENTS.md (#043-#046), 1 false positive dismissed** |
-
 | **2026-02-19** | **SEO Landing Page Optimization** | **Score 52→78/100, JSON-LD schemas, FAQ structured data** | **13 stories, Title/meta/OG optimization** |
 | **2026-02-19** | **Blog Section Complete** | **Content marketing for SEO, article preview on landing** | **6 stories, 7 new files, 4 modified, gray-matter + react-markdown** |
 | **2026-02-20** | **Unified Documents Bucket** | **3 buckets → 1 (property/intervention/contract → documents)** | **1 migration, 3 upload routes, storage.service.ts, config.toml** |
 | **2026-02-20** | **Lot Wizard Server Component Refactor** | **2914-line page.tsx extraction for maintainability** | **page.tsx (server) + lot-creation-form.tsx (client)** |
 | **2026-02-20/21** | **E2E Testing Infrastructure V2** | **Full Puppeteer + Vitest suite with POM pattern** | **25 tests, 4 test files, 5 POMs, API auth, 11 data-testid attrs** |
 | **2026-02-21** | **Contract E2E + Storage Fix** | **Service role for storage uploads, useImperativeHandle retry** | **contract-wizard.page.ts, upload-contract-document/route.ts** |
+| **2026-02-21/22** | **Stripe Subscription Integration** | **Full billing system with trial, gates, UI** | **48+13+6 stories, 249 tests, 4 migrations, 11 components, 2 services, 2 repos, 4 CRON jobs** |
 
 ---
-*Derniere mise a jour: 2026-02-21*
-*Session: Cancel modal wired on gestionnaire detail page, E2E cancel test un-skipped*
+*Derniere mise a jour: 2026-02-22*
+*Session: Stripe subscription integration complete (67 stories, 249 test cases)*

@@ -1,19 +1,16 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter
-} from '@/components/ui/dialog'
+import { UnifiedModal } from '@/components/ui/unified-modal/unified-modal'
+import { UnifiedModalHeader } from '@/components/ui/unified-modal/unified-modal-header'
+import { UnifiedModalBody } from '@/components/ui/unified-modal/unified-modal-body'
+import { UnifiedModalFooter } from '@/components/ui/unified-modal/unified-modal-footer'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 import {
     Building2,
     Home,
@@ -23,7 +20,10 @@ import {
     Wrench,
     Search,
     X,
-    Loader2
+    Loader2,
+    Link2,
+    ChevronDown,
+    Check
 } from 'lucide-react'
 import {
     EmailLinkEntityType,
@@ -41,15 +41,37 @@ interface LinkToEntityDialogProps {
     onLinksUpdated: () => void
 }
 
-// Icons mapping
+// Icons mapping (static JSX for badges)
 const ENTITY_ICONS: Record<EmailLinkEntityType, React.ReactNode> = {
-    building: <Building2 className="h-4 w-4" />,
-    lot: <Home className="h-4 w-4" />,
-    contract: <FileText className="h-4 w-4" />,
-    contact: <User className="h-4 w-4" />,
-    company: <Briefcase className="h-4 w-4" />,
-    intervention: <Wrench className="h-4 w-4" />
+    building: <Building2 className="h-3.5 w-3.5" />,
+    lot: <Home className="h-3.5 w-3.5" />,
+    contract: <FileText className="h-3.5 w-3.5" />,
+    contact: <User className="h-3.5 w-3.5" />,
+    company: <Briefcase className="h-3.5 w-3.5" />,
+    intervention: <Wrench className="h-3.5 w-3.5" />
 }
+
+// Icon components for empty state (need className override)
+const ENTITY_ICON_COMPONENTS: Record<EmailLinkEntityType, React.ComponentType<{ className?: string }>> = {
+    building: Building2,
+    lot: Home,
+    contract: FileText,
+    contact: User,
+    company: Briefcase,
+    intervention: Wrench
+}
+
+// Subtle color config for empty state + chip accents
+const ENTITY_COLORS: Record<EmailLinkEntityType, { bg: string; text: string }> = {
+    building: { bg: 'bg-blue-50', text: 'text-blue-600' },
+    lot: { bg: 'bg-green-50', text: 'text-green-600' },
+    contract: { bg: 'bg-purple-50', text: 'text-purple-600' },
+    contact: { bg: 'bg-amber-50', text: 'text-amber-600' },
+    company: { bg: 'bg-indigo-50', text: 'text-indigo-600' },
+    intervention: { bg: 'bg-orange-50', text: 'text-orange-600' },
+}
+
+const entityTypes = Object.keys(EMAIL_LINK_DISPLAY_CONFIG) as EmailLinkEntityType[]
 
 export function LinkToEntityDialog({
     open,
@@ -64,16 +86,18 @@ export function LinkToEntityDialog({
     const [searchResults, setSearchResults] = useState<EntitySearchResult[]>([])
     const [isSearching, setIsSearching] = useState(false)
     const [pendingLinks, setPendingLinks] = useState<Array<{ type: EmailLinkEntityType; id: string; name: string }>>([])
-    const [pendingUnlinks, setPendingUnlinks] = useState<string[]>([]) // Link IDs to remove
+    const [pendingUnlinks, setPendingUnlinks] = useState<string[]>([])
     const [isSaving, setIsSaving] = useState(false)
+    const [liaisonsExpanded, setLiaisonsExpanded] = useState(false)
 
-    // Initialize pending state from current links
+    // Initialize pending state when dialog opens
     useEffect(() => {
         if (open) {
             setPendingLinks([])
             setPendingUnlinks([])
             setSearchQuery('')
             setSearchResults([])
+            setLiaisonsExpanded(false)
         }
     }, [open, teamId])
 
@@ -81,12 +105,10 @@ export function LinkToEntityDialog({
     const fetchEntities = useCallback(async (type: EmailLinkEntityType, query: string = '') => {
         setIsSearching(true)
         try {
-            // Build URL based on entity type
             const endpoint = getSearchEndpoint(type, teamId)
 
-            // Skip if endpoint not available
             if (!endpoint) {
-                console.warn('🔍 [LINK-DIALOG] No endpoint available for type:', type)
+                console.warn('[LINK-DIALOG] No endpoint available for type:', type)
                 setSearchResults([])
                 setIsSearching(false)
                 return
@@ -96,7 +118,6 @@ export function LinkToEntityDialog({
             const response = await fetch(`${endpoint}${endpoint.includes('?') ? '&' : '?'}${searchParam}limit=20`)
 
             if (!response.ok) {
-                // Handle 404 gracefully - endpoint doesn't exist
                 if (response.status === 404) {
                     console.warn(`Endpoint not found: ${endpoint}`)
                     setSearchResults([])
@@ -107,7 +128,6 @@ export function LinkToEntityDialog({
 
             const data = await response.json()
 
-            // Check if API returned success: false
             if (data.success === false) {
                 console.warn(`API error for ${type}:`, data.error)
                 setSearchResults([])
@@ -116,7 +136,6 @@ export function LinkToEntityDialog({
 
             const entities = extractEntities(type, data)
 
-            // Mark entities that are already linked
             const linkedIds = new Set([
                 ...currentLinks.filter(l => l.entity_type === type).map(l => l.entity_id),
                 ...pendingLinks.filter(l => l.type === type).map(l => l.id)
@@ -133,7 +152,6 @@ export function LinkToEntityDialog({
             setSearchResults(results)
         } catch (error) {
             console.error('Fetch error:', error)
-            // Show empty results instead of error toast for graceful degradation
             setSearchResults([])
         } finally {
             setIsSearching(false)
@@ -147,16 +165,15 @@ export function LinkToEntityDialog({
         }
     }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Debounced search when query changes
+    // Debounced search
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchEntities(activeTab, searchQuery)
         }, 300)
-
         return () => clearTimeout(timer)
     }, [searchQuery, activeTab, fetchEntities])
 
-    // Load entities when tab changes
+    // Reset search when tab changes
     useEffect(() => {
         setSearchQuery('')
         if (open) {
@@ -164,61 +181,47 @@ export function LinkToEntityDialog({
         }
     }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Handle selecting an entity to link
     const handleToggleEntity = (entity: EntitySearchResult) => {
         if (entity.isLinked) {
-            // Check if it's in currentLinks (existing) or pendingLinks (new)
             const existingLink = currentLinks.find(
                 l => l.entity_type === entity.type && l.entity_id === entity.id
             )
 
             if (existingLink) {
-                // Add to pending unlinks
                 if (pendingUnlinks.includes(existingLink.id)) {
                     setPendingUnlinks(prev => prev.filter(id => id !== existingLink.id))
                 } else {
                     setPendingUnlinks(prev => [...prev, existingLink.id])
                 }
             } else {
-                // Remove from pending links
                 setPendingLinks(prev => prev.filter(
                     l => !(l.type === entity.type && l.id === entity.id)
                 ))
             }
         } else {
-            // Add to pending links - prevent duplicates
             setPendingLinks(prev => {
                 const alreadyPending = prev.some(l => l.type === entity.type && l.id === entity.id)
                 if (alreadyPending) return prev
-                return [...prev, {
-                    type: entity.type,
-                    id: entity.id,
-                    name: entity.name
-                }]
+                return [...prev, { type: entity.type, id: entity.id, name: entity.name }]
             })
         }
 
-        // Update search results to reflect the change
         setSearchResults(prev => prev.map(r =>
             r.id === entity.id ? { ...r, isLinked: !r.isLinked } : r
         ))
     }
 
-    // Remove a pending link
     const handleRemovePendingLink = (type: EmailLinkEntityType, id: string) => {
         setPendingLinks(prev => prev.filter(l => !(l.type === type && l.id === id)))
     }
 
-    // Cancel pending unlink
     const handleCancelUnlink = (linkId: string) => {
         setPendingUnlinks(prev => prev.filter(id => id !== linkId))
     }
 
-    // Save all changes
     const handleSave = async () => {
         setIsSaving(true)
         try {
-            // Process unlinks
             for (const linkId of pendingUnlinks) {
                 const response = await fetch(`/api/emails/${emailId}/links?linkId=${linkId}`, {
                     method: 'DELETE'
@@ -229,7 +232,6 @@ export function LinkToEntityDialog({
                 }
             }
 
-            // Process new links
             for (const link of pendingLinks) {
                 const response = await fetch(`/api/emails/${emailId}/links`, {
                     method: 'POST',
@@ -257,7 +259,6 @@ export function LinkToEntityDialog({
         }
     }
 
-    // Get effective links (current - pending unlinks + pending links)
     const effectiveLinks = [
         ...currentLinks.filter(l => !pendingUnlinks.includes(l.id)),
         ...pendingLinks.map(l => ({
@@ -274,93 +275,160 @@ export function LinkToEntityDialog({
     ] as EmailLinkWithDetails[]
 
     const hasChanges = pendingLinks.length > 0 || pendingUnlinks.length > 0
+    const totalChanges = pendingLinks.length + pendingUnlinks.length
+    const activeColorConfig = ENTITY_COLORS[activeTab]
+    const ActiveIcon = ENTITY_ICON_COMPONENTS[activeTab]
 
     return (
-        <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
-                <DialogHeader>
-                    <DialogTitle>Lier cet email</DialogTitle>
-                </DialogHeader>
+        <UnifiedModal
+            open={open}
+            onOpenChange={onOpenChange}
+            size="lg"
+            preventCloseOnOutsideClick={isSaving}
+            preventCloseOnEscape={isSaving}
+        >
+            <UnifiedModalHeader
+                title="Lier cet email"
+                icon={<Link2 className="h-5 w-5" />}
+                variant="default"
+            />
 
-                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as EmailLinkEntityType)} className="flex-1 flex flex-col min-h-0">
-                    <TabsList className="grid grid-cols-6 flex-shrink-0">
-                        {(Object.keys(EMAIL_LINK_DISPLAY_CONFIG) as EmailLinkEntityType[]).map(type => (
-                            <TabsTrigger
-                                key={type}
-                                value={type}
-                                className="flex items-center gap-1 text-xs px-2"
-                            >
-                                {ENTITY_ICONS[type]}
-                                <span className="hidden sm:inline">{EMAIL_LINK_DISPLAY_CONFIG[type].label}</span>
-                            </TabsTrigger>
-                        ))}
-                    </TabsList>
+            <UnifiedModalBody noPadding className="flex flex-col min-h-0">
+                {/* Filter chips - MD3 style */}
+                <div className="flex-shrink-0 px-4 pt-3 pb-2">
+                    <div className="flex overflow-x-auto gap-2 scrollbar-hide">
+                        {entityTypes.map(type => {
+                            const isActive = activeTab === type
+                            return (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    onClick={() => setActiveTab(type)}
+                                    className={cn(
+                                        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm whitespace-nowrap transition-all",
+                                        "border focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+                                        isActive
+                                            ? "bg-primary text-primary-foreground border-primary shadow-sm"
+                                            : "bg-transparent text-muted-foreground border-slate-200 hover:bg-slate-50 hover:text-foreground hover:border-slate-300"
+                                    )}
+                                >
+                                    {isActive && <Check className="h-3.5 w-3.5" />}
+                                    {ENTITY_ICONS[type]}
+                                    <span>{EMAIL_LINK_DISPLAY_CONFIG[type].label}</span>
+                                </button>
+                            )
+                        })}
+                    </div>
+                </div>
 
-                    <div className="flex-1 flex flex-col min-h-0 mt-4">
-                        {/* Search Input */}
-                        <div className="relative flex-shrink-0">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                placeholder={`Rechercher ${EMAIL_LINK_DISPLAY_CONFIG[activeTab].labelPlural.toLowerCase()}...`}
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="pl-10"
-                            />
-                        </div>
+                <div className="flex-1 flex flex-col min-h-0 px-4 pb-4">
+                    {/* Search Input */}
+                    <div className="relative flex-shrink-0 mt-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder={`Rechercher ${EMAIL_LINK_DISPLAY_CONFIG[activeTab].labelPlural.toLowerCase()}...`}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-10"
+                        />
+                    </div>
 
-                        {/* Search Results - Native CSS scroll */}
-                        <div className="max-h-[min(300px,40vh)] overflow-y-auto mt-4 border rounded-md">
-                            <div className="p-2">
-                                {isSearching ? (
-                                    <div className="flex items-center justify-center py-8">
-                                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    {/* Results list — no wrapping border, flows directly */}
+                    <div className="flex-1 max-h-[min(300px,40vh)] overflow-y-auto mt-2 -mx-1">
+                        {isSearching ? (
+                            /* Skeleton loader */
+                            <div className="space-y-1 px-1">
+                                {[1, 2, 3, 4].map(i => (
+                                    <div key={i} className="flex items-center gap-3 px-3 py-2.5 animate-pulse">
+                                        <div className="h-4 w-4 rounded bg-slate-200 flex-shrink-0" />
+                                        <div className="flex-1 space-y-1.5">
+                                            <div className="h-3.5 w-3/5 rounded bg-slate-200" />
+                                            <div className="h-3 w-2/5 rounded bg-slate-100" />
+                                        </div>
                                     </div>
-                                ) : searchResults.length === 0 ? (
-                                    <p className="text-center text-muted-foreground py-8">
-                                        {searchQuery.length >= 2
-                                            ? 'Aucun résultat trouvé'
-                                            : `Aucun ${EMAIL_LINK_DISPLAY_CONFIG[activeTab].label.toLowerCase()} disponible`
-                                        }
-                                    </p>
-                                ) : (
-                                    <div className="space-y-1">
-                                        {searchResults.map(entity => (
-                                            <div
-                                                key={entity.id}
-                                                className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
-                                                onClick={() => handleToggleEntity(entity)}
-                                            >
-                                                <Checkbox
-                                                    checked={entity.isLinked}
-                                                    onCheckedChange={() => handleToggleEntity(entity)}
-                                                />
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="font-medium truncate">{entity.name}</p>
-                                                    {entity.subtitle && (
-                                                        <p className="text-sm text-muted-foreground truncate">
-                                                            {entity.subtitle}
-                                                        </p>
-                                                    )}
-                                                </div>
-                                                {entity.isLinked && (
-                                                    <Badge variant="secondary" className="flex-shrink-0">
-                                                        Lié
-                                                    </Badge>
-                                                )}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
+                                ))}
                             </div>
-                        </div>
-
-                        {/* Current Links Section */}
-                        {effectiveLinks.length > 0 && (
-                            <div className="mt-4 flex-shrink-0">
-                                <p className="text-sm font-medium text-muted-foreground mb-2">
-                                    Liaisons ({effectiveLinks.length})
+                        ) : searchResults.length === 0 ? (
+                            /* Empty state */
+                            <div className="flex flex-col items-center justify-center py-12 text-center">
+                                <div className={cn(
+                                    "h-10 w-10 rounded-full flex items-center justify-center mb-3",
+                                    activeColorConfig.bg
+                                )}>
+                                    <ActiveIcon className={cn("h-5 w-5", activeColorConfig.text)} />
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                    {searchQuery.length >= 2
+                                        ? 'Aucun résultat trouvé'
+                                        : `Aucun ${EMAIL_LINK_DISPLAY_CONFIG[activeTab].label.toLowerCase()} disponible`
+                                    }
                                 </p>
-                                <div className="flex flex-wrap gap-2">
+                            </div>
+                        ) : (
+                            /* Results */
+                            <div className="px-1 space-y-1.5">
+                                {searchResults.map(entity => (
+                                    <div
+                                        key={entity.id}
+                                        className={cn(
+                                            "flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors border",
+                                            entity.isLinked
+                                                ? "bg-primary/5 border-primary/20 hover:bg-primary/10"
+                                                : "bg-white border-slate-100 hover:bg-slate-50 hover:border-slate-200"
+                                        )}
+                                        onClick={() => handleToggleEntity(entity)}
+                                    >
+                                        <Checkbox
+                                            checked={entity.isLinked}
+                                            onCheckedChange={() => handleToggleEntity(entity)}
+                                        />
+                                        <div className="flex-1 min-w-0">
+                                            <p className={cn(
+                                                "text-sm truncate",
+                                                entity.isLinked ? "font-semibold text-foreground" : "font-medium text-foreground"
+                                            )}>
+                                                {entity.name}
+                                            </p>
+                                            {entity.subtitle && (
+                                                <p className="text-xs text-muted-foreground truncate mt-0.5">
+                                                    {entity.subtitle}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Collapsible Liaisons section */}
+                    {effectiveLinks.length > 0 && (
+                        <div className="flex-shrink-0 mt-2 pt-2 border border-slate-100 rounded-lg bg-white px-3">
+                            <button
+                                type="button"
+                                onClick={() => setLiaisonsExpanded(!liaisonsExpanded)}
+                                className="flex items-center justify-between w-full py-1.5 text-left group"
+                            >
+                                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                    Liaisons ({effectiveLinks.length})
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    {hasChanges && (
+                                        <span className="text-xs text-primary font-medium">
+                                            {pendingLinks.length > 0 && `+${pendingLinks.length}`}
+                                            {pendingLinks.length > 0 && pendingUnlinks.length > 0 && ' / '}
+                                            {pendingUnlinks.length > 0 && `-${pendingUnlinks.length}`}
+                                        </span>
+                                    )}
+                                    <ChevronDown className={cn(
+                                        "h-4 w-4 text-muted-foreground transition-transform",
+                                        liaisonsExpanded && "rotate-180"
+                                    )} />
+                                </div>
+                            </button>
+
+                            {liaisonsExpanded && (
+                                <div className="flex flex-wrap gap-1.5 pb-1 pt-1">
                                     {effectiveLinks.map(link => {
                                         const config = EMAIL_LINK_DISPLAY_CONFIG[link.entity_type]
                                         const isPending = link.id.startsWith('pending-')
@@ -370,11 +438,11 @@ export function LinkToEntityDialog({
                                             <Badge
                                                 key={link.id}
                                                 variant="outline"
-                                                className={`
-                                                    ${config.color}
-                                                    ${isMarkedForRemoval ? 'opacity-50 line-through' : ''}
-                                                    ${isPending ? 'border-dashed' : ''}
-                                                `}
+                                                className={cn(
+                                                    config.color,
+                                                    isMarkedForRemoval && 'opacity-50 line-through',
+                                                    isPending && 'border-dashed'
+                                                )}
                                             >
                                                 {ENTITY_ICONS[link.entity_type]}
                                                 <span className="ml-1">{link.entity_name}</span>
@@ -398,28 +466,28 @@ export function LinkToEntityDialog({
                                         )
                                     })}
                                 </div>
-                            </div>
-                        )}
-                    </div>
-                </Tabs>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </UnifiedModalBody>
 
-                <DialogFooter className="flex-shrink-0">
-                    <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
-                        Annuler
-                    </Button>
-                    <Button onClick={handleSave} disabled={!hasChanges || isSaving}>
-                        {isSaving ? (
-                            <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Enregistrement...
-                            </>
-                        ) : (
-                            'Enregistrer'
-                        )}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+            <UnifiedModalFooter align="right">
+                <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
+                    Annuler
+                </Button>
+                <Button onClick={handleSave} disabled={!hasChanges || isSaving}>
+                    {isSaving ? (
+                        <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Enregistrement...
+                        </>
+                    ) : (
+                        hasChanges ? `Enregistrer (${totalChanges})` : 'Enregistrer'
+                    )}
+                </Button>
+            </UnifiedModalFooter>
+        </UnifiedModal>
     )
 }
 
@@ -449,7 +517,6 @@ function extractEntities(
     type: EmailLinkEntityType,
     data: any
 ): Array<{ id: string; name: string; subtitle?: string }> {
-    // Handle different API response formats
     const items = data.data || data.buildings || data.lots || data.contracts ||
                   data.contacts || data.companies || data.interventions || []
 
@@ -470,7 +537,6 @@ function extractEntities(
                     subtitle: item.lot?.reference || item.lot?.building?.name
                 }
             case 'contact':
-                // team-contacts returns name directly, not first_name/last_name
                 return {
                     id: item.id,
                     name: item.name || `${item.first_name || ''} ${item.last_name || ''}`.trim() || 'Contact',

@@ -47,16 +47,16 @@ export async function GET(request: Request) {
     const { teamId, userId } = stateData
 
     // 4. Vérifier l'authentification via helper centralisé
-    const authContext = await getApiAuthContext()
-    if (!authContext) {
+    const authResult = await getApiAuthContext()
+    if (!authResult.success) {
       console.error('User not authenticated during OAuth callback')
       return NextResponse.redirect(`${errorUrl}&message=not_authenticated`)
     }
 
-    const { supabase, profile } = authContext
+    const { supabase, userProfile } = authResult.data
 
     // 5. Vérifier que le profil correspond au state OAuth (anti-CSRF)
-    if (profile.team_id !== teamId) {
+    if (!userProfile || userProfile.team_id !== teamId) {
       console.error('User profile mismatch or not found')
       return NextResponse.redirect(`${errorUrl}&message=team_mismatch`)
     }

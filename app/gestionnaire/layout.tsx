@@ -98,8 +98,12 @@ export default async function GestionnaireLayout({
             teams={sameRoleTeams}
             teamId={team.id}
           />
-          <div className="flex flex-col flex-1 min-w-0 h-full">
-            <SubscriptionBanners subscriptionInfo={subscriptionInfo} role="gestionnaire" activeTeamsCount={activeTeamsCount} />
+          <div className="flex flex-col flex-1 min-w-0 h-full relative">
+            <div className="absolute top-0 left-0 right-0 z-50 pointer-events-none">
+              <div className="pointer-events-auto">
+                <SubscriptionBanners subscriptionInfo={subscriptionInfo} role="gestionnaire" activeTeamsCount={activeTeamsCount} />
+              </div>
+            </div>
             <RealtimeWrapper userId={profile.id} teamId={team?.id}>
               {children}
             </RealtimeWrapper>

@@ -13,15 +13,15 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
-    const authContext = await getApiAuthContext()
+    const authResult = await getApiAuthContext()
 
-    if (!authContext) {
+    if (!authResult.success) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const { profile, supabase } = authContext
+    const { userProfile, supabase } = authResult.data
 
-    if (!profile?.team_id) {
+    if (!userProfile?.team_id) {
       return NextResponse.json({ error: 'Équipe non trouvée' }, { status: 404 })
     }
 
@@ -30,7 +30,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       .from('companies')
       .select('*')
       .eq('id', id)
-      .eq('team_id', profile.team_id)
+      .eq('team_id', userProfile.team_id)
       .is('deleted_at', null)
       .single()
 
@@ -53,20 +53,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
     const body = await request.json()
-    const authContext = await getApiAuthContext()
+    const authResult = await getApiAuthContext()
 
-    if (!authContext) {
+    if (!authResult.success) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const { profile, supabase } = authContext
+    const { userProfile, supabase } = authResult.data
 
-    if (!profile?.team_id) {
+    if (!userProfile?.team_id) {
       return NextResponse.json({ error: 'Équipe non trouvée' }, { status: 404 })
     }
 
     // Check if user is gestionnaire or admin
-    if (!['gestionnaire', 'admin'].includes(profile.role || '')) {
+    if (!['gestionnaire', 'admin'].includes(userProfile.role || '')) {
       return NextResponse.json({ error: 'Permission refusée' }, { status: 403 })
     }
 
@@ -75,7 +75,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       .from('companies')
       .select('id, team_id')
       .eq('id', id)
-      .eq('team_id', profile.team_id)
+      .eq('team_id', userProfile.team_id)
       .is('deleted_at', null)
       .single()
 
@@ -128,20 +128,20 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params
-    const authContext = await getApiAuthContext()
+    const authResult = await getApiAuthContext()
 
-    if (!authContext) {
+    if (!authResult.success) {
       return NextResponse.json({ error: 'Non autorisé' }, { status: 401 })
     }
 
-    const { profile, supabase } = authContext
+    const { userProfile, supabase } = authResult.data
 
-    if (!profile?.team_id) {
+    if (!userProfile?.team_id) {
       return NextResponse.json({ error: 'Équipe non trouvée' }, { status: 404 })
     }
 
     // Check if user is gestionnaire or admin
-    if (!['gestionnaire', 'admin'].includes(profile.role || '')) {
+    if (!['gestionnaire', 'admin'].includes(userProfile.role || '')) {
       return NextResponse.json({ error: 'Permission refusée' }, { status: 403 })
     }
 
@@ -150,7 +150,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       .from('companies')
       .select('id, team_id, name')
       .eq('id', id)
-      .eq('team_id', profile.team_id)
+      .eq('team_id', userProfile.team_id)
       .is('deleted_at', null)
       .single()
 

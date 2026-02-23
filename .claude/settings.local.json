@@ -50,7 +50,11 @@
       "Bash(git -C \"C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\" diff --name-only HEAD~5)",
       "Bash(git -C \"C:\\\\Users\\\\arthu\\\\Desktop\\\\Coding\\\\Seido-app\" diff --name-only)",
       "Bash(npm run test:integration:*)",
-      "Bash(npx vitest:*)"
+      "Bash(npx vitest:*)",
+      "Bash(npx supabase migration repair:*)",
+      "Bash(npx supabase db push:*)",
+      "Bash(npm run supabase:types:*)",
+      "Bash(npm test:*)"
     ],
     "deny": [],
     "ask": []

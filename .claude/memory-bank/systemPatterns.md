@@ -10,14 +10,14 @@
 |  - Page data loading          |  - Interactive forms         |
 |  - Auth via getServerAuth()   |  - Real-time updates         |
 +-------------------------------------------------------------+
-|                    Domain Services (33)                      |
-|  intervention, notification, email, scheduling, etc.        |
+|                    Domain Services (34)                      |
+|  intervention, notification, email, scheduling, subscription |
 +-------------------------------------------------------------+
-|                    Repositories (19)                         |
-|  intervention, notification, user, building, address, etc.  |
+|                    Repositories (21)                         |
+|  intervention, notification, user, building, subscription    |
 +-------------------------------------------------------------+
 |                    Supabase (PostgreSQL + RLS)               |
-|  44 tables | 79 fonctions | 209 indexes | 47 triggers       |
+|  44 tables | 84 fonctions | 209 indexes | 47 triggers       |
 +-------------------------------------------------------------+
 ```
 
@@ -57,7 +57,7 @@ const interventions = await repository.findAll()
 const { data } = await supabase.from('interventions').select('*')
 ```
 
-> Source: lib/services/README.md - 19 repositories implementes (incl. email-link)
+> Source: lib/services/README.md - 21 repositories implementes (incl. subscription, stripe-customer)
 
 ### 3. Notification Architecture
 
@@ -146,6 +146,59 @@ import { ReportsCard } from '@/components/interventions/shared/cards'
 
 ---
 
+### 31. Subscription Service Pattern (NOUVEAU 2026-02-22)
+
+Pattern pour gérer les abonnements Stripe avec lazy sync et fail-closed :
+
+```typescript
+// Pattern: Lazy sync from Stripe API
+const subscriptionService = new SubscriptionService(supabase)
+
+// Check access (fail-closed on error)
+const { allowed, reason } = await subscriptionService.checkCanAddProperty(teamId)
+if (!allowed) {
+  throw new Error(reason || 'Quota dépassé')
+}
+
+// Batch quota check (multi-lot operations)
+const canAdd = await subscriptionService.canAddProperty(teamId, lotCount)
+
+// Get accessible lot IDs (fail-closed security)
+const accessibleLotIds = await subscriptionService.getAccessibleLotIds(teamId)
+
+// Check read-only mode (trial expired, unpaid, paused)
+const isReadOnly = await subscriptionService.checkReadOnly(teamId)
+```
+
+**Layered Fail Pattern (NOUVEAU 2026-02-22):**
+
+```
+Service Level (fail-closed)     Page Level (fail-open)
+--------------------------      ------------------------
+getAccessibleLotIds()           Graceful degradation
+  → error → return []             → error → show all lots + banner
+  → security first                → UX first
+
+checkCanAddProperty()           Server gate on lot edit
+  → error → { allowed: false }    → error → allow edit + warning
+  → block operation               → prevent data loss
+```
+
+**Key principles:**
+- **Service layer**: Fail-closed (security first) — errors block operations
+- **Page layer**: Fail-open (UX first) — errors show graceful degradation
+- **CRUD checklist**: When restricting entities, check ALL 5 operations (List, View, Create, Edit, Delete)
+- **CSS overlay**: Use CSS overlay for locked cards (not parent opacity) to preserve button visibility
+
+**Fichiers de reference:**
+- `lib/services/domain/subscription.service.ts` — Core subscription logic
+- `lib/services/domain/subscription-helpers.ts` — mapStripeStatus, checkReadOnly, checkCanAddProperty
+- `app/actions/subscription-actions.ts` — Server actions for checkout, portal, cancel
+- `components/billing/trial-overage-banner.tsx` — Dismissible banner (amber theme)
+- `components/ui/locked-lot-card.tsx` — Semi-transparent overlay + "Déverrouiller" button
+
+---
+
 ## Anti-Patterns (NE JAMAIS FAIRE)
 
 | Anti-Pattern | Alternative |
@@ -177,6 +230,9 @@ import { ReportsCard } from '@/components/interventions/shared/cards'
 | Push notification avec URL fixe gestionnaire | `sendRoleAwarePushNotifications()` avec URL par role |
 | JSON.stringify avec File objects | Utiliser FormData pour upload fichiers |
 | Dupliquer logique affichage rapports | Utiliser ReportsCard shared component |
+| **Subscription check fail-open au service layer** | **Fail-closed (return empty, block operation)** |
+| **Parent opacity pour locked cards** | **CSS overlay preservant button visibility** |
+| **Ignorer CRUD checklist** | **Verifier List, View, Create, Edit, Delete** |
 
 ## Conventions de Nommage
 
@@ -193,15 +249,16 @@ import { ReportsCard } from '@/components/interventions/shared/cards'
 
 ```
 app/[role]/          # Routes par role (admin, gestionnaire, prestataire, locataire)
-  - 87 pages (5+ route groups)
-  - 114 API routes (10 domaines)
-components/          # 362 composants (22 directories)
-hooks/               # 68 custom hooks
+  - 89 pages (5+ route groups)
+  - 120 API routes (10 domaines + billing CRON)
+components/          # 381 composants (22 directories)
+  billing/           # 11 billing UI components (NEW 2026-02-22)
+hooks/               # 70 custom hooks (+useSubscription, useStrategicNotification)
 lib/services/        # Architecture Repository Pattern
   core/              # Clients Supabase (4 types), base repository, error handler
-  repositories/      # 19 repositories (acces donnees)
-  domain/            # 33 services (logique metier)
-app/actions/         # 17 server action files
+  repositories/      # 21 repositories (acces donnees + subscription + stripe-customer)
+  domain/            # 34 services (logique metier + subscription + subscription-email)
+app/actions/         # 17 server action files (+subscription-actions)
 contexts/            # 3 React contexts (auth, team, realtime)
 tests/               # Infrastructure E2E
 ```
@@ -215,8 +272,17 @@ tests/               # Infrastructure E2E
 - `email-to-conversation.service.ts` - Sync emails -> conversations
 - `email-link.repository.ts` - Tracking liens emails
 
+## Services Stripe (Nouveaux 2026-02-22)
+
+**Services ajoutés pour la gestion des abonnements Stripe :**
+- `subscription.service.ts` - Core subscription logic (lazy sync, access control)
+- `subscription-email.service.ts` - Trial notifications (expiring, expired, payment failed)
+- `subscription.repository.ts` - CRUD operations on subscriptions table
+- `stripe-customer.repository.ts` - CRUD operations on stripe_customers table
+- `stripe-webhook.handler.ts` - Webhook event processing (8 event types)
+
 ---
-*Derniere mise a jour: 2026-02-12*
-*Analyse approfondie: 362 composants, 68 hooks, 33 services, 19 repositories*
-*Total patterns: 30 (+1: Shared Cards Pattern)*
+*Derniere mise a jour: 2026-02-22*
+*Analyse approfondie: 381 composants, 70 hooks, 34 services, 21 repositories*
+*Total patterns: 31 (+1: Subscription Service Pattern with Layered Fail)*
 *References: lib/services/README.md, lib/server-context.ts, .claude/CLAUDE.md*

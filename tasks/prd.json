@@ -1,113 +1,88 @@
 {
   "project": "SEIDO",
-  "featureName": "Stripe Billing Audit Fixes",
+  "featureName": "Onboarding Checklist Redesign — Tutorial + Performance",
   "branchName": "feature/stripe-subscription",
-  "description": "Fix 6 CRITICAL issues identified during comprehensive billing audit: duplicated status mapping, missing paused status handling, unprotected lot edit page, missing building edit subscription check, fail-open security issue, and canAddProperty batch bypass.",
+  "description": "Redesign the quick-start onboarding checklist: reorder steps to follow a logical workflow (lot > locataire > prestataire > contrat > intervention > cloture), add tutorial/didactic content explaining why each step matters and how data connects, fix performance by moving data fetch to SSR.",
   "createdAt": "2026-02-22",
   "status": "complete",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Consolidate mapStripeStatus to single source of truth",
-      "description": "As the system, I need a single mapStripeStatus function used everywhere, so that status mapping logic can't drift between files.",
+      "title": "SSR onboarding data fetch (performance fix)",
+      "description": "As a gestionnaire, when I load my dashboard, the onboarding checklist should appear immediately (no delay/flash) because the data is fetched server-side and streamed with the page.",
       "acceptanceCriteria": [
-        "SubscriptionService.mapStripeStatus() is the single source (already exists, public static)",
-        "stripe-webhook.handler.ts imports and uses SubscriptionService.mapStripeStatus() instead of private duplicate",
-        "subscription-actions.ts verifyCheckoutSession uses SubscriptionService.mapStripeStatus() instead of inline map",
+        "getOnboardingProgress() called in AsyncDashboardContent server component",
+        "getSubscriptionStatus() called in AsyncDashboardContent server component",
+        "OnboardingProgress + subscription status passed as props through ManagerDashboardV2 to OnboardingChecklist",
+        "OnboardingChecklist no longer has useEffect fetching data (receives via props)",
+        "Checklist renders in initial HTML stream (no client-side flash)",
         "npm run lint passes"
       ],
       "priority": 2,
       "dependsOn": [],
-      "sizing": "XS",
+      "sizing": "S",
       "passes": true,
-      "layer": "Backend",
-      "notes": "Removed private mapStripeStatus from webhook handler, replaced inline map in subscription-actions with static method."
+      "layer": "Backend+UI",
+      "notes": "Moved onboarding queries to AsyncDashboardContent SSR. Subscription status check + 5 count queries run server-side. OnboardingChecklist receives data via props, no more useEffect fetch. localStorage dismiss check kept client-side."
     },
     {
       "id": "US-002",
-      "title": "Handle paused subscription status in checkReadOnly and checkCanAddProperty",
-      "description": "As the system, when a subscription is paused, users should be in read-only mode and unable to add properties, so that billing enforcement is correct for all Stripe states.",
+      "title": "New step order, queries, and types",
+      "description": "As a gestionnaire, I see 6 steps in logical workflow order: (1) Creer un lot, (2) Ajouter un locataire, (3) Ajouter un prestataire, (4) Creer un contrat, (5) Creer une intervention, (6) Cloturer une intervention. Progress is tracked with correct DB queries.",
       "acceptanceCriteria": [
-        "checkReadOnly returns true when status is 'paused'",
-        "checkCanAddProperty returns false when status is 'paused'",
-        "Existing unit tests still pass",
+        "OnboardingProgress interface updated: hasLot, hasAddedTenant, hasInvitedProvider, hasContract, hasIntervention, hasClosedIntervention",
+        "hasUploadedDocument removed from interface and query",
+        "New query: hasAddedTenant checks team_members with role='locataire'",
+        "New query: hasContract checks contracts table with team_id",
+        "STEPS array reordered: lot > locataire > prestataire > contrat > intervention > cloture",
+        "All 6 queries run in parallel via Promise.all",
         "npm run lint passes"
       ],
       "priority": 2,
-      "dependsOn": [],
-      "sizing": "XS",
+      "dependsOn": ["US-001"],
+      "sizing": "S",
       "passes": true,
       "layer": "Backend",
-      "notes": "Added paused to 3 places: checkReadOnly, checkCanAddProperty (private), canAddProperty (public)."
+      "notes": "Updated OnboardingProgress interface (added hasAddedTenant + hasContract, removed hasUploadedDocument). Updated server action + SSR queries to 6 parallel checks. STEPS reordered: lot > locataire > prestataire > contrat > intervention > cloture. URLs now point directly to creation pages."
     },
     {
       "id": "US-003",
-      "title": "Add subscription gate to lot edit page",
-      "description": "As the system, I need to block editing of locked lots via direct URL navigation to /lots/modifier/[id], so that lot access restrictions can't be bypassed.",
+      "title": "Tutorial/didactic content per step",
+      "description": "As a new gestionnaire, each onboarding step shows educational content explaining: (a) what the entity is, (b) why it matters, (c) how the data will be used later in the app. This helps me understand the platform while setting it up.",
       "acceptanceCriteria": [
-        "Lot edit page checks subscription and redirects to /gestionnaire/biens if lot is locked",
-        "Pattern matches existing lot detail page gate (try/catch with isLotLocked flag, redirect outside catch)",
-        "Fail-open on subscription check error (consistent with current pattern)",
-        "npm run lint passes"
-      ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "layer": "Backend",
-      "notes": "Same pattern as lots/[id]/page.tsx. Imports subscription service + repository, checks before loading lot."
-    },
-    {
-      "id": "US-004",
-      "title": "Add subscription check to updateCompleteProperty + canAddProperty(count)",
-      "description": "As the system, I need updateCompleteProperty to verify subscription limits before adding new lots, and canAddProperty should check if N lots can be added (not just 1), to prevent batch bypass.",
-      "acceptanceCriteria": [
-        "updateCompleteProperty checks subscription before adding new lots (data.lots.new.length > 0)",
-        "createCompleteProperty checks if team can add data.lots.length lots (not just 'can add 1')",
-        "canAddProperty accepts optional count parameter (default 1)",
-        "Blocked if actual_lots + count > subscribed_lots (for active/past_due/paused/incomplete)",
-        "npm run lint passes"
-      ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "S",
-      "passes": true,
-      "layer": "Backend",
-      "notes": "canAddProperty(teamId, count=1), createCompleteProperty passes lots.length, updateCompleteProperty adds full gate after building verification."
-    },
-    {
-      "id": "US-005",
-      "title": "Change getAccessibleLotIds fail-open to fail-closed",
-      "description": "As the system, when the lot query fails in getAccessibleLotIds, I should return an empty array (no access) instead of null (all access), so that a database error can't grant unauthorized access.",
-      "acceptanceCriteria": [
-        "Query error returns empty array [] (no lots accessible) instead of null (all accessible)",
-        "Warning log is changed to error log with clear message",
-        "Callers handle empty array correctly (biens-page-client, building-details-client, lot detail page, intervention-actions)",
-        "npm run lint passes"
-      ],
-      "priority": 2,
-      "dependsOn": [],
-      "sizing": "XS",
-      "passes": true,
-      "layer": "Backend",
-      "notes": "Changed return null to return []. Verified all callers handle [] correctly (truthy in JS, empty .includes() returns false = lot locked)."
-    },
-    {
-      "id": "US-006",
-      "title": "Add error boundary + useSubscription error state for billing UI resilience",
-      "description": "As a gestionnaire, if subscription fetching fails, I should see a clear error message instead of a blank/crashed page, so that I understand what's happening.",
-      "acceptanceCriteria": [
-        "useSubscription hook returns hasError boolean + error string",
-        "Settings page billing section wrapped in error boundary with fallback",
-        "Billing page shows error alert when subscription fetch fails",
+        "Each step has a 'whyItMatters' text (1-2 sentences, benefit-oriented)",
+        "Each step has a 'howItConnects' text (1 sentence, explains downstream usage)",
+        "Educational content visible below each pending step (not just on hover)",
+        "Completed steps show only label (educational text hidden to save space)",
+        "Content is in French, professional tone, outcome-focused (not feature-focused)",
         "npm run lint passes"
       ],
       "priority": 3,
-      "dependsOn": [],
+      "dependsOn": ["US-002"],
       "sizing": "S",
       "passes": true,
       "layer": "UI",
-      "notes": "Added hasError to UseSubscriptionReturn, BillingErrorBoundary class component wrapping SubscriptionSummaryCard in settings page."
+      "notes": "Added whyItMatters + howItConnects fields to ChecklistStep. Tutorial content shown for current step via border-l + lightbulb icon. Benefit-oriented French text for all 6 steps. Contract step: 'Le contrat lie un locataire a un lot' (user requirement). Also started US-004 visual improvements (step numbers, current step highlight) in same change."
+    },
+    {
+      "id": "US-004",
+      "title": "Sequential flow UX + visual improvements",
+      "description": "As a gestionnaire, I see a visual progression through the steps: the current step is highlighted, future steps are visually muted (not locked, but clearly suggesting order), and completing a step triggers a satisfying transition.",
+      "acceptanceCriteria": [
+        "Current (first incomplete) step has distinct visual treatment (primary border/bg, slightly larger)",
+        "Future steps are visually muted (lighter text, smaller icons) but still clickable",
+        "Completed steps compact with green checkmark + strikethrough (existing behavior preserved)",
+        "Step numbers visible (1-6) to reinforce sequential flow",
+        "Smooth transition when step completes (animate from current to next)",
+        "Progress bar shows X/6 with percentage",
+        "npm run lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-003"],
+      "sizing": "S",
+      "passes": true,
+      "layer": "UI",
+      "notes": "Most visual improvements implemented in US-003: step numbers (1-6 replacing icons for incomplete steps), current step primary highlight (bg-primary/5, border-primary/20, font-semibold text-primary), future steps muted but clickable, icon shown on right of current step. CSS transition-all handles smooth state changes on re-render."
     }
   ]
 }

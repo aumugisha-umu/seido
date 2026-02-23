@@ -1,10 +1,57 @@
 # SEIDO Active Context
 
 ## Focus Actuel
-**Objectif:** Cancel Modal Wiring + Intervention Workflow Completion
-**Branch:** `preview`
-**Sprint:** Intervention UX Completion + E2E Testing V2 (Feb 2026)
-**Derniere analyse:** Cancel modal wired, E2E cancel test un-skipped, lint clean — 2026-02-21
+**Objectif:** Stripe Subscription Integration Complete + Billing Audit Fixes
+**Branch:** `feature/stripe-subscription`
+**Sprint:** Stripe Billing + Lot Access Restriction (Feb 2026)
+**Derniere analyse:** Billing audit fixes complete, 77 learnings in AGENTS.md — 2026-02-22
+
+---
+
+## ✅ COMPLETE: Stripe Subscription Integration (2026-02-21/22)
+
+Full billing system with trial management, subscription gates, and billing UI:
+
+| Category | Details |
+|----------|---------|
+| **Stories** | 48 billing stories + 13 debugging fixes + 6 audit fixes |
+| **Test Coverage** | 249 test cases (218 unit + 15 integration + 16 E2E) |
+| **DB Migrations** | 4 (subscriptions, stripe_customers, stripe_invoices, webhook_events) |
+| **UI Components** | 11 billing components in components/billing/ |
+| **CRON Jobs** | 4 (trial-expiration, trial-notifications, behavioral-triggers, cleanup-webhook-events) |
+| **Webhook Handler** | 8 Stripe event types supported |
+| **Services** | SubscriptionService with lazy sync from Stripe API |
+
+**Key Features:**
+- Trial management (14-day trial, 2 properties free)
+- Subscription gates (server-side on lot detail/edit, building detail interventions)
+- Trial overage banner (dismissible, amber theme)
+- Locked lot cards (semi-transparent overlay + "Déverrouiller" button)
+- Intervention action guards on locked lots
+- Billing settings page with Stripe portal integration
+
+**New Patterns:**
+- Layered fail: service-level = fail-closed, page-level = fail-open
+- CRUD access checklist when restricting entities
+- canAddProperty(count) for batch quota checks
+- CSS overlay for locked card dimming (not parent opacity)
+
+---
+
+## ✅ COMPLETE: Billing Audit Fixes (2026-02-22)
+
+6 stories fixing critical gaps discovered during TDD audit:
+
+| Story | Title | Fix |
+|-------|-------|-----|
+| US-049 | mapStripeStatus consolidation | Single source in subscription-helpers.ts |
+| US-050 | Paused status handling | Added to checkReadOnly/checkCanAddProperty |
+| US-051 | Lot edit page gate | Added subscription check |
+| US-052 | updateCompleteProperty quota check | canAddProperty(count) for multi-lot ops |
+| US-053 | getAccessibleLotIds fail-closed | Return empty array on error (security) |
+| US-054 | BillingErrorBoundary + hasError | Graceful degradation in useSubscription |
+
+**AGENTS.md:** 77 learnings total (was 71). New #072-#077.
 
 ---
 
@@ -105,60 +152,59 @@ draft -> pending -> sent -> accepted (terminal positif)
 ## Prochaines Etapes
 
 ### A faire immediatement
-- [ ] Commiter all changes (cancel modal wiring, E2E tests, unified bucket, lot refactor, contract wizard)
-- [ ] Run E2E cancel test to validate: `npx vitest run --config tests/e2e/vitest.e2e.config.ts tests/e2e/intervention-workflow.e2e.ts`
-- [ ] Plan: Unified Document Table migration (current plan in giggly-petting-hickey.md)
+- [ ] Run full test suite to validate Stripe integration: `npm test && npm run test:integration && npm run test:e2e`
+- [ ] Merge feature/stripe-subscription to main (PR creation)
+- [ ] Plan: Google Maps Integration Phase 2-3
+- [ ] Plan: More blog articles (content marketing pipeline)
 
 ### Fonctionnalites a Venir
-- [ ] Unified Document Table (documents table replaces 3 separate tables)
-- [ ] Stripe Subscription integration (36 user stories ready)
 - [ ] Google Maps Integration Phase 2-3
 - [ ] More blog articles (content marketing pipeline)
 - [ ] PPR activation quand Next.js canary disponible
+- [ ] Dashboard analytics avancé
 
 ---
 
-## Metriques Systeme (Mise a jour 2026-02-21)
+## Metriques Systeme (Mise a jour 2026-02-22)
 
 | Composant | Valeur |
 |-----------|--------|
 | **Tables DB** | **44** |
-| **Migrations** | **167** (+2: RLS standalone lots fix, unified documents bucket) |
-| **API Routes** | **114** (10 domaines) |
-| **Pages** | **89** |
-| **Composants** | **365** |
-| **Hooks** | **70** |
-| **Services domain** | **33** |
-| **Repositories** | **19** |
+| **Migrations** | **174** (+7: 4 Stripe, 2 trial init, 1 signup fix) |
+| **API Routes** | **120** (+6: 4 CRON, 1 webhook, 1 settings) |
+| **Pages** | **89** (+1: billing settings) |
+| **Composants** | **381** (+11: billing UI) |
+| **Hooks** | **70** (+2: useSubscription, useStrategicNotification) |
+| **Services domain** | **34** (+2: subscription, subscription-email) |
+| **Repositories** | **21** (+2: subscription, stripe-customer) |
 | Statuts intervention | 9 |
 | Statuts devis (DB enum) | **7** |
 | Notification actions | **20** |
-| **AGENTS.md Learnings** | **57** (+11: #047-#057, E2E patterns + storage) |
+| **AGENTS.md Learnings** | **77** (+6: #072-#077, Stripe billing patterns) |
 | **systemPatterns.md Patterns** | **29** |
 | **E2E Test Files** | **8** (smoke, building, lot, contract, 4 intervention) |
 | **E2E Page Objects** | **8** (dashboard, login, 3 wizards, 3 intervention) |
 | **E2E Total Tests** | **25+** (wizard tests) + intervention workflow tests |
-| **Unit Test Files** | **7** (intervention mappers/permissions/schemas/status/location, quote-status, vat) |
-| **Integration Test Files** | **4** (assignments, create, quotes, transitions) |
+| **Unit Test Files** | **12** (+5: Stripe tests) |
+| **Integration Test Files** | **5** (+1: Stripe) |
 | **Blog articles** | **2** (Jan 2026, Feb 2026) |
 
 ---
 
-## Commits Recents (preview branch)
+## Commits Recents (feature/stripe-subscription branch)
 
 | Hash | Description |
 |------|-------------|
+| `78b1a37` | feat(stripe): billing audit fixes + lot access restriction + trial overage banner |
+| `12e0ee2` | feat(stripe): TDD plan with 48 stories, deep audit, Stripe setup complete |
 | `875bd28` | feat(e2e+docs): E2E testing infrastructure V2, unified documents bucket, lot wizard refactor |
 | `9ca9940` | feat(blog): complete blog section — 6 stories, ~15 files (Ralph methodology) |
-| `eb0aa6f` | feat(seo): landing page SEO/CRO optimization — score 52 to 78/100 (13 stories) |
 
 ---
 
-*Derniere mise a jour: 2026-02-21 (Cancel modal wired, E2E cancel test un-skipped)*
-*Focus: Cancel modal functional, intervention workflow feature-complete*
+*Derniere mise a jour: 2026-02-22 (Stripe subscription integration complete)*
+*Focus: Stripe billing feature-complete, ready to merge*
 
 ## Files Recently Modified
-### 2026-02-21 21:12:59 (Auto-updated)
-- `C:/Users/arthu/Desktop/Coding/Seido-app/tasks/prd.json`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/tasks/progress.txt`
-- `C:/Users/arthu/Desktop/Coding/Seido-app/.env.example`
+### 2026-02-23 19:12:45 (Auto-updated)
+- `C:/Users/arthu/Desktop/Coding/Seido-app/app/gestionnaire/(with-navbar)/mail/components/mailbox-sidebar.tsx`

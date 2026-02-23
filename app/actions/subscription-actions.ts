@@ -24,9 +24,10 @@ import { logger } from '@/lib/logger'
 
 export interface OnboardingProgress {
   hasLot: boolean
-  hasIntervention: boolean
+  hasAddedTenant: boolean
   hasInvitedProvider: boolean
-  hasUploadedDocument: boolean
+  hasContract: boolean
+  hasIntervention: boolean
   hasClosedIntervention: boolean
 }
 
@@ -412,30 +413,36 @@ export async function getOnboardingProgress(): Promise<ActionResult<OnboardingPr
 
     const { supabase, team } = auth
 
-    // Run all 5 checks in parallel for performance
-    const [lots, interventions, providers, documents, closedInterventions] = await Promise.all([
+    // Run all 6 checks in parallel for performance
+    const [lots, tenants, providers, contracts, interventions, closedInterventions] = await Promise.all([
       // 1. Has at least one lot
       supabase
         .from('lots')
         .select('id', { count: 'exact', head: true })
         .eq('team_id', team.id),
-      // 2. Has at least one intervention
+      // 2. Has added at least one locataire (team_member with role locataire)
       supabase
-        .from('interventions')
+        .from('team_members')
         .select('id', { count: 'exact', head: true })
-        .eq('team_id', team.id),
+        .eq('team_id', team.id)
+        .eq('role', 'locataire'),
       // 3. Has invited at least one prestataire (team_member with role prestataire)
       supabase
         .from('team_members')
         .select('id', { count: 'exact', head: true })
         .eq('team_id', team.id)
         .eq('role', 'prestataire'),
-      // 4. Has uploaded at least one document
+      // 4. Has created at least one contract
       supabase
-        .from('documents')
+        .from('contracts')
         .select('id', { count: 'exact', head: true })
         .eq('team_id', team.id),
-      // 5. Has closed at least one intervention
+      // 5. Has at least one intervention
+      supabase
+        .from('interventions')
+        .select('id', { count: 'exact', head: true })
+        .eq('team_id', team.id),
+      // 6. Has closed at least one intervention
       supabase
         .from('interventions')
         .select('id', { count: 'exact', head: true })
@@ -447,9 +454,10 @@ export async function getOnboardingProgress(): Promise<ActionResult<OnboardingPr
       success: true,
       data: {
         hasLot: (lots.count ?? 0) > 0,
-        hasIntervention: (interventions.count ?? 0) > 0,
+        hasAddedTenant: (tenants.count ?? 0) > 0,
         hasInvitedProvider: (providers.count ?? 0) > 0,
-        hasUploadedDocument: (documents.count ?? 0) > 0,
+        hasContract: (contracts.count ?? 0) > 0,
+        hasIntervention: (interventions.count ?? 0) > 0,
         hasClosedIntervention: (closedInterventions.count ?? 0) > 0,
       },
     }

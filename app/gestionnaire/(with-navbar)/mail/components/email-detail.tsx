@@ -15,6 +15,7 @@ import {
   Ban,
   Download,
   CheckCircle2,
+  Circle,
   Link as LinkIcon,
   Home,
   FileText,
@@ -60,6 +61,7 @@ interface EmailDetailProps {
   onSoftDelete?: (emailId: string) => void
   onBlacklist?: (emailId: string, senderEmail: string, reason?: string) => void
   onMarkAsProcessed?: () => void
+  onMarkAsUnprocessed?: () => void
   onLinksUpdated?: () => void
 }
 
@@ -76,6 +78,7 @@ export function EmailDetail({
   onSoftDelete,
   onBlacklist,
   onMarkAsProcessed,
+  onMarkAsUnprocessed,
   onLinksUpdated
 }: EmailDetailProps) {
   const [showReplyBox, setShowReplyBox] = useState(false)
@@ -307,11 +310,17 @@ export function EmailDetail({
               variant="outline"
               size="sm"
               onClick={() => setShowProcessedDialog(true)}
-              aria-label="Marquer comme traité"
+              aria-label={email.status === 'read' ? 'Marquer comme non traité' : 'Marquer comme traité'}
               className="px-2 md:group-hover/header:px-3 transition-all"
             >
-              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-              <span className="hidden md:group-hover/header:inline md:group-hover/header:ml-1.5 whitespace-nowrap">Marquer comme traité</span>
+              {email.status === 'read' ? (
+                <Circle className="h-4 w-4" aria-hidden="true" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              )}
+              <span className="hidden md:group-hover/header:inline md:group-hover/header:ml-1.5 whitespace-nowrap">
+                {email.status === 'read' ? 'Marquer comme non traité' : 'Marquer comme traité'}
+              </span>
             </Button>
 
             {/* More actions */}
@@ -331,8 +340,12 @@ export function EmailDetail({
                   {emailLinks.length > 0 ? 'Gérer les liaisons' : 'Lier à une entité'}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowProcessedDialog(true)}>
-                  <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
-                  Marquer comme traité
+                  {email.status === 'read' ? (
+                    <Circle className="mr-2 h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <CheckCircle2 className="mr-2 h-4 w-4" aria-hidden="true" />
+                  )}
+                  {email.status === 'read' ? 'Marquer comme non traité' : 'Marquer comme traité'}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={onCreateIntervention}>
                   <Wrench className="mr-2 h-4 w-4" aria-hidden="true" />
@@ -621,13 +634,17 @@ export function EmailDetail({
         }}
       />
 
-      {/* Mark as Processed Dialog */}
+      {/* Mark as Processed / Unprocessed Dialog */}
       <MarkAsProcessedDialog
         open={showProcessedDialog}
         onOpenChange={setShowProcessedDialog}
+        mode={email.status === 'read' ? 'unprocess' : 'process'}
         onConfirm={() => {
-          onMarkAsProcessed?.()
-          // Email will move to "Traités" folder (status: read)
+          if (email.status === 'read') {
+            onMarkAsUnprocessed?.()
+          } else {
+            onMarkAsProcessed?.()
+          }
         }}
         isConversation={isConversationParent}
       />

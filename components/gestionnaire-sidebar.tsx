@@ -32,14 +32,6 @@ import {
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { TeamSelector, TeamSelectorCompact } from "@/components/team-selector"
 import { useCurrentTeam } from "@/hooks/use-current-team"
 import { cn } from "@/lib/utils"
@@ -258,61 +250,47 @@ export default function GestionnaireSidebar({
       {/* Footer: User profile */}
       <SidebarSeparator />
       <SidebarFooter className="p-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button className={cn(
-              "flex items-center gap-3 w-full rounded-lg p-2 text-left transition-colors hover:bg-sidebar-accent",
-              isCollapsed && "justify-center"
-            )}>
-              <Avatar className="h-9 w-9 flex-shrink-0">
-                {avatarUrl && <AvatarImage src={avatarUrl} alt={userName} />}
-                <AvatarFallback className="bg-primary text-primary-foreground font-medium text-sm">
-                  {userInitial}
-                </AvatarFallback>
-              </Avatar>
-              {!isCollapsed && (
-                <>
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-sm font-semibold leading-tight truncate">{userName}</span>
-                    <span className="text-xs text-muted-foreground leading-tight">Gestionnaire</span>
-                  </div>
-                </>
-              )}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            side={isCollapsed ? "right" : "top"}
-            align="start"
-            className="w-56"
+        <div className={cn(
+          "flex items-center gap-2",
+          isCollapsed && "flex-col"
+        )}>
+          <Link
+            href="/gestionnaire/profile"
+            onClick={handleNavClick}
+            className={cn(
+              "flex items-center gap-3 flex-1 min-w-0 rounded-lg p-2 text-left transition-colors hover:bg-sidebar-accent",
+              isCollapsed && "justify-center p-2"
+            )}
           >
-            <DropdownMenuLabel className="font-normal">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">{userName}</p>
-                <p className="text-xs leading-none text-muted-foreground">Gestionnaire</p>
+            <Avatar className="h-9 w-9 flex-shrink-0">
+              {avatarUrl && <AvatarImage src={avatarUrl} alt={userName} />}
+              <AvatarFallback className="bg-primary text-primary-foreground font-medium text-sm">
+                {userInitial}
+              </AvatarFallback>
+            </Avatar>
+            {!isCollapsed && (
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-sm font-semibold leading-tight truncate">{userName}</span>
+                <span className="text-xs text-muted-foreground leading-tight">Gestionnaire</span>
               </div>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild className="cursor-pointer">
-              <Link href="/gestionnaire/profile" onClick={handleNavClick}>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Mon profil</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={handleLogout}
-              disabled={isLoggingOut}
-              className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
-            >
-              {isLoggingOut ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <LogOut className="mr-2 h-4 w-4" />
-              )}
-              <span>{isLoggingOut ? "Deconnexion..." : "Se deconnecter"}</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+            )}
+          </Link>
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className={cn(
+              "flex-shrink-0 rounded-lg p-2 transition-colors text-muted-foreground hover:text-red-600 hover:bg-red-50",
+              isLoggingOut && "opacity-50 cursor-not-allowed"
+            )}
+            title="Se deconnecter"
+          >
+            {isLoggingOut ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <LogOut className="h-5 w-5" />
+            )}
+          </button>
+        </div>
       </SidebarFooter>
     </Sidebar>
   )

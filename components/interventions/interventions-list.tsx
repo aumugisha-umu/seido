@@ -204,18 +204,20 @@ export function InterventionsList({
     )
   }
 
-  // Default grid layout with vertical scroll
+  // Default grid layout with vertical scroll, capped at ~2 rows of cards
   return (
-    <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4 ${className}`}>
-      {displayedInterventions.map((intervention) => (
-        <InterventionCard
-          key={intervention.id}
-          intervention={intervention}
-          userRole={userContext}
-          userId={userId}
-          onActionComplete={handleActionComplete}
-        />
-      ))}
+    <div className={`max-h-[600px] overflow-y-auto ${className}`}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
+        {displayedInterventions.map((intervention) => (
+          <InterventionCard
+            key={intervention.id}
+            intervention={intervention}
+            userRole={userContext}
+            userId={userId}
+            onActionComplete={handleActionComplete}
+          />
+        ))}
+      </div>
     </div>
   )
 }

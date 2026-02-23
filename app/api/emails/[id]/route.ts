@@ -11,12 +11,12 @@ export async function GET(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const authContext = await getApiAuthContext();
-        if (!authContext) {
+        const authResult = await getApiAuthContext();
+        if (!authResult.success) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { supabase } = authContext;
+        const { supabase } = authResult.data;
         const { id: emailId } = await params;
         const emailRepo = new EmailRepository(supabase);
 
@@ -49,12 +49,12 @@ export async function PATCH(
     { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const authContext = await getApiAuthContext();
-        if (!authContext) {
+        const authResult = await getApiAuthContext();
+        if (!authResult.success) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { supabase } = authContext;
+        const { supabase } = authResult.data;
         const { id: emailId } = await params;
         const updates = await request.json();
 

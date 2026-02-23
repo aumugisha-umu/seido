@@ -4,12 +4,12 @@ import { SMTPService } from '@/lib/services/domain/smtp.service';
 
 export async function POST(request: Request) {
     try {
-        const authContext = await getApiAuthContext();
-        if (!authContext) {
+        const authResult = await getApiAuthContext();
+        if (!authResult.success) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { supabase } = authContext;
+        const { supabase } = authResult.data;
 
         const { emailConnectionId, to, subject, body, inReplyToEmailId } = await request.json();
 

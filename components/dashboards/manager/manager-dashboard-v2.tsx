@@ -36,6 +36,7 @@ import { PageActions } from "@/components/page-actions"
 
 import type { ContractStats } from "@/lib/types/contract.types"
 import type { Database } from "@/lib/database.types"
+import type { OnboardingProgress } from "@/app/actions/subscription-actions"
 
 // Type for intervention row from Supabase (used in realtime callback)
 type DbIntervention = Database['public']['Tables']['interventions']['Row']
@@ -46,9 +47,11 @@ interface ManagerDashboardProps {
     contractStats: ContractStats
     interventions: any[]
     pendingCount: number
+    onboardingProgress?: OnboardingProgress | null
+    isTrialing?: boolean
 }
 
-export function ManagerDashboardV2({ stats, contactStats, contractStats, interventions: initialInterventions, pendingCount }: ManagerDashboardProps) {
+export function ManagerDashboardV2({ stats, contactStats, contractStats, interventions: initialInterventions, pendingCount, onboardingProgress, isTrialing }: ManagerDashboardProps) {
     const router = useRouter()
     const { toast } = useToast()
 
@@ -331,16 +334,16 @@ export function ManagerDashboardV2({ stats, contactStats, contractStats, interve
                     />
                 </div>
 
-                {/* Onboarding Checklist — trialing users only (self-contained) */}
+                {/* Onboarding Checklist — trialing users only (SSR data) */}
                 <div className="lg:order-2">
-                    <OnboardingChecklist className="mb-4" />
+                    <OnboardingChecklist className="mb-4" progress={onboardingProgress} isTrialing={isTrialing ?? false} />
                 </div>
 
                 {/* Content Section - Unified InterventionsNavigator */}
                 <div
                     ref={interventionsRef}
                     className={cn(
-                        "dashboard__content lg:order-3 transition-all duration-300 rounded-lg",
+                        "dashboard__content lg:order-3 transition-all duration-300 rounded-lg min-h-[400px]",
                         focusInterventions && "ring-2 ring-amber-400/60 ring-offset-2"
                     )}
                 >

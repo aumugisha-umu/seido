@@ -605,13 +605,31 @@ export function MailClient({
     try {
       await EmailClientService.markAsProcessed(selectedEmailId)
       setRealEmails(prev => prev.map(e =>
-        e.id === selectedEmailId ? { ...e, status: 'processed' as const } : e
+        e.id === selectedEmailId ? { ...e, status: 'read' as const } : e
       ))
       toast.success('Email marqué comme traité')
       setCounts(prev => ({
         ...prev,
         inbox: Math.max(0, prev.inbox - 1),
         processed: prev.processed + 1
+      }))
+    } catch (error) {
+      toast.error('Échec du marquage')
+    }
+  }, [selectedEmailId])
+
+  const handleMarkAsUnprocessed = useCallback(async () => {
+    if (!selectedEmailId) return
+    try {
+      await EmailClientService.markAsUnprocessed(selectedEmailId)
+      setRealEmails(prev => prev.map(e =>
+        e.id === selectedEmailId ? { ...e, status: 'unread' as const } : e
+      ))
+      toast.success('Email marqué comme non traité')
+      setCounts(prev => ({
+        ...prev,
+        inbox: prev.inbox + 1,
+        processed: Math.max(0, prev.processed - 1)
       }))
     } catch (error) {
       toast.error('Échec du marquage')
@@ -729,6 +747,7 @@ export function MailClient({
               onSoftDelete={handleSoftDelete}
               onBlacklist={handleBlacklist}
               onMarkAsProcessed={handleMarkAsProcessed}
+              onMarkAsUnprocessed={handleMarkAsUnprocessed}
               onLinksUpdated={fetchLinkedEntities}
             />
           ) : (

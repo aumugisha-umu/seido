@@ -111,75 +111,183 @@ async function getEmailConnections(supabase: any, teamId: string): Promise<{
   return {
     connections: (data || []).map((c: any) => ({
       id: c.id,
-      emailAddress: c.email_address,
+      email_address: c.email_address,
       provider: c.provider,
-      isActive: c.is_active,
-      unreadCount: 0
+      is_active: c.is_active,
+      unread_count: 0,
+      email_count: 0,
     })),
     notificationRepliesCount: notificationRepliesCount || 0
   }
 }
 
 async function getLinkedEntities(supabase: any, teamId: string): Promise<LinkedEntities> {
-  const [buildingsResult, lotsResult, contactsResult, contractsResult, interventionsResult, companiesResult] = await Promise.all([
-    supabase
-      .from('buildings')
-      .select('id, name')
-      .eq('team_id', teamId)
-      .is('deleted_at', null)
-      .order('name')
-      .limit(50),
-    supabase
-      .from('lots')
-      .select('id, name')
-      .eq('team_id', teamId)
-      .is('deleted_at', null)
-      .order('name')
-      .limit(50),
-    supabase
-      .from('users')
-      .select('id, name')
-      .eq('team_id', teamId)
-      .in('role', ['locataire', 'prestataire'])
-      .order('name')
-      .limit(50),
-    supabase
-      .from('contracts')
-      .select('id, name:contract_number')
-      .eq('team_id', teamId)
-      .is('deleted_at', null)
-      .order('contract_number')
-      .limit(50),
-    supabase
-      .from('interventions')
-      .select('id, name:title')
-      .eq('team_id', teamId)
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .limit(50),
-    supabase
-      .from('companies')
-      .select('id, name')
-      .eq('team_id', teamId)
-      .is('deleted_at', null)
-      .order('name')
-      .limit(50)
-  ])
+  // 1. Get entity IDs that have email links + their counts via RPC
+  let linkedData: Array<{ entity_type: string; entity_id: string; email_count: number }> = []
 
-  const mapData = (result: any) => (result.data || []).map((e: any) => ({
-    id: e.id,
-    name: e.name || 'Sans nom',
-    emailCount: 0
-  }))
+  const { data: rpcData, error: rpcError } = await supabase
+    .rpc('get_distinct_linked_entities', { p_team_id: teamId })
 
-  return {
-    buildings: mapData(buildingsResult),
-    lots: mapData(lotsResult),
-    contacts: mapData(contactsResult),
-    contracts: mapData(contractsResult),
-    interventions: mapData(interventionsResult),
-    companies: mapData(companiesResult)
+  if (rpcError) {
+    // RPC function might not exist yet — fallback to direct query
+    console.warn('[MAIL-PAGE] RPC get_distinct_linked_entities failed, using fallback:', rpcError.message)
+    const { data: fallbackData } = await supabase
+      .from('email_links')
+      .select('entity_type, entity_id')
+      .eq('team_id', teamId)
+
+    if (fallbackData) {
+      const countMap = new Map<string, { entity_type: string; entity_id: string; email_count: number }>()
+      fallbackData.forEach((row: any) => {
+        const key = `${row.entity_type}:${row.entity_id}`
+        const existing = countMap.get(key)
+        if (existing) {
+          existing.email_count++
+        } else {
+          countMap.set(key, { entity_type: row.entity_type, entity_id: row.entity_id, email_count: 1 })
+        }
+      })
+      linkedData = Array.from(countMap.values())
+    }
+  } else {
+    linkedData = rpcData || []
   }
+
+  // 2. Group by entity type, collect IDs + counts
+  const countsByType: Record<string, Map<string, number>> = {
+    building: new Map(),
+    lot: new Map(),
+    contact: new Map(),
+    contract: new Map(),
+    intervention: new Map(),
+    company: new Map()
+  }
+
+  linkedData.forEach((row) => {
+    const typeMap = countsByType[row.entity_type]
+    if (typeMap) {
+      typeMap.set(row.entity_id, row.email_count)
+    }
+  })
+
+  // 3. Fetch entity details only for linked IDs, in parallel
+  const result: LinkedEntities = {
+    buildings: [],
+    lots: [],
+    contacts: [],
+    contracts: [],
+    interventions: [],
+    companies: []
+  }
+
+  const fetchPromises: Promise<void>[] = []
+
+  const buildingIds = Array.from(countsByType.building.keys())
+  if (buildingIds.length > 0) {
+    fetchPromises.push(
+      supabase
+        .from('buildings')
+        .select('id, name')
+        .in('id', buildingIds)
+        .then(({ data }: any) => {
+          result.buildings = (data || []).map((b: any) => ({
+            id: b.id,
+            name: b.name || 'Sans nom',
+            emailCount: countsByType.building.get(b.id) || 0
+          }))
+        })
+    )
+  }
+
+  const lotIds = Array.from(countsByType.lot.keys())
+  if (lotIds.length > 0) {
+    fetchPromises.push(
+      supabase
+        .from('lots')
+        .select('id, reference, building:buildings(name)')
+        .in('id', lotIds)
+        .then(({ data }: any) => {
+          result.lots = (data || []).map((l: any) => ({
+            id: l.id,
+            name: l.reference || `Lot ${l.id.slice(0, 8)}`,
+            emailCount: countsByType.lot.get(l.id) || 0,
+            subtitle: (l.building as any)?.name
+          }))
+        })
+    )
+  }
+
+  const contactIds = Array.from(countsByType.contact.keys())
+  if (contactIds.length > 0) {
+    fetchPromises.push(
+      supabase
+        .from('users')
+        .select('id, name, email')
+        .in('id', contactIds)
+        .then(({ data }: any) => {
+          result.contacts = (data || []).map((c: any) => ({
+            id: c.id,
+            name: c.name || 'Contact',
+            emailCount: countsByType.contact.get(c.id) || 0,
+            subtitle: c.email
+          }))
+        })
+    )
+  }
+
+  const contractIds = Array.from(countsByType.contract.keys())
+  if (contractIds.length > 0) {
+    fetchPromises.push(
+      supabase
+        .from('contracts')
+        .select('id, title, contract_type')
+        .in('id', contractIds)
+        .then(({ data }: any) => {
+          result.contracts = (data || []).map((c: any) => ({
+            id: c.id,
+            name: c.title || `Contrat ${c.contract_type || 'N/A'}`,
+            emailCount: countsByType.contract.get(c.id) || 0
+          }))
+        })
+    )
+  }
+
+  const interventionIds = Array.from(countsByType.intervention.keys())
+  if (interventionIds.length > 0) {
+    fetchPromises.push(
+      supabase
+        .from('interventions')
+        .select('id, title, reference')
+        .in('id', interventionIds)
+        .then(({ data }: any) => {
+          result.interventions = (data || []).map((i: any) => ({
+            id: i.id,
+            name: i.title || `Intervention ${i.reference || i.id.slice(0, 8)}`,
+            emailCount: countsByType.intervention.get(i.id) || 0
+          }))
+        })
+    )
+  }
+
+  const companyIds = Array.from(countsByType.company.keys())
+  if (companyIds.length > 0) {
+    fetchPromises.push(
+      supabase
+        .from('companies')
+        .select('id, name')
+        .in('id', companyIds)
+        .then(({ data }: any) => {
+          result.companies = (data || []).map((c: any) => ({
+            id: c.id,
+            name: c.name || 'Sans nom',
+            emailCount: countsByType.company.get(c.id) || 0
+          }))
+        })
+    )
+  }
+
+  await Promise.all(fetchPromises)
+  return result
 }
 
 async function getNotificationReplyGroups(supabase: any, teamId: string): Promise<NotificationReplyGroup[]> {

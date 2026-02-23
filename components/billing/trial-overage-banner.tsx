@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { AlertTriangle, Lock, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -30,10 +30,13 @@ const DISMISS_KEY = 'trial-overage-banner-dismissed'
  */
 export function TrialOverageBanner({ actualLots, daysLeft, className }: TrialOverageBannerProps) {
   const router = useRouter()
-  const [dismissed, setDismissed] = useState(() => {
-    if (typeof window === 'undefined') return false
-    return sessionStorage.getItem(DISMISS_KEY) === 'true'
-  })
+  const [dismissed, setDismissed] = useState(false)
+
+  useEffect(() => {
+    if (sessionStorage.getItem(DISMISS_KEY) === 'true') {
+      setDismissed(true)
+    }
+  }, [])
 
   if (actualLots <= FREE_TIER_LIMIT || dismissed) return null
 
@@ -49,7 +52,7 @@ export function TrialOverageBanner({ actualLots, daysLeft, className }: TrialOve
 
   return (
     <div className={cn(
-      'relative flex items-start gap-3 p-3 rounded-lg border',
+      'relative flex items-start gap-3 p-3 rounded-lg border shadow-md',
       'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800',
       className,
     )}>

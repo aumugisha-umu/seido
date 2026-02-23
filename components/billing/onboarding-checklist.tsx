@@ -5,21 +5,19 @@ import { useRouter } from 'next/navigation'
 import {
   Home,
   Wrench,
+  Users,
   UserPlus,
-  FileText,
+  FileSignature,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
   PartyPopper,
   Zap,
+  Lightbulb,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import {
-  getOnboardingProgress,
-  getSubscriptionStatus,
-  type OnboardingProgress,
-} from '@/app/actions/subscription-actions'
+import type { OnboardingProgress } from '@/app/actions/subscription-actions'
 
 // =============================================================================
 // Types
@@ -27,12 +25,16 @@ import {
 
 interface OnboardingChecklistProps {
   className?: string
+  progress?: OnboardingProgress | null
+  isTrialing?: boolean
 }
 
 interface ChecklistStep {
   id: keyof OnboardingProgress
   label: string
   description: string
+  whyItMatters: string
+  howItConnects: string
   icon: React.ElementType
   href: string
 }
@@ -46,36 +48,55 @@ const DISMISS_KEY = 'seido_onboarding_dismissed'
 const STEPS: ChecklistStep[] = [
   {
     id: 'hasLot',
-    label: 'Creer un bien',
-    description: 'Ajoutez votre premier lot ou immeuble',
+    label: 'Creer un lot',
+    description: 'Ajoutez votre premier bien immobilier',
+    whyItMatters: 'Le lot est la base de votre gestion. Toutes les interventions, contrats et locataires y seront rattaches.',
+    howItConnects: 'Vous pourrez ensuite y associer des locataires, des contrats et suivre les interventions par lot.',
     icon: Home,
-    href: '/gestionnaire/biens',
+    href: '/gestionnaire/biens/lots/nouveau',
+  },
+  {
+    id: 'hasAddedTenant',
+    label: 'Ajouter un locataire',
+    description: 'Enregistrez votre premier occupant',
+    whyItMatters: 'Vos locataires pourront signaler des problemes directement via leur portail, sans vous appeler.',
+    howItConnects: 'Une fois lie a un lot par un contrat, le locataire accede a son espace et peut creer des demandes.',
+    icon: Users,
+    href: '/gestionnaire/contacts/nouveau?type=locataire',
+  },
+  {
+    id: 'hasInvitedProvider',
+    label: 'Ajouter un prestataire',
+    description: 'Ajoutez un professionnel a votre equipe',
+    whyItMatters: 'Les prestataires recoivent les missions, envoient leurs devis et planifient directement dans SEIDO.',
+    howItConnects: 'Lors d\'une intervention, vous pourrez assigner un prestataire et suivre son avancement en temps reel.',
+    icon: UserPlus,
+    href: '/gestionnaire/contacts/nouveau?type=prestataire',
+  },
+  {
+    id: 'hasContract',
+    label: 'Creer un contrat',
+    description: 'Liez un locataire a un lot',
+    whyItMatters: 'Le contrat formalise l\'occupation d\'un lot. Il permet le suivi du bail, des echeances et du taux d\'occupation.',
+    howItConnects: 'Le locataire lie verra apparaitre le lot dans son espace et pourra y signaler des interventions.',
+    icon: FileSignature,
+    href: '/gestionnaire/contrats/nouveau',
   },
   {
     id: 'hasIntervention',
     label: 'Creer une intervention',
-    description: 'Lancez votre premiere demande',
+    description: 'Lancez votre premiere demande de travaux',
+    whyItMatters: 'C\'est le coeur de SEIDO : suivez chaque demande du signalement a la resolution, avec historique complet.',
+    howItConnects: 'Le prestataire assigne sera notifie, pourra proposer des creneaux et envoyer un devis.',
     icon: Wrench,
-    href: '/gestionnaire/interventions',
-  },
-  {
-    id: 'hasInvitedProvider',
-    label: 'Inviter un prestataire',
-    description: 'Ajoutez un professionnel a votre equipe',
-    icon: UserPlus,
-    href: '/gestionnaire/contacts',
-  },
-  {
-    id: 'hasUploadedDocument',
-    label: 'Ajouter un document',
-    description: 'Centralisez vos fichiers importants',
-    icon: FileText,
-    href: '/gestionnaire/biens',
+    href: '/gestionnaire/interventions/nouvelle-intervention',
   },
   {
     id: 'hasClosedIntervention',
     label: 'Cloturer une intervention',
     description: 'Terminez un cycle complet',
+    whyItMatters: 'La cloture archive l\'intervention avec tout son historique : echanges, devis, photos, creneaux.',
+    howItConnects: 'L\'historique reste consultable sur la fiche du lot pour reference future.',
     icon: CheckCircle2,
     href: '/gestionnaire/interventions',
   },
@@ -85,39 +106,20 @@ const STEPS: ChecklistStep[] = [
 // Component
 // =============================================================================
 
-export function OnboardingChecklist({ className }: OnboardingChecklistProps) {
+export function OnboardingChecklist({ className, progress, isTrialing }: OnboardingChecklistProps) {
   const router = useRouter()
-  const [progress, setProgress] = useState<OnboardingProgress | null>(null)
-  const [loading, setLoading] = useState(true)
   const [collapsed, setCollapsed] = useState(false)
   const [dismissed, setDismissed] = useState(false)
-  const [celebratingStep, setCelebratingStep] = useState<string | null>(null)
 
   useEffect(() => {
-    // Check dismissed state first (fast, no network)
-    if (typeof window !== 'undefined' && localStorage.getItem(DISMISS_KEY)) {
+    if (sessionStorage.getItem(DISMISS_KEY) === 'true') {
       setDismissed(true)
-      setLoading(false)
-      return
     }
-
-    // Check if user is trialing, then fetch progress
-    Promise.all([getSubscriptionStatus(), getOnboardingProgress()]).then(
-      ([subResult, progressResult]) => {
-        const isTrialing = subResult.success && subResult.data?.status === 'trialing'
-        if (!isTrialing) {
-          setLoading(false)
-          return
-        }
-        if (progressResult.success && progressResult.data) {
-          setProgress(progressResult.data)
-        }
-        setLoading(false)
-      },
-    )
   }, [])
+  const [celebratingStep, setCelebratingStep] = useState<string | null>(null)
 
-  if (loading || dismissed || !progress) return null
+  // Don't render if not trialing, no data, or dismissed
+  if (!isTrialing || !progress || dismissed) return null
 
   const completedCount = STEPS.filter((s) => progress[s.id]).length
   const totalSteps = STEPS.length
@@ -126,7 +128,10 @@ export function OnboardingChecklist({ className }: OnboardingChecklistProps) {
   // Don't show if all steps are completed
   if (completedCount === totalSteps) return null
 
-  const showUpgradeCTA = completedCount >= 3
+  // Find the first incomplete step (current focus)
+  const currentStepId = STEPS.find((s) => !progress[s.id])?.id
+
+
 
   const handleStepClick = (step: ChecklistStep) => {
     if (!progress[step.id]) {
@@ -135,7 +140,7 @@ export function OnboardingChecklist({ className }: OnboardingChecklistProps) {
   }
 
   const handleDismiss = () => {
-    localStorage.setItem(DISMISS_KEY, 'true')
+    sessionStorage.setItem(DISMISS_KEY, 'true')
     setDismissed(true)
   }
 
@@ -195,81 +200,96 @@ export function OnboardingChecklist({ className }: OnboardingChecklistProps) {
             </div>
           </div>
 
-          {STEPS.map((step) => {
+          {STEPS.map((step, index) => {
             const isComplete = progress[step.id]
+            const isCurrent = step.id === currentStepId
             const isCelebrating = celebratingStep === step.id
             const Icon = step.icon
 
             return (
-              <button
-                key={step.id}
-                onClick={() => handleStepClick(step)}
-                onMouseEnter={() => {
-                  if (isComplete && !celebratingStep) {
-                    setCelebratingStep(step.id)
-                    setTimeout(() => setCelebratingStep(null), 1000)
-                  }
-                }}
-                disabled={isComplete}
-                className={cn(
-                  'w-full flex items-center gap-3 p-2.5 rounded-md text-left transition-all',
-                  isComplete
-                    ? 'opacity-60'
-                    : 'hover:bg-muted/50 cursor-pointer',
-                )}
-              >
-                <div className={cn(
-                  'flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 transition-all',
-                  isComplete
-                    ? 'bg-green-100 dark:bg-green-900/30'
-                    : 'bg-muted',
-                )}>
-                  {isComplete ? (
-                    isCelebrating ? (
-                      <PartyPopper className="h-3.5 w-3.5 text-green-600 dark:text-green-400 animate-bounce" />
-                    ) : (
-                      <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
-                    )
-                  ) : (
-                    <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+              <div key={step.id}>
+                <button
+                  onClick={() => handleStepClick(step)}
+                  onMouseEnter={() => {
+                    if (isComplete && !celebratingStep) {
+                      setCelebratingStep(step.id)
+                      setTimeout(() => setCelebratingStep(null), 1000)
+                    }
+                  }}
+                  disabled={isComplete}
+                  className={cn(
+                    'w-full flex items-center gap-3 p-2.5 rounded-md text-left transition-all',
+                    isComplete
+                      ? 'opacity-60'
+                      : isCurrent
+                        ? 'bg-primary/5 border border-primary/20 hover:bg-primary/10 cursor-pointer'
+                        : 'hover:bg-muted/50 cursor-pointer',
                   )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <p className={cn(
-                    'text-sm',
-                    isComplete ? 'line-through text-muted-foreground' : 'font-medium',
+                >
+                  <div className={cn(
+                    'flex items-center justify-center w-7 h-7 rounded-full flex-shrink-0 transition-all',
+                    isComplete
+                      ? 'bg-green-100 dark:bg-green-900/30'
+                      : isCurrent
+                        ? 'bg-primary/10'
+                        : 'bg-muted',
                   )}>
-                    {step.label}
-                  </p>
-                  {!isComplete && (
-                    <p className="text-xs text-muted-foreground truncate">
-                      {step.description}
+                    {isComplete ? (
+                      isCelebrating ? (
+                        <PartyPopper className="h-3.5 w-3.5 text-green-600 dark:text-green-400 animate-bounce" />
+                      ) : (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400" />
+                      )
+                    ) : (
+                      <span className={cn(
+                        'text-xs font-semibold',
+                        isCurrent ? 'text-primary' : 'text-muted-foreground',
+                      )}>
+                        {index + 1}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className={cn(
+                      'text-sm',
+                      isComplete
+                        ? 'line-through text-muted-foreground'
+                        : isCurrent
+                          ? 'font-semibold text-primary'
+                          : 'font-medium',
+                    )}>
+                      {step.label}
                     </p>
+                    {!isComplete && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        {step.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {isCurrent && !isComplete && (
+                    <Icon className="h-4 w-4 text-primary flex-shrink-0" />
                   )}
-                </div>
-              </button>
+                </button>
+
+                {/* Tutorial content — visible for current step only */}
+                {isCurrent && !isComplete && (
+                  <div className="ml-10 mt-1 mb-2 pl-3 border-l-2 border-primary/20">
+                    <div className="flex items-start gap-1.5 mb-1">
+                      <Lightbulb className="h-3 w-3 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {step.whyItMatters}
+                      </p>
+                    </div>
+                    <p className="text-xs text-muted-foreground/70 leading-relaxed">
+                      {step.howItConnects}
+                    </p>
+                  </div>
+                )}
+              </div>
             )
           })}
-
-          {/* CTA upgrade after 3+ steps */}
-          {showUpgradeCTA && (
-            <div className="pt-3 mt-2 border-t">
-              <div className="flex items-center gap-2 mb-2">
-                <PartyPopper className="h-4 w-4 text-amber-500" />
-                <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                  Bravo ! Vous exploitez deja bien SEIDO.
-                </p>
-              </div>
-              <Button
-                size="sm"
-                className="w-full bg-primary hover:bg-primary/90"
-                onClick={() => router.push('/gestionnaire/settings/billing')}
-              >
-                Passer au plan Pro
-              </Button>
-            </div>
-          )}
 
           {/* Dismiss link */}
           <div className="pt-2 text-center">

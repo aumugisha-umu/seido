@@ -1,0 +1,113 @@
+{
+  "project": "SEIDO",
+  "featureName": "Stripe Billing Audit Fixes",
+  "branchName": "feature/stripe-subscription",
+  "description": "Fix 6 CRITICAL issues identified during comprehensive billing audit: duplicated status mapping, missing paused status handling, unprotected lot edit page, missing building edit subscription check, fail-open security issue, and canAddProperty batch bypass.",
+  "createdAt": "2026-02-22",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Consolidate mapStripeStatus to single source of truth",
+      "description": "As the system, I need a single mapStripeStatus function used everywhere, so that status mapping logic can't drift between files.",
+      "acceptanceCriteria": [
+        "SubscriptionService.mapStripeStatus() is the single source (already exists, public static)",
+        "stripe-webhook.handler.ts imports and uses SubscriptionService.mapStripeStatus() instead of private duplicate",
+        "subscription-actions.ts verifyCheckoutSession uses SubscriptionService.mapStripeStatus() instead of inline map",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "layer": "Backend",
+      "notes": "Removed private mapStripeStatus from webhook handler, replaced inline map in subscription-actions with static method."
+    },
+    {
+      "id": "US-002",
+      "title": "Handle paused subscription status in checkReadOnly and checkCanAddProperty",
+      "description": "As the system, when a subscription is paused, users should be in read-only mode and unable to add properties, so that billing enforcement is correct for all Stripe states.",
+      "acceptanceCriteria": [
+        "checkReadOnly returns true when status is 'paused'",
+        "checkCanAddProperty returns false when status is 'paused'",
+        "Existing unit tests still pass",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "layer": "Backend",
+      "notes": "Added paused to 3 places: checkReadOnly, checkCanAddProperty (private), canAddProperty (public)."
+    },
+    {
+      "id": "US-003",
+      "title": "Add subscription gate to lot edit page",
+      "description": "As the system, I need to block editing of locked lots via direct URL navigation to /lots/modifier/[id], so that lot access restrictions can't be bypassed.",
+      "acceptanceCriteria": [
+        "Lot edit page checks subscription and redirects to /gestionnaire/biens if lot is locked",
+        "Pattern matches existing lot detail page gate (try/catch with isLotLocked flag, redirect outside catch)",
+        "Fail-open on subscription check error (consistent with current pattern)",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "layer": "Backend",
+      "notes": "Same pattern as lots/[id]/page.tsx. Imports subscription service + repository, checks before loading lot."
+    },
+    {
+      "id": "US-004",
+      "title": "Add subscription check to updateCompleteProperty + canAddProperty(count)",
+      "description": "As the system, I need updateCompleteProperty to verify subscription limits before adding new lots, and canAddProperty should check if N lots can be added (not just 1), to prevent batch bypass.",
+      "acceptanceCriteria": [
+        "updateCompleteProperty checks subscription before adding new lots (data.lots.new.length > 0)",
+        "createCompleteProperty checks if team can add data.lots.length lots (not just 'can add 1')",
+        "canAddProperty accepts optional count parameter (default 1)",
+        "Blocked if actual_lots + count > subscribed_lots (for active/past_due/paused/incomplete)",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "layer": "Backend",
+      "notes": "canAddProperty(teamId, count=1), createCompleteProperty passes lots.length, updateCompleteProperty adds full gate after building verification."
+    },
+    {
+      "id": "US-005",
+      "title": "Change getAccessibleLotIds fail-open to fail-closed",
+      "description": "As the system, when the lot query fails in getAccessibleLotIds, I should return an empty array (no access) instead of null (all access), so that a database error can't grant unauthorized access.",
+      "acceptanceCriteria": [
+        "Query error returns empty array [] (no lots accessible) instead of null (all accessible)",
+        "Warning log is changed to error log with clear message",
+        "Callers handle empty array correctly (biens-page-client, building-details-client, lot detail page, intervention-actions)",
+        "npm run lint passes"
+      ],
+      "priority": 2,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "layer": "Backend",
+      "notes": "Changed return null to return []. Verified all callers handle [] correctly (truthy in JS, empty .includes() returns false = lot locked)."
+    },
+    {
+      "id": "US-006",
+      "title": "Add error boundary + useSubscription error state for billing UI resilience",
+      "description": "As a gestionnaire, if subscription fetching fails, I should see a clear error message instead of a blank/crashed page, so that I understand what's happening.",
+      "acceptanceCriteria": [
+        "useSubscription hook returns hasError boolean + error string",
+        "Settings page billing section wrapped in error boundary with fallback",
+        "Billing page shows error alert when subscription fetch fails",
+        "npm run lint passes"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "S",
+      "passes": true,
+      "layer": "UI",
+      "notes": "Added hasError to UseSubscriptionReturn, BillingErrorBoundary class component wrapping SubscriptionSummaryCard in settings page."
+    }
+  ]
+}

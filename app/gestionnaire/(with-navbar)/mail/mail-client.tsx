@@ -25,7 +25,8 @@ import { cn } from '@/lib/utils'
 import { EmailClientService } from '@/lib/services/client/email-client.service'
 import { Email } from '@/lib/types/email-integration'
 import { LinkedEmail } from '@/lib/types/email-links'
-import { MailboxEmail, Building, generateConversationId, extractSenderName } from './components/types'
+import { MailboxEmail, Building, generateConversationId, extractSenderName, extractEmailAddress } from './components/types'
+import { ComposeEmailModal } from './components/compose-email-modal'
 import { useRealtimeEmailsV2 } from '@/hooks/use-realtime-emails-v2'
 import { useEmailPolling } from '@/hooks/use-email-polling'
 
@@ -58,16 +59,16 @@ interface MailClientProps {
 const adaptLinkedEmailToEmail = (le: LinkedEmail): Email => ({
   id: le.id,
   team_id: '',
-  email_connection_id: null,
+  email_connection_id: le.email_connection_id ?? null,
   direction: le.direction,
   status: le.status as any,
   deleted_at: null,
-  message_id: null,
+  message_id: le.message_id ?? null,
   in_reply_to: null,
-  in_reply_to_header: null,
-  references: null,
+  in_reply_to_header: le.in_reply_to_header ?? null,
+  references: le.references ?? null,
   from_address: le.from_address,
-  to_addresses: [],
+  to_addresses: le.to_addresses ?? [],
   cc_addresses: null,
   bcc_addresses: null,
   subject: le.subject,
@@ -111,7 +112,7 @@ const adaptEmail = (email: Email, buildings: Building[]): MailboxEmail => {
 
   return {
     id: email.id,
-    sender_email: email.from_address,
+    sender_email: extractEmailAddress(email.from_address),
     sender_name: extractSenderName(email.from_address),
     recipient_email: email.to_addresses[0],
     subject: email.subject,
@@ -138,7 +139,8 @@ const adaptEmail = (email: Email, buildings: Building[]): MailboxEmail => {
     conversation_id: conversationId,
     thread_order: 0,
     is_parent: false,
-    email_connection_id: email.email_connection_id || undefined
+    email_connection_id: email.email_connection_id || undefined,
+    cc_addresses: email.cc_addresses || null
   }
 }
 
@@ -184,6 +186,9 @@ export function MailClient({
 
   // Collapse state for email list column
   const [isEmailListCollapsed, setIsEmailListCollapsed] = useState(false)
+
+  // Compose modal
+  const [composeOpen, setComposeOpen] = useState(false)
 
   // Pagination
   const [totalEmails, setTotalEmails] = useState(initialTotalEmails)
@@ -376,7 +381,7 @@ export function MailClient({
 
   const handleEntityClick = useCallback(async (type: string, id: string) => {
     try {
-      const response = await fetch(`/api/email-links?${type}_id=${id}`)
+      const response = await fetch(`/api/entities/${type}/${id}/emails`)
       if (!response.ok) {
         toast.error('Impossible de charger les emails liés')
         return
@@ -413,7 +418,7 @@ export function MailClient({
 
     setSelectedInterventionId(interventionId)
     try {
-      const response = await fetch(`/api/email-links?intervention_id=${interventionId}`)
+      const response = await fetch(`/api/entities/intervention/${interventionId}/emails`)
       if (!response.ok) {
         toast.error('Impossible de charger les emails liés')
         return
@@ -476,9 +481,7 @@ export function MailClient({
     }
   }, [])
 
-  const handleReply = useCallback((email: MailboxEmail) => {
-    toast.info('Ouverture du modal de réponse (action factice)')
-  }, [])
+  // Reply is handled directly inside EmailDetail (calls EmailClientService.sendEmail)
 
   const handleArchive = useCallback(async () => {
     if (!selectedEmailId) return
@@ -586,19 +589,51 @@ export function MailClient({
     }
   }, [realEmails, selectedEmailId])
 
-  const handleBlacklist = useCallback(async (address: string) => {
+  const handleBlacklist = useCallback(async (emailId: string, senderEmail: string, reason?: string, archiveExisting?: boolean) => {
+    // Optimistic: remove the current email from the UI
+    const previousEmails = realEmails
+    setRealEmails(prev => prev.filter(e => e.id !== emailId))
+    if (selectedEmailId === emailId) setSelectedEmailId(undefined)
+
     try {
-      await fetch('/api/emails/blacklist', {
+      const response = await fetch('/api/emails/blacklist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address, action: 'add' })
+        body: JSON.stringify({ senderEmail, reason, archiveExisting })
       })
-      toast.success(`${address} ajouté à la liste noire`)
-      fetchEmails(false)
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.error || 'Blacklist failed')
+      }
+      const result = await response.json()
+
+      if (archiveExisting) {
+        // Remove all emails from this sender in the UI (compare extracted clean emails)
+        const cleanSender = senderEmail.toLowerCase()
+        setRealEmails(prev => prev.filter(e => extractEmailAddress(e.from_address).toLowerCase() !== cleanSender))
+        if (result.archivedCount > 0) {
+          setCounts(prev => ({
+            ...prev,
+            inbox: Math.max(0, prev.inbox - result.archivedCount),
+            archive: prev.archive + result.archivedCount
+          }))
+        }
+      } else {
+        // Just update counts for the single deleted email
+        setCounts(prev => ({
+          ...prev,
+          inbox: Math.max(0, prev.inbox - 1)
+        }))
+      }
+
+      // Also soft-delete the triggering email
+      await EmailClientService.deleteEmail(emailId).catch(() => {})
     } catch (error) {
-      toast.error('Échec de l\'ajout à la liste noire')
+      // Rollback on failure
+      setRealEmails(previousEmails)
+      toast.error('Echec de l\'ajout a la liste noire')
     }
-  }, [fetchEmails])
+  }, [realEmails, selectedEmailId])
 
   const handleMarkAsProcessed = useCallback(async () => {
     if (!selectedEmailId) return
@@ -642,12 +677,22 @@ export function MailClient({
       .sort((a, b) => new Date(a.received_at).getTime() - new Date(b.received_at).getTime())
 
     if (conversationEmails.length > 0) {
-      setSelectedEmailId(conversationEmails[0].id)
+      setSelectedEmailId(conversationEmails[conversationEmails.length - 1].id)
     }
   }, [emails])
 
+  const handleReplySent = useCallback(async (sentEmailId: string) => {
+    // Fetch the newly sent email and add it to local state for instant thread update
+    const sentEmail = await fetchFullEmail(sentEmailId)
+    if (sentEmail) {
+      setRealEmails(prev => [...prev, sentEmail])
+    }
+    // Update sent count
+    setCounts(prev => ({ ...prev, sent: prev.sent + 1 }))
+  }, [fetchFullEmail])
+
   const handleCompose = useCallback(() => {
-    toast.info('Modal de rédaction d\'email s\'ouvrira ici (action factice)')
+    setComposeOpen(true)
   }, [])
 
   // ============================================================================
@@ -739,7 +784,7 @@ export function MailClient({
               allEmails={emails}
               buildings={buildings}
               teamId={teamId}
-              onReply={handleReply}
+
               onArchive={handleArchive}
               onDelete={handleDelete}
               onLinkBuilding={handleLinkBuilding}
@@ -749,6 +794,7 @@ export function MailClient({
               onMarkAsProcessed={handleMarkAsProcessed}
               onMarkAsUnprocessed={handleMarkAsUnprocessed}
               onLinksUpdated={fetchLinkedEntities}
+              onReplySent={handleReplySent}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-muted-foreground bg-muted/50">
@@ -760,6 +806,14 @@ export function MailClient({
           )}
         </div>
       </div>
+
+      {/* Compose Modal */}
+      <ComposeEmailModal
+        open={composeOpen}
+        onOpenChange={setComposeOpen}
+        emailConnections={emailConnections}
+        onEmailSent={handleReplySent}
+      />
     </div>
   )
 }

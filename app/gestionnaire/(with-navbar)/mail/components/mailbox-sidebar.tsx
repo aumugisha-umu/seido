@@ -124,7 +124,7 @@ function CollapsibleSection({
           <div className="flex items-center gap-2">
             <Icon className="h-4 w-4" />
             <span className="text-xs uppercase tracking-wide">{title}</span>
-            <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+            <Badge variant="outline" className="ml-1 h-5 px-1.5 text-xs">
               {items.length}
             </Badge>
           </div>
@@ -292,7 +292,7 @@ export function MailboxSidebar({
               <Inbox className="mr-2 h-4 w-4" />
               Boîte de réception
               {unreadCounts.inbox > 0 && (
-                <Badge className="ml-auto mr-1" variant="default">
+                <Badge className="ml-auto mr-1" variant="destructive">
                   {unreadCounts.inbox}
                 </Badge>
               )}
@@ -312,7 +312,7 @@ export function MailboxSidebar({
               <Circle className="mr-2 h-3 w-3" />
               Non traités
               {unreadCounts.inbox > 0 && (
-                <Badge className="ml-auto" variant="default">
+                <Badge className="ml-auto" variant="destructive">
                   {unreadCounts.inbox}
                 </Badge>
               )}
@@ -329,7 +329,7 @@ export function MailboxSidebar({
               <CheckCircle className="mr-2 h-3 w-3" />
               Traités
               {unreadCounts.processed > 0 && (
-                <Badge className="ml-auto" variant="secondary">
+                <Badge className="ml-auto" variant="outline">
                   {unreadCounts.processed}
                 </Badge>
               )}
@@ -344,6 +344,11 @@ export function MailboxSidebar({
         >
           <Send className="mr-2 h-4 w-4" />
           Envoyés
+          {unreadCounts.sent > 0 && (
+            <Badge className="ml-auto" variant="outline">
+              {unreadCounts.sent}
+            </Badge>
+          )}
         </Button>
 
         <Button
@@ -354,7 +359,7 @@ export function MailboxSidebar({
           <FileText className="mr-2 h-4 w-4" />
           Brouillons
           {unreadCounts.drafts > 0 && (
-            <Badge className="ml-auto" variant="secondary">
+            <Badge className="ml-auto" variant="outline">
               {unreadCounts.drafts}
             </Badge>
           )}
@@ -367,6 +372,11 @@ export function MailboxSidebar({
         >
           <Archive className="mr-2 h-4 w-4" />
           Archives
+          {unreadCounts.archive > 0 && (
+            <Badge className="ml-auto" variant="outline">
+              {unreadCounts.archive}
+            </Badge>
+          )}
         </Button>
       </div>
 

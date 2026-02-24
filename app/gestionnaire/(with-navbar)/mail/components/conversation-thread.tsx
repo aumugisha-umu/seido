@@ -6,8 +6,7 @@ import { format } from 'date-fns'
 import { fr } from 'date-fns/locale'
 import DOMPurify from 'isomorphic-dompurify'
 import { useMemo, useState } from 'react'
-import { Paperclip, ChevronDown, ChevronRight } from 'lucide-react'
-import { Separator } from '@/components/ui/separator'
+import { Paperclip, ChevronDown, ChevronRight, ArrowUpRight, ArrowDownLeft } from 'lucide-react'
 import { stripEmailQuotes, stripTextEmailQuotes } from '@/lib/utils/email-quote-stripper'
 
 interface ConversationThreadProps {
@@ -16,6 +15,8 @@ interface ConversationThreadProps {
 
 function EmailThreadItem({ email }: { email: MailboxEmail }) {
   const [showQuotedContent, setShowQuotedContent] = useState(false)
+
+  const isSent = email.direction === 'sent'
 
   // Fallback chain: body_html → body_text → snippet → empty
   // This handles cases where HTML is empty (plain-text email replies)
@@ -47,9 +48,28 @@ function EmailThreadItem({ email }: { email: MailboxEmail }) {
   const hasHtmlContent = sanitizedBody && sanitizedBody.trim() !== ''
   const textFallback = email.body_text || email.snippet || ''
 
+  const dateStr = email.received_at
+    ? format(new Date(email.received_at), 'PPp', { locale: fr })
+    : ''
+
   return (
-    <Card className="border">
+    <Card className={`border ${isSent ? 'border-l-4 border-l-primary/60 bg-primary/[0.02]' : ''}`}>
       <CardContent className="p-6">
+        {/* Sender header with direction indicator */}
+        <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border/50">
+          {isSent ? (
+            <ArrowUpRight className="h-3.5 w-3.5 text-primary shrink-0" aria-label="Envoy&#233;" />
+          ) : (
+            <ArrowDownLeft className="h-3.5 w-3.5 text-muted-foreground shrink-0" aria-label="Re&#231;u" />
+          )}
+          <span className={`text-sm font-medium truncate ${isSent ? 'text-primary' : 'text-foreground'}`}>
+            {isSent ? 'Vous' : email.sender_name}
+          </span>
+          <span className="text-xs text-muted-foreground ml-auto shrink-0">
+            {dateStr}
+          </span>
+        </div>
+
         {/* Email body - Cleaned (quotes stripped) */}
         {hasHtmlContent ? (
           <div
@@ -78,7 +98,7 @@ function EmailThreadItem({ email }: { email: MailboxEmail }) {
                 <ChevronRight className="h-3 w-3" aria-hidden="true" />
               )}
               <span>
-                {showQuotedContent ? 'Masquer le message cité' : 'Afficher le message cité'}
+                {showQuotedContent ? 'Masquer le message cit\u00e9' : 'Afficher le message cit\u00e9'}
               </span>
             </button>
 
@@ -104,7 +124,7 @@ function EmailThreadItem({ email }: { email: MailboxEmail }) {
         {/* Attachments */}
         {email.has_attachments && email.attachments.length > 0 && (
           <div className="mt-4 pt-4 border-t">
-            <div className="text-sm font-medium mb-2">Attachments:</div>
+            <div className="text-sm font-medium mb-2">Pi\u00e8ces jointes :</div>
             <div className="space-y-2">
               {email.attachments.map((attachment) => (
                 <div
@@ -129,16 +149,12 @@ function EmailThreadItem({ email }: { email: MailboxEmail }) {
 }
 
 export function ConversationThread({ emails }: ConversationThreadProps) {
-  // Emails are already sorted in reverse order (latest first)
+  // Emails sorted chronologically (oldest first) — matches Gmail thread view
   return (
-    <div className="space-y-6">
-      {emails.map((email, index) => (
-        <div key={email.id}>
-          <EmailThreadItem email={email} />
-          {index < emails.length - 1 && <Separator className="my-4" />}
-        </div>
+    <div className="space-y-4">
+      {emails.map((email) => (
+        <EmailThreadItem key={email.id} email={email} />
       ))}
     </div>
   )
 }
-

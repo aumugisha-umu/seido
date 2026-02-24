@@ -128,10 +128,15 @@ export class EmailSyncService {
             let processedCount = 0;
 
             for (const email of parsedEmails) {
+                // Extract clean email from RFC 5322 format for blacklist check
+                // "Display Name" <email@domain.com> → email@domain.com
+                const cleanFrom = email.from.match(/<([^>]+)>/)?.[1]?.trim().toLowerCase()
+                    || email.from.trim().toLowerCase();
+
                 // Check blacklist
                 const isBlacklisted = await this.blacklistRepo.isBlacklisted(
                     connection.team_id,
-                    email.from
+                    cleanFrom
                 );
 
                 if (isBlacklisted) {
@@ -139,24 +144,46 @@ export class EmailSyncService {
                     continue;
                 }
 
+                // Deduplicate: skip if message_id already exists for this team
+                if (email.messageId) {
+                    const { count } = await this.supabase
+                        .from('emails')
+                        .select('id', { count: 'exact', head: true })
+                        .eq('team_id', connection.team_id)
+                        .eq('message_id', email.messageId);
+
+                    if (count && count > 0) {
+                        logger.debug({ messageId: email.messageId }, 'Skipping duplicate email');
+                        continue;
+                    }
+                }
+
                 // Save email with RFC 5322 threading headers
-                // - in_reply_to: UUID FK to parent email (not used during initial sync)
-                // - in_reply_to_header: Raw RFC 5322 In-Reply-To header (for threading)
-                // - references: Raw RFC 5322 References header (first ID = conversation root)
-                const savedEmail = await this.emailRepo.createEmail({
-                    team_id: connection.team_id,
-                    email_connection_id: connection.id,
-                    direction: 'received',
-                    message_id: email.messageId,
-                    in_reply_to_header: email.inReplyTo, // RFC 5322 In-Reply-To header
-                    references: email.references,        // RFC 5322 References header
-                    from_address: email.from,
-                    to_addresses: email.to,
-                    subject: email.subject,
-                    body_text: email.text,
-                    body_html: email.html,
-                    received_at: email.date.toISOString(),
-                });
+                // Wrapped in try-catch to handle UNIQUE constraint race condition
+                let savedEmail;
+                try {
+                    savedEmail = await this.emailRepo.createEmail({
+                        team_id: connection.team_id,
+                        email_connection_id: connection.id,
+                        direction: 'received',
+                        message_id: email.messageId,
+                        in_reply_to_header: email.inReplyTo, // RFC 5322 In-Reply-To header
+                        references: email.references,        // RFC 5322 References header
+                        from_address: email.from,
+                        to_addresses: email.to,
+                        subject: email.subject,
+                        body_text: email.text,
+                        body_html: email.html,
+                        received_at: email.date.toISOString(),
+                    });
+                } catch (insertError: any) {
+                    // UNIQUE constraint violation (23505) = duplicate, skip silently
+                    if (insertError?.code === '23505') {
+                        logger.debug({ messageId: email.messageId }, 'Skipping duplicate email (constraint)');
+                        continue;
+                    }
+                    throw insertError;
+                }
 
                 // Save attachments
                 if (email.attachments.length > 0) {

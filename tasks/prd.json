@@ -1,88 +1,83 @@
 {
   "project": "SEIDO",
-  "featureName": "Onboarding Checklist Redesign — Tutorial + Performance",
-  "branchName": "feature/stripe-subscription",
-  "description": "Redesign the quick-start onboarding checklist: reorder steps to follow a logical workflow (lot > locataire > prestataire > contrat > intervention > cloture), add tutorial/didactic content explaining why each step matters and how data connects, fix performance by moving data fetch to SSR.",
-  "createdAt": "2026-02-22",
+  "featureName": "Fix Email Blacklist — API + Settings + Archive Existing",
+  "branchName": "preview",
+  "description": "Fix the broken email blacklist flow: create the missing API endpoint, fix the handler parameter mismatch, wire the settings page to display/manage blocked senders, and add a checkbox to archive all existing emails from a blocked sender.",
+  "createdAt": "2026-02-23",
+  "prdSource": "inline",
   "status": "complete",
   "userStories": [
     {
       "id": "US-001",
-      "title": "SSR onboarding data fetch (performance fix)",
-      "description": "As a gestionnaire, when I load my dashboard, the onboarding checklist should appear immediately (no delay/flash) because the data is fetched server-side and streamed with the page.",
+      "title": "Create /api/emails/blacklist route (POST + GET + DELETE)",
+      "description": "As a gestionnaire, I want the blacklist API endpoint to exist so that blocking/unblocking senders actually persists to the database.",
       "acceptanceCriteria": [
-        "getOnboardingProgress() called in AsyncDashboardContent server component",
-        "getSubscriptionStatus() called in AsyncDashboardContent server component",
-        "OnboardingProgress + subscription status passed as props through ManagerDashboardV2 to OnboardingChecklist",
-        "OnboardingChecklist no longer has useEffect fetching data (receives via props)",
-        "Checklist renders in initial HTML stream (no client-side flash)",
-        "npm run lint passes"
+        "POST /api/emails/blacklist creates entry via EmailBlacklistRepository.addToBlacklist()",
+        "POST accepts { senderEmail, reason?, archiveExisting? } and resolves team_id + user_id from auth",
+        "GET /api/emails/blacklist returns team blacklist with blocked_by user name joined",
+        "DELETE /api/emails/blacklist with { blacklistId } removes entry via removeFromBlacklist()",
+        "When archiveExisting=true, all emails from that sender in the team are archived (status='archived')",
+        "Auth uses getApiAuthContext() + team_members check (same pattern as /api/emails/route.ts)",
+        "Lint passes"
       ],
-      "priority": 2,
+      "priority": 1,
       "dependsOn": [],
-      "sizing": "S",
+      "sizing": "M",
       "passes": true,
-      "layer": "Backend+UI",
-      "notes": "Moved onboarding queries to AsyncDashboardContent SSR. Subscription status check + 5 count queries run server-side. OnboardingChecklist receives data via props, no more useEffect fetch. localStorage dismiss check kept client-side."
+      "notes": "Created app/api/emails/blacklist/route.ts with GET+POST+DELETE. Service role for bulk archive. Joined users table for blocked_by name."
     },
     {
       "id": "US-002",
-      "title": "New step order, queries, and types",
-      "description": "As a gestionnaire, I see 6 steps in logical workflow order: (1) Creer un lot, (2) Ajouter un locataire, (3) Ajouter un prestataire, (4) Creer un contrat, (5) Creer une intervention, (6) Cloturer une intervention. Progress is tracked with correct DB queries.",
+      "title": "Fix handleBlacklist in mail-client.tsx — pass all params",
+      "description": "As a gestionnaire, I want the blacklist button in the 'mark as irrelevant' dialog to properly call the API with emailId, senderEmail, reason, and archiveExisting flag.",
       "acceptanceCriteria": [
-        "OnboardingProgress interface updated: hasLot, hasAddedTenant, hasInvitedProvider, hasContract, hasIntervention, hasClosedIntervention",
-        "hasUploadedDocument removed from interface and query",
-        "New query: hasAddedTenant checks team_members with role='locataire'",
-        "New query: hasContract checks contracts table with team_id",
-        "STEPS array reordered: lot > locataire > prestataire > contrat > intervention > cloture",
-        "All 6 queries run in parallel via Promise.all",
-        "npm run lint passes"
+        "handleBlacklist signature matches (emailId: string, senderEmail: string, reason?: string)",
+        "API call sends { senderEmail, reason } to POST /api/emails/blacklist",
+        "After successful blacklist, the current email is soft-deleted from UI state",
+        "The email counts are updated (inbox decremented)",
+        "Lint passes"
       ],
       "priority": 2,
       "dependsOn": ["US-001"],
       "sizing": "S",
       "passes": true,
-      "layer": "Backend",
-      "notes": "Updated OnboardingProgress interface (added hasAddedTenant + hasContract, removed hasUploadedDocument). Updated server action + SSR queries to 6 parallel checks. STEPS reordered: lot > locataire > prestataire > contrat > intervention > cloture. URLs now point directly to creation pages."
+      "notes": "Fixed signature from (address: string) to (emailId, senderEmail, reason, archiveExisting). Optimistic UI removal + rollback on failure."
     },
     {
       "id": "US-003",
-      "title": "Tutorial/didactic content per step",
-      "description": "As a new gestionnaire, each onboarding step shows educational content explaining: (a) what the entity is, (b) why it matters, (c) how the data will be used later in the app. This helps me understand the platform while setting it up.",
+      "title": "Add 'archive existing emails' checkbox to mark-irrelevant dialog",
+      "description": "As a gestionnaire, when I block a sender, I want an option to also archive all their existing emails in my inbox so I don't have to manually clean them up.",
       "acceptanceCriteria": [
-        "Each step has a 'whyItMatters' text (1-2 sentences, benefit-oriented)",
-        "Each step has a 'howItConnects' text (1 sentence, explains downstream usage)",
-        "Educational content visible below each pending step (not just on hover)",
-        "Completed steps show only label (educational text hidden to save space)",
-        "Content is in French, professional tone, outcome-focused (not feature-focused)",
-        "npm run lint passes"
+        "Checkbox appears when 'blacklist' radio is selected",
+        "Checkbox label: 'Archiver aussi tous les emails existants de cet expéditeur'",
+        "Checkbox state (archiveExisting) is passed through onBlacklist callback",
+        "handleBlacklist sends archiveExisting to the API",
+        "When archiveExisting=true, emails from that sender are removed from UI state",
+        "Lint passes"
       ],
-      "priority": 3,
-      "dependsOn": ["US-002"],
+      "priority": 2,
+      "dependsOn": ["US-001"],
       "sizing": "S",
       "passes": true,
-      "layer": "UI",
-      "notes": "Added whyItMatters + howItConnects fields to ChecklistStep. Tutorial content shown for current step via border-l + lightbulb icon. Benefit-oriented French text for all 6 steps. Contract step: 'Le contrat lie un locataire a un lot' (user requirement). Also started US-004 visual improvements (step numbers, current step highlight) in same change."
+      "notes": "Added Checkbox component to dialog, archiveExisting state (default true), propagated through callback chain: dialog → email-detail → mail-client → API."
     },
     {
       "id": "US-004",
-      "title": "Sequential flow UX + visual improvements",
-      "description": "As a gestionnaire, I see a visual progression through the steps: the current step is highlighted, future steps are visually muted (not locked, but clearly suggesting order), and completing a step triggers a satisfying transition.",
+      "title": "Wire settings page to fetch and display blacklist",
+      "description": "As a gestionnaire, I want the email settings page to show all blocked senders so I can review and unblock them.",
       "acceptanceCriteria": [
-        "Current (first incomplete) step has distinct visual treatment (primary border/bg, slightly larger)",
-        "Future steps are visually muted (lighter text, smaller icons) but still clickable",
-        "Completed steps compact with green checkmark + strikethrough (existing behavior preserved)",
-        "Step numbers visible (1-6) to reinforce sequential flow",
-        "Smooth transition when step completes (animate from current to next)",
-        "Progress bar shows X/6 with percentage",
-        "npm run lint passes"
+        "Settings page fetches GET /api/emails/blacklist on mount",
+        "BlacklistManager displays all entries with sender_email, reason, blocked_by name, date",
+        "Unblock button calls DELETE /api/emails/blacklist and removes from UI",
+        "Loading state shown while fetching",
+        "Empty state shows when no blocked senders",
+        "Lint passes"
       ],
       "priority": 3,
-      "dependsOn": ["US-003"],
+      "dependsOn": ["US-001"],
       "sizing": "S",
       "passes": true,
-      "layer": "UI",
-      "notes": "Most visual improvements implemented in US-003: step numbers (1-6 replacing icons for incomplete steps), current step primary highlight (bg-primary/5, border-primary/20, font-semibold text-primary), future steps muted but clickable, icon shown on right of current step. CSS transition-all handles smooth state changes on re-render."
+      "notes": "Added fetchBlacklist() with useCallback, typed state as BlacklistEntry[], real handleUnblock with DELETE API + optimistic update. Loading spinner while fetching."
     }
   ]
 }

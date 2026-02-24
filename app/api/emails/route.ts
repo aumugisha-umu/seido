@@ -63,10 +63,20 @@ export async function GET(request: Request) {
             source
         });
 
-        logger.info({ emailCount: result.data.length, total: result.count }, '[EMAILS-API] Result');
+        // For inbox/processed: also fetch sent replies to complete conversation threads
+        let allEmails = result.data;
+        if ((folder === 'inbox' || folder === 'processed') && !search) {
+            const sentReplies = await emailRepo.getSentRepliesForThreads(teamId, { source });
+            // Merge sent replies, dedup by ID (sent reply might already be in result for some edge cases)
+            const existingIds = new Set(allEmails.map(e => e.id));
+            const newSentReplies = sentReplies.filter(e => !existingIds.has(e.id));
+            allEmails = [...allEmails, ...newSentReplies];
+        }
+
+        logger.info({ emailCount: allEmails.length, total: result.count, folder }, '[EMAILS-API] Result');
 
         return NextResponse.json({
-            emails: result.data,
+            emails: allEmails,
             total: result.count
         });
     } catch (error: any) {

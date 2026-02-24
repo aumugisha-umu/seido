@@ -1,6 +1,7 @@
 import nodemailer from 'nodemailer';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { EncryptionService } from './encryption.service';
+import { GmailOAuthService } from './gmail-oauth.service';
 import { EmailRepository } from '@/lib/services/repositories/email.repository';
 
 interface SendEmailParams {
@@ -41,22 +42,64 @@ export class SMTPService {
                 throw new Error('Email connection not found');
             }
 
-            // 2. Decrypt SMTP password
-            const smtpPassword = EncryptionService.decrypt(connection.smtp_password_encrypted);
+            // 2. Build auth config based on connection auth_method
+            let transporterConfig: nodemailer.TransportOptions;
+
+            if (connection.auth_method === 'oauth') {
+                // OAuth: Use XOAUTH2 token (mirrors imap.service.ts pattern)
+                if (!connection.oauth_access_token || !connection.oauth_refresh_token) {
+                    throw new Error('OAuth tokens manquants pour la connexion');
+                }
+
+                const { accessToken, refreshToken } = GmailOAuthService.decryptTokens(
+                    connection.oauth_access_token,
+                    connection.oauth_refresh_token
+                );
+
+                // Refresh token if expired
+                let finalAccessToken = accessToken;
+                if (connection.oauth_token_expires_at) {
+                    const isExpired = GmailOAuthService.isTokenExpired(
+                        new Date(connection.oauth_token_expires_at)
+                    );
+                    if (isExpired) {
+                        const refreshed = await GmailOAuthService.refreshAccessToken(refreshToken);
+                        finalAccessToken = refreshed.accessToken;
+                    }
+                }
+
+                transporterConfig = {
+                    host: connection.smtp_host,
+                    port: connection.smtp_port,
+                    secure: connection.smtp_use_tls,
+                    auth: {
+                        type: 'OAuth2',
+                        user: connection.email_address,
+                        accessToken: finalAccessToken,
+                    },
+                    tls: { rejectUnauthorized: false }
+                } as nodemailer.TransportOptions;
+            } else {
+                // Password: Decrypt SMTP password
+                if (!connection.smtp_password_encrypted) {
+                    throw new Error('Mot de passe SMTP manquant pour la connexion');
+                }
+                const smtpPassword = EncryptionService.decrypt(connection.smtp_password_encrypted);
+
+                transporterConfig = {
+                    host: connection.smtp_host,
+                    port: connection.smtp_port,
+                    secure: connection.smtp_use_tls,
+                    auth: {
+                        user: connection.smtp_username,
+                        pass: smtpPassword
+                    },
+                    tls: { rejectUnauthorized: false }
+                } as nodemailer.TransportOptions;
+            }
 
             // 3. Create transporter
-            const transporter = nodemailer.createTransport({
-                host: connection.smtp_host,
-                port: connection.smtp_port,
-                secure: connection.smtp_use_tls,
-                auth: {
-                    user: connection.smtp_username,
-                    pass: smtpPassword
-                },
-                tls: {
-                    rejectUnauthorized: false // Allow self-signed certs
-                }
-            });
+            const transporter = nodemailer.createTransport(transporterConfig);
 
             // 4. Handle threading (In-Reply-To)
             let references = undefined;
@@ -100,6 +143,7 @@ export class SMTPService {
                 email_connection_id: connection.id,
                 direction: 'sent',
                 message_id: info.messageId,
+                in_reply_to_header: inReplyTo,  // RFC 5322 In-Reply-To (parent message_id) for threading
                 from_address: connection.email_address,
                 to_addresses: Array.isArray(params.to) ? params.to : [params.to],
                 cc_addresses: params.cc ? (Array.isArray(params.cc) ? params.cc : [params.cc]) : undefined,

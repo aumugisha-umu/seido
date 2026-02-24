@@ -36,6 +36,7 @@ interface LinkToEntityDialogProps {
     open: boolean
     onOpenChange: (open: boolean) => void
     emailId: string
+    conversationEmailIds?: string[]
     teamId?: string
     currentLinks: EmailLinkWithDetails[]
     onLinksUpdated: () => void
@@ -77,6 +78,7 @@ export function LinkToEntityDialog({
     open,
     onOpenChange,
     emailId,
+    conversationEmailIds,
     teamId,
     currentLinks,
     onLinksUpdated
@@ -222,6 +224,7 @@ export function LinkToEntityDialog({
     const handleSave = async () => {
         setIsSaving(true)
         try {
+            // Unlinks: only for the current email (granular)
             for (const linkId of pendingUnlinks) {
                 const response = await fetch(`/api/emails/${emailId}/links?linkId=${linkId}`, {
                     method: 'DELETE'
@@ -232,23 +235,42 @@ export function LinkToEntityDialog({
                 }
             }
 
-            for (const link of pendingLinks) {
-                const response = await fetch(`/api/emails/${emailId}/links`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        entity_type: link.type,
-                        entity_id: link.id
-                    })
-                })
-                if (!response.ok) {
-                    const error = await response.json()
-                    throw new Error(error.error || 'Erreur lors de la création du lien')
+            // Links: apply to ALL emails in the conversation thread
+            const emailIdsToLink = conversationEmailIds?.length ? conversationEmailIds : [emailId]
+
+            const linkPromises: Promise<Response>[] = []
+            for (const eid of emailIdsToLink) {
+                for (const link of pendingLinks) {
+                    linkPromises.push(
+                        fetch(`/api/emails/${eid}/links`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                entity_type: link.type,
+                                entity_id: link.id
+                            })
+                        })
+                    )
                 }
             }
 
-            const totalChanges = pendingLinks.length + pendingUnlinks.length
-            toast.success(`${totalChanges} modification${totalChanges > 1 ? 's' : ''} enregistrée${totalChanges > 1 ? 's' : ''}`)
+            const responses = await Promise.allSettled(linkPromises)
+            // Ignore 409 (link already exists), surface real errors
+            const errors = responses.filter(
+                r => r.status === 'rejected' ||
+                (r.status === 'fulfilled' && !r.value.ok && r.value.status !== 409)
+            )
+            if (errors.length > 0) {
+                throw new Error('Erreur lors de la création de certains liens')
+            }
+
+            const threadSize = emailIdsToLink.length
+            if (pendingLinks.length > 0 && threadSize > 1) {
+                toast.success(`Liaison enregistrée pour ${threadSize} emails du fil`)
+            } else {
+                const totalChanges = pendingLinks.length + pendingUnlinks.length
+                toast.success(`${totalChanges} modification${totalChanges > 1 ? 's' : ''} enregistrée${totalChanges > 1 ? 's' : ''}`)
+            }
             onLinksUpdated()
             onOpenChange(false)
         } catch (error: any) {

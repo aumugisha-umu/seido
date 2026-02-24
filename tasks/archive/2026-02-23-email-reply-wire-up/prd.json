@@ -1,0 +1,84 @@
+{
+  "project": "SEIDO",
+  "featureName": "Email Reply — Wire Up + CC + UX Polish",
+  "branchName": "feature/stripe-subscription",
+  "description": "Wire the email reply composer to actually send via SMTP, add CC field, auto-focus textarea, and use correct from-address based on receiving connection.",
+  "createdAt": "2026-02-23",
+  "prdSource": "inline",
+  "status": "complete",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Auto-focus textarea when reply box opens",
+      "description": "As a gestionnaire, when I click Repondre, the reply textarea should auto-focus so I can start typing immediately.",
+      "acceptanceCriteria": [
+        "Clicking Repondre opens the reply box AND focuses the textarea",
+        "Cursor is blinking in the textarea without requiring a click",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": [],
+      "sizing": "XS",
+      "passes": true,
+      "notes": "useRef + useEffect with 50ms delay for DOM render"
+    },
+    {
+      "id": "US-002",
+      "title": "Wire reply to actually send via SMTP API",
+      "description": "As a gestionnaire, when I click Send Reply, the email is actually sent via /api/emails/send using the correct email_connection_id from the original email.",
+      "acceptanceCriteria": [
+        "handleReply in email-detail calls EmailClientService.sendEmail with correct params",
+        "emailConnectionId is taken from email.email_connection_id",
+        "inReplyToEmailId is passed for proper threading",
+        "to is set to email.sender_email (from_address of original)",
+        "subject is Re: original subject",
+        "Toast shows success/error after send",
+        "Reply box closes and text resets after successful send",
+        "Send button shows loading state during send",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-001"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "Reply handled directly in email-detail.tsx, removed stub from mail-client.tsx. Guard against duplicate Re: prefix."
+    },
+    {
+      "id": "US-003",
+      "title": "Add CC field to reply composer with add/remove",
+      "description": "As a gestionnaire, I can add CC recipients to my reply. The CC field pre-fills with the original emails CC addresses (if any) and I can add/remove addresses.",
+      "acceptanceCriteria": [
+        "CC field is visible in the reply composer below the To line",
+        "Pre-fills with original emails cc_addresses (if any)",
+        "User can add new CC addresses (input + Enter or comma)",
+        "User can remove CC addresses (X button on each badge)",
+        "CC is passed to the send API",
+        "API route passes cc to SMTPService",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "M",
+      "passes": true,
+      "notes": "CC field with badge display, add via Enter/comma/blur, remove via X. Pre-fills from email.cc_addresses. Passed through client service + API route."
+    },
+    {
+      "id": "US-004",
+      "title": "French localization + show from-address",
+      "description": "As a gestionnaire, the reply composer shows which email address Im replying FROM, and all labels are in French.",
+      "acceptanceCriteria": [
+        "Reply header shows Repondre a sender_name instead of English",
+        "From line shows which email account will send: De: arthur@seido-app.com",
+        "Buttons say Annuler and Envoyer instead of Cancel/Send Reply",
+        "Placeholder says Ecrivez votre reponse...",
+        "Badge says Brouillon instead of Draft",
+        "Typecheck passes (npm run lint)"
+      ],
+      "priority": 3,
+      "dependsOn": ["US-002"],
+      "sizing": "S",
+      "passes": true,
+      "notes": "All labels in French: Répondre à, De:, À:, Objet:, Cc:, Brouillon, Annuler, Envoyer, Envoi en cours... + from-address shown via recipient_email"
+    }
+  ]
+}

@@ -14,6 +14,7 @@
  */
 
 import { getServerAuthContext } from '@/lib/server-context'
+import { createServiceRoleSupabaseClient } from '@/lib/services/core/supabase-client'
 import { MailClient } from './mail-client'
 import type { Email } from '@/lib/types/email-integration'
 import type { LinkedEntities, EmailConnection, NotificationReplyGroup } from './components/mailbox-sidebar'
@@ -330,26 +331,50 @@ async function getInitialEmails(supabase: any, teamId: string): Promise<{
   emails: Email[]
   total: number
 }> {
-  const { data, error, count } = await supabase
-    .from('emails')
-    .select(`
-      *,
-      attachments:email_attachments(*)
-    `, { count: 'exact' })
-    .eq('team_id', teamId)
-    .eq('direction', 'received')
-    .is('deleted_at', null)
-    .order('received_at', { ascending: false })
-    .limit(50)
+  // Fetch received emails (inbox) + sent replies in parallel
+  const [receivedResult, sentRepliesResult] = await Promise.all([
+    supabase
+      .from('emails')
+      .select(`
+        *,
+        attachments:email_attachments(*)
+      `, { count: 'estimated' })
+      .eq('team_id', teamId)
+      .eq('direction', 'received')
+      .is('deleted_at', null)
+      .order('received_at', { ascending: false })
+      .limit(50),
 
-  if (error) {
-    console.error('Error fetching initial emails:', error)
+    // Fetch sent replies to complete conversation threads
+    supabase
+      .from('emails')
+      .select(`
+        *,
+        attachments:email_attachments(*)
+      `)
+      .eq('team_id', teamId)
+      .eq('direction', 'sent')
+      .not('in_reply_to', 'is', null)
+      .is('deleted_at', null)
+      .order('sent_at', { ascending: false })
+      .limit(200)
+  ])
+
+  if (receivedResult.error) {
+    console.error('Error fetching initial emails:', receivedResult.error)
     return { emails: [], total: 0 }
   }
 
+  const receivedEmails = receivedResult.data || []
+  const sentReplies = sentRepliesResult.data || []
+
+  // Merge, dedup by ID
+  const existingIds = new Set(receivedEmails.map((e: any) => e.id))
+  const newSentReplies = sentReplies.filter((e: any) => !existingIds.has(e.id))
+
   return {
-    emails: data || [],
-    total: count || 0
+    emails: [...receivedEmails, ...newSentReplies],
+    total: receivedResult.count || 0
   }
 }
 
@@ -358,10 +383,16 @@ async function getInitialEmails(supabase: any, teamId: string): Promise<{
 // ============================================================================
 
 export default async function MailPage() {
-  // ⚡ Server-side auth context
+  // ⚡ Server-side auth context (validates user is gestionnaire)
   const { profile, team, supabase } = await getServerAuthContext('gestionnaire')
 
+  // Use service role client for email queries (bypasses slow RLS with 6 policies)
+  // Security: getServerAuthContext already validated user is an authenticated gestionnaire
+  const supabaseAdmin = createServiceRoleSupabaseClient()
+
   // Fetch all initial data in parallel
+  // supabaseAdmin: email-heavy queries (counts, emails, linked entities, notification groups)
+  // supabase: simpler tables with lightweight RLS (buildings, connections)
   const [
     counts,
     buildings,
@@ -370,12 +401,12 @@ export default async function MailPage() {
     notificationReplyGroups,
     emailsResult
   ] = await Promise.all([
-    getEmailCounts(supabase, team.id),
+    getEmailCounts(supabaseAdmin, team.id),
     getBuildings(supabase, team.id),
-    getEmailConnections(supabase, team.id),
-    getLinkedEntities(supabase, team.id),
-    getNotificationReplyGroups(supabase, team.id),
-    getInitialEmails(supabase, team.id)
+    getEmailConnections(supabaseAdmin, team.id),
+    getLinkedEntities(supabaseAdmin, team.id),
+    getNotificationReplyGroups(supabaseAdmin, team.id),
+    getInitialEmails(supabaseAdmin, team.id)
   ])
 
   return (

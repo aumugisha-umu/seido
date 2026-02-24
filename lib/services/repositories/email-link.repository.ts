@@ -261,12 +261,16 @@ export class EmailLinkRepository extends BaseRepository<EmailLinkRow, CreateEmai
                     id,
                     subject,
                     from_address,
+                    to_addresses,
                     received_at,
                     sent_at,
                     direction,
                     status,
                     body_text,
-                    email_connection_id
+                    email_connection_id,
+                    message_id,
+                    in_reply_to_header,
+                    references
                 )
             `, { count: 'exact' })
             .eq('entity_type', entityType)
@@ -294,11 +298,16 @@ export class EmailLinkRepository extends BaseRepository<EmailLinkRow, CreateEmai
             id: row.email.id,
             subject: row.email.subject,
             from_address: row.email.from_address,
+            to_addresses: row.email.to_addresses || [],
             received_at: row.email.received_at,
             sent_at: row.email.sent_at,
             direction: row.email.direction,
             status: row.email.status,
             snippet: row.email.body_text?.substring(0, 150),
+            message_id: row.email.message_id || null,
+            in_reply_to_header: row.email.in_reply_to_header || null,
+            references: row.email.references || null,
+            email_connection_id: row.email.email_connection_id || null,
             link: {
                 id: row.id,
                 email_id: row.email_id,

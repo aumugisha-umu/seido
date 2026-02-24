@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-23
-**Total Learnings:** 81
+**Last Updated:** 2026-02-24
+**Total Learnings:** 83
 
 ---
 
@@ -44,6 +44,13 @@
 **When to Use:** Any query joining tables with different RLS policies
 **Added:** 2026-02-04 | **Source:** Intervention detail page debugging
 
+#### Learning #082: Lightweight DTOs that strip algorithm-critical fields cause silent degradation
+**Problem:** `LinkedEmail` type (used by entity-filtered email view) omitted `message_id`, `in_reply_to_header`, `references`, and `to_addresses`. The `adaptLinkedEmailToEmail()` mapped them to `null`. Downstream, `generateConversationId()` received all nulls and fell back to unique IDs per email — destroying conversation grouping. No errors thrown, just every email rendered as standalone instead of threaded.
+**Solution:** When creating a lightweight DTO for a different query path (e.g., entity-linked emails vs inbox emails), audit ALL downstream consumers. If an algorithm depends on specific fields (threading headers for `generateConversationId()`), include them in the DTO. Pattern: trace the DTO through `adaptLinkedEmailToEmail()` → `adaptEmail()` → `generateConversationId()` → `groupEmailsByConversation()` to verify no field gaps.
+**Example:** `lib/types/email-links.ts:LinkedEmail` — added `message_id`, `in_reply_to_header`, `references`, `to_addresses`; `lib/services/repositories/email-link.repository.ts:getEmailsByEntity()` — added to SELECT
+**When to Use:** Any time you create a lightweight/partial type for a new API path that feeds into shared algorithms (grouping, sorting, filtering, display logic)
+**Added:** 2026-02-24 | **Source:** Entity-filtered email view missing conversation grouping
+
 #### Learning #052: Query optimization must replace removed data, not just remove JOINs
 **Problem:** `findByTeam()` was "optimized" (2026-01-30) by removing nested `address_record` JOINs, but no batch replacement was added. The column renderer in `patrimoine.config.tsx` expected `lot.address_record` and `lot.building.address_record` — both became undefined. Independent lots showed "-" for address, lot detail headers showed no address for manually-entered addresses.
 **Solution:** When removing nested JOINs for performance, always add a batch post-fetch: (1) collect all foreign key IDs from the result set, (2) single `.in()` query to fetch related records, (3) map results back. Also: separate "has displayable data" (text) from "has feature data" (coordinates for maps) — don't require lat/lng just to show an address string.
@@ -52,6 +59,13 @@
 **Added:** 2026-02-20 | **Source:** Independent lots address display fix (3 files, 3 layers)
 
 ### UI & Components
+
+#### Learning #083: Batch entity-linking with Promise.allSettled + 409 tolerance
+**Problem:** Linking an email to an entity only linked that single email. Other emails in the same conversation thread were not linked, so the entity view showed 1 email instead of the full thread.
+**Solution:** When linking, iterate over ALL email IDs in the conversation thread (passed via `conversationEmailIds` prop). Use `Promise.allSettled` for parallel execution and filter out 409 (duplicate) responses — the API already returns 409 for existing links. Unlink remains granular (current email only).
+**Example:** `app/gestionnaire/(with-navbar)/mail/components/link-to-entity-dialog.tsx:handleSave()` — batch link loop with 409 filtering
+**When to Use:** Any "link to entity" action on an email that belongs to a conversation thread
+**Added:** 2026-02-24 | **Source:** Email thread entity-linking — link all thread emails at once
 
 #### Learning #078: sessionStorage for "dismiss until next session" patterns
 **Problem:** Onboarding checklist dismiss stored in `localStorage` was permanent — users never saw it again even if steps were incomplete.

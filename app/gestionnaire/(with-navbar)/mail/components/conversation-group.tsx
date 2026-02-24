@@ -101,7 +101,7 @@ export function ConversationGroupComponent({
               {group.parent.subject}
             </div>
             <div className="text-xs text-muted-foreground mb-1">
-              {group.children.length + 1} message{group.children.length > 0 ? 's' : ''}
+              {group.children.length} message{group.children.length > 1 ? 's' : ''}
             </div>
           </div>
         </div>

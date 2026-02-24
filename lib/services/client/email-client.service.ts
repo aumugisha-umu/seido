@@ -57,6 +57,7 @@ export class EmailClientService {
     static async sendEmail(data: {
         emailConnectionId: string;
         to: string | string[];
+        cc?: string[];
         subject: string;
         body: string;
         inReplyToEmailId?: string;

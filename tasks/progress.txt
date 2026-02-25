@@ -1,6 +1,27 @@
-# Progress Log — Email Attachment Download & Preview
-# Started: 2026-02-25
-# Stories: 5/5 complete
+# Progress Log — Session 2026-02-25
+# Features: Guide Utilisateur + Email Enhancements + RLS Fix
+---
+
+## 2026-02-25 — Guide Utilisateur In-App (12 stories, all passed)
+- Created `/gestionnaire/aide` page with Server Component + Client Component pattern
+- 9 sections: Premiers Pas, Dashboard, Patrimoine, Contacts, Contrats, Interventions, Emails, Parametres, FAQ
+- Desktop: sidebar nav + content area; Mobile: horizontal tabs + stacked cards
+- Search with fuzzy matching across sections and FAQ
+- 20 FAQ items across 5 categories
+- seo-copywriter + ui-designer review (scores 78 → 88+, 82 → 90+)
+- Files: `app/gestionnaire/(with-navbar)/aide/page.tsx`, `aide-client.tsx`
+- Learnings: Benefit-oriented titles drive engagement; progressive disclosure (3 layers) works well for guides
+
+## 2026-02-25 — RLS Fix: Gestionnaire team_id mismatch (critical bug)
+- ROOT CAUSE: `get_accessible_*_ids()` used `users.team_id` (stale, set once at signup)
+- INSERT policy uses `is_team_manager()` → checks `team_members` (works)
+- SELECT policy used `users.team_id` → doesn't match when user joined via invitation
+- FIX: Replaced `users.team_id` with `team_members` join in gestionnaire branch of 3 functions
+- For interventions: used denormalized `interventions.team_id` + `team_members` (simpler + faster)
+- Files: `20260225120000_fix_rls_gestionnaire_team_id_mismatch.sql`
+- Decision: team_members is the ONLY source of truth for team access; users.team_id is convenience only
+- Learnings: #084 (users.team_id is stale), #085 (INSERT/SELECT must use same source), #086 (users.role vs team_members.role)
+
 ---
 
 ## 2026-02-25 — US-004: Tighten storage RLS (team isolation)

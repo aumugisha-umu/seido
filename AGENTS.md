@@ -3,8 +3,8 @@
 > **For Agents:** Read this BEFORE implementing. Contains hard-won learnings.
 > **Updated by:** sp-compound skill after each feature completion.
 
-**Last Updated:** 2026-02-24
-**Total Learnings:** 83
+**Last Updated:** 2026-02-25
+**Total Learnings:** 86
 
 ---
 
@@ -34,6 +34,27 @@
 **Example:** `lib/services/repositories/team-member.repository.ts`
 **When to Use:** Any query where a user might have multiple team memberships
 **Added:** 2026-02-04 | **Source:** Multi-team support implementation
+
+#### Learning #084: users.team_id is stale — use team_members for RLS
+**Problem:** `get_accessible_intervention_ids()`, `get_accessible_lot_ids()`, and `get_accessible_building_ids()` used `users.team_id` in the gestionnaire branch. But `users.team_id` is set ONCE at signup/invitation and NEVER updated when a user joins another team or when `team_members` changes. INSERT policies use `is_team_manager()` which checks `team_members` → INSERT succeeds. SELECT policies check stale `users.team_id` → returns 0 rows. Result: interventions are created but invisible for that team.
+**Solution:** In all `get_accessible_*` SECURITY DEFINER functions, the gestionnaire branch MUST use `team_members` table (joining on `tm.user_id = user_record.id AND tm.left_at IS NULL`) instead of `users.team_id`. For interventions, use the denormalized `interventions.team_id` column directly: `INNER JOIN team_members tm ON tm.team_id = i.team_id WHERE tm.user_id = user_record.id`.
+**Example:** `supabase/migrations/20260225120000_fix_rls_gestionnaire_team_id_mismatch.sql` — all 3 functions fixed
+**When to Use:** ANY new `get_accessible_*` function or RLS policy for gestionnaire role. NEVER trust `users.team_id` for access control — always use `team_members`.
+**Added:** 2026-02-25 | **Source:** Team 320d8c6d interventions invisible, RLS blocks reads after INSERT
+
+#### Learning #085: INSERT and SELECT RLS policies must use the same source of truth
+**Problem:** INSERT policy for `interventions` used `is_team_manager(team_id)` (checks `team_members`), while SELECT policy used `get_accessible_intervention_ids()` (checked `users.team_id`). Different source of truth = INSERT succeeds but SELECT fails. The user sees "creation successful" but the record is invisible. The base-repository `create()` method catches this as PGRST116 and logs a warning but returns partial data, masking the root cause.
+**Solution:** When writing any new RLS policy pair (INSERT WITH CHECK + SELECT USING), verify both check membership through the SAME table/function. Canonical source of truth for team membership in SEIDO is `team_members` (not `users.team_id`). Audit all 3 functions: `get_accessible_intervention_ids`, `get_accessible_lot_ids`, `get_accessible_building_ids`.
+**Example:** The INSERT check `is_team_manager()` → `team_members`. The SELECT check must also use `team_members`.
+**When to Use:** Writing or auditing any RLS INSERT + SELECT policy pair
+**Added:** 2026-02-25 | **Source:** RLS mismatch debugging: INSERT succeeds, SELECT returns 0 rows
+
+#### Learning #086: users.role vs team_members.role are different
+**Problem:** `users.role` is the global user type (gestionnaire, prestataire, locataire, admin). `team_members.role` is the team-specific role (gestionnaire, admin). A user can be team_members.role='admin' for a team while users.role='gestionnaire'. The RLS function `get_accessible_intervention_ids()` branches on `users.role` — a team admin with `users.role='gestionnaire'` goes through the gestionnaire branch (not the admin ALL-access branch).
+**Solution:** This is BY DESIGN — the admin branch in RLS is for system admins only (users.role='admin'). Team-level admins (team_members.role='admin') go through the gestionnaire branch and get team-scoped access. Do not confuse the two role systems. When debugging "admin can't see data", check WHICH admin role is meant.
+**Example:** `get_accessible_intervention_ids()` — `user_record.role` comes from `users.role`, not `team_members.role`
+**When to Use:** Debugging access issues where a "team admin" can't see data they should
+**Added:** 2026-02-25 | **Source:** RLS debugging for team 320d8c6d
 
 ### Database & Queries
 
